@@ -295,7 +295,7 @@ class CommonFieldItemTest : BaseModelTest() {
                     "field2" to "java.lang.String![]",
                     "field3" to "java.lang.String![]![]",
                     "field4" to "T",
-                    "field5" to "java.util.Map.Entry<T!,java.lang.String!>",
+                    "field5" to "java.util.Map.Entry<T,java.lang.String!>",
                 )
             val fields = codebase.assertClass("test.pkg.Foo").fields()
             assertEquals(expectedTypes.size, fields.size, message = "field count")
@@ -356,7 +356,7 @@ class CommonFieldItemTest : BaseModelTest() {
                     "field2" to "java.lang.String![]?",
                     "field3" to "java.lang.String![]![]?",
                     "field4" to "T?",
-                    "field5" to "java.util.Map.Entry<T!,java.lang.String!>?",
+                    "field5" to "java.util.Map.Entry<T,java.lang.String!>?",
                 )
             val fields = codebase.assertClass("test.pkg.Foo").fields()
             assertEquals(expectedTypes.size, fields.size, message = "field count")
@@ -518,6 +518,29 @@ class CommonFieldItemTest : BaseModelTest() {
 
                 assertEquals(" = 1.17549435E-38f;", written, message = "field ${field.name()}")
             }
+        }
+    }
+
+    @Test
+    fun `Test private const in interface companion`() {
+        runCodebaseTest(
+            kotlin(
+                """
+                package test.pkg
+                interface Foo {
+                    companion object {
+                        const val PUBLIC_CONST = "CONST"
+                        private const val PRIVATE_CONST = "CONST"
+                    }
+                }
+                """
+            )
+        ) {
+            val fooClass = codebase.assertClass("test.pkg.Foo")
+            val publicConst = fooClass.assertField("PUBLIC_CONST")
+            assertEquals(publicConst.modifiers.getVisibilityModifiers(), "public")
+            val privateConst = fooClass.assertField("PRIVATE_CONST")
+            assertEquals(privateConst.modifiers.getVisibilityModifiers(), "private")
         }
     }
 }

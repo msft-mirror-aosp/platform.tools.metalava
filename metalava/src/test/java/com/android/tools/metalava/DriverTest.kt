@@ -18,7 +18,6 @@ package com.android.tools.metalava
 
 import com.android.SdkConstants.DOT_TXT
 import com.android.tools.lint.LintCliClient
-import com.android.tools.lint.UastEnvironment
 import com.android.tools.lint.checks.ApiLookup
 import com.android.tools.lint.checks.infrastructure.ClassName
 import com.android.tools.lint.checks.infrastructure.TestFile
@@ -26,9 +25,13 @@ import com.android.tools.lint.checks.infrastructure.TestFiles.java
 import com.android.tools.lint.checks.infrastructure.TestFiles.kotlin
 import com.android.tools.lint.checks.infrastructure.stripComments
 import com.android.tools.lint.client.api.LintClient
+import com.android.tools.metalava.cli.common.ARG_CLASS_PATH
 import com.android.tools.metalava.cli.common.ARG_COMPILED_SOURCES
 import com.android.tools.metalava.cli.common.ARG_HIDE
+import com.android.tools.metalava.cli.common.ARG_MERGE_INCLUSION_ANNOTATIONS
+import com.android.tools.metalava.cli.common.ARG_MERGE_QUALIFIER_ANNOTATIONS
 import com.android.tools.metalava.cli.common.ARG_NO_COLOR
+import com.android.tools.metalava.cli.common.ARG_PROJECT
 import com.android.tools.metalava.cli.common.ARG_QUIET
 import com.android.tools.metalava.cli.common.ARG_REPEAT_ERRORS_MAX
 import com.android.tools.metalava.cli.common.ARG_SOURCE_PATH
@@ -48,21 +51,21 @@ import com.android.tools.metalava.cli.lint.ARG_API_LINT_PREVIOUS_API
 import com.android.tools.metalava.cli.lint.ARG_BASELINE_API_LINT
 import com.android.tools.metalava.cli.lint.ARG_ERROR_MESSAGE_API_LINT
 import com.android.tools.metalava.cli.lint.ARG_UPDATE_BASELINE_API_LINT
+import com.android.tools.metalava.cli.multiplatform.ARG_MULTIPLATFORM_ENABLED
 import com.android.tools.metalava.cli.signature.ARG_FORMAT
 import com.android.tools.metalava.model.ANDROIDX_ANNOTATION_PACKAGE
 import com.android.tools.metalava.model.ANDROID_ANNOTATION_PACKAGE
 import com.android.tools.metalava.model.ANDROID_SYSTEM_API
 import com.android.tools.metalava.model.ANDROID_TEST_API
 import com.android.tools.metalava.model.Assertions
+import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.StripJavaLangPrefix
 import com.android.tools.metalava.model.provider.Capability
-import com.android.tools.metalava.model.psi.PsiModelOptions
 import com.android.tools.metalava.model.source.SourceModelProvider
 import com.android.tools.metalava.model.source.SourceSet
 import com.android.tools.metalava.model.source.utils.DOT_KT
 import com.android.tools.metalava.model.testing.CodebaseCreatorConfig
 import com.android.tools.metalava.model.testing.CodebaseCreatorConfigAware
-import com.android.tools.metalava.model.text.ApiClassResolution
 import com.android.tools.metalava.model.text.ApiFile
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.model.text.SignatureFile
@@ -70,6 +73,7 @@ import com.android.tools.metalava.model.text.assertSignatureFilesMatch
 import com.android.tools.metalava.model.text.prepareSignatureFileForTest
 import com.android.tools.metalava.reporter.ReporterEnvironment
 import com.android.tools.metalava.reporter.Severity
+import com.android.tools.metalava.reporter.ThrowingReporter
 import com.android.tools.metalava.testing.JavacHelper
 import com.android.tools.metalava.testing.KnownJarFiles
 import com.android.tools.metalava.testing.KnownSourceFiles
@@ -107,15 +111,6 @@ abstract class DriverTest :
 
     /** The [CodebaseCreatorConfig] under which this test will be run. */
     final override lateinit var codebaseCreatorConfig: CodebaseCreatorConfig<SourceModelProvider>
-
-    /**
-     * The setting of [PsiModelOptions.useK2Uast]. Is computed lazily as it depends on
-     * [codebaseCreatorConfig] which is set after object initialization.
-     */
-    protected val isK2 by
-        lazy(LazyThreadSafetyMode.NONE) {
-            codebaseCreatorConfig.modelOptions[PsiModelOptions.useK2Uast]
-        }
 
     @Before
     fun setup() {
@@ -163,7 +158,7 @@ abstract class DriverTest :
                     reporterEnvironment = reporterEnvironment,
                     testEnvironment = testEnvironment,
                 )
-            val exitCode = run(executionEnvironment, args)
+            val exitCode = Driver.run(executionEnvironment, args)
             if (exitCode == 0) {
                 assertTrue(
                     "Test expected to fail but didn't. Expected failure: $expectedFail",
@@ -223,8 +218,10 @@ abstract class DriverTest :
                 fail("Printed newlines with nothing else")
             }
 
+            /* TODO(b/477826713): Temporarily disable this while the problem is fixed.
             UastEnvironment.checkApplicationEnvironmentDisposed()
             Disposer.assertIsEmpty(true)
+             */
 
             return printedOutput
         } finally {
@@ -311,7 +308,7 @@ abstract class DriverTest :
                 file.exists()
             )
 
-            val actualText = readFile(file)
+            val actualText = readFileFilterBlankLines(file)
             assertEquals(
                 stripComments(
                     expectedFileContents.trimIndent(),
@@ -364,7 +361,6 @@ abstract class DriverTest :
         } ?: BaselineCheck("", emptyArray(), null, "")
     }
 
-    @Suppress("DEPRECATION")
     protected fun check(
         configFiles: Array<TestFile> = emptyArray(),
         /** Any jars to add to the class path */
@@ -373,12 +369,17 @@ abstract class DriverTest :
         @Language("TEXT") api: String? = null,
         /** The removed API (corresponds to --removed-api) */
         removedApi: String? = null,
-        /** The subtract api signature content (corresponds to --subtract-api) */
-        @Language("TEXT") subtractApi: String? = null,
         /** Expected stubs (corresponds to --stubs) */
         stubFiles: Array<TestFile> = emptyArray(),
         /** Expected paths of stub files created */
         stubPaths: Array<String>? = null,
+        /**
+         * Controls whether blank lines are filtered from stub files before comparing against the
+         * expected content.
+         *
+         * Defaults to `true`.
+         */
+        filterBlankLinesFromStubFiles: Boolean = false,
         /**
          * Whether the stubs should be written as documentation stubs instead of plain stubs.
          * Decides whether the stubs include @doconly elements, uses rewritten/migration
@@ -402,7 +403,6 @@ abstract class DriverTest :
         mergeInclusionAnnotations: Array<TestFile> = emptyArray(),
         /** Optional API signature files content to load **instead** of Java/Kotlin source files */
         @Language("TEXT") signatureSources: Array<String> = emptyArray(),
-        apiClassResolution: ApiClassResolution = ApiClassResolution.API,
         /**
          * An optional API signature file content to load **instead** of Java/Kotlin source files.
          * This is added to [signatureSources]. This argument exists for backward compatibility.
@@ -532,6 +532,8 @@ abstract class DriverTest :
         compiledSourceJar: TestFile? = null,
         /** [ARG_REPEAT_ERRORS_MAX] */
         repeatErrorsMax: Int = 0,
+        /** Whether to create a multiplatform codebase. Only supported with K2 psi. */
+        enableMultiplatform: Boolean = false,
         /**
          * Called on a [CheckerContext] after the analysis phase in the metalava main command.
          *
@@ -625,9 +627,6 @@ abstract class DriverTest :
                     "the test"
             )
         }
-
-        val apiClassResolutionArgs =
-            arrayOf(ARG_API_CLASS_RESOLUTION, apiClassResolution.optionValue)
 
         val sourceList =
             if (signatureSources.isNotEmpty() || signatureSource != null) {
@@ -877,16 +876,6 @@ abstract class DriverTest :
         val apiFile: File = getOrCreateFile("public-api.txt")
         val apiArgs = arrayOf(ARG_API, apiFile.path)
 
-        val subtractApiFile: File?
-        val subtractApiArgs =
-            if (subtractApi != null) {
-                subtractApiFile = temporaryFolder.newFile("subtract-api.txt")
-                subtractApiFile.writeSignatureText(subtractApi)
-                arrayOf(ARG_SUBTRACT_API, subtractApiFile.path)
-            } else {
-                emptyArray()
-            }
-
         var stubsDir: File? = null
         val stubsArgs =
             if (stubFiles.isNotEmpty() || stubPaths != null) {
@@ -1013,22 +1002,24 @@ abstract class DriverTest :
                 emptyArray()
             }
 
+        val multiplatformOptions =
+            if (enableMultiplatform) {
+                if (Capability.MULTIPLATFORM !in codebaseCreatorConfig.creator.capabilities) {
+                    error(
+                        "Provider ${codebaseCreatorConfig.providerName} does not support KMP; please add `@RequiresCapabilities(Capability.MULTIPLATFORM)` to the test"
+                    )
+                }
+                arrayOf(ARG_MULTIPLATFORM_ENABLED)
+            } else {
+                emptyArray()
+            }
+
         // Run optional additional setup steps on the project directory
         projectSetup?.invoke(project)
-
-        // Make sure that the options is initialized. Just in case access was disallowed by another
-        // test.
-        options = Options()
 
         val args =
             arrayOf(
                 ARG_NO_COLOR,
-
-                // Tell metalava where to store temp folder: place them under the
-                // test root folder such that we clean up the output strings referencing
-                // paths to the temp folder
-                "--temp-folder",
-                getOrCreateFolder("temp").path,
 
                 // Annotation generation temporarily turned off by default while integrating with
                 // SDK builds; tests need these
@@ -1039,7 +1030,6 @@ abstract class DriverTest :
                 *configFileArgs,
                 *removedArgs,
                 *apiArgs,
-                *subtractApiArgs,
                 *stubsArgs,
                 *quiet,
                 *mergeAnnotationsArgs,
@@ -1067,11 +1057,11 @@ abstract class DriverTest :
                 *validateNullabilityArgs,
                 *validateNullabilityFromListArgs,
                 format.outputFlags(),
-                *apiClassResolutionArgs,
                 *extraArguments,
                 *errorMessageApiLintArgs,
                 *errorMessageCheckCompatibilityReleasedArgs,
                 *repeatErrorsMaxArgs,
+                *multiplatformOptions,
                 // Must always be last as this can consume a following argument, breaking the test.
                 *apiLintArgs,
             ) +
@@ -1141,7 +1131,7 @@ abstract class DriverTest :
             )
             assertSignatureFilesMatch(api, apiFile.readText(), expectedFormat = format)
             // Make sure we can read back the files we write
-            ApiFile.parseApi(SignatureFile.fromFiles(apiFile), options.codebaseConfig)
+            ApiFile.parseApi(SignatureFile.fromFiles(apiFile), Codebase.Config.NOOP)
         }
 
         baselineCheck.apply()
@@ -1159,7 +1149,7 @@ abstract class DriverTest :
                 expectedFormat = format
             )
             // Make sure we can read back the files we write
-            ApiFile.parseApi(SignatureFile.fromFiles(removedApiFile), options.codebaseConfig)
+            ApiFile.parseApi(SignatureFile.fromFiles(removedApiFile), Codebase.Config.NOOP)
         }
 
         if (proguard != null && proguardFile != null) {
@@ -1167,7 +1157,7 @@ abstract class DriverTest :
                 "${proguardFile.path} does not exist even though --proguard was used",
                 proguardFile.exists()
             )
-            val expectedProguard = readFile(proguardFile)
+            val expectedProguard = readFileFilterBlankLines(proguardFile)
             assertEquals(
                 stripComments(proguard, DOT_TXT, stripLineComments = false).trimIndent(),
                 expectedProguard
@@ -1175,32 +1165,32 @@ abstract class DriverTest :
         }
 
         if (sdkBroadcastActions != null) {
-            val actual = readFile(File(sdkFilesDir, "broadcast_actions.txt"))
+            val actual = readFileFilterBlankLines(File(sdkFilesDir, "broadcast_actions.txt"))
             assertEquals(sdkBroadcastActions.trimIndent().trim(), actual.trim())
         }
 
         if (sdkActivityActions != null) {
-            val actual = readFile(File(sdkFilesDir, "activity_actions.txt"))
+            val actual = readFileFilterBlankLines(File(sdkFilesDir, "activity_actions.txt"))
             assertEquals(sdkActivityActions.trimIndent().trim(), actual.trim())
         }
 
         if (sdkServiceActions != null) {
-            val actual = readFile(File(sdkFilesDir, "service_actions.txt"))
+            val actual = readFileFilterBlankLines(File(sdkFilesDir, "service_actions.txt"))
             assertEquals(sdkServiceActions.trimIndent().trim(), actual.trim())
         }
 
         if (sdkCategories != null) {
-            val actual = readFile(File(sdkFilesDir, "categories.txt"))
+            val actual = readFileFilterBlankLines(File(sdkFilesDir, "categories.txt"))
             assertEquals(sdkCategories.trimIndent().trim(), actual.trim())
         }
 
         if (sdkFeatures != null) {
-            val actual = readFile(File(sdkFilesDir, "features.txt"))
+            val actual = readFileFilterBlankLines(File(sdkFilesDir, "features.txt"))
             assertEquals(sdkFeatures.trimIndent().trim(), actual.trim())
         }
 
         if (sdkWidgets != null) {
-            val actual = readFile(File(sdkFilesDir, "widgets.txt"))
+            val actual = readFileFilterBlankLines(File(sdkFilesDir, "widgets.txt"))
             assertEquals(sdkWidgets.trimIndent().trim(), actual.trim())
         }
 
@@ -1244,7 +1234,9 @@ abstract class DriverTest :
                             "Found these files: \n${stubsCreated!!.prependIndent("  ")}"
                     )
                 }
-                val actualContents = readFile(actual)
+                val actualContents =
+                    if (filterBlankLinesFromStubFiles) readFileFilterBlankLines(actual)
+                    else readFile(actual)
                 val stubSource = if (sourceFiles.isEmpty()) "text" else "source"
                 val message =
                     "Generated from-$stubSource stub contents does not match expected contents"
@@ -1254,7 +1246,7 @@ abstract class DriverTest :
 
         if (checkCompilation && stubsDir != null) {
             val generated =
-                SourceSet.createFromSourcePath(options.reporter, listOf(stubsDir)).sources
+                SourceSet.createFromSourcePath(ThrowingReporter.INSTANCE, listOf(stubsDir)).sources
 
             // Compile the stubs, throwing an exception if it fails.
             JavacHelper.compile(
@@ -1325,11 +1317,17 @@ abstract class DriverTest :
     }
 
     companion object {
+        /** Read a text file, filtering out any blank lines and removing whitespace from the end. */
         @JvmStatic
-        protected fun readFile(file: File): String {
-            var apiLines: List<String> = file.readLines()
-            apiLines = apiLines.filter { it.isNotBlank() }
+        protected fun readFileFilterBlankLines(file: File): String {
+            val apiLines = file.readLines().filter { it.isNotBlank() }
             return apiLines.joinToString(separator = "\n") { it }.trim()
+        }
+
+        /** Read a text file, removing whitespace from the end. */
+        private fun readFile(file: File): String {
+            val apiLines = file.readLines()
+            return apiLines.joinToString(separator = "\n") { it }.trimEnd()
         }
 
         /**
@@ -1592,11 +1590,13 @@ private fun restrictedForEnvironmentClass(packageName: String): TestFile =
             """
             package $packageName;
             import java.lang.annotation.*;
+            import android.annotation.StringDef;
             import static java.lang.annotation.ElementType.*;
             import static java.lang.annotation.RetentionPolicy;
             /** @hide */
-            @Retention(RetentionPolicy.RUNTIME)
             @Target({TYPE})
+            @Retention(RetentionPolicy.RUNTIME)
+            @Repeatable(RestrictedForEnvironment.Container.class)
             public @interface RestrictedForEnvironment {
               @Environment String[] environments();
               int from();
@@ -1634,38 +1634,6 @@ val broadcastBehaviorSource: TestFile =
         boolean registeredOnly() default false;
         boolean includeBackground() default false;
         boolean protectedBroadcast() default false;
-    }
-    """
-        )
-        .indented()
-
-val androidxNonNullSource: TestFile =
-    java(
-            """
-    package androidx.annotation;
-    import java.lang.annotation.*;
-    import static java.lang.annotation.ElementType.*;
-    import static java.lang.annotation.RetentionPolicy.SOURCE;
-    @SuppressWarnings("WeakerAccess")
-    @Retention(SOURCE)
-    @Target({METHOD, PARAMETER, FIELD, LOCAL_VARIABLE, TYPE_USE, ANNOTATION_TYPE, PACKAGE})
-    public @interface NonNull {
-    }
-    """
-        )
-        .indented()
-
-val androidxNullableSource: TestFile =
-    java(
-            """
-    package androidx.annotation;
-    import java.lang.annotation.*;
-    import static java.lang.annotation.ElementType.*;
-    import static java.lang.annotation.RetentionPolicy.SOURCE;
-    @SuppressWarnings("WeakerAccess")
-    @Retention(SOURCE)
-    @Target({METHOD, PARAMETER, FIELD, LOCAL_VARIABLE, TYPE_USE, ANNOTATION_TYPE, PACKAGE})
-    public @interface Nullable {
     }
     """
         )
@@ -1718,7 +1686,8 @@ val uiThreadSource: TestFile =
      *            this UI element. This is typically the main thread of your app.
      * @classDoc Methods in this class must be called on the thread that originally created
      *            this UI element, unless otherwise noted. This is typically the
-     *            main thread of your app. * @hide
+     *            main thread of your app.
+     * @hide
      */
     @SuppressWarnings({"WeakerAccess", "JavaDoc"})
     @Retention(SOURCE)
@@ -1897,6 +1866,10 @@ val DEFAULT_SKIP_EMIT_PACKAGES =
         ANDROIDX_ANNOTATION_PACKAGE,
         // Ditto for libcore.util.
         "libcore.util",
+        // Ditto for test only nullability annotations.
+        "mixed.use",
+        "not.type.use",
+        "type.use.only",
     )
 
 /**

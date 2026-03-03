@@ -229,7 +229,7 @@ class CommonLegacyValueFormatterTest : BaseModelTest() {
 
         /** A method that can used for the context in [LegacyValueFormatter.format]. */
         val method
-            get() = classItem.assertMethod("method", "")
+            get() = classItem.assertMethod("method", emptyList())
 
         fun LegacyValueFormatter.assertFormattedValue(expected: String, value: Value) {
             assertEquals(expected, format(value, method), message = value.toString())
@@ -244,7 +244,7 @@ class CommonLegacyValueFormatterTest : BaseModelTest() {
     private fun checkFormatting(body: FormattingContext.() -> Unit) {
         val additionalClassPath =
             when (producerKind) {
-                ProducerKind.JAR -> listOf(jarFile.createFile(temporaryFolder.root))
+                ProducerKind.JAR -> listOf(jarFile.toFile())
                 else -> emptyList()
             }
 

@@ -77,7 +77,7 @@ class MetalavaBuildPlugin : Plugin<Project> {
         configureTestTasks(project)
         project.configureKtfmt()
         project.version = project.getMetalavaVersion()
-        project.group = metalavaMavenGroup
+        project.group = "com.android.tools.metalava"
     }
 
     private fun configureLint(project: Project) {
@@ -118,6 +118,10 @@ class MetalavaBuildPlugin : Plugin<Project> {
                 // Needed for CustomizableParameterizedRunner
                 "--add-opens=java.base/java.lang.reflect=ALL-UNNAMED",
             )
+
+            // Increase from the default heap size because multiplatform tests run out of memory
+            // otherwise (b/479506031).
+            task.maxHeapSize = "1024m"
 
             // Clear the environment before adding any custom variables. Avoids problems with
             // inconsistent behavior when testing code that accesses environment variables, e.g.
@@ -346,6 +350,5 @@ private fun getBuildId(): String {
     return if (System.getenv("DIST_DIR") != null) File(System.getenv("DIST_DIR")).name else "0"
 }
 
-internal const val metalavaMavenGroup = "com.android.tools.metalava"
 private const val publicationName = "Metalava"
 private const val repositoryName = "Dist"

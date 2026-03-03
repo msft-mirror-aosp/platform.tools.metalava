@@ -25,6 +25,7 @@ import com.android.tools.metalava.testing.kotlin
 import com.google.common.truth.Truth.assertWithMessage
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /** Common tests for implementations of [ParameterItem]. */
@@ -195,7 +196,7 @@ class CommonParameterItemTest : BaseModelTest() {
             val parameterItem =
                 codebase
                     .assertResolvedClass("java.lang.Object")
-                    .assertMethod("equals", "java.lang.Object")
+                    .assertMethod("equals", listOf("java.lang.Object"))
                     .parameters()
                     .single()
             // The parameter name of the Object.equals(Object obj) method is stored in the Object
@@ -223,7 +224,7 @@ class CommonParameterItemTest : BaseModelTest() {
             val parameterItems =
                 codebase
                     .assertResolvedClass("android.view.ViewGroup")
-                    .assertMethod("onLayout", "boolean, int, int, int, int")
+                    .assertMethod("onLayout", listOf("boolean", "int", "int", "int", "int"))
                     .parameters()
             // For some reason ViewGroup.onLayout(boolean, int, int, int, int) does not provide the
             // actual parameter name. Probably, because it was compiled with an older version of
@@ -284,7 +285,7 @@ class CommonParameterItemTest : BaseModelTest() {
                     "method2" to "java.lang.String![]",
                     "method3" to "java.lang.String![]![]",
                     "method4" to "T",
-                    "method5" to "java.util.Map.Entry<T!,java.lang.String!>",
+                    "method5" to "java.util.Map.Entry<T,java.lang.String!>",
                 )
             val methods = codebase.assertClass("test.pkg.Foo").methods()
             assertEquals("method count", expectedTypes.size, methods.size)
@@ -346,7 +347,7 @@ class CommonParameterItemTest : BaseModelTest() {
                     "method2" to "java.lang.String![]?",
                     "method3" to "java.lang.String![]![]?",
                     "method4" to "T?",
-                    "method5" to "java.util.Map.Entry<T!,java.lang.String!>?",
+                    "method5" to "java.util.Map.Entry<T,java.lang.String!>?",
                 )
             val methods = codebase.assertClass("test.pkg.Foo").methods()
             assertEquals("method count", expectedTypes.size, methods.size)
@@ -667,6 +668,25 @@ class CommonParameterItemTest : BaseModelTest() {
             val parameter =
                 codebase.assertClass("test.pkg.Foo").methods().single().parameters().single()
             assertEquals("hasDefaultValue", true, parameter.hasDefaultValue())
+        }
+    }
+
+    @Test
+    fun `Test varargs modifier on kotlin parameter`() {
+        runCodebaseTest(
+            kotlin(
+                """
+                package test.pkg
+                class Foo {
+                    @JvmSynthetic
+                    fun foo(vararg ints: Int) = Unit
+                }
+                """
+            )
+        ) {
+            val parameterItem =
+                codebase.assertClass("test.pkg.Foo").methods().single().parameters().single()
+            assertTrue(parameterItem.modifiers.isVarArg())
         }
     }
 }

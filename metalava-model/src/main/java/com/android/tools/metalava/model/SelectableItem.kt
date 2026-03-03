@@ -19,6 +19,9 @@ package com.android.tools.metalava.model
 import com.android.tools.metalava.model.api.surface.ApiVariant
 import com.android.tools.metalava.model.api.surface.ApiVariantSet
 import com.android.tools.metalava.model.api.surface.MutableApiVariantSet
+import com.android.tools.metalava.model.doc.DocContent
+import com.android.tools.metalava.model.doc.DocContentOwner
+import com.android.tools.metalava.model.scope.ReferencableNameScope
 
 /**
  * An [Item] that can be selected to be a part of an API in its own right.
@@ -30,7 +33,7 @@ import com.android.tools.metalava.model.api.surface.MutableApiVariantSet
  * Conversely, a [ParameterItem] is not selectable because it cannot be selected on its own, it is
  * an indivisible part of the [ParameterItem.containingCallable].
  */
-interface SelectableItem : Item {
+interface SelectableItem : Item, ReferencableNameScope {
     /** The [ApiVariant]s for which this [Item] has been selected. */
     var selectedApiVariants: ApiVariantSet
 
@@ -110,4 +113,26 @@ interface SelectableItem : Item {
         superMethods: Boolean,
         duplicate: Boolean,
     ): SelectableItem?
+
+    override var targetLanguages: Set<TargetLanguage>
+
+    /**
+     * An abstract representation of the underlying javadoc/KDoc comment for this code element, if
+     * any.
+     */
+    val documentation: ItemDocumentation?
+
+    /** Get the [ItemDocumentation], failing if it is `null`. */
+    val requiredDocumentation: ItemDocumentation
+        get() =
+            documentation
+                ?: error(
+                    "Cannot access documentation of $this as it does not support documentation"
+                )
+
+    override val description: DocContent?
+        get() = documentation?.mainDescription
+
+    override val descriptionOwner: DocContentOwner
+        get() = requiredDocumentation.mainDescriptionOwner
 }
