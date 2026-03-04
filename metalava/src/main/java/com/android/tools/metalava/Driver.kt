@@ -40,6 +40,7 @@ import com.android.tools.metalava.cli.multiplatform.MultiplatformOptions
 import com.android.tools.metalava.cli.signature.MergeSignaturesCommand
 import com.android.tools.metalava.cli.signature.SignatureCatCommand
 import com.android.tools.metalava.cli.signature.SignatureFormatOptions
+import com.android.tools.metalava.cli.signature.SignatureReformatCommand
 import com.android.tools.metalava.cli.signature.SignatureToDexCommand
 import com.android.tools.metalava.cli.signature.SignatureToJDiffCommand
 import com.android.tools.metalava.cli.signature.UpdateSignatureHeaderCommand
@@ -176,6 +177,7 @@ class Driver(
                 MakeAnnotationsPackagePrivateCommand(),
                 MergeSignaturesCommand(),
                 SignatureCatCommand(),
+                SignatureReformatCommand(),
                 SignatureToDexCommand(),
                 SignatureToJDiffCommand(),
                 UpdateSignatureHeaderCommand(),
