@@ -94,8 +94,9 @@ class UpdateSignatureHeaderCommand :
                 // from the reader so that it can be used to read the rest of the content.
                 val currentFormat = parseHeader(file.toPath(), reader)
 
-                // If the format is not changing then do nothing.
-                if (outputFormat == currentFormat) {
+                // If the format is not changing, or the file is empty (null format), then do
+                // nothing.
+                if (outputFormat == currentFormat || currentFormat == null) {
                     return
                 }
 

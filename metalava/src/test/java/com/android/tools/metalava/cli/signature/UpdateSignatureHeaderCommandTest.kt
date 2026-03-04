@@ -114,10 +114,9 @@ Arguments:
 
                 """,
             format = FileFormat.V2,
-            expectedOutput =
-                """
-
-                """,
+            // Input file contents should not have been changed as a blank file has no format
+            // signature.
+            expectedOutput = null,
         )
     }
 
@@ -126,7 +125,18 @@ Arguments:
         checkUpdateSignatures(
             contents = "",
             format = FileFormat.V2,
-            expectedOutput = "",
+            // Input file contents should not have been changed as an empty file has no format
+            // signature.
+            expectedOutput = null,
+        )
+    }
+
+    @Test
+    fun `Update signature - empty apart from v2 header to v4`() {
+        checkUpdateSignatures(
+            contents = "// Signature format: 2.0",
+            format = FileFormat.V4,
+            expectedOutput = "// Signature format: 4.0",
         )
     }
 
