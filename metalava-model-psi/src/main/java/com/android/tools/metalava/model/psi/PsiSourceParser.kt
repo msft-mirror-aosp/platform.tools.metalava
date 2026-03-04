@@ -33,7 +33,6 @@ import org.jetbrains.kotlin.analysis.api.projectStructure.KaModule
 import org.jetbrains.kotlin.analysis.api.projectStructure.KaSourceModule
 import org.jetbrains.kotlin.analysis.api.standalone.base.projectStructure.KotlinStaticProjectStructureProvider
 import org.jetbrains.kotlin.config.ApiVersion
-import org.jetbrains.kotlin.config.JVMConfigurationKeys
 import org.jetbrains.kotlin.config.LanguageVersion
 import org.jetbrains.kotlin.config.LanguageVersionSettings
 import org.jetbrains.kotlin.config.LanguageVersionSettingsImpl
@@ -79,13 +78,6 @@ internal class PsiSourceParser(
             }
             else -> {
                 configureUastEnvironmentFromProjectDescription(config, projectDescription)
-            }
-        }
-        // K1 UAST: loading of JDK (via compiler config, i.e., only for FE1.0), when using JDK9+
-        jdkHome?.let {
-            if (isJdkModular(it)) {
-                config.kotlinCompilerConfig.put(JVMConfigurationKeys.JDK_HOME, it)
-                config.kotlinCompilerConfig.put(JVMConfigurationKeys.NO_JDK, false)
             }
         }
 
