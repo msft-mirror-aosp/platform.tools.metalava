@@ -27,7 +27,7 @@ class UpdateSignatureHeaderCommandTest :
 
     private fun checkUpdateSignatures(
         contents: String,
-        format: FileFormat = FileFormat.LATEST,
+        format: FileFormat = FileFormat.V5,
         expectedOutput: String? = null,
         expectedStderr: String = "",
     ) {

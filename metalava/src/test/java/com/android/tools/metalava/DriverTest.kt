@@ -387,7 +387,7 @@ abstract class DriverTest :
          */
         docStubs: Boolean = false,
         /** Signature file format */
-        format: FileFormat = FileFormat.LATEST,
+        format: FileFormat = FileFormat.V5,
         /** All expected issues to be generated when analyzing these sources */
         expectedIssues: String? = "",
         /** Expected [Severity.ERROR] issues to be generated when analyzing these sources */

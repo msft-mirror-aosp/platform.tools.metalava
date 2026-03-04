@@ -477,8 +477,6 @@ data class FileFormat(
     }
 
     companion object {
-        private val allDefaults = Version.entries.map { it.defaults }.toList()
-
         private val versionByNumber = Version.entries.associateBy { it.versionNumber }
 
         // The defaults associated with version 2.0.
@@ -489,9 +487,6 @@ data class FileFormat(
 
         // The defaults associated with version 5.0.
         val V5 = Version.V5.defaults
-
-        // The defaults associated with the latest version.
-        val LATEST = allDefaults.last()
 
         /** The list of all [Version] instances. */
         val versions: List<Version> = Version.entries
