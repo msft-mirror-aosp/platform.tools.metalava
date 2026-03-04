@@ -70,8 +70,7 @@ internal class PsiSourceParser(
     override fun processInputs(inputs: SourceParser.Inputs): Codebase {
         val sourceSet = inputs.sourceSet
 
-        @Suppress("DEPRECATION") // b/427783483: to be removed when K1 support is dropped
-        val config = UastEnvironment.Configuration.create(useFirUast = true)
+        val config = UastEnvironment.Configuration.create()
         config.javaLanguageLevel = javaLanguageLevel
 
         when (val projectDescription = inputs.projectDescription) {
@@ -156,9 +155,7 @@ internal class PsiSourceParser(
         val environment =
             psiEnvironmentManager.initialEnvironment
                 ?: run {
-                    // b/427783483: to be removed when K1 support is dropped
-                    @Suppress("DEPRECATION")
-                    val config = UastEnvironment.Configuration.create(useFirUast = true)
+                    val config = UastEnvironment.Configuration.create()
                     config.javaLanguageLevel = javaLanguageLevel
                     configureUastEnvironmentFromProjectDescription(config, projectDescription)
                     psiEnvironmentManager.createEnvironment(config)
@@ -181,8 +178,7 @@ internal class PsiSourceParser(
 
     /** Initializes a UAST environment using the [apiJars] as classpath roots. */
     private fun loadUastFromJars(apiJars: List<File>): UastEnvironment {
-        @Suppress("DEPRECATION") // b/427783483: to be removed when K1 support is dropped
-        val config = UastEnvironment.Configuration.create(useFirUast = true)
+        val config = UastEnvironment.Configuration.create()
         val sourceRoots = emptyList<File>()
         configureUastEnvironment(config, sourceRoots, apiJars)
 
