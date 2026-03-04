@@ -107,7 +107,7 @@ Arguments:
     }
 
     @Test
-    fun `Update signature (blank to v2)`() {
+    fun `Update signature - blank to v2`() {
         checkUpdateSignatures(
             contents =
                 """
@@ -122,7 +122,7 @@ Arguments:
     }
 
     @Test
-    fun `Update signature (empty to v2)`() {
+    fun `Update signature - empty to v2`() {
         checkUpdateSignatures(
             contents = "",
             format = FileFormat.V2,
@@ -131,7 +131,7 @@ Arguments:
     }
 
     @Test
-    fun `Update signature (v2 to v4)`() {
+    fun `Update signature - v2 to v4`() {
         checkUpdateSignatures(
             contents =
                 """
@@ -150,7 +150,7 @@ Arguments:
     }
 
     @Test
-    fun `Update signature (wrong file to v3)`() {
+    fun `Update signature - wrong file to v3`() {
         checkUpdateSignatures(
             contents =
                 """
@@ -163,7 +163,7 @@ Arguments:
     }
 
     @Test
-    fun `Update signature (v2 to v2 + kotlin-style-nulls=true but no migrating)`() {
+    fun `Update signature - v2 to v2 + kotlin-style-nulls=true but no migrating`() {
         checkUpdateSignatures(
             contents =
                 """
@@ -182,7 +182,7 @@ Arguments:
     }
 
     @Test
-    fun `Update signature (v2 to v2 + kotlin-style-nulls=true,migrating=test)`() {
+    fun `Update signature - v2 to v2 + kotlin-style-nulls=true,migrating=test`() {
         checkUpdateSignatures(
             contents =
                 """
@@ -203,7 +203,7 @@ Arguments:
     }
 
     @Test
-    fun `Update signature (v2 to v4 + kotlin-style-nulls=false,migrating=test)`() {
+    fun `Update signature - v2 to v4 + kotlin-style-nulls=false,migrating=test`() {
         checkUpdateSignatures(
             contents =
                 """
