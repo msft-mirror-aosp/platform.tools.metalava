@@ -893,6 +893,12 @@ private constructor(
                         addingToPsiCodebase,
                     )
                 for (property in properties) {
+                    // There might be properties included on the class with a signature from a
+                    // parent. Skip these, which can be created through the parent class.
+                    val callableId = property.callableId ?: continue
+                    val containingClassForProperty =
+                        callableId.packageName.asString() + "." + callableId.className?.asString()
+                    if (containingClassForProperty != classItem.qualifiedName()) continue
                     processProperty(property, classItem, typeItemFactory)
                 }
             }
