@@ -264,7 +264,7 @@ data class FileFormat(
                     version = version,
                     // This adds kotlinStyleNulls = true
                     kotlinStyleNulls = true,
-                    // This adds conciseDefaultValues = true
+                    // This adds includeDefaultParameterValues = true
                     includeDefaultParameterValues = true,
                 )
             },
