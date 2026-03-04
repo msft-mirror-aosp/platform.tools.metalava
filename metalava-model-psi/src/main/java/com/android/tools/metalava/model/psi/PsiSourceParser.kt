@@ -215,7 +215,7 @@ internal class PsiSourceParser(
             listOf(
                 UastEnvironment.Module(
                     lintProject,
-                    // K2 UAST: building KtSdkModule for JDK
+                    // Building KtSdkModule for JDK
                     jdkHome,
                     includeTests = false,
                     includeTestFixtureSources = false,
@@ -293,7 +293,7 @@ internal class PsiSourceParser(
                 lintProject.kotlinLanguageLevel = kotlinLanguageLevel
                 UastEnvironment.Module(
                     lintProject,
-                    // K2 UAST: building KtSdkModule for JDK
+                    // Building KtSdkModule for JDK
                     jdkHome,
                     includeTests = false,
                     includeTestFixtureSources = false,

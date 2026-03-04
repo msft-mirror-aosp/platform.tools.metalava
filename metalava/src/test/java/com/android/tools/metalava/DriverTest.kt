@@ -532,7 +532,7 @@ abstract class DriverTest :
         compiledSourceJar: TestFile? = null,
         /** [ARG_REPEAT_ERRORS_MAX] */
         repeatErrorsMax: Int = 0,
-        /** Whether to create a multiplatform codebase. Only supported with K2 psi. */
+        /** Whether to create a multiplatform codebase. Only supported with psi. */
         enableMultiplatform: Boolean = false,
         /**
          * Called on a [CheckerContext] after the analysis phase in the metalava main command.
