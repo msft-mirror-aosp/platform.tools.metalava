@@ -513,6 +513,19 @@ data class FileFormat(
      */
     operator fun get(property: CustomizableProperty) = property.stringFromFormat(this)
 
+    /**
+     * Get the value of [property] as a [String].
+     *
+     * This will apply any defaults that it finds.
+     */
+    fun getWithDefault(property: CustomizableProperty) =
+        // First try in this format directly.
+        this[property]
+            // If it could not be found then look in the defaults if provided.
+            ?: formatDefaults?.let { defaults -> defaults[property] }
+            // If it still could not be found then look in the EFFECTIVE_VALUE_FALLBACK_VALUES
+            ?: EFFECTIVE_VALUE_FALLBACK_VALUES[property]
+
     /** Build a copy of this [FileFormat] by applying [body] to [Builder]. */
     inline fun buildCopy(body: Builder.() -> Unit) = Builder(this).apply { body() }.build()
 
