@@ -777,6 +777,26 @@ data class FileFormat(
         }
 
         /**
+         * Parse the supplied set of overrides and construct a [FileFormat] by applying the
+         * overrides to [base].
+         *
+         * @param overrides comma separated list of property assignments that will be applied to a
+         *   copy of [base], overriding the existing values of those properties, if any.
+         */
+        fun parseOverrides(base: FileFormat, overrides: String): FileFormat {
+            val builder = Builder(base)
+            overrides.trim().split(",").forEach {
+                parsePropertyAssignment(
+                    builder,
+                    it,
+                ) {
+                    true
+                }
+            }
+            return builder.build()
+        }
+
+        /**
          * Get the names of the [CustomizableProperty] that are [CustomizableProperty.defaultable].
          */
         fun defaultableProperties(): List<String> {
