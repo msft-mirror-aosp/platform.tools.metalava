@@ -47,16 +47,11 @@ import org.jetbrains.uast.getContainingUMethod
  * A wrapper for a [KaType] and the [KaSession] needed to analyze it and the [PsiElement] that is
  * the use site.
  */
-internal class KotlinTypeInfo
+internal open class KotlinTypeInfo
 private constructor(
     val analysisSession: KaSession?,
     kaType: KaType?,
     val context: PsiElement,
-    /**
-     * Override list of type arguments that should have been, but for some reason could not be,
-     * encapsulated within [kaType].
-     */
-    val overrideTypeArguments: List<KotlinTypeInfo>? = null,
     /**
      * A [KaType] for a class contains information about the type parameters for all levels of outer
      * class types. This represents which level to use (0 is the innermost class).
@@ -76,10 +71,7 @@ private constructor(
         return "KotlinTypeInfo(${this@KotlinTypeInfo.kaType} for $context)"
     }
 
-    fun copy(
-        kaType: KaType? = this.kaType,
-        overrideTypeArguments: List<KotlinTypeInfo>? = this.overrideTypeArguments,
-    ) = KotlinTypeInfo(analysisSession, kaType, context, overrideTypeArguments)
+    fun copy(kaType: KaType?) = KotlinTypeInfo(analysisSession, kaType, context)
 
     /**
      * Finds the nullability of the [kaType]. If there is no [analysisSession] or [kaType], defaults
@@ -114,10 +106,7 @@ private constructor(
      * Creates [KotlinTypeInfo] for the type argument at [index] of this [KotlinTypeInfo], assuming
      * it is a class type.
      */
-    fun forTypeArgument(index: Int): KotlinTypeInfo {
-        overrideTypeArguments?.getOrNull(index)?.let {
-            return it
-        }
+    open fun forTypeArgument(index: Int): KotlinTypeInfo {
         return KotlinTypeInfo(
             analysisSession,
             analysisSession?.run {
@@ -368,6 +357,29 @@ private constructor(
         private fun KaSession.typeForValueClass(type: KaType): Boolean {
             val symbol = type.expandedSymbol as? KaNamedClassSymbol ?: return false
             return symbol.isInline
+        }
+    }
+
+    /** Represents the information for a [org.jetbrains.kotlin.analysis.api.types.KaFunctionType] */
+    internal class LambdaType(
+        kotlinTypeInfo: KotlinTypeInfo,
+        /**
+         * Override list of type arguments with the type arguments as seen by the JVM version of
+         * this type, which will be the (optional) receiver, lambda parameter types, and return type
+         * (or a continuation type and Any? return type for suspend lambdas).
+         */
+        private val overrideTypeArguments: List<KotlinTypeInfo>,
+    ) :
+        KotlinTypeInfo(
+            kotlinTypeInfo.analysisSession,
+            kotlinTypeInfo.kaType,
+            kotlinTypeInfo.context,
+            kotlinTypeInfo.classLevelFromInnermost
+        ) {
+
+        /** Returns the type argument at the [index] as seen by the JVM version of this type. */
+        override fun forTypeArgument(index: Int): KotlinTypeInfo {
+            return overrideTypeArguments.getOrNull(index) ?: KotlinTypeInfo(context)
         }
     }
 }

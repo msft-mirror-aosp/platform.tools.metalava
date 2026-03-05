@@ -583,7 +583,8 @@ internal class PsiTypeItemFactory(
         val isSuspend = kaType.isSuspend
 
         val actualKotlinType =
-            kotlinType.copy(
+            KotlinTypeInfo.LambdaType(
+                kotlinType,
                 overrideTypeArguments =
                     // Compute a set of [KtType]s corresponding to the type arguments in the
                     // underlying `kotlin.jvm.functions.Function*`.
