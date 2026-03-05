@@ -183,38 +183,39 @@ data class FileFormat(
      * This returns the first non-null value in the following:
      * 1. This [FileFormat]'s property value.
      * 2. The [formatDefaults]'s property value
-     * 3. The [default] value.
+     * 3. The [EFFECTIVE_VALUE_FALLBACK_VALUES]'s property value which is always set.
      *
      * @param getter a getter for the optional property's value.
-     * @param default the default value.
      */
-    private inline fun <T> effectiveValue(getter: FileFormat.() -> T?, default: T): T {
-        return this.getter() ?: formatDefaults?.getter() ?: default
+    private inline fun <T> effectiveValue(getter: FileFormat.() -> T?): T {
+        return this.getter()
+            ?: formatDefaults?.getter()
+            ?: EFFECTIVE_VALUE_FALLBACK_VALUES.getter()!!
     }
 
     // This defaults to SIGNATURE but can be overridden on the command line.
     val overloadedMethodOrder
-        get() = effectiveValue({ specifiedOverloadedMethodOrder }, OverloadedMethodOrder.SIGNATURE)
+        get() = effectiveValue { specifiedOverloadedMethodOrder }
 
     // This defaults to false but can be overridden on the command line.
     val addAdditionalOverrides
-        get() = effectiveValue({ specifiedAddAdditionalOverrides }, false)
+        get() = effectiveValue { specifiedAddAdditionalOverrides }
 
     // This defaults to false but can be overridden on the command line.
     val normalizeFinalModifier
-        get() = effectiveValue({ specifiedNormalizeFinalModifier }, false)
+        get() = effectiveValue { specifiedNormalizeFinalModifier }
 
     // This defaults to false but can be overridden on the command line.
     val sortWholeExtendsList
-        get() = effectiveValue({ specifiedSortWholeExtendsList }, default = false)
+        get() = effectiveValue { specifiedSortWholeExtendsList }
 
     // This defaults to LEGACY but can be overridden on the command line.
     val stripJavaLangPrefix
-        get() = effectiveValue({ specifiedStripJavaLangPrefix }, StripJavaLangPrefix.LEGACY)
+        get() = effectiveValue { specifiedStripJavaLangPrefix }
 
     // This defaults to LEGACY but can be overridden on the command line.
     val typeArgumentSpacing
-        get() = effectiveValue({ specifiedTypeArgumentSpacing }, TypeArgumentSpacing.LEGACY)
+        get() = effectiveValue { specifiedTypeArgumentSpacing }
 
     /**
      * The base version of the file format.
@@ -525,6 +526,22 @@ data class FileFormat(
 
         /** The list of all [Version] instances. */
         val versions: List<Version> = Version.entries
+
+        /** Provides fallback values for use by [effectiveValue] */
+        private val EFFECTIVE_VALUE_FALLBACK_VALUES =
+            FileFormat(
+                // These properties are not used.
+                version = versions.last(),
+                kotlinStyleNulls = false,
+                includeDefaultParameterValues = false,
+                // The fallback values for the defaultable properties.
+                specifiedAddAdditionalOverrides = false,
+                specifiedNormalizeFinalModifier = false,
+                specifiedOverloadedMethodOrder = OverloadedMethodOrder.SIGNATURE,
+                specifiedSortWholeExtendsList = false,
+                specifiedStripJavaLangPrefix = StripJavaLangPrefix.LEGACY,
+                specifiedTypeArgumentSpacing = TypeArgumentSpacing.LEGACY,
+            )
 
         const val SIGNATURE_FORMAT_PREFIX = "// Signature format: "
 
