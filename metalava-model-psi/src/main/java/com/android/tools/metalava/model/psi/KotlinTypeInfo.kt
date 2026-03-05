@@ -19,7 +19,6 @@ package com.android.tools.metalava.model.psi
 import com.android.tools.metalava.model.KOTLIN_CONTINUATION
 import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.psi.kotlin.KaTypeItemFactory
-import com.android.tools.metalava.model.psi.kotlin.KaTypeItemFactory.Companion.typeNullability
 import com.intellij.psi.PsiElement
 import org.jetbrains.kotlin.analysis.api.KaSession
 import org.jetbrains.kotlin.analysis.api.analyze
@@ -45,8 +44,8 @@ import org.jetbrains.uast.UParameter
 import org.jetbrains.uast.getContainingUMethod
 
 /**
- * A wrapper for a [KtType] and the [KtAnalysisSession] needed to analyze it and the [PsiElement]
- * that is the use site.
+ * A wrapper for a [KaType] and the [KaSession] needed to analyze it and the [PsiElement] that is
+ * the use site.
  */
 internal class KotlinTypeInfo
 private constructor(
@@ -179,7 +178,7 @@ private constructor(
     companion object {
         /**
          * Creates a [KotlinTypeInfo] instance from the given [context], with null values if the
-         * [KtType] for the [context] can't be resolved.
+         * [KaType] for the [context] can't be resolved.
          */
         fun fromContext(context: PsiElement): KotlinTypeInfo {
             return if (context is KtElement) {
@@ -205,19 +204,19 @@ private constructor(
             when (ktElement) {
                 is KtProperty -> {
                     analyze(ktElement) {
-                        val ktType =
+                        val kaType =
                             when {
                                 // If the context is the backing field then use the type of the
                                 // delegate, if any.
                                 context is UField -> ktElement.delegateExpression?.expressionType
                                 else -> null
                             } ?: ktElement.returnType
-                        KotlinTypeInfo(this, ktType, ktElement)
+                        KotlinTypeInfo(this, kaType, ktElement)
                     }
                 }
                 is KtCallableDeclaration -> {
                     analyze(ktElement) {
-                        val ktType =
+                        val kaType =
                             if (ktElement is KtFunction && ktElement.isSuspend()) {
                                 // A suspend function is transformed by Kotlin to return Any?
                                 // instead of its actual return type.
@@ -225,7 +224,7 @@ private constructor(
                             } else {
                                 ktElement.returnType
                             }
-                        KotlinTypeInfo(this, ktType, ktElement)
+                        KotlinTypeInfo(this, kaType, ktElement)
                     }
                 }
                 is KtTypeReference ->
@@ -294,8 +293,8 @@ private constructor(
                         // Compute the [KotlinTypeInfo] for the suspend function's synthetic
                         // [kotlin.coroutines.Continuation] parameter.
                         analyze(sourcePsi) {
-                            val returnKtType = sourcePsi.returnType
-                            syntheticContinuationParameter(sourcePsi, returnKtType)
+                            val returnKaType = sourcePsi.returnType
+                            syntheticContinuationParameter(sourcePsi, returnKaType)
                         }
                     } else {
                         // Find the KtParameter with the same index as the UParameter to use as the
@@ -318,13 +317,13 @@ private constructor(
 
         /**
          * Create a [KotlinTypeInfo] that represents the continuation parameter of a `suspend`
-         * function with [returnKtType] (`Continuation<$returnType$>`)
+         * function with [returnKaType] (`Continuation<$returnType$>`)
          */
         internal fun KaSession.syntheticContinuationParameter(
             context: PsiElement,
-            returnKtType: KaType
+            returnKaType: KaType
         ): KotlinTypeInfo {
-            val continuationKaType = buildClassType(continuationClassId) { argument(returnKtType) }
+            val continuationKaType = buildClassType(continuationClassId) { argument(returnKaType) }
             return KotlinTypeInfo(this, continuationKaType, context)
         }
 
