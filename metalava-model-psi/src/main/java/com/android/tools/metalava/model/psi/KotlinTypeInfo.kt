@@ -24,6 +24,7 @@ import org.jetbrains.kotlin.analysis.api.KaSession
 import org.jetbrains.kotlin.analysis.api.analyze
 import org.jetbrains.kotlin.analysis.api.symbols.KaNamedClassSymbol
 import org.jetbrains.kotlin.analysis.api.types.KaClassType
+import org.jetbrains.kotlin.analysis.api.types.KaFunctionType
 import org.jetbrains.kotlin.analysis.api.types.KaType
 import org.jetbrains.kotlin.name.ClassId
 import org.jetbrains.kotlin.name.FqName
@@ -61,7 +62,7 @@ private constructor(
     constructor(context: PsiElement) : this(null, null, context)
 
     /** Make sure that any typealiases are fully expanded. */
-    val kaType =
+    private val kaType =
         analysisSession?.run { kaType?.fullyExpandedType }
             ?: kaType?.let {
                 error("cannot have non-null kaType ($kaType) with a null analysisSession")
@@ -71,7 +72,7 @@ private constructor(
         return "KotlinTypeInfo(${this@KotlinTypeInfo.kaType} for $context)"
     }
 
-    fun copy(kaType: KaType?) = KotlinTypeInfo(analysisSession, kaType, context)
+    private fun copy(kaType: KaType?) = KotlinTypeInfo(analysisSession, kaType, context)
 
     /**
      * Finds the nullability of the [kaType]. If there is no [analysisSession] or [kaType], defaults
@@ -148,8 +149,51 @@ private constructor(
         )
     }
 
+    /** Whether this represents a [KaFunctionType]. */
+    fun isLambdaType(): Boolean {
+        return kaType is KaFunctionType
+    }
+
+    /**
+     * Converts this [KotlinTypeInfo] to a [KotlinTypeInfo.LambdaType]. This will fail if [kaType]
+     * is not a [KaFunctionType].
+     */
+    fun asLambdaType(): LambdaType {
+        kaType as KaFunctionType
+        return LambdaType(
+            analysisSession,
+            kaType,
+            context,
+            isSuspend = kaType.isSuspend,
+            hasReceiver = kaType.hasReceiver,
+            overrideTypeArguments =
+                // Compute a set of [KtType]s corresponding to the type arguments in the
+                // underlying `kotlin.jvm.functions.Function*`.
+                buildList {
+                    // The optional lambda receiver is the first type argument.
+                    kaType.receiverType?.let { add(copy(kaType = it)) }
+                    // The lambda's explicit parameters appear next.
+                    kaType.parameterTypes.mapTo(this) { copy(kaType = it) }
+                    // A `suspend` lambda is transformed by Kotlin in the same way that a
+                    // `suspend` function is, i.e. an additional continuation parameter is
+                    // added at the end of the explicit parameters that encapsulates the
+                    // return type and the return type is changed to `Any?`.
+                    if (kaType.isSuspend) {
+                        // Create a KotlinTypeInfo for the continuation parameter that
+                        // encapsulates the actual return type.
+                        add(forSyntheticContinuationParameter(kaType.returnType))
+                        // Add the `Any?` for the return type.
+                        add(nullableAny())
+                    } else {
+                        // As it is not a `suspend` lambda add the return type last.
+                        add(copy(kaType = kaType.returnType))
+                    }
+                },
+        )
+    }
+
     /** Get a [KotlinTypeInfo] that represents a suspend function's `Continuation` parameter. */
-    fun forSyntheticContinuationParameter(returnType: KaType): KotlinTypeInfo {
+    private fun forSyntheticContinuationParameter(returnType: KaType): KotlinTypeInfo {
         // This cast is safe as this will only be called for a lambda function whose context will
         // be [KtFunction].
         val ktElement = context as KtElement
@@ -157,7 +201,7 @@ private constructor(
     }
 
     /** Get a [KotlinTypeInfo] that represents `Any?`. */
-    fun nullableAny(): KotlinTypeInfo {
+    private fun nullableAny(): KotlinTypeInfo {
         // This cast is safe as this will only be called for a lambda function whose context will
         // be [KtFunction].
         val ktElement = context as KtElement
@@ -360,21 +404,26 @@ private constructor(
         }
     }
 
-    /** Represents the information for a [org.jetbrains.kotlin.analysis.api.types.KaFunctionType] */
+    /** Represents the information for a [KaFunctionType] */
     internal class LambdaType(
-        kotlinTypeInfo: KotlinTypeInfo,
+        analysisSession: KaSession?,
+        kaType: KaType,
+        context: PsiElement,
         /**
          * Override list of type arguments with the type arguments as seen by the JVM version of
          * this type, which will be the (optional) receiver, lambda parameter types, and return type
          * (or a continuation type and Any? return type for suspend lambdas).
          */
         private val overrideTypeArguments: List<KotlinTypeInfo>,
+        /** Whether this is a suspend lambda. */
+        val isSuspend: Boolean,
+        /** Whether this lambda has a receiver. */
+        val hasReceiver: Boolean,
     ) :
         KotlinTypeInfo(
-            kotlinTypeInfo.analysisSession,
-            kotlinTypeInfo.kaType,
-            kotlinTypeInfo.context,
-            kotlinTypeInfo.classLevelFromInnermost
+            analysisSession,
+            kaType,
+            context,
         ) {
 
         /** Returns the type argument at the [index] as seen by the JVM version of this type. */

@@ -49,7 +49,6 @@ import com.intellij.psi.PsiTypeParameter
 import com.intellij.psi.PsiTypes
 import com.intellij.psi.PsiWildcardType
 import com.intellij.psi.impl.source.PsiClassReferenceType
-import org.jetbrains.kotlin.analysis.api.types.KaFunctionType
 import org.jetbrains.uast.UParameter
 import org.jetbrains.uast.kotlin.isKotlin
 
@@ -254,7 +253,7 @@ internal class PsiTypeItemFactory(
                         contextNullability = contextNullability,
                     )
                 } else {
-                    if (kotlinType?.kaType is KaFunctionType) {
+                    if (kotlinType?.isLambdaType() == true) {
                         createLambdaTypeItem(
                             psiType = psiType,
                             kotlinType = kotlinType,
@@ -566,10 +565,10 @@ internal class PsiTypeItemFactory(
      *
      * Extends a [ClassTypeItem] and then deconstructs the type arguments of Kotlin `Function<N>` to
      * extract the receiver, input and output types. This makes heavy use of the
-     * [KotlinTypeInfo.kaType] property of [kotlinType] which must be a [KtFunctionalType]. That has
-     * the information necessary to determine which of the Kotlin `Function<N>` class's type
-     * arguments are the receiver (if any) and which are input parameters. The last type argument is
-     * always the return type.
+     * [org.jetbrains.kotlin.analysis.api.types.KaType] of [kotlinType] which must be a
+     * [org.jetbrains.kotlin.analysis.api.types.KaFunctionType]. That has the information necessary
+     * to determine which of the Kotlin `Function<N>` class's type arguments are the receiver (if
+     * any) and which are input parameters. The last type argument is always the return type.
      */
     private fun createLambdaTypeItem(
         psiType: PsiClassType,
@@ -578,37 +577,7 @@ internal class PsiTypeItemFactory(
     ): LambdaTypeItem {
         val qualifiedName = psiType.computeQualifiedName()
 
-        val kaType = kotlinType.kaType as KaFunctionType
-
-        val isSuspend = kaType.isSuspend
-
-        val actualKotlinType =
-            KotlinTypeInfo.LambdaType(
-                kotlinType,
-                overrideTypeArguments =
-                    // Compute a set of [KtType]s corresponding to the type arguments in the
-                    // underlying `kotlin.jvm.functions.Function*`.
-                    buildList {
-                        // The optional lambda receiver is the first type argument.
-                        kaType.receiverType?.let { add(kotlinType.copy(kaType = it)) }
-                        // The lambda's explicit parameters appear next.
-                        kaType.parameterTypes.mapTo(this) { kotlinType.copy(kaType = it) }
-                        // A `suspend` lambda is transformed by Kotlin in the same way that a
-                        // `suspend` function is, i.e. an additional continuation parameter is added
-                        // at the end of the explicit parameters that encapsulates the return type
-                        // and the return type is changed to `Any?`.
-                        if (isSuspend) {
-                            // Create a KotlinTypeInfo for the continuation parameter that
-                            // encapsulates the actual return type.
-                            add(kotlinType.forSyntheticContinuationParameter(kaType.returnType))
-                            // Add the `Any?` for the return type.
-                            add(kotlinType.nullableAny())
-                        } else {
-                            // As it is not a `suspend` lambda add the return type last.
-                            add(kotlinType.copy(kaType = kaType.returnType))
-                        }
-                    }
-            )
+        val actualKotlinType = kotlinType.asLambdaType()
 
         // Get the type arguments for the kotlin.jvm.functions.Function<X> class.
         val typeArguments = computeTypeArguments(psiType, actualKotlinType)
@@ -616,7 +585,7 @@ internal class PsiTypeItemFactory(
         // If the function has a receiver then it is the first type argument.
         var firstParameterTypeIndex = 0
         val receiverType =
-            if (kaType.hasReceiver) {
+            if (actualKotlinType.hasReceiver) {
                 // The first parameter type is now the second type argument.
                 firstParameterTypeIndex = 1
                 unwrapInputType(typeArguments[0])
@@ -650,7 +619,7 @@ internal class PsiTypeItemFactory(
             // Lambdas are implemented using a number of top level classes so never have an outer
             // class.
             outerClassType = null,
-            isSuspend = isSuspend,
+            isSuspend = actualKotlinType.isSuspend,
             receiverType = receiverType,
             parameterTypes = parameterTypes,
             returnType = returnType,
