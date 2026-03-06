@@ -797,21 +797,21 @@ data class FileFormat(
     }
 
     /** A builder for [FileFormat] that applies some optional values to a base [FileFormat]. */
-    internal class Builder(private val base: FileFormat) {
-        var addAdditionalOverrides: Boolean? = null
-        var includeDefaultParameterValues: Boolean? = null
-        var includeTypeUseAnnotations: Boolean? = null
-        var kotlinNameTypeOrder: Boolean? = null
-        var kotlinStyleNulls: Boolean? = null
-        var language: Language? = null
-        var migrating: String? = null
-        var name: String? = null
-        var normalizeFinalModifier: Boolean? = null
-        var overloadedMethodOrder: OverloadedMethodOrder? = null
-        var sortWholeExtendsList: Boolean? = null
-        var stripJavaLangPrefix: StripJavaLangPrefix? = null
-        var typeArgumentSpacing: TypeArgumentSpacing? = null
-        var surface: String? = null
+    class Builder(private val base: FileFormat) {
+        internal var addAdditionalOverrides: Boolean? = null
+        internal var includeDefaultParameterValues: Boolean? = null
+        internal var includeTypeUseAnnotations: Boolean? = null
+        internal var kotlinNameTypeOrder: Boolean? = null
+        internal var kotlinStyleNulls: Boolean? = null
+        internal var language: Language? = null
+        internal var migrating: String? = null
+        internal var name: String? = null
+        internal var normalizeFinalModifier: Boolean? = null
+        internal var overloadedMethodOrder: OverloadedMethodOrder? = null
+        internal var sortWholeExtendsList: Boolean? = null
+        internal var stripJavaLangPrefix: StripJavaLangPrefix? = null
+        internal var typeArgumentSpacing: TypeArgumentSpacing? = null
+        internal var surface: String? = null
 
         /** Set [property] in this from [value] [String]. */
         operator fun set(property: CustomizableProperty, value: String) {
