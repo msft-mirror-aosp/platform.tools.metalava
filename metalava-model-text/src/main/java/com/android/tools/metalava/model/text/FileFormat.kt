@@ -344,13 +344,10 @@ data class FileFormat(
          * @param language the optional language whose defaults should be applied to the version
          *   defaults.
          */
-        internal fun defaultsIncludingLanguage(language: Language?): FileFormat {
-            language ?: return defaults
-            return Builder(defaults).let {
-                language.applyLanguageDefaults(it)
-                it.build()
-            }
-        }
+        internal fun defaultsIncludingLanguage(language: Language?) =
+            language?.let { language ->
+                defaults.buildCopy { language.applyLanguageDefaults(this) }
+            } ?: defaults
     }
 
     internal enum class PropertySupport {
@@ -515,6 +512,9 @@ data class FileFormat(
      * This will NOT apply any defaults that it finds.
      */
     operator fun get(property: CustomizableProperty) = property.stringFromFormat(this)
+
+    /** Build a copy of this [FileFormat] by applying [body] to [Builder]. */
+    inline fun buildCopy(body: Builder.() -> Unit) = Builder(this).apply { body() }.build()
 
     companion object {
         private val versionByNumber = Version.entries.associateBy { it.versionNumber }
@@ -700,9 +700,10 @@ data class FileFormat(
 
             val properties = specifierParts[1]
 
-            val builder = Builder(versionDefaults)
-            properties.trim().split(",").forEach { builder.setPropertyFromAssignment(it) }
-            val format = builder.build()
+            val format =
+                versionDefaults.buildCopy {
+                    properties.trim().split(",").forEach { setPropertyFromAssignment(it) }
+                }
 
             format.validate(
                 exceptionContext = "invalid format specifier: '$specifier' - ",
@@ -734,42 +735,39 @@ data class FileFormat(
          * [PROPERTY_LINE_PREFIX], apply them to the supplied [version]s
          * [Version.defaultsIncludingLanguage] and returning the result.
          */
-        private fun parseProperties(reader: LineNumberReader, version: Version): FileFormat {
-            val builder = Builder(version.defaults)
-            do {
-                reader.mark(BUFFER_SIZE)
-                val line = reader.readLine() ?: break
-                if (line.startsWith("package ")) {
-                    reader.reset()
-                    break
-                }
+        private fun parseProperties(reader: LineNumberReader, version: Version) =
+            version.defaults.buildCopy {
+                do {
+                    reader.mark(BUFFER_SIZE)
+                    val line = reader.readLine() ?: break
+                    if (line.startsWith("package ")) {
+                        reader.reset()
+                        break
+                    }
 
-                // If the line does not start with "// - " then it is not a property so assume the
-                // header is ended.
-                val remainder = line.removePrefix(PROPERTY_LINE_PREFIX)
-                if (remainder == line) {
-                    reader.reset()
-                    break
-                }
+                    // If the line does not start with "// - " then it is not a property so assume
+                    // the header is ended.
+                    val remainder = line.removePrefix(PROPERTY_LINE_PREFIX)
+                    if (remainder == line) {
+                        reader.reset()
+                        break
+                    }
 
-                builder.setPropertyFromAssignment(remainder)
-            } while (true)
-
-            return builder.build()
-        }
+                    setPropertyFromAssignment(remainder)
+                } while (true)
+            }
 
         /**
          * Parse the supplied set of defaults and construct a [FileFormat].
          *
          * @param defaults comma separated list of property assignments that
          */
-        fun parseDefaults(defaults: String): FileFormat {
-            val builder = Builder(V2)
-            defaults.trim().split(",").forEach {
-                builder.setPropertyFromAssignment(it, defaultableOnly = true)
+        fun parseDefaults(defaults: String) =
+            V2.buildCopy {
+                defaults.trim().split(",").forEach {
+                    setPropertyFromAssignment(it, defaultableOnly = true)
+                }
             }
-            return builder.build()
-        }
 
         /**
          * Parse the supplied set of overrides and construct a [FileFormat] by applying the
@@ -778,11 +776,8 @@ data class FileFormat(
          * @param overrides comma separated list of property assignments that will be applied to a
          *   copy of [base], overriding the existing values of those properties, if any.
          */
-        fun parseOverrides(base: FileFormat, overrides: String): FileFormat {
-            val builder = Builder(base)
-            overrides.trim().split(",").forEach { builder.setPropertyFromAssignment(it) }
-            return builder.build()
-        }
+        fun parseOverrides(base: FileFormat, overrides: String) =
+            base.buildCopy { overrides.trim().split(",").forEach { setPropertyFromAssignment(it) } }
 
         /**
          * Get the names of the [CustomizableProperty] that are [CustomizableProperty.defaultable].
