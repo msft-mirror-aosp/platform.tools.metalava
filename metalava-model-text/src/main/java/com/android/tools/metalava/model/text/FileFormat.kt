@@ -466,14 +466,14 @@ data class FileFormat(
      */
     private fun iterateOverCustomizableProperties(consumer: (String, String) -> Unit) {
         val defaults = version.defaultsIncludingLanguage(language)
-        if (this@FileFormat != defaults) {
-            CustomizableProperty.entries.forEach { prop ->
+        if (this != defaults) {
+            CustomizableProperty.entries.forEach { property ->
                 // Get the string value of this property, if null then it was not specified so skip
                 // the property.
-                val thisValue = prop.stringFromFormat(this@FileFormat) ?: return@forEach
-                val defaultValue = prop.stringFromFormat(defaults)
+                val thisValue = this@FileFormat[property] ?: return@forEach
+                val defaultValue = defaults[property]
                 if (thisValue != defaultValue) {
-                    consumer(prop.propertyName, thisValue)
+                    consumer(property.propertyName, thisValue)
                 }
             }
         }
@@ -508,6 +508,13 @@ data class FileFormat(
             throw ApiParseException("${exceptionContext}must not contain a 'migrating' property")
         }
     }
+
+    /**
+     * Get the value of [property] as a [String].
+     *
+     * This will NOT apply any defaults that it finds.
+     */
+    operator fun get(property: CustomizableProperty) = property.stringFromFormat(this)
 
     companion object {
         private val versionByNumber = Version.entries.associateBy { it.versionNumber }
@@ -806,6 +813,11 @@ data class FileFormat(
         var typeArgumentSpacing: TypeArgumentSpacing? = null
         var surface: String? = null
 
+        /** Set [property] in this from [value] [String]. */
+        operator fun set(property: CustomizableProperty, value: String) {
+            property.setFromString(this, value)
+        }
+
         /**
          * Parse a property assignment of the form `property=value`, updating the appropriate
          * property in this [Builder], or throwing an exception if there was a problem.
@@ -825,7 +837,7 @@ data class FileFormat(
             val name = propertyParts[0]
             val value = propertyParts[1]
             val customizable = CustomizableProperty.getByName(name, defaultableOnly)
-            customizable.setFromString(this, value)
+            this[customizable] = value
         }
 
         /** Build the [FileFormat] from the information in this [Builder]. */
