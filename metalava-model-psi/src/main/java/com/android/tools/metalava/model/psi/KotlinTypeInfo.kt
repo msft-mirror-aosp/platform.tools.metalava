@@ -45,12 +45,15 @@ import org.jetbrains.uast.UParameter
 import org.jetbrains.uast.getContainingUMethod
 
 /**
- * A wrapper for a [KaType] and the [KaSession] needed to analyze it and the [PsiElement] that is
- * the use site.
+ * A wrapper for a [KaType] and the [PsiElement] that is the use site.
+ *
+ * The [KaSession] provided in the constructor is not stored. It is used to ensure the provided type
+ * is fully expanded, and further computations with the [KaType] use a fresh [KaSession] based on
+ * the [context].
  */
 internal open class KotlinTypeInfo
 private constructor(
-    val analysisSession: KaSession?,
+    analysisSession: KaSession?,
     kaType: KaType?,
     val context: PsiElement,
     /**
@@ -72,33 +75,42 @@ private constructor(
         return "KotlinTypeInfo(${this@KotlinTypeInfo.kaType} for $context)"
     }
 
+    /** Runs the [action] in a new analysis scope using the [context], if it is a [KtElement]. */
+    protected fun <R> analyze(action: KaSession.() -> R): R? {
+        return (context as? KtElement)?.let { analyze(it) { this.action() } }
+    }
+
     /**
      * Creates a new [KotlinTypeInfo] with the same values as this one except for the
      * [classLevelFromInnermost] (if provided) and the `kaType`, which will be computed based on
-     * [computeKaType] in the context of the [analysisSession].
+     * [computeKaType] in the context of the a [KaSession] created by [analyze].
      */
     fun copy(
         classLevelFromInnermost: Int = this.classLevelFromInnermost,
         computeKaType: (KaSession.() -> KaType?),
     ): KotlinTypeInfo {
-        return copy(analysisSession?.run { computeKaType() }, classLevelFromInnermost)
+        return analyze { copy(this, computeKaType(), classLevelFromInnermost) }
+            // An analysis session could not be created
+            ?: KotlinTypeInfo(null, null, context, classLevelFromInnermost)
     }
 
     /**
      * Creates a new [KotlinTypeInfo] with the same values as this one except for the [kaType] and
      * [classLevelFromInnermost] (if provided).
      */
-    private fun copy(kaType: KaType?, classLevelFromInnermost: Int = this.classLevelFromInnermost) =
-        KotlinTypeInfo(analysisSession, kaType, context, classLevelFromInnermost)
+    private fun copy(
+        analysisSession: KaSession,
+        kaType: KaType?,
+        classLevelFromInnermost: Int = this.classLevelFromInnermost
+    ) = KotlinTypeInfo(analysisSession, kaType, context, classLevelFromInnermost)
 
     /**
-     * Finds the nullability of the [kaType]. If there is no [analysisSession] or [kaType], defaults
-     * to `null` to allow for other sources, like annotations and inferred nullability to take
-     * effect.
+     * Finds the nullability of the [kaType]. If there is no [kaType], defaults to `null` to allow
+     * for other sources, like annotations and inferred nullability to take effect.
      */
     fun nullability(): TypeNullability? {
-        return if (analysisSession != null && kaType != null) {
-            KaTypeItemFactory.run { analysisSession.run { typeNullability(kaType) } }
+        return if (kaType != null) {
+            KaTypeItemFactory.run { analyze { typeNullability(kaType) } }
         } else {
             null
         }
@@ -106,7 +118,7 @@ private constructor(
 
     /** Checks whether the [kaType] is a value class type. */
     fun isValueClassType(): Boolean {
-        return kaType?.let { analysisSession?.typeForValueClass(it) } ?: false
+        return analyze { kaType?.let { typeForValueClass(it) } } ?: false
     }
 
     /**
@@ -165,37 +177,39 @@ private constructor(
      * is not a [KaFunctionType].
      */
     fun asLambdaType(): LambdaType {
-        kaType as KaFunctionType
-        return LambdaType(
-            analysisSession,
-            kaType,
-            context,
-            isSuspend = kaType.isSuspend,
-            hasReceiver = kaType.hasReceiver,
-            overrideTypeArguments =
-                // Compute a set of [KtType]s corresponding to the type arguments in the
-                // underlying `kotlin.jvm.functions.Function*`.
-                buildList {
-                    // The optional lambda receiver is the first type argument.
-                    kaType.receiverType?.let { add(copy(kaType = it)) }
-                    // The lambda's explicit parameters appear next.
-                    kaType.parameterTypes.mapTo(this) { copy(kaType = it) }
-                    // A `suspend` lambda is transformed by Kotlin in the same way that a
-                    // `suspend` function is, i.e. an additional continuation parameter is
-                    // added at the end of the explicit parameters that encapsulates the
-                    // return type and the return type is changed to `Any?`.
-                    if (kaType.isSuspend) {
-                        // Create a KotlinTypeInfo for the continuation parameter that
-                        // encapsulates the actual return type.
-                        add(forSyntheticContinuationParameter(kaType.returnType))
-                        // Add the `Any?` for the return type.
-                        add(nullableAny())
-                    } else {
-                        // As it is not a `suspend` lambda add the return type last.
-                        add(copy(kaType = kaType.returnType))
-                    }
-                },
-        )
+        return analyze {
+            kaType as KaFunctionType
+            LambdaType(
+                this,
+                kaType,
+                context,
+                isSuspend = kaType.isSuspend,
+                hasReceiver = kaType.hasReceiver,
+                overrideTypeArguments =
+                    // Compute a set of [KtType]s corresponding to the type arguments in the
+                    // underlying `kotlin.jvm.functions.Function*`.
+                    buildList {
+                        // The optional lambda receiver is the first type argument.
+                        kaType.receiverType?.let { add(copy(this@analyze, kaType = it)) }
+                        // The lambda's explicit parameters appear next.
+                        kaType.parameterTypes.mapTo(this) { copy(this@analyze, kaType = it) }
+                        // A `suspend` lambda is transformed by Kotlin in the same way that a
+                        // `suspend` function is, i.e. an additional continuation parameter is
+                        // added at the end of the explicit parameters that encapsulates the
+                        // return type and the return type is changed to `Any?`.
+                        if (kaType.isSuspend) {
+                            // Create a KotlinTypeInfo for the continuation parameter that
+                            // encapsulates the actual return type.
+                            add(forSyntheticContinuationParameter(kaType.returnType))
+                            // Add the `Any?` for the return type.
+                            add(nullableAny())
+                        } else {
+                            // As it is not a `suspend` lambda add the return type last.
+                            add(copy(this@analyze, kaType = kaType.returnType))
+                        }
+                    },
+            )
+        } ?: error("Cannot create lambda type for $this")
     }
 
     /** Get a [KotlinTypeInfo] that represents a suspend function's `Continuation` parameter. */
