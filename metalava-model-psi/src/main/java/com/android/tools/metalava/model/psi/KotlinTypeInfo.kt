@@ -72,7 +72,24 @@ private constructor(
         return "KotlinTypeInfo(${this@KotlinTypeInfo.kaType} for $context)"
     }
 
-    private fun copy(kaType: KaType?) = KotlinTypeInfo(analysisSession, kaType, context)
+    /**
+     * Creates a new [KotlinTypeInfo] with the same values as this one except for the
+     * [classLevelFromInnermost] (if provided) and the `kaType`, which will be computed based on
+     * [computeKaType] in the context of the [analysisSession].
+     */
+    fun copy(
+        classLevelFromInnermost: Int = this.classLevelFromInnermost,
+        computeKaType: (KaSession.() -> KaType?),
+    ): KotlinTypeInfo {
+        return copy(analysisSession?.run { computeKaType() }, classLevelFromInnermost)
+    }
+
+    /**
+     * Creates a new [KotlinTypeInfo] with the same values as this one except for the [kaType] and
+     * [classLevelFromInnermost] (if provided).
+     */
+    private fun copy(kaType: KaType?, classLevelFromInnermost: Int = this.classLevelFromInnermost) =
+        KotlinTypeInfo(analysisSession, kaType, context, classLevelFromInnermost)
 
     /**
      * Finds the nullability of the [kaType]. If there is no [analysisSession] or [kaType], defaults
@@ -96,11 +113,7 @@ private constructor(
      * Creates [KotlinTypeInfo] for the component type of this [kaType], assuming it is an array.
      */
     fun forArrayComponentType(): KotlinTypeInfo {
-        return KotlinTypeInfo(
-            analysisSession,
-            analysisSession?.run { kaType?.arrayElementType },
-            context,
-        )
+        return copy { kaType?.arrayElementType }
     }
 
     /**
@@ -108,24 +121,20 @@ private constructor(
      * it is a class type.
      */
     open fun forTypeArgument(index: Int): KotlinTypeInfo {
-        return KotlinTypeInfo(
-            analysisSession,
-            analysisSession?.run {
-                when (kaType) {
-                    is KaClassType -> {
-                        // Find which level of type qualifiers to use. The qualifiers are in order
-                        // from outermost to innermost class, and the [classLevelFromInnermost]
-                        // starts at 0 for the innermost class.
-                        val innermostClassIndex = kaType.qualifiers.lastIndex
-                        val thisClassIndex = innermostClassIndex - classLevelFromInnermost
-                        val thisClass = kaType.qualifiers.getOrNull(thisClassIndex)
-                        thisClass?.typeArguments?.getOrNull(index)?.type
-                    }
-                    else -> null
+        return copy {
+            when (kaType) {
+                is KaClassType -> {
+                    // Find which level of type qualifiers to use. The qualifiers are in order
+                    // from outermost to innermost class, and the [classLevelFromInnermost]
+                    // starts at 0 for the innermost class.
+                    val innermostClassIndex = kaType.qualifiers.lastIndex
+                    val thisClassIndex = innermostClassIndex - classLevelFromInnermost
+                    val thisClass = kaType.qualifiers.getOrNull(thisClassIndex)
+                    thisClass?.typeArguments?.getOrNull(index)?.type
                 }
-            },
-            context,
-        )
+                else -> null
+            }
+        }
     }
 
     /**
@@ -134,8 +143,7 @@ private constructor(
      * Uses the same [kaType], but increments the [classLevelFromInnermost].
      */
     fun forOuterClass(): KotlinTypeInfo {
-        return KotlinTypeInfo(
-            analysisSession,
+        return copy(classLevelFromInnermost = classLevelFromInnermost + 1) {
             // Only keep using the kaType if the outer class level exists.
             kaType?.takeIf {
                 // If the kaType isn't a class, don't use it for an outer class.
@@ -143,10 +151,8 @@ private constructor(
                     (kaType as? KaClassType)?.qualifiers?.lastIndex ?: return@takeIf false
                 // Don't take the kaType if class level is already at the last of the outer classes.
                 finalClassIndex > classLevelFromInnermost
-            },
-            context,
-            classLevelFromInnermost = classLevelFromInnermost + 1,
-        )
+            }
+        }
     }
 
     /** Whether this represents a [KaFunctionType]. */
@@ -201,11 +207,8 @@ private constructor(
     }
 
     /** Get a [KotlinTypeInfo] that represents `Any?`. */
-    private fun nullableAny(): KotlinTypeInfo {
-        // This cast is safe as this will only be called for a lambda function whose context will
-        // be [KtFunction].
-        val ktElement = context as KtElement
-        return analyze(ktElement) { KotlinTypeInfo(this, builtinTypes.nullableAny, context) }
+    fun nullableAny(): KotlinTypeInfo {
+        return copy { builtinTypes.nullableAny }
     }
 
     companion object {
