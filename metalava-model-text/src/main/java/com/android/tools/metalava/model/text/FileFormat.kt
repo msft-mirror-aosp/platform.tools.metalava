@@ -694,7 +694,7 @@ data class FileFormat(
             val properties = specifierParts[1]
 
             val builder = Builder(versionDefaults)
-            properties.trim().split(",").forEach { parsePropertyAssignment(builder, it) }
+            properties.trim().split(",").forEach { builder.setPropertyFromAssignment(it) }
             val format = builder.build()
 
             format.validate(
@@ -719,30 +719,6 @@ data class FileFormat(
                         "invalid version, found '$versionNumber', expected one of $possibilities"
                     )
                 }
-
-        /**
-         * Parse a property assignment of the form `property=value`, updating the appropriate
-         * property in [builder], or throwing an exception if there was a problem.
-         *
-         * @param builder the [Builder] into which the property's value will be added.
-         * @param assignment the string of the form `property=value`.
-         * @param propertyFilter optional filter that determines the set of allowable properties;
-         *   defaults to all properties.
-         */
-        private fun parsePropertyAssignment(
-            builder: Builder,
-            assignment: String,
-            propertyFilter: (CustomizableProperty) -> Boolean = { true },
-        ) {
-            val propertyParts = assignment.split("=")
-            if (propertyParts.size != 2) {
-                throw ApiParseException("expected <property>=<value> but found '$assignment'")
-            }
-            val name = propertyParts[0]
-            val value = propertyParts[1]
-            val customizable = CustomizableProperty.getByName(name, propertyFilter)
-            customizable.setFromString(builder, value)
-        }
 
         private const val PROPERTY_LINE_PREFIX = "// - "
 
@@ -769,7 +745,7 @@ data class FileFormat(
                     break
                 }
 
-                parsePropertyAssignment(builder, remainder)
+                builder.setPropertyFromAssignment(remainder)
             } while (true)
 
             return builder.build()
@@ -783,12 +759,7 @@ data class FileFormat(
         fun parseDefaults(defaults: String): FileFormat {
             val builder = Builder(V2)
             defaults.trim().split(",").forEach {
-                parsePropertyAssignment(
-                    builder,
-                    it,
-                ) {
-                    it.defaultable
-                }
+                builder.setPropertyFromAssignment(it, defaultableOnly = true)
             }
             return builder.build()
         }
@@ -802,14 +773,7 @@ data class FileFormat(
          */
         fun parseOverrides(base: FileFormat, overrides: String): FileFormat {
             val builder = Builder(base)
-            overrides.trim().split(",").forEach {
-                parsePropertyAssignment(
-                    builder,
-                    it,
-                ) {
-                    true
-                }
-            }
+            overrides.trim().split(",").forEach { builder.setPropertyFromAssignment(it) }
             return builder.build()
         }
 
@@ -842,6 +806,29 @@ data class FileFormat(
         var typeArgumentSpacing: TypeArgumentSpacing? = null
         var surface: String? = null
 
+        /**
+         * Parse a property assignment of the form `property=value`, updating the appropriate
+         * property in this [Builder], or throwing an exception if there was a problem.
+         *
+         * @param assignment the string of the form `property=value`.
+         * @param defaultableOnly if `true` then only [CustomizableProperty.defaultable] properties
+         *   are allowed.
+         */
+        internal fun setPropertyFromAssignment(
+            assignment: String,
+            defaultableOnly: Boolean = false,
+        ) {
+            val propertyParts = assignment.split("=")
+            if (propertyParts.size != 2) {
+                throw ApiParseException("expected <property>=<value> but found '$assignment'")
+            }
+            val name = propertyParts[0]
+            val value = propertyParts[1]
+            val customizable = CustomizableProperty.getByName(name, defaultableOnly)
+            customizable.setFromString(this, value)
+        }
+
+        /** Build the [FileFormat] from the information in this [Builder]. */
         fun build(): FileFormat {
             // Apply any language defaults first as they take priority over version defaults.
             language?.applyLanguageDefaults(this)
@@ -1140,18 +1127,17 @@ data class FileFormat(
              * not be found.
              *
              * @param name the name of the property.
-             * @param propertyFilter optional filter that determines the set of allowable
-             *   properties.
+             * @param defaultableOnly if `true` then only [CustomizableProperty.defaultable]
+             *   properties are allowed.
              */
-            fun getByName(
-                name: String,
-                propertyFilter: (CustomizableProperty) -> Boolean,
-            ): CustomizableProperty =
-                byPropertyName[name]?.let { if (propertyFilter(it)) it else null }
+            fun getByName(name: String, defaultableOnly: Boolean): CustomizableProperty =
+                byPropertyName[name]?.let { if (!defaultableOnly || it.defaultable) it else null }
                     ?: let {
                         val possibilities =
                             byPropertyName
-                                .filter { (_, property) -> propertyFilter(property) }
+                                .filter { (_, property) ->
+                                    !defaultableOnly || property.defaultable
+                                }
                                 .keys
                                 .sorted()
                                 .joinToString("', '")
