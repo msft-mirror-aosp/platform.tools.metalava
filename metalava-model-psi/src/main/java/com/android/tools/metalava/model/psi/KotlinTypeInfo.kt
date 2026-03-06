@@ -20,12 +20,14 @@ import com.android.tools.metalava.model.KOTLIN_CONTINUATION
 import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.psi.kotlin.KaTypeItemFactory
 import com.intellij.psi.PsiElement
+import org.jetbrains.kotlin.analysis.api.KaExperimentalApi
 import org.jetbrains.kotlin.analysis.api.KaSession
 import org.jetbrains.kotlin.analysis.api.analyze
 import org.jetbrains.kotlin.analysis.api.symbols.KaNamedClassSymbol
 import org.jetbrains.kotlin.analysis.api.types.KaClassType
 import org.jetbrains.kotlin.analysis.api.types.KaFunctionType
 import org.jetbrains.kotlin.analysis.api.types.KaType
+import org.jetbrains.kotlin.analysis.api.types.KaTypePointer
 import org.jetbrains.kotlin.name.ClassId
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.psi.KtCallableDeclaration
@@ -47,10 +49,11 @@ import org.jetbrains.uast.getContainingUMethod
 /**
  * A wrapper for a [KaType] and the [PsiElement] that is the use site.
  *
- * The [KaSession] provided in the constructor is not stored. It is used to ensure the provided type
- * is fully expanded, and further computations with the [KaType] use a fresh [KaSession] based on
- * the [context].
+ * The [KaSession] and [KaType] provided in the constructor is not stored. They are used to ensure
+ * the provided type is fully expanded, and then the [KaType] is converted to a [KaTypePointer].
+ * Further computations with the [KaTypePointer] use a fresh [KaSession] based on the [context].
  */
+@OptIn(KaExperimentalApi::class)
 internal open class KotlinTypeInfo
 private constructor(
     analysisSession: KaSession?,
@@ -65,19 +68,22 @@ private constructor(
     constructor(context: PsiElement) : this(null, null, context)
 
     /** Make sure that any typealiases are fully expanded. */
-    private val kaType =
-        analysisSession?.run { kaType?.fullyExpandedType }
+    private val kaTypePointer: KaTypePointer<KaType>? =
+        analysisSession?.run { kaType?.fullyExpandedType?.createPointer() }
             ?: kaType?.let {
                 error("cannot have non-null kaType ($kaType) with a null analysisSession")
             }
 
     override fun toString(): String {
-        return "KotlinTypeInfo(${this@KotlinTypeInfo.kaType} for $context)"
+        val kaTypeString = analyze { kaType -> kaType.toString() }
+        return "KotlinTypeInfo($kaTypeString for $context)"
     }
 
     /** Runs the [action] in a new analysis scope using the [context], if it is a [KtElement]. */
-    protected fun <R> analyze(action: KaSession.() -> R): R? {
-        return (context as? KtElement)?.let { analyze(it) { this.action() } }
+    protected fun <R> analyze(action: KaSession.(KaType) -> R): R? {
+        return (context as? KtElement)?.let {
+            analyze(it) { kaTypePointer?.restore()?.let { kaType -> this.action(kaType) } }
+        }
     }
 
     /**
@@ -85,11 +91,11 @@ private constructor(
      * [classLevelFromInnermost] (if provided) and the `kaType`, which will be computed based on
      * [computeKaType] in the context of the a [KaSession] created by [analyze].
      */
-    fun copy(
+    private fun copy(
         classLevelFromInnermost: Int = this.classLevelFromInnermost,
-        computeKaType: (KaSession.() -> KaType?),
+        computeKaType: (KaSession.(KaType) -> KaType?),
     ): KotlinTypeInfo {
-        return analyze { copy(this, computeKaType(), classLevelFromInnermost) }
+        return analyze { kaType -> copy(this, computeKaType(kaType), classLevelFromInnermost) }
             // An analysis session could not be created
             ?: KotlinTypeInfo(null, null, context, classLevelFromInnermost)
     }
@@ -105,27 +111,24 @@ private constructor(
     ) = KotlinTypeInfo(analysisSession, kaType, context, classLevelFromInnermost)
 
     /**
-     * Finds the nullability of the [kaType]. If there is no [kaType], defaults to `null` to allow
-     * for other sources, like annotations and inferred nullability to take effect.
+     * Finds the nullability of the [KaType] this represents. If there is no [KaType], defaults to
+     * `null` to allow for other sources, like annotations and inferred nullability to take effect.
      */
     fun nullability(): TypeNullability? {
-        return if (kaType != null) {
-            KaTypeItemFactory.run { analyze { typeNullability(kaType) } }
-        } else {
-            null
-        }
+        return KaTypeItemFactory.run { analyze { kaType -> typeNullability(kaType) } }
     }
 
-    /** Checks whether the [kaType] is a value class type. */
+    /** Checks whether the [KaType] this represents is a value class type. */
     fun isValueClassType(): Boolean {
-        return analyze { kaType?.let { typeForValueClass(it) } } ?: false
+        return analyze { kaType -> typeForValueClass(kaType) } ?: false
     }
 
     /**
-     * Creates [KotlinTypeInfo] for the component type of this [kaType], assuming it is an array.
+     * Creates [KotlinTypeInfo] for the component type of the [KaType] this represents, assuming it
+     * is an array.
      */
     fun forArrayComponentType(): KotlinTypeInfo {
-        return copy { kaType?.arrayElementType }
+        return copy { kaType -> kaType.arrayElementType }
     }
 
     /**
@@ -133,7 +136,7 @@ private constructor(
      * it is a class type.
      */
     open fun forTypeArgument(index: Int): KotlinTypeInfo {
-        return copy {
+        return copy { kaType ->
             when (kaType) {
                 is KaClassType -> {
                     // Find which level of type qualifiers to use. The qualifiers are in order
@@ -150,14 +153,15 @@ private constructor(
     }
 
     /**
-     * Creates [KotlinTypeInfo] for the outer class type of this [kaType], assuming it is a class.
+     * Creates [KotlinTypeInfo] for the outer class type of the [KaType] this represents, assuming
+     * it is a class.
      *
-     * Uses the same [kaType], but increments the [classLevelFromInnermost].
+     * Uses the same [KaType], but increments the [classLevelFromInnermost].
      */
     fun forOuterClass(): KotlinTypeInfo {
-        return copy(classLevelFromInnermost = classLevelFromInnermost + 1) {
+        return copy(classLevelFromInnermost = classLevelFromInnermost + 1) { kaType ->
             // Only keep using the kaType if the outer class level exists.
-            kaType?.takeIf {
+            kaType.takeIf {
                 // If the kaType isn't a class, don't use it for an outer class.
                 val finalClassIndex =
                     (kaType as? KaClassType)?.qualifiers?.lastIndex ?: return@takeIf false
@@ -169,15 +173,15 @@ private constructor(
 
     /** Whether this represents a [KaFunctionType]. */
     fun isLambdaType(): Boolean {
-        return kaType is KaFunctionType
+        return analyze { kaType -> kaType is KaFunctionType } ?: false
     }
 
     /**
-     * Converts this [KotlinTypeInfo] to a [KotlinTypeInfo.LambdaType]. This will fail if [kaType]
-     * is not a [KaFunctionType].
+     * Converts this [KotlinTypeInfo] to a [KotlinTypeInfo.LambdaType]. This will fail if this does
+     * not represent a [KaFunctionType].
      */
     fun asLambdaType(): LambdaType {
-        return analyze {
+        return analyze { kaType ->
             kaType as KaFunctionType
             LambdaType(
                 this,
