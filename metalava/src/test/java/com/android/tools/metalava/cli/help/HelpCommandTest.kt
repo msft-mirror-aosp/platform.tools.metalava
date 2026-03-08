@@ -113,6 +113,12 @@ Usage: metalava help signature-file-formats
   annotations can only be included when `kotlin-name-type-order=true`, because the Java order makes it ambiguous whether
   an annotation is type-use.
 
+  * `java-record-classes = yes|no` - Whether to include java record classes in the signature file.
+
+  If `yes` then the signature file will include `record` class type keyword and property items representing the record
+  components, along with the constructor and methods. If `no` then record classes will be represented as normal classes
+  without any properties but sill with the same constructor and methods.
+
   * `kotlin-name-type-order = yes|no` - Whether to order the names and types of APIs using Kotlin-style syntax (`name:
   type`) or Java-style syntax (`type name`).
 

@@ -49,6 +49,7 @@ Signature Format Output:
                                              `<property>` is one of the following:
                                              * `add-additional-overrides`
                                              * `flagged-api-inheritance`
+                                             * `java-record-classes`
                                              * `normalize-abstract-modifier`
                                              * `normalize-final-modifier`
                                              * `overloaded-method-order`
