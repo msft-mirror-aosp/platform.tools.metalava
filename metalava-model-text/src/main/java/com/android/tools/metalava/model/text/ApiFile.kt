@@ -726,7 +726,7 @@ private constructor(
                 classKind = ClassKind.ENUM
                 modifiers.setFinal(true)
                 modifiers.setStatic(true)
-                superClassType = globalTypeItemFactory.superEnumType
+                superClassType = WellKnownTypes.JAVA_LANG_ENUM_NON_NULL_TYPE
                 token = tokenizer.requireToken()
             }
             "typealias" -> {
@@ -784,7 +784,7 @@ private constructor(
                 }
             }
         }
-        if (superClassType == globalTypeItemFactory.superEnumType) {
+        if (superClassType == WellKnownTypes.JAVA_LANG_ENUM_NON_NULL_TYPE) {
             // This can be taken either for an enum class, or a normal class that extends
             // java.lang.Enum (which was the old way of representing an enum in the API signature
             // files.
@@ -792,8 +792,8 @@ private constructor(
         } else if (classKind == ClassKind.ANNOTATION_TYPE) {
             // If the annotation was defined using @interface then add the implicit
             // "implements java.lang.annotation.Annotation".
-            interfaceTypes.add(globalTypeItemFactory.superAnnotationType)
-        } else if (globalTypeItemFactory.superAnnotationType in interfaceTypes) {
+            interfaceTypes.add(WellKnownTypes.JAVA_LANG_ANNOTATION_NON_NULL_TYPE)
+        } else if (WellKnownTypes.JAVA_LANG_ANNOTATION_NON_NULL_TYPE in interfaceTypes) {
             // A normal class that implements java.lang.annotation.Annotation which was the old way
             // of representing an annotation in the API signature files. So, update the class kind
             // to match.
@@ -833,7 +833,7 @@ private constructor(
                 superClassType == null &&
                 qualifiedClassName != JAVA_LANG_OBJECT
         ) {
-            superClassType = globalTypeItemFactory.superObjectType
+            superClassType = WellKnownTypes.JAVA_LANG_OBJECT_NON_NULL_TYPE
         }
 
         // Create the DefaultClassItem and set its package but do not add it to the package or
