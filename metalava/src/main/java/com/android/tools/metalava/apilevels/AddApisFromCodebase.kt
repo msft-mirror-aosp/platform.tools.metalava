@@ -73,9 +73,7 @@ fun addApisFromCodebase(
                     }
                     ClassKind.ENUM -> {
                         // Implicit super class; match convention from bytecode
-                        if (newClass.name != enumClass) {
-                            newClass.updateSuperClass(enumClass, updater)
-                        }
+                        newClass.updateSuperClass(enumClass, updater)
                     }
                     ClassKind.ANNOTATION_TYPE -> {
                         // Implicit super class; match convention from bytecode
