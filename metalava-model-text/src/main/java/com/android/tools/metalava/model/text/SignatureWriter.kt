@@ -182,15 +182,7 @@ class SignatureWriter(
 
         // Get the keyword to use for the class kind.
         val classKind = cls.classKind
-        val classKindKeyword =
-            when (classKind) {
-                ClassKind.ANNOTATION_TYPE -> "@interface"
-                ClassKind.INTERFACE -> "interface"
-                ClassKind.CLASS -> "class"
-                ClassKind.ENUM -> "enum"
-                ClassKind.TYPEALIAS -> "typealias"
-            }
-        write(classKindKeyword)
+        write(classKind.signatureKeyword)
         write(" ")
 
         if (classKind == ClassKind.TYPEALIAS) {

@@ -23,32 +23,39 @@ package com.android.tools.metalava.model
  *
  * @param supportsInitializerBlock `true` if the class kind supports initializer blocks, e.g. `{
  *   field = 0; }` or `static { FIELD = 0; }`.
+ * @param signatureKeyword the keyword to use in a signature file to differentiate by class kind.
  */
 enum class ClassKind(
     val supportsInitializerBlock: Boolean,
+    val signatureKeyword: String,
 ) {
     /** An interface. */
     INTERFACE(
         supportsInitializerBlock = false,
+        signatureKeyword = "interface",
     ),
 
     /** An enum class. */
     ENUM(
         supportsInitializerBlock = true,
+        signatureKeyword = "enum",
     ),
 
     /** An annotation class. */
     ANNOTATION_TYPE(
         supportsInitializerBlock = false,
+        signatureKeyword = "@interface",
     ),
 
     /** A normal class. */
     CLASS(
         supportsInitializerBlock = true,
+        signatureKeyword = "class",
     ),
 
     /** A typealias */
     TYPEALIAS(
         supportsInitializerBlock = false,
+        signatureKeyword = "typealias",
     ),
 }
