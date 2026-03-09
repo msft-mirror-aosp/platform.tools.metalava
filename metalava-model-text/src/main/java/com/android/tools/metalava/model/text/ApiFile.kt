@@ -48,6 +48,7 @@ import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.TypeParameterList
+import com.android.tools.metalava.model.TypeParameterScope
 import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.WellKnownTypes
 import com.android.tools.metalava.model.api.surface.ApiSurfaces
@@ -87,7 +88,7 @@ sealed class SignatureFile {
     /**
      * Indicates whether [file] is for the main API surface, i.e. the one that is being created.
      *
-     * This will be stored in [Item.emit].
+     * This will be stored in [SelectableItem.emit].
      */
     protected open val forMainApiSurface: Boolean
         get() = true
@@ -253,8 +254,8 @@ private constructor(
         )
 
     /**
-     * Whether types should be interpreted to be in Kotlin format (e.g. ? suffix means nullable, !
-     * suffix means unknown, and absence of a suffix means not nullable.
+     * Whether types should be interpreted to be in Kotlin format (e.g. `?` suffix means nullable,
+     * `!` suffix means unknown, and absence of a suffix means not nullable).
      *
      * Updated based on the header of the signature file being parsed.
      */
@@ -462,9 +463,10 @@ private constructor(
      * It is only necessary to mark an existing class as being part of the main API surface, if it
      * should be but is not already.
      *
-     * This will set [Item.emit] to `true` iff it was previously `false` and [forMainApiSurface] is
-     * `true`. That ensures that a class that is not in the main API surface can be included in it
-     * by another signature file, but once it is included it cannot be removed.
+     * This will set [SelectableItem.emit] to `true` iff it was previously `false` and
+     * [forMainApiSurface] is `true`. That ensures that a class that is not in the main API surface
+     * can be included in it by another signature file, but once it is included it cannot be
+     * removed.
      *
      * e.g. Imagine that there are two files, `public.txt` and `system.txt` where the second extends
      * the first. When generating the system API classes in the `public.txt` will not be considered
@@ -557,7 +559,7 @@ private constructor(
             // If the same package showed up multiple times, make sure they have the same modifiers.
             // (Packages can't have public/private/etc., but they can have annotations, which are
             // part of ModifierList.)
-            var existingAnnotations = existing.modifiers.annotations()
+            val existingAnnotations = existing.modifiers.annotations()
             if (annotations != existingAnnotations) {
                 throw ApiParseException(
                     String.format(
@@ -1555,7 +1557,7 @@ private constructor(
      */
     private fun parseModifiers(tokenizer: Tokenizer, startingToken: String): MutableModifierList {
         val annotations = getAnnotations(tokenizer, startingToken)
-        val modifiers = createModifiers(VisibilityLevel.PACKAGE_PRIVATE, annotations)
+        val modifiers = createModifiers(annotations)
         parseKeywordModifiers(tokenizer, modifiers)
         return modifiers
     }
@@ -1687,11 +1689,8 @@ private constructor(
     }
 
     /** Creates a [MutableModifierList], setting the deprecation based on the [annotations]. */
-    private fun createModifiers(
-        visibility: VisibilityLevel,
-        annotations: List<AnnotationItem>
-    ): MutableModifierList {
-        val modifiers = createMutableModifiers(visibility, annotations)
+    private fun createModifiers(annotations: List<AnnotationItem>): MutableModifierList {
+        val modifiers = createMutableModifiers(VisibilityLevel.PACKAGE_PRIVATE, annotations)
         // @Deprecated is also treated as a "modifier"
         if (annotations.any { it.qualifiedName == JAVA_LANG_DEPRECATED }) {
             modifiers.setDeprecated(true)
