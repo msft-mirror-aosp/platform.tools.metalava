@@ -28,6 +28,7 @@ private val FILE_FORMAT_PROPERTY_NAMES =
         "include-default-parameter-values",
         "include-type-use-annotations",
         "java-record-classes",
+        "java-sealed-classes",
         "kotlin-name-type-order",
         "kotlin-style-nulls",
         "migrating",

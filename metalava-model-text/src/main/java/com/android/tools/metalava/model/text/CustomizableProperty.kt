@@ -285,6 +285,19 @@ private constructor(
                     """
             )
 
+        val JAVA_SEALED_CLASSES by
+            booleanProperty(
+                defaultable = true,
+                help =
+                    """
+                        Whether to include java sealed classes in the signature file.
+
+                        If `yes` then the signature file will include `sealed`, and `non-sealed`
+                        modifiers, and `permits` list. If `no` then they will not be included but it
+                        is not clear how that would work.
+                    """
+            )
+
         /** kotlin-name-type-order=[yes|no] */
         val KOTLIN_NAME_TYPE_ORDER by
             booleanProperty(
