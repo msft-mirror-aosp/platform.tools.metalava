@@ -21,7 +21,6 @@ import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.testing.kotlin
 import kotlin.test.Test
-import kotlin.test.assertContains
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
@@ -150,6 +149,7 @@ class PsiPropertyItemTest : BaseModelTest() {
 
                     class Foo {
                         @ExperimentalFooApi
+                        @field:ExperimentalFooApi
                         var withField: String = "42"
                             get() { return field }
                             set(value) { field = "v=" + value }
@@ -319,11 +319,11 @@ class PsiPropertyItemTest : BaseModelTest() {
             val body = properties.single { it.name() == "body" }
             val accessors = properties.single { it.name() == "accessors" }
 
-            assertContains(parameter.documentation.text, "parameter doc")
-            assertContains(body.documentation.text, "body doc")
-            assertContains(accessors.documentation.text, "accessors property doc")
-            assertContains(accessors.getter?.documentation?.text.orEmpty(), "getter doc")
-            assertContains(accessors.setter?.documentation?.text.orEmpty(), "setter doc")
+            parameter.assertPrintedDocumentation(expectedOutput = "/** parameter doc */")
+            body.assertPrintedDocumentation(expectedOutput = "/** body doc */")
+            accessors.assertPrintedDocumentation(expectedOutput = "/** accessors property doc */")
+            accessors.getter?.assertPrintedDocumentation(expectedOutput = "/** getter doc */")
+            accessors.setter?.assertPrintedDocumentation(expectedOutput = "/** setter doc */")
         }
     }
 }

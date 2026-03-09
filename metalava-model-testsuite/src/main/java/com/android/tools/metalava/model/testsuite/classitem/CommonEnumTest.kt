@@ -62,7 +62,7 @@ class CommonEnumTest : BaseModelTest() {
             val fooClass = codebase.assertClass("test.pkg.Foo")
             val enumClass = codebase.assertResolvedClass("java.lang.Enum")
 
-            assertSame(enumClass, fooClass.superClassType()?.asClass())
+            assertSame(enumClass, fooClass.superClassType()?.resolveClass(codebase))
             assertSame(enumClass, fooClass.superClass())
 
             val interfaceList = fooClass.interfaceTypes()
@@ -133,6 +133,66 @@ class CommonEnumTest : BaseModelTest() {
             val getEntries = fooClass.assertMethod("getEntries", listOf("java.lang.String"))
             assertThat(fooClass.methods().filter { it.name() == "getEntries" })
                 .isEqualTo(listOf(getEntries))
+        }
+    }
+
+    @Test
+    fun `Test enum locations - java`() {
+        runCodebaseTest(
+            inputSet(
+                java(
+                    """
+                        package test.pkg;
+                        public enum Foo {
+                            FOO1,
+                            FOO2
+                        }
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
+                        public enum Bar {
+                            BAR1,
+                            BAR2,
+                        }
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
+                        public enum Baz {
+                            BAZ1,
+                            BAZ2;
+                        }
+                    """
+                ),
+            ),
+        ) {
+            val classes = codebase.assertPackage("test.pkg").topLevelClasses()
+
+            val fields = classes.sortedBy { it.simpleName() }.flatMap { it.fields() }
+            val locations = buildString {
+                for (field in fields) {
+                    append(field.fileLocation)
+                    append(" -> ")
+                    append(field)
+                    append('\n')
+                }
+            }
+
+            assertEquals(
+                """
+                    MAIN_SRC/src/test/pkg/Bar.java:3 -> field Bar.BAR1
+                    MAIN_SRC/src/test/pkg/Bar.java:4 -> field Bar.BAR2
+                    MAIN_SRC/src/test/pkg/Baz.java:3 -> field Baz.BAZ1
+                    MAIN_SRC/src/test/pkg/Baz.java:4 -> field Baz.BAZ2
+                    MAIN_SRC/src/test/pkg/Foo.java:3 -> field Foo.FOO1
+                    MAIN_SRC/src/test/pkg/Foo.java:4 -> field Foo.FOO2
+                """
+                    .trimIndent(),
+                removeTestSpecificDirectories(locations.trim())
+            )
         }
     }
 }

@@ -41,6 +41,7 @@ const val KT_RETENTION = "kotlin.annotation.Retention"
 const val JVM_STATIC = "kotlin.jvm.JvmStatic"
 const val JVM_NAME = "kotlin.jvm.JvmName"
 const val JVM_SYNTHETIC = "kotlin.jvm.JvmSynthetic"
+const val JVM_FIELD = "kotlin.jvm.JvmField"
 
 const val KOTLIN_METADATA = "kotlin.Metadata"
 
@@ -52,3 +53,7 @@ const val JAVA_PACKAGE_INFO = "package-info.java"
 
 const val KOTLIN_CONTINUATION = "kotlin.coroutines.Continuation"
 const val KOTLIN_DEPRECATED = "kotlin.Deprecated"
+
+object JavaConstants {
+    const val DOT_CLASS = ".class"
+}

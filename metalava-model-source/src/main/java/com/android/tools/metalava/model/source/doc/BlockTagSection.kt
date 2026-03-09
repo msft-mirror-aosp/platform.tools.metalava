@@ -16,7 +16,6 @@
 
 package com.android.tools.metalava.model.source.doc
 
-import com.android.tools.metalava.model.doc.DocContent
 import com.android.tools.metalava.model.doc.DocContentOwner
 import com.android.tools.metalava.model.source.javadoc.DocTag
 import com.android.tools.metalava.model.source.javadoc.ExtractorResult
@@ -44,8 +43,6 @@ internal interface BlockTagSection : DocContentOwner, DocTag {
 
     /** The optional [tagType] specific data. */
     override val tagData: TagData?
-
-    val docContentForAppending: DocContent?
 
     /**
      * Get the type safe tag specific data for [tagType].
@@ -87,7 +84,6 @@ internal class DefaultBlockTagSection(
     context: DocCommentContext,
     override val tagType: TagType<*>,
     descriptionSupplier: ContentSupplier,
-    mutationListener: DocCommentMutationListener? = null,
 ) :
     DescriptionOwner(
         context,
@@ -117,7 +113,11 @@ internal class DefaultBlockTagSection(
      */
     override fun initializeDescription(suppliedDescription: JavadocContent?) {
         val result: ExtractorResult? =
-            suppliedDescription?.extractTagDataForTagType(context, tagType)
+            suppliedDescription?.extractTagDataForTagType(
+                context,
+                tagType,
+                descriptionSupplier.reporter,
+            )
         _tagData = result?.tagData
 
         // Delegate to the super method to store the remainder in description.
