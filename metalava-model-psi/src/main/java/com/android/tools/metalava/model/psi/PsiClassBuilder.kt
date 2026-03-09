@@ -271,14 +271,6 @@ internal class PsiClassBuilder(
             if (psiMethod.hasAnnotation(ANDROIDX_COMPOSABLE)) continue
 
             if (psiMethod.isConstructor) {
-                // Kotlin value class primary constructors cannot be called from Java, so they will
-                // be generated later by the KaCodebaseAssembler. For K1, these constructors aren't
-                // fake UAST elements, so they won't have already been filtered out.
-                // TODO(b/427783483): remove this workaround
-                if (classItem.modifiers.isValue() && (psiMethod as UMethod).isPrimaryConstructor) {
-                    continue
-                }
-
                 val constructor = createConstructor(classItem, psiMethod, classTypeItemFactory)
 
                 // Constructors with value class type parameters may or may not be fake UAST
