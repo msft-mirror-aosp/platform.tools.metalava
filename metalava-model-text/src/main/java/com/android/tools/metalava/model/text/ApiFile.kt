@@ -703,7 +703,6 @@ private constructor(
 
     private fun parseClass(pkg: PackageItem, tokenizer: Tokenizer, startingToken: String) {
         var token = startingToken
-        var superClassType: ClassTypeItem? = null
 
         val (modifiers, targetLanguages) = parseModifiersAndTargetLanguages(tokenizer, token)
         // Remember this position as this seems like a good place to use to report issues with the
@@ -727,12 +726,7 @@ private constructor(
 
         classKind.setImplicitModifiers(modifiers)
 
-        when (classKind) {
-            ClassKind.ENUM -> {
-                superClassType = WellKnownTypes.JAVA_LANG_ENUM_NON_NULL_TYPE
-            }
-            else -> {}
-        }
+        var superClassType = classKind.implicitSuperClassType
 
         token = tokenizer.requireToken()
         tokenizer.assertIdent(token)

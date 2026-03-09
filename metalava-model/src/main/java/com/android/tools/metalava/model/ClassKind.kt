@@ -24,10 +24,13 @@ package com.android.tools.metalava.model
  * @param supportsInitializerBlock `true` if the class kind supports initializer blocks, e.g. `{
  *   field = 0; }` or `static { FIELD = 0; }`.
  * @param signatureKeyword the keyword to use in a signature file to differentiate by class kind.
+ * @param implicitSuperClassType the optional super class [ClassTypeItem] that is implicit to this
+ *   [ClassKind].
  */
 enum class ClassKind(
     val supportsInitializerBlock: Boolean,
     val signatureKeyword: String,
+    val implicitSuperClassType: ClassTypeItem? = null,
 ) {
     /** An interface. */
     INTERFACE(
@@ -43,6 +46,7 @@ enum class ClassKind(
     ENUM(
         supportsInitializerBlock = true,
         signatureKeyword = "enum",
+        implicitSuperClassType = WellKnownTypes.JAVA_LANG_ENUM_NON_NULL_TYPE,
     ) {
         override fun setImplicitModifiers(modifiers: MutableModifierList) {
             modifiers.setFinal(true)
