@@ -117,21 +117,6 @@ class SignatureWriter(
         write("\n")
     }
 
-    /**
-     * Writes the signature for the [typeAlias], which is formatted differently from all other
-     * [ClassItem]s.
-     *
-     * This should only be called if [typeAlias] is a typealias.
-     */
-    fun visitTypeAlias(typeAlias: ClassItem) {
-        write(typeAlias.simpleName())
-        writeTypeParameterList(typeAlias.typeParameterList, addSpace = false)
-
-        write(" = ")
-        writeType(typeAlias.aliasedType)
-        write(";\n\n")
-    }
-
     override fun visitProperty(property: PropertyItem) {
         write("    property ")
         writeModifiers(property)
@@ -208,19 +193,23 @@ class SignatureWriter(
         write(classKindKeyword)
         write(" ")
 
-        // The rest of a typealias is written in a different format than any other class.
         if (classKind == ClassKind.TYPEALIAS) {
-            visitTypeAlias(cls)
-            return
+            // The rest of a typealias is written in a different format than any other class.
+            write(cls.simpleName())
+            writeTypeParameterList(cls.typeParameterList, addSpace = false)
+            write(" = ")
+            writeType(cls.aliasedType)
+            write(";\n\n")
+        } else {
+            // Write the rest of a normal class.
+            write(cls.fullName())
+            writeTypeParameterList(cls.typeParameterList, addSpace = false)
+            writeSuperClassStatement(cls)
+            writeInterfaceList(cls)
+            propagateSuppressAnnotationsToSubclasses(cls)
+
+            write(" {\n")
         }
-
-        write(cls.fullName())
-        writeTypeParameterList(cls.typeParameterList, addSpace = false)
-        writeSuperClassStatement(cls)
-        writeInterfaceList(cls)
-        propagateSuppressAnnotationsToSubclasses(cls)
-
-        write(" {\n")
     }
 
     /**
