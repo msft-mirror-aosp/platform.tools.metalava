@@ -725,16 +725,10 @@ private constructor(
             return
         }
 
+        classKind.setImplicitModifiers(modifiers)
+
         when (classKind) {
-            ClassKind.INTERFACE -> {
-                modifiers.setAbstract(true)
-            }
-            ClassKind.ANNOTATION_TYPE -> {
-                modifiers.setAbstract(true)
-            }
             ClassKind.ENUM -> {
-                modifiers.setFinal(true)
-                modifiers.setStatic(true)
                 superClassType = WellKnownTypes.JAVA_LANG_ENUM_NON_NULL_TYPE
             }
             else -> {}

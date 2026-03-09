@@ -33,19 +33,32 @@ enum class ClassKind(
     INTERFACE(
         supportsInitializerBlock = false,
         signatureKeyword = "interface",
-    ),
+    ) {
+        override fun setImplicitModifiers(modifiers: MutableModifierList) {
+            modifiers.setAbstract(true)
+        }
+    },
 
     /** An enum class. */
     ENUM(
         supportsInitializerBlock = true,
         signatureKeyword = "enum",
-    ),
+    ) {
+        override fun setImplicitModifiers(modifiers: MutableModifierList) {
+            modifiers.setFinal(true)
+            modifiers.setStatic(true)
+        }
+    },
 
     /** An annotation class. */
     ANNOTATION_TYPE(
         supportsInitializerBlock = false,
         signatureKeyword = "@interface",
-    ),
+    ) {
+        override fun setImplicitModifiers(modifiers: MutableModifierList) {
+            modifiers.setAbstract(true)
+        }
+    },
 
     /** A normal class. */
     CLASS(
@@ -59,6 +72,9 @@ enum class ClassKind(
         signatureKeyword = "typealias",
     ),
     ;
+
+    /** Set any modifiers on [modifiers] that are implicit for this [ClassKind]. */
+    open fun setImplicitModifiers(modifiers: MutableModifierList) {}
 
     companion object {
         /** Map from [ClassKind.signatureKeyword] to [ClassKind]. */
