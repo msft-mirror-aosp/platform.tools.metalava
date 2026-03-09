@@ -713,25 +713,20 @@ private constructor(
 
         token = tokenizer.current
         when (token) {
-            "class" -> {
-                token = tokenizer.requireToken()
-            }
+            "class" -> {}
             "interface" -> {
                 classKind = ClassKind.INTERFACE
                 modifiers.setAbstract(true)
-                token = tokenizer.requireToken()
             }
             "@interface" -> {
                 classKind = ClassKind.ANNOTATION_TYPE
                 modifiers.setAbstract(true)
-                token = tokenizer.requireToken()
             }
             "enum" -> {
                 classKind = ClassKind.ENUM
                 modifiers.setFinal(true)
                 modifiers.setStatic(true)
                 superClassType = WellKnownTypes.JAVA_LANG_ENUM_NON_NULL_TYPE
-                token = tokenizer.requireToken()
             }
             "typealias" -> {
                 // Type aliases aren't classes, but they are defined at the same level as classes
@@ -746,6 +741,8 @@ private constructor(
                 )
             }
         }
+
+        token = tokenizer.requireToken()
         tokenizer.assertIdent(token)
 
         // The declaredClassType consists of the full name (i.e. preceded by the containing class's
