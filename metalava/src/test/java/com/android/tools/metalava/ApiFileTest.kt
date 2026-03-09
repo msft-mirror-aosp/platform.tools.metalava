@@ -5137,13 +5137,10 @@ class ApiFileTest : DriverTest() {
     @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Kotlin expect-actual with JvmOverloads constructors`() {
-        check(
-            format = FileFormat.V4,
-            sourceFiles =
-                arrayOf(
-                    kotlin(
-                        "src/commonMain/test/pkg/Expect.kt",
-                        """
+        val commonSource =
+            kotlin(
+                "src/commonMain/test/pkg/Expect.kt",
+                """
                         package test.pkg
 
                         expect class AllOptionalJvmOverloads @JvmOverloads constructor(
@@ -5164,10 +5161,11 @@ class ApiFileTest : DriverTest() {
                             private val bar: Int = 0
                         )
                     """
-                    ),
-                    kotlin(
-                        "src/jvmMain/test/pkg/Actual.kt",
-                        """
+            )
+        val androidSource =
+            kotlin(
+                "src/androidMain/test/pkg/Actual.kt",
+                """
                         package test.pkg
 
                         actual class AllOptionalJvmOverloads @JvmOverloads actual constructor(
@@ -5188,7 +5186,14 @@ class ApiFileTest : DriverTest() {
                             private val bar: Int = 0
                         )
                     """
-                    )
+            )
+        check(
+            format = FileFormat.V4,
+            sourceFiles = arrayOf(commonSource, androidSource),
+            projectDescription =
+                createProjectDescription(
+                    createCommonModuleDescription(arrayOf(commonSource)),
+                    createAndroidModuleDescription(arrayOf(androidSource)),
                 ),
             api =
                 """
