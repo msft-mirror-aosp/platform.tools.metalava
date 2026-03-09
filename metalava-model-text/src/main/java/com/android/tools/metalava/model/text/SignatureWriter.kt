@@ -198,23 +198,27 @@ class SignatureWriter(
 
     override fun visitClass(cls: ClassItem) {
         // Typealiases are written in a different format than any other class.
-        if (cls.classKind == ClassKind.TYPEALIAS) {
+        val classKind = cls.classKind
+        if (classKind == ClassKind.TYPEALIAS) {
             visitTypeAlias(cls)
             return
         }
+
         write("  ")
 
         writeModifiers(cls)
 
-        if (cls.isAnnotationType()) {
-            write("@interface")
-        } else if (cls.isInterface()) {
-            write("interface")
-        } else if (cls.isEnum()) {
-            write("enum")
-        } else {
-            write("class")
-        }
+        // Get the keyword to use for the class kind.
+        val classKindKeyword =
+            when (classKind) {
+                ClassKind.ANNOTATION_TYPE -> "@interface"
+                ClassKind.INTERFACE -> "interface"
+                ClassKind.CLASS -> "class"
+                ClassKind.ENUM -> "enum"
+                ClassKind.TYPEALIAS -> error("should never reach here")
+            }
+        write(classKindKeyword)
+
         write(" ")
         write(cls.fullName())
         writeTypeParameterList(cls.typeParameterList, addSpace = false)
