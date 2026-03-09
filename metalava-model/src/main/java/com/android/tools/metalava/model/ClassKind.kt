@@ -28,6 +28,11 @@ package com.android.tools.metalava.model
  *   [ClassKind].
  * @param allowsExplicitSuperClass `true` if the class kind allows super class to be explicitly
  *   provided.
+ * @param implicitInterfaceType the optional implicit interface type that classes of the class kind
+ *   implement.
+ * @param binarySuperClassType the optional super class that classes of this [ClassKind] extend in
+ *   the binary class representation. This differs from [implicitSuperClassType] as while these
+ *   appear in binary files they cannot be used in sources.
  */
 enum class ClassKind(
     val supportsInitializerBlock: Boolean,
@@ -35,6 +40,7 @@ enum class ClassKind(
     val implicitSuperClassType: ClassTypeItem? = null,
     val allowsExplicitSuperClass: Boolean,
     val implicitInterfaceType: ClassTypeItem? = null,
+    val binarySuperClassType: ClassTypeItem? = implicitSuperClassType,
 ) {
 
     /** An interface. */
@@ -43,6 +49,8 @@ enum class ClassKind(
         signatureKeyword = "interface",
         // Interfaces do not have a super class, explicit or otherwise.
         allowsExplicitSuperClass = false,
+        // Interfaces are treated as extending java.lang.Object in binary classes.
+        binarySuperClassType = WellKnownTypes.JAVA_LANG_OBJECT_NON_NULL_TYPE,
     ) {
         override fun setImplicitModifiers(modifiers: MutableModifierList) {
             modifiers.setAbstract(true)
@@ -71,6 +79,9 @@ enum class ClassKind(
         // Annotation types are interfaces and so do not have a super class, explicit or otherwise.
         allowsExplicitSuperClass = false,
         implicitInterfaceType = WellKnownTypes.JAVA_LANG_ANNOTATION_NON_NULL_TYPE,
+        // Annotation types are interfaces and so are treated as extending java.lang.Object in
+        // binary classes.
+        binarySuperClassType = WellKnownTypes.JAVA_LANG_OBJECT_NON_NULL_TYPE,
     ) {
         override fun setImplicitModifiers(modifiers: MutableModifierList) {
             modifiers.setAbstract(true)
