@@ -124,12 +124,6 @@ class SignatureWriter(
      * This should only be called if [typeAlias] is a typealias.
      */
     fun visitTypeAlias(typeAlias: ClassItem) {
-        write("  ")
-
-        writeModifiers(typeAlias)
-
-        write("typealias ")
-
         write(typeAlias.simpleName())
         writeTypeParameterList(typeAlias.typeParameterList, addSpace = false)
 
@@ -197,29 +191,29 @@ class SignatureWriter(
     }
 
     override fun visitClass(cls: ClassItem) {
-        // Typealiases are written in a different format than any other class.
-        val classKind = cls.classKind
-        if (classKind == ClassKind.TYPEALIAS) {
-            visitTypeAlias(cls)
-            return
-        }
-
         write("  ")
 
         writeModifiers(cls)
 
         // Get the keyword to use for the class kind.
+        val classKind = cls.classKind
         val classKindKeyword =
             when (classKind) {
                 ClassKind.ANNOTATION_TYPE -> "@interface"
                 ClassKind.INTERFACE -> "interface"
                 ClassKind.CLASS -> "class"
                 ClassKind.ENUM -> "enum"
-                ClassKind.TYPEALIAS -> error("should never reach here")
+                ClassKind.TYPEALIAS -> "typealias"
             }
         write(classKindKeyword)
-
         write(" ")
+
+        // The rest of a typealias is written in a different format than any other class.
+        if (classKind == ClassKind.TYPEALIAS) {
+            visitTypeAlias(cls)
+            return
+        }
+
         write(cls.fullName())
         writeTypeParameterList(cls.typeParameterList, addSpace = false)
         writeSuperClassStatement(cls)
