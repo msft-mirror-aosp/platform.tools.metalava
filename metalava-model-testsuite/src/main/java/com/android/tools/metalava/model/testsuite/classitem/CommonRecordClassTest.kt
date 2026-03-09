@@ -52,8 +52,7 @@ class CommonRecordClassTest : BaseModelTest() {
                 ),
         ) {
             val testClass = codebase.assertClass("test.pkg.Test")
-            // TODO(b/482390286): Should be RECORD
-            assertEquals(ClassKind.CLASS, testClass.classKind)
+            assertEquals(ClassKind.RECORD, testClass.classKind)
 
             assertEquals(
                 listOf(ModifierKeyword.PUBLIC_KEYWORD, ModifierKeyword.FINAL_KEYWORD),

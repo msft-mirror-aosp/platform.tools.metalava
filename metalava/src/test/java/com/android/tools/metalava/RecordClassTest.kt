@@ -44,21 +44,20 @@ class RecordClassTest : DriverTest() {
             api =
                 """
                     package test.pkg {
-                      public final class Test extends Record {
+                      public class Test {
                         ctor public Test(int);
                         method public int c();
                       }
                     }
                 """,
-            // TODO(b/482390286): Will not compile as it extends java.lang.Record.
-            checkCompilation = false,
+            checkCompilation = true,
             stubFiles =
                 arrayOf(
                     java(
                         """
                             package test.pkg;
                             @SuppressWarnings({"unchecked", "deprecation", "all"})
-                            public final class Test extends java.lang.Record {
+                            public class Test {
                             public Test(int c) { throw new RuntimeException("Stub!"); }
                             public int c() { throw new RuntimeException("Stub!"); }
                             }
@@ -92,7 +91,7 @@ class RecordClassTest : DriverTest() {
             api =
                 """
                     package test.pkg {
-                      public final class Test extends Record {
+                      public record Test {
                         ctor public Test(int, int);
                         ctor public Test(@NonNull String, @NonNull String);
                         method public int c1();
@@ -101,7 +100,7 @@ class RecordClassTest : DriverTest() {
                       }
                     }
                 """,
-            // TODO(b/482390286): Will not compile as it extends java.lang.Record.
+            // TODO(b/482390286): Will not compile as it does not declare its components correctly.
             checkCompilation = false,
             stubFiles =
                 arrayOf(
@@ -109,7 +108,7 @@ class RecordClassTest : DriverTest() {
                         """
                             package test.pkg;
                             @SuppressWarnings({"unchecked", "deprecation", "all"})
-                            public final class Test extends java.lang.Record {
+                            public record Test {
                             public Test(int c1, int c2) { throw new RuntimeException("Stub!"); }
                             public Test(@android.annotation.NonNull java.lang.String c1, @android.annotation.NonNull java.lang.String c2) { throw new RuntimeException("Stub!"); }
                             public int c1() { throw new RuntimeException("Stub!"); }
@@ -146,7 +145,7 @@ class RecordClassTest : DriverTest() {
             api =
                 """
                     package test.pkg {
-                      public final class Test extends Record {
+                      public record Test {
                         ctor public Test(int, int);
                         ctor public Test(@NonNull String, @NonNull String);
                         method @NonNull public String c1();
@@ -155,7 +154,7 @@ class RecordClassTest : DriverTest() {
                       }
                     }
                 """,
-            // TODO(b/482390286): Will not compile as it extends java.lang.Record.
+            // TODO(b/482390286): Will not compile as it does not declare its components correctly.
             checkCompilation = false,
             stubFiles =
                 arrayOf(
@@ -163,7 +162,7 @@ class RecordClassTest : DriverTest() {
                         """
                             package test.pkg;
                             @SuppressWarnings({"unchecked", "deprecation", "all"})
-                            public final class Test extends java.lang.Record {
+                            public record Test {
                             public Test(int c1, int c2) { throw new RuntimeException("Stub!"); }
                             public Test(@android.annotation.NonNull java.lang.String c1, @android.annotation.NonNull java.lang.String c2) { throw new RuntimeException("Stub!"); }
                             @android.annotation.NonNull
@@ -210,16 +209,13 @@ class RecordClassTest : DriverTest() {
             api =
                 """
                     package test.pkg {
-                      public final class Test extends Record {
+                      public record Test {
                         ctor public Test(int);
                         method public int c();
-                        method public boolean equals(Object);
-                        method public int hashCode();
-                        method @NonNull public String toString();
                       }
                     }
                 """,
-            // TODO(b/482390286): Will not compile as it extends java.lang.Record.
+            // TODO(b/482390286): Will not compile as it does not declare its components correctly.
             checkCompilation = false,
             stubFiles =
                 arrayOf(
@@ -227,7 +223,7 @@ class RecordClassTest : DriverTest() {
                         """
                             package test.pkg;
                             @SuppressWarnings({"unchecked", "deprecation", "all"})
-                            public final class Test extends java.lang.Record {
+                            public record Test {
                             public Test(int c) { throw new RuntimeException("Stub!"); }
                             public int c() { throw new RuntimeException("Stub!"); }
                             public boolean equals(java.lang.Object obj) { throw new RuntimeException("Stub!"); }

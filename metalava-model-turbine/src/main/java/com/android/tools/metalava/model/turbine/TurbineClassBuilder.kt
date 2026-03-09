@@ -303,6 +303,7 @@ internal class TurbineClassBuilder(
             TurbineTyKind.INTERFACE -> ClassKind.INTERFACE
             TurbineTyKind.ENUM -> ClassKind.ENUM
             TurbineTyKind.ANNOTATION -> ClassKind.ANNOTATION_TYPE
+            TurbineTyKind.RECORD -> ClassKind.RECORD
             else -> ClassKind.CLASS
         }
     }
