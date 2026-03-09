@@ -756,6 +756,10 @@ private constructor(
         }
 
         val interfaceTypes = mutableSetOf<ClassTypeItem>()
+
+        // Add any ClassKind specific implicit interface types.
+        classKind.implicitInterfaceType?.let { interfaceType -> interfaceTypes.add(interfaceType) }
+
         if ("implements" == token || "extends" == token) {
             token = tokenizer.requireToken()
             while (true) {
@@ -770,12 +774,6 @@ private constructor(
                     token = tokenizer.requireToken()
                 }
             }
-        }
-
-        if (classKind == ClassKind.ANNOTATION_TYPE) {
-            // If the annotation was defined using @interface then add the implicit
-            // "implements java.lang.annotation.Annotation".
-            interfaceTypes.add(WellKnownTypes.JAVA_LANG_ANNOTATION_NON_NULL_TYPE)
         }
 
         if ("{" != token) {

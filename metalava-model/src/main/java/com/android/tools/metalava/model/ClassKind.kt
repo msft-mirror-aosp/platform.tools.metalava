@@ -34,7 +34,9 @@ enum class ClassKind(
     val signatureKeyword: String,
     val implicitSuperClassType: ClassTypeItem? = null,
     val allowsExplicitSuperClass: Boolean,
+    val implicitInterfaceType: ClassTypeItem? = null,
 ) {
+
     /** An interface. */
     INTERFACE(
         supportsInitializerBlock = false,
@@ -68,6 +70,7 @@ enum class ClassKind(
         signatureKeyword = "@interface",
         // Annotation types are interfaces and so do not have a super class, explicit or otherwise.
         allowsExplicitSuperClass = false,
+        implicitInterfaceType = WellKnownTypes.JAVA_LANG_ANNOTATION_NON_NULL_TYPE,
     ) {
         override fun setImplicitModifiers(modifiers: MutableModifierList) {
             modifiers.setAbstract(true)
