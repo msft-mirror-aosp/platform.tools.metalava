@@ -37,12 +37,7 @@ internal class TextTypeItemFactory(
 
     /** A [JAVA_LANG_ANNOTATION] suitable for use as a super type. */
     val superAnnotationType
-        get() =
-            JAVA_LANG_ANNOTATION_NON_NULL_TYPE.also {
-                // Make sure that if a stub class needs to be generated for this that it is marked
-                // as an interface.
-                assembler.requireStubKindFor(it, StubKind.INTERFACE)
-            }
+        get() = JAVA_LANG_ANNOTATION_NON_NULL_TYPE
 
     /** A [JAVA_LANG_ENUM] suitable for use as a super type. */
     val superEnumType
