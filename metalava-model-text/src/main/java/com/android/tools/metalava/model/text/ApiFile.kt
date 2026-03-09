@@ -432,17 +432,19 @@ private constructor(
         codebase.reporter.report(issue, null, message, location)
     }
 
+    /** See [SignatureFile.forMainApiSurface]. */
+    private val forMainApiSurface
+        get() = apiVariant.surface.isMain
+
     /**
      * Mark this [SelectableItem] as being part of the main API surface, i.e. the one that is being
      * created.
-     *
-     * See [SignatureFile.forMainApiSurface].
      *
      * This will set [SelectableItem.emit] to [forMainApiSurface] and should only be called on
      * [SelectableItem]s which have been created from the main signature file.
      */
     private fun SelectableItem.markForMainApiSurface() {
-        emit = apiVariant.surface.isMain
+        emit = forMainApiSurface
         markSelectedApiVariant()
     }
 
@@ -471,7 +473,7 @@ private constructor(
      * behavior irrespective of the order.
      */
     private fun ClassItem.markExistingClassForMainApiSurface() {
-        if (!emit && apiVariant.surface.isMain) {
+        if (!emit && forMainApiSurface) {
             markForMainApiSurface()
         }
 
