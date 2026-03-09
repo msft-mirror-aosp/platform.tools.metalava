@@ -263,7 +263,8 @@ class SignatureWriter(
     }
 
     private fun writeSuperClassStatement(cls: ClassItem) {
-        if (cls.isEnum() || cls.isAnnotationType() || cls.isInterface()) {
+        val classKind = cls.classKind
+        if (!classKind.allowsExplicitSuperClass) {
             return
         }
 

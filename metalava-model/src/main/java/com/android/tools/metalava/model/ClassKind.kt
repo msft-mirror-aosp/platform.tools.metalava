@@ -26,16 +26,21 @@ package com.android.tools.metalava.model
  * @param signatureKeyword the keyword to use in a signature file to differentiate by class kind.
  * @param implicitSuperClassType the optional super class [ClassTypeItem] that is implicit to this
  *   [ClassKind].
+ * @param allowsExplicitSuperClass `true` if the class kind allows super class to be explicitly
+ *   provided.
  */
 enum class ClassKind(
     val supportsInitializerBlock: Boolean,
     val signatureKeyword: String,
     val implicitSuperClassType: ClassTypeItem? = null,
+    val allowsExplicitSuperClass: Boolean,
 ) {
     /** An interface. */
     INTERFACE(
         supportsInitializerBlock = false,
         signatureKeyword = "interface",
+        // Interfaces do not have a super class, explicit or otherwise.
+        allowsExplicitSuperClass = false,
     ) {
         override fun setImplicitModifiers(modifiers: MutableModifierList) {
             modifiers.setAbstract(true)
@@ -47,6 +52,9 @@ enum class ClassKind(
         supportsInitializerBlock = true,
         signatureKeyword = "enum",
         implicitSuperClassType = WellKnownTypes.JAVA_LANG_ENUM_NON_NULL_TYPE,
+        // Enums have an implicit super class and do not allow a super class to be provided
+        // explicitly.
+        allowsExplicitSuperClass = false,
     ) {
         override fun setImplicitModifiers(modifiers: MutableModifierList) {
             modifiers.setFinal(true)
@@ -58,6 +66,8 @@ enum class ClassKind(
     ANNOTATION_TYPE(
         supportsInitializerBlock = false,
         signatureKeyword = "@interface",
+        // Annotation types are interfaces and so do not have a super class, explicit or otherwise.
+        allowsExplicitSuperClass = false,
     ) {
         override fun setImplicitModifiers(modifiers: MutableModifierList) {
             modifiers.setAbstract(true)
@@ -68,12 +78,16 @@ enum class ClassKind(
     CLASS(
         supportsInitializerBlock = true,
         signatureKeyword = "class",
+        // Normal classes allow super classes to be explicitly provided.
+        allowsExplicitSuperClass = true,
     ),
 
     /** A typealias */
     TYPEALIAS(
         supportsInitializerBlock = false,
         signatureKeyword = "typealias",
+        // Typealiases do not have super classes, explicit or otherwise..
+        allowsExplicitSuperClass = true,
     ),
     ;
 
