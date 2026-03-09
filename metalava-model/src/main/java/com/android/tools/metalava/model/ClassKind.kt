@@ -33,6 +33,8 @@ package com.android.tools.metalava.model
  * @param binarySuperClassType the optional super class that classes of this [ClassKind] extend in
  *   the binary class representation. This differs from [implicitSuperClassType] as while these
  *   appear in binary files they cannot be used in sources.
+ * @param implicitlyFinal indicates whether this [ClassKind] is implicitly `final` or not. Most
+ *   [ClassKind]s are not implicitly `final` so this defaults to `false`.
  */
 enum class ClassKind(
     val supportsInitializerBlock: Boolean,
@@ -41,6 +43,7 @@ enum class ClassKind(
     val allowsExplicitSuperClass: Boolean,
     val implicitInterfaceType: ClassTypeItem? = null,
     val binarySuperClassType: ClassTypeItem? = implicitSuperClassType,
+    val implicitlyFinal: Boolean = false,
 ) {
 
     /** An interface. */
@@ -65,9 +68,11 @@ enum class ClassKind(
         // Enums have an implicit super class and do not allow a super class to be provided
         // explicitly.
         allowsExplicitSuperClass = false,
+        // Enum classes are implicitly final even though instances can be subclasses.
+        implicitlyFinal = true,
     ) {
         override fun setImplicitModifiers(modifiers: MutableModifierList) {
-            modifiers.setFinal(true)
+            super.setImplicitModifiers(modifiers)
             modifiers.setStatic(true)
         }
     },
@@ -106,7 +111,11 @@ enum class ClassKind(
     ;
 
     /** Set any modifiers on [modifiers] that are implicit for this [ClassKind]. */
-    open fun setImplicitModifiers(modifiers: MutableModifierList) {}
+    open fun setImplicitModifiers(modifiers: MutableModifierList) {
+        if (implicitlyFinal) {
+            modifiers.setFinal(true)
+        }
+    }
 
     companion object {
         /** Map from [ClassKind.signatureKeyword] to [ClassKind]. */

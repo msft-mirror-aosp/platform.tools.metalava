@@ -176,7 +176,7 @@ private constructor(
                 // Don't show final on parameters: that's an implementation detail
                 item !is ParameterItem &&
                 // Don't add final on enum or enum members as they are implicitly final.
-                classKind != ClassKind.ENUM &&
+                classKind?.implicitlyFinal != true &&
                 // If normalizing and the current item is a method and its containing class is final
                 // then do not write out the final keyword.
                 (!normalizeFinal || methodItem?.containingClass()?.modifiers?.isFinal() != true)
