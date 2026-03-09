@@ -78,7 +78,6 @@ fun addApisFromCodebase(
                     ClassKind.ANNOTATION_TYPE -> {
                         // Implicit super class; match convention from bytecode
                         newClass.updateSuperClass(objectClass, updater)
-                        newClass.updateInterface(annotationClass, updater)
                     }
                     // Typealiases aren't like regular classes and don't have a super class or
                     // interfaces.
@@ -151,7 +150,6 @@ fun addApisFromCodebase(
 
             // The names of some common classes, based on [useInternalNames]
             val objectClass = nameForClass("java", "lang", "Object")
-            val annotationClass = nameForClass("java", "lang", "annotation", "Annotation")
             val enumClass = nameForClass("java", "lang", "Enum")
 
             /** Generates a class name from the package and class names in [nameParts] */
