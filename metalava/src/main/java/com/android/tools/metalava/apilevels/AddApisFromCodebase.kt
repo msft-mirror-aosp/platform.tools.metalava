@@ -77,10 +77,8 @@ fun addApisFromCodebase(
                     }
                     ClassKind.ANNOTATION_TYPE -> {
                         // Implicit super class; match convention from bytecode
-                        if (newClass.name != annotationClass) {
-                            newClass.updateSuperClass(objectClass, updater)
-                            newClass.updateInterface(annotationClass, updater)
-                        }
+                        newClass.updateSuperClass(objectClass, updater)
+                        newClass.updateInterface(annotationClass, updater)
                     }
                     // Typealiases aren't like regular classes and don't have a super class or
                     // interfaces.
