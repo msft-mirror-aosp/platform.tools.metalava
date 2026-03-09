@@ -703,7 +703,6 @@ private constructor(
 
     private fun parseClass(pkg: PackageItem, tokenizer: Tokenizer, startingToken: String) {
         var token = startingToken
-        var classKind = ClassKind.CLASS
         var superClassType: ClassTypeItem? = null
 
         val (modifiers, targetLanguages) = parseModifiersAndTargetLanguages(tokenizer, token)
@@ -712,34 +711,33 @@ private constructor(
         val classPosition = tokenizer.fileLocation()
 
         token = tokenizer.current
-        when (token) {
-            "class" -> {}
-            "interface" -> {
-                classKind = ClassKind.INTERFACE
+        val classKind =
+            ClassKind.bySignatureKeyword(token)
+                ?: throw ApiParseException(
+                    "expected one of ${ClassKind.entries.joinToString { it.signatureKeyword }}; found: $token",
+                    tokenizer
+                )
+
+        if (classKind == ClassKind.TYPEALIAS) {
+            // Type aliases aren't classes, but they are defined at the same level as classes
+            parseTypeAlias(pkg, tokenizer, modifiers, classPosition)
+            // Don't continue creating a class item
+            return
+        }
+
+        when (classKind) {
+            ClassKind.INTERFACE -> {
                 modifiers.setAbstract(true)
             }
-            "@interface" -> {
-                classKind = ClassKind.ANNOTATION_TYPE
+            ClassKind.ANNOTATION_TYPE -> {
                 modifiers.setAbstract(true)
             }
-            "enum" -> {
-                classKind = ClassKind.ENUM
+            ClassKind.ENUM -> {
                 modifiers.setFinal(true)
                 modifiers.setStatic(true)
                 superClassType = WellKnownTypes.JAVA_LANG_ENUM_NON_NULL_TYPE
             }
-            "typealias" -> {
-                // Type aliases aren't classes, but they are defined at the same level as classes
-                parseTypeAlias(pkg, tokenizer, modifiers, classPosition)
-                // Don't continue creating a class item
-                return
-            }
-            else -> {
-                throw ApiParseException(
-                    "expected one of class, interface, @interface, enum, or typealias; found: $token",
-                    tokenizer
-                )
-            }
+            else -> {}
         }
 
         token = tokenizer.requireToken()

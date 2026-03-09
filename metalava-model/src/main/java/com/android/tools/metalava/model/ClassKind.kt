@@ -58,4 +58,16 @@ enum class ClassKind(
         supportsInitializerBlock = false,
         signatureKeyword = "typealias",
     ),
+    ;
+
+    companion object {
+        /** Map from [ClassKind.signatureKeyword] to [ClassKind]. */
+        private val bySignatureKeyword = ClassKind.entries.associateBy { it.signatureKeyword }
+
+        /**
+         * Get the [ClassKind] whose [ClassKind.signatureKeyword] is equal to [keyword] or `null` if
+         * none could be found.
+         */
+        fun bySignatureKeyword(keyword: String) = bySignatureKeyword[keyword]
+    }
 }
