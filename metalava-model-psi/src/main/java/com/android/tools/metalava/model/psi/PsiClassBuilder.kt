@@ -282,16 +282,6 @@ internal class PsiClassBuilder(
 
                 classItem.addConstructor(constructor)
             } else {
-                // With K1, value class property accessors are present as [PsiMethod]s and with K2
-                // they are not. These accessor methods can't actually be used from Java, so this
-                // forces the K2 behavior and filters them out for K1.
-                // TODO(b/427783483): remove this workaround
-                if (
-                    classItem.modifiers.isValue() && psiMethod.sourceElement is KtPropertyAccessor
-                ) {
-                    continue
-                }
-
                 // Property accessors can't be resolved from kotlin, direct access is used instead.
                 val targetLanguages =
                     if (
