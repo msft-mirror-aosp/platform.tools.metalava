@@ -23,32 +23,88 @@ package com.android.tools.metalava.model
  *
  * @param supportsInitializerBlock `true` if the class kind supports initializer blocks, e.g. `{
  *   field = 0; }` or `static { FIELD = 0; }`.
+ * @param signatureKeyword the keyword to use in a signature file to differentiate by class kind.
+ * @param implicitSuperClassType the optional super class [ClassTypeItem] that is implicit to this
+ *   [ClassKind].
+ * @param allowsExplicitSuperClass `true` if the class kind allows super class to be explicitly
+ *   provided.
  */
 enum class ClassKind(
     val supportsInitializerBlock: Boolean,
+    val signatureKeyword: String,
+    val implicitSuperClassType: ClassTypeItem? = null,
+    val allowsExplicitSuperClass: Boolean,
+    val implicitInterfaceType: ClassTypeItem? = null,
 ) {
+
     /** An interface. */
     INTERFACE(
         supportsInitializerBlock = false,
-    ),
+        signatureKeyword = "interface",
+        // Interfaces do not have a super class, explicit or otherwise.
+        allowsExplicitSuperClass = false,
+    ) {
+        override fun setImplicitModifiers(modifiers: MutableModifierList) {
+            modifiers.setAbstract(true)
+        }
+    },
 
     /** An enum class. */
     ENUM(
         supportsInitializerBlock = true,
-    ),
+        signatureKeyword = "enum",
+        implicitSuperClassType = WellKnownTypes.JAVA_LANG_ENUM_NON_NULL_TYPE,
+        // Enums have an implicit super class and do not allow a super class to be provided
+        // explicitly.
+        allowsExplicitSuperClass = false,
+    ) {
+        override fun setImplicitModifiers(modifiers: MutableModifierList) {
+            modifiers.setFinal(true)
+            modifiers.setStatic(true)
+        }
+    },
 
     /** An annotation class. */
     ANNOTATION_TYPE(
         supportsInitializerBlock = false,
-    ),
+        signatureKeyword = "@interface",
+        // Annotation types are interfaces and so do not have a super class, explicit or otherwise.
+        allowsExplicitSuperClass = false,
+        implicitInterfaceType = WellKnownTypes.JAVA_LANG_ANNOTATION_NON_NULL_TYPE,
+    ) {
+        override fun setImplicitModifiers(modifiers: MutableModifierList) {
+            modifiers.setAbstract(true)
+        }
+    },
 
     /** A normal class. */
     CLASS(
         supportsInitializerBlock = true,
+        signatureKeyword = "class",
+        // Normal classes allow super classes to be explicitly provided.
+        allowsExplicitSuperClass = true,
     ),
 
     /** A typealias */
     TYPEALIAS(
         supportsInitializerBlock = false,
+        signatureKeyword = "typealias",
+        // Typealiases do not have super classes, explicit or otherwise..
+        allowsExplicitSuperClass = true,
     ),
+    ;
+
+    /** Set any modifiers on [modifiers] that are implicit for this [ClassKind]. */
+    open fun setImplicitModifiers(modifiers: MutableModifierList) {}
+
+    companion object {
+        /** Map from [ClassKind.signatureKeyword] to [ClassKind]. */
+        private val bySignatureKeyword = ClassKind.entries.associateBy { it.signatureKeyword }
+
+        /**
+         * Get the [ClassKind] whose [ClassKind.signatureKeyword] is equal to [keyword] or `null` if
+         * none could be found.
+         */
+        fun bySignatureKeyword(keyword: String) = bySignatureKeyword[keyword]
+    }
 }
