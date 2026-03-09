@@ -132,8 +132,8 @@ private constructor(
         // Kotlin order:
         //   https://kotlinlang.org/docs/reference/coding-conventions.html#modifiers
 
-        // Abstract: should appear in interfaces if in compat mode
         val classItem = item as? ClassItem
+        val classKind = classItem?.classKind
         val methodItem = item as? MethodItem
 
         val list = item.modifiers
@@ -144,8 +144,9 @@ private constructor(
         }
 
         val isInterface =
-            classItem?.isInterface() == true || methodItem?.containingClass()?.isInterface() == true
+            classKind == ClassKind.INTERFACE || methodItem?.containingClass()?.isInterface() == true
 
+        // Abstract: should appear in interfaces if in compat mode
         val isAbstract = list.isAbstract()
         val ignoreAbstract =
             isAbstract &&
@@ -155,8 +156,8 @@ private constructor(
         if (
             isAbstract &&
                 !ignoreAbstract &&
-                classItem?.isEnum() != true &&
-                classItem?.isAnnotationType() != true &&
+                classKind != ClassKind.ENUM &&
+                classKind != ClassKind.ANNOTATION_TYPE &&
                 !isInterface
         ) {
             writer.write("abstract ")
@@ -166,7 +167,7 @@ private constructor(
             writer.write("default ")
         }
 
-        if (list.isStatic() && (classItem == null || !classItem.isEnum())) {
+        if (list.isStatic() && classKind != ClassKind.ENUM) {
             writer.write("static ")
         }
 
@@ -175,7 +176,7 @@ private constructor(
                 // Don't show final on parameters: that's an implementation detail
                 item !is ParameterItem &&
                 // Don't add final on enum or enum members as they are implicitly final.
-                classItem?.isEnum() != true &&
+                classKind != ClassKind.ENUM &&
                 // If normalizing and the current item is a method and its containing class is final
                 // then do not write out the final keyword.
                 (!normalizeFinal || methodItem?.containingClass()?.modifiers?.isFinal() != true)
