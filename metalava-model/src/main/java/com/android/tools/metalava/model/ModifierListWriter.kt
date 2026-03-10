@@ -222,16 +222,32 @@ private constructor(
     }
 
     /** Determine whether the `abstract` modifier is required on [classKind] or [methodItem]. */
-    private fun allowAbstract(classKind: ClassKind?, methodItem: MethodItem?): Boolean {
-        val ignoreAbstract =
-            target != AnnotationTarget.SIGNATURE_FILE &&
-                methodItem?.let { mustIgnoreAbstractInStubs(methodItem) } ?: false
+    private fun allowAbstract(classKind: ClassKind?, methodItem: MethodItem?) =
+        classKind?.allowAbstract() ?: methodItem?.allowAbstract() ?: true
 
-        return !ignoreAbstract &&
-            classKind != ClassKind.ENUM &&
-            classKind != ClassKind.ANNOTATION_TYPE &&
-            classKind != ClassKind.INTERFACE &&
-            methodItem?.containingClass()?.isInterface() != true
+    /**
+     * Determine whether the `abstract` modifier is allowed on this [ClassKind].
+     *
+     * The `abstract` keyword is not allow on `enum` classes, and is not required on interfaces or
+     * annotation types as they are both implicitly `abstract`.
+     */
+    private fun ClassKind.allowAbstract() =
+        this != ClassKind.ENUM && this != ClassKind.ANNOTATION_TYPE && this != ClassKind.INTERFACE
+
+    /**
+     * Determine whether the `abstract` modifier is allowed on this [MethodItem].
+     *
+     * In signature files, only interface methods disallow `abstract` modifier. Annotation and enum
+     * methods could also disallow them but are inconsistent.
+     *
+     * In all other files, including but not limited to stubs, neither interfaces, annotation types,
+     * nor enums allow `abstract` modifier. In fact only normal class kinds allow them.
+     */
+    private fun MethodItem.allowAbstract(): Boolean {
+        val ignoreAbstract =
+            target != AnnotationTarget.SIGNATURE_FILE && mustIgnoreAbstractInStubs(this)
+
+        return !ignoreAbstract && !containingClass().isInterface()
     }
 
     private fun writeAnnotations(item: Item) {
