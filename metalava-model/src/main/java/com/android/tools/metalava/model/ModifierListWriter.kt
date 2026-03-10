@@ -223,9 +223,6 @@ private constructor(
 
     /** Determine whether the `abstract` modifier is required on [classKind] or [methodItem]. */
     private fun allowAbstract(classKind: ClassKind?, methodItem: MethodItem?): Boolean {
-        val isInterface =
-            classKind == ClassKind.INTERFACE || methodItem?.containingClass()?.isInterface() == true
-
         val ignoreAbstract =
             target != AnnotationTarget.SIGNATURE_FILE &&
                 methodItem?.let { mustIgnoreAbstractInStubs(methodItem) } ?: false
@@ -233,7 +230,8 @@ private constructor(
         return !ignoreAbstract &&
             classKind != ClassKind.ENUM &&
             classKind != ClassKind.ANNOTATION_TYPE &&
-            !isInterface
+            classKind != ClassKind.INTERFACE &&
+            methodItem?.containingClass()?.isInterface() != true
     }
 
     private fun writeAnnotations(item: Item) {
