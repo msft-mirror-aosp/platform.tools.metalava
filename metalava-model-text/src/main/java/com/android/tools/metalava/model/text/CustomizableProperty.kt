@@ -104,10 +104,12 @@ internal constructor(
         private fun optionalStringProperty(
             getter: FileFormat.() -> String?,
             setter: Builder.(String?) -> Unit,
-        ): CustomizableProperty<String> =
-            StringProperty(
-                getter,
-                setter,
+        ) =
+            CustomizableProperty(
+                getter = getter,
+                setter = setter,
+                valueToString = { this },
+                stringToValue = { string },
             )
 
         // The order of values in this is significant as it determines the order of the properties
@@ -352,18 +354,6 @@ internal constructor(
      */
     internal fun stringFromFormat(format: FileFormat): String? = format.getter()?.valueToString()
 }
-
-/** A [CustomizableProperty] whose value is a [String]. */
-private class StringProperty(
-    getter: FileFormat.() -> String?,
-    setter: Builder.(String) -> Unit,
-) :
-    CustomizableProperty<String>(
-        getter = getter,
-        setter = setter,
-        valueToString = { this },
-        stringToValue = { string },
-    )
 
 /** A [CustomizableProperty] whose value is an [Enum]. */
 private class EnumProperty<E : Enum<E>>(
