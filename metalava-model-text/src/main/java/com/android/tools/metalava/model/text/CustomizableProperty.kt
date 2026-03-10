@@ -48,6 +48,21 @@ internal constructor(
         /** List of all [CustomizableProperty]s, populated by [provideDelegate]. */
         private val propertyList = mutableListOf<CustomizableProperty>()
 
+        /** Factory method for a [Boolean] [CustomizableProperty] */
+        private fun booleanProperty(
+            defaultable: Boolean = false,
+            help: String = "",
+            getter: FileFormat.() -> Boolean?,
+            setter: Builder.(Boolean) -> Unit,
+        ): CustomizableProperty =
+            BooleanProperty(
+                defaultable,
+                "yes|no",
+                help,
+                getter,
+                setter,
+            )
+
         /** Factory method for an optional [String] [CustomizableProperty] */
         private fun optionalStringProperty(
             getter: FileFormat.() -> String?,
@@ -89,64 +104,44 @@ internal constructor(
 
         /** add-additional-overrides=[yes|no] */
         val ADD_ADDITIONAL_OVERRIDES by
-            object : BooleanProperty(defaultable = true) {
-                override fun setFromString(builder: Builder, value: String) {
-                    builder.addAdditionalOverrides = yesNo(value)
-                }
-
-                override fun stringFromFormat(format: FileFormat): String? =
-                    format.specifiedAddAdditionalOverrides?.let { yesNo(it) }
-            }
+            booleanProperty(
+                defaultable = true,
+                getter = { specifiedAddAdditionalOverrides },
+                setter = { addAdditionalOverrides = it },
+            )
 
         /** include-default-parameter-values=[yes|no] */
         val INCLUDE_DEFAULT_PARAMETER_VALUES by
-            object :
-                BooleanProperty(
-                    valueSyntax = "yes|no",
-                    help =
-                        """
+            booleanProperty(
+                help =
+                    """
                     If `no` then the signature file will not include any information about default
                     parameter values. If `yes` then it will use the pseudo modifier `optional` to
                     indicate a parameter that has a default value.
                 """,
-                ) {
-                override fun setFromString(builder: Builder, value: String) {
-                    builder.includeDefaultParameterValues = yesNo(value)
-                }
-
-                override fun stringFromFormat(format: FileFormat): String =
-                    yesNo(format.includeDefaultParameterValues)
-            }
+                getter = { includeDefaultParameterValues },
+                setter = { includeDefaultParameterValues = it },
+            )
 
         /** include-type-use-annotations=[yes|no] */
         val INCLUDE_TYPE_USE_ANNOTATIONS by
-            object : BooleanProperty() {
-                override fun setFromString(builder: Builder, value: String) {
-                    builder.includeTypeUseAnnotations = yesNo(value)
-                }
-
-                override fun stringFromFormat(format: FileFormat): String =
-                    yesNo(format.includeTypeUseAnnotations)
-            }
+            booleanProperty(
+                getter = { includeTypeUseAnnotations },
+                setter = { includeTypeUseAnnotations = it },
+            )
 
         /** kotlin-name-type-order=[yes|no] */
         val KOTLIN_NAME_TYPE_ORDER by
-            object : BooleanProperty() {
-                override fun setFromString(builder: Builder, value: String) {
-                    builder.kotlinNameTypeOrder = yesNo(value)
-                }
-
-                override fun stringFromFormat(format: FileFormat): String =
-                    yesNo(format.kotlinNameTypeOrder)
-            }
+            booleanProperty(
+                getter = { kotlinNameTypeOrder },
+                setter = { kotlinNameTypeOrder = it },
+            )
 
         /** kotlin-style-nulls=[yes|no] */
         val KOTLIN_STYLE_NULLS by
-            object :
-                BooleanProperty(
-                    valueSyntax = "yes|no",
-                    help =
-                        """
+            booleanProperty(
+                help =
+                    """
                     If `no` then the signature file will use `@Nullable` and `@NonNull` annotations
                     to indicate that the annotated item accepts `null` and does not accept `null`
                     respectively and neither indicates that it's not defined.
@@ -155,14 +150,9 @@ internal constructor(
                     and a type suffix of `!` to indicate the that the type accepts `null`, does not
                     accept `null` or it's not defined respectively.
                 """,
-                ) {
-                override fun setFromString(builder: Builder, value: String) {
-                    builder.kotlinStyleNulls = yesNo(value)
-                }
-
-                override fun stringFromFormat(format: FileFormat): String =
-                    yesNo(format.kotlinStyleNulls)
-            }
+                getter = { kotlinStyleNulls },
+                setter = { kotlinStyleNulls = it },
+            )
 
         val MIGRATING by
             optionalStringProperty(
@@ -171,44 +161,30 @@ internal constructor(
             )
 
         val NORMALIZE_ABSTRACT_MODIFIER by
-            object :
-                BooleanProperty(
-                    defaultable = true,
-                    valueSyntax = "yes|no",
-                    help =
-                        """
+            booleanProperty(
+                defaultable = true,
+                help =
+                    """
                     Specifies how the `abstract` modifier is handled on `abstract` methods. If this
                     is `yes` and the method's containing class does not allow `abstract` then the
                     `abstract` modifier is not written out, otherwise it is.
                 """,
-                ) {
-                override fun setFromString(builder: Builder, value: String) {
-                    builder.normalizeAbstractModifier = yesNo(value)
-                }
-
-                override fun stringFromFormat(format: FileFormat): String? =
-                    format.specifiedNormalizeAbstractModifier?.let { yesNo(it) }
-            }
+                getter = { specifiedNormalizeAbstractModifier },
+                setter = { normalizeAbstractModifier = it },
+            )
 
         val NORMALIZE_FINAL_MODIFIER by
-            object :
-                BooleanProperty(
-                    defaultable = true,
-                    valueSyntax = "yes|no",
-                    help =
-                        """
+            booleanProperty(
+                defaultable = true,
+                help =
+                    """
                     Specifies how the `final` modifier is handled on `final` methods. If this is
                     `yes` and the method's containing class is `final` then the `final` modifier is
                     not written out, otherwise it is.
                 """,
-                ) {
-                override fun setFromString(builder: Builder, value: String) {
-                    builder.normalizeFinalModifier = yesNo(value)
-                }
-
-                override fun stringFromFormat(format: FileFormat): String? =
-                    format.specifiedNormalizeFinalModifier?.let { yesNo(it) }
-            }
+                getter = { specifiedNormalizeFinalModifier },
+                setter = { normalizeFinalModifier = it },
+            )
 
         /** overloaded-method-other=[source|signature] */
         val OVERLOADED_METHOD_ORDER by
@@ -239,14 +215,11 @@ internal constructor(
             }
 
         val SORT_WHOLE_EXTENDS_LIST by
-            object : BooleanProperty(defaultable = true) {
-                override fun setFromString(builder: Builder, value: String) {
-                    builder.sortWholeExtendsList = yesNo(value)
-                }
-
-                override fun stringFromFormat(format: FileFormat): String? =
-                    format.specifiedSortWholeExtendsList?.let { yesNo(it) }
-            }
+            booleanProperty(
+                defaultable = true,
+                getter = { specifiedSortWholeExtendsList },
+                setter = { sortWholeExtendsList = it },
+            )
 
         val STRIP_JAVA_LANG_PREFIX by
             object : EnumProperty(defaultable = true) {
@@ -415,13 +388,20 @@ private abstract class EnumProperty(
 }
 
 /** A [CustomizableProperty] whose value is a [Boolean]. */
-private abstract class BooleanProperty(
-    defaultable: Boolean = false,
-    valueSyntax: String = "",
-    help: String = "",
+private class BooleanProperty(
+    defaultable: Boolean,
+    valueSyntax: String,
+    help: String,
+    private val getter: FileFormat.() -> Boolean?,
+    private val setter: Builder.(Boolean) -> Unit,
 ) : CustomizableProperty(defaultable, valueSyntax, help) {
+
+    override fun setFromString(builder: Builder, value: String) = builder.setter(yesNo(value))
+
+    override fun stringFromFormat(format: FileFormat) = format.getter()?.let { yesNo(it) }
+
     /** Convert a "yes|no" string into a boolean. */
-    fun yesNo(value: String) =
+    private fun yesNo(value: String) =
         when (value) {
             "yes" -> true
             "no" -> false
@@ -432,5 +412,5 @@ private abstract class BooleanProperty(
         }
 
     /** Convert a boolean into a `yes|no` string. */
-    fun yesNo(value: Boolean) = if (value) "yes" else "no"
+    private fun yesNo(value: Boolean) = if (value) "yes" else "no"
 }
