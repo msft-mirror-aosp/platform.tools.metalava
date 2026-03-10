@@ -23,6 +23,7 @@ import com.android.tools.metalava.model.text.FileFormat.Language
 import com.android.tools.metalava.model.text.FileFormat.OverloadedMethodOrder
 import com.android.tools.metalava.model.text.FileFormat.TypeArgumentSpacing
 import java.util.Locale
+import kotlin.enums.enumEntries
 import kotlin.properties.ReadOnlyProperty
 import kotlin.reflect.KProperty
 
@@ -363,18 +364,18 @@ private abstract class EnumProperty(
 
     /** Inline function to map from a string value to an enum value of the required type. */
     inline fun <reified T : Enum<T>> enumFromString(value: String): T {
-        val enumValues = enumValues<T>()
-        return nonInlineEnumFromString(enumValues, value)
+        val entries = enumEntries<T>()
+        return nonInlineEnumFromString(entries, value)
     }
 
     /**
      * Non-inline portion of the function to map from a string value to an enum value of the
      * required type.
      */
-    fun <T : Enum<T>> nonInlineEnumFromString(enumValues: Array<T>, value: String): T {
-        return enumValues.firstOrNull { it.stringFromEnum() == value }
+    fun <E : Enum<E>> nonInlineEnumFromString(entries: List<E>, value: String): E {
+        return entries.firstOrNull { it.stringFromEnum() == value }
             ?: let {
-                val possibilities = enumValues.possibilitiesList { "'${it.stringFromEnum()}'" }
+                val possibilities = entries.possibilitiesList { "'${it.stringFromEnum()}'" }
                 throw ApiParseException(
                     "unexpected value for $propertyName, found '$value', expected one of $possibilities"
                 )
@@ -382,13 +383,27 @@ private abstract class EnumProperty(
     }
 
     /**
+     * Given an array of items return a list of possibilities.
+     *
+     * The last pair of items are separated by " or ", the other pairs are separated by ", ".
+     */
+    private fun <E> List<E>.possibilitiesList(transform: (E) -> String): String {
+        val allButLast = dropLast(1)
+        val last = last()
+        val options = buildString {
+            allButLast.joinTo(this, transform = transform)
+            append(" or ")
+            append(transform(last))
+        }
+        return options
+    }
+
+    /**
      * Extension function to convert an enum value to an external string.
      *
      * It simply returns the lowercase version of the enum name with `_` replaced with `-`.
      */
-    fun <T : Enum<T>> T.stringFromEnum(): String {
-        return name.lowercase(Locale.US).replace("_", "-")
-    }
+    fun <E : Enum<E>> E.stringFromEnum() = name.lowercase(Locale.US).replace("_", "-")
 }
 
 /** A [CustomizableProperty] whose value is a [Boolean]. */
@@ -410,20 +425,4 @@ private abstract class BooleanProperty(
 
     /** Convert a boolean into a `yes|no` string. */
     fun yesNo(value: Boolean) = if (value) "yes" else "no"
-}
-
-/**
- * Given an array of items return a list of possibilities.
- *
- * The last pair of items are separated by " or ", the other pairs are separated by ", ".
- */
-fun <T> Array<T>.possibilitiesList(transform: (T) -> String): String {
-    val allButLast = dropLast(1)
-    val last = last()
-    val options = buildString {
-        allButLast.joinTo(this, transform = transform)
-        append(" or ")
-        append(transform(last))
-    }
-    return options
 }
