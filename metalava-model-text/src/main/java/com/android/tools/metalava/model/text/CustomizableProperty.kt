@@ -48,27 +48,31 @@ internal constructor(
         /** List of all [CustomizableProperty]s, populated by [provideDelegate]. */
         private val propertyList = mutableListOf<CustomizableProperty>()
 
+        /** Factory method for an optional [String] [CustomizableProperty] */
+        private fun optionalStringProperty(
+            getter: FileFormat.() -> String?,
+            setter: Builder.(String?) -> Unit,
+        ): CustomizableProperty =
+            StringProperty(
+                getter,
+                setter,
+            )
+
         // The order of values in this is significant as it determines the order of the properties
         // in signature headers. The values in this block are not in alphabetical order because it
         // is important that they are at the start of the signature header.
 
         val NAME by
-            object : StringProperty() {
-                override fun setFromString(builder: Builder, value: String) {
-                    builder.name = value
-                }
-
-                override fun stringFromFormat(format: FileFormat): String? = format.name
-            }
+            optionalStringProperty(
+                getter = { name },
+                setter = { name = it },
+            )
 
         val SURFACE by
-            object : StringProperty() {
-                override fun setFromString(builder: Builder, value: String) {
-                    builder.surface = value
-                }
-
-                override fun stringFromFormat(format: FileFormat): String? = format.surface
-            }
+            optionalStringProperty(
+                getter = { surface },
+                setter = { surface = it },
+            )
 
         /** language=[java|kotlin] */
         val LANGUAGE by
@@ -161,13 +165,10 @@ internal constructor(
             }
 
         val MIGRATING by
-            object : StringProperty() {
-                override fun setFromString(builder: Builder, value: String) {
-                    builder.migrating = value
-                }
-
-                override fun stringFromFormat(format: FileFormat): String? = format.migrating
-            }
+            optionalStringProperty(
+                getter = { migrating },
+                setter = { migrating = it },
+            )
 
         val NORMALIZE_ABSTRACT_MODIFIER by
             object :
@@ -353,7 +354,14 @@ internal constructor(
 }
 
 /** A [CustomizableProperty] whose value is a [String]. */
-private abstract class StringProperty : CustomizableProperty()
+private class StringProperty(
+    private val getter: FileFormat.() -> String?,
+    private val setter: Builder.(String) -> Unit,
+) : CustomizableProperty() {
+    override fun setFromString(builder: Builder, value: String) = builder.setter(value)
+
+    override fun stringFromFormat(format: FileFormat) = format.getter()
+}
 
 /** A [CustomizableProperty] whose value is an [Enum]. */
 private abstract class EnumProperty(
