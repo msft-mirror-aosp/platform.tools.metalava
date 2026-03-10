@@ -52,6 +52,8 @@ data class FileFormat(
      * Its purpose is to provide information to metalava and to a lesser extent the owner of the
      * file about which API the file contains. The exact meaning of the API name is determined by
      * the owner, metalava simply uses this as an identifier for comparison.
+     *
+     * See [CustomizableProperty.NAME].
      */
     val name: String? = null,
 
@@ -64,6 +66,8 @@ data class FileFormat(
      * Its purpose is to provide information to metalava and to a lesser extent the owner of the
      * file about which API surface the file contains. The exact meaning of the API surface name is
      * determined by the owner, metalava simply uses this as an identifier for comparison.
+     *
+     * See [CustomizableProperty.SURFACE].
      */
     val surface: String? = null,
 
@@ -72,14 +76,20 @@ data class FileFormat(
      *
      * Although kotlin and java can interoperate reasonably well an API created from Java files is
      * generally targeted for use by Java code and vice versa.
+     *
+     * See [CustomizableProperty.LANGUAGE].
      */
     val language: Language? = null,
+
+    /** See [CustomizableProperty.OVERLOADED_METHOD_ORDER]. */
     val specifiedOverloadedMethodOrder: OverloadedMethodOrder? = null,
 
     /**
      * Whether to include type-use annotations in the signature file. Type-use annotations can only
      * be included when [kotlinNameTypeOrder] is true, because the Java order makes it ambiguous
      * whether an annotation is type-use.
+     *
+     * See [CustomizableProperty.INCLUDE_TYPE_USE_ANNOTATIONS].
      */
     val includeTypeUseAnnotations: Boolean = false,
 
@@ -99,9 +109,14 @@ data class FileFormat(
      * ```
      * method public String foo(int, char, String[]);
      * ```
+     *
+     * See [CustomizableProperty.KOTLIN_NAME_TYPE_ORDER].
      */
     val kotlinNameTypeOrder: Boolean = false,
+
+    /** See [CustomizableProperty.KOTLIN_STYLE_NULLS]. */
     val kotlinStyleNulls: Boolean,
+
     /**
      * If non-null then it indicates that the file format is being used to migrate a signature file
      * to fix a bug that causes a change in the signature file contents but not a change in version.
@@ -118,8 +133,13 @@ data class FileFormat(
      * This value cannot use `,` (because it is a separator between properties in [specifier]) or
      * `\n` (because it is the terminator of the signature format line).
      */
+    /** See [CustomizableProperty.MIGRATING]. */
     val migrating: String? = null,
+
+    /** See [CustomizableProperty.INCLUDE_DEFAULT_PARAMETER_VALUES]. */
     val includeDefaultParameterValues: Boolean,
+
+    /** See [CustomizableProperty.ADD_ADDITIONAL_OVERRIDES]. */
     val specifiedAddAdditionalOverrides: Boolean? = null,
 
     /** See [CustomizableProperty.NORMALIZE_ABSTRACT_MODIFIER]. */
@@ -139,17 +159,23 @@ data class FileFormat(
      * By default, this property preserves the previous behavior but if set to `true` then it will
      * stop treating the first interface specially and just sort all the interface types. The
      * sorting is by the full name (without the package) of the class.
+     *
+     * See [CustomizableProperty.SORT_WHOLE_EXTENDS_LIST].
      */
     val specifiedSortWholeExtendsList: Boolean? = null,
 
     /**
      * Indicates which of the possible approaches to `java.lang.` prefix stripping available in
      * [StripJavaLangPrefix] is used when outputting types to signature files.
+     *
+     * See [CustomizableProperty.STRIP_JAVA_LANG_PREFIX].
      */
     val specifiedStripJavaLangPrefix: StripJavaLangPrefix? = null,
 
     /**
      * Indicates how type arguments should be formatted when outputting types to signature files.
+     *
+     * See [CustomizableProperty.TYPE_ARGUMENT_SPACING].
      */
     val specifiedTypeArgumentSpacing: TypeArgumentSpacing? = null,
 ) {
