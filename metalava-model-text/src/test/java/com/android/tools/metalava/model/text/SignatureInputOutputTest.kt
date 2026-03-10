@@ -671,6 +671,43 @@ class SignatureInputOutputTest : Assertions {
         )
     }
 
+    @Test
+    fun `Test normalize-abstract-modifier=yes`() {
+        // TODO(b/489071739): Should be normalized.
+        runInputOutputTest(
+            """
+                package test.pkg {
+                  public @interface Annotation {
+                    method public abstract void foo();
+                  }
+                  public enum Enum {
+                    method public abstract void foo();
+                    enum_constant public static final test.pkg.Enum VALUE;
+                  }
+                }
+            """,
+            FileFormat.V2.copy(specifiedNormalizeAbstractModifier = true),
+        )
+    }
+
+    @Test
+    fun `Test normalize-abstract-modifier=no`() {
+        runInputOutputTest(
+            """
+                package test.pkg {
+                  public @interface Annotation {
+                    method public abstract void foo();
+                  }
+                  public enum Enum {
+                    method public abstract void foo();
+                    enum_constant public static final test.pkg.Enum VALUE;
+                  }
+                }
+            """,
+            FileFormat.V2.copy(specifiedNormalizeAbstractModifier = false),
+        )
+    }
+
     /**
      * Make sure that despite the `java.lang.` prefix being stripped from various types when writing
      * the signature file that they have the correct type when the [Codebase] is loaded.

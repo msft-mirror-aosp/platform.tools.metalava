@@ -122,6 +122,9 @@ data class FileFormat(
     val includeDefaultParameterValues: Boolean,
     val specifiedAddAdditionalOverrides: Boolean? = null,
 
+    /** See [CustomizableProperty.NORMALIZE_ABSTRACT_MODIFIER]. */
+    val specifiedNormalizeAbstractModifier: Boolean? = null,
+
     /** See [CustomizableProperty.NORMALIZE_FINAL_MODIFIER]. */
     val specifiedNormalizeFinalModifier: Boolean? = null,
 
@@ -200,6 +203,10 @@ data class FileFormat(
     // This defaults to false but can be overridden on the command line.
     val addAdditionalOverrides
         get() = effectiveValue { specifiedAddAdditionalOverrides }
+
+    // This defaults to false but can be overridden on the command line.
+    val normalizeAbstractModifier
+        get() = effectiveValue { specifiedNormalizeAbstractModifier }
 
     // This defaults to false but can be overridden on the command line.
     val normalizeFinalModifier
@@ -305,6 +312,7 @@ data class FileFormat(
                 V5.defaults.copy(
                     version = version,
                     specifiedAddAdditionalOverrides = true,
+                    specifiedNormalizeAbstractModifier = true,
                     specifiedNormalizeFinalModifier = true,
                     specifiedOverloadedMethodOrder = OverloadedMethodOrder.SIGNATURE,
                     specifiedSortWholeExtendsList = true,
@@ -320,6 +328,7 @@ data class FileFormat(
                     formatting. This is `5.0` plus the following properties:
                     ```
                     + add-additional-overrides = yes
+                    + normalize-abstract-modifier = yes
                     + normalize-final-modifier = yes
                     + overloaded-method-order = signature
                     + sort-whole-extends-list = yes
@@ -556,6 +565,7 @@ data class FileFormat(
                 includeDefaultParameterValues = false,
                 // The fallback values for the defaultable properties.
                 specifiedAddAdditionalOverrides = false,
+                specifiedNormalizeAbstractModifier = false,
                 specifiedNormalizeFinalModifier = false,
                 specifiedOverloadedMethodOrder = OverloadedMethodOrder.SIGNATURE,
                 specifiedSortWholeExtendsList = false,
@@ -814,6 +824,7 @@ data class FileFormat(
         internal var language: Language? = null
         internal var migrating: String? = null
         internal var name: String? = null
+        internal var normalizeAbstractModifier: Boolean? = null
         internal var normalizeFinalModifier: Boolean? = null
         internal var overloadedMethodOrder: OverloadedMethodOrder? = null
         internal var sortWholeExtendsList: Boolean? = null
@@ -864,6 +875,8 @@ data class FileFormat(
                 name = name ?: base.name,
                 specifiedAddAdditionalOverrides =
                     addAdditionalOverrides ?: base.specifiedAddAdditionalOverrides,
+                specifiedNormalizeAbstractModifier =
+                    normalizeAbstractModifier ?: base.specifiedNormalizeAbstractModifier,
                 specifiedNormalizeFinalModifier =
                     normalizeFinalModifier ?: base.specifiedNormalizeFinalModifier,
                 specifiedOverloadedMethodOrder =
@@ -989,6 +1002,23 @@ data class FileFormat(
             }
 
             override fun stringFromFormat(format: FileFormat): String? = format.migrating
+        },
+        NORMALIZE_ABSTRACT_MODIFIER(
+            defaultable = true,
+            valueSyntax = "yes|no",
+            help =
+                """
+                    Specifies how the `abstract` modifier is handled on `abstract` methods. If this
+                    is `yes` and the method's containing class does not allow `abstract` then the
+                    `abstract` modifier is not written out, otherwise it is.
+                """,
+        ) {
+            override fun setFromString(builder: Builder, value: String) {
+                builder.normalizeAbstractModifier = yesNo(value)
+            }
+
+            override fun stringFromFormat(format: FileFormat): String? =
+                format.specifiedNormalizeAbstractModifier?.let { yesNo(it) }
         },
         NORMALIZE_FINAL_MODIFIER(
             defaultable = true,
