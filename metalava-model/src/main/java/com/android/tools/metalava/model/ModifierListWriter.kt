@@ -72,21 +72,19 @@ private constructor(
         }
 
         /**
-         * Checks whether the `abstract` modifier should be ignored on the method item when
-         * generating stubs.
+         * Checks whether the `abstract` modifier should be ignored on a method item im
+         * [containingClassKind] when generating stubs.
          *
          * Methods that are in annotations are implicitly `abstract`. Methods in an enum can be
          * `abstract` which requires them to be implemented in each Enum constant but the stubs do
          * not generate overrides in the enum constants so the method needs to be concrete otherwise
          * the stubs will not compile.
          */
-        private fun mustIgnoreAbstractInStubs(methodItem: MethodItem): Boolean {
-            val containingClass = methodItem.containingClass()
-
-            // Need to filter out abstract from the modifiers list and turn it into
-            // a concrete method to make the stub compile
-            return containingClass.isEnum() || containingClass.isAnnotationType()
-        }
+        private fun mustIgnoreAbstractInStubs(containingClassKind: ClassKind) =
+            // Need to filter out abstract from the modifiers list and turn it into a concrete
+            // method to make the stub compile
+            containingClassKind == ClassKind.ENUM ||
+                containingClassKind == ClassKind.ANNOTATION_TYPE
 
         /**
          * Checks whether the method requires a body to be generated in the stubs.
@@ -244,10 +242,12 @@ private constructor(
      * nor enums allow `abstract` modifier. In fact only normal class kinds allow them.
      */
     private fun MethodItem.allowAbstract(): Boolean {
+        val containingClassKind = containingClass().classKind
         val ignoreAbstract =
-            target != AnnotationTarget.SIGNATURE_FILE && mustIgnoreAbstractInStubs(this)
+            target != AnnotationTarget.SIGNATURE_FILE &&
+                mustIgnoreAbstractInStubs(containingClassKind)
 
-        return !ignoreAbstract && !containingClass().isInterface()
+        return !ignoreAbstract && containingClassKind != ClassKind.INTERFACE
     }
 
     private fun writeAnnotations(item: Item) {
