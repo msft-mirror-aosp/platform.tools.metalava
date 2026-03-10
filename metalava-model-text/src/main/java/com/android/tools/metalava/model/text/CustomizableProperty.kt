@@ -315,6 +315,9 @@ internal constructor(
         return this
     }
 
+    /** Context for converting a string to a value. */
+    internal class FromString(val propertyName: String, val string: String)
+
     /**
      * Set the corresponding property in the supplied [Builder] to the value corresponding to the
      * string representation [value].
@@ -396,21 +399,24 @@ private class BooleanProperty(
     private val setter: Builder.(Boolean) -> Unit,
 ) : CustomizableProperty<Boolean>(defaultable, valueSyntax, help) {
 
-    override fun setFromString(builder: Builder, value: String) = builder.setter(yesNo(value))
+    override fun setFromString(builder: Builder, value: String) =
+        builder.setter(FromString(propertyName, value).yesNoToBoolean())
 
-    override fun stringFromFormat(format: FileFormat) = format.getter()?.let { yesNo(it) }
+    override fun stringFromFormat(format: FileFormat) = format.getter()?.booleanToYesNo()
 
-    /** Convert a "yes|no" string into a boolean. */
-    private fun yesNo(value: String) =
-        when (value) {
-            "yes" -> true
-            "no" -> false
-            else ->
-                throw ApiParseException(
-                    "unexpected value for $propertyName, found '$value', expected one of 'yes' or 'no'"
-                )
-        }
+    companion object {
+        /** Convert a "yes|no" string into a boolean. */
+        private fun FromString.yesNoToBoolean() =
+            when (string) {
+                "yes" -> true
+                "no" -> false
+                else ->
+                    throw ApiParseException(
+                        "unexpected value for $propertyName, found '$string', expected one of 'yes' or 'no'"
+                    )
+            }
 
-    /** Convert a boolean into a `yes|no` string. */
-    private fun yesNo(value: Boolean) = if (value) "yes" else "no"
+        /** Convert a boolean into a `yes|no` string. */
+        private fun Boolean.booleanToYesNo() = if (this) "yes" else "no"
+    }
 }
