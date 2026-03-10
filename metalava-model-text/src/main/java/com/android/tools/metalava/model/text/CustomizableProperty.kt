@@ -58,14 +58,30 @@ internal constructor(
             help: String = "",
             getter: FileFormat.() -> Boolean?,
             setter: Builder.(Boolean) -> Unit,
-        ): CustomizableProperty<Boolean> =
-            BooleanProperty(
+        ) =
+            CustomizableProperty(
                 defaultable,
                 "yes|no",
                 help,
                 getter,
                 setter,
+                valueToString = { booleanToYesNo() },
+                stringToValue = { yesNoToBoolean() }
             )
+
+        /** Convert a "yes|no" string into a boolean. */
+        private fun FromString.yesNoToBoolean() =
+            when (string) {
+                "yes" -> true
+                "no" -> false
+                else ->
+                    throw ApiParseException(
+                        "unexpected value for $propertyName, found '$string', expected one of 'yes' or 'no'"
+                    )
+            }
+
+        /** Convert a boolean into a `yes|no` string. */
+        private fun Boolean.booleanToYesNo() = if (this) "yes" else "no"
 
         /** Factory method for an [E] [CustomizableProperty] */
         private inline fun <reified E : Enum<E>> enumProperty(
@@ -402,39 +418,5 @@ private class EnumProperty<E : Enum<E>>(
          * It simply returns the lowercase version of the enum name with `_` replaced with `-`.
          */
         fun <E : Enum<E>> E.stringFromEnum() = name.lowercase(Locale.US).replace("_", "-")
-    }
-}
-
-/** A [CustomizableProperty] whose value is a [Boolean]. */
-private class BooleanProperty(
-    defaultable: Boolean,
-    valueSyntax: String,
-    help: String,
-    getter: FileFormat.() -> Boolean?,
-    setter: Builder.(Boolean) -> Unit,
-) :
-    CustomizableProperty<Boolean>(
-        defaultable,
-        valueSyntax,
-        help,
-        getter,
-        setter,
-        valueToString = { booleanToYesNo() },
-        stringToValue = { yesNoToBoolean() }
-    ) {
-    companion object {
-        /** Convert a "yes|no" string into a boolean. */
-        private fun FromString.yesNoToBoolean() =
-            when (string) {
-                "yes" -> true
-                "no" -> false
-                else ->
-                    throw ApiParseException(
-                        "unexpected value for $propertyName, found '$string', expected one of 'yes' or 'no'"
-                    )
-            }
-
-        /** Convert a boolean into a `yes|no` string. */
-        private fun Boolean.booleanToYesNo() = if (this) "yes" else "no"
     }
 }
