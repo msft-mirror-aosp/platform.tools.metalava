@@ -206,16 +206,7 @@ private constructor(
 
     /** Determine whether the `abstract` modifier is required on [classKind] or [methodItem]. */
     private fun allowAbstract(classKind: ClassKind?, methodItem: MethodItem?) =
-        classKind?.allowAbstract() ?: methodItem?.allowAbstract() ?: true
-
-    /**
-     * Determine whether the `abstract` modifier is allowed on this [ClassKind].
-     *
-     * The `abstract` keyword is not allow on `enum` classes, and is not required on interfaces or
-     * annotation types as they are both implicitly `abstract`.
-     */
-    private fun ClassKind.allowAbstract() =
-        this != ClassKind.ENUM && this != ClassKind.ANNOTATION_TYPE && this != ClassKind.INTERFACE
+        classKind?.allowAbstract ?: methodItem?.allowAbstract() ?: true
 
     /**
      * Determine whether the `abstract` modifier is allowed on this [MethodItem].
@@ -243,7 +234,7 @@ private constructor(
             else ->
                 // All other files disallow `abstract` on methods iff it is disallowed on the
                 // method's containing class.
-                containingClassKind.allowAbstract()
+                containingClassKind.allowAbstract
         }
     }
 

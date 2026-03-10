@@ -33,6 +33,8 @@ package com.android.tools.metalava.model
  * @param binarySuperClassType the optional super class that classes of this [ClassKind] extend in
  *   the binary class representation. This differs from [implicitSuperClassType] as while these
  *   appear in binary files they cannot be used in sources.
+ * @param allowAbstract indicates whether this [ClassKind] allows `abstract` to be used or not. Most
+ *   [ClassKind]s do allow `abstract` so this defaults to `false`.
  * @param implicitlyAbstract indicates whether this [ClassKind] is implicitly `abstract` or not.
  *   Most [ClassKind]s are not implicitly `abstract` so this defaults to `false`.
  * @param implicitlyFinal indicates whether this [ClassKind] is implicitly `final` or not. Most
@@ -47,6 +49,7 @@ enum class ClassKind(
     val allowsExplicitSuperClass: Boolean,
     val implicitInterfaceType: ClassTypeItem? = null,
     val binarySuperClassType: ClassTypeItem? = implicitSuperClassType,
+    val allowAbstract: Boolean = false,
     val implicitlyAbstract: Boolean = false,
     val implicitlyFinal: Boolean = false,
     val implicitlyStatic: Boolean = false,
@@ -98,6 +101,8 @@ enum class ClassKind(
         signatureKeyword = "class",
         // Normal classes allow super classes to be explicitly provided.
         allowsExplicitSuperClass = true,
+        // Normal classes allow `abstract` modifiers.
+        allowAbstract = true,
     ),
 
     /** A typealias */
