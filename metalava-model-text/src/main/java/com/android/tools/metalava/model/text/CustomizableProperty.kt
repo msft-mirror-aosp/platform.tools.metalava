@@ -35,8 +35,8 @@ import kotlin.reflect.KProperty
  * [Companion], e.g. the [KOTLIN_STYLE_NULLS] instance is given a [KProperty] whose [KProperty.name]
  * is `"KOTLIN_STYLE_NULLS"`.
  */
-open class CustomizableProperty<T>
-internal constructor(
+class CustomizableProperty<T>
+private constructor(
     val defaultable: Boolean = false,
     /** Syntax of command line values. */
     val valueSyntax: String = "",
@@ -90,15 +90,52 @@ internal constructor(
             help: String = "",
             noinline getter: FileFormat.() -> E?,
             noinline setter: Builder.(E) -> Unit,
-        ): CustomizableProperty<E> =
-            EnumProperty(
+        ): CustomizableProperty<E> {
+            val entries = enumEntries<E>()
+            return CustomizableProperty(
                 defaultable,
                 valueSyntax,
                 help,
-                enumEntries<E>(),
                 getter,
                 setter,
+                valueToString = { stringFromEnum() },
+                stringToValue = { enumFromString(entries) },
             )
+        }
+
+        /** Map from a string value to an enum value of the required type. */
+        private fun <E : Enum<E>> FromString.enumFromString(entries: List<E>): E {
+            return entries.firstOrNull { it.stringFromEnum() == string }
+                ?: let {
+                    val possibilities = entries.possibilitiesList { "'${it.stringFromEnum()}'" }
+                    throw ApiParseException(
+                        "unexpected value for $propertyName, found '$string', expected one of $possibilities"
+                    )
+                }
+        }
+
+        /**
+         * Given an array of items return a list of possibilities.
+         *
+         * The last pair of items are separated by " or ", the other pairs are separated by ", ".
+         */
+        private fun <E> List<E>.possibilitiesList(transform: (E) -> String): String {
+            val allButLast = dropLast(1)
+            val last = last()
+            val options = buildString {
+                allButLast.joinTo(this, transform = transform)
+                append(" or ")
+                append(transform(last))
+            }
+            return options
+        }
+
+        /**
+         * Extension function to convert an enum value to an external string.
+         *
+         * It simply returns the lowercase version of the enum name with `_` replaced with `-`.
+         */
+        fun <E : Enum<E>> E.stringFromEnum() = name.lowercase(Locale.US).replace("_", "-")
 
         /** Factory method for an optional [String] [CustomizableProperty] */
         private fun optionalStringProperty(
@@ -353,60 +390,4 @@ internal constructor(
      * Get the string representation of the corresponding property from the supplied [FileFormat].
      */
     internal fun stringFromFormat(format: FileFormat): String? = format.getter()?.valueToString()
-}
-
-/** A [CustomizableProperty] whose value is an [Enum]. */
-private class EnumProperty<E : Enum<E>>(
-    defaultable: Boolean,
-    valueSyntax: String,
-    help: String,
-    private val entries: List<E>,
-    getter: FileFormat.() -> E?,
-    setter: Builder.(E) -> Unit,
-) :
-    CustomizableProperty<E>(
-        defaultable,
-        valueSyntax,
-        help,
-        getter,
-        setter,
-        valueToString = { stringFromEnum() },
-        stringToValue = { enumFromString(entries) },
-    ) {
-
-    companion object {
-        /** Map from a string value to an enum value of the required type. */
-        private fun <E : Enum<E>> FromString.enumFromString(entries: List<E>): E {
-            return entries.firstOrNull { it.stringFromEnum() == string }
-                ?: let {
-                    val possibilities = entries.possibilitiesList { "'${it.stringFromEnum()}'" }
-                    throw ApiParseException(
-                        "unexpected value for $propertyName, found '$string', expected one of $possibilities"
-                    )
-                }
-        }
-
-        /**
-         * Given an array of items return a list of possibilities.
-         *
-         * The last pair of items are separated by " or ", the other pairs are separated by ", ".
-         */
-        private fun <E> List<E>.possibilitiesList(transform: (E) -> String): String {
-            val allButLast = dropLast(1)
-            val last = last()
-            val options = buildString {
-                allButLast.joinTo(this, transform = transform)
-                append(" or ")
-                append(transform(last))
-            }
-            return options
-        }
-
-        /**
-         * Extension function to convert an enum value to an external string.
-         *
-         * It simply returns the lowercase version of the enum name with `_` replaced with `-`.
-         */
-        fun <E : Enum<E>> E.stringFromEnum() = name.lowercase(Locale.US).replace("_", "-")
-    }
 }
