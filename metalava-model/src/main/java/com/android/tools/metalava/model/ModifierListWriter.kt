@@ -143,23 +143,9 @@ private constructor(
             writer.write("$modifier ")
         }
 
-        val isInterface =
-            classKind == ClassKind.INTERFACE || methodItem?.containingClass()?.isInterface() == true
-
         // Abstract: should appear in interfaces if in compat mode
         val isAbstract = list.isAbstract()
-        val ignoreAbstract =
-            isAbstract &&
-                target != AnnotationTarget.SIGNATURE_FILE &&
-                methodItem?.let { mustIgnoreAbstractInStubs(methodItem) } ?: false
-
-        if (
-            isAbstract &&
-                !ignoreAbstract &&
-                classKind != ClassKind.ENUM &&
-                classKind != ClassKind.ANNOTATION_TYPE &&
-                !isInterface
-        ) {
+        if (isAbstract && allowAbstract(classKind, methodItem)) {
             writer.write("abstract ")
         }
 
@@ -233,6 +219,21 @@ private constructor(
         if (list.isFunctional()) {
             writer.write("fun ")
         }
+    }
+
+    /** Determine whether the `abstract` modifier is required on [classKind] or [methodItem]. */
+    private fun allowAbstract(classKind: ClassKind?, methodItem: MethodItem?): Boolean {
+        val isInterface =
+            classKind == ClassKind.INTERFACE || methodItem?.containingClass()?.isInterface() == true
+
+        val ignoreAbstract =
+            target != AnnotationTarget.SIGNATURE_FILE &&
+                methodItem?.let { mustIgnoreAbstractInStubs(methodItem) } ?: false
+
+        return !ignoreAbstract &&
+            classKind != ClassKind.ENUM &&
+            classKind != ClassKind.ANNOTATION_TYPE &&
+            !isInterface
     }
 
     private fun writeAnnotations(item: Item) {
