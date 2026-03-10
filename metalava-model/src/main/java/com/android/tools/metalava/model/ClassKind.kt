@@ -35,6 +35,8 @@ package com.android.tools.metalava.model
  *   appear in binary files they cannot be used in sources.
  * @param implicitlyFinal indicates whether this [ClassKind] is implicitly `final` or not. Most
  *   [ClassKind]s are not implicitly `final` so this defaults to `false`.
+ * @param implicitlyStatic indicates whether this [ClassKind] is implicitly `static` or not. Most
+ *   [ClassKind]s are not implicitly `static` so this defaults to `false`.
  */
 enum class ClassKind(
     val supportsInitializerBlock: Boolean,
@@ -44,6 +46,7 @@ enum class ClassKind(
     val implicitInterfaceType: ClassTypeItem? = null,
     val binarySuperClassType: ClassTypeItem? = implicitSuperClassType,
     val implicitlyFinal: Boolean = false,
+    val implicitlyStatic: Boolean = false,
 ) {
 
     /** An interface. */
@@ -70,12 +73,9 @@ enum class ClassKind(
         allowsExplicitSuperClass = false,
         // Enum classes are implicitly final even though instances can be subclasses.
         implicitlyFinal = true,
-    ) {
-        override fun setImplicitModifiers(modifiers: MutableModifierList) {
-            super.setImplicitModifiers(modifiers)
-            modifiers.setStatic(true)
-        }
-    },
+        // Enum classes are implicitly static, even when they are nested within another class.
+        implicitlyStatic = true,
+    ),
 
     /** An annotation class. */
     ANNOTATION_TYPE(
@@ -114,6 +114,9 @@ enum class ClassKind(
     open fun setImplicitModifiers(modifiers: MutableModifierList) {
         if (implicitlyFinal) {
             modifiers.setFinal(true)
+        }
+        if (implicitlyStatic) {
+            modifiers.setStatic(true)
         }
     }
 

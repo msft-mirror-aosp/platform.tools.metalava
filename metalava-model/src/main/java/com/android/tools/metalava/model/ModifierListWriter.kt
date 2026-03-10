@@ -167,7 +167,7 @@ private constructor(
             writer.write("default ")
         }
 
-        if (list.isStatic() && classKind != ClassKind.ENUM) {
+        if (list.isStatic() && classKind?.implicitlyStatic != true) {
             writer.write("static ")
         }
 
