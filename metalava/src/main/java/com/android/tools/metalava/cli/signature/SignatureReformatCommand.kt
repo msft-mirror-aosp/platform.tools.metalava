@@ -20,6 +20,7 @@ import com.android.tools.metalava.cli.common.MetalavaSubCommand
 import com.android.tools.metalava.cli.common.existingFile
 import com.android.tools.metalava.cli.common.stderr
 import com.android.tools.metalava.model.Codebase
+import com.android.tools.metalava.model.text.CustomizableProperty
 import com.android.tools.metalava.model.text.EmitFileHeader
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.model.text.SignatureFile
@@ -133,7 +134,7 @@ class SignatureReformatCommand :
 
             // Iterate over all the properties checking to see if the [targetFormat] value needs to
             // be replaced with the [currentFormat] value.
-            for (property in FileFormat.CustomizableProperty.entries) {
+            for (property in CustomizableProperty.entries) {
                 // Get the current value of the property, including any defaults. If it is not set
                 // then it will have no impact on the resulting format so continue.
                 val currentValue = currentFormat.getWithDefault(property) ?: continue
