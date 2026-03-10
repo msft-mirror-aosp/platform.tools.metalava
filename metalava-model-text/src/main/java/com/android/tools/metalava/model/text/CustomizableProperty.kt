@@ -35,13 +35,17 @@ import kotlin.reflect.KProperty
  * [Companion], e.g. the [KOTLIN_STYLE_NULLS] instance is given a [KProperty] whose [KProperty.name]
  * is `"KOTLIN_STYLE_NULLS"`.
  */
-abstract class CustomizableProperty<T>
+open class CustomizableProperty<T>
 internal constructor(
     val defaultable: Boolean = false,
     /** Syntax of command line values. */
     val valueSyntax: String = "",
     /** Help text to use on the command line. */
     val help: String = "",
+    internal val getter: FileFormat.() -> T?,
+    internal val setter: Builder.(T) -> Unit,
+    private val valueToString: (T & Any).() -> String,
+    private val stringToValue: FromString.() -> T,
 ) : ReadOnlyProperty<CustomizableProperty.Companion, CustomizableProperty<T>> {
 
     companion object {
@@ -320,25 +324,30 @@ internal constructor(
 
     /**
      * Set the corresponding property in the supplied [Builder] to the value corresponding to the
-     * string representation [value].
+     * string representation [string].
      */
-    internal abstract fun setFromString(builder: Builder, value: String)
+    internal fun setFromString(builder: Builder, string: String) {
+        val value = FromString(propertyName, string).stringToValue()
+        builder.setter(value)
+    }
 
     /**
      * Get the string representation of the corresponding property from the supplied [FileFormat].
      */
-    internal abstract fun stringFromFormat(format: FileFormat): String?
+    internal fun stringFromFormat(format: FileFormat): String? = format.getter()?.valueToString()
 }
 
 /** A [CustomizableProperty] whose value is a [String]. */
 private class StringProperty(
-    private val getter: FileFormat.() -> String?,
-    private val setter: Builder.(String) -> Unit,
-) : CustomizableProperty<String>() {
-    override fun setFromString(builder: Builder, value: String) = builder.setter(value)
-
-    override fun stringFromFormat(format: FileFormat) = format.getter()
-}
+    getter: FileFormat.() -> String?,
+    setter: Builder.(String) -> Unit,
+) :
+    CustomizableProperty<String>(
+        getter = getter,
+        setter = setter,
+        valueToString = { this },
+        stringToValue = { string },
+    )
 
 /** A [CustomizableProperty] whose value is an [Enum]. */
 private class EnumProperty<E : Enum<E>>(
@@ -346,14 +355,18 @@ private class EnumProperty<E : Enum<E>>(
     valueSyntax: String,
     help: String,
     private val entries: List<E>,
-    private val getter: FileFormat.() -> E?,
-    private val setter: Builder.(E) -> Unit,
-) : CustomizableProperty<E>(defaultable, valueSyntax, help) {
-
-    override fun setFromString(builder: Builder, value: String) =
-        builder.setter(FromString(propertyName, value).enumFromString(entries))
-
-    override fun stringFromFormat(format: FileFormat) = format.getter()?.stringFromEnum()
+    getter: FileFormat.() -> E?,
+    setter: Builder.(E) -> Unit,
+) :
+    CustomizableProperty<E>(
+        defaultable,
+        valueSyntax,
+        help,
+        getter,
+        setter,
+        valueToString = { stringFromEnum() },
+        stringToValue = { enumFromString(entries) },
+    ) {
 
     companion object {
         /** Map from a string value to an enum value of the required type. */
@@ -397,15 +410,18 @@ private class BooleanProperty(
     defaultable: Boolean,
     valueSyntax: String,
     help: String,
-    private val getter: FileFormat.() -> Boolean?,
-    private val setter: Builder.(Boolean) -> Unit,
-) : CustomizableProperty<Boolean>(defaultable, valueSyntax, help) {
-
-    override fun setFromString(builder: Builder, value: String) =
-        builder.setter(FromString(propertyName, value).yesNoToBoolean())
-
-    override fun stringFromFormat(format: FileFormat) = format.getter()?.booleanToYesNo()
-
+    getter: FileFormat.() -> Boolean?,
+    setter: Builder.(Boolean) -> Unit,
+) :
+    CustomizableProperty<Boolean>(
+        defaultable,
+        valueSyntax,
+        help,
+        getter,
+        setter,
+        valueToString = { booleanToYesNo() },
+        stringToValue = { yesNoToBoolean() }
+    ) {
     companion object {
         /** Convert a "yes|no" string into a boolean. */
         private fun FromString.yesNoToBoolean() =
