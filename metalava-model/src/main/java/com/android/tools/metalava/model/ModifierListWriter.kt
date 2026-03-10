@@ -72,27 +72,12 @@ private constructor(
         }
 
         /**
-         * Checks whether the `abstract` modifier should be ignored on a method item im
-         * [containingClassKind] when generating stubs.
-         *
-         * Methods that are in annotations are implicitly `abstract`. Methods in an enum can be
-         * `abstract` which requires them to be implemented in each Enum constant but the stubs do
-         * not generate overrides in the enum constants so the method needs to be concrete otherwise
-         * the stubs will not compile.
-         */
-        private fun mustIgnoreAbstractInStubs(containingClassKind: ClassKind) =
-            // Need to filter out abstract from the modifiers list and turn it into a concrete
-            // method to make the stub compile
-            containingClassKind == ClassKind.ENUM ||
-                containingClassKind == ClassKind.ANNOTATION_TYPE
-
-        /**
          * Checks whether the method requires a body to be generated in the stubs.
          * * Methods that are annotations are implicitly `abstract` but the body is provided by the
          *   runtime, so they never need bodies.
          * * Native methods never need bodies.
          * * Abstract methods do not need bodies unless they are enums in which case see
-         *   [mustIgnoreAbstractInStubs] for an explanation as to why they need bodies.
+         *   [MethodItem.allowAbstract] for an explanation as to why they need bodies.
          */
         fun requiresMethodBodyInStubs(methodItem: MethodItem): Boolean {
             val modifiers = methodItem.modifiers
@@ -240,12 +225,21 @@ private constructor(
      *
      * In all other files, including but not limited to stubs, neither interfaces, annotation types,
      * nor enums allow `abstract` modifier. In fact only normal class kinds allow them.
+     *
+     * Interface and annotation types do not allow the `abstract` modifier on methods because while
+     * they are usable on their methods they are unnecessary.
+     *
+     * Methods in an enum can also be `abstract` but that requires them to be implemented in each
+     * Enum constant. However, the stubs do not generate overrides of those methods for the enum
+     * constants so they must always to be concrete otherwise the stubs for the enum class will not
+     * compile.
      */
     private fun MethodItem.allowAbstract(): Boolean {
         val containingClassKind = containingClass().classKind
         val ignoreAbstract =
             target != AnnotationTarget.SIGNATURE_FILE &&
-                mustIgnoreAbstractInStubs(containingClassKind)
+                (containingClassKind == ClassKind.ENUM ||
+                    containingClassKind == ClassKind.ANNOTATION_TYPE)
 
         return !ignoreAbstract && containingClassKind != ClassKind.INTERFACE
     }
