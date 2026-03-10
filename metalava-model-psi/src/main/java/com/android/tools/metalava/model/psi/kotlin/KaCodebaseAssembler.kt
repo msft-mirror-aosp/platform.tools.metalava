@@ -614,22 +614,15 @@ private constructor(
         )
     }
 
-    /**
-     * Whether to create a constructor item in the [containingClass] based on the
-     * [constructorSymbol].
-     */
+    /** Whether to create a constructor item based on the [constructorSymbol]. */
     private fun KaSession.shouldGenerateConstructor(
         constructorSymbol: KaConstructorSymbol,
-        containingClass: ClassItem,
     ): Boolean {
         // Deprecation level hidden items can't be resolved from source.
         if (constructorSymbol.isDeprecatedHidden()) return false
         // If this codebase is being created just from the KaModule, all other source constructors
         // should be generated. Only skip constructors when adding to a PsiBasedCodebase.
         if (!addingToPsiCodebase) return true
-
-        // Value class primary constructors are always kotlin only.
-        if (constructorSymbol.isPrimary && containingClass.modifiers.isValue()) return true
         // If a constructor has a corresponding UElement it generally shouldn't be created as kotlin
         // only, but with K1 value class types weren't handled differently from other types so there
         // might be a UElement for a constructor using a value class type even though it should be
@@ -647,7 +640,7 @@ private constructor(
         containingClass: SkeletonClassItem,
         enclosingTypeItemFactory: KaTypeItemFactory,
     ) {
-        if (!shouldGenerateConstructor(constructorSymbol, containingClass)) return
+        if (!shouldGenerateConstructor(constructorSymbol)) return
 
         val typeParameterListAndFactory =
             typeParameterListAndFactory(
