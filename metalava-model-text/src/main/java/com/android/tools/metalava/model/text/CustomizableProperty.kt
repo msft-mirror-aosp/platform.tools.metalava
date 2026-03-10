@@ -52,7 +52,7 @@ internal constructor(
         // is important that they are at the start of the signature header.
 
         val NAME by
-            object : CustomizableProperty() {
+            object : StringProperty() {
                 override fun setFromString(builder: Builder, value: String) {
                     builder.name = value
                 }
@@ -61,7 +61,7 @@ internal constructor(
             }
 
         val SURFACE by
-            object : CustomizableProperty() {
+            object : StringProperty() {
                 override fun setFromString(builder: Builder, value: String) {
                     builder.surface = value
                 }
@@ -71,7 +71,7 @@ internal constructor(
 
         /** language=[java|kotlin] */
         val LANGUAGE by
-            object : CustomizableProperty() {
+            object : EnumProperty() {
                 override fun setFromString(builder: Builder, value: String) {
                     builder.language = enumFromString<Language>(value)
                 }
@@ -84,7 +84,7 @@ internal constructor(
 
         /** add-additional-overrides=[yes|no] */
         val ADD_ADDITIONAL_OVERRIDES by
-            object : CustomizableProperty(defaultable = true) {
+            object : BooleanProperty(defaultable = true) {
                 override fun setFromString(builder: Builder, value: String) {
                     builder.addAdditionalOverrides = yesNo(value)
                 }
@@ -96,7 +96,7 @@ internal constructor(
         /** include-default-parameter-values=[yes|no] */
         val INCLUDE_DEFAULT_PARAMETER_VALUES by
             object :
-                CustomizableProperty(
+                BooleanProperty(
                     valueSyntax = "yes|no",
                     help =
                         """
@@ -115,7 +115,7 @@ internal constructor(
 
         /** include-type-use-annotations=[yes|no] */
         val INCLUDE_TYPE_USE_ANNOTATIONS by
-            object : CustomizableProperty() {
+            object : BooleanProperty() {
                 override fun setFromString(builder: Builder, value: String) {
                     builder.includeTypeUseAnnotations = yesNo(value)
                 }
@@ -126,7 +126,7 @@ internal constructor(
 
         /** kotlin-name-type-order=[yes|no] */
         val KOTLIN_NAME_TYPE_ORDER by
-            object : CustomizableProperty() {
+            object : BooleanProperty() {
                 override fun setFromString(builder: Builder, value: String) {
                     builder.kotlinNameTypeOrder = yesNo(value)
                 }
@@ -138,7 +138,7 @@ internal constructor(
         /** kotlin-style-nulls=[yes|no] */
         val KOTLIN_STYLE_NULLS by
             object :
-                CustomizableProperty(
+                BooleanProperty(
                     valueSyntax = "yes|no",
                     help =
                         """
@@ -160,7 +160,7 @@ internal constructor(
             }
 
         val MIGRATING by
-            object : CustomizableProperty() {
+            object : StringProperty() {
                 override fun setFromString(builder: Builder, value: String) {
                     builder.migrating = value
                 }
@@ -170,7 +170,7 @@ internal constructor(
 
         val NORMALIZE_ABSTRACT_MODIFIER by
             object :
-                CustomizableProperty(
+                BooleanProperty(
                     defaultable = true,
                     valueSyntax = "yes|no",
                     help =
@@ -190,7 +190,7 @@ internal constructor(
 
         val NORMALIZE_FINAL_MODIFIER by
             object :
-                CustomizableProperty(
+                BooleanProperty(
                     defaultable = true,
                     valueSyntax = "yes|no",
                     help =
@@ -211,7 +211,7 @@ internal constructor(
         /** overloaded-method-other=[source|signature] */
         val OVERLOADED_METHOD_ORDER by
             object :
-                CustomizableProperty(
+                EnumProperty(
                     defaultable = true,
                     valueSyntax = "source|signature",
                     help =
@@ -237,7 +237,7 @@ internal constructor(
             }
 
         val SORT_WHOLE_EXTENDS_LIST by
-            object : CustomizableProperty(defaultable = true) {
+            object : BooleanProperty(defaultable = true) {
                 override fun setFromString(builder: Builder, value: String) {
                     builder.sortWholeExtendsList = yesNo(value)
                 }
@@ -247,7 +247,7 @@ internal constructor(
             }
 
         val STRIP_JAVA_LANG_PREFIX by
-            object : CustomizableProperty(defaultable = true) {
+            object : EnumProperty(defaultable = true) {
                 override fun setFromString(builder: Builder, value: String) {
                     builder.stripJavaLangPrefix = enumFromString<StripJavaLangPrefix>(value)
                 }
@@ -258,7 +258,7 @@ internal constructor(
 
         val TYPE_ARGUMENT_SPACING by
             object :
-                CustomizableProperty(
+                EnumProperty(
                     defaultable = true,
                     valueSyntax = "legacy|none|space",
                     help =
@@ -349,6 +349,17 @@ internal constructor(
      * Get the string representation of the corresponding property from the supplied [FileFormat].
      */
     internal abstract fun stringFromFormat(format: FileFormat): String?
+}
+
+/** A [CustomizableProperty] whose value is a [String]. */
+private abstract class StringProperty : CustomizableProperty()
+
+/** A [CustomizableProperty] whose value is an [Enum]. */
+private abstract class EnumProperty(
+    defaultable: Boolean = false,
+    valueSyntax: String = "",
+    help: String = "",
+) : CustomizableProperty(defaultable, valueSyntax, help) {
 
     /** Inline function to map from a string value to an enum value of the required type. */
     inline fun <reified T : Enum<T>> enumFromString(value: String): T {
@@ -378,7 +389,14 @@ internal constructor(
     fun <T : Enum<T>> T.stringFromEnum(): String {
         return name.lowercase(Locale.US).replace("_", "-")
     }
+}
 
+/** A [CustomizableProperty] whose value is a [Boolean]. */
+private abstract class BooleanProperty(
+    defaultable: Boolean = false,
+    valueSyntax: String = "",
+    help: String = "",
+) : EnumProperty(defaultable, valueSyntax, help) {
     /**
      * Intermediate enum used to map from string to [Boolean]
      *
