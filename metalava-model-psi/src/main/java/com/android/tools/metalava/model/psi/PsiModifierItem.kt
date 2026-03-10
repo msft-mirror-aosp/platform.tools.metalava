@@ -78,7 +78,6 @@ import org.jetbrains.kotlin.psi.KtDeclaration
 import org.jetbrains.kotlin.psi.KtElement
 import org.jetbrains.kotlin.psi.KtModifierList
 import org.jetbrains.kotlin.psi.KtModifierListOwner
-import org.jetbrains.kotlin.psi.KtNamedFunction
 import org.jetbrains.kotlin.psi.KtObjectDeclaration
 import org.jetbrains.kotlin.psi.KtPrimaryConstructor
 import org.jetbrains.kotlin.psi.KtPropertyAccessor
@@ -251,20 +250,6 @@ internal object PsiModifierItem {
                     sourcePsi.containingClass()?.hasModifier(KtTokens.DATA_KEYWORD) == true &&
                     visibilityFlags == INTERNAL
             ) {
-                visibilityFlags = PUBLIC
-            }
-        }
-
-        if (ktModifierList?.hasModifier(KtTokens.INLINE_KEYWORD) == true) {
-            // Workaround for b/117565118:
-            val func = sourcePsi as? KtNamedFunction
-            if (
-                func != null &&
-                    (func.typeParameterList?.text ?: "").contains(KtTokens.REIFIED_KEYWORD.value) &&
-                    !ktModifierList.hasModifier(KtTokens.PRIVATE_KEYWORD) &&
-                    !ktModifierList.hasModifier(KtTokens.INTERNAL_KEYWORD)
-            ) {
-                // Switch back from private to public
                 visibilityFlags = PUBLIC
             }
         }
