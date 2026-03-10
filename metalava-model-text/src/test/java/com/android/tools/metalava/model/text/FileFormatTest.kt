@@ -28,6 +28,7 @@ import org.junit.Test
 val DEFAULTABLE_PROPERTY_NAMES =
     listOf(
         "add-additional-overrides",
+        "normalize-abstract-modifier",
         "normalize-final-modifier",
         "overloaded-method-order",
         "sort-whole-extends-list",
@@ -810,6 +811,7 @@ class FileFormatTest {
                 include-type-use-annotations=no
                 kotlin-name-type-order=no
                 kotlin-style-nulls=no
+                normalize-abstract-modifier=no
                 normalize-final-modifier=no
                 overloaded-method-order=signature
                 sort-whole-extends-list=no

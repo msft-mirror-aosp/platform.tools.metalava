@@ -28,6 +28,19 @@ package com.android.tools.metalava.model
  *   [ClassKind].
  * @param allowsExplicitSuperClass `true` if the class kind allows super class to be explicitly
  *   provided.
+ * @param implicitInterfaceType the optional implicit interface type that classes of the class kind
+ *   implement.
+ * @param binarySuperClassType the optional super class that classes of this [ClassKind] extend in
+ *   the binary class representation. This differs from [implicitSuperClassType] as while these
+ *   appear in binary files they cannot be used in sources.
+ * @param allowAbstract indicates whether this [ClassKind] allows `abstract` to be used or not. Most
+ *   [ClassKind]s do allow `abstract` so this defaults to `false`.
+ * @param implicitlyAbstract indicates whether this [ClassKind] is implicitly `abstract` or not.
+ *   Most [ClassKind]s are not implicitly `abstract` so this defaults to `false`.
+ * @param implicitlyFinal indicates whether this [ClassKind] is implicitly `final` or not. Most
+ *   [ClassKind]s are not implicitly `final` so this defaults to `false`.
+ * @param implicitlyStatic indicates whether this [ClassKind] is implicitly `static` or not. Most
+ *   [ClassKind]s are not implicitly `static` so this defaults to `false`.
  */
 enum class ClassKind(
     val supportsInitializerBlock: Boolean,
@@ -35,6 +48,11 @@ enum class ClassKind(
     val implicitSuperClassType: ClassTypeItem? = null,
     val allowsExplicitSuperClass: Boolean,
     val implicitInterfaceType: ClassTypeItem? = null,
+    val binarySuperClassType: ClassTypeItem? = implicitSuperClassType,
+    val allowAbstract: Boolean = false,
+    val implicitlyAbstract: Boolean = false,
+    val implicitlyFinal: Boolean = false,
+    val implicitlyStatic: Boolean = false,
 ) {
 
     /** An interface. */
@@ -43,11 +61,11 @@ enum class ClassKind(
         signatureKeyword = "interface",
         // Interfaces do not have a super class, explicit or otherwise.
         allowsExplicitSuperClass = false,
-    ) {
-        override fun setImplicitModifiers(modifiers: MutableModifierList) {
-            modifiers.setAbstract(true)
-        }
-    },
+        // Interfaces are treated as extending java.lang.Object in binary classes.
+        binarySuperClassType = WellKnownTypes.JAVA_LANG_OBJECT_NON_NULL_TYPE,
+        // Interfaces are implicitly abstract.
+        implicitlyAbstract = true,
+    ),
 
     /** An enum class. */
     ENUM(
@@ -57,12 +75,11 @@ enum class ClassKind(
         // Enums have an implicit super class and do not allow a super class to be provided
         // explicitly.
         allowsExplicitSuperClass = false,
-    ) {
-        override fun setImplicitModifiers(modifiers: MutableModifierList) {
-            modifiers.setFinal(true)
-            modifiers.setStatic(true)
-        }
-    },
+        // Enum classes are implicitly final even though instances can be subclasses.
+        implicitlyFinal = true,
+        // Enum classes are implicitly static, even when they are nested within another class.
+        implicitlyStatic = true,
+    ),
 
     /** An annotation class. */
     ANNOTATION_TYPE(
@@ -71,11 +88,12 @@ enum class ClassKind(
         // Annotation types are interfaces and so do not have a super class, explicit or otherwise.
         allowsExplicitSuperClass = false,
         implicitInterfaceType = WellKnownTypes.JAVA_LANG_ANNOTATION_NON_NULL_TYPE,
-    ) {
-        override fun setImplicitModifiers(modifiers: MutableModifierList) {
-            modifiers.setAbstract(true)
-        }
-    },
+        // Annotation types are interfaces and so are treated as extending java.lang.Object in
+        // binary classes.
+        binarySuperClassType = WellKnownTypes.JAVA_LANG_OBJECT_NON_NULL_TYPE,
+        // Annotation types are interfaces and so are implicitly abstract.
+        implicitlyAbstract = true,
+    ),
 
     /** A normal class. */
     CLASS(
@@ -83,6 +101,8 @@ enum class ClassKind(
         signatureKeyword = "class",
         // Normal classes allow super classes to be explicitly provided.
         allowsExplicitSuperClass = true,
+        // Normal classes allow `abstract` modifiers.
+        allowAbstract = true,
     ),
 
     /** A typealias */
@@ -95,7 +115,17 @@ enum class ClassKind(
     ;
 
     /** Set any modifiers on [modifiers] that are implicit for this [ClassKind]. */
-    open fun setImplicitModifiers(modifiers: MutableModifierList) {}
+    fun setImplicitModifiers(modifiers: MutableModifierList) {
+        if (implicitlyAbstract) {
+            modifiers.setAbstract(true)
+        }
+        if (implicitlyFinal) {
+            modifiers.setFinal(true)
+        }
+        if (implicitlyStatic) {
+            modifiers.setStatic(true)
+        }
+    }
 
     companion object {
         /** Map from [ClassKind.signatureKeyword] to [ClassKind]. */
