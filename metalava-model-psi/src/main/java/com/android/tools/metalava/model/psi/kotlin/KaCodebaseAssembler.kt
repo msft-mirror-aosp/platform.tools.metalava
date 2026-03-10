@@ -437,12 +437,7 @@ private constructor(
             processConstructor(constructorSymbol, classItem, classTypeItemFactory)
         }
         for (callableSymbol in filterExpects(memberScope.callables)) {
-            // K1 includes delegate symbols in the combinedDeclaredMemberScope, K2 does not.
-            // Don't add delegate symbols here because they're processed from the
-            // delegatedMemberScope below, and they shouldn't be duplicated for K1.
-            if (callableSymbol.origin != KaSymbolOrigin.DELEGATED) {
-                processCallable(callableSymbol, classItem, classTypeItemFactory)
-            }
+            processCallable(callableSymbol, classItem, classTypeItemFactory)
         }
         for (nestedClassifierSymbol in
             memberScope.classifiers.filterIsInstance<KaNamedClassSymbol>()) {
