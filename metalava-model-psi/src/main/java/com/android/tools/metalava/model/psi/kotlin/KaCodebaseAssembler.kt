@@ -623,10 +623,9 @@ private constructor(
         // If this codebase is being created just from the KaModule, all other source constructors
         // should be generated. Only skip constructors when adding to a PsiBasedCodebase.
         if (!addingToPsiCodebase) return true
-        // If a constructor has a corresponding UElement it generally shouldn't be created as kotlin
-        // only, but with K1 value class types weren't handled differently from other types so there
-        // might be a UElement for a constructor using a value class type even though it should be
-        // kotlin only.
+        // If a constructor has a corresponding UElement it shouldn't be created as kotlin only.
+        // TODO(b/491407270): checking parameter types is still required because constructors with
+        //  value class type parameters incorrectly exist as UElements.
         if (constructorSymbol.existsAsUElement() && !hasValueClassTypeParameter(constructorSymbol))
             return false
         return true
@@ -733,15 +732,18 @@ private constructor(
         // Generate functions annotated with JvmName.
         if (functionSymbol.annotations.any { it.classId?.asFqNameString() == JVM_NAME }) return true
 
-        // If a constructor has a corresponding UElement it generally shouldn't be created as kotlin
-        // only, but with K1 value class types weren't handled differently from other types so there
-        // might be a UElement for a constructor using a value class type even though it should be
-        // kotlin only.
+        // If a function has a corresponding UElement it generally shouldn't be created as kotlin
+        // only, but if a function has a value class return type which is not explicitly declared in
+        // source it will still incorrectly exist as a UElement (see
+        // https://youtrack.jetbrains.com/issue/KT-74205).
+        // TODO(b/491407270): checking parameter types is still required because constructors with
+        //  value class type parameters incorrectly exist as UElements, and a data class copy method
+        //  has the constructor as its source element so it will also still exist as a UElement when
+        //  it has a value class parameter type.
         if (
             functionSymbol.existsAsUElement() &&
                 !hasValueClassTypeParameter(functionSymbol) &&
-                !isValueClassType(functionSymbol.returnType) &&
-                functionSymbol.receiverType?.let { isValueClassType(it) } != true
+                !isValueClassType(functionSymbol.returnType)
         )
             return false
 

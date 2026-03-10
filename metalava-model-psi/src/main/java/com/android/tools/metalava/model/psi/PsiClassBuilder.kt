@@ -273,9 +273,8 @@ internal class PsiClassBuilder(
             if (psiMethod.isConstructor) {
                 val constructor = createConstructor(classItem, psiMethod, classTypeItemFactory)
 
-                // Constructors with value class type parameters may or may not be fake UAST
-                // elements depending on whether K1 or K2 is used.
-                // TODO(b/427783483): remove this workaround
+                // TODO(b/491407270): checking parameter types is still required because
+                //  constructors with value class type parameters incorrectly exist as UElements.
                 if (constructor.parameters().any { it.type().isValueClassType }) {
                     continue
                 }
@@ -312,11 +311,13 @@ internal class PsiClassBuilder(
                     method.targetLanguages -= TargetLanguage.KOTLIN
                 }
 
-                // With K2, any methods using value class types which don't use JvmName
-                // will already have been filtered out because they are represented with fake UAST
-                // elements. With K1, value class types are not treated differently so the elements
-                // are not fake UAST. Filter those value class type property accessors here.
-                // TODO(b/427783483): remove this workaround
+                // If a function has a value class return type which is not explicitly declared in
+                // source it will still incorrectly exist as a UElement (see
+                // https://youtrack.jetbrains.com/issue/KT-74205).
+                // TODO(b/491407270): checking parameter types is still required because
+                //  constructors with value class type parameters incorrectly exist as UElements,
+                //  and a data class copy method has the constructor as its source element so it
+                //  will also still exist as a UElement when it has a value class parameter type.
                 if (
                     (method.returnType().isValueClassType ||
                         method.parameters().any { it.type().isValueClassType } ||
