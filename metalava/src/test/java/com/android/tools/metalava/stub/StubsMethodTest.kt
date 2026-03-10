@@ -50,7 +50,7 @@ class StubsMethodTest : AbstractStubsTest() {
                             @SuppressWarnings({"unchecked", "deprecation", "all"})
                             public final class Foo {
                             public Foo() { throw new RuntimeException("Stub!"); }
-                            public final void finalMethod() { throw new RuntimeException("Stub!"); }
+                            public void finalMethod() { throw new RuntimeException("Stub!"); }
                             public void nonFinalMethod() { throw new RuntimeException("Stub!"); }
                             }
                         """

@@ -101,7 +101,7 @@ internal class JavaStubWriter(
     }
 
     private fun appendModifiers(item: Item) {
-        modifierListWriter.write(item)
+        modifierListWriter.write(item, normalizeFinal = true)
     }
 
     private fun generateSuperClassDeclaration(cls: ClassItem) {
