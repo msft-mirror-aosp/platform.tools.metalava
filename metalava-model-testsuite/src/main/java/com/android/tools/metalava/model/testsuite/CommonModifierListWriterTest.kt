@@ -28,8 +28,13 @@ class CommonModifierListWriterTest : BaseModelTest() {
 
     private fun Item.writeKeywords(normalizeFinal: Boolean = false): String {
         val stringWriter = StringWriter()
-        val writer = ModifierListWriter.forSignature(stringWriter, skipNullnessAnnotations = true)
-        writer.writeKeywords(this, normalizeFinal = normalizeFinal)
+        val writer =
+            ModifierListWriter.forSignature(
+                stringWriter,
+                skipNullnessAnnotations = true,
+                normalizeFinal = normalizeFinal,
+            )
+        writer.writeKeywords(this)
         return stringWriter.toString().trimEnd()
     }
 

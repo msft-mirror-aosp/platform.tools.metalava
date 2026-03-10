@@ -29,11 +29,13 @@ private constructor(
     private val annotationFormatter: AnnotationFormatter,
     private val runtimeAnnotationsOnly: Boolean,
     private val skipNullnessAnnotations: Boolean,
+    private val normalizeFinal: Boolean = true,
 ) {
     companion object {
         fun forSignature(
             writer: Writer,
             skipNullnessAnnotations: Boolean,
+            normalizeFinal: Boolean,
         ): ModifierListWriter {
             val target = AnnotationTarget.SIGNATURE_FILE
             return ModifierListWriter(
@@ -42,6 +44,7 @@ private constructor(
                 annotationFormatter = AnnotationFormatter.legacyAnnotationFormatter(target),
                 runtimeAnnotationsOnly = false,
                 skipNullnessAnnotations = skipNullnessAnnotations,
+                normalizeFinal = normalizeFinal,
             )
         }
 
@@ -91,16 +94,13 @@ private constructor(
     }
 
     /** Write the modifier list (possibly including annotations) to the supplied [writer]. */
-    fun write(
-        item: Item,
-        normalizeFinal: Boolean = false,
-    ) {
+    fun write(item: Item) {
         writeAnnotations(item)
-        writeKeywords(item, normalizeFinal = normalizeFinal)
+        writeKeywords(item)
     }
 
     /** Write the modifier keywords. */
-    fun writeKeywords(item: Item, normalizeFinal: Boolean = false) {
+    fun writeKeywords(item: Item) {
         if (
             item is PackageItem ||
                 (target != AnnotationTarget.SIGNATURE_FILE &&
