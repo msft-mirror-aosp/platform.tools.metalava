@@ -545,14 +545,14 @@ data class FileFormat(
      *
      * This will NOT apply any defaults that it finds.
      */
-    operator fun get(property: CustomizableProperty) = property.stringFromFormat(this)
+    operator fun get(property: CustomizableProperty<*>) = property.stringFromFormat(this)
 
     /**
      * Get the value of [property] as a [String].
      *
      * This will apply any defaults that it finds.
      */
-    fun getWithDefault(property: CustomizableProperty) =
+    fun getWithDefault(property: CustomizableProperty<*>) =
         // First try in this format directly.
         this[property]
             // If it could not be found then look in the defaults if provided.
@@ -858,7 +858,7 @@ data class FileFormat(
         internal var surface: String? = null
 
         /** Set [property] in this from [value] [String]. */
-        operator fun set(property: CustomizableProperty, value: String) {
+        operator fun set(property: CustomizableProperty<*>, value: String) {
             property.setFromString(this, value)
         }
 

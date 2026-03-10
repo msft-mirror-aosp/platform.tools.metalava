@@ -35,18 +35,18 @@ import kotlin.reflect.KProperty
  * [Companion], e.g. the [KOTLIN_STYLE_NULLS] instance is given a [KProperty] whose [KProperty.name]
  * is `"KOTLIN_STYLE_NULLS"`.
  */
-abstract class CustomizableProperty
+abstract class CustomizableProperty<T>
 internal constructor(
     val defaultable: Boolean = false,
     /** Syntax of command line values. */
     val valueSyntax: String = "",
     /** Help text to use on the command line. */
     val help: String = "",
-) : ReadOnlyProperty<CustomizableProperty.Companion, CustomizableProperty> {
+) : ReadOnlyProperty<CustomizableProperty.Companion, CustomizableProperty<T>> {
 
     companion object {
         /** List of all [CustomizableProperty]s, populated by [provideDelegate]. */
-        private val propertyList = mutableListOf<CustomizableProperty>()
+        private val propertyList = mutableListOf<CustomizableProperty<*>>()
 
         /** Factory method for a [Boolean] [CustomizableProperty] */
         private fun booleanProperty(
@@ -54,7 +54,7 @@ internal constructor(
             help: String = "",
             getter: FileFormat.() -> Boolean?,
             setter: Builder.(Boolean) -> Unit,
-        ): CustomizableProperty =
+        ): CustomizableProperty<Boolean> =
             BooleanProperty(
                 defaultable,
                 "yes|no",
@@ -70,7 +70,7 @@ internal constructor(
             help: String = "",
             noinline getter: FileFormat.() -> E?,
             noinline setter: Builder.(E) -> Unit,
-        ): CustomizableProperty =
+        ): CustomizableProperty<E> =
             EnumProperty(
                 defaultable,
                 valueSyntax,
@@ -84,7 +84,7 @@ internal constructor(
         private fun optionalStringProperty(
             getter: FileFormat.() -> String?,
             setter: Builder.(String?) -> Unit,
-        ): CustomizableProperty =
+        ): CustomizableProperty<String> =
             StringProperty(
                 getter,
                 setter,
@@ -273,7 +273,7 @@ internal constructor(
          * @param defaultableOnly if `true` then only [CustomizableProperty.defaultable] properties
          *   are allowed.
          */
-        fun getByName(name: String, defaultableOnly: Boolean): CustomizableProperty =
+        fun getByName(name: String, defaultableOnly: Boolean): CustomizableProperty<*> =
             byPropertyName[name]?.let { if (!defaultableOnly || it.defaultable) it else null }
                 ?: let {
                     val possibilities =
@@ -305,7 +305,10 @@ internal constructor(
      * @param property the property within [CustomizableProperty.Companion] for which this is a
      *   delegate, e.g. [NAME], [KOTLIN_STYLE_NULLS], etc.
      */
-    operator fun provideDelegate(thisRef: Companion, property: KProperty<*>): CustomizableProperty {
+    operator fun provideDelegate(
+        thisRef: Companion,
+        property: KProperty<*>
+    ): CustomizableProperty<T> {
         // Initialize property name based on the Companion property names.
         propertyName = property.name.lowercase(Locale.US).replace("_", "-")
         propertyList.add(this)
@@ -328,7 +331,7 @@ internal constructor(
 private class StringProperty(
     private val getter: FileFormat.() -> String?,
     private val setter: Builder.(String) -> Unit,
-) : CustomizableProperty() {
+) : CustomizableProperty<String>() {
     override fun setFromString(builder: Builder, value: String) = builder.setter(value)
 
     override fun stringFromFormat(format: FileFormat) = format.getter()
@@ -342,7 +345,7 @@ private class EnumProperty<E : Enum<E>>(
     private val entries: List<E>,
     private val getter: FileFormat.() -> E?,
     private val setter: Builder.(E) -> Unit,
-) : CustomizableProperty(defaultable, valueSyntax, help) {
+) : CustomizableProperty<E>(defaultable, valueSyntax, help) {
 
     override fun setFromString(builder: Builder, value: String) =
         builder.setter(enumFromString(value))
@@ -391,7 +394,7 @@ private class BooleanProperty(
     help: String,
     private val getter: FileFormat.() -> Boolean?,
     private val setter: Builder.(Boolean) -> Unit,
-) : CustomizableProperty(defaultable, valueSyntax, help) {
+) : CustomizableProperty<Boolean>(defaultable, valueSyntax, help) {
 
     override fun setFromString(builder: Builder, value: String) = builder.setter(yesNo(value))
 

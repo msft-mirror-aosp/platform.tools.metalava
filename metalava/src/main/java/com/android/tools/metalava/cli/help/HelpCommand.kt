@@ -118,8 +118,8 @@ private fun signatureFileFormatsHelp(): CliktCommand {
      *
      * @param filter filter the properties for which help will be provided.
      */
-    fun customizablePropertyHelp(filter: (CustomizableProperty) -> Boolean): String {
-        fun CustomizableProperty.labelGetter() = "`$propertyName = $valueSyntax`"
+    fun customizablePropertyHelp(filter: (CustomizableProperty<*>) -> Boolean): String {
+        fun CustomizableProperty<*>.labelGetter() = "`$propertyName = $valueSyntax`"
         return buildDefinitionListHelp(
             CustomizableProperty.entries.mapNotNull {
                 if (!filter(it)) return@mapNotNull null
