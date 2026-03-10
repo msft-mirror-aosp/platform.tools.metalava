@@ -236,12 +236,15 @@ private constructor(
      */
     private fun MethodItem.allowAbstract(): Boolean {
         val containingClassKind = containingClass().classKind
-        val ignoreAbstract =
-            target != AnnotationTarget.SIGNATURE_FILE &&
-                (containingClassKind == ClassKind.ENUM ||
-                    containingClassKind == ClassKind.ANNOTATION_TYPE)
-
-        return !ignoreAbstract && containingClassKind != ClassKind.INTERFACE
+        return when {
+            target == AnnotationTarget.SIGNATURE_FILE ->
+                // Signature files only disallow `abstract` on interfaces.
+                containingClassKind != ClassKind.INTERFACE
+            else ->
+                // All other files disallow `abstract` on methods iff it is disallowed on the
+                // method's containing class.
+                containingClassKind.allowAbstract()
+        }
     }
 
     private fun writeAnnotations(item: Item) {
