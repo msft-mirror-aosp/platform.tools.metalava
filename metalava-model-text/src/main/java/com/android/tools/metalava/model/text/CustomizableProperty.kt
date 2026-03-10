@@ -396,24 +396,20 @@ private abstract class BooleanProperty(
     defaultable: Boolean = false,
     valueSyntax: String = "",
     help: String = "",
-) : EnumProperty(defaultable, valueSyntax, help) {
-    /**
-     * Intermediate enum used to map from string to [Boolean]
-     *
-     * The instances are not used directly but are used via [YesNo.values].
-     */
-    enum class YesNo(val b: Boolean) {
-        @Suppress("UNUSED") YES(true),
-        @Suppress("UNUSED") NO(false)
-    }
-
+) : CustomizableProperty(defaultable, valueSyntax, help) {
     /** Convert a "yes|no" string into a boolean. */
-    fun yesNo(value: String): Boolean {
-        return enumFromString<YesNo>(value).b
-    }
+    fun yesNo(value: String) =
+        when (value) {
+            "yes" -> true
+            "no" -> false
+            else ->
+                throw ApiParseException(
+                    "unexpected value for $propertyName, found '$value', expected one of 'yes' or 'no'"
+                )
+        }
 
     /** Convert a boolean into a `yes|no` string. */
-    fun yesNo(value: Boolean): String = if (value) "yes" else "no"
+    fun yesNo(value: Boolean) = if (value) "yes" else "no"
 }
 
 /**
