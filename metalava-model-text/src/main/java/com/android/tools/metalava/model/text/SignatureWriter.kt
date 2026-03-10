@@ -62,6 +62,7 @@ class SignatureWriter(
             writer = writer,
             skipNullnessAnnotations = fileFormat.kotlinStyleNulls,
             normalizeFinal = fileFormat.normalizeFinalModifier,
+            normalizeAbstract = fileFormat.normalizeAbstractModifier,
         )
 
     internal fun write(text: String) {

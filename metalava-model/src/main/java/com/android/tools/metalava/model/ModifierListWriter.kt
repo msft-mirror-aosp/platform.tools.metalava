@@ -30,12 +30,14 @@ private constructor(
     private val runtimeAnnotationsOnly: Boolean,
     private val skipNullnessAnnotations: Boolean,
     private val normalizeFinal: Boolean = true,
+    private val normalizeAbstract: Boolean = true,
 ) {
     companion object {
         fun forSignature(
             writer: Writer,
             skipNullnessAnnotations: Boolean,
             normalizeFinal: Boolean,
+            normalizeAbstract: Boolean,
         ): ModifierListWriter {
             val target = AnnotationTarget.SIGNATURE_FILE
             return ModifierListWriter(
@@ -45,6 +47,7 @@ private constructor(
                 runtimeAnnotationsOnly = false,
                 skipNullnessAnnotations = skipNullnessAnnotations,
                 normalizeFinal = normalizeFinal,
+                normalizeAbstract = normalizeAbstract,
             )
         }
 
@@ -228,8 +231,9 @@ private constructor(
     private fun MethodItem.allowAbstract(): Boolean {
         val containingClassKind = containingClass().classKind
         return when {
-            target == AnnotationTarget.SIGNATURE_FILE ->
-                // Signature files only disallow `abstract` on interfaces.
+            target == AnnotationTarget.SIGNATURE_FILE && !normalizeAbstract ->
+                // Signature files only disallow `abstract` on interfaces when not normalizing
+                // abstract.
                 containingClassKind != ClassKind.INTERFACE
             else ->
                 // All other files disallow `abstract` on methods iff it is disallowed on the

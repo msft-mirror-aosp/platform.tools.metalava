@@ -673,15 +673,14 @@ class SignatureInputOutputTest : Assertions {
 
     @Test
     fun `Test normalize-abstract-modifier=yes`() {
-        // TODO(b/489071739): Should be normalized.
         runInputOutputTest(
             """
                 package test.pkg {
                   public @interface Annotation {
-                    method public abstract void foo();
+                    method public void foo();
                   }
                   public enum Enum {
-                    method public abstract void foo();
+                    method public void foo();
                     enum_constant public static final test.pkg.Enum VALUE;
                   }
                 }
