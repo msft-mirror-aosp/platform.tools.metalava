@@ -33,6 +33,8 @@ package com.android.tools.metalava.model
  * @param binarySuperClassType the optional super class that classes of this [ClassKind] extend in
  *   the binary class representation. This differs from [implicitSuperClassType] as while these
  *   appear in binary files they cannot be used in sources.
+ * @param implicitlyAbstract indicates whether this [ClassKind] is implicitly `abstract` or not.
+ *   Most [ClassKind]s are not implicitly `abstract` so this defaults to `false`.
  * @param implicitlyFinal indicates whether this [ClassKind] is implicitly `final` or not. Most
  *   [ClassKind]s are not implicitly `final` so this defaults to `false`.
  * @param implicitlyStatic indicates whether this [ClassKind] is implicitly `static` or not. Most
@@ -45,6 +47,7 @@ enum class ClassKind(
     val allowsExplicitSuperClass: Boolean,
     val implicitInterfaceType: ClassTypeItem? = null,
     val binarySuperClassType: ClassTypeItem? = implicitSuperClassType,
+    val implicitlyAbstract: Boolean = false,
     val implicitlyFinal: Boolean = false,
     val implicitlyStatic: Boolean = false,
 ) {
@@ -57,11 +60,9 @@ enum class ClassKind(
         allowsExplicitSuperClass = false,
         // Interfaces are treated as extending java.lang.Object in binary classes.
         binarySuperClassType = WellKnownTypes.JAVA_LANG_OBJECT_NON_NULL_TYPE,
-    ) {
-        override fun setImplicitModifiers(modifiers: MutableModifierList) {
-            modifiers.setAbstract(true)
-        }
-    },
+        // Interfaces are implicitly abstract.
+        implicitlyAbstract = true,
+    ),
 
     /** An enum class. */
     ENUM(
@@ -87,11 +88,9 @@ enum class ClassKind(
         // Annotation types are interfaces and so are treated as extending java.lang.Object in
         // binary classes.
         binarySuperClassType = WellKnownTypes.JAVA_LANG_OBJECT_NON_NULL_TYPE,
-    ) {
-        override fun setImplicitModifiers(modifiers: MutableModifierList) {
-            modifiers.setAbstract(true)
-        }
-    },
+        // Annotation types are interfaces and so are implicitly abstract.
+        implicitlyAbstract = true,
+    ),
 
     /** A normal class. */
     CLASS(
@@ -111,7 +110,10 @@ enum class ClassKind(
     ;
 
     /** Set any modifiers on [modifiers] that are implicit for this [ClassKind]. */
-    open fun setImplicitModifiers(modifiers: MutableModifierList) {
+    fun setImplicitModifiers(modifiers: MutableModifierList) {
+        if (implicitlyAbstract) {
+            modifiers.setAbstract(true)
+        }
         if (implicitlyFinal) {
             modifiers.setFinal(true)
         }
