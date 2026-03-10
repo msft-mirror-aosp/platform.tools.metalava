@@ -63,6 +63,23 @@ internal constructor(
                 setter,
             )
 
+        /** Factory method for an [E] [CustomizableProperty] */
+        private inline fun <reified E : Enum<E>> enumProperty(
+            defaultable: Boolean = false,
+            valueSyntax: String = "",
+            help: String = "",
+            noinline getter: FileFormat.() -> E?,
+            noinline setter: Builder.(E) -> Unit,
+        ): CustomizableProperty =
+            EnumProperty(
+                defaultable,
+                valueSyntax,
+                help,
+                enumEntries<E>(),
+                getter,
+                setter,
+            )
+
         /** Factory method for an optional [String] [CustomizableProperty] */
         private fun optionalStringProperty(
             getter: FileFormat.() -> String?,
@@ -91,14 +108,10 @@ internal constructor(
 
         /** language=[java|kotlin] */
         val LANGUAGE by
-            object : EnumProperty() {
-                override fun setFromString(builder: Builder, value: String) {
-                    builder.language = enumFromString<Language>(value)
-                }
-
-                override fun stringFromFormat(format: FileFormat): String? =
-                    format.language?.stringFromEnum()
-            }
+            enumProperty<Language>(
+                getter = { language },
+                setter = { language = it },
+            )
 
         // The following values must be in alphabetical order.
 
@@ -188,12 +201,11 @@ internal constructor(
 
         /** overloaded-method-other=[source|signature] */
         val OVERLOADED_METHOD_ORDER by
-            object :
-                EnumProperty(
-                    defaultable = true,
-                    valueSyntax = "source|signature",
-                    help =
-                        """
+            enumProperty<OverloadedMethodOrder>(
+                defaultable = true,
+                valueSyntax = "source|signature",
+                help =
+                    """
                     Specifies the order of overloaded methods in signature files. Applies to the
                     contents of the files specified on `--api` and `--removed-api`.
 
@@ -205,14 +217,9 @@ internal constructor(
                     that refactorings of the source files which change the order but not the API
                     will have no effect on the API signature files.
                 """,
-                ) {
-                override fun setFromString(builder: Builder, value: String) {
-                    builder.overloadedMethodOrder = enumFromString<OverloadedMethodOrder>(value)
-                }
-
-                override fun stringFromFormat(format: FileFormat): String? =
-                    format.specifiedOverloadedMethodOrder?.stringFromEnum()
-            }
+                getter = { specifiedOverloadedMethodOrder },
+                setter = { overloadedMethodOrder = it },
+            )
 
         val SORT_WHOLE_EXTENDS_LIST by
             booleanProperty(
@@ -222,22 +229,18 @@ internal constructor(
             )
 
         val STRIP_JAVA_LANG_PREFIX by
-            object : EnumProperty(defaultable = true) {
-                override fun setFromString(builder: Builder, value: String) {
-                    builder.stripJavaLangPrefix = enumFromString<StripJavaLangPrefix>(value)
-                }
-
-                override fun stringFromFormat(format: FileFormat): String? =
-                    format.specifiedStripJavaLangPrefix?.stringFromEnum()
-            }
+            enumProperty<StripJavaLangPrefix>(
+                defaultable = true,
+                getter = { specifiedStripJavaLangPrefix },
+                setter = { stripJavaLangPrefix = it },
+            )
 
         val TYPE_ARGUMENT_SPACING by
-            object :
-                EnumProperty(
-                    defaultable = true,
-                    valueSyntax = "legacy|none|space",
-                    help =
-                        """
+            enumProperty<TypeArgumentSpacing>(
+                defaultable = true,
+                valueSyntax = "legacy|none|space",
+                help =
+                    """
                     Specifies the spacing between the type arguments of a generic type. e.g.
                     `Map<String, Integer>`. The default is `legacy`.
 
@@ -252,14 +255,9 @@ internal constructor(
                     Note: This does not affect the spacing of type parameters in a type parameter
                     list, e.g. `interface Map<K, V>`. They always have a space separator.
                 """,
-                ) {
-                override fun setFromString(builder: Builder, value: String) {
-                    builder.typeArgumentSpacing = enumFromString<TypeArgumentSpacing>(value)
-                }
-
-                override fun stringFromFormat(format: FileFormat): String? =
-                    format.specifiedTypeArgumentSpacing?.stringFromEnum()
-            }
+                getter = { specifiedTypeArgumentSpacing },
+                setter = { typeArgumentSpacing = it },
+            )
 
         /** The [List] of all [CustomizableProperty]s. */
         val entries = propertyList.toList()
@@ -337,23 +335,22 @@ private class StringProperty(
 }
 
 /** A [CustomizableProperty] whose value is an [Enum]. */
-private abstract class EnumProperty(
-    defaultable: Boolean = false,
-    valueSyntax: String = "",
-    help: String = "",
+private class EnumProperty<E : Enum<E>>(
+    defaultable: Boolean,
+    valueSyntax: String,
+    help: String,
+    private val entries: List<E>,
+    private val getter: FileFormat.() -> E?,
+    private val setter: Builder.(E) -> Unit,
 ) : CustomizableProperty(defaultable, valueSyntax, help) {
 
-    /** Inline function to map from a string value to an enum value of the required type. */
-    inline fun <reified T : Enum<T>> enumFromString(value: String): T {
-        val entries = enumEntries<T>()
-        return nonInlineEnumFromString(entries, value)
-    }
+    override fun setFromString(builder: Builder, value: String) =
+        builder.setter(enumFromString(value))
 
-    /**
-     * Non-inline portion of the function to map from a string value to an enum value of the
-     * required type.
-     */
-    fun <E : Enum<E>> nonInlineEnumFromString(entries: List<E>, value: String): E {
+    override fun stringFromFormat(format: FileFormat) = format.getter()?.stringFromEnum()
+
+    /** Map from a string value to an enum value of the required type. */
+    private fun enumFromString(value: String): E {
         return entries.firstOrNull { it.stringFromEnum() == value }
             ?: let {
                 val possibilities = entries.possibilitiesList { "'${it.stringFromEnum()}'" }
