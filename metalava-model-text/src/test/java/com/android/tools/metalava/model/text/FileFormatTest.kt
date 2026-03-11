@@ -17,6 +17,16 @@
 package com.android.tools.metalava.model.text
 
 import com.android.tools.metalava.model.StripJavaLangPrefix
+import com.android.tools.metalava.model.text.CustomizableProperty.Companion.INCLUDE_DEFAULT_PARAMETER_VALUES
+import com.android.tools.metalava.model.text.CustomizableProperty.Companion.INCLUDE_TYPE_USE_ANNOTATIONS
+import com.android.tools.metalava.model.text.CustomizableProperty.Companion.KOTLIN_NAME_TYPE_ORDER
+import com.android.tools.metalava.model.text.CustomizableProperty.Companion.KOTLIN_STYLE_NULLS
+import com.android.tools.metalava.model.text.CustomizableProperty.Companion.LANGUAGE
+import com.android.tools.metalava.model.text.CustomizableProperty.Companion.MIGRATING
+import com.android.tools.metalava.model.text.CustomizableProperty.Companion.NAME
+import com.android.tools.metalava.model.text.CustomizableProperty.Companion.OVERLOADED_METHOD_ORDER
+import com.android.tools.metalava.model.text.CustomizableProperty.Companion.STRIP_JAVA_LANG_PREFIX
+import com.android.tools.metalava.model.text.CustomizableProperty.Companion.SURFACE
 import java.io.LineNumberReader
 import java.io.StringReader
 import java.nio.file.Path
@@ -292,7 +302,11 @@ class FileFormatTest {
 
             """,
             specifier = "4.0:kotlin-style-nulls=no,migrating=test",
-            format = FileFormat.V4.copy(kotlinStyleNulls = false, migrating = "test"),
+            format =
+                FileFormat.V4.buildCopy {
+                    this[KOTLIN_STYLE_NULLS] = false
+                    this[MIGRATING] = "test"
+                },
         )
     }
 
@@ -307,7 +321,11 @@ class FileFormatTest {
 
             """,
             specifier = "2.0:kotlin-style-nulls=yes,migrating=test",
-            format = FileFormat.V2.copy(kotlinStyleNulls = true, migrating = "test"),
+            format =
+                FileFormat.V2.buildCopy {
+                    this[KOTLIN_STYLE_NULLS] = true
+                    this[MIGRATING] = "test"
+                },
         )
     }
 
@@ -357,7 +375,7 @@ class FileFormatTest {
                 // - kotlin-style-nulls=no
                 package fred {
             """,
-            expectedFormat = FileFormat.V5.copy(kotlinStyleNulls = false),
+            expectedFormat = FileFormat.V5.buildCopy { this[KOTLIN_STYLE_NULLS] = false },
             expectedNextLine = "package fred {",
         )
     }
@@ -398,7 +416,11 @@ class FileFormatTest {
 
             """,
             specifier = "2.0:kotlin-style-nulls=yes,migrating=test",
-            format = FileFormat.V2.copy(kotlinStyleNulls = true, migrating = "test")
+            format =
+                FileFormat.V2.buildCopy {
+                    this[KOTLIN_STYLE_NULLS] = true
+                    this[MIGRATING] = "test"
+                }
         )
     }
 
@@ -413,7 +435,11 @@ class FileFormatTest {
 
             """,
             specifier = "4.0:kotlin-style-nulls=no,migrating=test",
-            format = FileFormat.V4.copy(kotlinStyleNulls = false, migrating = "test"),
+            format =
+                FileFormat.V4.buildCopy {
+                    this[KOTLIN_STYLE_NULLS] = false
+                    this[MIGRATING] = "test"
+                },
         )
     }
 
@@ -422,9 +448,9 @@ class FileFormatTest {
         assertEquals(
             // The full specifier is only output when migrating is specified.
             "// Signature format: 2.0\n",
-            FileFormat.V2.copy(
-                    specifiedOverloadedMethodOrder = FileFormat.OverloadedMethodOrder.SOURCE,
-                )
+            FileFormat.V2.buildCopy {
+                    this[OVERLOADED_METHOD_ORDER] = FileFormat.OverloadedMethodOrder.SOURCE
+                }
                 .header()
         )
     }
@@ -433,7 +459,7 @@ class FileFormatTest {
     fun `Check no ',' in migrating`() {
         val e =
             assertThrows(IllegalStateException::class.java) {
-                @Suppress("UnusedDataClassCopyResult") FileFormat.V2.copy(migrating = "a,b")
+                FileFormat.V2.buildCopy { this[MIGRATING] = "a,b" }
             }
         assertEquals(
             """invalid value for property 'migrating': 'a,b' contains at least one invalid character from the set {',', '\n'}""",
@@ -452,9 +478,9 @@ class FileFormatTest {
             """,
             specifier = "5.0:overloaded-method-order=source",
             format =
-                FileFormat.V5.copy(
-                    specifiedOverloadedMethodOrder = FileFormat.OverloadedMethodOrder.SOURCE,
-                ),
+                FileFormat.V5.buildCopy {
+                    this[OVERLOADED_METHOD_ORDER] = FileFormat.OverloadedMethodOrder.SOURCE
+                },
         )
     }
 
@@ -470,10 +496,10 @@ class FileFormatTest {
             """,
             specifier = "5.0:migrating=test,overloaded-method-order=source",
             format =
-                FileFormat.V5.copy(
-                    specifiedOverloadedMethodOrder = FileFormat.OverloadedMethodOrder.SOURCE,
-                    migrating = "test",
-                ),
+                FileFormat.V5.buildCopy {
+                    this[OVERLOADED_METHOD_ORDER] = FileFormat.OverloadedMethodOrder.SOURCE
+                    this[MIGRATING] = "test"
+                },
         )
     }
 
@@ -489,10 +515,10 @@ class FileFormatTest {
                 """,
             specifier = "5.0:migrating=test,strip-java-lang-prefix=always",
             format =
-                FileFormat.V5.copy(
-                    specifiedStripJavaLangPrefix = StripJavaLangPrefix.ALWAYS,
-                    migrating = "test",
-                ),
+                FileFormat.V5.buildCopy {
+                    this[STRIP_JAVA_LANG_PREFIX] = StripJavaLangPrefix.ALWAYS
+                    this[MIGRATING] = "test"
+                },
         )
     }
 
@@ -507,11 +533,11 @@ class FileFormatTest {
             """,
             specifier = "5.0:language=java",
             format =
-                FileFormat.V5.copy(
-                    language = FileFormat.Language.JAVA,
-                    includeDefaultParameterValues = false,
-                    kotlinStyleNulls = false,
-                ),
+                FileFormat.V5.buildCopy {
+                    this[LANGUAGE] = FileFormat.Language.JAVA
+                    this[INCLUDE_DEFAULT_PARAMETER_VALUES] = false
+                    this[KOTLIN_STYLE_NULLS] = false
+                },
         )
     }
 
@@ -527,11 +553,11 @@ class FileFormatTest {
             """,
             specifier = "5.0:language=java,kotlin-style-nulls=yes",
             format =
-                FileFormat.V5.copy(
-                    language = FileFormat.Language.JAVA,
-                    includeDefaultParameterValues = false,
-                    kotlinStyleNulls = true,
-                ),
+                FileFormat.V5.buildCopy {
+                    this[LANGUAGE] = FileFormat.Language.JAVA
+                    this[INCLUDE_DEFAULT_PARAMETER_VALUES] = false
+                    this[KOTLIN_STYLE_NULLS] = true
+                },
         )
     }
 
@@ -545,10 +571,7 @@ class FileFormatTest {
 
             """,
             specifier = "5.0:language=kotlin",
-            format =
-                FileFormat.V5.copy(
-                    language = FileFormat.Language.KOTLIN,
-                ),
+            format = FileFormat.V5.buildCopy { this[LANGUAGE] = FileFormat.Language.KOTLIN },
         )
     }
 
@@ -564,10 +587,10 @@ class FileFormatTest {
             """,
             specifier = "5.0:language=kotlin,include-default-parameter-values=no",
             format =
-                FileFormat.V5.copy(
-                    language = FileFormat.Language.KOTLIN,
-                    includeDefaultParameterValues = false,
-                ),
+                FileFormat.V5.buildCopy {
+                    this[LANGUAGE] = FileFormat.Language.KOTLIN
+                    this[INCLUDE_DEFAULT_PARAMETER_VALUES] = false
+                },
         )
     }
 
@@ -581,10 +604,7 @@ class FileFormatTest {
 
             """,
             specifier = "5.0:kotlin-name-type-order=yes",
-            format =
-                FileFormat.V5.copy(
-                    kotlinNameTypeOrder = true,
-                ),
+            format = FileFormat.V5.buildCopy { this[KOTLIN_NAME_TYPE_ORDER] = true },
         )
     }
 
@@ -600,7 +620,10 @@ class FileFormatTest {
             """,
             specifier = "5.0:include-type-use-annotations=yes,kotlin-name-type-order=yes",
             format =
-                FileFormat.V5.copy(kotlinNameTypeOrder = true, includeTypeUseAnnotations = true),
+                FileFormat.V5.buildCopy {
+                    this[INCLUDE_TYPE_USE_ANNOTATIONS] = true
+                    this[KOTLIN_NAME_TYPE_ORDER] = true
+                },
         )
     }
 
@@ -634,17 +657,14 @@ class FileFormatTest {
 
             """,
                 specifier = "5.0:name=$name",
-                format =
-                    FileFormat.V5.copy(
-                        name = name,
-                    ),
+                format = FileFormat.V5.buildCopy { this[NAME] = name },
             )
         }
 
         fun checkInvalidName(name: String) {
             val e =
                 assertThrows(IllegalStateException::class.java) {
-                    @Suppress("UnusedDataClassCopyResult") FileFormat.V5.copy(name = name)
+                    FileFormat.V5.buildCopy { this[NAME] = name }
                 }
 
             assertEquals(
@@ -676,17 +696,14 @@ class FileFormatTest {
 
             """,
                 specifier = "5.0:surface=$surface",
-                format =
-                    FileFormat.V5.copy(
-                        surface = surface,
-                    ),
+                format = FileFormat.V5.buildCopy { this[SURFACE] = surface },
             )
         }
 
         fun checkInvalidSurface(surface: String) {
             val e =
                 assertThrows(IllegalStateException::class.java) {
-                    @Suppress("UnusedDataClassCopyResult") FileFormat.V5.copy(surface = surface)
+                    FileFormat.V5.buildCopy { this[SURFACE] = surface }
                 }
 
             assertEquals(

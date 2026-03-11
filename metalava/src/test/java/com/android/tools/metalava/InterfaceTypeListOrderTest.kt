@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava
 
+import com.android.tools.metalava.model.text.CustomizableProperty.Companion.SORT_WHOLE_EXTENDS_LIST
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.testing.java
 import org.junit.Test
@@ -147,7 +148,7 @@ class InterfaceTypeListOrderTest : DriverTest() {
         // All the `implements` lists are in the same order as the whole list is sorted first by
         // full name and then by qualified name.
         runOrderTest(
-            fileFormat = FileFormat.V2.copy(specifiedSortWholeExtendsList = true),
+            fileFormat = FileFormat.V2.buildCopy { this[SORT_WHOLE_EXTENDS_LIST] = true },
             api =
                 """
                     // Signature format: 2.0
