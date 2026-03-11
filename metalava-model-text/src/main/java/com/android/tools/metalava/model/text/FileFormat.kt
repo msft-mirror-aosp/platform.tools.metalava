@@ -121,7 +121,7 @@ data class FileFormat(
     val kotlinNameTypeOrder: Boolean = false,
 
     /** See [CustomizableProperty.KOTLIN_STYLE_NULLS]. */
-    val kotlinStyleNulls: Boolean,
+    val kotlinStyleNulls: Boolean = false,
 
     /**
      * If non-null then it indicates that the file format is being used to migrate a signature file
@@ -143,7 +143,7 @@ data class FileFormat(
     val migrating: String? = null,
 
     /** See [CustomizableProperty.INCLUDE_DEFAULT_PARAMETER_VALUES]. */
-    val includeDefaultParameterValues: Boolean,
+    val includeDefaultParameterValues: Boolean = false,
 
     /** See [CustomizableProperty.ADD_ADDITIONAL_OVERRIDES]. */
     val specifiedAddAdditionalOverrides: Boolean? = null,
@@ -279,13 +279,7 @@ data class FileFormat(
     ) {
         V2(
             versionNumber = "2.0",
-            factory = { version ->
-                FileFormat(
-                    version = version,
-                    kotlinStyleNulls = false,
-                    includeDefaultParameterValues = false,
-                )
-            },
+            factory = { version -> FileFormat(version = version) },
             help =
                 """
                     This is the base version (more details in `FORMAT.md`) on which all the others
