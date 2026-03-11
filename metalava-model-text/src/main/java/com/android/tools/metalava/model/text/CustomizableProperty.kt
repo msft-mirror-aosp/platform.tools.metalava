@@ -44,7 +44,6 @@ private constructor(
     /** Help text to use on the command line. */
     val help: String = "",
     internal val getter: FileFormat.() -> T?,
-    internal val setter: Builder.(T) -> Unit,
     private val valueToString: (T & Any).() -> String,
     private val stringToValue: FromString.() -> T,
 ) : ReadOnlyProperty<CustomizableProperty.Companion, CustomizableProperty<T>> {
@@ -58,7 +57,6 @@ private constructor(
             defaultable: Boolean = false,
             help: String = "",
             getter: FileFormat.() -> Boolean?,
-            setter: Builder.(Boolean) -> Unit,
         ) =
             CustomizableProperty(
                 defaultable,
@@ -66,7 +64,6 @@ private constructor(
                 "yes|no",
                 help,
                 getter,
-                setter,
                 valueToString = { booleanToYesNo() },
                 stringToValue = { yesNoToBoolean() }
             )
@@ -92,7 +89,6 @@ private constructor(
             valueSyntax: String = "",
             help: String = "",
             noinline getter: FileFormat.() -> E?,
-            noinline setter: Builder.(E) -> Unit,
         ): CustomizableProperty<E> {
             val entries = enumEntries<E>()
             return CustomizableProperty(
@@ -101,7 +97,6 @@ private constructor(
                 valueSyntax,
                 help,
                 getter,
-                setter,
                 valueToString = { stringFromEnum() },
                 stringToValue = { enumFromString(entries) },
             )
@@ -114,7 +109,6 @@ private constructor(
             valueSyntax: String = "",
             help: String = "",
             noinline getter: FileFormat.() -> E?,
-            noinline setter: Builder.(E?) -> Unit,
         ): CustomizableProperty<E?> {
             val entries = enumEntries<E>()
             return CustomizableProperty(
@@ -123,7 +117,6 @@ private constructor(
                 valueSyntax,
                 help,
                 getter,
-                setter,
                 valueToString = { stringFromEnum() },
                 stringToValue = { enumFromString(entries) },
             )
@@ -166,12 +159,10 @@ private constructor(
         /** Factory method for an optional [String] [CustomizableProperty] */
         private fun optionalStringProperty(
             getter: FileFormat.() -> String?,
-            setter: Builder.(String?) -> Unit,
         ) =
             CustomizableProperty(
                 defaultValue = null,
                 getter = getter,
-                setter = setter,
                 valueToString = { this },
                 stringToValue = { string },
             )
@@ -183,13 +174,11 @@ private constructor(
         val NAME by
             optionalStringProperty(
                 getter = { name },
-                setter = { name = it },
             )
 
         val SURFACE by
             optionalStringProperty(
                 getter = { surface },
-                setter = { surface = it },
             )
 
         /** language=[java|kotlin] */
@@ -197,7 +186,6 @@ private constructor(
             optionalEnumProperty<Language>(
                 defaultValue = null,
                 getter = { language },
-                setter = { language = it },
             )
 
         // The following values must be in alphabetical order.
@@ -207,7 +195,6 @@ private constructor(
             booleanProperty(
                 defaultable = true,
                 getter = { specifiedAddAdditionalOverrides },
-                setter = { addAdditionalOverrides = it },
             )
 
         /** include-default-parameter-values=[yes|no] */
@@ -220,21 +207,18 @@ private constructor(
                     indicate a parameter that has a default value.
                 """,
                 getter = { includeDefaultParameterValues },
-                setter = { includeDefaultParameterValues = it },
             )
 
         /** include-type-use-annotations=[yes|no] */
         val INCLUDE_TYPE_USE_ANNOTATIONS by
             booleanProperty(
                 getter = { includeTypeUseAnnotations },
-                setter = { includeTypeUseAnnotations = it },
             )
 
         /** kotlin-name-type-order=[yes|no] */
         val KOTLIN_NAME_TYPE_ORDER by
             booleanProperty(
                 getter = { kotlinNameTypeOrder },
-                setter = { kotlinNameTypeOrder = it },
             )
 
         /** kotlin-style-nulls=[yes|no] */
@@ -251,13 +235,11 @@ private constructor(
                     accept `null` or it's not defined respectively.
                 """,
                 getter = { kotlinStyleNulls },
-                setter = { kotlinStyleNulls = it },
             )
 
         val MIGRATING by
             optionalStringProperty(
                 getter = { migrating },
-                setter = { migrating = it },
             )
 
         val NORMALIZE_ABSTRACT_MODIFIER by
@@ -270,7 +252,6 @@ private constructor(
                     `abstract` modifier is not written out, otherwise it is.
                 """,
                 getter = { specifiedNormalizeAbstractModifier },
-                setter = { normalizeAbstractModifier = it },
             )
 
         val NORMALIZE_FINAL_MODIFIER by
@@ -283,7 +264,6 @@ private constructor(
                     not written out, otherwise it is.
                 """,
                 getter = { specifiedNormalizeFinalModifier },
-                setter = { normalizeFinalModifier = it },
             )
 
         /** overloaded-method-other=[source|signature] */
@@ -306,14 +286,12 @@ private constructor(
                     will have no effect on the API signature files.
                 """,
                 getter = { specifiedOverloadedMethodOrder },
-                setter = { overloadedMethodOrder = it },
             )
 
         val SORT_WHOLE_EXTENDS_LIST by
             booleanProperty(
                 defaultable = true,
                 getter = { specifiedSortWholeExtendsList },
-                setter = { sortWholeExtendsList = it },
             )
 
         val STRIP_JAVA_LANG_PREFIX by
@@ -321,7 +299,6 @@ private constructor(
                 defaultable = true,
                 defaultValue = StripJavaLangPrefix.LEGACY,
                 getter = { specifiedStripJavaLangPrefix },
-                setter = { stripJavaLangPrefix = it },
             )
 
         val TYPE_ARGUMENT_SPACING by
@@ -346,7 +323,6 @@ private constructor(
                     list, e.g. `interface Map<K, V>`. They always have a space separator.
                 """,
                 getter = { specifiedTypeArgumentSpacing },
-                setter = { typeArgumentSpacing = it },
             )
 
         /** The [List] of all [CustomizableProperty]s. */
@@ -414,7 +390,7 @@ private constructor(
      */
     internal fun setFromString(builder: Builder, string: String) {
         val value = FromString(propertyName, string).stringToValue()
-        builder.setter(value)
+        builder[this] = value
     }
 
     /**

@@ -21,12 +21,18 @@ import com.android.tools.metalava.model.StripJavaLangPrefix
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.text.CustomizableProperty.Companion.ADD_ADDITIONAL_OVERRIDES
 import com.android.tools.metalava.model.text.CustomizableProperty.Companion.INCLUDE_DEFAULT_PARAMETER_VALUES
+import com.android.tools.metalava.model.text.CustomizableProperty.Companion.INCLUDE_TYPE_USE_ANNOTATIONS
+import com.android.tools.metalava.model.text.CustomizableProperty.Companion.KOTLIN_NAME_TYPE_ORDER
 import com.android.tools.metalava.model.text.CustomizableProperty.Companion.KOTLIN_STYLE_NULLS
+import com.android.tools.metalava.model.text.CustomizableProperty.Companion.LANGUAGE
+import com.android.tools.metalava.model.text.CustomizableProperty.Companion.MIGRATING
+import com.android.tools.metalava.model.text.CustomizableProperty.Companion.NAME
 import com.android.tools.metalava.model.text.CustomizableProperty.Companion.NORMALIZE_ABSTRACT_MODIFIER
 import com.android.tools.metalava.model.text.CustomizableProperty.Companion.NORMALIZE_FINAL_MODIFIER
 import com.android.tools.metalava.model.text.CustomizableProperty.Companion.OVERLOADED_METHOD_ORDER
 import com.android.tools.metalava.model.text.CustomizableProperty.Companion.SORT_WHOLE_EXTENDS_LIST
 import com.android.tools.metalava.model.text.CustomizableProperty.Companion.STRIP_JAVA_LANG_PREFIX
+import com.android.tools.metalava.model.text.CustomizableProperty.Companion.SURFACE
 import com.android.tools.metalava.model.text.CustomizableProperty.Companion.TYPE_ARGUMENT_SPACING
 import com.android.tools.metalava.reporter.FileLocation
 import java.io.LineNumberReader
@@ -419,11 +425,11 @@ data class FileFormat(
         KOTLIN(includeDefaultParameterValues = true, kotlinStyleNulls = true);
 
         internal fun applyLanguageDefaults(builder: Builder) {
-            if (builder.includeDefaultParameterValues == null) {
-                builder.includeDefaultParameterValues = includeDefaultParameterValues
+            if (builder[INCLUDE_DEFAULT_PARAMETER_VALUES] == null) {
+                builder[INCLUDE_DEFAULT_PARAMETER_VALUES] = includeDefaultParameterValues
             }
-            if (builder.kotlinStyleNulls == null) {
-                builder.kotlinStyleNulls = kotlinStyleNulls
+            if (builder[KOTLIN_STYLE_NULLS] == null) {
+                builder[KOTLIN_STYLE_NULLS] = kotlinStyleNulls
             }
         }
     }
@@ -832,26 +838,16 @@ data class FileFormat(
     /** A builder for [FileFormat] that applies some optional values to a base [FileFormat]. */
     class Builder(private val base: FileFormat) {
         var version: Version? = null
-        internal var addAdditionalOverrides: Boolean? = null
-        internal var includeDefaultParameterValues: Boolean? = null
-        internal var includeTypeUseAnnotations: Boolean? = null
-        internal var kotlinNameTypeOrder: Boolean? = null
-        internal var kotlinStyleNulls: Boolean? = null
-        internal var language: Language? = null
-        internal var migrating: String? = null
-        internal var name: String? = null
-        internal var normalizeAbstractModifier: Boolean? = null
-        internal var normalizeFinalModifier: Boolean? = null
-        internal var overloadedMethodOrder: OverloadedMethodOrder? = null
-        internal var sortWholeExtendsList: Boolean? = null
-        internal var stripJavaLangPrefix: StripJavaLangPrefix? = null
-        internal var typeArgumentSpacing: TypeArgumentSpacing? = null
-        internal var surface: String? = null
 
-        /** Set [property] to [value]. */
+        /** Type safe map from [CustomizableProperty] to value. */
+        internal val mutablePropertyMap = mutablePropertyMap()
+
+        /** Delegate to [mutablePropertyMap]. */
+        operator fun <T> get(property: CustomizableProperty<T>): T? = mutablePropertyMap[property]
+
+        /** Delegate to [mutablePropertyMap]. */
         operator fun <T> set(property: CustomizableProperty<T>, value: T) {
-            val setter = property.setter
-            setter(value)
+            mutablePropertyMap[property] = value
         }
 
         /** Set [property] in this from [value] [String]. */
@@ -881,36 +877,35 @@ data class FileFormat(
             setFromString(customizable, value)
         }
 
+        /**
+         * Compute the actual value for [property].
+         *
+         * Use the value set in this, if it has not been set then use the value from [base].
+         */
+        private fun <T> actualValue(property: CustomizableProperty<T>): T? =
+            this[property] ?: base[property]
+
         /** Build the [FileFormat] from the information in this [Builder]. */
         fun build(): FileFormat {
             // Apply any language defaults first as they take priority over version defaults.
-            language?.applyLanguageDefaults(this)
+            this[LANGUAGE]?.applyLanguageDefaults(this)
             return base.copy(
                 version = this.version ?: base.version,
-                includeDefaultParameterValues =
-                    includeDefaultParameterValues ?: base.includeDefaultParameterValues,
-                includeTypeUseAnnotations =
-                    includeTypeUseAnnotations ?: base.includeTypeUseAnnotations,
-                kotlinNameTypeOrder = kotlinNameTypeOrder ?: base.kotlinNameTypeOrder,
-                kotlinStyleNulls = kotlinStyleNulls ?: base.kotlinStyleNulls,
-                language = language ?: base.language,
-                migrating = migrating ?: base.migrating,
-                name = name ?: base.name,
-                specifiedAddAdditionalOverrides =
-                    addAdditionalOverrides ?: base.specifiedAddAdditionalOverrides,
-                specifiedNormalizeAbstractModifier =
-                    normalizeAbstractModifier ?: base.specifiedNormalizeAbstractModifier,
-                specifiedNormalizeFinalModifier =
-                    normalizeFinalModifier ?: base.specifiedNormalizeFinalModifier,
-                specifiedOverloadedMethodOrder =
-                    overloadedMethodOrder ?: base.specifiedOverloadedMethodOrder,
-                specifiedSortWholeExtendsList =
-                    sortWholeExtendsList ?: base.specifiedSortWholeExtendsList,
-                specifiedStripJavaLangPrefix =
-                    stripJavaLangPrefix ?: base.specifiedStripJavaLangPrefix,
-                specifiedTypeArgumentSpacing =
-                    typeArgumentSpacing ?: base.specifiedTypeArgumentSpacing,
-                surface = surface ?: base.surface,
+                includeDefaultParameterValues = actualValue(INCLUDE_DEFAULT_PARAMETER_VALUES)!!,
+                includeTypeUseAnnotations = actualValue(INCLUDE_TYPE_USE_ANNOTATIONS)!!,
+                kotlinNameTypeOrder = actualValue(KOTLIN_NAME_TYPE_ORDER)!!,
+                kotlinStyleNulls = actualValue(KOTLIN_STYLE_NULLS)!!,
+                language = actualValue(LANGUAGE),
+                migrating = actualValue(MIGRATING),
+                name = actualValue(NAME),
+                specifiedAddAdditionalOverrides = actualValue(ADD_ADDITIONAL_OVERRIDES),
+                specifiedNormalizeAbstractModifier = actualValue(NORMALIZE_ABSTRACT_MODIFIER),
+                specifiedNormalizeFinalModifier = actualValue(NORMALIZE_FINAL_MODIFIER),
+                specifiedOverloadedMethodOrder = actualValue(OVERLOADED_METHOD_ORDER),
+                specifiedSortWholeExtendsList = actualValue(SORT_WHOLE_EXTENDS_LIST),
+                specifiedStripJavaLangPrefix = actualValue(STRIP_JAVA_LANG_PREFIX),
+                specifiedTypeArgumentSpacing = actualValue(TYPE_ARGUMENT_SPACING),
+                surface = actualValue(SURFACE),
             )
         }
     }
