@@ -407,14 +407,14 @@ data class FileFormat(
 
     /** Different ways of spacing out type arguments in [TypeItem.toTypeString]. */
     enum class TypeArgumentSpacing {
-        /** No spacing added between type arguments. */
-        NONE,
-
         /**
          * No spacing added between type arguments unless they are in the bounds of a type
          * parameter.
          */
         LEGACY,
+
+        /** No spacing added between type arguments. */
+        NONE,
 
         /** A single space added after the comma that separates type arguments. */
         SPACE,

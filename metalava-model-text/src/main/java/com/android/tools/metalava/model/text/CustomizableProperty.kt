@@ -86,11 +86,11 @@ private constructor(
         private inline fun <reified E : Enum<E>> enumProperty(
             defaultable: Boolean = false,
             defaultValue: E,
-            valueSyntax: String = "",
             help: String = "",
             noinline getter: FileFormat.() -> E?,
         ): CustomizableProperty<E> {
             val entries = enumEntries<E>()
+            val valueSyntax = entries.joinToString("|") { it.stringFromEnum() }
             return CustomizableProperty(
                 defaultable,
                 defaultValue,
@@ -106,11 +106,11 @@ private constructor(
         private inline fun <reified E : Enum<E>> optionalEnumProperty(
             defaultable: Boolean = false,
             defaultValue: E?,
-            valueSyntax: String = "",
             help: String = "",
             noinline getter: FileFormat.() -> E?,
         ): CustomizableProperty<E?> {
             val entries = enumEntries<E>()
+            val valueSyntax = entries.joinToString("|") { it.stringFromEnum() }
             return CustomizableProperty(
                 defaultable,
                 defaultValue,
@@ -326,7 +326,6 @@ private constructor(
             enumProperty<OverloadedMethodOrder>(
                 defaultable = true,
                 defaultValue = OverloadedMethodOrder.SIGNATURE,
-                valueSyntax = "source|signature",
                 help =
                     """
                     Specifies the order of overloaded methods in signature files. Applies to the
@@ -360,7 +359,6 @@ private constructor(
             enumProperty<TypeArgumentSpacing>(
                 defaultable = true,
                 defaultValue = TypeArgumentSpacing.LEGACY,
-                valueSyntax = "legacy|none|space",
                 help =
                     """
                     Specifies the spacing between the type arguments of a generic type. e.g.
