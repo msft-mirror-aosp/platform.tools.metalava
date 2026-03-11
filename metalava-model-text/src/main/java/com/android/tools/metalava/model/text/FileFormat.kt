@@ -19,6 +19,13 @@ package com.android.tools.metalava.model.text
 import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.StripJavaLangPrefix
 import com.android.tools.metalava.model.TypeItem
+import com.android.tools.metalava.model.text.CustomizableProperty.Companion.ADD_ADDITIONAL_OVERRIDES
+import com.android.tools.metalava.model.text.CustomizableProperty.Companion.NORMALIZE_ABSTRACT_MODIFIER
+import com.android.tools.metalava.model.text.CustomizableProperty.Companion.NORMALIZE_FINAL_MODIFIER
+import com.android.tools.metalava.model.text.CustomizableProperty.Companion.OVERLOADED_METHOD_ORDER
+import com.android.tools.metalava.model.text.CustomizableProperty.Companion.SORT_WHOLE_EXTENDS_LIST
+import com.android.tools.metalava.model.text.CustomizableProperty.Companion.STRIP_JAVA_LANG_PREFIX
+import com.android.tools.metalava.model.text.CustomizableProperty.Companion.TYPE_ARGUMENT_SPACING
 import com.android.tools.metalava.reporter.FileLocation
 import java.io.LineNumberReader
 import java.io.Reader
@@ -213,9 +220,10 @@ data class FileFormat(
      * 2. The [formatDefaults]'s property value
      * 3. The [EFFECTIVE_VALUE_FALLBACK_VALUES]'s property value which is always set.
      *
-     * @param getter a getter for the optional property's value.
+     * @param property the property whose value is to be retrieved.
      */
-    private inline fun <T> effectiveValue(getter: FileFormat.() -> T?): T {
+    private fun <T> effectiveValue(property: CustomizableProperty<T>): T {
+        val getter = property.getter
         return this.getter()
             ?: formatDefaults?.getter()
             ?: EFFECTIVE_VALUE_FALLBACK_VALUES.getter()!!
@@ -223,31 +231,31 @@ data class FileFormat(
 
     // This defaults to SIGNATURE but can be overridden on the command line.
     val overloadedMethodOrder
-        get() = effectiveValue { specifiedOverloadedMethodOrder }
+        get() = effectiveValue(OVERLOADED_METHOD_ORDER)
 
     // This defaults to false but can be overridden on the command line.
     val addAdditionalOverrides
-        get() = effectiveValue { specifiedAddAdditionalOverrides }
+        get() = effectiveValue(ADD_ADDITIONAL_OVERRIDES)
 
     // This defaults to false but can be overridden on the command line.
     val normalizeAbstractModifier
-        get() = effectiveValue { specifiedNormalizeAbstractModifier }
+        get() = effectiveValue(NORMALIZE_ABSTRACT_MODIFIER)
 
     // This defaults to false but can be overridden on the command line.
     val normalizeFinalModifier
-        get() = effectiveValue { specifiedNormalizeFinalModifier }
+        get() = effectiveValue(NORMALIZE_FINAL_MODIFIER)
 
     // This defaults to false but can be overridden on the command line.
     val sortWholeExtendsList
-        get() = effectiveValue { specifiedSortWholeExtendsList }
+        get() = effectiveValue(SORT_WHOLE_EXTENDS_LIST)
 
     // This defaults to LEGACY but can be overridden on the command line.
     val stripJavaLangPrefix
-        get() = effectiveValue { specifiedStripJavaLangPrefix }
+        get() = effectiveValue(STRIP_JAVA_LANG_PREFIX)
 
     // This defaults to LEGACY but can be overridden on the command line.
     val typeArgumentSpacing
-        get() = effectiveValue { specifiedTypeArgumentSpacing }
+        get() = effectiveValue(TYPE_ARGUMENT_SPACING)
 
     /**
      * The base version of the file format.
