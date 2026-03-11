@@ -477,16 +477,7 @@ internal object PsiModifierItem {
     ): MutableModifierList {
         val modifierList =
             element.modifierList ?: return createMutableModifiers(VisibilityLevel.PACKAGE_PRIVATE)
-        val uAnnotations =
-            if (annotated is UField && annotated.sourcePsi is KtObjectDeclaration) {
-                    // UAST is adding annotations on object declarations to the UField representing
-                    // the instance of the object, but the compiler does not apply annotations to
-                    // instance fields. Keep the annotation added for the field nullability.
-                    annotated.uAnnotations.filter { it.isKotlinNullabilityAnnotation }
-                } else {
-                    annotated.uAnnotations
-                }
-                .toMutableList()
+        val uAnnotations = annotated.uAnnotations.toMutableList()
         val psiAnnotations =
             modifierList.annotations.takeIf { it.isNotEmpty() }
                 ?: (annotated.javaPsi as? PsiModifierListOwner)?.annotations
