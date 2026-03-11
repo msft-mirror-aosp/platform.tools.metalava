@@ -589,7 +589,7 @@ class FileFormatTest {
     }
 
     @Test
-    fun `Check header and specifier (v5 + kotlin-name-type-order=yes,kotlin-name-type-order=yes)`() {
+    fun `Check header and specifier (v5 + include-type-use-annotations=yes,kotlin-name-type-order=yes)`() {
         headerAndSpecifierTest(
             header =
                 """
