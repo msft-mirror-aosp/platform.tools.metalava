@@ -37,6 +37,7 @@ import com.android.tools.metalava.model.TargetLanguageSet
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.TypeStringConfiguration
+import com.android.tools.metalava.model.text.CustomizableProperty.Companion.INCLUDE_DEFAULT_PARAMETER_VALUES
 import com.android.tools.metalava.model.text.CustomizableProperty.Companion.KOTLIN_NAME_TYPE_ORDER
 import com.android.tools.metalava.model.text.CustomizableProperty.Companion.KOTLIN_STYLE_NULLS
 import com.android.tools.metalava.model.text.CustomizableProperty.Companion.NORMALIZE_ABSTRACT_MODIFIER
@@ -64,6 +65,9 @@ class SignatureWriter(
             writer.print(fileFormat.header())
         }
     }
+
+    /** See [INCLUDE_DEFAULT_PARAMETER_VALUES]. */
+    private val includeDefaultParameterValues = fileFormat[INCLUDE_DEFAULT_PARAMETER_VALUES]
 
     /** See [KOTLIN_NAME_TYPE_ORDER]. */
     private val kotlinNameTypeOrder = fileFormat[KOTLIN_NAME_TYPE_ORDER]
@@ -364,7 +368,7 @@ class SignatureWriter(
             if (writtenParams > 0) {
                 write(", ")
             }
-            if (parameter.hasDefaultValue() && fileFormat.includeDefaultParameterValues) {
+            if (parameter.hasDefaultValue() && includeDefaultParameterValues) {
                 // Indicate the parameter has a default.
                 write("optional ")
             }

@@ -101,9 +101,6 @@ data class FileFormat(
     operator fun <T> get(property: CustomizableProperty<T>): T =
         propertyMap[property] ?: formatDefaults?.get(property) ?: property.defaultValue
 
-    val includeDefaultParameterValues
-        get() = this[INCLUDE_DEFAULT_PARAMETER_VALUES]
-
     val includeTypeUseAnnotations
         get() = this[INCLUDE_TYPE_USE_ANNOTATIONS]
 
