@@ -57,32 +57,10 @@ data class FileFormat(
      */
     val formatDefaults: FileFormat? = null,
 
-    /**
-     * If non-null then it specifies the name of the API.
-     *
-     * It must start with a lower case letter, contain any number of lower case letters, numbers and
-     * hyphens, and end with either a lowercase letter or number.
-     *
-     * Its purpose is to provide information to metalava and to a lesser extent the owner of the
-     * file about which API the file contains. The exact meaning of the API name is determined by
-     * the owner, metalava simply uses this as an identifier for comparison.
-     *
-     * See [CustomizableProperty.NAME].
-     */
+    /** See [CustomizableProperty.NAME]. */
     val name: String? = null,
 
-    /**
-     * If non-null then it specifies the name of the API surface.
-     *
-     * It must start with a lower case letter, contain any number of lower case letters, numbers and
-     * hyphens, and end with either a lowercase letter or number.
-     *
-     * Its purpose is to provide information to metalava and to a lesser extent the owner of the
-     * file about which API surface the file contains. The exact meaning of the API surface name is
-     * determined by the owner, metalava simply uses this as an identifier for comparison.
-     *
-     * See [CustomizableProperty.SURFACE].
-     */
+    /** See [CustomizableProperty.SURFACE]. */
     val surface: String? = null,
 
     /**
@@ -131,22 +109,6 @@ data class FileFormat(
     /** See [CustomizableProperty.KOTLIN_STYLE_NULLS]. */
     val kotlinStyleNulls: Boolean = false,
 
-    /**
-     * If non-null then it indicates that the file format is being used to migrate a signature file
-     * to fix a bug that causes a change in the signature file contents but not a change in version.
-     * e.g. This would be used when migrating a 2.0 file format that currently uses source order for
-     * overloaded methods (using a command line parameter to override the default order of
-     * signature) to a 2.0 file that uses signature order.
-     *
-     * This should be used to provide an explanation as to what is being migrated and why. It should
-     * be relatively concise, e.g. something like:
-     * ```
-     * "See <short-url> for details"
-     * ```
-     *
-     * This value cannot use `,` (because it is a separator between properties in [specifier]) or
-     * `\n` (because it is the terminator of the signature format line).
-     */
     /** See [CustomizableProperty.MIGRATING]. */
     val migrating: String? = null,
 
