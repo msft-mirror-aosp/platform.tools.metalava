@@ -107,6 +107,10 @@ Usage: metalava help signature-file-formats
 
   Plus the following properties which can have their default changed using the `--format-defaults` option.
 
+  * `normalize-abstract-modifier = yes|no` - Specifies how the `abstract` modifier is handled on `abstract` methods. If
+  this is `yes` and the method's containing class does not allow `abstract` then the `abstract` modifier is not written
+  out, otherwise it is.
+
   * `normalize-final-modifier = yes|no` - Specifies how the `final` modifier is handled on `final` methods. If this is
   `yes` and the method's containing class is `final` then the `final` modifier is not written out, otherwise it is.
 
@@ -156,6 +160,7 @@ Usage: metalava help signature-file-formats
   following properties:
 
   + add-additional-overrides = yes
+  + normalize-abstract-modifier = yes
   + normalize-final-modifier = yes
   + overloaded-method-order = signature
   + sort-whole-extends-list = yes

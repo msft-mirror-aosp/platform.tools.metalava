@@ -57,13 +57,8 @@ internal class JavaStubWriter(
 
         appendModifiers(cls)
 
-        when {
-            cls.isAnnotationType() -> writer.print("@interface")
-            cls.isInterface() -> writer.print("interface")
-            cls.isEnum() -> writer.print("enum")
-            else -> writer.print("class")
-        }
-
+        val classKind = cls.classKind
+        writer.print(classKind.signatureKeyword)
         writer.print(" ")
         writer.print(cls.simpleName())
 

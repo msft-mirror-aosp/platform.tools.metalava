@@ -61,6 +61,8 @@ class SignatureWriter(
         ModifierListWriter.forSignature(
             writer = writer,
             skipNullnessAnnotations = fileFormat.kotlinStyleNulls,
+            normalizeFinal = fileFormat.normalizeFinalModifier,
+            normalizeAbstract = fileFormat.normalizeAbstractModifier,
         )
 
     internal fun write(text: String) {
@@ -248,7 +250,7 @@ class SignatureWriter(
 
     private fun writeModifiers(item: Item) {
         (item as? SelectableItem)?.let { writeTargetLanguage(it) }
-        modifierListWriter.write(item, normalizeFinal = fileFormat.normalizeFinalModifier)
+        modifierListWriter.write(item)
     }
 
     private fun writeTargetLanguage(item: SelectableItem) {
