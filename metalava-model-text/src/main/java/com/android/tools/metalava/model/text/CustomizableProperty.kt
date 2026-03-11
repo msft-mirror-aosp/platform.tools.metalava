@@ -38,6 +38,7 @@ import kotlin.reflect.KProperty
 class CustomizableProperty<T>
 private constructor(
     val defaultable: Boolean = false,
+    val defaultValue: T,
     /** Syntax of command line values. */
     val valueSyntax: String = "",
     /** Help text to use on the command line. */
@@ -61,6 +62,7 @@ private constructor(
         ) =
             CustomizableProperty(
                 defaultable,
+                defaultValue = false,
                 "yes|no",
                 help,
                 getter,
@@ -86,6 +88,7 @@ private constructor(
         /** Factory method for an [E] [CustomizableProperty] */
         private inline fun <reified E : Enum<E>> enumProperty(
             defaultable: Boolean = false,
+            defaultValue: E,
             valueSyntax: String = "",
             help: String = "",
             noinline getter: FileFormat.() -> E?,
@@ -94,6 +97,29 @@ private constructor(
             val entries = enumEntries<E>()
             return CustomizableProperty(
                 defaultable,
+                defaultValue,
+                valueSyntax,
+                help,
+                getter,
+                setter,
+                valueToString = { stringFromEnum() },
+                stringToValue = { enumFromString(entries) },
+            )
+        }
+
+        /** Factory method for an [E] [CustomizableProperty] */
+        private inline fun <reified E : Enum<E>> optionalEnumProperty(
+            defaultable: Boolean = false,
+            defaultValue: E?,
+            valueSyntax: String = "",
+            help: String = "",
+            noinline getter: FileFormat.() -> E?,
+            noinline setter: Builder.(E?) -> Unit,
+        ): CustomizableProperty<E?> {
+            val entries = enumEntries<E>()
+            return CustomizableProperty(
+                defaultable,
+                defaultValue,
                 valueSyntax,
                 help,
                 getter,
@@ -143,6 +169,7 @@ private constructor(
             setter: Builder.(String?) -> Unit,
         ) =
             CustomizableProperty(
+                defaultValue = null,
                 getter = getter,
                 setter = setter,
                 valueToString = { this },
@@ -167,7 +194,8 @@ private constructor(
 
         /** language=[java|kotlin] */
         val LANGUAGE by
-            enumProperty<Language>(
+            optionalEnumProperty<Language>(
+                defaultValue = null,
                 getter = { language },
                 setter = { language = it },
             )
@@ -262,6 +290,7 @@ private constructor(
         val OVERLOADED_METHOD_ORDER by
             enumProperty<OverloadedMethodOrder>(
                 defaultable = true,
+                defaultValue = OverloadedMethodOrder.SIGNATURE,
                 valueSyntax = "source|signature",
                 help =
                     """
@@ -290,6 +319,7 @@ private constructor(
         val STRIP_JAVA_LANG_PREFIX by
             enumProperty<StripJavaLangPrefix>(
                 defaultable = true,
+                defaultValue = StripJavaLangPrefix.LEGACY,
                 getter = { specifiedStripJavaLangPrefix },
                 setter = { stripJavaLangPrefix = it },
             )
@@ -297,6 +327,7 @@ private constructor(
         val TYPE_ARGUMENT_SPACING by
             enumProperty<TypeArgumentSpacing>(
                 defaultable = true,
+                defaultValue = TypeArgumentSpacing.LEGACY,
                 valueSyntax = "legacy|none|space",
                 help =
                     """
@@ -390,4 +421,7 @@ private constructor(
      * Get the string representation of the corresponding property from the supplied [FileFormat].
      */
     internal fun stringFromFormat(format: FileFormat): String? = format.getter()?.valueToString()
+
+    /** Get [defaultValue] as a string. */
+    fun defaultValueAsString() = defaultValue?.valueToString()
 }

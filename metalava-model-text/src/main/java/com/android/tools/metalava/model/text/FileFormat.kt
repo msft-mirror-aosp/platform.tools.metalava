@@ -218,15 +218,13 @@ data class FileFormat(
      * This returns the first non-null value in the following:
      * 1. This [FileFormat]'s property value.
      * 2. The [formatDefaults]'s property value
-     * 3. The [EFFECTIVE_VALUE_FALLBACK_VALUES]'s property value which is always set.
+     * 3. The [CustomizableProperty.defaultValue] which is always set.
      *
      * @param property the property whose value is to be retrieved.
      */
     private fun <T> effectiveValue(property: CustomizableProperty<T>): T {
         val getter = property.getter
-        return this.getter()
-            ?: formatDefaults?.getter()
-            ?: EFFECTIVE_VALUE_FALLBACK_VALUES.getter()!!
+        return this.getter() ?: formatDefaults?.getter() ?: property.defaultValue
     }
 
     // This defaults to SIGNATURE but can be overridden on the command line.
@@ -565,8 +563,8 @@ data class FileFormat(
         this[property]
             // If it could not be found then look in the defaults if provided.
             ?: formatDefaults?.let { defaults -> defaults[property] }
-            // If it still could not be found then look in the EFFECTIVE_VALUE_FALLBACK_VALUES
-            ?: EFFECTIVE_VALUE_FALLBACK_VALUES[property]
+            // If it still could not be found then use the property default.
+            ?: property.defaultValueAsString()
 
     /** Build a copy of this [FileFormat] by applying [body] to [Builder]. */
     inline fun buildCopy(body: Builder.() -> Unit) = Builder(this).apply { body() }.build()
@@ -588,23 +586,6 @@ data class FileFormat(
 
         /** The list of all [Version] instances. */
         val versions: List<Version> = Version.entries
-
-        /** Provides fallback values for use by [effectiveValue] */
-        private val EFFECTIVE_VALUE_FALLBACK_VALUES =
-            FileFormat(
-                // These properties are not used.
-                version = versions.last(),
-                kotlinStyleNulls = false,
-                includeDefaultParameterValues = false,
-                // The fallback values for the defaultable properties.
-                specifiedAddAdditionalOverrides = false,
-                specifiedNormalizeAbstractModifier = false,
-                specifiedNormalizeFinalModifier = false,
-                specifiedOverloadedMethodOrder = OverloadedMethodOrder.SIGNATURE,
-                specifiedSortWholeExtendsList = false,
-                specifiedStripJavaLangPrefix = StripJavaLangPrefix.LEGACY,
-                specifiedTypeArgumentSpacing = TypeArgumentSpacing.LEGACY,
-            )
 
         const val SIGNATURE_FORMAT_PREFIX = "// Signature format: "
 
