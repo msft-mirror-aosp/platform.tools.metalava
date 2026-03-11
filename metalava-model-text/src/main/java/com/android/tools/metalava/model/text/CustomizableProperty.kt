@@ -422,6 +422,124 @@ private constructor(
      */
     internal fun stringFromFormat(format: FileFormat): String? = format.getter()?.valueToString()
 
+    /** Get the string representation of this property from the supplied [BasePropertyMap]. */
+    internal fun stringFromPropertyMap(map: BasePropertyMap): String? = map[this]?.valueToString()
+
     /** Get [defaultValue] as a string. */
     fun defaultValueAsString() = defaultValue?.valueToString()
 }
+
+/**
+ * Base of [PropertyMap] and [MutablePropertyMap].
+ *
+ * Provides behavior common to both.
+ */
+abstract class BasePropertyMap : Iterable<CustomizableProperty<*>> {
+    /**
+     * Get the value of [property] as [T]
+     *
+     * This will NOT apply any defaults.
+     */
+    abstract operator fun <T> get(property: CustomizableProperty<T>): T?
+
+    abstract override fun iterator(): Iterator<CustomizableProperty<*>>
+
+    override fun toString() = buildString {
+        append('{')
+        var separator = ""
+        for (property in this@BasePropertyMap) {
+            val valueAsString = property.stringFromPropertyMap(this@BasePropertyMap) ?: continue
+            append(separator)
+            append(property.propertyName)
+            append('=')
+            append(valueAsString)
+            separator = ", "
+        }
+        append('}')
+    }
+}
+
+/** A type safe map from [CustomizableProperty] to a value of the appropriate type. */
+class PropertyMap
+internal constructor(
+    /**
+     * Map from [CustomizableProperty] to `Any?`.
+     *
+     * This is actually type safe as it can only be populated by [MutablePropertyMap.set] and that
+     * ensures that only values compatible with the [CustomizableProperty] key are stored with it.
+     */
+    private val map: Map<CustomizableProperty<*>, Any?> = emptyMap(),
+) : BasePropertyMap() {
+    override fun iterator() = map.keys.iterator()
+
+    @Suppress("UNCHECKED_CAST")
+    override operator fun <T> get(property: CustomizableProperty<T>): T? = map[property] as T?
+
+    /** Convert this to a [MutablePropertyMap]. */
+    fun toMutableMap() = MutablePropertyMap(map.toMutableMap())
+
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (javaClass != other?.javaClass) return false
+
+        other as PropertyMap
+
+        return map == other.map
+    }
+
+    override fun hashCode() = map.hashCode()
+
+    companion object {
+        internal val EMPTY = PropertyMap(emptyMap())
+    }
+}
+
+/** An empty [PropertyMap]. */
+fun emptyPropertyMap() = PropertyMap.EMPTY
+
+/** A type safe mutable map from [CustomizableProperty] to a value of the appropriate type. */
+class MutablePropertyMap
+@PublishedApi
+internal constructor(
+    /**
+     * Map from [CustomizableProperty] to `Any?`.
+     *
+     * This is actually type safe as it can only be populated by [MutablePropertyMap.set] and that
+     * ensures that only values compatible with the [CustomizableProperty] key are stored with it.
+     */
+    private val map: MutableMap<CustomizableProperty<*>, Any?> = mutableMapOf(),
+) : BasePropertyMap() {
+    override fun iterator() = map.keys.iterator()
+
+    @Suppress("UNCHECKED_CAST")
+    override operator fun <T> get(property: CustomizableProperty<T>): T? = map[property] as T?
+
+    /** Set [property] to [value]. */
+    operator fun <T> set(property: CustomizableProperty<T>, value: T) {
+        map[property] = value
+    }
+
+    /** Convert this to an immutable [PropertyMap]. */
+    fun toMap() = PropertyMap(map.toMap())
+
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (javaClass != other?.javaClass) return false
+
+        other as MutablePropertyMap
+
+        return map == other.map
+    }
+
+    override fun hashCode() = map.hashCode()
+}
+
+/** Create a [MutablePropertyMap]. */
+fun mutablePropertyMap() = MutablePropertyMap()
+
+/**
+ * Build a [PropertyMap] by applying [builder] to a [MutablePropertyMap] and returning
+ * [MutablePropertyMap.toMap].
+ */
+inline fun buildPropertyMap(builder: MutablePropertyMap.() -> Unit) =
+    MutablePropertyMap().apply(builder).toMap()
