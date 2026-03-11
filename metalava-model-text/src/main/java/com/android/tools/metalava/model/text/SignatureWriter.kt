@@ -38,6 +38,7 @@ import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.TypeStringConfiguration
 import com.android.tools.metalava.model.text.CustomizableProperty.Companion.INCLUDE_DEFAULT_PARAMETER_VALUES
+import com.android.tools.metalava.model.text.CustomizableProperty.Companion.INCLUDE_TYPE_USE_ANNOTATIONS
 import com.android.tools.metalava.model.text.CustomizableProperty.Companion.KOTLIN_NAME_TYPE_ORDER
 import com.android.tools.metalava.model.text.CustomizableProperty.Companion.KOTLIN_STYLE_NULLS
 import com.android.tools.metalava.model.text.CustomizableProperty.Companion.NORMALIZE_ABSTRACT_MODIFIER
@@ -306,7 +307,7 @@ class SignatureWriter(
      */
     private val legacySuperTypeStringConfiguration =
         TypeStringConfiguration(
-            annotations = fileFormat.includeTypeUseAnnotations,
+            annotations = fileFormat[INCLUDE_TYPE_USE_ANNOTATIONS],
             kotlinStyleNulls = fileFormat[KOTLIN_STYLE_NULLS],
         )
 
@@ -399,7 +400,7 @@ class SignatureWriter(
     /** [TypeStringConfiguration] for use when writing types in [writeType]. */
     private val typeStringConfiguration =
         TypeStringConfiguration(
-            annotations = fileFormat.includeTypeUseAnnotations,
+            annotations = fileFormat[INCLUDE_TYPE_USE_ANNOTATIONS],
             kotlinStyleNulls = fileFormat[KOTLIN_STYLE_NULLS],
             spaceBetweenTypeArguments =
                 fileFormat[TYPE_ARGUMENT_SPACING] == TypeArgumentSpacing.SPACE,

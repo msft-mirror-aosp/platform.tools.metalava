@@ -71,7 +71,7 @@ data class FileFormat(
         validateIdentifier(propertyMap[NAME], "name")
         validateIdentifier(propertyMap[SURFACE], "surface")
 
-        if (includeTypeUseAnnotations && !this[KOTLIN_NAME_TYPE_ORDER]) {
+        if (this[INCLUDE_TYPE_USE_ANNOTATIONS] && !this[KOTLIN_NAME_TYPE_ORDER]) {
             throw IllegalStateException(
                 "Type-use annotations can only be included in signatures when `kotlin-name-type-order=yes` is set"
             )
@@ -100,9 +100,6 @@ data class FileFormat(
      */
     operator fun <T> get(property: CustomizableProperty<T>): T =
         propertyMap[property] ?: formatDefaults?.get(property) ?: property.defaultValue
-
-    val includeTypeUseAnnotations
-        get() = this[INCLUDE_TYPE_USE_ANNOTATIONS]
 
     /**
      * The base version of the file format.
