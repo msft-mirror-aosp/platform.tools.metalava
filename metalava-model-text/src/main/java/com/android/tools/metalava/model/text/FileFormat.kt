@@ -20,6 +20,8 @@ import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.StripJavaLangPrefix
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.text.CustomizableProperty.Companion.ADD_ADDITIONAL_OVERRIDES
+import com.android.tools.metalava.model.text.CustomizableProperty.Companion.INCLUDE_DEFAULT_PARAMETER_VALUES
+import com.android.tools.metalava.model.text.CustomizableProperty.Companion.KOTLIN_STYLE_NULLS
 import com.android.tools.metalava.model.text.CustomizableProperty.Companion.NORMALIZE_ABSTRACT_MODIFIER
 import com.android.tools.metalava.model.text.CustomizableProperty.Companion.NORMALIZE_FINAL_MODIFIER
 import com.android.tools.metalava.model.text.CustomizableProperty.Companion.OVERLOADED_METHOD_ORDER
@@ -293,13 +295,13 @@ data class FileFormat(
         V4(
             versionNumber = "4.0",
             factory = { version ->
-                V2.defaults.copy(
-                    version = version,
+                V2.defaults.buildCopy {
+                    this.version = version
                     // This adds kotlinStyleNulls = true
-                    kotlinStyleNulls = true,
+                    this[KOTLIN_STYLE_NULLS] = true
                     // This adds includeDefaultParameterValues = true
-                    includeDefaultParameterValues = true,
-                )
+                    this[INCLUDE_DEFAULT_PARAMETER_VALUES] = true
+                }
             },
             help =
                 """
@@ -334,16 +336,16 @@ data class FileFormat(
             // This adds full property support.
             propertySupport = PropertySupport.FULL,
             factory = { version ->
-                V5.defaults.copy(
-                    version = version,
-                    specifiedAddAdditionalOverrides = true,
-                    specifiedNormalizeAbstractModifier = true,
-                    specifiedNormalizeFinalModifier = true,
-                    specifiedOverloadedMethodOrder = OverloadedMethodOrder.SIGNATURE,
-                    specifiedSortWholeExtendsList = true,
-                    specifiedStripJavaLangPrefix = StripJavaLangPrefix.ALWAYS,
-                    specifiedTypeArgumentSpacing = TypeArgumentSpacing.SPACE,
-                )
+                V5.defaults.buildCopy {
+                    this.version = version
+                    this[ADD_ADDITIONAL_OVERRIDES] = true
+                    this[NORMALIZE_ABSTRACT_MODIFIER] = true
+                    this[NORMALIZE_FINAL_MODIFIER] = true
+                    this[OVERLOADED_METHOD_ORDER] = OverloadedMethodOrder.SIGNATURE
+                    this[SORT_WHOLE_EXTENDS_LIST] = true
+                    this[STRIP_JAVA_LANG_PREFIX] = StripJavaLangPrefix.ALWAYS
+                    this[TYPE_ARGUMENT_SPACING] = TypeArgumentSpacing.SPACE
+                }
             },
             help =
                 """
@@ -824,6 +826,7 @@ data class FileFormat(
 
     /** A builder for [FileFormat] that applies some optional values to a base [FileFormat]. */
     class Builder(private val base: FileFormat) {
+        var version: Version? = null
         internal var addAdditionalOverrides: Boolean? = null
         internal var includeDefaultParameterValues: Boolean? = null
         internal var includeTypeUseAnnotations: Boolean? = null
@@ -878,6 +881,7 @@ data class FileFormat(
             // Apply any language defaults first as they take priority over version defaults.
             language?.applyLanguageDefaults(this)
             return base.copy(
+                version = this.version ?: base.version,
                 includeDefaultParameterValues =
                     includeDefaultParameterValues ?: base.includeDefaultParameterValues,
                 includeTypeUseAnnotations =
