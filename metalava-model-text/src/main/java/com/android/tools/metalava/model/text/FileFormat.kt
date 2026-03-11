@@ -134,10 +134,6 @@ data class FileFormat(
         get() = this[SORT_WHOLE_EXTENDS_LIST]
 
     // This defaults to LEGACY but can be overridden on the command line.
-    val stripJavaLangPrefix
-        get() = this[STRIP_JAVA_LANG_PREFIX]
-
-    // This defaults to LEGACY but can be overridden on the command line.
     val typeArgumentSpacing
         get() = this[TYPE_ARGUMENT_SPACING]
 

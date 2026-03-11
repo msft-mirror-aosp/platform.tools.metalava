@@ -37,6 +37,7 @@ import com.android.tools.metalava.model.TargetLanguageSet
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.TypeStringConfiguration
+import com.android.tools.metalava.model.text.CustomizableProperty.Companion.STRIP_JAVA_LANG_PREFIX
 import com.android.tools.metalava.model.text.FileFormat.TypeArgumentSpacing
 import com.android.tools.metalava.model.visitors.ApiPredicate
 import com.android.tools.metalava.model.visitors.ApiType
@@ -56,6 +57,14 @@ class SignatureWriter(
             writer.print(fileFormat.header())
         }
     }
+
+    /** See [STRIP_JAVA_LANG_PREFIX] property. */
+    private val stripJavaLangPrefix = fileFormat[STRIP_JAVA_LANG_PREFIX]
+
+    /**
+     * Indicates whether this should use the legacy behavior for stripping `java.lang.` prefixes.
+     */
+    private val stripJavaLangPrefixLegacy = stripJavaLangPrefix == StripJavaLangPrefix.LEGACY
 
     private val modifierListWriter =
         ModifierListWriter.forSignature(
@@ -290,7 +299,7 @@ class SignatureWriter(
     private fun writeExtendsOrImplementsType(typeItem: TypeItem) {
         write(" ")
 
-        if (fileFormat.stripJavaLangPrefix != StripJavaLangPrefix.LEGACY) {
+        if (!stripJavaLangPrefixLegacy) {
             writeType(typeItem)
         } else {
             val superClassString = typeItem.toTypeString(legacySuperTypeStringConfiguration)
@@ -321,7 +330,7 @@ class SignatureWriter(
             stripJavaLangPrefix =
                 // Only strip `java.lang.` prefix if always requested. That is because the LEGACY
                 // behavior is not to strip `java.lang.` prefix in bounds.
-                when (fileFormat.stripJavaLangPrefix) {
+                when (stripJavaLangPrefix) {
                     StripJavaLangPrefix.ALWAYS -> StripJavaLangPrefix.ALWAYS
                     else -> StripJavaLangPrefix.NEVER
                 },
@@ -378,7 +387,7 @@ class SignatureWriter(
             annotations = fileFormat.includeTypeUseAnnotations,
             kotlinStyleNulls = fileFormat.kotlinStyleNulls,
             spaceBetweenTypeArguments = fileFormat.typeArgumentSpacing == TypeArgumentSpacing.SPACE,
-            stripJavaLangPrefix = fileFormat.stripJavaLangPrefix,
+            stripJavaLangPrefix = stripJavaLangPrefix,
         )
 
     private fun writeType(type: TypeItem?) {
@@ -401,8 +410,7 @@ class SignatureWriter(
                 if (i > 0) {
                     write(", ")
                 }
-                if (fileFormat.stripJavaLangPrefix != StripJavaLangPrefix.LEGACY) writeType(type)
-                else write(type.toTypeString())
+                if (!stripJavaLangPrefixLegacy) writeType(type) else write(type.toTypeString())
             }
         }
     }
