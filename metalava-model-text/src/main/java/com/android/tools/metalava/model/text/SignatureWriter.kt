@@ -37,6 +37,7 @@ import com.android.tools.metalava.model.TargetLanguageSet
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.TypeStringConfiguration
+import com.android.tools.metalava.model.text.CustomizableProperty.Companion.KOTLIN_NAME_TYPE_ORDER
 import com.android.tools.metalava.model.text.CustomizableProperty.Companion.NORMALIZE_ABSTRACT_MODIFIER
 import com.android.tools.metalava.model.text.CustomizableProperty.Companion.NORMALIZE_FINAL_MODIFIER
 import com.android.tools.metalava.model.text.CustomizableProperty.Companion.OVERLOADED_METHOD_ORDER
@@ -62,6 +63,9 @@ class SignatureWriter(
             writer.print(fileFormat.header())
         }
     }
+
+    /** See [KOTLIN_NAME_TYPE_ORDER]. */
+    private val kotlinNameTypeOrder = fileFormat[KOTLIN_NAME_TYPE_ORDER]
 
     /** See [STRIP_JAVA_LANG_PREFIX] property. */
     private val stripJavaLangPrefix = fileFormat[STRIP_JAVA_LANG_PREFIX]
@@ -117,7 +121,7 @@ class SignatureWriter(
         write(" ")
         writeModifiers(field)
 
-        if (fileFormat.kotlinNameTypeOrder) {
+        if (kotlinNameTypeOrder) {
             // Kotlin style: write the name of the field, then the type.
             write(field.name())
             write(": ")
@@ -137,7 +141,7 @@ class SignatureWriter(
         write("    property ")
         writeModifiers(property)
         writeTypeParameterList(property.typeParameterList, addSpace = true)
-        if (fileFormat.kotlinNameTypeOrder) {
+        if (kotlinNameTypeOrder) {
             // Kotlin style: write the name of the property, then the type.
             property.receiver?.let {
                 writeType(it)
@@ -164,7 +168,7 @@ class SignatureWriter(
         writeModifiers(method)
         writeTypeParameterList(method.typeParameterList, addSpace = true)
 
-        if (fileFormat.kotlinNameTypeOrder) {
+        if (kotlinNameTypeOrder) {
             // Kotlin style: write the name of the method and the parameters, then the type.
             write(method.name())
             writeParameterList(method)
@@ -365,7 +369,7 @@ class SignatureWriter(
             }
             writeModifiers(parameter)
 
-            if (fileFormat.kotlinNameTypeOrder) {
+            if (kotlinNameTypeOrder) {
                 // Kotlin style: the parameter must have a name (use `_` if it doesn't have a public
                 // name). Write the name and then the type.
                 val name = parameter.publicName() ?: "_"

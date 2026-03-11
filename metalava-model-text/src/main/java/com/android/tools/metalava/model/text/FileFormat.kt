@@ -71,7 +71,7 @@ data class FileFormat(
         validateIdentifier(propertyMap[NAME], "name")
         validateIdentifier(propertyMap[SURFACE], "surface")
 
-        if (includeTypeUseAnnotations && !kotlinNameTypeOrder) {
+        if (includeTypeUseAnnotations && !this[KOTLIN_NAME_TYPE_ORDER]) {
             throw IllegalStateException(
                 "Type-use annotations can only be included in signatures when `kotlin-name-type-order=yes` is set"
             )
@@ -106,9 +106,6 @@ data class FileFormat(
 
     val includeTypeUseAnnotations
         get() = this[INCLUDE_TYPE_USE_ANNOTATIONS]
-
-    val kotlinNameTypeOrder
-        get() = this[KOTLIN_NAME_TYPE_ORDER]
 
     val kotlinStyleNulls
         get() = this[KOTLIN_STYLE_NULLS]

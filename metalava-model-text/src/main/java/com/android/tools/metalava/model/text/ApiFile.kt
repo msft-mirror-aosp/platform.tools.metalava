@@ -61,6 +61,7 @@ import com.android.tools.metalava.model.item.PackageInfo
 import com.android.tools.metalava.model.parser.FileLocationTracker
 import com.android.tools.metalava.model.parser.TokenPurpose
 import com.android.tools.metalava.model.parser.Tokenizer
+import com.android.tools.metalava.model.text.CustomizableProperty.Companion.KOTLIN_NAME_TYPE_ORDER
 import com.android.tools.metalava.model.type.MethodFingerprint
 import com.android.tools.metalava.model.type.TypeItemParser
 import com.android.tools.metalava.model.type.TypeItemParserErrorReporter
@@ -260,6 +261,9 @@ private constructor(
      * Updated based on the header of the signature file being parsed.
      */
     private var kotlinStyleNulls: Boolean? = null
+
+    /** See [KOTLIN_NAME_TYPE_ORDER]. */
+    private var kotlinNameTypeOrder: Boolean = false
 
     /** The file format of the file being parsed. */
     lateinit var format: FileFormat
@@ -532,6 +536,7 @@ private constructor(
             )
         }
         kotlinStyleNulls = format.kotlinStyleNulls
+        kotlinNameTypeOrder = format[KOTLIN_NAME_TYPE_ORDER]
 
         while (true) {
             val token = tokenizer.getToken() ?: break
@@ -1319,7 +1324,7 @@ private constructor(
         val returnTypeString: String
         val parameters: List<ParameterInfo>
         val name: String
-        if (format.kotlinNameTypeOrder) {
+        if (kotlinNameTypeOrder) {
             // Kotlin style: parse the name, the parameter list, then the return type.
             name = token
             parameters = parseParameterList(tokenizer)
@@ -1428,7 +1433,7 @@ private constructor(
 
         val typeString: String
         val name: String
-        if (format.kotlinNameTypeOrder) {
+        if (kotlinNameTypeOrder) {
             // Kotlin style: parse the name, then the type.
             name = parseNameWithColon(token, tokenizer)
             token = tokenizer.requireToken()
@@ -1686,7 +1691,7 @@ private constructor(
 
         val typeString: String
         val receiverNamePair: Pair<TypeItem?, String>
-        if (format.kotlinNameTypeOrder) {
+        if (kotlinNameTypeOrder) {
             // Kotlin style: parse the name, then the type.
             receiverNamePair = parsePropertyReceiverAndName(tokenizer, typeItemFactory)
             token = tokenizer.current
@@ -1755,7 +1760,7 @@ private constructor(
         }
 
         val name =
-            if (format.kotlinNameTypeOrder) {
+            if (kotlinNameTypeOrder) {
                 parseNameWithColon(namePossiblyWithColon, tokenizer)
             } else {
                 tokenizer.assertIdent(namePossiblyWithColon)
@@ -1930,7 +1935,7 @@ private constructor(
             val typeString: String
             val name: String
             val publicName: String?
-            if (format.kotlinNameTypeOrder) {
+            if (kotlinNameTypeOrder) {
                 // Kotlin style: parse the name (only considered a public name if it is not `_`,
                 // which is used as a placeholder for params without public names), then the type.
                 name = parseNameWithColon(token, tokenizer)
