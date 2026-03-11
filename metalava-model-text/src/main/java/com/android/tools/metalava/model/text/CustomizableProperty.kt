@@ -43,7 +43,6 @@ private constructor(
     val valueSyntax: String,
     /** Help text to use on the command line. */
     val help: String,
-    internal val getter: FileFormat.() -> T?,
     private val valueToString: (T & Any).() -> String,
     private val stringToValue: FromString.() -> T,
 ) : ReadOnlyProperty<CustomizableProperty.Companion, CustomizableProperty<T>> {
@@ -56,14 +55,12 @@ private constructor(
         private fun booleanProperty(
             defaultable: Boolean = false,
             help: String,
-            getter: FileFormat.() -> Boolean?,
         ) =
             CustomizableProperty(
                 defaultable,
                 defaultValue = false,
                 "yes|no",
                 help,
-                getter,
                 valueToString = { booleanToYesNo() },
                 stringToValue = { yesNoToBoolean() }
             )
@@ -87,7 +84,6 @@ private constructor(
             defaultable: Boolean = false,
             defaultValue: E,
             help: String,
-            noinline getter: FileFormat.() -> E?,
             entryFilter: (E) -> Boolean = { true },
         ): CustomizableProperty<E> {
             val entries = enumEntries<E>().filter(entryFilter)
@@ -97,7 +93,6 @@ private constructor(
                 defaultValue,
                 valueSyntax,
                 help,
-                getter,
                 valueToString = { stringFromEnum() },
                 stringToValue = { enumFromString(entries) },
             )
@@ -108,7 +103,6 @@ private constructor(
             defaultable: Boolean = false,
             defaultValue: E?,
             help: String,
-            noinline getter: FileFormat.() -> E?,
         ): CustomizableProperty<E?> {
             val entries = enumEntries<E>()
             val valueSyntax = entries.joinToString("|") { it.stringFromEnum() }
@@ -117,7 +111,6 @@ private constructor(
                 defaultValue,
                 valueSyntax,
                 help,
-                getter,
                 valueToString = { stringFromEnum() },
                 stringToValue = { enumFromString(entries) },
             )
@@ -161,14 +154,12 @@ private constructor(
         private fun optionalStringProperty(
             valueSyntax: String,
             help: String,
-            getter: FileFormat.() -> String?,
         ) =
             CustomizableProperty(
                 defaultable = false,
                 defaultValue = null,
                 valueSyntax = valueSyntax,
                 help = help,
-                getter = getter,
                 valueToString = { this },
                 stringToValue = { string },
             )
@@ -193,7 +184,6 @@ private constructor(
                         the API name is determined by the owner, metalava simply uses this as an
                         identifier for comparison.
                     """,
-                getter = { name },
             )
 
         val SURFACE by
@@ -212,7 +202,6 @@ private constructor(
                         meaning of the API surface name is determined by the owner, metalava simply
                         uses this as an identifier for comparison.
                     """,
-                getter = { surface },
             )
 
         /** language=[java|kotlin] */
@@ -224,7 +213,6 @@ private constructor(
                         Deprecated, will be replaced with a general mechanism for defining named
                         sets of defaults.
                     """,
-                getter = { language },
             )
 
         // The following values must be in alphabetical order.
@@ -238,7 +226,6 @@ private constructor(
                         If `yes` then add additional overrides into the signature file that are
                         needed in order to create compilable stubs from the signature file.
                     """,
-                getter = { specifiedAddAdditionalOverrides },
             )
 
         /** include-default-parameter-values=[yes|no] */
@@ -250,7 +237,6 @@ private constructor(
                     parameter values. If `yes` then it will use the pseudo modifier `optional` to
                     indicate a parameter that has a default value.
                 """,
-                getter = { specifiedIncludeDefaultParameterValues },
             )
 
         /** include-type-use-annotations=[yes|no] */
@@ -262,7 +248,6 @@ private constructor(
                         annotations can only be included when `kotlin-name-type-order=true`, because
                         the Java order makes it ambiguous whether an annotation is type-use.
                     """,
-                getter = { specifiedIncludeTypeUseAnnotations },
             )
 
         /** kotlin-name-type-order=[yes|no] */
@@ -288,7 +273,6 @@ private constructor(
                         method public String foo(int, char, String[]);
                         ```
                 """,
-                getter = { specifiedKotlinNameTypeOrder },
             )
 
         /** kotlin-style-nulls=[yes|no] */
@@ -304,7 +288,6 @@ private constructor(
                     and a type suffix of `!` to indicate the that the type accepts `null`, does not
                     accept `null` or it's not defined respectively.
                 """,
-                getter = { specifiedKotlinStyleNulls },
             )
 
         val MIGRATING by
@@ -331,7 +314,6 @@ private constructor(
                         [specifier]) or `\n` (because it is the terminator of the signature format
                         line).
                     """,
-                getter = { migrating },
             )
 
         val NORMALIZE_ABSTRACT_MODIFIER by
@@ -343,7 +325,6 @@ private constructor(
                     is `yes` and the method's containing class does not allow `abstract` then the
                     `abstract` modifier is not written out, otherwise it is.
                 """,
-                getter = { specifiedNormalizeAbstractModifier },
             )
 
         val NORMALIZE_FINAL_MODIFIER by
@@ -355,7 +336,6 @@ private constructor(
                     `yes` and the method's containing class is `final` then the `final` modifier is
                     not written out, otherwise it is.
                 """,
-                getter = { specifiedNormalizeFinalModifier },
             )
 
         /** overloaded-method-other=[source|signature] */
@@ -376,7 +356,6 @@ private constructor(
                     that refactorings of the source files which change the order but not the API
                     will have no effect on the API signature files.
                 """,
-                getter = { specifiedOverloadedMethodOrder },
             )
 
         val SORT_WHOLE_EXTENDS_LIST by
@@ -397,7 +376,6 @@ private constructor(
                         sort all the interface types. The sorting is by the full name (without the
                         package) of the class first then, by fully qualified name.
                     """,
-                getter = { specifiedSortWholeExtendsList },
             )
 
         val STRIP_JAVA_LANG_PREFIX by
@@ -420,7 +398,6 @@ private constructor(
                         They are always fully qualified.
                     """,
                 defaultValue = StripJavaLangPrefix.LEGACY,
-                getter = { specifiedStripJavaLangPrefix },
                 // Ignore [StripJavaLangPrefix.VARARGS] as it is internal use only.
                 entryFilter = { it != StripJavaLangPrefix.VARARGS }
             )
@@ -445,7 +422,6 @@ private constructor(
                     Note: This does not affect the spacing of type parameters in a type parameter
                     list, e.g. `interface Map<K, V>`. They always have a space separator.
                 """,
-                getter = { specifiedTypeArgumentSpacing },
             )
 
         /** The [List] of all [CustomizableProperty]s. */
@@ -616,6 +592,25 @@ internal constructor(
     /** Set [property] to [value]. */
     operator fun <T> set(property: CustomizableProperty<T>, value: T) {
         map[property] = value
+    }
+
+    /** Apply [property] value from [other] if it is not set in this and is set in [other]. */
+    private fun <T> applyDefaultFromOther(
+        other: BasePropertyMap,
+        property: CustomizableProperty<T>
+    ) {
+        this[property]?.let {
+            return
+        }
+        val value = other[property] ?: return
+        this[property] = value
+    }
+
+    /** Apply any property values set in [other] that are not set in this. */
+    internal fun applyDefaultsFromOther(other: BasePropertyMap) {
+        for (property in other) {
+            applyDefaultFromOther(other, property)
+        }
     }
 
     /** Convert this to an immutable [PropertyMap]. */

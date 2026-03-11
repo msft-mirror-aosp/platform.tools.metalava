@@ -57,50 +57,8 @@ data class FileFormat(
      */
     val formatDefaults: FileFormat? = null,
 
-    /** See [CustomizableProperty.NAME]. */
-    val name: String? = null,
-
-    /** See [CustomizableProperty.SURFACE]. */
-    val surface: String? = null,
-
-    /** See [CustomizableProperty.LANGUAGE]. */
-    val language: Language? = null,
-
-    /** See [CustomizableProperty.OVERLOADED_METHOD_ORDER]. */
-    val specifiedOverloadedMethodOrder: OverloadedMethodOrder? = null,
-
-    /** See [CustomizableProperty.INCLUDE_TYPE_USE_ANNOTATIONS]. */
-    val specifiedIncludeTypeUseAnnotations: Boolean? = null,
-
-    /** See [CustomizableProperty.KOTLIN_NAME_TYPE_ORDER]. */
-    val specifiedKotlinNameTypeOrder: Boolean? = null,
-
-    /** See [CustomizableProperty.KOTLIN_STYLE_NULLS]. */
-    val specifiedKotlinStyleNulls: Boolean? = null,
-
-    /** See [CustomizableProperty.MIGRATING]. */
-    val migrating: String? = null,
-
-    /** See [CustomizableProperty.INCLUDE_DEFAULT_PARAMETER_VALUES]. */
-    val specifiedIncludeDefaultParameterValues: Boolean? = null,
-
-    /** See [CustomizableProperty.ADD_ADDITIONAL_OVERRIDES]. */
-    val specifiedAddAdditionalOverrides: Boolean? = null,
-
-    /** See [CustomizableProperty.NORMALIZE_ABSTRACT_MODIFIER]. */
-    val specifiedNormalizeAbstractModifier: Boolean? = null,
-
-    /** See [CustomizableProperty.NORMALIZE_FINAL_MODIFIER]. */
-    val specifiedNormalizeFinalModifier: Boolean? = null,
-
-    /** See [CustomizableProperty.SORT_WHOLE_EXTENDS_LIST]. */
-    val specifiedSortWholeExtendsList: Boolean? = null,
-
-    /** See [CustomizableProperty.STRIP_JAVA_LANG_PREFIX]. */
-    val specifiedStripJavaLangPrefix: StripJavaLangPrefix? = null,
-
-    /** See [CustomizableProperty.TYPE_ARGUMENT_SPACING]. */
-    val specifiedTypeArgumentSpacing: TypeArgumentSpacing? = null,
+    /** The map containing [CustomizableProperty] values. */
+    val propertyMap: PropertyMap = emptyPropertyMap()
 ) {
     init {
         val migrating = this[MIGRATING]
@@ -135,7 +93,7 @@ data class FileFormat(
      *
      * This will NOT apply any defaults.
      */
-    operator fun <T> get(property: CustomizableProperty<T>): T? = property.getter(this)
+    operator fun <T> get(property: CustomizableProperty<T>): T? = propertyMap[property]
 
     /**
      * Compute the effective value of an optional property whose default can be overridden.
@@ -440,7 +398,7 @@ data class FileFormat(
      * property, value pair.
      */
     private fun iterateOverCustomizableProperties(consumer: (String, String) -> Unit) {
-        val defaults = version.defaultsIncludingLanguage(language)
+        val defaults = version.defaultsIncludingLanguage(this[LANGUAGE])
         if (this != defaults) {
             CustomizableProperty.entries.forEach { property ->
                 // Get the string value of this property, if null then it was not specified so skip
@@ -809,36 +767,17 @@ data class FileFormat(
             setFromString(customizable, value)
         }
 
-        /**
-         * Compute the actual value for [property].
-         *
-         * Use the value set in this, if it has not been set then use the value from [base].
-         */
-        private fun <T> actualValue(property: CustomizableProperty<T>): T? =
-            this[property] ?: base[property]
-
         /** Build the [FileFormat] from the information in this [Builder]. */
         fun build(): FileFormat {
             // Apply any language defaults first as they take priority over version defaults.
             this[LANGUAGE]?.applyLanguageDefaults(this)
+
+            // Then apply any properties from the base which includes version defaults.
+            mutablePropertyMap.applyDefaultsFromOther(base.propertyMap)
+
             return base.copy(
                 version = this.version ?: base.version,
-                specifiedIncludeDefaultParameterValues =
-                    actualValue(INCLUDE_DEFAULT_PARAMETER_VALUES),
-                specifiedIncludeTypeUseAnnotations = actualValue(INCLUDE_TYPE_USE_ANNOTATIONS),
-                specifiedKotlinNameTypeOrder = actualValue(KOTLIN_NAME_TYPE_ORDER),
-                specifiedKotlinStyleNulls = actualValue(KOTLIN_STYLE_NULLS),
-                language = actualValue(LANGUAGE),
-                migrating = actualValue(MIGRATING),
-                name = actualValue(NAME),
-                specifiedAddAdditionalOverrides = actualValue(ADD_ADDITIONAL_OVERRIDES),
-                specifiedNormalizeAbstractModifier = actualValue(NORMALIZE_ABSTRACT_MODIFIER),
-                specifiedNormalizeFinalModifier = actualValue(NORMALIZE_FINAL_MODIFIER),
-                specifiedOverloadedMethodOrder = actualValue(OVERLOADED_METHOD_ORDER),
-                specifiedSortWholeExtendsList = actualValue(SORT_WHOLE_EXTENDS_LIST),
-                specifiedStripJavaLangPrefix = actualValue(STRIP_JAVA_LANG_PREFIX),
-                specifiedTypeArgumentSpacing = actualValue(TYPE_ARGUMENT_SPACING),
-                surface = actualValue(SURFACE),
+                propertyMap = mutablePropertyMap.toMap(),
             )
         }
     }
