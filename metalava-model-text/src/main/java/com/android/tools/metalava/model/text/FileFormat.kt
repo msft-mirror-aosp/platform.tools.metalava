@@ -89,14 +89,7 @@ data class FileFormat(
     }
 
     /**
-     * Get the value of [property] as [T]
-     *
-     * This will NOT apply any defaults.
-     */
-    operator fun <T> get(property: CustomizableProperty<T>): T? = propertyMap[property]
-
-    /**
-     * Compute the effective value of an optional property whose default can be overridden.
+     * Compute the effective value of a property.
      *
      * This returns the first non-null value in the following:
      * 1. This [FileFormat]'s property value.
@@ -105,48 +98,48 @@ data class FileFormat(
      *
      * @param property the property whose value is to be retrieved.
      */
-    private fun <T> effectiveValue(property: CustomizableProperty<T>): T =
+    operator fun <T> get(property: CustomizableProperty<T>): T =
         propertyMap[property] ?: formatDefaults?.get(property) ?: property.defaultValue
 
     // This defaults to SIGNATURE but can be overridden on the command line.
     val overloadedMethodOrder
-        get() = effectiveValue(OVERLOADED_METHOD_ORDER)
+        get() = this[OVERLOADED_METHOD_ORDER]
 
     // This defaults to false but can be overridden on the command line.
     val addAdditionalOverrides
-        get() = effectiveValue(ADD_ADDITIONAL_OVERRIDES)
+        get() = this[ADD_ADDITIONAL_OVERRIDES]
 
     val includeDefaultParameterValues
-        get() = effectiveValue(INCLUDE_DEFAULT_PARAMETER_VALUES)
+        get() = this[INCLUDE_DEFAULT_PARAMETER_VALUES]
 
     val includeTypeUseAnnotations
-        get() = effectiveValue(INCLUDE_TYPE_USE_ANNOTATIONS)
+        get() = this[INCLUDE_TYPE_USE_ANNOTATIONS]
 
     val kotlinNameTypeOrder
-        get() = effectiveValue(KOTLIN_NAME_TYPE_ORDER)
+        get() = this[KOTLIN_NAME_TYPE_ORDER]
 
     val kotlinStyleNulls
-        get() = effectiveValue(KOTLIN_STYLE_NULLS)
+        get() = this[KOTLIN_STYLE_NULLS]
 
     // This defaults to false but can be overridden on the command line.
     val normalizeAbstractModifier
-        get() = effectiveValue(NORMALIZE_ABSTRACT_MODIFIER)
+        get() = this[NORMALIZE_ABSTRACT_MODIFIER]
 
     // This defaults to false but can be overridden on the command line.
     val normalizeFinalModifier
-        get() = effectiveValue(NORMALIZE_FINAL_MODIFIER)
+        get() = this[NORMALIZE_FINAL_MODIFIER]
 
     // This defaults to false but can be overridden on the command line.
     val sortWholeExtendsList
-        get() = effectiveValue(SORT_WHOLE_EXTENDS_LIST)
+        get() = this[SORT_WHOLE_EXTENDS_LIST]
 
     // This defaults to LEGACY but can be overridden on the command line.
     val stripJavaLangPrefix
-        get() = effectiveValue(STRIP_JAVA_LANG_PREFIX)
+        get() = this[STRIP_JAVA_LANG_PREFIX]
 
     // This defaults to LEGACY but can be overridden on the command line.
     val typeArgumentSpacing
-        get() = effectiveValue(TYPE_ARGUMENT_SPACING)
+        get() = this[TYPE_ARGUMENT_SPACING]
 
     /**
      * The base version of the file format.
