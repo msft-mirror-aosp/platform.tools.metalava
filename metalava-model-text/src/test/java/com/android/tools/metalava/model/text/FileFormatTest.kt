@@ -765,7 +765,7 @@ class FileFormatTest {
 
         val properties = buildString {
             for (property in CustomizableProperty.entries) {
-                val value = format[property]
+                val value = format.getAsString(property)
                 if (value != null) {
                     append(property.propertyName)
                     append("=")

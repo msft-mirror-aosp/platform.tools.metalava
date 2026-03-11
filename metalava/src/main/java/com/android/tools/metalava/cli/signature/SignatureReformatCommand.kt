@@ -143,7 +143,7 @@ class SignatureReformatCommand :
                 val targetValue = targetFormat.getWithDefault(property)
                 if (targetValue == null) {
                     // The target value is null so use the value from the current file.
-                    this[property] = currentValue
+                    setFromString(property, currentValue)
                 } else if (targetValue != currentValue) {
                     // The target value is different from the current value so see whether it needs
                     // to be changed.
@@ -154,7 +154,7 @@ class SignatureReformatCommand :
                         // Build a [FileFormat] that is the same as the [currentFormat] but with
                         // its [property] set to the [targetFormat]'s value.
                         val currentFormatWithTargetValue =
-                            currentFormat.buildCopy { this[property] = targetValue }
+                            currentFormat.buildCopy { setFromString(property, targetValue) }
 
                         // Generate the signature contents with that format.
                         val contentsWithProperty =
@@ -163,7 +163,7 @@ class SignatureReformatCommand :
                         // If the contents are different with the target value then keep the current
                         // value.
                         if (currentContents != contentsWithProperty) {
-                            this[property] = currentValue
+                            setFromString(property, currentValue)
                         }
                     } else {
                         // Always keep the current value for non-defaultable properties as they are
@@ -172,7 +172,7 @@ class SignatureReformatCommand :
                         // `kotlin-style-nulls=yes` this cannot just use the latter even if it has
                         // no impact on the current structure that is a fundamental change in the
                         // information that will be recorded.
-                        this[property] = currentValue
+                        setFromString(property, currentValue)
                     }
                 }
             }

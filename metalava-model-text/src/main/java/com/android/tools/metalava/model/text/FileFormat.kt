@@ -507,8 +507,8 @@ data class FileFormat(
             CustomizableProperty.entries.forEach { property ->
                 // Get the string value of this property, if null then it was not specified so skip
                 // the property.
-                val thisValue = this@FileFormat[property] ?: return@forEach
-                val defaultValue = defaults[property]
+                val thisValue = this@FileFormat.getAsString(property) ?: return@forEach
+                val defaultValue = defaults.getAsString(property)
                 if (thisValue != defaultValue) {
                     consumer(property.propertyName, thisValue)
                 }
@@ -551,7 +551,7 @@ data class FileFormat(
      *
      * This will NOT apply any defaults that it finds.
      */
-    operator fun get(property: CustomizableProperty<*>) = property.stringFromFormat(this)
+    fun getAsString(property: CustomizableProperty<*>) = property.stringFromFormat(this)
 
     /**
      * Get the value of [property] as a [String].
@@ -560,9 +560,9 @@ data class FileFormat(
      */
     fun getWithDefault(property: CustomizableProperty<*>) =
         // First try in this format directly.
-        this[property]
+        this.getAsString(property)
             // If it could not be found then look in the defaults if provided.
-            ?: formatDefaults?.let { defaults -> defaults[property] }
+            ?: formatDefaults?.getAsString(property)
             // If it still could not be found then use the property default.
             ?: property.defaultValueAsString()
 
@@ -847,7 +847,7 @@ data class FileFormat(
         internal var surface: String? = null
 
         /** Set [property] in this from [value] [String]. */
-        operator fun set(property: CustomizableProperty<*>, value: String) {
+        fun setFromString(property: CustomizableProperty<*>, value: String) {
             property.setFromString(this, value)
         }
 
@@ -870,7 +870,7 @@ data class FileFormat(
             val name = propertyParts[0]
             val value = propertyParts[1]
             val customizable = CustomizableProperty.getByName(name, defaultableOnly)
-            this[customizable] = value
+            setFromString(customizable, value)
         }
 
         /** Build the [FileFormat] from the information in this [Builder]. */
