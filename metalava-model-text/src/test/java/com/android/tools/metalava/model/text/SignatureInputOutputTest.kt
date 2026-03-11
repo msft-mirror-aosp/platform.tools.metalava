@@ -968,7 +968,6 @@ class SignatureInputOutputTest : Assertions {
     }
 
     companion object {
-        private val kotlinStyleFormat =
-            FileFormat.V5.copy(kotlinNameTypeOrder = true, formatDefaults = FileFormat.V5)
+        private val kotlinStyleFormat = FileFormat.V5.copy(kotlinNameTypeOrder = true)
     }
 }
