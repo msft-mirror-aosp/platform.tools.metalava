@@ -38,6 +38,7 @@ import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.TypeStringConfiguration
 import com.android.tools.metalava.model.text.CustomizableProperty.Companion.KOTLIN_NAME_TYPE_ORDER
+import com.android.tools.metalava.model.text.CustomizableProperty.Companion.KOTLIN_STYLE_NULLS
 import com.android.tools.metalava.model.text.CustomizableProperty.Companion.NORMALIZE_ABSTRACT_MODIFIER
 import com.android.tools.metalava.model.text.CustomizableProperty.Companion.NORMALIZE_FINAL_MODIFIER
 import com.android.tools.metalava.model.text.CustomizableProperty.Companion.OVERLOADED_METHOD_ORDER
@@ -78,7 +79,7 @@ class SignatureWriter(
     private val modifierListWriter =
         ModifierListWriter.forSignature(
             writer = writer,
-            skipNullnessAnnotations = fileFormat.kotlinStyleNulls,
+            skipNullnessAnnotations = fileFormat[KOTLIN_STYLE_NULLS],
             normalizeFinal = fileFormat[NORMALIZE_FINAL_MODIFIER],
             normalizeAbstract = fileFormat[NORMALIZE_ABSTRACT_MODIFIER],
         )
@@ -302,7 +303,7 @@ class SignatureWriter(
     private val legacySuperTypeStringConfiguration =
         TypeStringConfiguration(
             annotations = fileFormat.includeTypeUseAnnotations,
-            kotlinStyleNulls = fileFormat.kotlinStyleNulls,
+            kotlinStyleNulls = fileFormat[KOTLIN_STYLE_NULLS],
         )
 
     private fun writeExtendsOrImplementsType(typeItem: TypeItem) {
@@ -395,7 +396,7 @@ class SignatureWriter(
     private val typeStringConfiguration =
         TypeStringConfiguration(
             annotations = fileFormat.includeTypeUseAnnotations,
-            kotlinStyleNulls = fileFormat.kotlinStyleNulls,
+            kotlinStyleNulls = fileFormat[KOTLIN_STYLE_NULLS],
             spaceBetweenTypeArguments =
                 fileFormat[TYPE_ARGUMENT_SPACING] == TypeArgumentSpacing.SPACE,
             stripJavaLangPrefix = stripJavaLangPrefix,

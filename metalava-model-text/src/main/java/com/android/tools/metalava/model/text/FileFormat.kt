@@ -107,9 +107,6 @@ data class FileFormat(
     val includeTypeUseAnnotations
         get() = this[INCLUDE_TYPE_USE_ANNOTATIONS]
 
-    val kotlinStyleNulls
-        get() = this[KOTLIN_STYLE_NULLS]
-
     /**
      * The base version of the file format.
      *

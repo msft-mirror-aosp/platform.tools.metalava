@@ -62,6 +62,7 @@ import com.android.tools.metalava.model.parser.FileLocationTracker
 import com.android.tools.metalava.model.parser.TokenPurpose
 import com.android.tools.metalava.model.parser.Tokenizer
 import com.android.tools.metalava.model.text.CustomizableProperty.Companion.KOTLIN_NAME_TYPE_ORDER
+import com.android.tools.metalava.model.text.CustomizableProperty.Companion.KOTLIN_STYLE_NULLS
 import com.android.tools.metalava.model.type.MethodFingerprint
 import com.android.tools.metalava.model.type.TypeItemParser
 import com.android.tools.metalava.model.type.TypeItemParserErrorReporter
@@ -528,14 +529,15 @@ private constructor(
         fileLocationTracker = tokenizer
 
         // Disallow a mixture of kotlinStyleNulls settings.
-        if (kotlinStyleNulls != null && kotlinStyleNulls != format.kotlinStyleNulls) {
+        val kotlinStyleNullsForThisFile = format[KOTLIN_STYLE_NULLS]
+        if (kotlinStyleNulls != null && kotlinStyleNulls != kotlinStyleNullsForThisFile) {
             val precedingFile = precedingTracker!!.fileLocation().path
             reportIssue(
                 Issues.SIGNATURE_FILE_ERROR,
                 "Preceding file $precedingFile has different setting of kotlin-style-nulls which may cause issues"
             )
         }
-        kotlinStyleNulls = format.kotlinStyleNulls
+        kotlinStyleNulls = kotlinStyleNullsForThisFile
         kotlinNameTypeOrder = format[KOTLIN_NAME_TYPE_ORDER]
 
         while (true) {
