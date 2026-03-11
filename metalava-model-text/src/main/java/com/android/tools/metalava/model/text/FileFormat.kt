@@ -55,7 +55,7 @@ data class FileFormat(
      * Not every property is eligible to have its default overridden on the command line. Only those
      * that have a property getter to provide the default.
      */
-    val formatDefaults: FileFormat? = null,
+    val formatDefaults: PropertyMap? = null,
 
     /** The map containing [CustomizableProperty] values. */
     val propertyMap: PropertyMap = emptyPropertyMap()
@@ -696,12 +696,11 @@ data class FileFormat(
          *
          * @param defaults comma separated list of property assignments that
          */
-        fun parseDefaults(defaults: String) =
-            V2.buildCopy {
-                defaults.trim().split(",").forEach {
-                    setPropertyFromAssignment(it, defaultableOnly = true)
-                }
+        fun parseDefaults(defaults: String) = buildPropertyMap {
+            defaults.trim().split(",").forEach {
+                setPropertyFromAssignment(it, defaultableOnly = true)
             }
+        }
 
         /**
          * Parse the supplied set of overrides and construct a [FileFormat] by applying the

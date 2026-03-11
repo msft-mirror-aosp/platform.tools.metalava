@@ -550,6 +550,13 @@ internal constructor(
     @Suppress("UNCHECKED_CAST")
     override operator fun <T> get(property: CustomizableProperty<T>): T? = map[property] as T?
 
+    /**
+     * Get the value of [property] as a [String].
+     *
+     * This will NOT apply any defaults that it finds.
+     */
+    fun getAsString(property: CustomizableProperty<*>) = property.stringFromPropertyMap(this)
+
     /** Convert this to a [MutablePropertyMap]. */
     fun toMutableMap() = MutablePropertyMap(map.toMutableMap())
 
