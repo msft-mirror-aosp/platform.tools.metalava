@@ -156,14 +156,15 @@ data class FileFormat(
     val specifiedTypeArgumentSpacing: TypeArgumentSpacing? = null,
 ) {
     init {
+        val migrating = this[MIGRATING]
         if (migrating != null && "[,\n]".toRegex().find(migrating) != null) {
             throw IllegalStateException(
                 """invalid value for property 'migrating': '$migrating' contains at least one invalid character from the set {',', '\n'}"""
             )
         }
 
-        validateIdentifier(name, "name")
-        validateIdentifier(surface, "surface")
+        validateIdentifier(this[NAME], "name")
+        validateIdentifier(this[SURFACE], "surface")
 
         if (includeTypeUseAnnotations && !kotlinNameTypeOrder) {
             throw IllegalStateException(
@@ -427,6 +428,7 @@ data class FileFormat(
      * with [PROPERTY_LINE_PREFIX].
      */
     fun header(): String {
+        val migrating = this[MIGRATING]
         return buildString {
             append(SIGNATURE_FORMAT_PREFIX)
             append(version.versionNumber)
@@ -490,7 +492,7 @@ data class FileFormat(
      *
      * @param exceptionContext information to add to the start of the exception message that
      *   provides context for the user.
-     * @param migratingAllowed true if the [migrating] option is allowed, false otherwise. If it is
+     * @param migratingAllowed true if the [MIGRATING] option is allowed, false otherwise. If it is
      *   allowed then it will also be required if [Version.propertySupport] is
      *   [PropertySupport.FOR_MIGRATING_ONLY].
      */
@@ -501,6 +503,7 @@ data class FileFormat(
             return
         }
 
+        val migrating = this[MIGRATING]
         if (migratingAllowed) {
             // If the version does not support properties (except when migrating) and the
             // version defaults have been overridden then the `migrating` property is mandatory
