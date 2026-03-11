@@ -37,7 +37,12 @@ import com.android.tools.metalava.model.TargetLanguageSet
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.TypeStringConfiguration
+import com.android.tools.metalava.model.text.CustomizableProperty.Companion.NORMALIZE_ABSTRACT_MODIFIER
+import com.android.tools.metalava.model.text.CustomizableProperty.Companion.NORMALIZE_FINAL_MODIFIER
+import com.android.tools.metalava.model.text.CustomizableProperty.Companion.OVERLOADED_METHOD_ORDER
+import com.android.tools.metalava.model.text.CustomizableProperty.Companion.SORT_WHOLE_EXTENDS_LIST
 import com.android.tools.metalava.model.text.CustomizableProperty.Companion.STRIP_JAVA_LANG_PREFIX
+import com.android.tools.metalava.model.text.CustomizableProperty.Companion.TYPE_ARGUMENT_SPACING
 import com.android.tools.metalava.model.text.FileFormat.TypeArgumentSpacing
 import com.android.tools.metalava.model.visitors.ApiPredicate
 import com.android.tools.metalava.model.visitors.ApiType
@@ -70,8 +75,8 @@ class SignatureWriter(
         ModifierListWriter.forSignature(
             writer = writer,
             skipNullnessAnnotations = fileFormat.kotlinStyleNulls,
-            normalizeFinal = fileFormat.normalizeFinalModifier,
-            normalizeAbstract = fileFormat.normalizeAbstractModifier,
+            normalizeFinal = fileFormat[NORMALIZE_FINAL_MODIFIER],
+            normalizeAbstract = fileFormat[NORMALIZE_ABSTRACT_MODIFIER],
         )
 
     internal fun write(text: String) {
@@ -326,7 +331,8 @@ class SignatureWriter(
     /** [TypeStringConfiguration] for use when writing types in [writeTypeParameterList]. */
     private val typeParameterItemStringConfiguration =
         TypeStringConfiguration(
-            spaceBetweenTypeArguments = fileFormat.typeArgumentSpacing != TypeArgumentSpacing.NONE,
+            spaceBetweenTypeArguments =
+                fileFormat[TYPE_ARGUMENT_SPACING] != TypeArgumentSpacing.NONE,
             stripJavaLangPrefix =
                 // Only strip `java.lang.` prefix if always requested. That is because the LEGACY
                 // behavior is not to strip `java.lang.` prefix in bounds.
@@ -386,7 +392,8 @@ class SignatureWriter(
         TypeStringConfiguration(
             annotations = fileFormat.includeTypeUseAnnotations,
             kotlinStyleNulls = fileFormat.kotlinStyleNulls,
-            spaceBetweenTypeArguments = fileFormat.typeArgumentSpacing == TypeArgumentSpacing.SPACE,
+            spaceBetweenTypeArguments =
+                fileFormat[TYPE_ARGUMENT_SPACING] == TypeArgumentSpacing.SPACE,
             stripJavaLangPrefix = stripJavaLangPrefix,
         )
 
@@ -482,12 +489,12 @@ fun createFilteringVisitorForSignatures(
     val apiFilters = apiType.getApiFilters(apiPredicateConfig)
 
     val (interfaceListSorter, interfaceListComparator) =
-        if (fileFormat.sortWholeExtendsList) Pair(null, TypeItem.totalComparator)
+        if (fileFormat[SORT_WHOLE_EXTENDS_LIST]) Pair(null, TypeItem.totalComparator)
         else Pair(::getInterfacesInOrder, null)
     return FilteringApiVisitor(
         delegate = delegate,
         inlineInheritedFields = true,
-        callableComparator = fileFormat.overloadedMethodOrder.comparator,
+        callableComparator = fileFormat[OVERLOADED_METHOD_ORDER].comparator,
         interfaceListSorter = interfaceListSorter,
         interfaceListComparator = interfaceListComparator,
         apiFilters = apiFilters,

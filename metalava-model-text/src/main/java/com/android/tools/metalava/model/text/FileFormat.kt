@@ -101,14 +101,6 @@ data class FileFormat(
     operator fun <T> get(property: CustomizableProperty<T>): T =
         propertyMap[property] ?: formatDefaults?.get(property) ?: property.defaultValue
 
-    // This defaults to SIGNATURE but can be overridden on the command line.
-    val overloadedMethodOrder
-        get() = this[OVERLOADED_METHOD_ORDER]
-
-    // This defaults to false but can be overridden on the command line.
-    val addAdditionalOverrides
-        get() = this[ADD_ADDITIONAL_OVERRIDES]
-
     val includeDefaultParameterValues
         get() = this[INCLUDE_DEFAULT_PARAMETER_VALUES]
 
@@ -120,22 +112,6 @@ data class FileFormat(
 
     val kotlinStyleNulls
         get() = this[KOTLIN_STYLE_NULLS]
-
-    // This defaults to false but can be overridden on the command line.
-    val normalizeAbstractModifier
-        get() = this[NORMALIZE_ABSTRACT_MODIFIER]
-
-    // This defaults to false but can be overridden on the command line.
-    val normalizeFinalModifier
-        get() = this[NORMALIZE_FINAL_MODIFIER]
-
-    // This defaults to false but can be overridden on the command line.
-    val sortWholeExtendsList
-        get() = this[SORT_WHOLE_EXTENDS_LIST]
-
-    // This defaults to LEGACY but can be overridden on the command line.
-    val typeArgumentSpacing
-        get() = this[TYPE_ARGUMENT_SPACING]
 
     /**
      * The base version of the file format.

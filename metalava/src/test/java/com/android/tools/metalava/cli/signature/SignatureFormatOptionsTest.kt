@@ -126,7 +126,7 @@ class SignatureFormatOptionsTest :
             "--format-defaults",
             "overloaded-method-order=source"
         ) {
-            assertThat(options.fileFormat.overloadedMethodOrder)
+            assertThat(options.fileFormat[OVERLOADED_METHOD_ORDER])
                 .isEqualTo(FileFormat.OverloadedMethodOrder.SOURCE)
         }
     }
@@ -199,7 +199,7 @@ class SignatureFormatOptionsTest :
         runTest("--format", "2.0", "--format-defaults", "overloaded-method-order=source") {
             assertEquals(
                 FileFormat.OverloadedMethodOrder.SOURCE,
-                options.fileFormat.overloadedMethodOrder
+                options.fileFormat[OVERLOADED_METHOD_ORDER]
             )
         }
     }
@@ -207,7 +207,7 @@ class SignatureFormatOptionsTest :
     @Test
     fun `--format with no properties and --format-defaults add-additional-overrides=yes`() {
         runTest("--format", "2.0", "--format-defaults", "add-additional-overrides=yes") {
-            assertEquals(true, options.fileFormat.addAdditionalOverrides)
+            assertEquals(true, options.fileFormat[ADD_ADDITIONAL_OVERRIDES])
         }
     }
 
@@ -233,7 +233,7 @@ class SignatureFormatOptionsTest :
         ) {
             assertEquals(
                 FileFormat.OverloadedMethodOrder.SIGNATURE,
-                options.fileFormat.overloadedMethodOrder
+                options.fileFormat[OVERLOADED_METHOD_ORDER]
             )
         }
     }

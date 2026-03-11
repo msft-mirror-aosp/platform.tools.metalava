@@ -21,7 +21,7 @@ import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.testing.java
 import org.junit.Test
 
-/** Test for the [FileFormat.sortWholeExtendsList] property. */
+/** Test for the [SORT_WHOLE_EXTENDS_LIST] property. */
 class InterfaceTypeListOrderTest : DriverTest() {
     private fun runOrderTest(fileFormat: FileFormat, api: String) {
         check(
