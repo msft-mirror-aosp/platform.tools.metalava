@@ -420,7 +420,7 @@ private constructor(
     /**
      * Get the string representation of the corresponding property from the supplied [FileFormat].
      */
-    internal fun stringFromFormat(format: FileFormat): String? = format.getter()?.valueToString()
+    internal fun stringFromFormat(format: FileFormat): String? = format[this]?.valueToString()
 
     /** Get the string representation of this property from the supplied [BasePropertyMap]. */
     internal fun stringFromPropertyMap(map: BasePropertyMap): String? = map[this]?.valueToString()

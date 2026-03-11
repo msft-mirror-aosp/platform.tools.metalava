@@ -732,10 +732,7 @@ class FileFormatTest {
     @Test
     fun `Check parseDefaults overloaded-method-order=source`() {
         val defaults = FileFormat.parseDefaults("overloaded-method-order=source")
-        assertEquals(
-            FileFormat.OverloadedMethodOrder.SOURCE,
-            defaults.specifiedOverloadedMethodOrder
-        )
+        assertEquals(FileFormat.OverloadedMethodOrder.SOURCE, defaults[OVERLOADED_METHOD_ORDER])
     }
 
     @Test

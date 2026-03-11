@@ -215,6 +215,13 @@ data class FileFormat(
     }
 
     /**
+     * Get the value of [property] as [T]
+     *
+     * This will NOT apply any defaults.
+     */
+    operator fun <T> get(property: CustomizableProperty<T>): T? = property.getter(this)
+
+    /**
      * Compute the effective value of an optional property whose default can be overridden.
      *
      * This returns the first non-null value in the following:
@@ -224,10 +231,8 @@ data class FileFormat(
      *
      * @param property the property whose value is to be retrieved.
      */
-    private fun <T> effectiveValue(property: CustomizableProperty<T>): T {
-        val getter = property.getter
-        return this.getter() ?: formatDefaults?.getter() ?: property.defaultValue
-    }
+    private fun <T> effectiveValue(property: CustomizableProperty<T>): T =
+        this[property] ?: formatDefaults?.get(property) ?: property.defaultValue
 
     // This defaults to SIGNATURE but can be overridden on the command line.
     val overloadedMethodOrder
