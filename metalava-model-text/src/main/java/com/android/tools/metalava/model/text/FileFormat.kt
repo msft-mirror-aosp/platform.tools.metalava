@@ -740,31 +740,17 @@ data class FileFormat(
             mutablePropertyMap[property] = value
         }
 
-        /** Set [property] in this from [value] [String]. */
+        /** Delegate to [mutablePropertyMap]. */
         fun setFromString(property: CustomizableProperty<*>, value: String) {
-            property.setFromString(this, value)
+            mutablePropertyMap.setFromString(property, value)
         }
 
-        /**
-         * Parse a property assignment of the form `property=value`, updating the appropriate
-         * property in this [Builder], or throwing an exception if there was a problem.
-         *
-         * @param assignment the string of the form `property=value`.
-         * @param defaultableOnly if `true` then only [CustomizableProperty.defaultable] properties
-         *   are allowed.
-         */
+        /** Delegate to [mutablePropertyMap]. */
         internal fun setPropertyFromAssignment(
             assignment: String,
             defaultableOnly: Boolean = false,
         ) {
-            val propertyParts = assignment.split("=")
-            if (propertyParts.size != 2) {
-                throw ApiParseException("expected <property>=<value> but found '$assignment'")
-            }
-            val name = propertyParts[0]
-            val value = propertyParts[1]
-            val customizable = CustomizableProperty.getByName(name, defaultableOnly)
-            setFromString(customizable, value)
+            mutablePropertyMap.setPropertyFromAssignment(assignment, defaultableOnly)
         }
 
         /** Build the [FileFormat] from the information in this [Builder]. */

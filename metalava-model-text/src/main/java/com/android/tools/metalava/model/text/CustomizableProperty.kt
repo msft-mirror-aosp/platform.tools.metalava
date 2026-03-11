@@ -487,9 +487,9 @@ private constructor(
      * Set the corresponding property in the supplied [Builder] to the value corresponding to the
      * string representation [string].
      */
-    internal fun setFromString(builder: Builder, string: String) {
+    internal fun setFromString(mutablePropertyMap: MutablePropertyMap, string: String) {
         val value = FromString(propertyName, string).stringToValue()
-        builder[this] = value
+        mutablePropertyMap[this] = value
     }
 
     /**
@@ -592,6 +592,33 @@ internal constructor(
     /** Set [property] to [value]. */
     operator fun <T> set(property: CustomizableProperty<T>, value: T) {
         map[property] = value
+    }
+
+    /**
+     * Parse a property assignment of the form `property=value`, updating the appropriate property
+     * in this [Builder], or throwing an exception if there was a problem.
+     *
+     * @param assignment the string of the form `property=value`.
+     * @param defaultableOnly if `true` then only [CustomizableProperty.defaultable] properties are
+     *   allowed.
+     */
+    internal fun setPropertyFromAssignment(
+        assignment: String,
+        defaultableOnly: Boolean = false,
+    ) {
+        val propertyParts = assignment.split("=")
+        if (propertyParts.size != 2) {
+            throw ApiParseException("expected <property>=<value> but found '$assignment'")
+        }
+        val name = propertyParts[0]
+        val value = propertyParts[1]
+        val customizable = CustomizableProperty.getByName(name, defaultableOnly)
+        setFromString(customizable, value)
+    }
+
+    /** Set [property] in this from [value] [String]. */
+    fun setFromString(property: CustomizableProperty<*>, value: String) {
+        property.setFromString(this, value)
     }
 
     /** Apply [property] value from [other] if it is not set in this and is set in [other]. */
