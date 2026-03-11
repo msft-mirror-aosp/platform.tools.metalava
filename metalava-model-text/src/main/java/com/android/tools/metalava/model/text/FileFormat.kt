@@ -70,19 +70,19 @@ data class FileFormat(
     val specifiedOverloadedMethodOrder: OverloadedMethodOrder? = null,
 
     /** See [CustomizableProperty.INCLUDE_TYPE_USE_ANNOTATIONS]. */
-    val includeTypeUseAnnotations: Boolean = false,
+    val specifiedIncludeTypeUseAnnotations: Boolean? = null,
 
     /** See [CustomizableProperty.KOTLIN_NAME_TYPE_ORDER]. */
-    val kotlinNameTypeOrder: Boolean = false,
+    val specifiedKotlinNameTypeOrder: Boolean? = null,
 
     /** See [CustomizableProperty.KOTLIN_STYLE_NULLS]. */
-    val kotlinStyleNulls: Boolean = false,
+    val specifiedKotlinStyleNulls: Boolean? = null,
 
     /** See [CustomizableProperty.MIGRATING]. */
     val migrating: String? = null,
 
     /** See [CustomizableProperty.INCLUDE_DEFAULT_PARAMETER_VALUES]. */
-    val includeDefaultParameterValues: Boolean = false,
+    val specifiedIncludeDefaultParameterValues: Boolean? = null,
 
     /** See [CustomizableProperty.ADD_ADDITIONAL_OVERRIDES]. */
     val specifiedAddAdditionalOverrides: Boolean? = null,
@@ -158,6 +158,18 @@ data class FileFormat(
     val addAdditionalOverrides
         get() = effectiveValue(ADD_ADDITIONAL_OVERRIDES)
 
+    val includeDefaultParameterValues
+        get() = effectiveValue(INCLUDE_DEFAULT_PARAMETER_VALUES)
+
+    val includeTypeUseAnnotations
+        get() = effectiveValue(INCLUDE_TYPE_USE_ANNOTATIONS)
+
+    val kotlinNameTypeOrder
+        get() = effectiveValue(KOTLIN_NAME_TYPE_ORDER)
+
+    val kotlinStyleNulls
+        get() = effectiveValue(KOTLIN_STYLE_NULLS)
+
     // This defaults to false but can be overridden on the command line.
     val normalizeAbstractModifier
         get() = effectiveValue(NORMALIZE_ABSTRACT_MODIFIER)
@@ -202,7 +214,15 @@ data class FileFormat(
     ) {
         V2(
             versionNumber = "2.0",
-            factory = { version -> FileFormat(version = version) },
+            factory = { version ->
+                FileFormat(version = version).buildCopy {
+                    // Specify values for these properties explicitly to preserve previous behavior.
+                    this[INCLUDE_DEFAULT_PARAMETER_VALUES] = false
+                    this[INCLUDE_TYPE_USE_ANNOTATIONS] = false
+                    this[KOTLIN_NAME_TYPE_ORDER] = false
+                    this[KOTLIN_STYLE_NULLS] = false
+                }
+            },
             help =
                 """
                     This is the base version (more details in `FORMAT.md`) on which all the others
@@ -803,10 +823,11 @@ data class FileFormat(
             this[LANGUAGE]?.applyLanguageDefaults(this)
             return base.copy(
                 version = this.version ?: base.version,
-                includeDefaultParameterValues = actualValue(INCLUDE_DEFAULT_PARAMETER_VALUES)!!,
-                includeTypeUseAnnotations = actualValue(INCLUDE_TYPE_USE_ANNOTATIONS)!!,
-                kotlinNameTypeOrder = actualValue(KOTLIN_NAME_TYPE_ORDER)!!,
-                kotlinStyleNulls = actualValue(KOTLIN_STYLE_NULLS)!!,
+                specifiedIncludeDefaultParameterValues =
+                    actualValue(INCLUDE_DEFAULT_PARAMETER_VALUES),
+                specifiedIncludeTypeUseAnnotations = actualValue(INCLUDE_TYPE_USE_ANNOTATIONS),
+                specifiedKotlinNameTypeOrder = actualValue(KOTLIN_NAME_TYPE_ORDER),
+                specifiedKotlinStyleNulls = actualValue(KOTLIN_STYLE_NULLS),
                 language = actualValue(LANGUAGE),
                 migrating = actualValue(MIGRATING),
                 name = actualValue(NAME),

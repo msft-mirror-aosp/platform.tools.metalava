@@ -250,7 +250,7 @@ private constructor(
                     parameter values. If `yes` then it will use the pseudo modifier `optional` to
                     indicate a parameter that has a default value.
                 """,
-                getter = { includeDefaultParameterValues },
+                getter = { specifiedIncludeDefaultParameterValues },
             )
 
         /** include-type-use-annotations=[yes|no] */
@@ -262,7 +262,7 @@ private constructor(
                         annotations can only be included when `kotlin-name-type-order=true`, because
                         the Java order makes it ambiguous whether an annotation is type-use.
                     """,
-                getter = { includeTypeUseAnnotations },
+                getter = { specifiedIncludeTypeUseAnnotations },
             )
 
         /** kotlin-name-type-order=[yes|no] */
@@ -288,7 +288,7 @@ private constructor(
                         method public String foo(int, char, String[]);
                         ```
                 """,
-                getter = { kotlinNameTypeOrder },
+                getter = { specifiedKotlinNameTypeOrder },
             )
 
         /** kotlin-style-nulls=[yes|no] */
@@ -304,7 +304,7 @@ private constructor(
                     and a type suffix of `!` to indicate the that the type accepts `null`, does not
                     accept `null` or it's not defined respectively.
                 """,
-                getter = { kotlinStyleNulls },
+                getter = { specifiedKotlinStyleNulls },
             )
 
         val MIGRATING by
