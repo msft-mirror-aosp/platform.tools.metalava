@@ -63,47 +63,16 @@ data class FileFormat(
     /** See [CustomizableProperty.SURFACE]. */
     val surface: String? = null,
 
-    /**
-     * If non-null then it indicates the target language for signature files.
-     *
-     * Although kotlin and java can interoperate reasonably well an API created from Java files is
-     * generally targeted for use by Java code and vice versa.
-     *
-     * See [CustomizableProperty.LANGUAGE].
-     */
+    /** See [CustomizableProperty.LANGUAGE]. */
     val language: Language? = null,
 
     /** See [CustomizableProperty.OVERLOADED_METHOD_ORDER]. */
     val specifiedOverloadedMethodOrder: OverloadedMethodOrder? = null,
 
-    /**
-     * Whether to include type-use annotations in the signature file. Type-use annotations can only
-     * be included when [kotlinNameTypeOrder] is true, because the Java order makes it ambiguous
-     * whether an annotation is type-use.
-     *
-     * See [CustomizableProperty.INCLUDE_TYPE_USE_ANNOTATIONS].
-     */
+    /** See [CustomizableProperty.INCLUDE_TYPE_USE_ANNOTATIONS]. */
     val includeTypeUseAnnotations: Boolean = false,
 
-    /**
-     * Whether to order the names and types of APIs using Kotlin-style syntax (`name: type`) or
-     * Java-style syntax (`type name`).
-     *
-     * When Kotlin ordering is used, all method parameters without public names will be given the
-     * placeholder name of `_`, which cannot be used as a Java identifier.
-     *
-     * For example, the following is an example of a method signature with Kotlin ordering:
-     * ```
-     * method public foo(_: int, _: char, _: String[]): String;
-     * ```
-     *
-     * And the following is the equivalent Java ordering:
-     * ```
-     * method public String foo(int, char, String[]);
-     * ```
-     *
-     * See [CustomizableProperty.KOTLIN_NAME_TYPE_ORDER].
-     */
+    /** See [CustomizableProperty.KOTLIN_NAME_TYPE_ORDER]. */
     val kotlinNameTypeOrder: Boolean = false,
 
     /** See [CustomizableProperty.KOTLIN_STYLE_NULLS]. */
@@ -124,35 +93,13 @@ data class FileFormat(
     /** See [CustomizableProperty.NORMALIZE_FINAL_MODIFIER]. */
     val specifiedNormalizeFinalModifier: Boolean? = null,
 
-    /**
-     * Indicates whether the whole extends list for an interface is sorted.
-     *
-     * Previously, the first type in the extends list was used as the super type and if it was
-     * present in the API then it would always be output first to the signature files. The code has
-     * been refactored so that is no longer necessary but the previous behavior is maintained to
-     * avoid churn in the API signature files.
-     *
-     * By default, this property preserves the previous behavior but if set to `true` then it will
-     * stop treating the first interface specially and just sort all the interface types. The
-     * sorting is by the full name (without the package) of the class.
-     *
-     * See [CustomizableProperty.SORT_WHOLE_EXTENDS_LIST].
-     */
+    /** See [CustomizableProperty.SORT_WHOLE_EXTENDS_LIST]. */
     val specifiedSortWholeExtendsList: Boolean? = null,
 
-    /**
-     * Indicates which of the possible approaches to `java.lang.` prefix stripping available in
-     * [StripJavaLangPrefix] is used when outputting types to signature files.
-     *
-     * See [CustomizableProperty.STRIP_JAVA_LANG_PREFIX].
-     */
+    /** See [CustomizableProperty.STRIP_JAVA_LANG_PREFIX]. */
     val specifiedStripJavaLangPrefix: StripJavaLangPrefix? = null,
 
-    /**
-     * Indicates how type arguments should be formatted when outputting types to signature files.
-     *
-     * See [CustomizableProperty.TYPE_ARGUMENT_SPACING].
-     */
+    /** See [CustomizableProperty.TYPE_ARGUMENT_SPACING]. */
     val specifiedTypeArgumentSpacing: TypeArgumentSpacing? = null,
 ) {
     init {

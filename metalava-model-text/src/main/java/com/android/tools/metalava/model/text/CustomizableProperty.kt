@@ -37,12 +37,12 @@ import kotlin.reflect.KProperty
  */
 class CustomizableProperty<T>
 private constructor(
-    val defaultable: Boolean = false,
+    val defaultable: Boolean,
     val defaultValue: T,
     /** Syntax of command line values. */
-    val valueSyntax: String = "",
+    val valueSyntax: String,
     /** Help text to use on the command line. */
-    val help: String = "",
+    val help: String,
     internal val getter: FileFormat.() -> T?,
     private val valueToString: (T & Any).() -> String,
     private val stringToValue: FromString.() -> T,
@@ -55,7 +55,7 @@ private constructor(
         /** Factory method for a [Boolean] [CustomizableProperty] */
         private fun booleanProperty(
             defaultable: Boolean = false,
-            help: String = "",
+            help: String,
             getter: FileFormat.() -> Boolean?,
         ) =
             CustomizableProperty(
@@ -86,10 +86,11 @@ private constructor(
         private inline fun <reified E : Enum<E>> enumProperty(
             defaultable: Boolean = false,
             defaultValue: E,
-            help: String = "",
+            help: String,
             noinline getter: FileFormat.() -> E?,
+            entryFilter: (E) -> Boolean = { true },
         ): CustomizableProperty<E> {
-            val entries = enumEntries<E>()
+            val entries = enumEntries<E>().filter(entryFilter)
             val valueSyntax = entries.joinToString("|") { it.stringFromEnum() }
             return CustomizableProperty(
                 defaultable,
@@ -106,7 +107,7 @@ private constructor(
         private inline fun <reified E : Enum<E>> optionalEnumProperty(
             defaultable: Boolean = false,
             defaultValue: E?,
-            help: String = "",
+            help: String,
             noinline getter: FileFormat.() -> E?,
         ): CustomizableProperty<E?> {
             val entries = enumEntries<E>()
@@ -218,6 +219,11 @@ private constructor(
         val LANGUAGE by
             optionalEnumProperty<Language>(
                 defaultValue = null,
+                help =
+                    """
+                        Deprecated, will be replaced with a general mechanism for defining named
+                        sets of defaults.
+                    """,
                 getter = { language },
             )
 
@@ -227,6 +233,11 @@ private constructor(
         val ADD_ADDITIONAL_OVERRIDES by
             booleanProperty(
                 defaultable = true,
+                help =
+                    """
+                        If `yes` then add additional overrides into the signature file that are
+                        needed in order to create compilable stubs from the signature file.
+                    """,
                 getter = { specifiedAddAdditionalOverrides },
             )
 
@@ -245,12 +256,38 @@ private constructor(
         /** include-type-use-annotations=[yes|no] */
         val INCLUDE_TYPE_USE_ANNOTATIONS by
             booleanProperty(
+                help =
+                    """
+                        Whether to include type-use annotations in the signature file. Type-use
+                        annotations can only be included when `kotlin-name-type-order=true`, because
+                        the Java order makes it ambiguous whether an annotation is type-use.
+                    """,
                 getter = { includeTypeUseAnnotations },
             )
 
         /** kotlin-name-type-order=[yes|no] */
         val KOTLIN_NAME_TYPE_ORDER by
             booleanProperty(
+                help =
+                    """
+                        Whether to order the names and types of APIs using Kotlin-style syntax
+                        (`name: type`) or Java-style syntax (`type name`).
+
+                        When Kotlin ordering is used, all method parameters without public names
+                        will be given the placeholder name of `_`, which cannot be used as a Java
+                        identifier.
+
+                        For example, the following is an example of a method signature with Kotlin
+                        ordering:
+                        ```
+                        method public foo(_: int, _: char, _: String[]): String;
+                        ```
+
+                        And the following is the equivalent Java ordering:
+                        ```
+                        method public String foo(int, char, String[]);
+                        ```
+                """,
                 getter = { kotlinNameTypeOrder },
             )
 
@@ -345,14 +382,47 @@ private constructor(
         val SORT_WHOLE_EXTENDS_LIST by
             booleanProperty(
                 defaultable = true,
+                help =
+                    """
+                        Indicates whether the whole extends list for an interface is sorted.
+
+                        Previously, the first type in the extends list was used as the super type
+                        and if it was present in the API then it would always be output first to the
+                        signature files. The code has been refactored so that is no longer necessary
+                        but the previous behavior is maintained to avoid churn in the API signature
+                        files.
+
+                        By default, this property preserves the previous behavior but if set to
+                        `true` then it will stop treating the first interface specially and just
+                        sort all the interface types. The sorting is by the full name (without the
+                        package) of the class first then, by fully qualified name.
+                    """,
                 getter = { specifiedSortWholeExtendsList },
             )
 
         val STRIP_JAVA_LANG_PREFIX by
             enumProperty<StripJavaLangPrefix>(
                 defaultable = true,
+                help =
+                    """
+                        Indicates which of the possible approaches to `java.lang.` prefix stripping
+                        is used when outputting types to signature files. The default is `legacy`.
+
+                        `legacy` - roughly only strips off the leading `java.lang.` prefix of a
+                        type with a couple of exceptions. This is legacy behavior from when types
+                        were treated as strings.
+
+                        `never` - never strip off `java.lang.` prefixes.
+
+                        `always` - always strip off `java.lang.` prefixes.
+
+                        Note: This does not affect annotation names, e.g. `java.lang.SafeVarargs`.
+                        They are always fully qualified.
+                    """,
                 defaultValue = StripJavaLangPrefix.LEGACY,
                 getter = { specifiedStripJavaLangPrefix },
+                // Ignore [StripJavaLangPrefix.VARARGS] as it is internal use only.
+                entryFilter = { it != StripJavaLangPrefix.VARARGS }
             )
 
         val TYPE_ARGUMENT_SPACING by
