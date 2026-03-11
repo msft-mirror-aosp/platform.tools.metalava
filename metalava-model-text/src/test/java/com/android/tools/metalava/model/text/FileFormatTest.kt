@@ -775,7 +775,10 @@ class FileFormatTest {
     @Test
     fun `Check get does not apply defaults`() {
         val formatDefaults = FileFormat.parseDefaults("strip-java-lang-prefix=never")
-        val format = FileFormat.V2.copy(formatDefaults = formatDefaults)
+        val format =
+            FileFormat.V2.copy(formatDefaults = formatDefaults).buildCopy {
+                this[INCLUDE_DEFAULT_PARAMETER_VALUES] = true
+            }
 
         val properties = buildString {
             for (property in CustomizableProperty.entries) {
@@ -791,10 +794,7 @@ class FileFormatTest {
 
         assertEquals(
             """
-                include-default-parameter-values=no
-                include-type-use-annotations=no
-                kotlin-name-type-order=no
-                kotlin-style-nulls=no
+                include-default-parameter-values=yes
             """
                 .trimIndent(),
             properties.trim()

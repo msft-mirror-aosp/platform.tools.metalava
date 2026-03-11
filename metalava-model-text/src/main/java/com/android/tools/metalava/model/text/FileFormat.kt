@@ -125,15 +125,7 @@ data class FileFormat(
     ) {
         V2(
             versionNumber = "2.0",
-            factory = { version ->
-                FileFormat(version = version).buildCopy {
-                    // Specify values for these properties explicitly to preserve previous behavior.
-                    this[INCLUDE_DEFAULT_PARAMETER_VALUES] = false
-                    this[INCLUDE_TYPE_USE_ANNOTATIONS] = false
-                    this[KOTLIN_NAME_TYPE_ORDER] = false
-                    this[KOTLIN_STYLE_NULLS] = false
-                }
-            },
+            factory = { version -> FileFormat(version = version) },
             help =
                 """
                     This is the base version (more details in `FORMAT.md`) on which all the others
