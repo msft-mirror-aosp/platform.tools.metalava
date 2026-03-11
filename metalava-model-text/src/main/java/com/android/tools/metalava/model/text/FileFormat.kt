@@ -61,15 +61,15 @@ data class FileFormat(
     val propertyMap: PropertyMap = emptyPropertyMap()
 ) {
     init {
-        val migrating = this[MIGRATING]
+        val migrating = propertyMap[MIGRATING]
         if (migrating != null && "[,\n]".toRegex().find(migrating) != null) {
             throw IllegalStateException(
                 """invalid value for property 'migrating': '$migrating' contains at least one invalid character from the set {',', '\n'}"""
             )
         }
 
-        validateIdentifier(this[NAME], "name")
-        validateIdentifier(this[SURFACE], "surface")
+        validateIdentifier(propertyMap[NAME], "name")
+        validateIdentifier(propertyMap[SURFACE], "surface")
 
         if (includeTypeUseAnnotations && !kotlinNameTypeOrder) {
             throw IllegalStateException(
@@ -106,7 +106,7 @@ data class FileFormat(
      * @param property the property whose value is to be retrieved.
      */
     private fun <T> effectiveValue(property: CustomizableProperty<T>): T =
-        this[property] ?: formatDefaults?.get(property) ?: property.defaultValue
+        propertyMap[property] ?: formatDefaults?.get(property) ?: property.defaultValue
 
     // This defaults to SIGNATURE but can be overridden on the command line.
     val overloadedMethodOrder
@@ -353,7 +353,7 @@ data class FileFormat(
      * with [PROPERTY_LINE_PREFIX].
      */
     fun header(): String {
-        val migrating = this[MIGRATING]
+        val migrating = propertyMap[MIGRATING]
         return buildString {
             append(SIGNATURE_FORMAT_PREFIX)
             append(version.versionNumber)
@@ -398,7 +398,7 @@ data class FileFormat(
      * property, value pair.
      */
     private fun iterateOverCustomizableProperties(consumer: (String, String) -> Unit) {
-        val defaults = version.defaultsIncludingLanguage(this[LANGUAGE])
+        val defaults = version.defaultsIncludingLanguage(propertyMap[LANGUAGE])
         if (this != defaults) {
             CustomizableProperty.entries.forEach { property ->
                 // Get the string value of this property, if null then it was not specified so skip
@@ -428,7 +428,7 @@ data class FileFormat(
             return
         }
 
-        val migrating = this[MIGRATING]
+        val migrating = propertyMap[MIGRATING]
         if (migratingAllowed) {
             // If the version does not support properties (except when migrating) and the
             // version defaults have been overridden then the `migrating` property is mandatory
