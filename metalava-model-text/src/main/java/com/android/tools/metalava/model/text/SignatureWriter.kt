@@ -117,27 +117,6 @@ class SignatureWriter(
         write("\n")
     }
 
-    /**
-     * Writes the signature for the [typeAlias], which is formatted differently from all other
-     * [ClassItem]s.
-     *
-     * This should only be called if [typeAlias] is a typealias.
-     */
-    fun visitTypeAlias(typeAlias: ClassItem) {
-        write("  ")
-
-        writeModifiers(typeAlias)
-
-        write("typealias ")
-
-        write(typeAlias.simpleName())
-        writeTypeParameterList(typeAlias.typeParameterList, addSpace = false)
-
-        write(" = ")
-        writeType(typeAlias.aliasedType)
-        write(";\n\n")
-    }
-
     override fun visitProperty(property: PropertyItem) {
         write("    property ")
         writeModifiers(property)
@@ -197,32 +176,32 @@ class SignatureWriter(
     }
 
     override fun visitClass(cls: ClassItem) {
-        // Typealiases are written in a different format than any other class.
-        if (cls.classKind == ClassKind.TYPEALIAS) {
-            visitTypeAlias(cls)
-            return
-        }
         write("  ")
 
         writeModifiers(cls)
 
-        if (cls.isAnnotationType()) {
-            write("@interface")
-        } else if (cls.isInterface()) {
-            write("interface")
-        } else if (cls.isEnum()) {
-            write("enum")
-        } else {
-            write("class")
-        }
+        // Get the keyword to use for the class kind.
+        val classKind = cls.classKind
+        write(classKind.signatureKeyword)
         write(" ")
-        write(cls.fullName())
-        writeTypeParameterList(cls.typeParameterList, addSpace = false)
-        writeSuperClassStatement(cls)
-        writeInterfaceList(cls)
-        propagateSuppressAnnotationsToSubclasses(cls)
 
-        write(" {\n")
+        if (classKind == ClassKind.TYPEALIAS) {
+            // The rest of a typealias is written in a different format than any other class.
+            write(cls.simpleName())
+            writeTypeParameterList(cls.typeParameterList, addSpace = false)
+            write(" = ")
+            writeType(cls.aliasedType)
+            write(";\n\n")
+        } else {
+            // Write the rest of a normal class.
+            write(cls.fullName())
+            writeTypeParameterList(cls.typeParameterList, addSpace = false)
+            writeSuperClassStatement(cls)
+            writeInterfaceList(cls)
+            propagateSuppressAnnotationsToSubclasses(cls)
+
+            write(" {\n")
+        }
     }
 
     /**
@@ -284,7 +263,8 @@ class SignatureWriter(
     }
 
     private fun writeSuperClassStatement(cls: ClassItem) {
-        if (cls.isEnum() || cls.isAnnotationType() || cls.isInterface()) {
+        val classKind = cls.classKind
+        if (!classKind.allowsExplicitSuperClass) {
             return
         }
 

@@ -756,4 +756,68 @@ class FileFormatTest {
         )
         assertEquals("5.0", format.specifier())
     }
+
+    @Test
+    fun `Check get does not apply defaults`() {
+        val formatDefaults = FileFormat.parseDefaults("strip-java-lang-prefix=never")
+        val format = FileFormat.V2.copy(formatDefaults = formatDefaults)
+
+        val properties = buildString {
+            for (property in FileFormat.CustomizableProperty.entries) {
+                val value = format[property]
+                if (value != null) {
+                    append(property.propertyName)
+                    append("=")
+                    append(value)
+                    append("\n")
+                }
+            }
+        }
+
+        assertEquals(
+            """
+                include-default-parameter-values=no
+                include-type-use-annotations=no
+                kotlin-name-type-order=no
+                kotlin-style-nulls=no
+            """
+                .trimIndent(),
+            properties.trim()
+        )
+    }
+
+    @Test
+    fun `Check getWithDefault applies defaults`() {
+        val formatDefaults = FileFormat.parseDefaults("strip-java-lang-prefix=never")
+        val format = FileFormat.V2.copy(formatDefaults = formatDefaults)
+
+        val properties = buildString {
+            for (property in FileFormat.CustomizableProperty.entries) {
+                val value = format.getWithDefault(property)
+                if (value != null) {
+                    append(property.propertyName)
+                    append("=")
+                    append(value)
+                    append("\n")
+                }
+            }
+        }
+
+        assertEquals(
+            """
+                add-additional-overrides=no
+                include-default-parameter-values=no
+                include-type-use-annotations=no
+                kotlin-name-type-order=no
+                kotlin-style-nulls=no
+                normalize-final-modifier=no
+                overloaded-method-order=signature
+                sort-whole-extends-list=no
+                strip-java-lang-prefix=never
+                type-argument-spacing=legacy
+            """
+                .trimIndent(),
+            properties.trim()
+        )
+    }
 }
