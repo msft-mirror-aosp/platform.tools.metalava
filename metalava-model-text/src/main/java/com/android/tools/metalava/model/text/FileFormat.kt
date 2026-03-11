@@ -846,6 +846,12 @@ data class FileFormat(
         internal var typeArgumentSpacing: TypeArgumentSpacing? = null
         internal var surface: String? = null
 
+        /** Set [property] to [value]. */
+        operator fun <T> set(property: CustomizableProperty<T>, value: T) {
+            val setter = property.setter
+            setter(value)
+        }
+
         /** Set [property] in this from [value] [String]. */
         fun setFromString(property: CustomizableProperty<*>, value: String) {
             property.setFromString(this, value)
