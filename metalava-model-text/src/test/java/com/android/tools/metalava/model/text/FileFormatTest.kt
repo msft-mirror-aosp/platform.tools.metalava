@@ -118,7 +118,7 @@ class FileFormatTest {
     }
 
     @Test
-    fun `Check format parsing (v1)`() {
+    fun `Check format parsing - v1`() {
         checkParseHeader(
             """
                 package test.pkg {
@@ -133,7 +133,7 @@ class FileFormatTest {
     }
 
     @Test
-    fun `Check format parsing (v1 + legacy format)`() {
+    fun `Check format parsing - v1 + legacy format`() {
         checkParseHeader(
             """
                 package test.pkg {
@@ -149,7 +149,7 @@ class FileFormatTest {
     }
 
     @Test
-    fun `Check format parsing (unknown version)`() {
+    fun `Check format parsing - unknown version`() {
         checkParseHeader(
             """
                 // Signature format: 3.14
@@ -165,7 +165,7 @@ class FileFormatTest {
     }
 
     @Test
-    fun `Check format parsing (v2)`() {
+    fun `Check format parsing - v2`() {
         checkParseHeader(
             """
                 // Signature format: 2.0
@@ -182,7 +182,7 @@ class FileFormatTest {
     }
 
     @Test
-    fun `Check format parsing (v4)`() {
+    fun `Check format parsing - v4`() {
         checkParseHeader(
             """
                 // Signature format: 4.0
@@ -198,7 +198,7 @@ class FileFormatTest {
     }
 
     @Test
-    fun `Check format parsing (v2 non-unix newlines)`() {
+    fun `Check format parsing - v2 non-unix newlines`() {
         checkParseHeader(
             "" +
                 "// Signature format: 2.0\r\n" +
@@ -214,7 +214,7 @@ class FileFormatTest {
     }
 
     @Test
-    fun `Check format parsing, shortened prefix (v2 non-unix newlines)`() {
+    fun `Check format parsing, shortened prefix - v2 non-unix newlines`() {
         checkParseHeader(
             "" +
                 "// Signature for\r\n" +
@@ -230,7 +230,7 @@ class FileFormatTest {
     }
 
     @Test
-    fun `Check format parsing (invalid)`() {
+    fun `Check format parsing - invalid`() {
         checkParseHeader(
             """
                 blah blah
@@ -241,12 +241,12 @@ class FileFormatTest {
     }
 
     @Test
-    fun `Check format parsing (blank)`() {
+    fun `Check format parsing - blank`() {
         checkParseHeader("")
     }
 
     @Test
-    fun `Check format parsing (blank - multiple lines)`() {
+    fun `Check format parsing - blank - multiple lines`() {
         checkParseHeader(
             """
 
@@ -257,7 +257,7 @@ class FileFormatTest {
     }
 
     @Test
-    fun `Check format parsing (not blank, multiple lines of white space, then some text)`() {
+    fun `Check format parsing - not blank, multiple lines of white space, then some text`() {
         checkParseHeader(
             """
 
@@ -270,7 +270,7 @@ class FileFormatTest {
     }
 
     @Test
-    fun `Check format parsing (v4 + kotlin-style-nulls=no but no migrating)`() {
+    fun `Check format parsing - v4 + kotlin-style-nulls=no but no migrating`() {
         checkParseHeader(
             """
                 // Signature format: 4.0
@@ -282,7 +282,7 @@ class FileFormatTest {
     }
 
     @Test
-    fun `Check header and specifier (v4 + kotlin-style-nulls=no,migrating=test)`() {
+    fun `Check header and specifier - v4 + kotlin-style-nulls=no,migrating=test`() {
         headerAndSpecifierTest(
             header =
                 """
@@ -297,7 +297,7 @@ class FileFormatTest {
     }
 
     @Test
-    fun `Check header and specifier (v2 + kotlin-style-nulls=yes,migrating=test)`() {
+    fun `Check header and specifier - v2 + kotlin-style-nulls=yes,migrating=test`() {
         headerAndSpecifierTest(
             header =
                 """
@@ -312,7 +312,7 @@ class FileFormatTest {
     }
 
     @Test
-    fun `Check header and specifier (v5)`() {
+    fun `Check header and specifier - v5`() {
         headerAndSpecifierTest(
             header =
                 """
@@ -325,7 +325,7 @@ class FileFormatTest {
     }
 
     @Test
-    fun `Check format parsing (v5) - no properties with package`() {
+    fun `Check format parsing - v5 - no properties with package`() {
         checkParseHeader(
             """
                 // Signature format: 5.0
@@ -337,7 +337,7 @@ class FileFormatTest {
     }
 
     @Test
-    fun `Check format parsing (v5) - invalid property`() {
+    fun `Check format parsing - v5 - invalid property`() {
         checkParseHeader(
             """
                 // Signature format: 5.0
@@ -350,7 +350,7 @@ class FileFormatTest {
     }
 
     @Test
-    fun `Check format parsing (v5) - kotlin-style-nulls property`() {
+    fun `Check format parsing - v5 - kotlin-style-nulls property`() {
         checkParseHeader(
             """
                 // Signature format: 5.0
@@ -375,7 +375,7 @@ class FileFormatTest {
     }
 
     @Test
-    fun `Check header and specifier (v2)`() {
+    fun `Check header and specifier - v2`() {
         headerAndSpecifierTest(
             header =
                 """
@@ -388,7 +388,7 @@ class FileFormatTest {
     }
 
     @Test
-    fun `Check header and specifier (v2 + kotlin-style-nulls=yes + migrating=test)`() {
+    fun `Check header and specifier - v2 + kotlin-style-nulls=yes + migrating=test`() {
         headerAndSpecifierTest(
             header =
                 """
@@ -403,7 +403,7 @@ class FileFormatTest {
     }
 
     @Test
-    fun `Check header and specifier (v4 + kotlin-style-nulls=no)`() {
+    fun `Check header and specifier - v4 + kotlin-style-nulls=no`() {
         headerAndSpecifierTest(
             header =
                 """
@@ -418,7 +418,7 @@ class FileFormatTest {
     }
 
     @Test
-    fun `Check header (v2 + overloaded-method-order=source but no migrating)`() {
+    fun `Check header - v2 + overloaded-method-order=source but no migrating`() {
         assertEquals(
             // The full specifier is only output when migrating is specified.
             "// Signature format: 2.0\n",
@@ -442,7 +442,7 @@ class FileFormatTest {
     }
 
     @Test
-    fun `Check header and specifier (v5 + overloaded-method-order=source)`() {
+    fun `Check header and specifier - v5 + overloaded-method-order=source`() {
         headerAndSpecifierTest(
             header =
                 """
@@ -459,7 +459,7 @@ class FileFormatTest {
     }
 
     @Test
-    fun `Check header and specifier (v5 + overloaded-method-order=source,migrating=test)`() {
+    fun `Check header and specifier - v5 + overloaded-method-order=source,migrating=test`() {
         headerAndSpecifierTest(
             header =
                 """
@@ -478,7 +478,7 @@ class FileFormatTest {
     }
 
     @Test
-    fun `Check header and specifier (v5 + strip-java-lang-prefix=always)`() {
+    fun `Check header and specifier - v5 + strip-java-lang-prefix=always`() {
         headerAndSpecifierTest(
             header =
                 """
@@ -497,7 +497,7 @@ class FileFormatTest {
     }
 
     @Test
-    fun `Check header and specifier (v5 + language=java)`() {
+    fun `Check header and specifier - v5 + language=java`() {
         headerAndSpecifierTest(
             header =
                 """
@@ -516,7 +516,7 @@ class FileFormatTest {
     }
 
     @Test
-    fun `Check header and specifier (v5 + kotlin-style-nulls=yes,language=java)`() {
+    fun `Check header and specifier - v5 + kotlin-style-nulls=yes,language=java`() {
         headerAndSpecifierTest(
             header =
                 """
@@ -536,7 +536,7 @@ class FileFormatTest {
     }
 
     @Test
-    fun `Check header and specifier (v5 + language=kotlin)`() {
+    fun `Check header and specifier - v5 + language=kotlin`() {
         headerAndSpecifierTest(
             header =
                 """
@@ -553,7 +553,7 @@ class FileFormatTest {
     }
 
     @Test
-    fun `Check header and specifier (v5 + include-default-parameter-values=no,language=kotlin)`() {
+    fun `Check header and specifier - v5 + include-default-parameter-values=no,language=kotlin`() {
         headerAndSpecifierTest(
             header =
                 """
@@ -572,7 +572,7 @@ class FileFormatTest {
     }
 
     @Test
-    fun `Check header and specifier (v5 + kotlinNameTypeOrder=yes)`() {
+    fun `Check header and specifier - v5 + kotlinNameTypeOrder=yes`() {
         headerAndSpecifierTest(
             header =
                 """
@@ -589,7 +589,7 @@ class FileFormatTest {
     }
 
     @Test
-    fun `Check header and specifier (v5 + include-type-use-annotations=yes,kotlin-name-type-order=yes)`() {
+    fun `Check header and specifier - v5 + include-type-use-annotations=yes,kotlin-name-type-order=yes`() {
         headerAndSpecifierTest(
             header =
                 """
