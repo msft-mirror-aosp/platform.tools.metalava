@@ -393,20 +393,16 @@ data class FileFormat(
      *
      * This will NOT apply any defaults that it finds.
      */
-    fun getAsString(property: CustomizableProperty<*>) = property.stringFromFormat(this)
+    fun <T> getAsString(property: CustomizableProperty<T>) =
+        propertyMap[property]?.let { property.valueToString(it) }
 
     /**
      * Get the value of [property] as a [String].
      *
      * This will apply any defaults that it finds.
      */
-    fun getWithDefault(property: CustomizableProperty<*>) =
-        // First try in this format directly.
-        this.getAsString(property)
-            // If it could not be found then look in the defaults if provided.
-            ?: formatDefaults?.getAsString(property)
-            // If it still could not be found then use the property default.
-            ?: property.defaultValueAsString()
+    fun <T> getWithDefault(property: CustomizableProperty<T>) =
+        this[property]?.let { property.valueToString(it) }
 
     /** Build a copy of this [FileFormat] by applying [body] to [Builder]. */
     inline fun buildCopy(body: Builder.() -> Unit) = Builder(this).apply { body() }.build()

@@ -43,7 +43,7 @@ private constructor(
     val valueSyntax: String,
     /** Help text to use on the command line. */
     val help: String,
-    private val valueToString: (T & Any).() -> String,
+    internal val valueToString: (T & Any).() -> String,
     private val stringToValue: FromString.() -> T,
 ) : ReadOnlyProperty<CustomizableProperty.Companion, CustomizableProperty<T>> {
 
@@ -491,18 +491,6 @@ private constructor(
         val value = FromString(propertyName, string).stringToValue()
         mutablePropertyMap[this] = value
     }
-
-    /**
-     * Get the string representation of the corresponding property from the supplied [FileFormat].
-     */
-    internal fun stringFromFormat(format: FileFormat): String? =
-        format.propertyMap[this]?.valueToString()
-
-    /** Get the string representation of this property from the supplied [BasePropertyMap]. */
-    internal fun stringFromPropertyMap(map: BasePropertyMap): String? = map[this]?.valueToString()
-
-    /** Get [defaultValue] as a string. */
-    fun defaultValueAsString() = defaultValue?.valueToString()
 }
 
 /**
@@ -520,11 +508,15 @@ abstract class BasePropertyMap : Iterable<CustomizableProperty<*>> {
 
     abstract override fun iterator(): Iterator<CustomizableProperty<*>>
 
+    /** Get the string representation of [property]'s value in this [BasePropertyMap]. */
+    private fun <T> propertyAsString(property: CustomizableProperty<T>) =
+        this[property]?.let { property.valueToString(it) }
+
     override fun toString() = buildString {
         append('{')
         var separator = ""
         for (property in this@BasePropertyMap) {
-            val valueAsString = property.stringFromPropertyMap(this@BasePropertyMap) ?: continue
+            val valueAsString = propertyAsString(property) ?: continue
             append(separator)
             append(property.propertyName)
             append('=')
@@ -550,13 +542,6 @@ internal constructor(
 
     @Suppress("UNCHECKED_CAST")
     override operator fun <T> get(property: CustomizableProperty<T>): T? = map[property] as T?
-
-    /**
-     * Get the value of [property] as a [String].
-     *
-     * This will NOT apply any defaults that it finds.
-     */
-    fun getAsString(property: CustomizableProperty<*>) = property.stringFromPropertyMap(this)
 
     /** Convert this to a [MutablePropertyMap]. */
     fun toMutableMap() = MutablePropertyMap(map.toMutableMap())
