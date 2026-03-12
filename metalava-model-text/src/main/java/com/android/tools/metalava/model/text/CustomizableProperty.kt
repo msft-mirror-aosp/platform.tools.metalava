@@ -637,14 +637,26 @@ internal constructor(
         this[property]?.let {
             return
         }
-        val value = other[property] ?: return
-        this[property] = value
+        copyFromOther(other, property)
     }
 
     /** Apply any property values set in [other] that are not set in this. */
     internal fun applyDefaultsFromOther(other: BasePropertyMap) {
         for (property in other) {
             applyDefaultFromOther(other, property)
+        }
+    }
+
+    /** Copy [property] value from [other] if it is set in [other]. */
+    private fun <T> copyFromOther(other: BasePropertyMap, property: CustomizableProperty<T>) {
+        val value = other[property] ?: return
+        this[property] = value
+    }
+
+    /** Copy any property values set in [other]. */
+    internal fun copyFromOther(other: BasePropertyMap) {
+        for (property in other) {
+            copyFromOther(other, property)
         }
     }
 

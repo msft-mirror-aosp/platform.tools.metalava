@@ -638,11 +638,7 @@ data class FileFormat(
          *
          * @param defaults comma separated list of property assignments that
          */
-        fun parseDefaults(defaults: String) = buildPropertyMap {
-            defaults.trim().split(",").forEach {
-                setPropertyFromAssignment(it, defaultableOnly = true)
-            }
-        }
+        fun parseDefaults(defaults: String) = parseProperties(defaults, defaultableOnly = true)
 
         /**
          * Parse the supplied set of overrides and construct a [FileFormat] by applying the
@@ -652,7 +648,25 @@ data class FileFormat(
          *   copy of [base], overriding the existing values of those properties, if any.
          */
         fun parseOverrides(base: FileFormat, overrides: String) =
-            base.buildCopy { overrides.trim().split(",").forEach { setPropertyFromAssignment(it) } }
+            base.buildCopy {
+                val properties = parseProperties(overrides)
+                mutablePropertyMap.copyFromOther(properties)
+            }
+
+        /**
+         * Parse a comma separated list of property assignments of the form `property=value`,
+         * populating a [PropertyMap].
+         *
+         * @param properties the property assignments.
+         * @param defaultableOnly if `true` then only [CustomizableProperty.defaultable] properties
+         *   are allowed.
+         */
+        private fun parseProperties(
+            properties: String,
+            defaultableOnly: Boolean = false,
+        ) = buildPropertyMap {
+            properties.trim().split(",").forEach { setPropertyFromAssignment(it, defaultableOnly) }
+        }
 
         /**
          * Get the names of the [CustomizableProperty] that are [CustomizableProperty.defaultable].
