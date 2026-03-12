@@ -764,7 +764,7 @@ class FileFormatTest {
         val format = FileFormat.V2.copy(formatDefaults = formatDefaults)
 
         val properties = buildString {
-            for (property in FileFormat.CustomizableProperty.entries) {
+            for (property in CustomizableProperty.entries) {
                 val value = format[property]
                 if (value != null) {
                     append(property.propertyName)
@@ -793,7 +793,7 @@ class FileFormatTest {
         val format = FileFormat.V2.copy(formatDefaults = formatDefaults)
 
         val properties = buildString {
-            for (property in FileFormat.CustomizableProperty.entries) {
+            for (property in CustomizableProperty.entries) {
                 val value = format.getWithDefault(property)
                 if (value != null) {
                     append(property.propertyName)
