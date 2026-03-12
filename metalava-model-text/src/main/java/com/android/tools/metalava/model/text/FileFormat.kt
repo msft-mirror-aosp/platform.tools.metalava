@@ -226,7 +226,9 @@ data class FileFormat(
          */
         internal fun defaultsIncludingLanguage(language: Language?) =
             language?.let { language ->
-                defaults.buildCopy { language.applyLanguageDefaults(this) }
+                defaults.buildCopy {
+                    mutablePropertyMap.applyDefaultsFromOther(language.propertyMap)
+                }
             } ?: defaults
     }
 
@@ -250,21 +252,31 @@ data class FileFormat(
      *
      * This is independent of the [Version].
      */
-    enum class Language(
-        private val includeDefaultParameterValues: Boolean,
-        private val kotlinStyleNulls: Boolean,
-    ) {
-        JAVA(includeDefaultParameterValues = false, kotlinStyleNulls = false),
-        KOTLIN(includeDefaultParameterValues = true, kotlinStyleNulls = true);
+    enum class Language {
+        JAVA {
+            override fun createPropertyMap() = buildPropertyMap {
+                this[INCLUDE_DEFAULT_PARAMETER_VALUES] = false
+                this[KOTLIN_STYLE_NULLS] = false
+            }
+        },
+        KOTLIN {
+            override fun createPropertyMap() = buildPropertyMap {
+                this[INCLUDE_DEFAULT_PARAMETER_VALUES] = true
+                this[KOTLIN_STYLE_NULLS] = true
+            }
+        },
+        ;
 
-        internal fun applyLanguageDefaults(builder: Builder) {
-            if (builder[INCLUDE_DEFAULT_PARAMETER_VALUES] == null) {
-                builder[INCLUDE_DEFAULT_PARAMETER_VALUES] = includeDefaultParameterValues
-            }
-            if (builder[KOTLIN_STYLE_NULLS] == null) {
-                builder[KOTLIN_STYLE_NULLS] = kotlinStyleNulls
-            }
-        }
+        /** Create [Language] specific [PropertyMap]. */
+        protected abstract fun createPropertyMap(): PropertyMap
+
+        /**
+         * The set of language specific defaults.
+         *
+         * Created lazily to avoid a dependency cycle during creation of the [LANGUAGE] property, it
+         * is created before the other properties like [KOTLIN_STYLE_NULLS] that are set.
+         */
+        val propertyMap: PropertyMap by lazy(LazyThreadSafetyMode.NONE) { createPropertyMap() }
     }
 
     enum class OverloadedMethodOrder(val comparator: Comparator<CallableItem>) {
@@ -706,7 +718,9 @@ data class FileFormat(
         /** Build the [FileFormat] from the information in this [Builder]. */
         fun build(): FileFormat {
             // Apply any language defaults first as they take priority over version defaults.
-            this[LANGUAGE]?.applyLanguageDefaults(this)
+            this[LANGUAGE]?.let { language ->
+                mutablePropertyMap.applyDefaultsFromOther(language.propertyMap)
+            }
 
             // Then apply any properties from the base which includes version defaults.
             mutablePropertyMap.applyDefaultsFromOther(base.propertyMap)
