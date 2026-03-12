@@ -112,8 +112,8 @@ Usage: metalava help signature-file-formats
   the file contains. The exact meaning of the API surface name is determined by the owner, metalava simply uses this as
   an identifier for comparison.
 
-  * `language = java|kotlin` - Deprecated, will be replaced with a general mechanism for defining named sets of
-  defaults.
+  * `style = java|kotlin` - The name of a predefined set of properties to apply as defaults. They override version
+  defaults but are themselves overridden by properties listed in the file.
 
   * `include-default-parameter-values = yes|no` - If `no` then the signature file will not include any information about
   default parameter values. If `yes` then it will use the pseudo modifier `optional` to indicate a parameter that has a

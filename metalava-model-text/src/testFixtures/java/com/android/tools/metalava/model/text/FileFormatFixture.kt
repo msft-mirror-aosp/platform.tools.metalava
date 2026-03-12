@@ -25,7 +25,6 @@ private val FILE_FORMAT_PROPERTY_NAMES =
         "include-type-use-annotations",
         "kotlin-name-type-order",
         "kotlin-style-nulls",
-        "language",
         "migrating",
         "name",
         "normalize-abstract-modifier",
@@ -33,6 +32,7 @@ private val FILE_FORMAT_PROPERTY_NAMES =
         "overloaded-method-order",
         "sort-whole-extends-list",
         "strip-java-lang-prefix",
+        "style",
         "surface",
         "type-argument-spacing",
     )

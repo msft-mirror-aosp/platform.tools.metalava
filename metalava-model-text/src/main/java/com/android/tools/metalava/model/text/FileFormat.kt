@@ -24,7 +24,6 @@ import com.android.tools.metalava.model.text.CustomizableProperty.Companion.INCL
 import com.android.tools.metalava.model.text.CustomizableProperty.Companion.INCLUDE_TYPE_USE_ANNOTATIONS
 import com.android.tools.metalava.model.text.CustomizableProperty.Companion.KOTLIN_NAME_TYPE_ORDER
 import com.android.tools.metalava.model.text.CustomizableProperty.Companion.KOTLIN_STYLE_NULLS
-import com.android.tools.metalava.model.text.CustomizableProperty.Companion.LANGUAGE
 import com.android.tools.metalava.model.text.CustomizableProperty.Companion.MIGRATING
 import com.android.tools.metalava.model.text.CustomizableProperty.Companion.NAME
 import com.android.tools.metalava.model.text.CustomizableProperty.Companion.NORMALIZE_ABSTRACT_MODIFIER
@@ -32,6 +31,7 @@ import com.android.tools.metalava.model.text.CustomizableProperty.Companion.NORM
 import com.android.tools.metalava.model.text.CustomizableProperty.Companion.OVERLOADED_METHOD_ORDER
 import com.android.tools.metalava.model.text.CustomizableProperty.Companion.SORT_WHOLE_EXTENDS_LIST
 import com.android.tools.metalava.model.text.CustomizableProperty.Companion.STRIP_JAVA_LANG_PREFIX
+import com.android.tools.metalava.model.text.CustomizableProperty.Companion.STYLE
 import com.android.tools.metalava.model.text.CustomizableProperty.Companion.SURFACE
 import com.android.tools.metalava.model.text.CustomizableProperty.Companion.TYPE_ARGUMENT_SPACING
 import com.android.tools.metalava.reporter.FileLocation
@@ -219,16 +219,14 @@ data class FileFormat(
         val defaults = factory(this)
 
         /**
-         * Get the version defaults plus any language defaults, if available.
+         * Get the version defaults plus any style defaults, if available.
          *
-         * @param language the optional language whose defaults should be applied to the version
+         * @param namedStyle the optional style whose defaults should be applied to the version
          *   defaults.
          */
-        internal fun defaultsIncludingLanguage(language: Language?) =
-            language?.let { language ->
-                defaults.buildCopy {
-                    mutablePropertyMap.applyDefaultsFromOther(language.propertyMap)
-                }
+        internal fun defaultsIncludingStyle(namedStyle: NamedStyle?) =
+            namedStyle?.let { style ->
+                defaults.buildCopy { mutablePropertyMap.applyDefaultsFromOther(style.propertyMap) }
             } ?: defaults
     }
 
@@ -246,13 +244,8 @@ data class FileFormat(
         FULL
     }
 
-    /**
-     * The language which the signature targets. While a Java API can be used by Kotlin, and vice
-     * versa, each API typically targets a specific language and this specifies that.
-     *
-     * This is independent of the [Version].
-     */
-    enum class Language {
+    /** The named styles available to apply. */
+    enum class NamedStyle {
         JAVA {
             override fun createPropertyMap() = buildPropertyMap {
                 this[INCLUDE_DEFAULT_PARAMETER_VALUES] = false
@@ -267,14 +260,14 @@ data class FileFormat(
         },
         ;
 
-        /** Create [Language] specific [PropertyMap]. */
+        /** Create [NamedStyle] specific [PropertyMap]. */
         protected abstract fun createPropertyMap(): PropertyMap
 
         /**
-         * The set of language specific defaults.
+         * The set of style specific defaults.
          *
-         * Created lazily to avoid a dependency cycle during creation of the [LANGUAGE] property, it
-         * is created before the other properties like [KOTLIN_STYLE_NULLS] that are set.
+         * Created lazily to avoid a dependency cycle during creation of the [NamedStyle] property,
+         * it is created before the other properties like [KOTLIN_STYLE_NULLS] that are set.
          */
         val propertyMap: PropertyMap by lazy(LazyThreadSafetyMode.NONE) { createPropertyMap() }
     }
@@ -351,11 +344,11 @@ data class FileFormat(
 
     /**
      * Iterate over all the properties of this format which have different values to the values in
-     * this format's [Version.defaultsIncludingLanguage], invoking the [consumer] with each
-     * property, value pair.
+     * this format's [Version.defaultsIncludingStyle], invoking the [consumer] with each property,
+     * value pair.
      */
     private fun iterateOverCustomizableProperties(consumer: (String, String) -> Unit) {
-        val defaults = version.defaultsIncludingLanguage(propertyMap[LANGUAGE])
+        val defaults = version.defaultsIncludingStyle(propertyMap[STYLE])
         if (this != defaults) {
             CustomizableProperty.entries.forEach { property ->
                 // Get the string value of this property, if null then it was not specified so skip
@@ -617,7 +610,7 @@ data class FileFormat(
         /**
          * Parse property pairs, one per line, each of which must be prefixed with
          * [PROPERTY_LINE_PREFIX], apply them to the supplied [version]s
-         * [Version.defaultsIncludingLanguage] and returning the result.
+         * [Version.defaultsIncludingStyle] and returning the result.
          */
         private fun parseProperties(
             reader: LineNumberReader,
@@ -717,9 +710,9 @@ data class FileFormat(
 
         /** Build the [FileFormat] from the information in this [Builder]. */
         fun build(): FileFormat {
-            // Apply any language defaults first as they take priority over version defaults.
-            this[LANGUAGE]?.let { language ->
-                mutablePropertyMap.applyDefaultsFromOther(language.propertyMap)
+            // Apply any style defaults first as they take priority over version defaults.
+            this[STYLE]?.let { style ->
+                mutablePropertyMap.applyDefaultsFromOther(style.propertyMap)
             }
 
             // Then apply any properties from the base which includes version defaults.

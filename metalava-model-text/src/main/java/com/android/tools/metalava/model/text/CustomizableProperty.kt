@@ -19,7 +19,7 @@ package com.android.tools.metalava.model.text
 import com.android.tools.metalava.model.StripJavaLangPrefix
 import com.android.tools.metalava.model.text.FileFormat.Builder
 import com.android.tools.metalava.model.text.FileFormat.Companion.parseSpecifier
-import com.android.tools.metalava.model.text.FileFormat.Language
+import com.android.tools.metalava.model.text.FileFormat.NamedStyle
 import com.android.tools.metalava.model.text.FileFormat.OverloadedMethodOrder
 import com.android.tools.metalava.model.text.FileFormat.TypeArgumentSpacing
 import java.util.Locale
@@ -204,14 +204,15 @@ private constructor(
                     """,
             )
 
-        /** language=[java|kotlin] */
-        val LANGUAGE by
-            optionalEnumProperty<Language>(
+        /** style=[java|kotlin] */
+        val STYLE by
+            optionalEnumProperty<NamedStyle>(
                 defaultValue = null,
                 help =
                     """
-                        Deprecated, will be replaced with a general mechanism for defining named
-                        sets of defaults.
+                        The name of a predefined set of properties to apply as defaults. They
+                        override version defaults but are themselves overridden by properties listed
+                        in the file.
                     """,
             )
 
