@@ -623,12 +623,7 @@ internal constructor(
         val name = propertyParts[0]
         val value = propertyParts[1]
         val customizable = CustomizableProperty.getByName(name, defaultableOnly)
-        setFromString(customizable, value)
-    }
-
-    /** Set [property] in this from [value] [String]. */
-    fun setFromString(property: CustomizableProperty<*>, value: String) {
-        property.setFromString(this, value)
+        customizable.setFromString(this, value)
     }
 
     /** Apply [property] value from [other] if it is not set in this and is set in [other]. */
