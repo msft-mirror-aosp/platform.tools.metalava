@@ -175,6 +175,56 @@ private class FileStructurePreserver(
     }
 
     /**
+     * Check to see whether this should preserve the property from [currentFormat] or see if it can
+     * use the property from [targetFormat] instead.
+     */
+    private fun <T> copyPropertyPreservingStructure(
+        builder: FileFormat.Builder,
+        property: CustomizableProperty<T>,
+    ) {
+        // Get the current value of the property, including any defaults. If it is not set
+        // then it will have no impact on the resulting format so return.
+        val currentValue = currentFormat[property] ?: return
+
+        // Get the target value, including any defaults.
+        val targetValue = targetFormat[property]
+        if (targetValue == null) {
+            // The target value is null so use the value from the current file.
+            builder[property] = currentValue
+        } else if (targetValue != currentValue) {
+            // The target value is different from the current value so see whether it needs
+            // to be changed.
+            if (property.defaultable) {
+                // Defaultable properties should only be specified if needed. Check to see
+                // if its value has any impact on the generated signature file.
+
+                // Build a [FileFormat] that is the same as the [currentFormat] but with
+                // its [property] set to the [targetFormat]'s value.
+                val currentFormatWithTargetValue =
+                    currentFormat.buildCopy { this[property] = targetValue }
+
+                // Generate the signature contents with that format.
+                val contentsWithProperty =
+                    codebase.toSignatureNoHeader(currentFormatWithTargetValue)
+
+                // If the contents are different with the target value then keep the current
+                // value.
+                if (currentContents != contentsWithProperty) {
+                    builder[property] = currentValue
+                }
+            } else {
+                // Always keep the current value for non-defaultable properties as they are
+                // significant even if they do not affect the current signature file.
+                // e.g. if the current sets `kotlin-style-nulls=no` and the target sets
+                // `kotlin-style-nulls=yes` this cannot just use the latter even if it has
+                // no impact on the current structure that is a fundamental change in the
+                // information that will be recorded.
+                builder[property] = currentValue
+            }
+        }
+    }
+
+    /**
      * Compute a [FileFormat] that will preserve the structure of the original [currentFormat] while
      * incorporating changes from [targetFormat].
      *
@@ -189,50 +239,10 @@ private class FileStructurePreserver(
         // Create a new FileFormat based on the [targetFormat] with properties copied from
         // [currentFormat] where necessary.
         targetFormat.buildCopy {
-
             // Iterate over all the properties checking to see if the [targetFormat] value needs to
             // be replaced with the [currentFormat] value.
             for (property in CustomizableProperty.entries) {
-                // Get the current value of the property, including any defaults. If it is not set
-                // then it will have no impact on the resulting format so continue.
-                val currentValue = currentFormat.getWithDefault(property) ?: continue
-
-                // Get the target value, including any defaults.
-                val targetValue = targetFormat.getWithDefault(property)
-                if (targetValue == null) {
-                    // The target value is null so use the value from the current file.
-                    setFromString(property, currentValue)
-                } else if (targetValue != currentValue) {
-                    // The target value is different from the current value so see whether it needs
-                    // to be changed.
-                    if (property.defaultable) {
-                        // Defaultable properties should only be specified if needed. Check to see
-                        // if its value has any impact on the generated signature file.
-
-                        // Build a [FileFormat] that is the same as the [currentFormat] but with
-                        // its [property] set to the [targetFormat]'s value.
-                        val currentFormatWithTargetValue =
-                            currentFormat.buildCopy { setFromString(property, targetValue) }
-
-                        // Generate the signature contents with that format.
-                        val contentsWithProperty =
-                            codebase.toSignatureNoHeader(currentFormatWithTargetValue)
-
-                        // If the contents are different with the target value then keep the current
-                        // value.
-                        if (currentContents != contentsWithProperty) {
-                            setFromString(property, currentValue)
-                        }
-                    } else {
-                        // Always keep the current value for non-defaultable properties as they are
-                        // significant even if they do not affect the current signature file.
-                        // e.g. if the current sets `kotlin-style-nulls=no` and the target sets
-                        // `kotlin-style-nulls=yes` this cannot just use the latter even if it has
-                        // no impact on the current structure that is a fundamental change in the
-                        // information that will be recorded.
-                        setFromString(property, currentValue)
-                    }
-                }
+                copyPropertyPreservingStructure(this, property)
             }
         }
 }

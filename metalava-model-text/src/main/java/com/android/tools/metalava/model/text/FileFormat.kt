@@ -692,11 +692,6 @@ data class FileFormat(
         }
 
         /** Delegate to [mutablePropertyMap]. */
-        fun setFromString(property: CustomizableProperty<*>, value: String) {
-            mutablePropertyMap.setFromString(property, value)
-        }
-
-        /** Delegate to [mutablePropertyMap]. */
         internal fun setPropertyFromAssignment(
             assignment: String,
             defaultableOnly: Boolean = false,
