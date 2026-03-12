@@ -579,10 +579,7 @@ data class FileFormat(
 
             val properties = specifierParts[1]
 
-            val format =
-                versionDefaults.buildCopy {
-                    properties.trim().split(",").forEach { setPropertyFromAssignment(it) }
-                }
+            val format = parseOverrides(versionDefaults, properties)
 
             format.validate(
                 exceptionContext = "invalid format specifier: '$specifier' - ",
