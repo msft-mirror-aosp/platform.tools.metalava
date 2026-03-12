@@ -607,8 +607,12 @@ data class FileFormat(
          * [PROPERTY_LINE_PREFIX], apply them to the supplied [version]s
          * [Version.defaultsIncludingLanguage] and returning the result.
          */
-        private fun parseProperties(reader: LineNumberReader, version: Version) =
-            version.defaults.buildCopy {
+        private fun parseProperties(
+            reader: LineNumberReader,
+            version: Version,
+        ): FileFormat {
+            // Parse the properties into a PropertyMap.
+            val propertyMap = buildPropertyMap {
                 do {
                     reader.mark(BUFFER_SIZE)
                     val line = reader.readLine() ?: break
@@ -628,6 +632,14 @@ data class FileFormat(
                     setPropertyFromAssignment(remainder)
                 } while (true)
             }
+
+            return if (propertyMap.isEmpty()) {
+                version.defaults
+            } else {
+                // Override the default properties.
+                version.defaults.buildCopy { mutablePropertyMap.copyFromOther(propertyMap) }
+            }
+        }
 
         /**
          * Parse the supplied set of defaults and construct a [FileFormat].
@@ -689,14 +701,6 @@ data class FileFormat(
         /** Delegate to [mutablePropertyMap]. */
         operator fun <T> set(property: CustomizableProperty<T>, value: T) {
             mutablePropertyMap[property] = value
-        }
-
-        /** Delegate to [mutablePropertyMap]. */
-        internal fun setPropertyFromAssignment(
-            assignment: String,
-            defaultableOnly: Boolean = false,
-        ) {
-            mutablePropertyMap.setPropertyFromAssignment(assignment, defaultableOnly)
         }
 
         /** Build the [FileFormat] from the information in this [Builder]. */

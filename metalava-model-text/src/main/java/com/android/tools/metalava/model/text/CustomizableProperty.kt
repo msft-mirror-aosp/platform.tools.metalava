@@ -505,14 +505,21 @@ private constructor(
  * Provides behavior common to both.
  */
 abstract class BasePropertyMap : Iterable<CustomizableProperty<*>> {
+    /** Iterate over all the properties in this map. */
+    abstract override fun iterator(): Iterator<CustomizableProperty<*>>
+
+    /** Check to see if this is empty. */
+    abstract fun isEmpty(): Boolean
+
+    /** Check to see if this is not empty. */
+    fun isNotEmpty(): Boolean = !isEmpty()
+
     /**
      * Get the value of [property] as [T]
      *
      * This will NOT apply any defaults.
      */
     abstract operator fun <T> get(property: CustomizableProperty<T>): T?
-
-    abstract override fun iterator(): Iterator<CustomizableProperty<*>>
 
     /** Get the string representation of [property]'s value in this [BasePropertyMap]. */
     private fun <T> propertyAsString(property: CustomizableProperty<T>) =
@@ -545,6 +552,8 @@ internal constructor(
     private val map: Map<CustomizableProperty<*>, Any?> = emptyMap(),
 ) : BasePropertyMap() {
     override fun iterator() = map.keys.iterator()
+
+    override fun isEmpty() = map.isEmpty()
 
     @Suppress("UNCHECKED_CAST")
     override operator fun <T> get(property: CustomizableProperty<T>): T? = map[property] as T?
@@ -584,6 +593,8 @@ internal constructor(
     private val map: MutableMap<CustomizableProperty<*>, Any?> = mutableMapOf(),
 ) : BasePropertyMap() {
     override fun iterator() = map.keys.iterator()
+
+    override fun isEmpty() = map.isEmpty()
 
     @Suppress("UNCHECKED_CAST")
     override operator fun <T> get(property: CustomizableProperty<T>): T? = map[property] as T?
