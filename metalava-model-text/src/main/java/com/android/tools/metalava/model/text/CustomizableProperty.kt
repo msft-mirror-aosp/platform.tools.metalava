@@ -453,6 +453,9 @@ private constructor(
                 }
     }
 
+    /** The name of the constant in [Companion]. */
+    private lateinit var companionPropertyName: String
+
     /** The property name in the [parseSpecifier] input. */
     lateinit var propertyName: String
         private set
@@ -475,7 +478,8 @@ private constructor(
         property: KProperty<*>
     ): CustomizableProperty<T> {
         // Initialize property name based on the Companion property names.
-        propertyName = property.name.lowercase(Locale.US).replace("_", "-")
+        companionPropertyName = property.name
+        propertyName = companionPropertyName.lowercase(Locale.US).replace("_", "-")
         propertyList.add(this)
         return this
     }
@@ -491,6 +495,8 @@ private constructor(
         val value = FromString(propertyName, string).stringToValue()
         mutablePropertyMap[this] = value
     }
+
+    override fun toString() = companionPropertyName
 }
 
 /**
