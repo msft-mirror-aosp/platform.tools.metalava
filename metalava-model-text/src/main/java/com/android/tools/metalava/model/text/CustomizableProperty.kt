@@ -528,7 +528,7 @@ abstract class BasePropertyMap : Iterable<CustomizableProperty<*>> {
     override fun toString() = buildString {
         append('{')
         var separator = ""
-        for (property in this@BasePropertyMap) {
+        for (property in CustomizableProperty.entries) {
             val valueAsString = propertyAsString(property) ?: continue
             append(separator)
             append(property.propertyName)
