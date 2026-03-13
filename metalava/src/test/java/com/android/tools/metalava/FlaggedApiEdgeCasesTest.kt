@@ -411,11 +411,11 @@ class FlaggedApiEdgeCasesTest : DriverTest() {
                       }
                       @FlaggedApi("flag.name2") public class Test.FlaggedNested {
                       }
-                      public class Test.FlaggedNested.FlaggedNestedTwice {
+                      @FlaggedApi("flag.name2") public class Test.FlaggedNested.FlaggedNestedTwice {
                       }
-                      public class Test.Nested {
+                      @FlaggedApi("flag.name1") public class Test.Nested {
                       }
-                      public class Test.Nested.NestedTwice {
+                      @FlaggedApi("flag.name1") public class Test.Nested.NestedTwice {
                       }
                     }
                 """,
