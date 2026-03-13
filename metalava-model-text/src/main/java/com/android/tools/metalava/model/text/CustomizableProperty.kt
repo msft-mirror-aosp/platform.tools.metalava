@@ -43,7 +43,7 @@ private constructor(
     val valueSyntax: String,
     /** Help text to use on the command line. */
     val help: String,
-    internal val valueToString: (T & Any).() -> String,
+    val valueToString: (T & Any).() -> String,
     private val stringToValue: FromString.() -> T,
 ) : ReadOnlyProperty<CustomizableProperty.Companion, CustomizableProperty<T>> {
 

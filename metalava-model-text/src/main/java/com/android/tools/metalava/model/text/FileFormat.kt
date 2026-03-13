@@ -148,12 +148,7 @@ data class FileFormat(
             },
             help =
                 """
-                    Introduced support for improved Kotlin tracking. This is `2.0` plus the
-                    following properties:
-                    ```
-                    + include-default-parameter-values = yes
-                    + kotlin-style-nulls = yes
-                    ```
+                    Introduced support for improved Kotlin tracking.
                 """,
         ),
         V5(
@@ -197,16 +192,7 @@ data class FileFormat(
                     Provides support for sealed and record classes.
 
                     Also, provides defaults for lots of formatting properties to ensure consistent
-                    formatting. This is `5.0` plus the following properties:
-                    ```
-                    + add-additional-overrides = yes
-                    + normalize-abstract-modifier = yes
-                    + normalize-final-modifier = yes
-                    + overloaded-method-order = signature
-                    + sort-whole-extends-list = yes
-                    + strip-java-lang-prefix = always
-                    + type-argument-spacing = space
-                    ```
+                    formatting.
                 """,
         ),
         ;
