@@ -112,6 +112,9 @@ data class FileFormat(
         /** The version number of this as a string, e.g. "3.0". */
         val versionNumber: String,
 
+        /** The optional [Version] that this extends. */
+        val baseVersion: Version? = null,
+
         /** Indicates whether the version supports properties fully or just for migrating. */
         internal val propertySupport: PropertySupport = PropertySupport.FOR_MIGRATING_ONLY,
 
@@ -138,8 +141,9 @@ data class FileFormat(
         ),
         V4(
             versionNumber = "4.0",
+            baseVersion = V2,
             factory = { version ->
-                V2.defaults.buildCopy {
+                version.baseDefaults.buildCopy {
                     this.version = version
                     // This adds kotlinStyleNulls = true
                     this[KOTLIN_STYLE_NULLS] = true
@@ -159,10 +163,11 @@ data class FileFormat(
         ),
         V5(
             versionNumber = "5.0",
+            baseVersion = V4,
             // This adds full property support.
             propertySupport = PropertySupport.FULL,
             factory = { version ->
-                V4.defaults.copy(
+                version.baseDefaults.copy(
                     version = version,
                     // This does not add any property defaults, just full property support.
                 )
@@ -177,10 +182,11 @@ data class FileFormat(
         ),
         V6(
             versionNumber = "6.0",
+            baseVersion = V5,
             // This adds full property support.
             propertySupport = PropertySupport.FULL,
             factory = { version ->
-                V5.defaults.buildCopy {
+                version.baseDefaults.buildCopy {
                     this.version = version
                     this[ADD_ADDITIONAL_OVERRIDES] = true
                     this[NORMALIZE_ABSTRACT_MODIFIER] = true
@@ -209,6 +215,13 @@ data class FileFormat(
                 """,
         ),
         ;
+
+        /**
+         * The base [Version.defaults] for this version. Must only be called when [baseVersion] is
+         * non-null.
+         */
+        private val baseDefaults
+            get() = baseVersion!!.defaults
 
         /**
          * The defaults associated with this version.
