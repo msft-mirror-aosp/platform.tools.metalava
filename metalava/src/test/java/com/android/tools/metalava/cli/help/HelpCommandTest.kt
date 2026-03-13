@@ -163,6 +163,14 @@ Usage: metalava help signature-file-formats
   * `add-additional-overrides = yes|no` - If `yes` then add additional overrides into the signature file that are needed
   in order to create compilable stubs from the signature file.
 
+  * `flagged-api-inheritance = none|nested-classes` - Specifies whether `@FlaggedApi` annotations are inherited in
+  signature files.
+
+  `none` (default) - they are not inherited. This can make it difficult to determine whether a nested class is flagged
+  when reviewin as the containing class may be out of view or even in another file altogether.
+
+  `nested-classes` - they are inherited onto nested classes that do not have their own `@FlaggedApi` annotation.
+
   * `normalize-abstract-modifier = yes|no` - Specifies how the `abstract` modifier is handled on `abstract` methods. If
   this is `yes` and the method's containing class does not allow `abstract` then the `abstract` modifier is not written
   out, otherwise it is.
@@ -233,6 +241,7 @@ Usage: metalava help signature-file-formats
   following properties:
 
   + add-additional-overrides = yes
+  + flagged-api-inheritance = nested-classes
   + normalize-abstract-modifier = yes
   + normalize-final-modifier = yes
   + overloaded-method-order = signature

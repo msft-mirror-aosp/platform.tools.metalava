@@ -17,9 +17,11 @@
 package com.android.tools.metalava.model.text
 
 import com.android.tools.metalava.model.CallableItem
+import com.android.tools.metalava.model.FlaggedApiInheritance
 import com.android.tools.metalava.model.StripJavaLangPrefix
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.text.CustomizableProperty.Companion.ADD_ADDITIONAL_OVERRIDES
+import com.android.tools.metalava.model.text.CustomizableProperty.Companion.FLAGGED_API_INHERITANCE
 import com.android.tools.metalava.model.text.CustomizableProperty.Companion.INCLUDE_DEFAULT_PARAMETER_VALUES
 import com.android.tools.metalava.model.text.CustomizableProperty.Companion.INCLUDE_TYPE_USE_ANNOTATIONS
 import com.android.tools.metalava.model.text.CustomizableProperty.Companion.KOTLIN_NAME_TYPE_ORDER
@@ -179,6 +181,7 @@ data class FileFormat(
                 version.baseDefaults.buildCopy {
                     this.version = version
                     this[ADD_ADDITIONAL_OVERRIDES] = true
+                    this[FLAGGED_API_INHERITANCE] = FlaggedApiInheritance.NESTED_CLASSES
                     this[NORMALIZE_ABSTRACT_MODIFIER] = true
                     this[NORMALIZE_FINAL_MODIFIER] = true
                     this[OVERLOADED_METHOD_ORDER] = OverloadedMethodOrder.SIGNATURE

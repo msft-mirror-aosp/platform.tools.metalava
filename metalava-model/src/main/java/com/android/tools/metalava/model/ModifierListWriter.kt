@@ -408,3 +408,15 @@ const val SUPPRESS_COMPATIBILITY_ANNOTATION = "SuppressCompatibility"
  */
 val SUPPRESS_COMPATIBILITY_ANNOTATION_QUALIFIED =
     AnnotationItem.unshortenAnnotation(SUPPRESS_COMPATIBILITY_ANNOTATION)
+
+/** Determines how [ModifierListWriter] handles `@FlaggedApi` inheritance. */
+enum class FlaggedApiInheritance {
+    /** @FlaggedApi annotations are not inherited. */
+    NONE,
+
+    /**
+     * @FlaggedApi annotations are inherited onto nested classes that do not have their own
+     *   annotation.
+     */
+    NESTED_CLASSES,
+}

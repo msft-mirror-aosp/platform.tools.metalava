@@ -38,6 +38,7 @@ import org.junit.Test
 val DEFAULTABLE_PROPERTY_NAMES =
     listOf(
         "add-additional-overrides",
+        "flagged-api-inheritance",
         "normalize-abstract-modifier",
         "normalize-final-modifier",
         "overloaded-method-order",
@@ -821,6 +822,7 @@ class FileFormatTest {
         assertEquals(
             """
                 add-additional-overrides=no
+                flagged-api-inheritance=none
                 include-default-parameter-values=no
                 include-type-use-annotations=no
                 kotlin-name-type-order=no
