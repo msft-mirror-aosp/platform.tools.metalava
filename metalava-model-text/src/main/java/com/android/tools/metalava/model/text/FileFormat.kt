@@ -131,12 +131,7 @@ data class FileFormat(
             factory = { version -> FileFormat(version = version) },
             help =
                 """
-                    This is the base version (more details in `FORMAT.md`) on which all the others
-                    are based. It sets the properties as follows:
-                    ```
-                    + kotlin-style-nulls = no
-                    + include-default-parameter-values = no
-                    ```
+                    This is the base version for all the others.
                 """,
         ),
         V4(
@@ -153,11 +148,11 @@ data class FileFormat(
             },
             help =
                 """
-                    This is `2.0` plus `kotlin-style-nulls = yes` and `include-default-parameter-values = yes`
-                    giving the following properties:
+                    Introduced support for improved Kotlin tracking. This is `2.0` plus the
+                    following properties:
                     ```
-                    + kotlin-style-nulls = yes
                     + include-default-parameter-values = yes
+                    + kotlin-style-nulls = yes
                     ```
                 """,
         ),

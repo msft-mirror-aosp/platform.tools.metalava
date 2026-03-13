@@ -216,17 +216,12 @@ Usage: metalava help signature-file-formats
 
   Currently, metalava supports the following versions:
 
-  * `2.0` - This is the base version (more details in `FORMAT.md`) on which all the others are based. It sets the
-  properties as follows:
+  * `2.0` - This is the base version for all the others.
 
-  + kotlin-style-nulls = no
-  + include-default-parameter-values = no
+  * `4.0` - Introduced support for improved Kotlin tracking. This is `2.0` plus the following properties:
 
-  * `4.0` - This is `2.0` plus `kotlin-style-nulls = yes` and `include-default-parameter-values = yes` giving the
-  following properties:
-
-  + kotlin-style-nulls = yes
   + include-default-parameter-values = yes
+  + kotlin-style-nulls = yes
 
   * `5.0` - This is the first version that has full support for properties in the signature header. As such it does not
   add any new defaults to `4.0`. The intent is that properties will be explicitly defined in the signature file avoiding
