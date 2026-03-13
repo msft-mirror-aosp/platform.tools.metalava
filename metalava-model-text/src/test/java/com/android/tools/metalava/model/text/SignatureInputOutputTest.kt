@@ -68,7 +68,7 @@ class SignatureInputOutputTest : Assertions {
         expectedOutput: String = signature,
         codebaseTest: CodebaseContext.() -> Unit = {},
     ) {
-        val fullSignature = fileFormat.header() + signature
+        val fullSignature = prepareSignatureFileForTest(signature, fileFormat)
         val signatureFile = SignatureFile.fromText("test", fullSignature)
         val codebase = ApiFile.parseApi(listOf(signatureFile))
 
