@@ -37,15 +37,13 @@ import kotlin.reflect.KProperty
  */
 class CustomizableProperty<T>
 private constructor(
-    val defaultable: Boolean = false,
+    val defaultable: Boolean,
     val defaultValue: T,
     /** Syntax of command line values. */
-    val valueSyntax: String = "",
+    val valueSyntax: String,
     /** Help text to use on the command line. */
-    val help: String = "",
-    internal val getter: FileFormat.() -> T?,
-    internal val setter: Builder.(T) -> Unit,
-    private val valueToString: (T & Any).() -> String,
+    val help: String,
+    internal val valueToString: (T & Any).() -> String,
     private val stringToValue: FromString.() -> T,
 ) : ReadOnlyProperty<CustomizableProperty.Companion, CustomizableProperty<T>> {
 
@@ -56,17 +54,13 @@ private constructor(
         /** Factory method for a [Boolean] [CustomizableProperty] */
         private fun booleanProperty(
             defaultable: Boolean = false,
-            help: String = "",
-            getter: FileFormat.() -> Boolean?,
-            setter: Builder.(Boolean) -> Unit,
+            help: String,
         ) =
             CustomizableProperty(
                 defaultable,
                 defaultValue = false,
                 "yes|no",
                 help,
-                getter,
-                setter,
                 valueToString = { booleanToYesNo() },
                 stringToValue = { yesNoToBoolean() }
             )
@@ -89,19 +83,16 @@ private constructor(
         private inline fun <reified E : Enum<E>> enumProperty(
             defaultable: Boolean = false,
             defaultValue: E,
-            valueSyntax: String = "",
-            help: String = "",
-            noinline getter: FileFormat.() -> E?,
-            noinline setter: Builder.(E) -> Unit,
+            help: String,
+            entryFilter: (E) -> Boolean = { true },
         ): CustomizableProperty<E> {
-            val entries = enumEntries<E>()
+            val entries = enumEntries<E>().filter(entryFilter)
+            val valueSyntax = entries.joinToString("|") { it.stringFromEnum() }
             return CustomizableProperty(
                 defaultable,
                 defaultValue,
                 valueSyntax,
                 help,
-                getter,
-                setter,
                 valueToString = { stringFromEnum() },
                 stringToValue = { enumFromString(entries) },
             )
@@ -111,19 +102,15 @@ private constructor(
         private inline fun <reified E : Enum<E>> optionalEnumProperty(
             defaultable: Boolean = false,
             defaultValue: E?,
-            valueSyntax: String = "",
-            help: String = "",
-            noinline getter: FileFormat.() -> E?,
-            noinline setter: Builder.(E?) -> Unit,
+            help: String,
         ): CustomizableProperty<E?> {
             val entries = enumEntries<E>()
+            val valueSyntax = entries.joinToString("|") { it.stringFromEnum() }
             return CustomizableProperty(
                 defaultable,
                 defaultValue,
                 valueSyntax,
                 help,
-                getter,
-                setter,
                 valueToString = { stringFromEnum() },
                 stringToValue = { enumFromString(entries) },
             )
@@ -165,13 +152,14 @@ private constructor(
 
         /** Factory method for an optional [String] [CustomizableProperty] */
         private fun optionalStringProperty(
-            getter: FileFormat.() -> String?,
-            setter: Builder.(String?) -> Unit,
+            valueSyntax: String,
+            help: String,
         ) =
             CustomizableProperty(
+                defaultable = false,
                 defaultValue = null,
-                getter = getter,
-                setter = setter,
+                valueSyntax = valueSyntax,
+                help = help,
                 valueToString = { this },
                 stringToValue = { string },
             )
@@ -182,22 +170,49 @@ private constructor(
 
         val NAME by
             optionalStringProperty(
-                getter = { name },
-                setter = { name = it },
+                valueSyntax = "<identifier>",
+                help =
+                    """
+                        Specifies the name of the API.
+
+                        It must start with a lower case letter, contain any number of lower case
+                        letters, numbers and hyphens, and end with either a lowercase letter or
+                        number.
+
+                        Its purpose is to provide information to metalava and to a lesser extent the
+                        owner of the file about which API the file contains. The exact meaning of
+                        the API name is determined by the owner, metalava simply uses this as an
+                        identifier for comparison.
+                    """,
             )
 
         val SURFACE by
             optionalStringProperty(
-                getter = { surface },
-                setter = { surface = it },
+                valueSyntax = "<identifier>",
+                help =
+                    """
+                        Specifies the name of the API surface.
+
+                        It must start with a lower case letter, contain any number of lower case
+                        letters, numbers and hyphens, and end with either a lowercase letter or
+                        number.
+
+                        Its purpose is to provide information to metalava and to a lesser extent the
+                        owner of the file about which API surface the file contains. The exact
+                        meaning of the API surface name is determined by the owner, metalava simply
+                        uses this as an identifier for comparison.
+                    """,
             )
 
         /** language=[java|kotlin] */
         val LANGUAGE by
             optionalEnumProperty<Language>(
                 defaultValue = null,
-                getter = { language },
-                setter = { language = it },
+                help =
+                    """
+                        Deprecated, will be replaced with a general mechanism for defining named
+                        sets of defaults.
+                    """,
             )
 
         // The following values must be in alphabetical order.
@@ -206,8 +221,11 @@ private constructor(
         val ADD_ADDITIONAL_OVERRIDES by
             booleanProperty(
                 defaultable = true,
-                getter = { specifiedAddAdditionalOverrides },
-                setter = { addAdditionalOverrides = it },
+                help =
+                    """
+                        If `yes` then add additional overrides into the signature file that are
+                        needed in order to create compilable stubs from the signature file.
+                    """,
             )
 
         /** include-default-parameter-values=[yes|no] */
@@ -219,22 +237,42 @@ private constructor(
                     parameter values. If `yes` then it will use the pseudo modifier `optional` to
                     indicate a parameter that has a default value.
                 """,
-                getter = { includeDefaultParameterValues },
-                setter = { includeDefaultParameterValues = it },
             )
 
         /** include-type-use-annotations=[yes|no] */
         val INCLUDE_TYPE_USE_ANNOTATIONS by
             booleanProperty(
-                getter = { includeTypeUseAnnotations },
-                setter = { includeTypeUseAnnotations = it },
+                help =
+                    """
+                        Whether to include type-use annotations in the signature file. Type-use
+                        annotations can only be included when `kotlin-name-type-order=true`, because
+                        the Java order makes it ambiguous whether an annotation is type-use.
+                    """,
             )
 
         /** kotlin-name-type-order=[yes|no] */
         val KOTLIN_NAME_TYPE_ORDER by
             booleanProperty(
-                getter = { kotlinNameTypeOrder },
-                setter = { kotlinNameTypeOrder = it },
+                help =
+                    """
+                        Whether to order the names and types of APIs using Kotlin-style syntax
+                        (`name: type`) or Java-style syntax (`type name`).
+
+                        When Kotlin ordering is used, all method parameters without public names
+                        will be given the placeholder name of `_`, which cannot be used as a Java
+                        identifier.
+
+                        For example, the following is an example of a method signature with Kotlin
+                        ordering:
+                        ```
+                        method public foo(_: int, _: char, _: String[]): String;
+                        ```
+
+                        And the following is the equivalent Java ordering:
+                        ```
+                        method public String foo(int, char, String[]);
+                        ```
+                """,
             )
 
         /** kotlin-style-nulls=[yes|no] */
@@ -250,14 +288,32 @@ private constructor(
                     and a type suffix of `!` to indicate the that the type accepts `null`, does not
                     accept `null` or it's not defined respectively.
                 """,
-                getter = { kotlinStyleNulls },
-                setter = { kotlinStyleNulls = it },
             )
 
         val MIGRATING by
             optionalStringProperty(
-                getter = { migrating },
-                setter = { migrating = it },
+                valueSyntax = "<reason>",
+                help =
+                    """
+                        Indicates that the file format is being used to migrate a signature file to
+                        fix a bug that causes a change in the signature file contents but not a
+                        change in version.
+
+                        e.g. This would be used when migrating a 2.0 file format that currently uses
+                        source order for overloaded methods (using a command line parameter to
+                        override the default order of signature) to a 2.0 file that uses signature
+                        order.
+
+                        This should be used to provide an explanation as to what is being migrated
+                        and why. It should be relatively concise, e.g. something like:
+                        ```
+                        "See <short-url> for details"
+                        ```
+
+                        This value cannot use `,` (because it is a separator between properties in
+                        [specifier]) or `\n` (because it is the terminator of the signature format
+                        line).
+                    """,
             )
 
         val NORMALIZE_ABSTRACT_MODIFIER by
@@ -269,8 +325,6 @@ private constructor(
                     is `yes` and the method's containing class does not allow `abstract` then the
                     `abstract` modifier is not written out, otherwise it is.
                 """,
-                getter = { specifiedNormalizeAbstractModifier },
-                setter = { normalizeAbstractModifier = it },
             )
 
         val NORMALIZE_FINAL_MODIFIER by
@@ -282,8 +336,6 @@ private constructor(
                     `yes` and the method's containing class is `final` then the `final` modifier is
                     not written out, otherwise it is.
                 """,
-                getter = { specifiedNormalizeFinalModifier },
-                setter = { normalizeFinalModifier = it },
             )
 
         /** overloaded-method-other=[source|signature] */
@@ -291,7 +343,6 @@ private constructor(
             enumProperty<OverloadedMethodOrder>(
                 defaultable = true,
                 defaultValue = OverloadedMethodOrder.SIGNATURE,
-                valueSyntax = "source|signature",
                 help =
                     """
                     Specifies the order of overloaded methods in signature files. Applies to the
@@ -305,30 +356,56 @@ private constructor(
                     that refactorings of the source files which change the order but not the API
                     will have no effect on the API signature files.
                 """,
-                getter = { specifiedOverloadedMethodOrder },
-                setter = { overloadedMethodOrder = it },
             )
 
         val SORT_WHOLE_EXTENDS_LIST by
             booleanProperty(
                 defaultable = true,
-                getter = { specifiedSortWholeExtendsList },
-                setter = { sortWholeExtendsList = it },
+                help =
+                    """
+                        Indicates whether the whole extends list for an interface is sorted.
+
+                        Previously, the first type in the extends list was used as the super type
+                        and if it was present in the API then it would always be output first to the
+                        signature files. The code has been refactored so that is no longer necessary
+                        but the previous behavior is maintained to avoid churn in the API signature
+                        files.
+
+                        By default, this property preserves the previous behavior but if set to
+                        `true` then it will stop treating the first interface specially and just
+                        sort all the interface types. The sorting is by the full name (without the
+                        package) of the class first then, by fully qualified name.
+                    """,
             )
 
         val STRIP_JAVA_LANG_PREFIX by
             enumProperty<StripJavaLangPrefix>(
                 defaultable = true,
+                help =
+                    """
+                        Indicates which of the possible approaches to `java.lang.` prefix stripping
+                        is used when outputting types to signature files. The default is `legacy`.
+
+                        `legacy` - roughly only strips off the leading `java.lang.` prefix of a
+                        type with a couple of exceptions. This is legacy behavior from when types
+                        were treated as strings.
+
+                        `never` - never strip off `java.lang.` prefixes.
+
+                        `always` - always strip off `java.lang.` prefixes.
+
+                        Note: This does not affect annotation names, e.g. `java.lang.SafeVarargs`.
+                        They are always fully qualified.
+                    """,
                 defaultValue = StripJavaLangPrefix.LEGACY,
-                getter = { specifiedStripJavaLangPrefix },
-                setter = { stripJavaLangPrefix = it },
+                // Ignore [StripJavaLangPrefix.VARARGS] as it is internal use only.
+                entryFilter = { it != StripJavaLangPrefix.VARARGS }
             )
 
         val TYPE_ARGUMENT_SPACING by
             enumProperty<TypeArgumentSpacing>(
                 defaultable = true,
                 defaultValue = TypeArgumentSpacing.LEGACY,
-                valueSyntax = "legacy|none|space",
                 help =
                     """
                     Specifies the spacing between the type arguments of a generic type. e.g.
@@ -345,8 +422,6 @@ private constructor(
                     Note: This does not affect the spacing of type parameters in a type parameter
                     list, e.g. `interface Map<K, V>`. They always have a space separator.
                 """,
-                getter = { specifiedTypeArgumentSpacing },
-                setter = { typeArgumentSpacing = it },
             )
 
         /** The [List] of all [CustomizableProperty]s. */
@@ -378,6 +453,9 @@ private constructor(
                 }
     }
 
+    /** The name of the constant in [Companion]. */
+    private lateinit var companionPropertyName: String
+
     /** The property name in the [parseSpecifier] input. */
     lateinit var propertyName: String
         private set
@@ -400,7 +478,8 @@ private constructor(
         property: KProperty<*>
     ): CustomizableProperty<T> {
         // Initialize property name based on the Companion property names.
-        propertyName = property.name.lowercase(Locale.US).replace("_", "-")
+        companionPropertyName = property.name
+        propertyName = companionPropertyName.lowercase(Locale.US).replace("_", "-")
         propertyList.add(this)
         return this
     }
@@ -412,16 +491,193 @@ private constructor(
      * Set the corresponding property in the supplied [Builder] to the value corresponding to the
      * string representation [string].
      */
-    internal fun setFromString(builder: Builder, string: String) {
+    internal fun setFromString(mutablePropertyMap: MutablePropertyMap, string: String) {
         val value = FromString(propertyName, string).stringToValue()
-        builder.setter(value)
+        mutablePropertyMap[this] = value
+    }
+
+    override fun toString() = companionPropertyName
+}
+
+/**
+ * Base of [PropertyMap] and [MutablePropertyMap].
+ *
+ * Provides behavior common to both.
+ */
+abstract class BasePropertyMap : Iterable<CustomizableProperty<*>> {
+    /** Iterate over all the properties in this map. */
+    abstract override fun iterator(): Iterator<CustomizableProperty<*>>
+
+    /** Check to see if this is empty. */
+    abstract fun isEmpty(): Boolean
+
+    /** Check to see if this is not empty. */
+    fun isNotEmpty(): Boolean = !isEmpty()
+
+    /**
+     * Get the value of [property] as [T]
+     *
+     * This will NOT apply any defaults.
+     */
+    abstract operator fun <T> get(property: CustomizableProperty<T>): T?
+
+    /** Get the string representation of [property]'s value in this [BasePropertyMap]. */
+    private fun <T> propertyAsString(property: CustomizableProperty<T>) =
+        this[property]?.let { property.valueToString(it) }
+
+    override fun toString() = buildString {
+        append('{')
+        var separator = ""
+        for (property in this@BasePropertyMap) {
+            val valueAsString = propertyAsString(property) ?: continue
+            append(separator)
+            append(property.propertyName)
+            append('=')
+            append(valueAsString)
+            separator = ", "
+        }
+        append('}')
+    }
+}
+
+/** A type safe map from [CustomizableProperty] to a value of the appropriate type. */
+class PropertyMap
+internal constructor(
+    /**
+     * Map from [CustomizableProperty] to `Any?`.
+     *
+     * This is actually type safe as it can only be populated by [MutablePropertyMap.set] and that
+     * ensures that only values compatible with the [CustomizableProperty] key are stored with it.
+     */
+    private val map: Map<CustomizableProperty<*>, Any?> = emptyMap(),
+) : BasePropertyMap() {
+    override fun iterator() = map.keys.iterator()
+
+    override fun isEmpty() = map.isEmpty()
+
+    @Suppress("UNCHECKED_CAST")
+    override operator fun <T> get(property: CustomizableProperty<T>): T? = map[property] as T?
+
+    /** Convert this to a [MutablePropertyMap]. */
+    fun toMutableMap() = MutablePropertyMap(map.toMutableMap())
+
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (javaClass != other?.javaClass) return false
+
+        other as PropertyMap
+
+        return map == other.map
+    }
+
+    override fun hashCode() = map.hashCode()
+
+    companion object {
+        internal val EMPTY = PropertyMap(emptyMap())
+    }
+}
+
+/** An empty [PropertyMap]. */
+fun emptyPropertyMap() = PropertyMap.EMPTY
+
+/** A type safe mutable map from [CustomizableProperty] to a value of the appropriate type. */
+class MutablePropertyMap
+@PublishedApi
+internal constructor(
+    /**
+     * Map from [CustomizableProperty] to `Any?`.
+     *
+     * This is actually type safe as it can only be populated by [MutablePropertyMap.set] and that
+     * ensures that only values compatible with the [CustomizableProperty] key are stored with it.
+     */
+    private val map: MutableMap<CustomizableProperty<*>, Any?> = mutableMapOf(),
+) : BasePropertyMap() {
+    override fun iterator() = map.keys.iterator()
+
+    override fun isEmpty() = map.isEmpty()
+
+    @Suppress("UNCHECKED_CAST")
+    override operator fun <T> get(property: CustomizableProperty<T>): T? = map[property] as T?
+
+    /** Set [property] to [value]. */
+    operator fun <T> set(property: CustomizableProperty<T>, value: T) {
+        map[property] = value
     }
 
     /**
-     * Get the string representation of the corresponding property from the supplied [FileFormat].
+     * Parse a property assignment of the form `property=value`, updating the appropriate property
+     * in this [Builder], or throwing an exception if there was a problem.
+     *
+     * @param assignment the string of the form `property=value`.
+     * @param defaultableOnly if `true` then only [CustomizableProperty.defaultable] properties are
+     *   allowed.
      */
-    internal fun stringFromFormat(format: FileFormat): String? = format.getter()?.valueToString()
+    internal fun setPropertyFromAssignment(
+        assignment: String,
+        defaultableOnly: Boolean = false,
+    ) {
+        val propertyParts = assignment.split("=")
+        if (propertyParts.size != 2) {
+            throw ApiParseException("expected <property>=<value> but found '$assignment'")
+        }
+        val name = propertyParts[0]
+        val value = propertyParts[1]
+        val customizable = CustomizableProperty.getByName(name, defaultableOnly)
+        customizable.setFromString(this, value)
+    }
 
-    /** Get [defaultValue] as a string. */
-    fun defaultValueAsString() = defaultValue?.valueToString()
+    /** Apply [property] value from [other] if it is not set in this and is set in [other]. */
+    private fun <T> applyDefaultFromOther(
+        other: BasePropertyMap,
+        property: CustomizableProperty<T>
+    ) {
+        this[property]?.let {
+            return
+        }
+        copyFromOther(other, property)
+    }
+
+    /** Apply any property values set in [other] that are not set in this. */
+    internal fun applyDefaultsFromOther(other: BasePropertyMap) {
+        for (property in other) {
+            applyDefaultFromOther(other, property)
+        }
+    }
+
+    /** Copy [property] value from [other] if it is set in [other]. */
+    private fun <T> copyFromOther(other: BasePropertyMap, property: CustomizableProperty<T>) {
+        val value = other[property] ?: return
+        this[property] = value
+    }
+
+    /** Copy any property values set in [other]. */
+    internal fun copyFromOther(other: BasePropertyMap) {
+        for (property in other) {
+            copyFromOther(other, property)
+        }
+    }
+
+    /** Convert this to an immutable [PropertyMap]. */
+    fun toMap() = PropertyMap(map.toMap())
+
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (javaClass != other?.javaClass) return false
+
+        other as MutablePropertyMap
+
+        return map == other.map
+    }
+
+    override fun hashCode() = map.hashCode()
 }
+
+/** Create a [MutablePropertyMap]. */
+fun mutablePropertyMap() = MutablePropertyMap()
+
+/**
+ * Build a [PropertyMap] by applying [builder] to a [MutablePropertyMap] and returning
+ * [MutablePropertyMap.toMap].
+ */
+inline fun buildPropertyMap(builder: MutablePropertyMap.() -> Unit) =
+    MutablePropertyMap().apply(builder).toMap()
