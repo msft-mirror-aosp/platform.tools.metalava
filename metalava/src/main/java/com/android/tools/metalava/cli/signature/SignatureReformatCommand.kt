@@ -96,6 +96,54 @@ class SignatureReformatCommand :
             .multiple(required = true)
 
     /**
+     * Compute the output [FileFormat] to use.
+     *
+     * Returns [targetFormat] unless [preserveStructure] is `true` in which case this will call
+     * [computeStructurePreservingFormat] to create a [FileFormat] from [targetFormat] with settings
+     * from [currentFormat] needed to preserve the structure.
+     *
+     * @param currentFormat the current [FileFormat] for the file.
+     * @param targetFormat the target [FileFormat] to which the file is to be reformatted.
+     * @param codebase the [Codebase] loaded from the signature file. Used to determine whether a
+     *   property setting affects the structure of the file.
+     */
+    private fun computeOutputFormat(
+        currentFormat: FileFormat,
+        targetFormat: FileFormat,
+        codebase: Codebase,
+    ) =
+        if (preserveStructure) {
+            // Make sure to apply any defaults provided to the current format to ensure it is the
+            // same format as was used to create the current signature file.
+            val currentFormatWithDefaults = formatOptions.applyDefaultsTo(currentFormat)
+
+            // Compute structure preserving format.
+            computeStructurePreservingFormat(currentFormatWithDefaults, targetFormat, codebase)
+        } else {
+            targetFormat
+        }
+
+    override fun run() {
+        // Get the target format for the signature files.
+        val targetFormat = formatOptions.fileFormat
+
+        for (file in files) {
+            // Read the current format from the file header, if none could be found then the file is
+            // empty and intentionally has no file format header so leave it unchanged.
+            val currentFormat =
+                file.reader().use { reader -> FileFormat.parseHeader(file.toPath(), reader) }
+            if (currentFormat == null) continue
+
+            val codebase = readSignatureFiles(SignatureFile.fromFiles(file), stderr)
+
+            // Compute the output format to use when writing out this file.
+            val outputFormat = computeOutputFormat(currentFormat, targetFormat, codebase)
+
+            file.printWriter().use { writer -> writeSignatureFile(codebase, outputFormat, writer) }
+        }
+    }
+
+    /**
      * Format this [Codebase] as a signature file using [format] but without the header, returning
      * the [String] result.
      */
@@ -177,52 +225,4 @@ class SignatureReformatCommand :
                 }
             }
         }
-
-    /**
-     * Compute the output [FileFormat] to use.
-     *
-     * Returns [targetFormat] unless [preserveStructure] is `true` in which case this will call
-     * [computeStructurePreservingFormat] to create a [FileFormat] from [targetFormat] with settings
-     * from [currentFormat] needed to preserve the structure.
-     *
-     * @param currentFormat the current [FileFormat] for the file.
-     * @param targetFormat the target [FileFormat] to which the file is to be reformatted.
-     * @param codebase the [Codebase] loaded from the signature file. Used to determine whether a
-     *   property setting affects the structure of the file.
-     */
-    private fun computeOutputFormat(
-        currentFormat: FileFormat,
-        targetFormat: FileFormat,
-        codebase: Codebase,
-    ) =
-        if (preserveStructure) {
-            // Make sure to apply any defaults provided to the current format to ensure it is the
-            // same format as was used to create the current signature file.
-            val currentFormatWithDefaults = formatOptions.applyDefaultsTo(currentFormat)
-
-            // Compute structure preserving format.
-            computeStructurePreservingFormat(currentFormatWithDefaults, targetFormat, codebase)
-        } else {
-            targetFormat
-        }
-
-    override fun run() {
-        // Get the target format for the signature files.
-        val targetFormat = formatOptions.fileFormat
-
-        for (file in files) {
-            // Read the current format from the file header, if none could be found then the file is
-            // empty and intentionally has no file format header so leave it unchanged.
-            val currentFormat =
-                file.reader().use { reader -> FileFormat.parseHeader(file.toPath(), reader) }
-            if (currentFormat == null) continue
-
-            val codebase = readSignatureFiles(SignatureFile.fromFiles(file), stderr)
-
-            // Compute the output format to use when writing out this file.
-            val outputFormat = computeOutputFormat(currentFormat, targetFormat, codebase)
-
-            file.printWriter().use { writer -> writeSignatureFile(codebase, outputFormat, writer) }
-        }
-    }
 }
