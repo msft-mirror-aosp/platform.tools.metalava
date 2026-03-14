@@ -1,0 +1,365 @@
+/*
+ * Copyright (C) 2026 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package com.android.tools.metalava.cli.signature.migration
+
+import com.android.tools.lint.checks.infrastructure.TestFile
+import com.android.tools.metalava.cli.common.BaseCommandTest
+import com.android.tools.metalava.cli.signature.signatureFormatOptionsHelp
+import com.android.tools.metalava.model.text.FileFormat
+import com.android.tools.metalava.model.text.stripBlankLines
+import com.android.tools.metalava.testing.TemporaryFolderOwner
+import com.android.tools.metalava.testing.signature
+import java.io.File
+import java.io.PrintWriter
+import java.io.StringWriter
+import kotlin.test.assertEquals
+import org.junit.Test
+
+private val signatureMigrateHelp =
+    """
+Usage: metalava signature-migrate [options] <files>...
+
+  Migrates signature files to a new format.
+
+  The purpose of this is, by working in conjunction with the --use-same-format-as option, to simplify the process for
+  updating signature files from one version to the next. It assumes a number of things:
+
+  1. That API signature files are checked into some version control system and need to be updated to reflect changes to
+  the API. If they are not then this is not needed.
+
+  2. The build uses the --use-same-format-as to pass the checked in API signature file so that its format will be used
+  as the output for the file that the build generates to replace it.
+
+  If those assumptions are met then updating the format version of the API file (and its corresponding removed API file
+  if needed) simply involves running this command on the API files that need migrating, specifying the target format.
+  That will apply a number of migration steps, creating a separate commit for each step. The migration steps will be
+  optimized to make the minimum number of changes to each file.
+
+Options:
+  --initial-title <text>                     Title for the initial commit (required)
+  --title-prefix <prefix>                    Short prefix for commit titles.
+
+                                             If supplied then it will be prepended on every commit title.
+  --commit-prolog <text>                     Text to include at the beginning of each commit message.
+  --commit-epilog <text>                     Text to include at the end of each commit message.
+  -h, -?, --help                             Show this message and exit
+
+${signatureFormatOptionsHelp(FileFormat.V6)}
+
+Arguments:
+  <files>                                    Signature files to migrate.
+    """
+        .trimIndent()
+
+class SignatureMigrateCommandTest :
+    BaseCommandTest<SignatureMigrateCommand>({
+        SignatureMigrateCommand(
+            committerFactory = { THROWING_COMMITTER },
+        )
+    }) {
+
+    companion object {
+        /** Default [ChangeCommitter] used by tests that throw exceptions when called. */
+        private val THROWING_COMMITTER =
+            object : ChangeCommitter {
+                override fun commit(description: ChangeDescription, files: List<File>) {
+                    error("committing of '${description.title}' for $files is not supported")
+                }
+            }
+    }
+
+    @Test
+    fun `Test help`() {
+        commandTest {
+            args += listOf("signature-migrate", "--help")
+
+            expectedStdout = signatureMigrateHelp
+        }
+    }
+
+    @Test
+    fun `Migrate an empty file`() {
+        commandTest {
+            args += "signature-migrate"
+            args += "--initial-title" to "Migrate"
+
+            args += signature("api.txt", "")
+
+            expectedStdout = "No files need migrating"
+        }
+    }
+
+    @Test
+    fun `Ensure signature files to migrate are all the same format`() {
+        commandTest {
+            args += "signature-migrate"
+            args += "--initial-title" to "Migrate"
+
+            args +=
+                signature(
+                    "api1.txt",
+                    """
+                        // Signature format: 2.0
+                        package test.pkg {
+                            public class Test {
+                            }
+                        }
+                    """
+                )
+
+            args +=
+                signature(
+                    "api2.txt",
+                    """
+                        // Signature format: 5.0
+                        package test.pkg {
+                            public class Test {
+                            }
+                        }
+                    """
+                )
+
+            expectedStderr =
+                """
+                    Aborting: This can only be used to migrate files of the same format but
+                    there are 2 different formats.
+
+                      The following files use format: 2.0
+                        TESTROOT/api1.txt
+
+                      The following files use format: 5.0
+                        TESTROOT/api2.txt
+                """
+                    .trimIndent()
+        }
+    }
+
+    /** Check migrating [signatureFiles] with [additionalArgs] results in [expectedCommits]. */
+    private fun checkFilesMigration(
+        signatureFiles: List<TestFile>,
+        additionalArgs: List<String> = emptyList(),
+        expectedCommits: String,
+    ) {
+        val stringWriter = StringWriter()
+        PrintWriter(stringWriter).use { printWriter ->
+            commandTest {
+                command =
+                    SignatureMigrateCommand(
+                        committerFactory = {
+                            TestChangeCommitter(this@SignatureMigrateCommandTest, printWriter)
+                        },
+                    )
+
+                args += "signature-migrate"
+                args += "--initial-title" to "Migrate"
+                args += "--format" to "6.0:style=java"
+                args += "--format-defaults" to "overloaded-method-order=source"
+                args += additionalArgs
+
+                signatureFiles.mapTo(args) { it.toFile().path }
+
+                verify {
+                    assertEquals(expectedCommits.trimIndent(), stringWriter.toString().trimEnd())
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `Migrate some files that only need to change the version`() {
+        checkFilesMigration(
+            signatureFiles =
+                listOf(
+                    signature(
+                        "api1.txt",
+                        """
+                            // Signature format: 2.0
+                            package test.pkg {
+                                public class Test {
+                                }
+                            }
+                        """
+                    ),
+                    signature(
+                        "api2.txt",
+                        """
+                            // Signature format: 2.0
+                            package other.pkg {
+                                public class Other {
+                                }
+                            }
+                        """
+                    ),
+                ),
+            additionalArgs =
+                listOf(
+                    "--title-prefix",
+                    "test: ",
+                    "--commit-prolog",
+                    "Prolog",
+                    "--commit-epilog",
+                    "Epilog"
+                ),
+            expectedCommits =
+                """
+                    Step 1: test: Migrate
+                      ------------------------------------------------------------------------
+                      Prolog
+
+                      This change migrates these files to format `6.0:style=java`.
+
+                      Epilog
+                      ------------------------------------------------------------------------
+
+                      TESTROOT/api1.txt:
+                        // Signature format: 6.0
+                        // - style=java
+                        package test.pkg {
+                          public class Test {
+                          }
+                        }
+
+                      TESTROOT/api2.txt:
+                        // Signature format: 6.0
+                        // - style=java
+                        package other.pkg {
+                          public class Other {
+                          }
+                        }
+                """,
+        )
+    }
+
+    /** Check migrating [signatureFile] results in [expectedCommits]. */
+    private fun checkFileMigration(
+        signatureFile: TestFile,
+        expectedCommits: String,
+    ) {
+        checkFilesMigration(
+            listOf(signatureFile),
+            expectedCommits = expectedCommits,
+        )
+    }
+
+    @Test
+    fun `Migrate file that is affected by changing flagged-api-inheritance from none to nested-classes`() {
+        checkFileMigration(
+            signatureFile =
+                signature(
+                    """
+                        // Signature format: 2.0
+                        package test.pkg {
+                            @FlaggedApi("flag.name") public class Test {
+                            }
+
+                            public class Test.Nested {
+                            }
+                        }
+                    """
+                ),
+            expectedCommits =
+                """
+                    Step 1: Migrate
+                      ------------------------------------------------------------------------
+                      This change is the first in a series of 2 steps to migrate
+                      these files to format `6.0:style=java`.
+
+                      This initial change reformats the files to be as close to the target
+                      format as possible while not changing the structure of the file. It
+                      sets properties in each file that are needed to preserve that
+                      structure. The follow-up changes will change the value of one property
+                      at a time from the original value to the target value. The intent is to
+                      simplify the review process by only making one form of structural
+                      change at a time.
+                      ------------------------------------------------------------------------
+
+                      TESTROOT/api.txt:
+                        // Signature format: 6.0
+                        // - style=java
+                        // - flagged-api-inheritance=none
+                        package test.pkg {
+                          @FlaggedApi("flag.name") public class Test {
+                          }
+                          public class Test.Nested {
+                          }
+                        }
+
+                    Step 2: Track inherited @FlaggedApi on nested classes
+                      ------------------------------------------------------------------------
+                      An `@FlaggedApi` annotation on a class affects all of its members and
+                      nested classes that do not have their own `@FlaggedApi` annotation.
+                      Previously, inherited `@FlaggedApi` annotations were not tracked on
+                      nested classes which complicated the reviewing of signature file changes
+                      as it was difficult to determine which `@FlaggedApi` if any applied to
+                      the change.
+
+                      This change sets `flagged-api-inheritance=nested-classes` to fix that.
+                      ------------------------------------------------------------------------
+
+                      TESTROOT/api.txt:
+                        // Signature format: 6.0
+                        // - style=java
+                        package test.pkg {
+                          @FlaggedApi("flag.name") public class Test {
+                          }
+                          @FlaggedApi("flag.name") public class Test.Nested {
+                          }
+                        }
+                """,
+        )
+    }
+}
+
+/**
+ * Print details of the commits that are made, including the file contents in each commit to [out].
+ */
+internal class TestChangeCommitter(
+    private val temporaryFolderOwner: TemporaryFolderOwner,
+    private val out: PrintWriter,
+) : ChangeCommitter {
+
+    private var commitCount = 0
+
+    override fun commit(description: ChangeDescription, files: List<File>) {
+        commitCount += 1
+        out.println("Step $commitCount: ${description.title}")
+        out.println("  $COMMIT_MESSAGE_SEPARATOR")
+        out.println(description.detail.applyIndentAndTrimLineEnd("  "))
+        out.println("  $COMMIT_MESSAGE_SEPARATOR")
+        out.println()
+        for (file in files) {
+            val contents = file.readText().stripBlankLines()
+            out.println("  ${temporaryFolderOwner.cleanupString(file.path)}:")
+            out.println(contents.applyIndentAndTrimLineEnd("    "))
+            out.println()
+        }
+    }
+
+    /** Apply [indent] to this [String] removing whitespace from the end of the lines. */
+    private fun String.applyIndentAndTrimLineEnd(indent: String) =
+        lineSequence().joinToString(separator = "\n") { line ->
+            when {
+                line.isBlank() -> ""
+                else -> indent + line.trimEnd()
+            }
+        }
+
+    companion object {
+        /** Separator added before and after the commit message in [commit]. */
+        private val COMMIT_MESSAGE_SEPARATOR = "-".repeat(72)
+    }
+}
