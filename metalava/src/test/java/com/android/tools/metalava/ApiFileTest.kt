@@ -25,6 +25,10 @@ import com.android.tools.metalava.cli.common.ARG_KOTLIN_SOURCE
 import com.android.tools.metalava.lint.DefaultLintErrorMessage
 import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.testing.RequiresCapabilities
+import com.android.tools.metalava.model.text.CustomizableProperty.Companion.INCLUDE_TYPE_USE_ANNOTATIONS
+import com.android.tools.metalava.model.text.CustomizableProperty.Companion.KOTLIN_NAME_TYPE_ORDER
+import com.android.tools.metalava.model.text.CustomizableProperty.Companion.OVERLOADED_METHOD_ORDER
+import com.android.tools.metalava.model.text.CustomizableProperty.Companion.SORT_WHOLE_EXTENDS_LIST
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.model.text.FileFormat.OverloadedMethodOrder
 import com.android.tools.metalava.reporter.Issues
@@ -3427,7 +3431,7 @@ class ApiFileTest : DriverTest() {
     @Test
     fun `Test whether partial or total ordering -  sort-whole-extends-list=yes`() {
         check(
-            format = FileFormat.V2.copy(specifiedSortWholeExtendsList = true),
+            format = FileFormat.V2.buildCopy { this[SORT_WHOLE_EXTENDS_LIST] = true },
             checkCompilation = true,
             sourceFiles =
                 arrayOf(
@@ -3554,7 +3558,7 @@ class ApiFileTest : DriverTest() {
     fun `Extend from multiple interfaces - sort-whole-extends-list=yes`() {
         // Real-world example: XmlResourceParser
         check(
-            format = FileFormat.V2.copy(specifiedSortWholeExtendsList = true),
+            format = FileFormat.V2.buildCopy { this[SORT_WHOLE_EXTENDS_LIST] = true },
             checkCompilation = true,
             sourceFiles =
                 arrayOf(
@@ -4244,9 +4248,9 @@ class ApiFileTest : DriverTest() {
             signatureSources = arrayOf(source1, source2),
             api = expected,
             format =
-                FileFormat.V2.copy(
-                    specifiedOverloadedMethodOrder = OverloadedMethodOrder.SOURCE,
-                ),
+                FileFormat.V2.buildCopy {
+                    this[OVERLOADED_METHOD_ORDER] = FileFormat.OverloadedMethodOrder.SOURCE
+                },
         )
     }
 
@@ -6493,7 +6497,10 @@ class ApiFileTest : DriverTest() {
                     )
                 ),
             format =
-                FileFormat.V5.copy(kotlinNameTypeOrder = true, includeTypeUseAnnotations = true),
+                FileFormat.V5.buildCopy {
+                    this[INCLUDE_TYPE_USE_ANNOTATIONS] = true
+                    this[KOTLIN_NAME_TYPE_ORDER] = true
+                },
             api =
                 """
                     package test.pkg {

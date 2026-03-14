@@ -24,6 +24,12 @@ import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.StripJavaLangPrefix
 import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.testing.value.fieldReferenceValue
+import com.android.tools.metalava.model.text.CustomizableProperty.Companion.INCLUDE_TYPE_USE_ANNOTATIONS
+import com.android.tools.metalava.model.text.CustomizableProperty.Companion.KOTLIN_NAME_TYPE_ORDER
+import com.android.tools.metalava.model.text.CustomizableProperty.Companion.NORMALIZE_ABSTRACT_MODIFIER
+import com.android.tools.metalava.model.text.CustomizableProperty.Companion.NORMALIZE_FINAL_MODIFIER
+import com.android.tools.metalava.model.text.CustomizableProperty.Companion.STRIP_JAVA_LANG_PREFIX
+import com.android.tools.metalava.model.text.CustomizableProperty.Companion.TYPE_ARGUMENT_SPACING
 import com.android.tools.metalava.model.text.FileFormat.TypeArgumentSpacing
 import com.android.tools.metalava.model.value.asString
 import com.android.tools.metalava.model.visitors.ApiPredicate
@@ -474,7 +480,7 @@ class SignatureInputOutputTest : Assertions {
 
     @Test
     fun `Type use annotations`() {
-        val format = kotlinStyleFormat.copy(includeTypeUseAnnotations = true)
+        val format = kotlinStyleFormat.buildCopy { this[INCLUDE_TYPE_USE_ANNOTATIONS] = true }
         val api =
             """
                 package test.pkg {
@@ -510,7 +516,7 @@ class SignatureInputOutputTest : Assertions {
 
     @Test
     fun `Type-use annotations in implements and extends section`() {
-        val format = kotlinStyleFormat.copy(includeTypeUseAnnotations = true)
+        val format = kotlinStyleFormat.buildCopy { this[INCLUDE_TYPE_USE_ANNOTATIONS] = true }
         val api =
             """
                 package test.pkg {
@@ -639,7 +645,7 @@ class SignatureInputOutputTest : Assertions {
                   }
                 }
             """,
-            FileFormat.V2.copy(specifiedNormalizeFinalModifier = true),
+            FileFormat.V2.buildCopy { this[NORMALIZE_FINAL_MODIFIER] = true },
             expectedOutput =
                 """
                     package test.pkg {
@@ -667,7 +673,7 @@ class SignatureInputOutputTest : Assertions {
                   }
                 }
             """,
-            FileFormat.V2.copy(specifiedNormalizeFinalModifier = false),
+            FileFormat.V2.buildCopy { this[NORMALIZE_FINAL_MODIFIER] = false },
         )
     }
 
@@ -685,7 +691,7 @@ class SignatureInputOutputTest : Assertions {
                   }
                 }
             """,
-            FileFormat.V2.copy(specifiedNormalizeAbstractModifier = true),
+            FileFormat.V2.buildCopy { this[NORMALIZE_ABSTRACT_MODIFIER] = true },
         )
     }
 
@@ -703,7 +709,7 @@ class SignatureInputOutputTest : Assertions {
                   }
                 }
             """,
-            FileFormat.V2.copy(specifiedNormalizeAbstractModifier = false),
+            FileFormat.V2.buildCopy { this[NORMALIZE_ABSTRACT_MODIFIER] = false },
         )
     }
 
@@ -740,7 +746,7 @@ class SignatureInputOutputTest : Assertions {
                 .trimIndent()
         runInputOutputTest(
             api,
-            FileFormat.V2.copy(specifiedStripJavaLangPrefix = StripJavaLangPrefix.NEVER)
+            FileFormat.V2.buildCopy { this[STRIP_JAVA_LANG_PREFIX] = StripJavaLangPrefix.NEVER }
         ) {
             checkStrippedCodebaseTypes(codebase)
         }
@@ -760,7 +766,7 @@ class SignatureInputOutputTest : Assertions {
                 .trimIndent()
         runInputOutputTest(
             api,
-            FileFormat.V2.copy(specifiedStripJavaLangPrefix = StripJavaLangPrefix.LEGACY)
+            FileFormat.V2.buildCopy { this[STRIP_JAVA_LANG_PREFIX] = StripJavaLangPrefix.LEGACY }
         ) {
             checkStrippedCodebaseTypes(codebase)
         }
@@ -780,7 +786,7 @@ class SignatureInputOutputTest : Assertions {
                 .trimIndent()
         runInputOutputTest(
             api,
-            FileFormat.V2.copy(specifiedStripJavaLangPrefix = StripJavaLangPrefix.ALWAYS)
+            FileFormat.V2.buildCopy { this[STRIP_JAVA_LANG_PREFIX] = StripJavaLangPrefix.ALWAYS }
         ) {
             checkStrippedCodebaseTypes(codebase)
         }
@@ -800,11 +806,11 @@ class SignatureInputOutputTest : Assertions {
                 .trimIndent()
         runInputOutputTest(
             api,
-            FileFormat.V2.copy(
-                specifiedTypeArgumentSpacing = TypeArgumentSpacing.NONE,
+            FileFormat.V2.buildCopy {
+                this[TYPE_ARGUMENT_SPACING] = TypeArgumentSpacing.NONE
                 // Strip java.lang. prefix to make test less verbose.
-                specifiedStripJavaLangPrefix = StripJavaLangPrefix.ALWAYS,
-            ),
+                this[STRIP_JAVA_LANG_PREFIX] = StripJavaLangPrefix.ALWAYS
+            },
         )
     }
 
@@ -822,11 +828,11 @@ class SignatureInputOutputTest : Assertions {
                 .trimIndent()
         runInputOutputTest(
             api,
-            FileFormat.V2.copy(
-                specifiedTypeArgumentSpacing = TypeArgumentSpacing.LEGACY,
+            FileFormat.V2.buildCopy {
+                this[TYPE_ARGUMENT_SPACING] = TypeArgumentSpacing.LEGACY
                 // Strip java.lang. prefix to make test less verbose.
-                specifiedStripJavaLangPrefix = StripJavaLangPrefix.ALWAYS,
-            ),
+                this[STRIP_JAVA_LANG_PREFIX] = StripJavaLangPrefix.ALWAYS
+            },
         )
     }
 
@@ -844,11 +850,11 @@ class SignatureInputOutputTest : Assertions {
                 .trimIndent()
         runInputOutputTest(
             api,
-            FileFormat.V2.copy(
-                specifiedTypeArgumentSpacing = TypeArgumentSpacing.SPACE,
+            FileFormat.V2.buildCopy {
+                this[TYPE_ARGUMENT_SPACING] = TypeArgumentSpacing.SPACE
                 // Strip java.lang. prefix to make test less verbose.
-                specifiedStripJavaLangPrefix = StripJavaLangPrefix.ALWAYS,
-            ),
+                this[STRIP_JAVA_LANG_PREFIX] = StripJavaLangPrefix.ALWAYS
+            },
         )
     }
 
@@ -969,6 +975,6 @@ class SignatureInputOutputTest : Assertions {
 
     companion object {
         private val kotlinStyleFormat =
-            FileFormat.V5.copy(kotlinNameTypeOrder = true, formatDefaults = FileFormat.V5)
+            FileFormat.V5.buildCopy { this[KOTLIN_NAME_TYPE_ORDER] = true }
     }
 }
