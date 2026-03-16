@@ -445,6 +445,18 @@ internal class TurbineClassBuilder(
         }
     }
 
+    /** Check if this [MethodInfo] is one of the methods defined in the [Record] class. */
+    private fun MethodInfo.isRecordClassMethod(): Boolean {
+        val name = name()
+        val parameters = parameters()
+        return when (name) {
+            "hashCode",
+            "toString" -> parameters.isEmpty()
+            "equals" -> parameters.size == 1 && parameters[0].type() == Type.ClassTy.OBJECT
+            else -> false
+        }
+    }
+
     private fun createMethods(
         classItem: SkeletonClassItem,
         methods: List<MethodInfo>,
@@ -455,6 +467,13 @@ internal class TurbineClassBuilder(
             if (method.sym().name() == "<init>") continue
 
             val decl: MethDecl? = method.decl()
+
+            // Ignore any implicit implementations of Record class methods.
+            val isRecordClass = classItem.classKind == ClassKind.RECORD
+            if (isRecordClass && decl == null && method.isRecordClassMethod()) {
+                continue
+            }
+
             val methodModifierItem =
                 createModifiers(
                     ItemKind.METHOD,
