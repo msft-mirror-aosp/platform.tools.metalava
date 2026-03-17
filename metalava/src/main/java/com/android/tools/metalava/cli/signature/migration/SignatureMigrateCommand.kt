@@ -458,6 +458,21 @@ class SignatureMigrateCommand(
                             This change cleans them up by setting `normalize-final-modifier=yes`.
                         """,
                 ),
+                migrationChange(
+                    property = CustomizableProperty.OVERLOADED_METHOD_ORDER,
+                    oldValue = FileFormat.OverloadedMethodOrder.SOURCE,
+                    newValue = FileFormat.OverloadedMethodOrder.SIGNATURE,
+                    title = "Sort overloaded methods by signature",
+                    detail =
+                        """
+                            Previously, overloaded methods were sorted by their order in the source
+                            file. That meant that refactoring the sources could cause changes to
+                            signature files even though there were no actual API changes.
+
+                            This change fixes that by setting `overloaded-method-order=signature`
+                            which will sort overloaded methods by their signature.
+                        """,
+                ),
             )
         }
 
