@@ -14,11 +14,15 @@
  * limitations under the License.
  */
 
-package com.android.tools.metalava.cli.signature
+package com.android.tools.metalava.cli.signature.migration
 
 import com.android.tools.metalava.cli.common.MetalavaSubCommand
 import com.android.tools.metalava.cli.common.existingFile
 import com.android.tools.metalava.cli.common.stderr
+import com.android.tools.metalava.cli.signature.ARG_USE_SAME_FORMAT_AS
+import com.android.tools.metalava.cli.signature.SignatureFormatOptions
+import com.android.tools.metalava.cli.signature.readSignatureFiles
+import com.android.tools.metalava.cli.signature.writeSignatureFile
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.text.CustomizableProperty
 import com.android.tools.metalava.model.text.EmitFileHeader
@@ -96,16 +100,18 @@ class SignatureReformatCommand :
             .multiple(required = true)
 
     /**
-     * Compute the output [FileFormat] to use.
+     * Compute the output [com.android.tools.metalava.model.text.FileFormat] to use.
      *
      * Returns [targetFormat] unless [preserveStructure] is `true` in which case this will use
-     * [FileStructurePreserver] to create a [FileFormat] from [targetFormat] with settings from
-     * [currentFormat] needed to preserve the structure.
+     * [FileStructurePreserver] to create a [com.android.tools.metalava.model.text.FileFormat] from
+     * [targetFormat] with settings from [currentFormat] needed to preserve the structure.
      *
-     * @param currentFormat the current [FileFormat] for the file.
-     * @param targetFormat the target [FileFormat] to which the file is to be reformatted.
-     * @param codebase the [Codebase] loaded from the signature file. Used to determine whether a
-     *   property setting affects the structure of the file.
+     * @param currentFormat the current [com.android.tools.metalava.model.text.FileFormat] for the
+     *   file.
+     * @param targetFormat the target [com.android.tools.metalava.model.text.FileFormat] to which
+     *   the file is to be reformatted.
+     * @param codebase the [com.android.tools.metalava.model.Codebase] loaded from the signature
+     *   file. Used to determine whether a property setting affects the structure of the file.
      */
     private fun computeOutputFormat(
         currentFormat: FileFormat,
@@ -146,11 +152,11 @@ class SignatureReformatCommand :
 }
 
 /**
- * Encapsulates logic to compute the [FileFormat] that will preserve the file structure of
- * [codebase] formatted with [currentFormat] while setting as many of the properties in
- * [targetFormat] as possible.
+ * Encapsulates logic to compute the [com.android.tools.metalava.model.text.FileFormat] that will
+ * preserve the file structure of [codebase] formatted with [currentFormat] while setting as many of
+ * the properties in [targetFormat] as possible.
  */
-private class FileStructurePreserver(
+internal class FileStructurePreserver(
     private val currentFormat: FileFormat,
     private val targetFormat: FileFormat,
     private val codebase: Codebase,
@@ -241,7 +247,7 @@ private class FileStructurePreserver(
         targetFormat.buildCopy {
             // Iterate over all the properties checking to see if the [targetFormat] value needs to
             // be replaced with the [currentFormat] value.
-            for (property in CustomizableProperty.entries) {
+            for (property in CustomizableProperty.Companion.entries) {
                 copyPropertyPreservingStructure(this, property)
             }
         }
