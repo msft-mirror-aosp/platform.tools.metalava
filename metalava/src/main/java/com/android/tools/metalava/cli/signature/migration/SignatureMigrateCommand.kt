@@ -445,6 +445,19 @@ class SignatureMigrateCommand(
                             This change cleans them up by setting `normalize-abstract-modifier=yes`.
                         """,
                 ),
+                migrationChange(
+                    property = CustomizableProperty.NORMALIZE_FINAL_MODIFIER,
+                    oldValue = false,
+                    newValue = true,
+                    title = "Normalize final modifiers in final classes",
+                    detail =
+                        """
+                            Previously, `final` modifiers were not removed from methods in `final`
+                            classes.
+
+                            This change cleans them up by setting `normalize-final-modifier=yes`.
+                        """,
+                ),
             )
         }
 

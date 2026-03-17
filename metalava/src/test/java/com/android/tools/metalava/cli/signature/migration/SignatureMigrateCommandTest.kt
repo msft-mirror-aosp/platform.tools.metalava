@@ -394,6 +394,66 @@ class SignatureMigrateCommandTest :
                 """,
         )
     }
+
+    @Test
+    fun `Migrate file that is affected by changing normalize-final-modifier from no to yes`() {
+        checkFileMigration(
+            signatureFile =
+                signature(
+                    """
+                        // Signature format: 2.0
+                        package test.pkg {
+                            public final class Test {
+                                method public final void method();
+                            }
+                        }
+                    """
+                ),
+            expectedCommits =
+                """
+                    Step 1: Migrate
+                      ------------------------------------------------------------------------
+                      This change is the first in a series of 2 steps to migrate
+                      these files to format `6.0:style=java`.
+
+                      This initial change reformats the files to be as close to the target
+                      format as possible while not changing the structure of the file. It
+                      sets properties in each file that are needed to preserve that
+                      structure. The follow-up changes will change the value of one property
+                      at a time from the original value to the target value. The intent is to
+                      simplify the review process by only making one form of structural
+                      change at a time.
+                      ------------------------------------------------------------------------
+
+                      TESTROOT/api.txt:
+                        // Signature format: 6.0
+                        // - style=java
+                        // - normalize-final-modifier=no
+                        package test.pkg {
+                          public final class Test {
+                            method public final void method();
+                          }
+                        }
+
+                    Step 2: Normalize final modifiers in final classes
+                      ------------------------------------------------------------------------
+                      Previously, `final` modifiers were not removed from methods in `final`
+                      classes.
+
+                      This change cleans them up by setting `normalize-final-modifier=yes`.
+                      ------------------------------------------------------------------------
+
+                      TESTROOT/api.txt:
+                        // Signature format: 6.0
+                        // - style=java
+                        package test.pkg {
+                          public final class Test {
+                            method public void method();
+                          }
+                        }
+                """,
+        )
+    }
 }
 
 /**
