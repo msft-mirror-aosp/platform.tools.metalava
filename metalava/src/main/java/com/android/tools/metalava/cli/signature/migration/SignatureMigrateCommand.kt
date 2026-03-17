@@ -473,6 +473,22 @@ class SignatureMigrateCommand(
                             which will sort overloaded methods by their signature.
                         """,
                 ),
+                migrationChange(
+                    property = CustomizableProperty.SORT_WHOLE_EXTENDS_LIST,
+                    oldValue = false,
+                    newValue = true,
+                    title = "Sort the whole extends list",
+                    detail =
+                        """
+                            Previously, an interface that had an `extends` list with multiple super
+                            interfaces would sort all but the first item in the list. That meant
+                            that refactoring the sources could cause changes to signature files even
+                            though there were no actual API changes.
+
+                            This change fixes that by setting `sort-whole-extends-list=yes` which
+                            will sort the whole list.
+                        """,
+                ),
             )
         }
 

@@ -519,6 +519,78 @@ class SignatureMigrateCommandTest :
                 """,
         )
     }
+
+    @Test
+    fun `Migrate file that is affected by changing sorts-whole-extends-list from no to yes`() {
+        checkFileMigration(
+            signatureFile =
+                signature(
+                    """
+                        // Signature format: 2.0
+                        package test.pkg {
+                            public interface Another {
+                            }
+                            public interface Other {
+                            }
+                            public interface Test extends test.pkg.Other, test.pkg.Another {
+                            }
+                        }
+                    """
+                ),
+            expectedCommits =
+                """
+                    Step 1: Migrate
+                      ------------------------------------------------------------------------
+                      This change is the first in a series of 2 steps to migrate
+                      these files to format `6.0:style=java`.
+
+                      This initial change reformats the files to be as close to the target
+                      format as possible while not changing the structure of the file. It
+                      sets properties in each file that are needed to preserve that
+                      structure. The follow-up changes will change the value of one property
+                      at a time from the original value to the target value. The intent is to
+                      simplify the review process by only making one form of structural
+                      change at a time.
+                      ------------------------------------------------------------------------
+
+                      TESTROOT/api.txt:
+                        // Signature format: 6.0
+                        // - style=java
+                        // - sort-whole-extends-list=no
+                        package test.pkg {
+                          public interface Another {
+                          }
+                          public interface Other {
+                          }
+                          public interface Test extends test.pkg.Other test.pkg.Another {
+                          }
+                        }
+
+                    Step 2: Sort the whole extends list
+                      ------------------------------------------------------------------------
+                      Previously, an interface that had an `extends` list with multiple super
+                      interfaces would sort all but the first item in the list. That meant
+                      that refactoring the sources could cause changes to signature files even
+                      though there were no actual API changes.
+
+                      This change fixes that by setting `sort-whole-extends-list=yes` which
+                      will sort the whole list.
+                      ------------------------------------------------------------------------
+
+                      TESTROOT/api.txt:
+                        // Signature format: 6.0
+                        // - style=java
+                        package test.pkg {
+                          public interface Another {
+                          }
+                          public interface Other {
+                          }
+                          public interface Test extends test.pkg.Another test.pkg.Other {
+                          }
+                        }
+                """,
+        )
+    }
 }
 
 /**
