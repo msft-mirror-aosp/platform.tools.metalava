@@ -432,6 +432,19 @@ class SignatureMigrateCommand(
                             This change sets `flagged-api-inheritance=nested-classes` to fix that.
                         """,
                 ),
+                migrationChange(
+                    property = CustomizableProperty.NORMALIZE_ABSTRACT_MODIFIER,
+                    oldValue = false,
+                    newValue = true,
+                    title = "Normalize abstract modifiers in annotations and enums",
+                    detail =
+                        """
+                            Previously, `abstract` modifiers were not removed from annotation and
+                            enum methods even though they were unnecessary.
+
+                            This change cleans them up by setting `normalize-abstract-modifier=yes`.
+                        """,
+                ),
             )
         }
 

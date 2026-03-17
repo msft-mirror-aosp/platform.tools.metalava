@@ -322,6 +322,78 @@ class SignatureMigrateCommandTest :
                 """,
         )
     }
+
+    @Test
+    fun `Migrate file that is affected by changing normalize-abstract-modifier from no to yes`() {
+        checkFileMigration(
+            signatureFile =
+                signature(
+                    """
+                        // Signature format: 2.0
+                        package test.pkg {
+                            public @interface Anno {
+                                method public abstract String[] value();
+                            }
+                            public enum Enum {
+                                enum_constant public static final test.pkg.Enum VALUE;
+                                method public abstract int value();
+                            }
+                        }
+                    """
+                ),
+            expectedCommits =
+                """
+                    Step 1: Migrate
+                      ------------------------------------------------------------------------
+                      This change is the first in a series of 2 steps to migrate
+                      these files to format `6.0:style=java`.
+
+                      This initial change reformats the files to be as close to the target
+                      format as possible while not changing the structure of the file. It
+                      sets properties in each file that are needed to preserve that
+                      structure. The follow-up changes will change the value of one property
+                      at a time from the original value to the target value. The intent is to
+                      simplify the review process by only making one form of structural
+                      change at a time.
+                      ------------------------------------------------------------------------
+
+                      TESTROOT/api.txt:
+                        // Signature format: 6.0
+                        // - style=java
+                        // - normalize-abstract-modifier=no
+                        package test.pkg {
+                          public @interface Anno {
+                            method public abstract String[] value();
+                          }
+                          public enum Enum {
+                            method public abstract int value();
+                            enum_constant public static final test.pkg.Enum VALUE;
+                          }
+                        }
+
+                    Step 2: Normalize abstract modifiers in annotations and enums
+                      ------------------------------------------------------------------------
+                      Previously, `abstract` modifiers were not removed from annotation and
+                      enum methods even though they were unnecessary.
+
+                      This change cleans them up by setting `normalize-abstract-modifier=yes`.
+                      ------------------------------------------------------------------------
+
+                      TESTROOT/api.txt:
+                        // Signature format: 6.0
+                        // - style=java
+                        package test.pkg {
+                          public @interface Anno {
+                            method public String[] value();
+                          }
+                          public enum Enum {
+                            method public int value();
+                            enum_constant public static final test.pkg.Enum VALUE;
+                          }
+                        }
+                """,
+        )
+    }
 }
 
 /**
