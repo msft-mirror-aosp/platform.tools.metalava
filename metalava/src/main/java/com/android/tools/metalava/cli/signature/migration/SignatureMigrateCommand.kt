@@ -27,6 +27,7 @@ import com.android.tools.metalava.cli.signature.writeSignatureFile
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.Codebase.Config
 import com.android.tools.metalava.model.FlaggedApiInheritance
+import com.android.tools.metalava.model.StripJavaLangPrefix
 import com.android.tools.metalava.model.text.ApiFile
 import com.android.tools.metalava.model.text.CustomizableProperty
 import com.android.tools.metalava.model.text.FileFormat
@@ -487,6 +488,22 @@ class SignatureMigrateCommand(
 
                             This change fixes that by setting `sort-whole-extends-list=yes` which
                             will sort the whole list.
+                        """,
+                ),
+                migrationChange(
+                    property = CustomizableProperty.STRIP_JAVA_LANG_PREFIX,
+                    oldValue = StripJavaLangPrefix.LEGACY,
+                    newValue = StripJavaLangPrefix.ALWAYS,
+                    title = "Always strip java.lang. prefixes from types",
+                    detail =
+                        """
+                            Previously, a `java.lang.` prefixes were only stripped from the start of
+                            a type. That is legacy behavior from when types were modelled as
+                            strings.
+
+                            This change fixes that by setting `strip-java-lang-prefix=always` which
+                            will remove the prefix from all types. Note, that does not include
+                            annotations, so `java.lang.SafeVarargs` is unaffected.
                         """,
                 ),
             )

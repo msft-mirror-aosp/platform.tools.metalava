@@ -591,6 +591,66 @@ class SignatureMigrateCommandTest :
                 """,
         )
     }
+
+    @Test
+    fun `Migrate file that is affected by changing strip-java-lang-prefix from legacy to always`() {
+        checkFileMigration(
+            signatureFile =
+                signature(
+                    """
+                        // Signature format: 2.0
+                        package test.pkg {
+                            public interface Test<T extends java.lang.Number> {
+                            }
+                        }
+                    """
+                ),
+            expectedCommits =
+                """
+                    Step 1: Migrate
+                      ------------------------------------------------------------------------
+                      This change is the first in a series of 2 steps to migrate
+                      these files to format `6.0:style=java`.
+
+                      This initial change reformats the files to be as close to the target
+                      format as possible while not changing the structure of the file. It
+                      sets properties in each file that are needed to preserve that
+                      structure. The follow-up changes will change the value of one property
+                      at a time from the original value to the target value. The intent is to
+                      simplify the review process by only making one form of structural
+                      change at a time.
+                      ------------------------------------------------------------------------
+
+                      TESTROOT/api.txt:
+                        // Signature format: 6.0
+                        // - style=java
+                        // - strip-java-lang-prefix=legacy
+                        package test.pkg {
+                          public interface Test<T extends java.lang.Number> {
+                          }
+                        }
+
+                    Step 2: Always strip java.lang. prefixes from types
+                      ------------------------------------------------------------------------
+                      Previously, a `java.lang.` prefixes were only stripped from the start of
+                      a type. That is legacy behavior from when types were modelled as
+                      strings.
+
+                      This change fixes that by setting `strip-java-lang-prefix=always` which
+                      will remove the prefix from all types. Note, that does not include
+                      annotations, so `java.lang.SafeVarargs` is unaffected.
+                      ------------------------------------------------------------------------
+
+                      TESTROOT/api.txt:
+                        // Signature format: 6.0
+                        // - style=java
+                        package test.pkg {
+                          public interface Test<T extends Number> {
+                          }
+                        }
+                """,
+        )
+    }
 }
 
 /**
