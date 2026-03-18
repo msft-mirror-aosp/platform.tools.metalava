@@ -78,10 +78,6 @@ internal abstract class TagType<D : TagData>(
      *
      * If this returns a non-null value then type [D] must implement [TagData.printTagContents] to
      * print the tag contents.
-     *
-     * @param text the [CharSequence] from which this must extract data. For block tags this will
-     *   have no leading whitespace as it is removed from the start of the block tag description.
-     *   However, for inline tags it may have leading whitespace as it is preserved for inline tags.
      */
     abstract fun extractData(context: DocCommentContext, text: CharSequence): ExtractDataResult<D>?
 
@@ -104,20 +100,19 @@ internal abstract class TagType<D : TagData>(
     /**
      * Find the leading identifier, if any, in [this], returning `null` if it could not be found.
      *
+     * [this] must have no leading whitespace. If it does then this will fail to find an identifier.
+     *
      * For the purposes of this method an identifier is simply a series of non-whitespace
      * characters.
-     *
-     * @param startInclusive the start of the identifier, must be non-whitespace otherwise this will
-     *   fail to find an identifier.
      */
-    internal fun CharSequence.findLeadingIdentifier(startInclusive: Int = 0): String? {
+    internal fun CharSequence.findLeadingIdentifier(): String? {
         // Find the end of the identifier by finding the first non-whitespace character.
-        val endIndex = skipForwardsOverNonWhitespace(startInclusive)
+        val endIndex = skipForwardsOverNonWhitespace(0)
 
         // No identifier found.
-        if (endIndex == startInclusive) return null
+        if (endIndex == 0) return null
 
-        return substring(startInclusive, endIndex)
+        return substring(0, endIndex)
     }
 }
 
@@ -201,9 +196,4 @@ internal object BlockTagTypes : BaseTagTypes() {
 /** Collection of all the inline [TagType]s that have been created. */
 internal object InlineTagTypes : BaseTagTypes() {
     val INHERIT_DOC = tagTypeOf("inheritDoc")
-
-    init {
-        register(LinkTagType("link"))
-        register(LinkTagType("linkplain"))
-    }
 }

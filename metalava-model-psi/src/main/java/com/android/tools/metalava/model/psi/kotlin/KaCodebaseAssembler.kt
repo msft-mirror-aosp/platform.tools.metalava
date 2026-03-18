@@ -61,7 +61,6 @@ import org.jetbrains.kotlin.analysis.api.analyze
 import org.jetbrains.kotlin.analysis.api.annotations.KaAnnotated
 import org.jetbrains.kotlin.analysis.api.annotations.KaAnnotation
 import org.jetbrains.kotlin.analysis.api.annotations.KaAnnotationValue
-import org.jetbrains.kotlin.analysis.api.projectStructure.KaModule
 import org.jetbrains.kotlin.analysis.api.symbols.KaCallableSymbol
 import org.jetbrains.kotlin.analysis.api.symbols.KaConstructorSymbol
 import org.jetbrains.kotlin.analysis.api.symbols.KaFunctionSymbol
@@ -79,49 +78,26 @@ import org.jetbrains.kotlin.analysis.api.symbols.KaValueParameterSymbol
 import org.jetbrains.kotlin.analysis.api.symbols.receiverType
 import org.jetbrains.kotlin.analysis.api.types.KaType
 import org.jetbrains.kotlin.asJava.toLightElements
-import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.psi.KtAnnotationEntry
 import org.jetbrains.kotlin.psi.KtElement
 import org.jetbrains.kotlin.psi.KtFile
 
 /**
  * Adds items to the [codebase] by using the kotlin analysis API to process elements from the
- * [PsiBasedCodebase.mainAnalysisModule] which only have kotlin as a target language.
+ * [kaModule] which only have kotlin as a target language.
  */
 internal class KaCodebaseAssembler(
     ktFiles: List<KtFile>,
     val codebase: PsiBasedCodebase,
 ) {
     // TODO(b/407735063): analyze all modules for KMP projects
-    private val mainModule =
+    val kaModule =
         codebase.mainAnalysisModule
             ?: error("No main analysis module found for project with Kotlin files")
-
-    private val mainModuleProcessor = KaModuleProcessor(mainModule, codebase)
 
     /** All packages to analyze from the input files. */
     private val packages = ktFiles.map { it.packageFqName }.toSet().sortedBy { it.asString() }
 
-    /** Analyze the [ktFiles] to add type aliases to the codebase for the [mainModule]. */
-    fun createTypeAliases() {
-        mainModuleProcessor.createTypeAliases(packages)
-    }
-
-    /**
-     * Analyze the [ktFiles] to add items to the codebase for the [mainModule] (except type aliases,
-     * which are added by [createTypeAliases]).
-     */
-    fun assemble() {
-        mainModuleProcessor.assemble(packages)
-    }
-}
-
-/**
- * Processor for a single [kaModule] (a regular project has just one module, a KMP projects has
- * several like androidMain, commonMain, etc.) to update the [codebase] based on the kotlin APIs in
- * the module.
- */
-internal class KaModuleProcessor(val kaModule: KaModule, val codebase: PsiBasedCodebase) {
     private val kaTypeItemFactory =
         KaTypeItemFactory(
             codebase,
@@ -131,8 +107,8 @@ internal class KaModuleProcessor(val kaModule: KaModule, val codebase: PsiBasedC
     private val kaValueFactory = KaValueFactory(codebase, this, kaTypeItemFactory)
     private val kaModifierFactory = KaModifierFactory(this)
 
-    /** Analyze the [packages] to add type aliases to the codebase for this [kaModule]. */
-    fun createTypeAliases(packages: List<FqName>) {
+    /** Analyze the [ktFiles] to add type aliases to the codebase for this [kaModule]. */
+    fun createTypeAliases() {
         analyze(kaModule) {
             for (packageName in packages) {
                 findPackage(packageName)?.let { packageSymbol ->
@@ -147,10 +123,10 @@ internal class KaModuleProcessor(val kaModule: KaModule, val codebase: PsiBasedC
     }
 
     /**
-     * Analyze the [packages] to add items to the codebase for this [kaModule] (except type aliases,
+     * Analyze the [ktFiles] to add items to the codebase for this [kaModule] (except type aliases,
      * which are added by [createTypeAliases]).
      */
-    fun assemble(packages: List<FqName>) {
+    fun assemble() {
         analyze(kaModule) {
             for (packageName in packages) {
                 val packageSymbol = findPackage(packageName)
@@ -171,7 +147,7 @@ internal class KaModuleProcessor(val kaModule: KaModule, val codebase: PsiBasedC
             val className = callableSymbol.containingJvmClassName ?: continue
             val classItem = codebase.findClass(className) as? DefaultClassItem ?: continue
             val classTypeItemFactory =
-                KaTypeItemFactory(codebase, this@KaModuleProcessor, classItem)
+                KaTypeItemFactory(codebase, this@KaCodebaseAssembler, classItem)
             processCallable(callableSymbol, classItem, classTypeItemFactory)
         }
     }
@@ -188,7 +164,7 @@ internal class KaModuleProcessor(val kaModule: KaModule, val codebase: PsiBasedC
         // Find the class in the codebase.
         val className = classifierSymbol.classId?.asFqNameString() ?: return
         val classItem = codebase.findClass(className) as? DefaultClassItem ?: return
-        val classTypeItemFactory = KaTypeItemFactory(codebase, this@KaModuleProcessor, classItem)
+        val classTypeItemFactory = KaTypeItemFactory(codebase, this@KaCodebaseAssembler, classItem)
 
         // The combined declared member scope contains both static and non-static members.
         val memberScope = classifierSymbol.combinedDeclaredMemberScope
@@ -678,9 +654,9 @@ internal class KaModuleProcessor(val kaModule: KaModule, val codebase: PsiBasedC
                     codebase = codebase,
                     fileLocation = PsiFileLocation.fromPsiElement(it.psi),
                     sourceLanguage = SourceLanguage.KOTLIN,
-                    modifiers = kaModifierFactory.createForReceiverParameter(it),
+                    modifiers = kaModifierFactory.createForParameter(it),
                     name = "receiver",
-                    publicName = null,
+                    publicNameProvider = { null },
                     containingCallable = containingCallable,
                     parameterIndex = 0,
                     type = type,
@@ -705,9 +681,9 @@ internal class KaModuleProcessor(val kaModule: KaModule, val codebase: PsiBasedC
                     codebase = codebase,
                     fileLocation = PsiFileLocation.fromPsiElement(parameterSymbol.psi),
                     sourceLanguage = SourceLanguage.KOTLIN,
-                    modifiers = kaModifierFactory.createForValueParameter(parameterSymbol),
+                    modifiers = kaModifierFactory.createForParameter(parameterSymbol),
                     name = parameterSymbol.name.identifier,
-                    publicName = parameterSymbol.name.identifierOrNullIfSpecial,
+                    publicNameProvider = { parameterSymbol.name.identifierOrNullIfSpecial },
                     containingCallable = containingCallable,
                     parameterIndex = index,
                     type = type,
@@ -726,7 +702,7 @@ internal class KaModuleProcessor(val kaModule: KaModule, val codebase: PsiBasedC
                     modifiers =
                         createImmutableModifiers(VisibilityLevel.PACKAGE_PRIVATE, emptyList()),
                     name = "\$completion",
-                    publicName = null,
+                    publicNameProvider = { null },
                     containingCallable = containingCallable,
                     parameterIndex = index,
                     type = enclosingTypeItemFactory.createContinuationType(returnType),

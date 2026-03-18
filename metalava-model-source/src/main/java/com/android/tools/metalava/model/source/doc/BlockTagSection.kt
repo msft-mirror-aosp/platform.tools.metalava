@@ -87,6 +87,7 @@ internal class DefaultBlockTagSection(
     context: DocCommentContext,
     override val tagType: TagType<*>,
     descriptionSupplier: ContentSupplier,
+    mutationListener: DocCommentMutationListener? = null,
 ) :
     DescriptionOwner(
         context,

@@ -311,22 +311,6 @@ class CommonParameterizedReferencableNameScopeTest : BaseModelTest() {
                             .assertTypeParameter("S")
                     }
                 ),
-
-                // FieldItem related tests.
-                TestParams(
-                    name = "FieldItem - resolve nested class",
-                    scopeGetter = { codebase.assertClass("test.pkg.Test").fields().single() },
-                    referencableName = "Nested",
-                    expectedItemGetter = { codebase.assertClass("test.pkg.Test.Nested") }
-                ),
-                TestParams(
-                    name = "FieldItem - access outer class TypeParameter - O",
-                    scopeGetter = { codebase.assertClass("test.pkg.Test").fields().single() },
-                    referencableName = "O",
-                    expectedItemGetter = {
-                        codebase.assertClass("test.pkg.Test").assertTypeParameter("O")
-                    }
-                ),
             )
 
         @JvmStatic @Parameterized.Parameters fun params() = params
@@ -348,8 +332,6 @@ class CommonParameterizedReferencableNameScopeTest : BaseModelTest() {
                             public <C, S> Test(C m, S s) {}
 
                             public <M, S> void method(M m, S s) {}
-
-                            public int field;
                         }
 
                         public class Hidden {}

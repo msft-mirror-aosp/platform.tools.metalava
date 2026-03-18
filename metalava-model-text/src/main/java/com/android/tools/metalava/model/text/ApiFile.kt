@@ -1909,7 +1909,7 @@ private constructor(
                     fileLocation = location,
                     modifiers = modifiers,
                     name = name,
-                    publicName = publicName,
+                    publicNameProvider = { publicName },
                     containingCallable = containingCallable,
                     parameterIndex = index,
                     type = type,

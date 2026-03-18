@@ -87,16 +87,5 @@ internal interface DocumentationIssueReporter {
                     error("${lineOffset + 1}:${charOffset + 1}: $message [${issue.name}]")
                 }
             }
-
-        /** A special [DocumentationIssueReporter] that will ignore all the issues. */
-        val NULL =
-            object : DocumentationIssueReporter {
-                override fun report(
-                    issue: Issue,
-                    message: String,
-                    lineOffset: Int,
-                    charOffset: Int
-                ) {}
-            }
     }
 }

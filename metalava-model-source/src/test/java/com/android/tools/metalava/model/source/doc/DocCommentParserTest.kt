@@ -51,18 +51,9 @@ class DocCommentParserTest : BaseDocCommentTest() {
     }
 
     @Test
-    fun `Test non-existent comment`() {
-        checkDocComment(
-            input = "",
-            expectedString = "description: <<>>",
-            expectedPrintOutput = "",
-        )
-    }
-
-    @Test
     fun `Test empty comment`() {
         checkDocComment(
-            input = "/***/",
+            input = "",
             expectedString = "description: <<>>",
             expectedPrintOutput =
                 """

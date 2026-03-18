@@ -1259,22 +1259,6 @@ class CompatibilityCheck(
                     return true
                 }
             }
-            Issues.CHANGED_TYPE -> {
-                val parentClass = newItem.containingClass()
-                // If a method within a non-experimental abstract class or interface has its return
-                // type changed, clients that were forced to implement it will break, so we should
-                // raise an error.
-                if (
-                    parentClass?.isCompatibilitySuppressed() == false &&
-                        parentClass.isExtensible() &&
-                        (parentClass.modifiers.isAbstract() || parentClass.isInterface()) &&
-                        newItem is CallableItem &&
-                        newItem.modifiers.isAbstract() &&
-                        !newItem.modifiers.isDefault()
-                ) {
-                    return true
-                }
-            }
         }
         return false
     }

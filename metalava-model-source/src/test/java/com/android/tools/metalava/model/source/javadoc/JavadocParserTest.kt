@@ -90,7 +90,8 @@ class JavadocParserTest : BaseDocCommentTest() {
             """,
             expectedStructure =
                 """
-                    inlineTag: link LinkTagData(sourceReference=Class)
+                    inlineTag: link
+                      text: 'Class'
                 """,
         )
     }
@@ -106,7 +107,8 @@ class JavadocParserTest : BaseDocCommentTest() {
             expectedStructure =
                 """
                     text: 'Text before link '
-                    inlineTag: link LinkTagData(sourceReference=Class)
+                    inlineTag: link
+                      text: 'Class'
                     text: ' and some text after.'
                 """,
         )
@@ -125,7 +127,8 @@ class JavadocParserTest : BaseDocCommentTest() {
             expectedStructure =
                 """
                     text: 'Text before link\n '
-                    inlineTag: link LinkTagData(sourceReference=Class)
+                    inlineTag: link
+                      text: 'Class'
                     text: '\n and some text after.'
                 """,
         )
@@ -155,7 +158,6 @@ class JavadocParserTest : BaseDocCommentTest() {
                  * {@code some {@code nested} inline tags}
                  */
             """,
-            // TODO(b/447588621): {@code nested} should be literal text, not an inline tag.
             expectedStructure =
                 """
                     inlineTag: code
@@ -163,91 +165,6 @@ class JavadocParserTest : BaseDocCommentTest() {
                       inlineTag: code
                         text: 'nested'
                       text: ' inline tags'
-                """,
-        )
-    }
-
-    @Test
-    fun `Test inline tag nested within code tag`() {
-        // Make sure that the BAR_TAG_TYPE is registered.
-        TestTagTypes.BAR_TAG_TYPE
-        checkParse(
-            """
-                /**
-                 * {@code cannot contain inline {@bar tag}}.
-                 */
-            """,
-            // TODO(b/447588621): {@bar tag} should be literal text, not an inline tag.
-            expectedStructure =
-                """
-                    inlineTag: code
-                      text: 'cannot contain inline '
-                      inlineTag: bar BarTagData(identifier=tag)
-                    text: '.'
-                """,
-        )
-    }
-
-    @Test
-    fun `Test inline tag nested within literal tag`() {
-        // Make sure that the BAR_TAG_TYPE is registered.
-        TestTagTypes.BAR_TAG_TYPE
-        checkParse(
-            """
-                /**
-                 * {@literal cannot contain inline {@bar tag}}.
-                 */
-            """,
-            // TODO(b/447588621): {@bar tag} should be literal text, not an inline tag.
-            expectedStructure =
-                """
-                    inlineTag: literal
-                      text: 'cannot contain inline '
-                      inlineTag: bar BarTagData(identifier=tag)
-                    text: '.'
-                """,
-        )
-    }
-
-    @Test
-    fun `Test inline tag nested within link tag`() {
-        // Make sure that the BAR_TAG_TYPE is registered.
-        TestTagTypes.BAR_TAG_TYPE
-        checkParse(
-            """
-                /**
-                 * {@link String cannot contain inline {@bar
-                 * tag}}.
-                 */
-            """,
-            // TODO(b/447588621): {@bar tag} should be literal text, not an inline tag.
-            expectedStructure =
-                """
-                    inlineTag: link LinkTagData(sourceReference=String)
-                      text: 'cannot contain inline '
-                      inlineTag: bar BarTagData(identifier=tag)
-                    text: '.'
-                """,
-        )
-    }
-
-    @Test
-    fun `Test inline tag nested within linkplain tag`() {
-        // Make sure that the BAR_TAG_TYPE is registered.
-        TestTagTypes.BAR_TAG_TYPE
-        checkParse(
-            """
-                /**
-                 * {@linkplain String cannot contain inline {@bar tag}}.
-                 */
-            """,
-            // TODO(b/447588621): {@bar tag} should be literal text, not an inline tag.
-            expectedStructure =
-                """
-                    inlineTag: linkplain LinkTagData(sourceReference=String)
-                      text: 'cannot contain inline '
-                      inlineTag: bar BarTagData(identifier=tag)
-                    text: '.'
                 """,
         )
     }
@@ -430,69 +347,6 @@ class JavadocParserTest : BaseDocCommentTest() {
                     inlineTag: bar BarTagData(identifier=inline)
                       text: 'inside'
                     text: ' outside after'
-                """,
-        )
-    }
-
-    @Test
-    fun `Test inline tag split across lines - nested content starts with text`() {
-        checkParse(
-            """
-                /**
-                 * {@code some
-                 * text}
-                 */
-            """,
-            expectedStructure =
-                """
-                    inlineTag: code
-                      text: 'some\n text'
-                """,
-        )
-    }
-
-    @Test
-    fun `Test inline tag split across lines - nested content starts with whitespace`() {
-        checkParse(
-            """
-                /**
-                 * {@code
-                 * some text}
-                 * {@code
-                 * some text}
-                 */
-            """,
-            expectedStructure =
-                """
-                    inlineTag: code
-                      text: '\n some text'
-                    text: '\n '
-                    inlineTag: code
-                      text: '\n some text'
-                """,
-        )
-    }
-
-    @Test
-    fun `Test inline tag split across lines - tag with data`() {
-        // Make sure that the BAR_TAG_TYPE is registered.
-        TestTagTypes.BAR_TAG_TYPE
-        checkParse(
-            """
-                /**
-                 * {@bar some
-                 * text}
-                 * {@bar
-                 * some text}
-                 */
-            """,
-            expectedStructure =
-                """
-                    inlineTag: bar BarTagData(identifier=some)
-                      text: 'text'
-                    text: '\n '
-                    inlineTag: bar BarTagData(identifier=some)
-                      text: 'text'
                 """,
         )
     }

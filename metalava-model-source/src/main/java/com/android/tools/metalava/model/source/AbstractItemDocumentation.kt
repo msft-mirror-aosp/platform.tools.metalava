@@ -35,7 +35,6 @@ import com.android.tools.metalava.model.source.doc.DocCommentContext
 import com.android.tools.metalava.model.source.doc.DocCommentMutationListener
 import com.android.tools.metalava.model.source.doc.DocCommentPredicate
 import com.android.tools.metalava.model.source.doc.DocumentationIssueReporter
-import com.android.tools.metalava.model.source.doc.JavaSummaryTruncationWorkaround
 import com.android.tools.metalava.model.source.doc.TypeParameterReference
 import com.android.tools.metalava.model.source.doc.TypeReference
 import com.android.tools.metalava.model.source.javadoc.JavadocText
@@ -84,15 +83,14 @@ abstract class AbstractItemDocumentation(
     }
 
     /**
-     * The immutable text contents of the documentation.
+     * The mutable text contents of the documentation.
      *
-     * Although it is not possible to modify this property the backing field will be kept in sync
-     * with [docComment] so the value returned from this will change if [docComment] is mutated.
+     * It uses [_text] as its backing field and setting this will invoke [textChanged].
      *
      * If [_docComment] is null then this needs initializing from the model, otherwise this is set
      * from [_docComment].
      */
-    override val text: String
+    override var text: String
         get() {
             if (_text == null) {
                 val docComment = _docComment
@@ -106,8 +104,24 @@ abstract class AbstractItemDocumentation(
             }
             return _text!!
         }
+        set(value) {
+            _text = value
+            textChanged()
+        }
 
-    /** Lazily initialized from [text]. */
+    /**
+     * Called when [text] changes to discard [_docComment] so it will be regenerated the next time
+     * [docComment] is accessed.
+     *
+     * This ensures that [text] and [_docComment] do not get out of sync. It is needed because
+     * currently both [text] and [docComment] are modified directly. Longer term, changes will be
+     * applied directly to [_docComment] and [text] will be dropped.
+     */
+    private fun textChanged() {
+        _docComment = null
+    }
+
+    /** Lazily initialized from [text]. Is cleared by [textChanged] if [text] is modified. */
     private var _docComment: DocComment? = null
 
     private val docComment: DocComment
@@ -120,7 +134,6 @@ abstract class AbstractItemDocumentation(
                         text,
                         reporter = this,
                     )
-                _text = null
                 _docComment = new
                 new
             } else {
@@ -218,7 +231,7 @@ abstract class AbstractItemDocumentation(
 
         // Before printing fully qualify the comment. This expects a whole comment and will fix up
         // @link and @see tags.
-        val fullyQualifiedText = fullyQualifiedDocumentation(originalText)
+        val fullyQualifiedText = fullyQualifiedDocumentation(text)
 
         // Only print the comment if it is not blank.
         if (fullyQualifiedText.isNotBlank()) {
@@ -230,18 +243,11 @@ abstract class AbstractItemDocumentation(
                     DocComment.createDocComment(
                         context = this,
                         fullyQualifiedText,
-                        // Ignore any errors that are found while parsing the fully qualified test
-                        // as they will duplicate issues found when first creating and the line
-                        // numbers may not match the original source.
-                        reporter = DocumentationIssueReporter.NULL,
+                        reporter = this,
                     )
 
             // Print the docComment as Javadoc.
-            fullyQualifiedComment.printAsJavadocComment(
-                writer,
-                // Apply the [JavaSummaryTruncationWorkaround] to the main description.
-                mainDescriptionRewriter = JavaSummaryTruncationWorkaround()
-            )
+            fullyQualifiedComment.printAsJavadocComment(writer)
         }
     }
 
@@ -288,6 +294,14 @@ abstract class AbstractItemDocumentation(
 
     /** Check to see if this requires a source comment. */
     override fun requiresSourceComment() = docComment.requiresSourceComment()
+
+    override fun workAroundJavaDocSummaryTruncationIssue() {
+        // Work around javadoc cutting off the summary line after the first ". ".
+        val firstDot = text.indexOf(".")
+        if (firstDot > 0 && text.regionMatches(firstDot - 1, "e.g. ", 0, 5, false)) {
+            text = text.substring(0, firstDot) + ".g.&nbsp;" + text.substring(firstDot + 4)
+        }
+    }
 
     override fun removeDeprecatedSection() {
         // Try and remove all the `@deprecated` sections.

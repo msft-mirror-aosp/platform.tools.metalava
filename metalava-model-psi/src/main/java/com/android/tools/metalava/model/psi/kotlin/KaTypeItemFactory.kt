@@ -64,19 +64,19 @@ import org.jetbrains.kotlin.types.Variance
 /** Constructs type items from [KaType]s. */
 internal class KaTypeItemFactory(
     private val codebase: PsiBasedCodebase,
-    private val processor: KaModuleProcessor,
+    private val assembler: KaCodebaseAssembler,
     typeParameterScope: TypeParameterScope,
 ) : DefaultTypeItemFactory<KaType, KaTypeItemFactory>(typeParameterScope) {
     constructor(
         codebase: PsiBasedCodebase,
-        processor: KaModuleProcessor,
+        assembler: KaCodebaseAssembler,
         classItem: DefaultClassItem,
-    ) : this(codebase, processor, TypeParameterScope.from(classItem))
+    ) : this(codebase, assembler, TypeParameterScope.from(classItem))
 
     override fun self(): KaTypeItemFactory = this
 
     override fun createNestedFactory(scope: TypeParameterScope): KaTypeItemFactory {
-        return KaTypeItemFactory(codebase, processor, scope)
+        return KaTypeItemFactory(codebase, assembler, scope)
     }
 
     override fun getType(
@@ -120,7 +120,7 @@ internal class KaTypeItemFactory(
         fingerprint: MethodFingerprint,
         isAnnotationElement: Boolean
     ): TypeItem {
-        return analyze(processor.kaModule) {
+        return analyze(assembler.kaModule) {
             // Convert Unit returns to void
             if (underlyingReturnType.isUnitType) {
                 DefaultPrimitiveTypeItem(
@@ -146,13 +146,13 @@ internal class KaTypeItemFactory(
      */
     private fun KaType.toTypeItem(mustBoxPrimitives: Boolean): TypeItem {
         val typeItemNullability = let { kaType ->
-            analyze(processor.kaModule) { typeNullability(kaType) }
+            analyze(assembler.kaModule) { typeNullability(kaType) }
         }
-        val typeItemAnnotations = annotations.mapNotNull { processor.createAnnotation(it) }
+        val typeItemAnnotations = annotations.mapNotNull { assembler.createAnnotation(it) }
         val modifiers = DefaultTypeModifiers.create(typeItemAnnotations, typeItemNullability)
 
         // Expand type aliases
-        val expandedKaType = analyze(processor.kaModule) { fullyExpandedType }
+        val expandedKaType = analyze(assembler.kaModule) { fullyExpandedType }
         // Convert expanded type to a TypeItem
         return when (expandedKaType) {
             is KaUsualClassType -> expandedKaType.toTypeItem(modifiers, mustBoxPrimitives)
@@ -274,7 +274,7 @@ internal class KaTypeItemFactory(
 
         // Otherwise, create a class type.
         val isValueClass =
-            analyze(processor.kaModule) {
+            analyze(assembler.kaModule) {
                 (expandedSymbol as? KaNamedClassSymbol)?.isInline == true
             }
         return DefaultClassTypeItem(
@@ -346,7 +346,7 @@ internal class KaTypeItemFactory(
 
     /** Creates an [ArrayTypeItem], if the [KaUsualClassType] represents an array. */
     private fun KaUsualClassType.maybeToArrayTypeItem(modifiers: TypeModifiers): ArrayTypeItem? {
-        return analyze(processor.kaModule) {
+        return analyze(assembler.kaModule) {
             // If there's an arrayElementType, this is an array type.
             arrayElementType?.let { componentType ->
                 // An array type might be `kotlin.Array`, or it might be `kotlin.IntArray`,
@@ -404,7 +404,7 @@ internal class KaTypeItemFactory(
         kaType: KaType,
         type: TypeItem,
     ): TypeItem {
-        return analyze(processor.kaModule) {
+        return analyze(assembler.kaModule) {
             if (type.isValueClassType()) {
                 // Find the inlined type through the constructor of the value class. Value classes
                 // must have a single parameter for the primary constructor
@@ -456,7 +456,7 @@ internal class KaTypeItemFactory(
     ): TypeItem {
         return if (
             typeItem is PrimitiveTypeItem &&
-                overrideTypes.any { analyze(processor.kaModule) { !it.isPrimitive } }
+                overrideTypes.any { analyze(assembler.kaModule) { !it.isPrimitive } }
         ) {
             boxType(typeItem)
         } else {

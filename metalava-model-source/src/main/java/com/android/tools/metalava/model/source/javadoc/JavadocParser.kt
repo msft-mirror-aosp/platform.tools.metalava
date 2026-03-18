@@ -171,9 +171,6 @@ private class JavadocContentBuilder(
      */
     private var trimLeadingWhitespace = true
 
-    /** Responsible for handling an [AntlrJavadocParser.InlineTagContext]. */
-    private val inlineTagHandler = ADD_INLINE_TAG_AS_OBJECT
-
     /**
      * A [MutableList] of consecutive [JavadocContent] instances that have been created from the
      * Javadoc.
@@ -382,15 +379,6 @@ private class JavadocContentBuilder(
     }
 
     override fun visitInlineTag(ctx: AntlrJavadocParser.InlineTagContext) {
-        inlineTagHandler.handleInlineTag(this, ctx)
-    }
-
-    /** Create a [JavadocInlineTag] from [ctx] and add to the [contentList]. */
-    private fun addAsJavadocInlineTag(ctx: AntlrJavadocParser.InlineTagContext) {
-        // The inline tag is the end of any leading whitespace so prevent any from being removed
-        // from the start of the inline tag content.
-        trimLeadingWhitespace = false
-
         val tagTypeName = ctx.inlineTagName().NAME().text
         val tagType = InlineTagTypes.tagTypeOf(tagTypeName)
 
@@ -459,29 +447,5 @@ private class JavadocContentBuilder(
             // Get the [JavadocContent], if any, that was created.
             return builder.getContent(trimTrailingWhitespace = true)
         }
-
-        /**
-         * Adds [AntlrJavadocParser.InlineTagContext] to [JavadocContentBuilder] as a
-         * [JavadocInlineTag] object.
-         */
-        private val ADD_INLINE_TAG_AS_OBJECT =
-            object : InlineTagHandler {
-                override fun handleInlineTag(
-                    builder: JavadocContentBuilder,
-                    ctx: AntlrJavadocParser.InlineTagContext
-                ) {
-                    builder.addAsJavadocInlineTag(ctx)
-                }
-            }
     }
-}
-
-/**
- * Responsible for handling a [AntlrJavadocParser.InlineTagContext].
- *
- * Used in [JavadocContentBuilder] to select context specific handling of inline tags.
- */
-private interface InlineTagHandler {
-    /** Determine how [builder] should handle the [ctx] inline tag. */
-    fun handleInlineTag(builder: JavadocContentBuilder, ctx: AntlrJavadocParser.InlineTagContext)
 }
