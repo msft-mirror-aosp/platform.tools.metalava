@@ -249,6 +249,196 @@ class SignatureMigrateCommandTest :
         )
     }
 
+    @Test
+    fun `Migrate some files that need to be kept in sync`() {
+        // The following signature files should be kept in sync, i.e. have the same format at every
+        // step of the migration process. e.g. This would be needed for `current.txt` and
+        // `removed.txt` as they are both created in a metalava invocation that sets
+        // `--use-same-format-as current.txt`. Failing to keep them in sync would cause problems if
+        // they had to be regenerated from sources.
+        val signatureFiles =
+            listOf(
+                signature(
+                    "api1.txt",
+                    """
+                        // Signature format: 2.0
+                        package test.pkg {
+                            public enum Enum {
+                                enum_constant public static final test.pkg.Enum VALUE;
+                                method public abstract int value();
+                            }
+                            public final class Test {
+                                method public final void method();
+                            }
+                        }
+                    """
+                ),
+                signature(
+                    "api2.txt",
+                    """
+                        // Signature format: 2.0
+                        package other.pkg {
+                            public @interface Anno {
+                                method public abstract String[] value();
+                            }
+                            public class Other {
+                                method public void method(String);
+                                method public void method(int);
+                            }
+                        }
+                    """
+                ),
+            )
+
+        // TODO(b/489071739): api1.txt and api2.txt should have the format kept in sync by starting
+        //  with the same format and be updated in the same steps.
+        checkFilesMigration(
+            signatureFiles = signatureFiles,
+            expectedCommits =
+                """
+                    Step 1: Initial migration
+                      Reformatting files
+                      Committing changes
+                        ------------------------------------------------------------------------
+                        Migrate
+
+                        This change is the first in a series of 4 steps to migrate
+                        these files to format `6.0:style=java`.
+
+                        This initial change reformats the files to be as close to the target
+                        format as possible while not changing the structure of the file. It
+                        sets properties in each file that are needed to preserve that
+                        structure. The follow-up changes will change the value of one property
+                        at a time from the original value to the target value. The intent is to
+                        simplify the review process by only making one form of structural
+                        change at a time.
+                        ------------------------------------------------------------------------
+
+                        TESTROOT/api1.txt:
+                          // Signature format: 6.0
+                          // - style=java
+                          // - normalize-abstract-modifier=no
+                          // - normalize-final-modifier=no
+                          package test.pkg {
+                            public enum Enum {
+                              method public abstract int value();
+                              enum_constant public static final test.pkg.Enum VALUE;
+                            }
+                            public final class Test {
+                              method public final void method();
+                            }
+                          }
+
+                        TESTROOT/api2.txt:
+                          // Signature format: 6.0
+                          // - style=java
+                          // - normalize-abstract-modifier=no
+                          // - overloaded-method-order=source
+                          package other.pkg {
+                            public @interface Anno {
+                              method public abstract String[] value();
+                            }
+                            public class Other {
+                              method public void method(String);
+                              method public void method(int);
+                            }
+                          }
+
+                    Step 2: Change 'normalize-abstract-modifier' from 'no' to 'yes'
+                      Reformatting files
+                      Committing changes
+                        ------------------------------------------------------------------------
+                        Normalize abstract modifiers in annotations and enums
+
+                        Previously, `abstract` modifiers were not removed from annotation and
+                        enum methods even though they were unnecessary.
+
+                        This change cleans them up by setting `normalize-abstract-modifier=yes`.
+                        ------------------------------------------------------------------------
+
+                        TESTROOT/api1.txt:
+                          // Signature format: 6.0
+                          // - style=java
+                          // - normalize-final-modifier=no
+                          package test.pkg {
+                            public enum Enum {
+                              method public int value();
+                              enum_constant public static final test.pkg.Enum VALUE;
+                            }
+                            public final class Test {
+                              method public final void method();
+                            }
+                          }
+
+                        TESTROOT/api2.txt:
+                          // Signature format: 6.0
+                          // - style=java
+                          // - overloaded-method-order=source
+                          package other.pkg {
+                            public @interface Anno {
+                              method public String[] value();
+                            }
+                            public class Other {
+                              method public void method(String);
+                              method public void method(int);
+                            }
+                          }
+
+                    Step 3: Change 'normalize-final-modifier' from 'no' to 'yes'
+                      Reformatting files
+                      Committing changes
+                        ------------------------------------------------------------------------
+                        Normalize final modifiers in final classes
+
+                        Previously, `final` modifiers were not removed from methods in `final`
+                        classes.
+
+                        This change cleans them up by setting `normalize-final-modifier=yes`.
+                        ------------------------------------------------------------------------
+
+                        TESTROOT/api1.txt:
+                          // Signature format: 6.0
+                          // - style=java
+                          package test.pkg {
+                            public enum Enum {
+                              method public int value();
+                              enum_constant public static final test.pkg.Enum VALUE;
+                            }
+                            public final class Test {
+                              method public void method();
+                            }
+                          }
+
+                    Step 4: Change 'overloaded-method-order' from 'source' to 'signature'
+                      Reformatting files
+                      Committing changes
+                        ------------------------------------------------------------------------
+                        Sort overloaded methods by signature
+
+                        Previously, overloaded methods were sorted by their order in the source
+                        file. That meant that refactoring the sources could cause changes to
+                        signature files even though there were no actual API changes.
+
+                        This change fixes that by setting `overloaded-method-order=signature`
+                        which will sort overloaded methods by their signature.
+                        ------------------------------------------------------------------------
+
+                        TESTROOT/api2.txt:
+                          // Signature format: 6.0
+                          // - style=java
+                          package other.pkg {
+                            public @interface Anno {
+                              method public String[] value();
+                            }
+                            public class Other {
+                              method public void method(int);
+                              method public void method(String);
+                            }
+                          }
+                """,
+        )
+    }
+
     /** Check migrating [signatureFile] results in [expectedCommits]. */
     private fun checkFileMigration(
         signatureFile: TestFile,
