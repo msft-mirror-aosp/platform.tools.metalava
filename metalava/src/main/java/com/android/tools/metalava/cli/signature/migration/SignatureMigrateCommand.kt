@@ -64,6 +64,15 @@ class SignatureMigrateCommand(
     private val committerFactory: SignatureMigrateCommand.() -> ChangeCommitter = {
         GitChangeCommitter()
     },
+
+    /**
+     * Allows tests to provide their own [SignatureFileRegenerator].
+     *
+     * Defaults to using [BashSignatureFileRegenerator].
+     */
+    private val regeneratorFactory: SignatureMigrateCommand.() -> SignatureFileRegenerator? = {
+        regenerateCommand?.let { command -> BashSignatureFileRegenerator(command) }
+    },
 ) :
     MetalavaSubCommand(
         help =
@@ -124,6 +133,20 @@ class SignatureMigrateCommand(
                 help = "Text to include at the end of each commit message.",
             )
             .default("")
+
+    private val regenerateCommand by
+        option(
+            metavar = "<bash-shell-command>",
+            help =
+                """
+                    A bash shell command that will be run during migration to regenerate the
+                    signature files being migrated from sources.
+
+                    This will be called for every migration step where the new property setting
+                    may result in additional information being included from the sources.
+                """
+                    .trimIndent(),
+        )
 
     /**
      * A list of file groups, where each file group is a list of [File]s that must always have the
@@ -372,11 +395,13 @@ class SignatureMigrateCommand(
     private fun createMigrationStep(
         filesToMigrate: List<FileToMigrate>,
         description: ChangeDescription,
+        requiresRegeneratingFromSources: Boolean,
         optionalPropertyChange: PropertyChange<*>?,
     ) =
         MigrationStep(
             filesToMigrate = filesToMigrate,
             description = createCommitDescription(description),
+            requiresRegeneratingFromSources = requiresRegeneratingFromSources,
             optionalPropertyChange = optionalPropertyChange,
         )
 
@@ -415,6 +440,7 @@ class SignatureMigrateCommand(
                     title = initialTitle,
                     detail = detail,
                 ),
+            requiresRegeneratingFromSources = false,
             optionalPropertyChange = null,
         )
     }
@@ -434,6 +460,7 @@ class SignatureMigrateCommand(
         return createMigrationStep(
             filesToMigrate = files,
             description = migrationChange.description,
+            requiresRegeneratingFromSources = migrationChange.requiresRegeneratingFromSources,
             optionalPropertyChange = propertyChange,
         )
     }
@@ -451,10 +478,16 @@ class SignatureMigrateCommand(
     private fun performMigration(migrationSteps: List<MigrationStep>) {
         val out = outFactory()
         val changeCommitter = committerFactory()
+        val signatureFileRegenerator = regeneratorFactory()
 
         // Perform the migration steps in order.
         for ((index, step) in migrationSteps.withIndex()) {
-            step.perform(out, index + 1, changeCommitter)
+            step.perform(
+                out,
+                index + 1,
+                signatureFileRegenerator,
+                changeCommitter,
+            )
         }
     }
 
@@ -463,6 +496,11 @@ class SignatureMigrateCommand(
         private data class MigrationChange(
             /** The property change that this applies. */
             val propertyChange: PropertyChange<*>,
+
+            /**
+             * The property change may require more information to be extracted from the sources.
+             */
+            val requiresRegeneratingFromSources: Boolean,
 
             /** The description of the change. */
             val description: ChangeDescription,
@@ -476,12 +514,14 @@ class SignatureMigrateCommand(
                 property: CustomizableProperty<T>,
                 oldValue: T,
                 newValue: T,
+                requiresRegeneratingFromSources: Boolean = false,
                 title: String,
                 detail: String,
             ) =
                 MigrationChange(
-                    PropertyChange(property, oldValue, newValue),
-                    ChangeDescription(title, detail.trimIndent()),
+                    propertyChange = PropertyChange(property, oldValue, newValue),
+                    requiresRegeneratingFromSources = requiresRegeneratingFromSources,
+                    description = ChangeDescription(title, detail.trimIndent()),
                 )
 
             return listOf(
@@ -489,6 +529,12 @@ class SignatureMigrateCommand(
                     property = CustomizableProperty.FLAGGED_API_INHERITANCE,
                     oldValue = FlaggedApiInheritance.NONE,
                     newValue = FlaggedApiInheritance.NESTED_CLASSES,
+                    // Strictly speaking this change does not require regenerating signature files
+                    // from sources as the information is available in a signature file, it just may
+                    // not be the one that will be affected; i.e. when the containing class with the
+                    // @FlaggedApi annotation is in one signature file and the nested class that
+                    // inherits it is in another signature file that is a delta of the first.
+                    requiresRegeneratingFromSources = true,
                     title = "Track inherited @FlaggedApi on nested classes",
                     detail =
                         """
@@ -616,8 +662,12 @@ private data class FileToMigrate(
     /** The original format of [File]. */
     val originalFormat: FileFormat,
 
-    /** The [Codebase] loaded from [file]. */
-    val codebase: Codebase,
+    /**
+     * The [Codebase] loaded from [file].
+     *
+     * Can be modified by [reloadCodebaseIfNeeded].
+     */
+    var codebase: Codebase,
 
     /**
      * The output format that [file] will be written as.
@@ -631,6 +681,33 @@ private data class FileToMigrate(
     /** The [PropertyChange]s that need to be made to migrate this file to the target format. */
     val propertyChanges: Set<PropertyChange<*>>,
 ) {
+    /**
+     * The length of the [file].
+     *
+     * Used to detect if the [file] was changed since [codebase] was created. See
+     * [reloadCodebaseIfNeeded].
+     */
+    private var length: Long = file.length()
+
+    /**
+     * The last modified time of the [file].
+     *
+     * Used to detect if the [file] was changed since [codebase] was created. See
+     * [reloadCodebaseIfNeeded].
+     */
+    private var lastModified: Long = file.lastModified()
+
+    /** Reload [codebase] from [file] if [file] has changed since [codebase] was set. */
+    fun reloadCodebaseIfNeeded() {
+        val newLength = file.length()
+        val newLastModified = file.lastModified()
+        if (newLength == length && newLastModified == lastModified) return
+
+        length = newLength
+        lastModified = newLastModified
+        codebase = readSignatureFile(file)
+    }
+
     fun write(outputFormat: FileFormat) {
         file.printWriter().use { writer -> writeSignatureFile(codebase, outputFormat, writer) }
     }
@@ -643,6 +720,14 @@ private class MigrationStep(
 
     /** The description of the change made in this step. */
     private val description: ChangeDescription,
+
+    /**
+     * Determines whether this change requires updating from the sources.
+     *
+     * If this is `true` then after modifying the format it will be necessary to update the
+     * signature files from the sources.
+     */
+    val requiresRegeneratingFromSources: Boolean,
 
     /** Optional [PropertyChange] to apply to [FileToMigrate.outputFormat]. */
     private val optionalPropertyChange: PropertyChange<*>?,
@@ -661,6 +746,7 @@ private class MigrationStep(
     fun perform(
         out: PrintWriter?,
         stepNumber: Int,
+        signatureFileRegenerator: SignatureFileRegenerator?,
         changeCommitter: ChangeCommitter,
     ) {
         val stepSummary = optionalPropertyChange?.describe() ?: "Initial migration"
@@ -681,6 +767,18 @@ private class MigrationStep(
 
             // Update the file state to remember the new output format.
             fileToMigrate.outputFormat = newOutputFormat
+        }
+
+        // If required regenerate the files from sources.
+        if (requiresRegeneratingFromSources) {
+            // Regenerate from sources.
+            signatureFileRegenerator?.regenerateFromSources()
+                ?: error("No --regenerate-command provided so cannot regenerate the files")
+
+            // Reload the [FileToMigrate.codebase] if the files have changed.
+            for (fileToMigrate in filesToMigrate) {
+                fileToMigrate.reloadCodebaseIfNeeded()
+            }
         }
 
         val files = filesToMigrate.map { it.file }

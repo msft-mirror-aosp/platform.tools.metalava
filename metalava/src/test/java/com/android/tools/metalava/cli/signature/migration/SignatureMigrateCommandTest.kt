@@ -56,6 +56,11 @@ Options:
                                              If supplied then it will be prepended on every commit title.
   --commit-prolog <text>                     Text to include at the beginning of each commit message.
   --commit-epilog <text>                     Text to include at the end of each commit message.
+  --regenerate-command <bash-shell-command>  A bash shell command that will be run during migration to regenerate the
+                                             signature files being migrated from sources.
+
+                                             This will be called for every migration step where the new property setting
+                                             may result in additional information being included from the sources.
   -h, -?, --help                             Show this message and exit
 
 ${signatureFormatOptionsHelp(FileFormat.V6)}
@@ -179,6 +184,7 @@ class SignatureMigrateCommandTest :
                             TestChangeCommitter(this@SignatureMigrateCommandTest, printWriter)
                         },
                         outFactory = { printWriter },
+                        regeneratorFactory = { TestSignatureFileRegenerator(printWriter) },
                     )
 
                 args += "signature-migrate"
@@ -549,6 +555,7 @@ class SignatureMigrateCommandTest :
 
                     Step 2: Change 'flagged-api-inheritance' from 'none' to 'nested-classes'
                       Reformatting files
+                      Regenerate signature files from sources
                       Committing changes
                         ------------------------------------------------------------------------
                         Track inherited @FlaggedApi on nested classes
@@ -1049,5 +1056,14 @@ internal class TestChangeCommitter(
     companion object {
         /** Separator added before and after the commit message in [commit]. */
         private val COMMIT_MESSAGE_SEPARATOR = "-".repeat(72)
+    }
+}
+
+/** Prints when the signature files are regenerated to [out]. */
+internal class TestSignatureFileRegenerator(
+    private val out: PrintWriter,
+) : SignatureFileRegenerator {
+    override fun regenerateFromSources() {
+        out.println("  Regenerate signature files from sources")
     }
 }
