@@ -550,12 +550,11 @@ class CommonMultiplatformCallableItemTest : BaseModelTest() {
                 )
 
             val topLevelFun = facadeClass.assertMethod("foo", emptyList())
-            assertThat(topLevelFun.baselineElementId())
-                .isEqualTo("test.pkg.\$TopLevelDeclarations#foo()")
+            assertThat(topLevelFun.baselineElementId()).isEqualTo("test.pkg#foo()")
 
             val topLevelExtensionFun = facadeClass.assertMethod("foo", listOf("kotlin.String"))
             assertThat(topLevelExtensionFun.baselineElementId())
-                .isEqualTo("test.pkg.\$TopLevelDeclarations#foo(kotlin.String)")
+                .isEqualTo("test.pkg#foo(kotlin.String)")
         }
     }
 }

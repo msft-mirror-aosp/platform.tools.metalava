@@ -379,13 +379,12 @@ class CommonMultiplatformPropertyItemTest : BaseModelTest() {
                 )
 
             val topLevelVal = facadeClass.assertProperty("foo")
-            assertThat(topLevelVal.baselineElementId())
-                .isEqualTo("test.pkg.\$TopLevelDeclarations#foo")
+            assertThat(topLevelVal.baselineElementId()).isEqualTo("test.pkg#foo")
 
             val topLevelExtensionVal =
                 facadeClass.assertProperty("foo", receiverTypeString = "kotlin.String")
             assertThat(topLevelExtensionVal.baselineElementId())
-                .isEqualTo("test.pkg.\$TopLevelDeclarations#kotlin.String.foo")
+                .isEqualTo("test.pkg#kotlin.String.foo")
         }
     }
 }
