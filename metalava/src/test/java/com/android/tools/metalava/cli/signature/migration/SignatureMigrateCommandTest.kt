@@ -61,7 +61,10 @@ Options:
 ${signatureFormatOptionsHelp(FileFormat.V6)}
 
 Arguments:
-  <files>                                    Signature files to migrate.
+  <files>                                    Signature file groups to migrate.
+
+                                             A file group is a list of files separated by a `:` that are migrated
+                                             together so that their formats are always in sync.
     """
         .trimIndent()
 
@@ -154,6 +157,19 @@ class SignatureMigrateCommandTest :
         additionalArgs: List<String> = emptyList(),
         expectedCommits: String,
     ) {
+        checkFileGroupMigration(
+            signatureFileGroups = signatureFiles.map { listOf(it) },
+            additionalArgs = additionalArgs,
+            expectedCommits = expectedCommits,
+        )
+    }
+
+    /** Check migrating [signatureFileGroups] with [additionalArgs] results in [expectedCommits]. */
+    private fun checkFileGroupMigration(
+        signatureFileGroups: List<List<TestFile>>,
+        additionalArgs: List<String> = emptyList(),
+        expectedCommits: String,
+    ) {
         val stringWriter = StringWriter()
         PrintWriter(stringWriter).use { printWriter ->
             commandTest {
@@ -171,7 +187,9 @@ class SignatureMigrateCommandTest :
                 args += "--format-defaults" to "overloaded-method-order=source"
                 args += additionalArgs
 
-                signatureFiles.mapTo(args) { it.toFile().path }
+                signatureFileGroups.mapTo(args) { group ->
+                    group.joinToString(":") { testFile -> testFile.toFile().path }
+                }
 
                 verify {
                     assertEquals(expectedCommits.trimIndent(), stringWriter.toString().trimEnd())
@@ -292,8 +310,8 @@ class SignatureMigrateCommandTest :
 
         // TODO(b/489071739): api1.txt and api2.txt should have the format kept in sync by starting
         //  with the same format and be updated in the same steps.
-        checkFilesMigration(
-            signatureFiles = signatureFiles,
+        checkFileGroupMigration(
+            signatureFileGroups = listOf(signatureFiles),
             expectedCommits =
                 """
                     Step 1: Initial migration
@@ -319,6 +337,7 @@ class SignatureMigrateCommandTest :
                           // - style=java
                           // - normalize-abstract-modifier=no
                           // - normalize-final-modifier=no
+                          // - overloaded-method-order=source
                           package test.pkg {
                             public enum Enum {
                               method public abstract int value();
@@ -333,6 +352,7 @@ class SignatureMigrateCommandTest :
                           // Signature format: 6.0
                           // - style=java
                           // - normalize-abstract-modifier=no
+                          // - normalize-final-modifier=no
                           // - overloaded-method-order=source
                           package other.pkg {
                             public @interface Anno {
@@ -360,6 +380,7 @@ class SignatureMigrateCommandTest :
                           // Signature format: 6.0
                           // - style=java
                           // - normalize-final-modifier=no
+                          // - overloaded-method-order=source
                           package test.pkg {
                             public enum Enum {
                               method public int value();
@@ -373,6 +394,7 @@ class SignatureMigrateCommandTest :
                         TESTROOT/api2.txt:
                           // Signature format: 6.0
                           // - style=java
+                          // - normalize-final-modifier=no
                           // - overloaded-method-order=source
                           package other.pkg {
                             public @interface Anno {
@@ -399,6 +421,7 @@ class SignatureMigrateCommandTest :
                         TESTROOT/api1.txt:
                           // Signature format: 6.0
                           // - style=java
+                          // - overloaded-method-order=source
                           package test.pkg {
                             public enum Enum {
                               method public int value();
@@ -406,6 +429,20 @@ class SignatureMigrateCommandTest :
                             }
                             public final class Test {
                               method public void method();
+                            }
+                          }
+
+                        TESTROOT/api2.txt:
+                          // Signature format: 6.0
+                          // - style=java
+                          // - overloaded-method-order=source
+                          package other.pkg {
+                            public @interface Anno {
+                              method public String[] value();
+                            }
+                            public class Other {
+                              method public void method(String);
+                              method public void method(int);
                             }
                           }
 
@@ -422,6 +459,19 @@ class SignatureMigrateCommandTest :
                         This change fixes that by setting `overloaded-method-order=signature`
                         which will sort overloaded methods by their signature.
                         ------------------------------------------------------------------------
+
+                        TESTROOT/api1.txt:
+                          // Signature format: 6.0
+                          // - style=java
+                          package test.pkg {
+                            public enum Enum {
+                              method public int value();
+                              enum_constant public static final test.pkg.Enum VALUE;
+                            }
+                            public final class Test {
+                              method public void method();
+                            }
+                          }
 
                         TESTROOT/api2.txt:
                           // Signature format: 6.0

@@ -19,8 +19,8 @@ package com.android.tools.metalava.cli.signature.migration
 import com.android.tools.metalava.cli.common.MetalavaCliException
 import com.android.tools.metalava.cli.common.MetalavaSubCommand
 import com.android.tools.metalava.cli.common.commonOptions
-import com.android.tools.metalava.cli.common.existingFile
 import com.android.tools.metalava.cli.common.stdout
+import com.android.tools.metalava.cli.common.stringToExistingFile
 import com.android.tools.metalava.cli.signature.ARG_USE_SAME_FORMAT_AS
 import com.android.tools.metalava.cli.signature.SignatureFormatOptions
 import com.android.tools.metalava.cli.signature.writeSignatureFile
@@ -33,7 +33,9 @@ import com.android.tools.metalava.model.text.CustomizableProperty
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.model.text.SignatureFile
 import com.android.tools.metalava.reporter.ThrowingReporter
+import com.github.ajalt.clikt.completion.CompletionCandidates
 import com.github.ajalt.clikt.parameters.arguments.argument
+import com.github.ajalt.clikt.parameters.arguments.convert
 import com.github.ajalt.clikt.parameters.arguments.multiple
 import com.github.ajalt.clikt.parameters.groups.provideDelegate
 import com.github.ajalt.clikt.parameters.options.default
@@ -123,23 +125,41 @@ class SignatureMigrateCommand(
             )
             .default("")
 
-    private val files by
+    /**
+     * A list of file groups, where each file group is a list of [File]s that must always have the
+     * same format.
+     */
+    private val fileGroups by
         argument(
                 name = "<files>",
                 help =
                     """
-                        Signature files to migrate.
+                        Signature file groups to migrate.
+
+                        A file group is a list of files separated by a `:` that are migrated
+                        together so that their formats are always in sync.
                     """,
             )
-            .existingFile()
+            // Split the string by `:` and map to a list of existing files.
+            .convert(CompletionCandidates.Path) { string ->
+                string.split(":").map { component ->
+                    try {
+                        stringToExistingFile(component)
+                    } catch (e: MetalavaCliException) {
+                        e.message?.let { fail(it) } ?: throw e
+                    }
+                }
+            }
             .multiple(required = true)
 
     override fun run() {
         // Get the target format for the signature files.
         val targetFormat = formatOptions.fileFormat
 
-        // Iterate over the files, creating migration info for each one, if needed.
-        val filesToMigrate = files.mapNotNull { file -> createFileToMigrate(file, targetFormat) }
+        // Iterate over the file groups, creating migration info for the files in each one, if
+        // needed.
+        val filesToMigrate =
+            fileGroups.flatMap { group -> createFileToMigrateForGroup(group, targetFormat) }
         if (filesToMigrate.isEmpty()) {
             stdout.println("No files need migrating")
             return
@@ -198,6 +218,40 @@ class SignatureMigrateCommand(
         val oldValue = oldFormat[this]
         val newValue = newFormat[this]
         return if (oldValue == newValue) null else PropertyChange(this, oldValue, newValue)
+    }
+
+    /** Create a list of [FileToMigrate] instances for migrating [fileGroup] to [targetFormat]. */
+    private fun createFileToMigrateForGroup(
+        fileGroup: List<File>,
+        targetFormat: FileFormat
+    ): List<FileToMigrate> {
+        // Create a FileToMigrate instance for each file in the group. If the resulting list is
+        // empty, or only contains one instance, then return the list immediately as there are no
+        // files to keep in sync.
+        val filesToMigrate = fileGroup.mapNotNull { createFileToMigrate(it, targetFormat) }
+        if (filesToMigrate.size <= 1) return filesToMigrate
+
+        // Compute the super-set of PropertyChanges that apply to all files in the group.
+        val propertyChanges = filesToMigrate.flatMap { it.propertyChanges }.toSet()
+
+        // Compute the common initial output format by resetting all the properties that affect any
+        // of the files in the group back to their original value.
+        val initialOutputFormat =
+            targetFormat.buildCopy {
+                for (change in propertyChanges) {
+                    change.setOldValueIn(this)
+                }
+            }
+
+        // Create copies of the [FileToMigrate] objects that use the same output format and the
+        // same set of [PropertyChange]s. That ensures that every file in the group will start with
+        // the same format and will change that format in sync with every property change.
+        return filesToMigrate.map {
+            it.copy(
+                outputFormat = initialOutputFormat,
+                propertyChanges = propertyChanges,
+            )
+        }
     }
 
     /** Create [FileToMigrate] for migrating [file] to [targetFormat]. */

@@ -25,6 +25,11 @@ data class PropertyChange<T>(
     val oldValue: T,
     val newValue: T,
 ) {
+    /** Set [property] in [builder] to [oldValue]. */
+    fun setOldValueIn(builder: FileFormat.Builder) {
+        builder[property] = oldValue
+    }
+
     /** Set [property] in [builder] to [newValue]. */
     fun setNewValueIn(builder: FileFormat.Builder) {
         builder[property] = newValue
