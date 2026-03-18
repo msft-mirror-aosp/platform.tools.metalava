@@ -44,7 +44,7 @@ class CommonCopyFieldItemTest : CommonCopyMemberItemTest<FieldItem>() {
                           public interface Source {
                             field public int field;
                           }
-                          public class Target implements Source {
+                          public class Target implements test.pkg.Source {
                           }
                         }
                     """
@@ -57,7 +57,7 @@ class CommonCopyFieldItemTest : CommonCopyMemberItemTest<FieldItem>() {
 
                         import java.io.IOException;
 
-                        public interface Source  {
+                        public interface Source {
                             int field;
                         }
                     """
@@ -88,7 +88,7 @@ class CommonCopyFieldItemTest : CommonCopyMemberItemTest<FieldItem>() {
                           public interface Source {
                             field public static int field;
                           }
-                          public class Target implements Source {
+                          public class Target implements test.pkg.Source {
                           }
                         }
                     """
@@ -101,7 +101,7 @@ class CommonCopyFieldItemTest : CommonCopyMemberItemTest<FieldItem>() {
 
                         import java.io.IOException;
 
-                        interface Source  {
+                        public interface Source {
                             static int field;
                         }
                     """
@@ -131,7 +131,7 @@ class CommonCopyFieldItemTest : CommonCopyMemberItemTest<FieldItem>() {
 
                         import java.io.IOException;
 
-                        interface Source  {
+                        public interface Source {
                             int field;
                         }
                     """
@@ -162,7 +162,7 @@ class CommonCopyFieldItemTest : CommonCopyMemberItemTest<FieldItem>() {
                           public class Source {
                             field public int field;
                           }
-                          @Deprecated public class Target implements Source {
+                          @Deprecated public class Target extends test.pkg.Source {
                           }
                         }
                     """
@@ -186,7 +186,7 @@ class CommonCopyFieldItemTest : CommonCopyMemberItemTest<FieldItem>() {
 
                         /** @deprecated */
                         @Deprecated
-                        public final class Target implements Source {}
+                        public final class Target extends Source {}
                     """
                 ),
             ),
@@ -214,7 +214,7 @@ class CommonCopyFieldItemTest : CommonCopyMemberItemTest<FieldItem>() {
                           @Deprecated public class Source {
                             field public int field;
                           }
-                          public class Target implements Source {
+                          public class Target extends test.pkg.Source {
                           }
                         }
                     """
@@ -238,7 +238,7 @@ class CommonCopyFieldItemTest : CommonCopyMemberItemTest<FieldItem>() {
                     """
                         package test.pkg;
 
-                        public final class Target implements Source {}
+                        public final class Target extends Source {}
                     """
                 ),
             ),
@@ -266,7 +266,7 @@ class CommonCopyFieldItemTest : CommonCopyMemberItemTest<FieldItem>() {
                           public class Source {
                             field @Deprecated public int field;
                           }
-                          public class Target implements Source {
+                          public class Target implements test.pkg.Source {
                           }
                         }
                     """
@@ -289,7 +289,7 @@ class CommonCopyFieldItemTest : CommonCopyMemberItemTest<FieldItem>() {
                     """
                         package test.pkg;
 
-                        public final class Target implements Source {}
+                        public final class Target extends Source {}
                     """
                 ),
             ),

@@ -21,10 +21,12 @@ import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.PrimitiveTypeItem.Primitive
 import com.android.tools.metalava.model.TypeModifiers
 
-class DefaultPrimitiveTypeItem(
+internal class DefaultPrimitiveTypeItem(
     modifiers: TypeModifiers,
     override val kind: Primitive,
-) : PrimitiveTypeItem, DefaultTypeItem(modifiers) {
-    override fun duplicate(): PrimitiveTypeItem =
-        DefaultPrimitiveTypeItem(modifiers.duplicate(), kind)
+    isValueClassType: Boolean = false,
+) : PrimitiveTypeItem, DefaultTypeItem(modifiers, isValueClassType) {
+
+    override fun substitute(modifiers: TypeModifiers) =
+        if (modifiers !== this.modifiers) DefaultPrimitiveTypeItem(modifiers, kind) else this
 }

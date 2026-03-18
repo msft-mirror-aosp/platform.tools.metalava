@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model.testsuite
 
+import com.android.tools.metalava.model.FlaggedApiInheritance
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.ModifierListWriter
 import com.android.tools.metalava.testing.java
@@ -26,10 +27,20 @@ import org.junit.Test
 /** Common tests for implementations of [ModifierListWriter]. */
 class CommonModifierListWriterTest : BaseModelTest() {
 
-    private fun Item.writeKeywords(normalize: Boolean = false): String {
+    private fun Item.writeKeywords(
+        normalizeFinal: Boolean = false,
+        normalizeAbstract: Boolean = false,
+    ): String {
         val stringWriter = StringWriter()
-        val writer = ModifierListWriter.forSignature(stringWriter, skipNullnessAnnotations = true)
-        writer.writeKeywords(this, normalize = normalize)
+        val writer =
+            ModifierListWriter.forSignature(
+                stringWriter,
+                skipNullnessAnnotations = true,
+                normalizeFinal = normalizeFinal,
+                normalizeAbstract = normalizeAbstract,
+                flaggedApiInheritance = FlaggedApiInheritance.NONE,
+            )
+        writer.writeKeywords(this)
         return stringWriter.toString().trimEnd()
     }
 
@@ -125,11 +136,7 @@ class CommonModifierListWriterTest : BaseModelTest() {
             val testClass = codebase.assertClass("test.pkg.Test")
             val methodItem = testClass.methods().single()
 
-            // This test reveals some inconsistencies between the models in how they handle a final
-            // method in a final class. Psi ignores the `final` keyword on the method but text and
-            // turbine do not. It is not 100% clear which is the correct behavior but at the moment
-            // this treats the latter two behavior as correct.
-            assertEquals("public final", methodItem.writeKeywords())
+            assertEquals("public", methodItem.writeKeywords())
         }
     }
 
@@ -161,7 +168,7 @@ class CommonModifierListWriterTest : BaseModelTest() {
             val testClass = codebase.assertClass("test.pkg.Test")
             val methodItem = testClass.methods().single()
 
-            assertEquals("public", methodItem.writeKeywords(normalize = true))
+            assertEquals("public", methodItem.writeKeywords(normalizeFinal = true))
         }
     }
 
@@ -195,5 +202,95 @@ class CommonModifierListWriterTest : BaseModelTest() {
 
             assertEquals("public", methodItem.writeKeywords())
         }
+    }
+
+    /** Check handling of enum method with `abstract` keyword. */
+    private fun checkAbstractEnumMethod(normalizeAbstract: Boolean, expectedKeywords: String) {
+        runCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+
+                    public enum Test {
+                        VALUE {
+                           public void method() {}
+                        },
+                        ;
+
+                        public abstract void method();
+                    }
+                """
+            ),
+        ) {
+            val testClass = codebase.assertClass("test.pkg.Test")
+            val methodItem = testClass.methods().single()
+
+            assertEquals(
+                expectedKeywords,
+                methodItem.writeKeywords(
+                    normalizeAbstract = normalizeAbstract,
+                )
+            )
+        }
+    }
+
+    @Test
+    fun `Test abstract modifier on enum class method - not normalized`() {
+        checkAbstractEnumMethod(
+            normalizeAbstract = false,
+            expectedKeywords = "public abstract",
+        )
+    }
+
+    @Test
+    fun `Test abstract modifier on enum class method - normalized`() {
+        checkAbstractEnumMethod(
+            normalizeAbstract = true,
+            expectedKeywords = "public",
+        )
+    }
+
+    /** Check handling of annotation method with `abstract` keyword. */
+    private fun checkAbstractAnnotationMethod(
+        normalizeAbstract: Boolean,
+        expectedKeywords: String
+    ) {
+        runCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+
+                    public @interface Test {
+                        abstract void method();
+                    }
+                """
+            ),
+        ) {
+            val testClass = codebase.assertClass("test.pkg.Test")
+            val methodItem = testClass.methods().single()
+
+            assertEquals(
+                expectedKeywords,
+                methodItem.writeKeywords(
+                    normalizeAbstract = normalizeAbstract,
+                )
+            )
+        }
+    }
+
+    @Test
+    fun `Test abstract modifier on annotation class method - not normalized`() {
+        checkAbstractAnnotationMethod(
+            normalizeAbstract = false,
+            expectedKeywords = "public abstract",
+        )
+    }
+
+    @Test
+    fun `Test abstract modifier on annotation class method - normalized`() {
+        checkAbstractAnnotationMethod(
+            normalizeAbstract = true,
+            expectedKeywords = "public",
+        )
     }
 }

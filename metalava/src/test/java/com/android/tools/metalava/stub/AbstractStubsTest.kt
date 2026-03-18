@@ -35,11 +35,13 @@ abstract class AbstractStubsTest : DriverTest() {
         extraArguments: Array<String> = emptyArray(),
         docStubs: Boolean = false,
         showAnnotations: Array<String> = emptyArray(),
-        skipEmitPackages: List<String> = listOf("java.lang", "java.util", "java.io"),
-        format: FileFormat = FileFormat.LATEST,
+        skipEmitPackages: List<String>? = null,
+        format: FileFormat = FileFormat.V5,
         sourceFiles: Array<TestFile> = emptyArray(),
         signatureSources: Array<String> = emptyArray(),
-        checkTextStubEquivalence: Boolean = false
+        checkCompilation: Boolean = true,
+        checkTextStubEquivalence: Boolean = false,
+        filterBlankLinesFromStubFiles: Boolean = true,
     ) {
         val stubFilesArr = if (source.isNotEmpty()) arrayOf(java(source)) else stubFiles
         check(
@@ -48,12 +50,13 @@ abstract class AbstractStubsTest : DriverTest() {
             showAnnotations = showAnnotations,
             stubFiles = stubFilesArr,
             expectedIssues = warnings,
-            checkCompilation = true,
+            checkCompilation = checkCompilation,
             api = api,
             extraArguments = extraArguments,
             docStubs = docStubs,
             skipEmitPackages = skipEmitPackages,
-            format = format
+            format = format,
+            filterBlankLinesFromStubFiles = filterBlankLinesFromStubFiles,
         )
         if (checkTextStubEquivalence) {
             if (stubFilesArr.isEmpty()) {
@@ -71,11 +74,11 @@ abstract class AbstractStubsTest : DriverTest() {
                 return
             }
             check(
-                signatureSources = arrayOf(readFile(getApiFile())),
+                signatureSources = arrayOf(readFileFilterBlankLines(getApiFile())),
                 showAnnotations = showAnnotations,
                 stubFiles = stubFilesArr,
                 expectedIssues = warnings,
-                checkCompilation = true,
+                checkCompilation = checkCompilation,
                 extraArguments = arrayOf(*extraArguments, ARG_EXCLUDE_ANNOTATION, ANDROIDX_NONNULL),
                 skipEmitPackages = skipEmitPackages,
                 format = format

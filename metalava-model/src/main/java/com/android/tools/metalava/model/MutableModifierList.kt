@@ -16,7 +16,7 @@
 
 package com.android.tools.metalava.model
 
-interface MutableModifierList : ModifierList {
+interface MutableModifierList : BaseModifierList {
     fun setVisibilityLevel(level: VisibilityLevel)
 
     fun setStatic(static: Boolean)
@@ -41,9 +41,13 @@ interface MutableModifierList : ModifierList {
 
     fun setSealed(sealed: Boolean)
 
+    fun setExhaustive(exhaustive: Boolean)
+
     fun setFunctional(functional: Boolean)
 
     fun setInfix(infix: Boolean)
+
+    fun setConst(const: Boolean)
 
     fun setOperator(operator: Boolean)
 
@@ -63,11 +67,16 @@ interface MutableModifierList : ModifierList {
 
     fun setActual(actual: Boolean)
 
-    fun addAnnotation(annotation: AnnotationItem?)
+    fun addAnnotation(annotation: AnnotationItem?) {
+        if (annotation != null) mutateAnnotations { add(annotation) }
+    }
 
-    fun removeAnnotation(annotation: AnnotationItem)
-
-    fun removeAnnotations(predicate: (AnnotationItem) -> Boolean)
-
-    fun clearAnnotations(annotation: AnnotationItem)
+    /**
+     * Mutate the [annotations] list.
+     *
+     * Provides a [MutableList] of the [annotations] that can be modified by [mutator]. Once the
+     * mutator exits the [annotations] list will be updated. The [MutableList] must not be accessed
+     * from outside [mutator].
+     */
+    fun mutateAnnotations(mutator: MutableList<AnnotationItem>.() -> Unit)
 }
