@@ -506,6 +506,20 @@ class SignatureMigrateCommand(
                             annotations, so `java.lang.SafeVarargs` is unaffected.
                         """,
                 ),
+                migrationChange(
+                    property = CustomizableProperty.TYPE_ARGUMENT_SPACING,
+                    oldValue = FileFormat.TypeArgumentSpacing.LEGACY,
+                    newValue = FileFormat.TypeArgumentSpacing.SPACE,
+                    title = "Always separate type arguments with a space",
+                    detail =
+                        """
+                            Previously, the separation of type arguments was inconsistent depending
+                            on where the type was used.
+
+                            This change fixes that by setting `type-argument-spacing=space` which
+                            will separate them with a space separator everywhere.
+                        """,
+                ),
             )
         }
 

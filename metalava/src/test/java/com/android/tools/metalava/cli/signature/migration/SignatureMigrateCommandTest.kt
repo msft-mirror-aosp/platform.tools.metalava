@@ -651,6 +651,67 @@ class SignatureMigrateCommandTest :
                 """,
         )
     }
+
+    @Test
+    fun `Migrate file that is affected by changing type-argument-spacing from legacy to space`() {
+        checkFileMigration(
+            signatureFile =
+                signature(
+                    """
+                        // Signature format: 2.0
+                        package test.pkg {
+                            public class Test {
+                                method void method(java.util.Map<test.pkg.Test,test.pkg.Test>);
+                            }
+                        }
+                    """
+                ),
+            expectedCommits =
+                """
+                    Step 1: Migrate
+                      ------------------------------------------------------------------------
+                      This change is the first in a series of 2 steps to migrate
+                      these files to format `6.0:style=java`.
+
+                      This initial change reformats the files to be as close to the target
+                      format as possible while not changing the structure of the file. It
+                      sets properties in each file that are needed to preserve that
+                      structure. The follow-up changes will change the value of one property
+                      at a time from the original value to the target value. The intent is to
+                      simplify the review process by only making one form of structural
+                      change at a time.
+                      ------------------------------------------------------------------------
+
+                      TESTROOT/api.txt:
+                        // Signature format: 6.0
+                        // - style=java
+                        // - type-argument-spacing=legacy
+                        package test.pkg {
+                          public class Test {
+                            method void method(java.util.Map<test.pkg.Test,test.pkg.Test>);
+                          }
+                        }
+
+                    Step 2: Always separate type arguments with a space
+                      ------------------------------------------------------------------------
+                      Previously, the separation of type arguments was inconsistent depending
+                      on where the type was used.
+
+                      This change fixes that by setting `type-argument-spacing=space` which
+                      will separate them with a space separator everywhere.
+                      ------------------------------------------------------------------------
+
+                      TESTROOT/api.txt:
+                        // Signature format: 6.0
+                        // - style=java
+                        package test.pkg {
+                          public class Test {
+                            method void method(java.util.Map<test.pkg.Test, test.pkg.Test>);
+                          }
+                        }
+                """,
+        )
+    }
 }
 
 /**
