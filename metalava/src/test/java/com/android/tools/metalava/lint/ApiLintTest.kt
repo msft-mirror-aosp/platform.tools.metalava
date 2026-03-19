@@ -18,16 +18,13 @@ package com.android.tools.metalava.lint
 
 import com.android.tools.lint.checks.infrastructure.TestFiles.base64gzip
 import com.android.tools.metalava.DriverTest
-import com.android.tools.metalava.androidxNonNullSource
-import com.android.tools.metalava.androidxNullableSource
 import com.android.tools.metalava.cli.common.ARG_ERROR
 import com.android.tools.metalava.cli.common.ARG_HIDE
 import com.android.tools.metalava.cli.lint.ARG_API_LINT
 import com.android.tools.metalava.model.provider.Capability
-import com.android.tools.metalava.model.testing.FilterAction
-import com.android.tools.metalava.model.testing.FilterByProvider
 import com.android.tools.metalava.model.testing.RequiresCapabilities
 import com.android.tools.metalava.nonNullSource
+import com.android.tools.metalava.testing.KnownSourceFiles
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
 import org.junit.Test
@@ -105,8 +102,8 @@ class ApiLintTest : DriverTest() {
                     }
                     """
                     ),
-                    androidxNonNullSource,
-                    androidxNullableSource
+                    KnownSourceFiles.androidxNonNullJavaSource,
+                    KnownSourceFiles.androidxNullableJavaSource
                 )
         )
     }
@@ -417,7 +414,7 @@ class ApiLintTest : DriverTest() {
                     }
                     """
                     ),
-                    androidxNullableSource
+                    KnownSourceFiles.androidxNullableJavaSource
                 )
         )
     }
@@ -560,7 +557,7 @@ class ApiLintTest : DriverTest() {
                             public class Uri {}
                         """
                     ),
-                    androidxNonNullSource
+                    KnownSourceFiles.androidxNonNullJavaSource
                 )
         )
     }
@@ -618,7 +615,7 @@ class ApiLintTest : DriverTest() {
                     }
                     """
                     ),
-                    androidxNullableSource
+                    KnownSourceFiles.androidxNullableJavaSource
                 )
         )
     }
@@ -722,7 +719,7 @@ class ApiLintTest : DriverTest() {
                     }
                     """
                     ),
-                    androidxNullableSource
+                    KnownSourceFiles.androidxNullableJavaSource
                 )
         )
     }
@@ -754,7 +751,7 @@ class ApiLintTest : DriverTest() {
                     }
                     """
                     ),
-                    androidxNullableSource
+                    KnownSourceFiles.androidxNullableJavaSource
                 )
         )
     }
@@ -1025,7 +1022,7 @@ class ApiLintTest : DriverTest() {
                 }
                 """
                     ),
-                    androidxNonNullSource
+                    KnownSourceFiles.androidxNonNullJavaSource
                 )
         )
     }
@@ -1054,7 +1051,7 @@ class ApiLintTest : DriverTest() {
                         """
                     package android.pkg;
 
-                    public abstract class MyClass2 implements android.os.IInterface {
+                    public interface MyClass2 extends android.os.IInterface {
                     }
                     """
                     ),
@@ -1089,47 +1086,6 @@ class ApiLintTest : DriverTest() {
                     }
                     """
                     )
-                )
-        )
-    }
-
-    @Test
-    fun `Check package layering`() {
-        check(
-            apiLint = "", // enabled
-            expectedIssues =
-                """
-                src/android/content/MyClass1.java:8: warning: Field type `android.view.View` violates package layering: nothing in `package android.content` should depend on `package android.view` [PackageLayering]
-                src/android/content/MyClass1.java:8: warning: Method parameter type `android.view.View` violates package layering: nothing in `package android.content` should depend on `package android.view` [PackageLayering]
-                src/android/content/MyClass1.java:8: warning: Method parameter type `android.view.View` violates package layering: nothing in `package android.content` should depend on `package android.view` [PackageLayering]
-                src/android/content/MyClass1.java:8: warning: Method return type `android.view.View` violates package layering: nothing in `package android.content` should depend on `package android.view` [PackageLayering]
-                """,
-            sourceFiles =
-                arrayOf(
-                    java(
-                        """
-                    package android.content;
-
-                    import android.graphics.drawable.Drawable;
-                    import android.graphics.Bitmap;
-                    import android.view.View;
-                    import androidx.annotation.Nullable;
-
-                    public class MyClass1 {
-                        @Nullable
-                        public final View view = null;
-                        @Nullable
-                        public final Drawable drawable = null;
-                        @Nullable
-                        public final Bitmap bitmap = null;
-                        @Nullable
-                        public View ok(@Nullable View view, @Nullable Drawable drawable) { return null; }
-                        @Nullable
-                        public Bitmap wrong(@Nullable View view, @Nullable Bitmap bitmap) { return null; }
-                    }
-                    """
-                    ),
-                    androidxNullableSource
                 )
         )
     }
@@ -1200,7 +1156,7 @@ class ApiLintTest : DriverTest() {
                     }
                     """
                     ),
-                    androidxNonNullSource
+                    KnownSourceFiles.androidxNonNullJavaSource
                 )
         )
     }
@@ -1337,28 +1293,8 @@ class ApiLintTest : DriverTest() {
     }
 
     @RequiresCapabilities(Capability.KOTLIN)
-    @FilterByProvider("psi", "k2", action = FilterAction.EXCLUDE)
     @Test
-    fun `Check boolean constructor parameter accessor naming patterns in Kotlin -- K1`() {
-        `Check boolean constructor parameter accessor naming patterns in Kotlin`(
-            // missing errors for `isVisibleSetterBad`, `transientStateBad`,
-            // `hasTransientStateGetterBad`, `canRecordGetterBad`, `shouldFitWidthGetterBad`
-            expectedIssues =
-                """
-                src/android/pkg/MyClass.kt:19: error: Invalid name for boolean property `visibleBad`. Should start with one of `has`, `can`, `should`, `is`. [GetterSetterNames]
-                src/android/pkg/MyClass.kt:27: error: Invalid prefix `isHas` for boolean property `isHasTransientStateAlsoBad`. [GetterSetterNames]
-                src/android/pkg/MyClass.kt:29: error: Invalid prefix `isCan` for boolean property `isCanRecordBad`. [GetterSetterNames]
-                src/android/pkg/MyClass.kt:31: error: Invalid prefix `isShould` for boolean property `isShouldFitWidthBad`. [GetterSetterNames]
-                src/android/pkg/MyClass.kt:33: error: Invalid name for boolean property `wiFiRoamingSettingEnabledBad`. Should start with one of `has`, `can`, `should`, `is`. [GetterSetterNames]
-                src/android/pkg/MyClass.kt:35: error: Invalid name for boolean property `enabledBad`. Should start with one of `has`, `can`, `should`, `is`. [GetterSetterNames]
-                              """,
-        )
-    }
-
-    @RequiresCapabilities(Capability.KOTLIN)
-    @FilterByProvider("psi", "k1", action = FilterAction.EXCLUDE)
-    @Test
-    fun `Check boolean constructor parameter accessor naming patterns in Kotlin -- K2`() {
+    fun `Check boolean constructor parameter accessor naming patterns in Kotlin`() {
         `Check boolean constructor parameter accessor naming patterns in Kotlin`(
             expectedIssues =
                 """
@@ -1407,7 +1343,7 @@ class ApiLintTest : DriverTest() {
                     }
                     """
                     ),
-                    androidxNonNullSource
+                    KnownSourceFiles.androidxNonNullJavaSource
                 )
         )
     }
@@ -1474,81 +1410,6 @@ class ApiLintTest : DriverTest() {
                     }
                     """
                     )
-                )
-        )
-    }
-
-    @Test
-    fun `Check no usages of heavy BitSet`() {
-        check(
-            apiLint = "", // enabled
-            expectedIssues =
-                """
-                src/android/pkg/MyClass.java:7: error: Type must not be heavy BitSet (field android.pkg.MyClass.bitset) [HeavyBitSet]
-                src/android/pkg/MyClass.java:9: error: Type must not be heavy BitSet (method android.pkg.MyClass.reverse(java.util.BitSet)) [HeavyBitSet]
-                src/android/pkg/MyClass.java:9: error: Type must not be heavy BitSet (parameter bitset in android.pkg.MyClass.reverse(java.util.BitSet bitset)) [HeavyBitSet]
-                """,
-            expectedFail = DefaultLintErrorMessage,
-            sourceFiles =
-                arrayOf(
-                    java(
-                        """
-                    package android.pkg;
-                    import androidx.annotation.Nullable;
-                    import java.util.BitSet;
-
-                    public class MyClass {
-                        @Nullable
-                        public final BitSet bitset;
-                        @Nullable
-                        public BitSet reverse(@Nullable BitSet bitset) { return null; }
-                    }
-                    """
-                    ),
-                    androidxNullableSource
-                )
-        )
-    }
-
-    @Test
-    fun `Check Manager related issues`() {
-        check(
-            apiLint = "", // enabled
-            expectedIssues =
-                """
-                src/android/pkg/MyFirstManager.java:6: error: Managers must always be obtained from Context; no direct constructors [ManagerConstructor]
-                src/android/pkg/MyFirstManager.java:9: error: Managers must always be obtained from Context (`get`) [ManagerLookup]
-                """,
-            expectedFail = DefaultLintErrorMessage,
-            sourceFiles =
-                arrayOf(
-                    java(
-                        """
-                    package android.pkg;
-
-                    import androidx.annotation.Nullable;
-
-                    public class MyFirstManager {
-                        public MyFirstManager() {
-                        }
-                        @Nullable
-                        public MyFirstManager get() { return null; }
-                        @Nullable
-                        public MySecondManager ok() { return null; }
-                    }
-                    """
-                    ),
-                    java(
-                        """
-                    package android.pkg;
-
-                    public class MySecondManager {
-                        private MySecondManager() {
-                        }
-                    }
-                    """
-                    ),
-                    androidxNullableSource
                 )
         )
     }
@@ -1660,7 +1521,7 @@ class ApiLintTest : DriverTest() {
                     fun String.badCall(value: Int, context: Context) {}
                     """
                     ),
-                    androidxNullableSource
+                    KnownSourceFiles.androidxNullableJavaSource
                 )
         )
     }
@@ -1729,7 +1590,7 @@ class ApiLintTest : DriverTest() {
                     }
                     """
                     ),
-                    androidxNullableSource
+                    KnownSourceFiles.androidxNullableJavaSource
                 )
         )
     }
@@ -1868,7 +1729,7 @@ class ApiLintTest : DriverTest() {
                     }
                     """
                     ),
-                    androidxNullableSource
+                    KnownSourceFiles.androidxNullableJavaSource
                 )
         )
     }
@@ -1957,7 +1818,7 @@ class ApiLintTest : DriverTest() {
                     }
                     """
                     ),
-                    androidxNullableSource
+                    KnownSourceFiles.androidxNullableJavaSource
                 )
         )
     }
@@ -1991,7 +1852,7 @@ class ApiLintTest : DriverTest() {
                     }
                     """
                     ),
-                    androidxNullableSource
+                    KnownSourceFiles.androidxNullableJavaSource
                 )
         )
     }
@@ -2079,7 +1940,7 @@ class ApiLintTest : DriverTest() {
             expectedFail = DefaultLintErrorMessage,
             sourceFiles =
                 arrayOf(
-                    androidxNonNullSource,
+                    KnownSourceFiles.androidxNonNullJavaSource,
                     java(
                         """
                     package android.pkg;
@@ -2165,8 +2026,8 @@ class ApiLintTest : DriverTest() {
                         """
                     package android.pkg;
 
-                    public class MyInterface extends AutoCloseable {
-                        public void close() {}
+                    public interface MyInterface extends AutoCloseable {
+                        void close();
                     }
                     """
                     ),
@@ -2367,89 +2228,8 @@ class ApiLintTest : DriverTest() {
                     }
                     """
                     ),
-                    androidxNonNullSource,
-                    androidxNullableSource
-                )
-        )
-    }
-
-    @RequiresCapabilities(Capability.KOTLIN)
-    @Test
-    fun `Return collections instead of arrays`() {
-        check(
-            extraArguments = arrayOf(ARG_API_LINT, ARG_HIDE, "AutoBoxing"),
-            expectedIssues =
-                """
-                src/android/pkg/ArrayTest.java:13: warning: Method should return Collection<Object> (or subclass) instead of raw array; was `java.lang.Object[]` [ArrayReturn]
-                src/android/pkg/ArrayTest.java:14: warning: Method parameter should be Collection<Number> (or subclass) instead of raw array; was `java.lang.Number[]` [ArrayReturn]
-                """,
-            sourceFiles =
-                arrayOf(
-                    java(
-                        """
-                    package android.pkg;
-
-                    import androidx.annotation.NonNull;
-                    import androidx.annotation.Nullable;
-
-                    public class ArrayTest {
-                        @NonNull
-                        public int[] ok1() { throw new RuntimeException(); }
-                        @NonNull
-                        public String[] ok2() { throw new RuntimeException(); }
-                        public void ok3(@Nullable int[] i) { }
-                        @NonNull
-                        public Object[] error1() { throw new RuntimeException(); }
-                        public void error2(@NonNull Number[] i) { }
-                        public void ok(@NonNull Number... args) { }
-                    }
-                    """
-                    ),
-                    kotlin(
-                        """
-                    package test.pkg
-                    fun okMethod(vararg values: Integer, foo: Float, bar: Float)
-                    """
-                    ),
-                    androidxNonNullSource,
-                    androidxNullableSource,
-                )
-        )
-    }
-
-    @RequiresCapabilities(Capability.KOTLIN)
-    @Test
-    fun `Allow arrays for kotlin only APIs`() {
-        check(
-            apiLint = "",
-            expectedFail = DefaultLintErrorMessage,
-            expectedIssues =
-                """
-                src/test/pkg/ConstructorCanBeUsedFromJava.kt:2: warning: Method parameter should be Collection<Number> (or subclass) instead of raw array; was `java.lang.Number[]` [ArrayReturn]
-                src/test/pkg/IntValue.kt:2: error: Value classes should not be public in APIs targeting Java clients. [ValueClassDefinition]
-                """,
-            sourceFiles =
-                arrayOf(
-                    kotlin(
-                        """
-                        package test.pkg
-                        @JvmInline value class IntValue(val value: Int)
-                        """
-                    ),
-                    kotlin(
-                        """
-                        package test.pkg
-                        class ConstructorCanBeUsedFromJava(i: Int, arr: Array<Number>)
-                        """
-                    ),
-                    kotlin(
-                        """
-                        package test.pkg
-                        // IntValue is a value class type, which can't be used from Java
-                        // Arrays can be used for Kotlin only APIs, so this usage is okay
-                        class ConstructorCannotBeUsedFromJava(iv: IntValue, arr: Array<Number>)
-                        """
-                    ),
+                    KnownSourceFiles.androidxNonNullJavaSource,
+                    KnownSourceFiles.androidxNullableJavaSource
                 )
         )
     }
@@ -2490,7 +2270,7 @@ class ApiLintTest : DriverTest() {
                     }
                     """
                     ),
-                    androidxNullableSource
+                    KnownSourceFiles.androidxNullableJavaSource
                 )
         )
     }
@@ -2625,7 +2405,7 @@ class ApiLintTest : DriverTest() {
                     }
                     """
                     ),
-                    androidxNonNullSource
+                    KnownSourceFiles.androidxNonNullJavaSource
                 )
         )
     }
@@ -2655,7 +2435,7 @@ class ApiLintTest : DriverTest() {
                     }
                     """
                     ),
-                    androidxNullableSource
+                    KnownSourceFiles.androidxNullableJavaSource
                 )
         )
     }
@@ -2710,7 +2490,7 @@ class ApiLintTest : DriverTest() {
                     }
                     """
                     ),
-                    androidxNullableSource,
+                    KnownSourceFiles.androidxNullableJavaSource,
                     nonNullSource
                 )
         )
@@ -2780,7 +2560,7 @@ class ApiLintTest : DriverTest() {
                     }
                     """
                     ),
-                    androidxNullableSource
+                    KnownSourceFiles.androidxNullableJavaSource
                 )
         )
     }
@@ -2872,7 +2652,7 @@ class ApiLintTest : DriverTest() {
                     }
                     """
                     ),
-                    androidxNullableSource
+                    KnownSourceFiles.androidxNullableJavaSource
                 )
         )
     }
@@ -3037,61 +2817,7 @@ class ApiLintTest : DriverTest() {
                     }
                     """
                     ),
-                    androidxNullableSource
-                )
-        )
-    }
-
-    @Test
-    fun `Listener replaceable with OutcomeReceiver or ListenableFuture`() {
-        check(
-            apiLint = "", // enabled
-            expectedIssues =
-                """
-                src/android/pkg/Cases.java:7: error: Cases.BadCallback can be replaced with OutcomeReceiver<R,E> (platform) or suspend fun / ListenableFuture (AndroidX). [GenericCallbacks]
-                src/android/pkg/Cases.java:11: error: Cases.BadListener can be replaced with OutcomeReceiver<R,E> (platform) or suspend fun / ListenableFuture (AndroidX). [GenericCallbacks]
-                src/android/pkg/Cases.java:15: error: Cases.BadGenericListener can be replaced with OutcomeReceiver<R,E> (platform) or suspend fun / ListenableFuture (AndroidX). [GenericCallbacks]
-            """,
-            expectedFail = DefaultLintErrorMessage,
-            sourceFiles =
-                arrayOf(
-                    java(
-                        """
-                    package android.pkg;
-
-                    import androidx.annotation.NonNull;
-                    import java.io.IOException;
-
-                    public final class Cases {
-                        public class BadCallback {
-                            public abstract void onSuccess(@NonNull String result);
-                            public void onFailure(@NonNull Throwable error) {}
-                        }
-                        public interface BadListener {
-                            void onResult(@NonNull Object result);
-                            void onError(@NonNull IOException error);
-                        }
-                        public interface BadGenericListener<R, E extends Throwable> {
-                            void onResult(@NonNull R result);
-                            void onError(@NonNull E error);
-                        }
-                        public interface OkListener {
-                            void onResult(@NonNull Object result);
-                            void onError(@NonNull int error);
-                        }
-                        public interface Ok2Listener {
-                            void onResult(@NonNull int result);
-                            void onError(@NonNull Throwable error);
-                        }
-                        public interface Ok3Listener {
-                            void onSuccess(@NonNull String result);
-                            void onOtherThing(@NonNull String result);
-                            void onFailure(@NonNull Throwable error);
-                        }
-                    }
-                    """
-                    ),
-                    androidxNonNullSource
+                    KnownSourceFiles.androidxNullableJavaSource
                 )
         )
     }
@@ -3141,7 +2867,7 @@ class ApiLintTest : DriverTest() {
                         }
                     """
                     ),
-                    androidxNonNullSource,
+                    KnownSourceFiles.androidxNonNullJavaSource,
                 )
         )
     }
@@ -3463,6 +3189,40 @@ src/android/pkg/Interface.kt:158: error: Parameter `default` has a default value
             expectedFail = DefaultLintErrorMessage,
             expectedIssues =
                 "src/test/pkg/Foo.kt:2: error: Exposing data classes as public API is discouraged because they are difficult to update while maintaining binary compatibility. [DataClassDefinition]"
+        )
+    }
+
+    @RequiresCapabilities(Capability.KOTLIN)
+    @Test
+    fun `ExecutorRegistration check is skipped for suspend functions`() {
+        check(
+            apiLint = "", // enabled
+            // We expect a warning ONLY for the normal function, not the suspend one.
+            expectedIssues =
+                """
+            src/android/pkg/Registration.kt:8: warning: Registration methods should have overload that accepts delivery Executor: `registerNormalCallback` [ExecutorRegistration]
+            """,
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
+                package android.pkg
+
+                class Registration {
+                    // This is a suspend function, so it should NOT trigger a warning.
+                    suspend fun registerSuspendCallback(callback: MyCallback) { }
+
+                    // This is a normal function, so it SHOULD trigger a warning.
+                    fun registerNormalCallback(callback: MyCallback) { }
+
+                    // The unregister methods are needed to satisfy the PairedRegistration check.
+                    fun unregisterSuspendCallback(callback: MyCallback) { }
+                    fun unregisterNormalCallback(callback: MyCallback) { }
+                }
+                abstract class MyCallback
+                """
+                    )
+                )
         )
     }
 

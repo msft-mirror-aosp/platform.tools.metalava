@@ -65,7 +65,7 @@ class ApiAnalyzer(
     /** The code to analyze */
     private val codebase: Codebase,
     private val reporter: Reporter,
-    private val config: Config = Config(),
+    private val config: Config,
 ) {
 
     data class Config(
@@ -99,7 +99,10 @@ class ApiAnalyzer(
         val allShowAnnotations: AnnotationFilter = AnnotationFilter.emptyFilter(),
 
         /** Configuration for any [ApiPredicate] instances this needs to create. */
-        val apiPredicateConfig: ApiPredicate.Config = ApiPredicate.Config()
+        val apiPredicateConfig: ApiPredicate.Config = ApiPredicate.Config(),
+
+        /** Configuration for [AnnotationsMerger] instances this needs to create. */
+        val annotationsMergerConfig: AnnotationsMerger.Config = AnnotationsMerger.Config(),
     )
 
     /** All packages in the API */
@@ -261,12 +264,12 @@ class ApiAnalyzer(
         var interfaceTypeClasses: MutableList<ClassItem>? = null
         for (hiddenSuperClass in hiddenSuperClasses) {
             for (hiddenInterface in hiddenSuperClass.interfaceTypes()) {
-                val hiddenInterfaceClass = hiddenInterface.asClass()
+                val hiddenInterfaceClass = hiddenInterface.resolveClass(codebase)
                 if (filterReference.test(hiddenInterfaceClass ?: continue)) {
                     if (interfaceTypes == null) {
                         interfaceTypes = cls.interfaceTypes().toMutableList()
                         interfaceTypeClasses =
-                            interfaceTypes.mapNotNull { it.asClass() }.toMutableList()
+                            interfaceTypes.mapNotNull { it.resolveClass(codebase) }.toMutableList()
                         if (cls.isInterface()) {
                             cls.superClass()?.let { interfaceTypeClasses.add(it) }
                         }
@@ -303,7 +306,7 @@ class ApiAnalyzer(
         // Also generate stubs for any methods we would have inherited from abstract parents
         // All methods from super classes that (1) aren't overridden in this class already, and
         // (2) are overriding some method that is in a public interface accessible from this class.
-        val interfaces: Set<TypeItem> = cls.allInterfaceTypes(filterReference).toSet()
+        val interfaces = cls.allInterfaceTypes(filterReference).toSet()
 
         // Note that we can't just call method.superMethods() to and see whether any of their
         // containing classes are among our target APIs because it's possible that the super class
@@ -312,7 +315,7 @@ class ApiAnalyzer(
         // potential overrides.
         val inheritableMethods = MethodItemSet()
         for (interfaceType in interfaces) {
-            val interfaceClass = interfaceType.asClass() ?: continue
+            val interfaceClass = interfaceType.resolveClass(codebase) ?: continue
             for (method in interfaceClass.methods()) {
                 inheritableMethods.add(method)
             }
@@ -441,7 +444,7 @@ class ApiAnalyzer(
         }
     }
 
-    /** Apply package filters listed in [Options.skipEmitPackages] */
+    /** Apply package filters listed in [Config.skipEmitPackages] */
     private fun skipEmitPackages() {
         for (pkgName in config.skipEmitPackages) {
             val pkg = codebase.findPackage(pkgName) ?: continue
@@ -477,7 +480,7 @@ class ApiAnalyzer(
     fun mergeExternalQualifierAnnotations() {
         val mergeQualifierAnnotations = config.mergeQualifierAnnotations
         if (mergeQualifierAnnotations.isNotEmpty()) {
-            AnnotationsMerger(sourceParser, codebase, reporter)
+            AnnotationsMerger(sourceParser, codebase, reporter, config.annotationsMergerConfig)
                 .mergeQualifierAnnotationsFromFiles(mergeQualifierAnnotations)
         }
     }
@@ -486,7 +489,7 @@ class ApiAnalyzer(
     fun mergeExternalInclusionAnnotations() {
         val mergeInclusionAnnotations = config.mergeInclusionAnnotations
         if (mergeInclusionAnnotations.isNotEmpty()) {
-            AnnotationsMerger(sourceParser, codebase, reporter)
+            AnnotationsMerger(sourceParser, codebase, reporter, config.annotationsMergerConfig)
                 .mergeInclusionAnnotationsFromFiles(mergeInclusionAnnotations)
         }
     }
@@ -610,7 +613,7 @@ class ApiAnalyzer(
         codebase.accept(
             object :
                 ApiVisitor(
-                    apiPredicateConfig = @Suppress("DEPRECATION") options.apiPredicateConfig,
+                    apiPredicateConfig = config.apiPredicateConfig,
                     // Don't run checks on elements that only exist in bytecode.
                     targetLanguages = TargetLanguageSet.SOURCE,
                 ) {
@@ -713,7 +716,7 @@ class ApiAnalyzer(
                     type.accept(
                         object : BaseTypeVisitor() {
                             override fun visitClassType(classType: ClassTypeItem) {
-                                val cls = classType.asClass() ?: return
+                                val cls = classType.resolveClass(codebase) ?: return
                                 if (
                                     !filterReference.test(cls) &&
                                         cls.origin != ClassOrigin.CLASS_PATH
@@ -804,7 +807,7 @@ class ApiAnalyzer(
                     }
 
                     for (t in cl.interfaceTypes()) {
-                        if (t.asClass()?.effectivelyDeprecated == true) {
+                        if (t.resolveClass(codebase)?.effectivelyDeprecated == true) {
                             reporter.report(
                                 Issues.EXTENDS_DEPRECATED,
                                 cl,
@@ -835,9 +838,7 @@ class ApiAnalyzer(
             reporter.report(
                 Issues.REFERENCES_HIDDEN,
                 from,
-                "Class ${cl.qualifiedName()} is ${if (cl.isHiddenOrRemoved()) "hidden" else "not public"} but was referenced ($usage) from public ${from.describe(
-                    false
-                )}"
+                "Class ${cl.qualifiedName()} is ${if (cl.isHiddenOrRemoved()) "hidden" else "not public"} but was referenced ($usage) from public ${from.describe()}"
             )
         }
 
@@ -872,17 +873,26 @@ class ApiAnalyzer(
             .forEach { cantStripThis(it, filter, notStrippable, cl, "as nested class") }
         // blow open super class and interfaces
         // TODO: Consider using val superClass = cl.filteredSuperclass(filter)
-        val superItems = cl.allInterfaces().toMutableSet()
-        cl.superClass()?.let { superClass -> superItems.add(superClass) }
+        val allSuperItems = cl.allInterfaces().toMutableSet()
+        val directSuperItems = cl.interfaceTypes().map { it.qualifiedName }.toMutableSet()
+        cl.superClass()?.let { superClass ->
+            allSuperItems.add(superClass)
+            directSuperItems.add(superClass.qualifiedName())
+        }
 
-        for (superItem in superItems) {
+        for (superItem in allSuperItems) {
             // allInterfaces includes cl itself if cl is an interface
             if (superItem.isHiddenOrRemoved() && superItem != cl) {
-                // cl is a public class declared as extending a hidden superclass.
+                // cl is a public class declared as extending a hidden superclass or implementing
+                // a hidden interface.
                 // this is not a desired practice, but it's happened, so we deal
                 // with it by finding the first super class which passes checkLevel for purposes of
                 // generating the doc & stub information, and proceeding normally.
-                if (superItem.origin != ClassOrigin.CLASS_PATH) {
+                if (
+                    // Make sure the parent element is either the superclass or an interface
+                    // that cl is implementing directly (as opposed to indirectly via parent class)
+                    superItem.qualifiedName() in directSuperItems
+                ) {
                     reporter.report(
                         Issues.HIDDEN_SUPERCLASS,
                         cl,
@@ -936,7 +946,7 @@ class ApiAnalyzer(
             }
             for (thrown in callable.throwsTypes()) {
                 if (thrown is VariableTypeItem) continue
-                val classItem = thrown.erasedClass ?: continue
+                val classItem = thrown.asErasedClass(codebase) ?: continue
                 cantStripThis(classItem, filter, notStrippable, callable, "as exception")
             }
             cantStripThis(callable.returnType(), callable, filter, notStrippable, "in return type")
@@ -966,7 +976,7 @@ class ApiAnalyzer(
         type.accept(
             object : BaseTypeVisitor() {
                 override fun visitClassType(classType: ClassTypeItem) {
-                    val asClass = classType.asClass() ?: return
+                    val asClass = classType.resolveClass(codebase) ?: return
                     cantStripThis(asClass, filter, notStrippable, context, usage)
                 }
             }
@@ -986,7 +996,7 @@ class ApiAnalyzer(
             type.accept(
                 object : BaseTypeVisitor() {
                     override fun visitClassType(classType: ClassTypeItem) {
-                        if (classType.asClass()?.effectivelyDeprecated == true) {
+                        if (classType.resolveClass(codebase)?.effectivelyDeprecated == true) {
                             reporter.report(
                                 Issues.REFERENCES_DEPRECATED,
                                 containingMethod,
@@ -1039,7 +1049,7 @@ class ApiAnalyzer(
         ti.accept(
             object : BaseTypeVisitor() {
                 override fun visitClassType(classType: ClassTypeItem) {
-                    val asClass = classType.asClass() ?: return
+                    val asClass = classType.resolveClass(codebase) ?: return
                     if (asClass.isHiddenOrRemoved()) {
                         hiddenClasses.add(asClass)
                     }
@@ -1070,6 +1080,7 @@ private fun SelectableItem.isApiCandidate(): Boolean {
  * also looks at any inherited documentation.
  */
 private fun SelectableItem.documentationContainsDeprecated(): Boolean {
+    val documentation = this.documentation ?: return false
     if (documentation.hasBlockTagOfType("deprecated")) return true
     if (this !is MethodItem) return false
     if (!documentation.requiresSourceComment() || documentation.containsInheritDocTag()) {

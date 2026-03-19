@@ -27,8 +27,10 @@ import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.createMutableModifiers
 import com.android.tools.metalava.model.hasAnnotation
 import org.jetbrains.kotlin.analysis.api.symbols.KaCallableSymbol
+import org.jetbrains.kotlin.analysis.api.symbols.KaClassKind
 import org.jetbrains.kotlin.analysis.api.symbols.KaDeclarationSymbol
 import org.jetbrains.kotlin.analysis.api.symbols.KaKotlinPropertySymbol
+import org.jetbrains.kotlin.analysis.api.symbols.KaNamedClassSymbol
 import org.jetbrains.kotlin.analysis.api.symbols.KaNamedFunctionSymbol
 import org.jetbrains.kotlin.analysis.api.symbols.KaParameterSymbol
 import org.jetbrains.kotlin.analysis.api.symbols.KaPropertySymbol
@@ -91,7 +93,7 @@ internal class KaModifierFactory(private val processor: KaModuleProcessor) {
         setter: MethodItem?,
         backingField: FieldItem?,
     ) {
-        // Correct visibility of accessors (work around K2 bugs with value class type properties)
+        // Correct visibility of accessors (work around bugs with value class type properties)
         // https://youtrack.jetbrains.com/issue/KT-74205
         // The getter must have the same visibility as the property
         val propertyVisibility = modifiers.getVisibilityLevel()
@@ -210,24 +212,59 @@ internal class KaModifierFactory(private val processor: KaModuleProcessor) {
         }
     }
 
+    /** Creates modifiers for a class [symbol]. */
+    fun createForClass(symbol: KaNamedClassSymbol): MutableModifierList {
+        val modifiers = createForDeclaration(symbol)
+
+        if (symbol.isData) {
+            modifiers.setData(true)
+        }
+        if (symbol.isFun) {
+            modifiers.setFunctional(true)
+        }
+        if (symbol.isInline) {
+            modifiers.setValue(true)
+        }
+
+        when (symbol.modality) {
+            KaSymbolModality.FINAL -> {
+                // Consistency with the rest of metalava: annotations are not treated as final.
+                if (symbol.classKind != KaClassKind.ANNOTATION_CLASS) modifiers.setFinal(true)
+            }
+            KaSymbolModality.SEALED -> {
+                modifiers.setSealed(true)
+                // Sealed classes are also abstract.
+                modifiers.setAbstract(true)
+            }
+            KaSymbolModality.ABSTRACT -> modifiers.setAbstract(true)
+            KaSymbolModality.OPEN -> modifiers.setFinal(false)
+        }
+
+        return modifiers
+    }
+
+    /** Returns the [VisibilityLevel] of the [symbol]. */
+    fun getVisibilityLevel(symbol: KaDeclarationSymbol): VisibilityLevel {
+        return when (symbol.visibility) {
+            KaSymbolVisibility.PUBLIC -> VisibilityLevel.PUBLIC
+            KaSymbolVisibility.PACKAGE_PRIVATE -> VisibilityLevel.PACKAGE_PRIVATE
+            KaSymbolVisibility.INTERNAL -> VisibilityLevel.INTERNAL
+            // KaSymbolVisibility distinguishes between Kotlin protected (visible to containing
+            // declaration and subclasses) and Java protected (additionally visible to other
+            // classes in the same package). Metalava does not make this distinction.
+            KaSymbolVisibility.PROTECTED,
+            KaSymbolVisibility.PACKAGE_PROTECTED -> VisibilityLevel.PROTECTED
+            // Local and unknown visibility shouldn't occur for API elements, treat them as
+            // private if they do.
+            KaSymbolVisibility.PRIVATE,
+            KaSymbolVisibility.LOCAL,
+            KaSymbolVisibility.UNKNOWN -> VisibilityLevel.PRIVATE
+        }
+    }
+
     /** Create modifiers for any declaration. */
     fun createForDeclaration(symbol: KaDeclarationSymbol): MutableModifierList {
-        val visibility =
-            when (symbol.visibility) {
-                KaSymbolVisibility.PUBLIC -> VisibilityLevel.PUBLIC
-                KaSymbolVisibility.PACKAGE_PRIVATE -> VisibilityLevel.PACKAGE_PRIVATE
-                KaSymbolVisibility.INTERNAL -> VisibilityLevel.INTERNAL
-                // KaSymbolVisibility distinguishes between Kotlin protected (visible to containing
-                // declaration and subclasses) and Java protected (additionally visible to other
-                // classes in the same package). Metalava does not make this distinction.
-                KaSymbolVisibility.PROTECTED,
-                KaSymbolVisibility.PACKAGE_PROTECTED -> VisibilityLevel.PROTECTED
-                // Local and unknown visibility shouldn't occur for API elements, treat them as
-                // private if they do.
-                KaSymbolVisibility.PRIVATE,
-                KaSymbolVisibility.LOCAL,
-                KaSymbolVisibility.UNKNOWN -> VisibilityLevel.PRIVATE
-            }
+        val visibility = getVisibilityLevel(symbol)
         val annotations = symbol.annotations.mapNotNull { processor.createAnnotation(it) }
         val modifiers = createMutableModifiers(visibility, annotations)
 
