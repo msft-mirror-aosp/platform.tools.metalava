@@ -1,6 +1,11 @@
 com.android.tools.metalava.DuplicateClassTest
   Test duplicate classes[turbine]
 
+com.android.tools.metalava.RecordClassTest
+  Test record class with String components and additional int constructor[turbine]
+  Test record class with int components and additional String constructor[turbine]
+  Test record class with java-record-classes=no[turbine]
+
 com.android.tools.metalava.compatibility.CompatibilityCheckTest
   Expected API changes converting collections to Kotlin[turbine]
 
