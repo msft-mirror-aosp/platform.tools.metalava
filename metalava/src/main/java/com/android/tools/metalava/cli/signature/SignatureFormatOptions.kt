@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.cli.signature
 
+import com.android.tools.metalava.cli.common.HARD_NEWLINE
 import com.android.tools.metalava.cli.common.existingFile
 import com.android.tools.metalava.cli.common.map
 import com.android.tools.metalava.model.text.FileFormat
@@ -57,12 +58,18 @@ class SignatureFormatOptions(
 
                         A comma separated list of `<property>=<value>` assignments where
                         `<property>` is one of the following:
-                        '${FileFormat.defaultableProperties().joinToString(separator = "', '")}'.
+                        PLACEHOLDER
 
                         See `metalava help signature-file-formats` for more information on the
                         properties.
                     """
-                        .trimIndent(),
+                        .trimIndent()
+                        .replace(
+                            "PLACEHOLDER",
+                            FileFormat.defaultableProperties().joinToString("") {
+                                "$HARD_NEWLINE* `$it`"
+                            }
+                        ),
             )
             .convert { defaults -> FileFormat.parseDefaults(defaults) }
 
