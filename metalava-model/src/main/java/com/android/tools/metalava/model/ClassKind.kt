@@ -109,8 +109,8 @@ enum class ClassKind(
     TYPEALIAS(
         supportsInitializerBlock = false,
         signatureKeyword = "typealias",
-        // Typealiases do not have super classes, explicit or otherwise..
-        allowsExplicitSuperClass = true,
+        // Typealiases do not have super classes, explicit or otherwise.
+        allowsExplicitSuperClass = false,
     ),
     ;
 
