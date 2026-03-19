@@ -62,6 +62,7 @@ import com.android.tools.metalava.model.source.EnvironmentManager
 import com.android.tools.metalava.model.source.SourceParser
 import com.android.tools.metalava.model.source.SourceSet
 import com.android.tools.metalava.model.text.CustomizableProperty.Companion.ADD_ADDITIONAL_OVERRIDES
+import com.android.tools.metalava.model.text.CustomizableProperty.Companion.JAVA_RECORD_CLASSES
 import com.android.tools.metalava.model.text.SignatureFile
 import com.android.tools.metalava.model.text.SignatureWriter
 import com.android.tools.metalava.model.text.createFilteringVisitorForSignatures
@@ -361,7 +362,10 @@ class Driver(
 
         // Generate the stubs. This must be done as the last operation in this method as it can
         // modify the [codebase].
-        val generatorConfig = stubGenerationOptions.generatorConfig()
+        val generatorConfig =
+            stubGenerationOptions.generatorConfig(
+                javaRecordClasses = signatureFormatOptions.fileFormat[JAVA_RECORD_CLASSES],
+            )
         StubGenerator(
                 generatorConfig,
                 codebase,

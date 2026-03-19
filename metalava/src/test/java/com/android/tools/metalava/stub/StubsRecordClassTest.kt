@@ -76,15 +76,13 @@ class StubsRecordClassTest : AbstractStubsTest() {
     fun `Test simple record, java-record-classes=no`() {
         checkSimpleRecordStubs(
             format = FORMAT_V6_WITHOUT_JAVA_RECORD_CLASSES,
-            // TODO(b/482390286): Will not compile as it does not declare its components correctly.
-            checkCompilation = false,
-            // TODO(b/482390286): Should not be a `record` class.
+            checkCompilation = true,
             expectedStubs =
                 java(
                     """
                         package test.pkg;
                         @SuppressWarnings({"unchecked", "deprecation", "all"})
-                        public record Test {
+                        public class Test {
                         public Test(int arg1, java.lang.String arg2) { throw new RuntimeException("Stub!"); }
                         public int a() { throw new RuntimeException("Stub!"); }
                         public java.lang.String b() { throw new RuntimeException("Stub!"); }
