@@ -29,4 +29,13 @@ data class PropertyChange<T>(
     fun setNewValueIn(builder: FileFormat.Builder) {
         builder[property] = newValue
     }
+
+    /** Format this [T] as a [String] for use in [describe]. */
+    private fun T.asString() =
+        (this ?: property.defaultValue)?.let { value -> property.valueToString(value) }
+            ?: "<not-set>"
+
+    /** Describe this change. */
+    fun describe() =
+        "Change '${property.propertyName}' from '${oldValue.asString()}' to '${newValue.asString()}'"
 }

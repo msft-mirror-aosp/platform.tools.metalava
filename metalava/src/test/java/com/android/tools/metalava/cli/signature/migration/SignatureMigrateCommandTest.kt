@@ -162,6 +162,7 @@ class SignatureMigrateCommandTest :
                         committerFactory = {
                             TestChangeCommitter(this@SignatureMigrateCommandTest, printWriter)
                         },
+                        outFactory = { printWriter },
                     )
 
                 args += "signature-migrate"
@@ -216,30 +217,34 @@ class SignatureMigrateCommandTest :
                 ),
             expectedCommits =
                 """
-                    Step 1: test: Migrate
-                      ------------------------------------------------------------------------
-                      Prolog
+                    Step 1: Initial migration
+                      Reformatting files
+                      Committing changes
+                        ------------------------------------------------------------------------
+                        test: Migrate
 
-                      This change migrates these files to format `6.0:style=java`.
+                        Prolog
 
-                      Epilog
-                      ------------------------------------------------------------------------
+                        This change migrates these files to format `6.0:style=java`.
 
-                      TESTROOT/api1.txt:
-                        // Signature format: 6.0
-                        // - style=java
-                        package test.pkg {
-                          public class Test {
+                        Epilog
+                        ------------------------------------------------------------------------
+
+                        TESTROOT/api1.txt:
+                          // Signature format: 6.0
+                          // - style=java
+                          package test.pkg {
+                            public class Test {
+                            }
                           }
-                        }
 
-                      TESTROOT/api2.txt:
-                        // Signature format: 6.0
-                        // - style=java
-                        package other.pkg {
-                          public class Other {
+                        TESTROOT/api2.txt:
+                          // Signature format: 6.0
+                          // - style=java
+                          package other.pkg {
+                            public class Other {
+                            }
                           }
-                        }
                 """,
         )
     }
@@ -273,52 +278,60 @@ class SignatureMigrateCommandTest :
                 ),
             expectedCommits =
                 """
-                    Step 1: Migrate
-                      ------------------------------------------------------------------------
-                      This change is the first in a series of 2 steps to migrate
-                      these files to format `6.0:style=java`.
+                    Step 1: Initial migration
+                      Reformatting files
+                      Committing changes
+                        ------------------------------------------------------------------------
+                        Migrate
 
-                      This initial change reformats the files to be as close to the target
-                      format as possible while not changing the structure of the file. It
-                      sets properties in each file that are needed to preserve that
-                      structure. The follow-up changes will change the value of one property
-                      at a time from the original value to the target value. The intent is to
-                      simplify the review process by only making one form of structural
-                      change at a time.
-                      ------------------------------------------------------------------------
+                        This change is the first in a series of 2 steps to migrate
+                        these files to format `6.0:style=java`.
 
-                      TESTROOT/api.txt:
-                        // Signature format: 6.0
-                        // - style=java
-                        // - flagged-api-inheritance=none
-                        package test.pkg {
-                          @FlaggedApi("flag.name") public class Test {
+                        This initial change reformats the files to be as close to the target
+                        format as possible while not changing the structure of the file. It
+                        sets properties in each file that are needed to preserve that
+                        structure. The follow-up changes will change the value of one property
+                        at a time from the original value to the target value. The intent is to
+                        simplify the review process by only making one form of structural
+                        change at a time.
+                        ------------------------------------------------------------------------
+
+                        TESTROOT/api.txt:
+                          // Signature format: 6.0
+                          // - style=java
+                          // - flagged-api-inheritance=none
+                          package test.pkg {
+                            @FlaggedApi("flag.name") public class Test {
+                            }
+                            public class Test.Nested {
+                            }
                           }
-                          public class Test.Nested {
-                          }
-                        }
 
-                    Step 2: Track inherited @FlaggedApi on nested classes
-                      ------------------------------------------------------------------------
-                      An `@FlaggedApi` annotation on a class affects all of its members and
-                      nested classes that do not have their own `@FlaggedApi` annotation.
-                      Previously, inherited `@FlaggedApi` annotations were not tracked on
-                      nested classes which complicated the reviewing of signature file changes
-                      as it was difficult to determine which `@FlaggedApi` if any applied to
-                      the change.
+                    Step 2: Change 'flagged-api-inheritance' from 'none' to 'nested-classes'
+                      Reformatting files
+                      Committing changes
+                        ------------------------------------------------------------------------
+                        Track inherited @FlaggedApi on nested classes
 
-                      This change sets `flagged-api-inheritance=nested-classes` to fix that.
-                      ------------------------------------------------------------------------
+                        An `@FlaggedApi` annotation on a class affects all of its members and
+                        nested classes that do not have their own `@FlaggedApi` annotation.
+                        Previously, inherited `@FlaggedApi` annotations were not tracked on
+                        nested classes which complicated the reviewing of signature file changes
+                        as it was difficult to determine which `@FlaggedApi` if any applied to
+                        the change.
 
-                      TESTROOT/api.txt:
-                        // Signature format: 6.0
-                        // - style=java
-                        package test.pkg {
-                          @FlaggedApi("flag.name") public class Test {
+                        This change sets `flagged-api-inheritance=nested-classes` to fix that.
+                        ------------------------------------------------------------------------
+
+                        TESTROOT/api.txt:
+                          // Signature format: 6.0
+                          // - style=java
+                          package test.pkg {
+                            @FlaggedApi("flag.name") public class Test {
+                            }
+                            @FlaggedApi("flag.name") public class Test.Nested {
+                            }
                           }
-                          @FlaggedApi("flag.name") public class Test.Nested {
-                          }
-                        }
                 """,
         )
     }
@@ -343,54 +356,62 @@ class SignatureMigrateCommandTest :
                 ),
             expectedCommits =
                 """
-                    Step 1: Migrate
-                      ------------------------------------------------------------------------
-                      This change is the first in a series of 2 steps to migrate
-                      these files to format `6.0:style=java`.
+                    Step 1: Initial migration
+                      Reformatting files
+                      Committing changes
+                        ------------------------------------------------------------------------
+                        Migrate
 
-                      This initial change reformats the files to be as close to the target
-                      format as possible while not changing the structure of the file. It
-                      sets properties in each file that are needed to preserve that
-                      structure. The follow-up changes will change the value of one property
-                      at a time from the original value to the target value. The intent is to
-                      simplify the review process by only making one form of structural
-                      change at a time.
-                      ------------------------------------------------------------------------
+                        This change is the first in a series of 2 steps to migrate
+                        these files to format `6.0:style=java`.
 
-                      TESTROOT/api.txt:
-                        // Signature format: 6.0
-                        // - style=java
-                        // - normalize-abstract-modifier=no
-                        package test.pkg {
-                          public @interface Anno {
-                            method public abstract String[] value();
+                        This initial change reformats the files to be as close to the target
+                        format as possible while not changing the structure of the file. It
+                        sets properties in each file that are needed to preserve that
+                        structure. The follow-up changes will change the value of one property
+                        at a time from the original value to the target value. The intent is to
+                        simplify the review process by only making one form of structural
+                        change at a time.
+                        ------------------------------------------------------------------------
+
+                        TESTROOT/api.txt:
+                          // Signature format: 6.0
+                          // - style=java
+                          // - normalize-abstract-modifier=no
+                          package test.pkg {
+                            public @interface Anno {
+                              method public abstract String[] value();
+                            }
+                            public enum Enum {
+                              method public abstract int value();
+                              enum_constant public static final test.pkg.Enum VALUE;
+                            }
                           }
-                          public enum Enum {
-                            method public abstract int value();
-                            enum_constant public static final test.pkg.Enum VALUE;
-                          }
-                        }
 
-                    Step 2: Normalize abstract modifiers in annotations and enums
-                      ------------------------------------------------------------------------
-                      Previously, `abstract` modifiers were not removed from annotation and
-                      enum methods even though they were unnecessary.
+                    Step 2: Change 'normalize-abstract-modifier' from 'no' to 'yes'
+                      Reformatting files
+                      Committing changes
+                        ------------------------------------------------------------------------
+                        Normalize abstract modifiers in annotations and enums
 
-                      This change cleans them up by setting `normalize-abstract-modifier=yes`.
-                      ------------------------------------------------------------------------
+                        Previously, `abstract` modifiers were not removed from annotation and
+                        enum methods even though they were unnecessary.
 
-                      TESTROOT/api.txt:
-                        // Signature format: 6.0
-                        // - style=java
-                        package test.pkg {
-                          public @interface Anno {
-                            method public String[] value();
+                        This change cleans them up by setting `normalize-abstract-modifier=yes`.
+                        ------------------------------------------------------------------------
+
+                        TESTROOT/api.txt:
+                          // Signature format: 6.0
+                          // - style=java
+                          package test.pkg {
+                            public @interface Anno {
+                              method public String[] value();
+                            }
+                            public enum Enum {
+                              method public int value();
+                              enum_constant public static final test.pkg.Enum VALUE;
+                            }
                           }
-                          public enum Enum {
-                            method public int value();
-                            enum_constant public static final test.pkg.Enum VALUE;
-                          }
-                        }
                 """,
         )
     }
@@ -411,46 +432,54 @@ class SignatureMigrateCommandTest :
                 ),
             expectedCommits =
                 """
-                    Step 1: Migrate
-                      ------------------------------------------------------------------------
-                      This change is the first in a series of 2 steps to migrate
-                      these files to format `6.0:style=java`.
+                    Step 1: Initial migration
+                      Reformatting files
+                      Committing changes
+                        ------------------------------------------------------------------------
+                        Migrate
 
-                      This initial change reformats the files to be as close to the target
-                      format as possible while not changing the structure of the file. It
-                      sets properties in each file that are needed to preserve that
-                      structure. The follow-up changes will change the value of one property
-                      at a time from the original value to the target value. The intent is to
-                      simplify the review process by only making one form of structural
-                      change at a time.
-                      ------------------------------------------------------------------------
+                        This change is the first in a series of 2 steps to migrate
+                        these files to format `6.0:style=java`.
 
-                      TESTROOT/api.txt:
-                        // Signature format: 6.0
-                        // - style=java
-                        // - normalize-final-modifier=no
-                        package test.pkg {
-                          public final class Test {
-                            method public final void method();
+                        This initial change reformats the files to be as close to the target
+                        format as possible while not changing the structure of the file. It
+                        sets properties in each file that are needed to preserve that
+                        structure. The follow-up changes will change the value of one property
+                        at a time from the original value to the target value. The intent is to
+                        simplify the review process by only making one form of structural
+                        change at a time.
+                        ------------------------------------------------------------------------
+
+                        TESTROOT/api.txt:
+                          // Signature format: 6.0
+                          // - style=java
+                          // - normalize-final-modifier=no
+                          package test.pkg {
+                            public final class Test {
+                              method public final void method();
+                            }
                           }
-                        }
 
-                    Step 2: Normalize final modifiers in final classes
-                      ------------------------------------------------------------------------
-                      Previously, `final` modifiers were not removed from methods in `final`
-                      classes.
+                    Step 2: Change 'normalize-final-modifier' from 'no' to 'yes'
+                      Reformatting files
+                      Committing changes
+                        ------------------------------------------------------------------------
+                        Normalize final modifiers in final classes
 
-                      This change cleans them up by setting `normalize-final-modifier=yes`.
-                      ------------------------------------------------------------------------
+                        Previously, `final` modifiers were not removed from methods in `final`
+                        classes.
 
-                      TESTROOT/api.txt:
-                        // Signature format: 6.0
-                        // - style=java
-                        package test.pkg {
-                          public final class Test {
-                            method public void method();
+                        This change cleans them up by setting `normalize-final-modifier=yes`.
+                        ------------------------------------------------------------------------
+
+                        TESTROOT/api.txt:
+                          // Signature format: 6.0
+                          // - style=java
+                          package test.pkg {
+                            public final class Test {
+                              method public void method();
+                            }
                           }
-                        }
                 """,
         )
     }
@@ -472,50 +501,58 @@ class SignatureMigrateCommandTest :
                 ),
             expectedCommits =
                 """
-                    Step 1: Migrate
-                      ------------------------------------------------------------------------
-                      This change is the first in a series of 2 steps to migrate
-                      these files to format `6.0:style=java`.
+                    Step 1: Initial migration
+                      Reformatting files
+                      Committing changes
+                        ------------------------------------------------------------------------
+                        Migrate
 
-                      This initial change reformats the files to be as close to the target
-                      format as possible while not changing the structure of the file. It
-                      sets properties in each file that are needed to preserve that
-                      structure. The follow-up changes will change the value of one property
-                      at a time from the original value to the target value. The intent is to
-                      simplify the review process by only making one form of structural
-                      change at a time.
-                      ------------------------------------------------------------------------
+                        This change is the first in a series of 2 steps to migrate
+                        these files to format `6.0:style=java`.
 
-                      TESTROOT/api.txt:
-                        // Signature format: 6.0
-                        // - style=java
-                        // - overloaded-method-order=source
-                        package test.pkg {
-                          public class Test {
-                            method public void method(String);
-                            method public void method(int);
+                        This initial change reformats the files to be as close to the target
+                        format as possible while not changing the structure of the file. It
+                        sets properties in each file that are needed to preserve that
+                        structure. The follow-up changes will change the value of one property
+                        at a time from the original value to the target value. The intent is to
+                        simplify the review process by only making one form of structural
+                        change at a time.
+                        ------------------------------------------------------------------------
+
+                        TESTROOT/api.txt:
+                          // Signature format: 6.0
+                          // - style=java
+                          // - overloaded-method-order=source
+                          package test.pkg {
+                            public class Test {
+                              method public void method(String);
+                              method public void method(int);
+                            }
                           }
-                        }
 
-                    Step 2: Sort overloaded methods by signature
-                      ------------------------------------------------------------------------
-                      Previously, overloaded methods were sorted by their order in the source
-                      file. That meant that refactoring the sources could cause changes to
-                      signature files even though there were no actual API changes.
+                    Step 2: Change 'overloaded-method-order' from 'source' to 'signature'
+                      Reformatting files
+                      Committing changes
+                        ------------------------------------------------------------------------
+                        Sort overloaded methods by signature
 
-                      This change fixes that by setting `overloaded-method-order=signature`
-                      which will sort overloaded methods by their signature.
-                      ------------------------------------------------------------------------
+                        Previously, overloaded methods were sorted by their order in the source
+                        file. That meant that refactoring the sources could cause changes to
+                        signature files even though there were no actual API changes.
 
-                      TESTROOT/api.txt:
-                        // Signature format: 6.0
-                        // - style=java
-                        package test.pkg {
-                          public class Test {
-                            method public void method(int);
-                            method public void method(String);
+                        This change fixes that by setting `overloaded-method-order=signature`
+                        which will sort overloaded methods by their signature.
+                        ------------------------------------------------------------------------
+
+                        TESTROOT/api.txt:
+                          // Signature format: 6.0
+                          // - style=java
+                          package test.pkg {
+                            public class Test {
+                              method public void method(int);
+                              method public void method(String);
+                            }
                           }
-                        }
                 """,
         )
     }
@@ -539,55 +576,63 @@ class SignatureMigrateCommandTest :
                 ),
             expectedCommits =
                 """
-                    Step 1: Migrate
-                      ------------------------------------------------------------------------
-                      This change is the first in a series of 2 steps to migrate
-                      these files to format `6.0:style=java`.
+                    Step 1: Initial migration
+                      Reformatting files
+                      Committing changes
+                        ------------------------------------------------------------------------
+                        Migrate
 
-                      This initial change reformats the files to be as close to the target
-                      format as possible while not changing the structure of the file. It
-                      sets properties in each file that are needed to preserve that
-                      structure. The follow-up changes will change the value of one property
-                      at a time from the original value to the target value. The intent is to
-                      simplify the review process by only making one form of structural
-                      change at a time.
-                      ------------------------------------------------------------------------
+                        This change is the first in a series of 2 steps to migrate
+                        these files to format `6.0:style=java`.
 
-                      TESTROOT/api.txt:
-                        // Signature format: 6.0
-                        // - style=java
-                        // - sort-whole-extends-list=no
-                        package test.pkg {
-                          public interface Another {
-                          }
-                          public interface Other {
-                          }
-                          public interface Test extends test.pkg.Other test.pkg.Another {
-                          }
-                        }
+                        This initial change reformats the files to be as close to the target
+                        format as possible while not changing the structure of the file. It
+                        sets properties in each file that are needed to preserve that
+                        structure. The follow-up changes will change the value of one property
+                        at a time from the original value to the target value. The intent is to
+                        simplify the review process by only making one form of structural
+                        change at a time.
+                        ------------------------------------------------------------------------
 
-                    Step 2: Sort the whole extends list
-                      ------------------------------------------------------------------------
-                      Previously, an interface that had an `extends` list with multiple super
-                      interfaces would sort all but the first item in the list. That meant
-                      that refactoring the sources could cause changes to signature files even
-                      though there were no actual API changes.
+                        TESTROOT/api.txt:
+                          // Signature format: 6.0
+                          // - style=java
+                          // - sort-whole-extends-list=no
+                          package test.pkg {
+                            public interface Another {
+                            }
+                            public interface Other {
+                            }
+                            public interface Test extends test.pkg.Other test.pkg.Another {
+                            }
+                          }
 
-                      This change fixes that by setting `sort-whole-extends-list=yes` which
-                      will sort the whole list.
-                      ------------------------------------------------------------------------
+                    Step 2: Change 'sort-whole-extends-list' from 'no' to 'yes'
+                      Reformatting files
+                      Committing changes
+                        ------------------------------------------------------------------------
+                        Sort the whole extends list
 
-                      TESTROOT/api.txt:
-                        // Signature format: 6.0
-                        // - style=java
-                        package test.pkg {
-                          public interface Another {
+                        Previously, an interface that had an `extends` list with multiple super
+                        interfaces would sort all but the first item in the list. That meant
+                        that refactoring the sources could cause changes to signature files even
+                        though there were no actual API changes.
+
+                        This change fixes that by setting `sort-whole-extends-list=yes` which
+                        will sort the whole list.
+                        ------------------------------------------------------------------------
+
+                        TESTROOT/api.txt:
+                          // Signature format: 6.0
+                          // - style=java
+                          package test.pkg {
+                            public interface Another {
+                            }
+                            public interface Other {
+                            }
+                            public interface Test extends test.pkg.Another test.pkg.Other {
+                            }
                           }
-                          public interface Other {
-                          }
-                          public interface Test extends test.pkg.Another test.pkg.Other {
-                          }
-                        }
                 """,
         )
     }
@@ -607,47 +652,55 @@ class SignatureMigrateCommandTest :
                 ),
             expectedCommits =
                 """
-                    Step 1: Migrate
-                      ------------------------------------------------------------------------
-                      This change is the first in a series of 2 steps to migrate
-                      these files to format `6.0:style=java`.
+                    Step 1: Initial migration
+                      Reformatting files
+                      Committing changes
+                        ------------------------------------------------------------------------
+                        Migrate
 
-                      This initial change reformats the files to be as close to the target
-                      format as possible while not changing the structure of the file. It
-                      sets properties in each file that are needed to preserve that
-                      structure. The follow-up changes will change the value of one property
-                      at a time from the original value to the target value. The intent is to
-                      simplify the review process by only making one form of structural
-                      change at a time.
-                      ------------------------------------------------------------------------
+                        This change is the first in a series of 2 steps to migrate
+                        these files to format `6.0:style=java`.
 
-                      TESTROOT/api.txt:
-                        // Signature format: 6.0
-                        // - style=java
-                        // - strip-java-lang-prefix=legacy
-                        package test.pkg {
-                          public interface Test<T extends java.lang.Number> {
+                        This initial change reformats the files to be as close to the target
+                        format as possible while not changing the structure of the file. It
+                        sets properties in each file that are needed to preserve that
+                        structure. The follow-up changes will change the value of one property
+                        at a time from the original value to the target value. The intent is to
+                        simplify the review process by only making one form of structural
+                        change at a time.
+                        ------------------------------------------------------------------------
+
+                        TESTROOT/api.txt:
+                          // Signature format: 6.0
+                          // - style=java
+                          // - strip-java-lang-prefix=legacy
+                          package test.pkg {
+                            public interface Test<T extends java.lang.Number> {
+                            }
                           }
-                        }
 
-                    Step 2: Always strip java.lang. prefixes from types
-                      ------------------------------------------------------------------------
-                      Previously, a `java.lang.` prefixes were only stripped from the start of
-                      a type. That is legacy behavior from when types were modelled as
-                      strings.
+                    Step 2: Change 'strip-java-lang-prefix' from 'legacy' to 'always'
+                      Reformatting files
+                      Committing changes
+                        ------------------------------------------------------------------------
+                        Always strip java.lang. prefixes from types
 
-                      This change fixes that by setting `strip-java-lang-prefix=always` which
-                      will remove the prefix from all types. Note, that does not include
-                      annotations, so `java.lang.SafeVarargs` is unaffected.
-                      ------------------------------------------------------------------------
+                        Previously, a `java.lang.` prefixes were only stripped from the start of
+                        a type. That is legacy behavior from when types were modelled as
+                        strings.
 
-                      TESTROOT/api.txt:
-                        // Signature format: 6.0
-                        // - style=java
-                        package test.pkg {
-                          public interface Test<T extends Number> {
+                        This change fixes that by setting `strip-java-lang-prefix=always` which
+                        will remove the prefix from all types. Note, that does not include
+                        annotations, so `java.lang.SafeVarargs` is unaffected.
+                        ------------------------------------------------------------------------
+
+                        TESTROOT/api.txt:
+                          // Signature format: 6.0
+                          // - style=java
+                          package test.pkg {
+                            public interface Test<T extends Number> {
+                            }
                           }
-                        }
                 """,
         )
     }
@@ -668,47 +721,55 @@ class SignatureMigrateCommandTest :
                 ),
             expectedCommits =
                 """
-                    Step 1: Migrate
-                      ------------------------------------------------------------------------
-                      This change is the first in a series of 2 steps to migrate
-                      these files to format `6.0:style=java`.
+                    Step 1: Initial migration
+                      Reformatting files
+                      Committing changes
+                        ------------------------------------------------------------------------
+                        Migrate
 
-                      This initial change reformats the files to be as close to the target
-                      format as possible while not changing the structure of the file. It
-                      sets properties in each file that are needed to preserve that
-                      structure. The follow-up changes will change the value of one property
-                      at a time from the original value to the target value. The intent is to
-                      simplify the review process by only making one form of structural
-                      change at a time.
-                      ------------------------------------------------------------------------
+                        This change is the first in a series of 2 steps to migrate
+                        these files to format `6.0:style=java`.
 
-                      TESTROOT/api.txt:
-                        // Signature format: 6.0
-                        // - style=java
-                        // - type-argument-spacing=legacy
-                        package test.pkg {
-                          public class Test {
-                            method void method(java.util.Map<test.pkg.Test,test.pkg.Test>);
+                        This initial change reformats the files to be as close to the target
+                        format as possible while not changing the structure of the file. It
+                        sets properties in each file that are needed to preserve that
+                        structure. The follow-up changes will change the value of one property
+                        at a time from the original value to the target value. The intent is to
+                        simplify the review process by only making one form of structural
+                        change at a time.
+                        ------------------------------------------------------------------------
+
+                        TESTROOT/api.txt:
+                          // Signature format: 6.0
+                          // - style=java
+                          // - type-argument-spacing=legacy
+                          package test.pkg {
+                            public class Test {
+                              method void method(java.util.Map<test.pkg.Test,test.pkg.Test>);
+                            }
                           }
-                        }
 
-                    Step 2: Always separate type arguments with a space
-                      ------------------------------------------------------------------------
-                      Previously, the separation of type arguments was inconsistent depending
-                      on where the type was used.
+                    Step 2: Change 'type-argument-spacing' from 'legacy' to 'space'
+                      Reformatting files
+                      Committing changes
+                        ------------------------------------------------------------------------
+                        Always separate type arguments with a space
 
-                      This change fixes that by setting `type-argument-spacing=space` which
-                      will separate them with a space separator everywhere.
-                      ------------------------------------------------------------------------
+                        Previously, the separation of type arguments was inconsistent depending
+                        on where the type was used.
 
-                      TESTROOT/api.txt:
-                        // Signature format: 6.0
-                        // - style=java
-                        package test.pkg {
-                          public class Test {
-                            method void method(java.util.Map<test.pkg.Test, test.pkg.Test>);
+                        This change fixes that by setting `type-argument-spacing=space` which
+                        will separate them with a space separator everywhere.
+                        ------------------------------------------------------------------------
+
+                        TESTROOT/api.txt:
+                          // Signature format: 6.0
+                          // - style=java
+                          package test.pkg {
+                            public class Test {
+                              method void method(java.util.Map<test.pkg.Test, test.pkg.Test>);
+                            }
                           }
-                        }
                 """,
         )
     }
@@ -722,19 +783,16 @@ internal class TestChangeCommitter(
     private val out: PrintWriter,
 ) : ChangeCommitter {
 
-    private var commitCount = 0
-
     override fun commit(description: ChangeDescription, files: List<File>) {
-        commitCount += 1
-        out.println("Step $commitCount: ${description.title}")
-        out.println("  $COMMIT_MESSAGE_SEPARATOR")
-        out.println(description.detail.applyIndentAndTrimLineEnd("  "))
-        out.println("  $COMMIT_MESSAGE_SEPARATOR")
+        out.println("    $COMMIT_MESSAGE_SEPARATOR")
+        out.println("    ${description.title}\n")
+        out.println(description.detail.applyIndentAndTrimLineEnd("    "))
+        out.println("    $COMMIT_MESSAGE_SEPARATOR")
         out.println()
         for (file in files) {
             val contents = file.readText().stripBlankLines()
-            out.println("  ${temporaryFolderOwner.cleanupString(file.path)}:")
-            out.println(contents.applyIndentAndTrimLineEnd("    "))
+            out.println("    ${temporaryFolderOwner.cleanupString(file.path)}:")
+            out.println(contents.applyIndentAndTrimLineEnd("      "))
             out.println()
         }
     }

@@ -40,10 +40,20 @@ import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.options.required
 import java.io.File
+import java.io.PrintWriter
 
 internal val defaultMigrationTargetFormat = FileFormat.V6
 
 class SignatureMigrateCommand(
+    /**
+     * Allows tests to provide their own [PrintWriter].
+     *
+     * Defaults to using [stdout] if verbose reporting was requested.
+     */
+    private val outFactory: SignatureMigrateCommand.() -> PrintWriter? = {
+        if (commonOptions.verbosity.verbose) stdout else null
+    },
+
     /**
      * Allows tests to provide their own [ChangeCommitter].
      *
@@ -381,11 +391,12 @@ class SignatureMigrateCommand(
 
     /** Perform the migration by performing each of the [MigrationStep]s in turn. */
     private fun performMigration(migrationSteps: List<MigrationStep>) {
+        val out = outFactory()
         val changeCommitter = committerFactory()
 
         // Perform the migration steps in order.
-        for (step in migrationSteps) {
-            step.perform(changeCommitter)
+        for ((index, step) in migrationSteps.withIndex()) {
+            step.perform(out, index + 1, changeCommitter)
         }
     }
 
@@ -589,7 +600,15 @@ private class MigrationStep(
     }
 
     /** Perform the migration step. */
-    fun perform(changeCommitter: ChangeCommitter) {
+    fun perform(
+        out: PrintWriter?,
+        stepNumber: Int,
+        changeCommitter: ChangeCommitter,
+    ) {
+        val stepSummary = optionalPropertyChange?.describe() ?: "Initial migration"
+        out?.println("Step $stepNumber: $stepSummary")
+        out?.println("  Reformatting files")
+
         for (fileToMigrate in filesToMigrate) {
             // Compute the new output format by taking the current output format and applying this
             // step's [optionalPropertyChange].
@@ -608,6 +627,7 @@ private class MigrationStep(
 
         val files = filesToMigrate.map { it.file }
 
+        out?.println("  Committing changes")
         changeCommitter.commit(description, files)
     }
 }
