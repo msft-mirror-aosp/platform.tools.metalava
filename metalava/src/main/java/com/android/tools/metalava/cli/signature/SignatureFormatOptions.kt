@@ -33,6 +33,8 @@ const val SIGNATURE_FORMAT_OUTPUT_GROUP = "Signature Format Output"
 class SignatureFormatOptions(
     /** If true then the `migrating` property is allowed, otherwise it is not allowed at all. */
     private val migratingAllowed: Boolean = false,
+    /** The default [FileFormat]. */
+    defaultFileFormat: FileFormat = FileFormat.V2,
 ) :
     OptionGroup(
         name = SIGNATURE_FORMAT_OUTPUT_GROUP,
@@ -92,7 +94,7 @@ class SignatureFormatOptions(
                     migratingAllowed = migratingAllowed,
                 )
             }
-            .default(FileFormat.V2, defaultForHelp = "2.0")
+            .default(defaultFileFormat, defaultForHelp = defaultFileFormat.specifier())
 
     private val useSameFormatAs by
         option(
