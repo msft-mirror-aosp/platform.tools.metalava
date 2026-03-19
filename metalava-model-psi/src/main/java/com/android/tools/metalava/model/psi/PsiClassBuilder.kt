@@ -73,7 +73,6 @@ import org.jetbrains.kotlin.asJava.elements.KtLightDeclaration
 import org.jetbrains.kotlin.lexer.KtTokens
 import org.jetbrains.kotlin.psi.KtAnnotated
 import org.jetbrains.kotlin.psi.KtClassOrObject
-import org.jetbrains.kotlin.psi.KtConstructor
 import org.jetbrains.kotlin.psi.KtParameter
 import org.jetbrains.kotlin.psi.KtPrimaryConstructor
 import org.jetbrains.kotlin.psi.KtProperty
@@ -273,8 +272,9 @@ internal class PsiClassBuilder(
             if (psiMethod.isConstructor) {
                 val constructor = createConstructor(classItem, psiMethod, classTypeItemFactory)
 
-                // TODO(b/491407270): checking parameter types is still required because
-                //  constructors with value class type parameters incorrectly exist as UElements.
+                // There will be a private version of a constructor that takes a value class
+                // parameter, by skip generating it here as the non-private source version will be
+                // added in KaCodebaseAssembler.
                 if (constructor.parameters().any { it.type().isValueClassType }) {
                     continue
                 }
@@ -314,13 +314,8 @@ internal class PsiClassBuilder(
                 // If a function has a value class return type which is not explicitly declared in
                 // source it will still incorrectly exist as a UElement (see
                 // https://youtrack.jetbrains.com/issue/KT-74205).
-                // TODO(b/491407270): checking parameter types is still required because
-                //  constructors with value class type parameters incorrectly exist as UElements,
-                //  and a data class copy method has the constructor as its source element so it
-                //  will also still exist as a UElement when it has a value class parameter type.
                 if (
                     (method.returnType().isValueClassType ||
-                        method.parameters().any { it.type().isValueClassType } ||
                         // If a suspend function returns a value class type, the return is turned
                         // into a final continuation parameter where the argument of the type is
                         // a super bound of the value class type.
@@ -704,30 +699,6 @@ internal class PsiClassBuilder(
                 implicitConstructor = false,
                 isPrimary = (psiMethod as? UMethod)?.isPrimaryConstructor == true
             )
-
-        // Undo setting of constructors with value class types to private (b/395472914).
-        // Constructors that use value class types are effectively private to java callers, but they
-        // can be public in source to kotlin callers, so we want to track them.
-        if (
-            constructor.modifiers.isPrivate() &&
-                constructor.parameters().any { it.type().isValueClassType }
-        ) {
-            (psiMethod.sourceElement as? KtConstructor<*>)?.let { sourcePsi ->
-                if (!sourcePsi.hasModifier(KtTokens.PRIVATE_KEYWORD)) {
-                    constructor.mutateModifiers {
-                        val correctedVisibility =
-                            when {
-                                sourcePsi.hasModifier(KtTokens.PROTECTED_KEYWORD) ->
-                                    VisibilityLevel.PROTECTED
-                                sourcePsi.hasModifier(KtTokens.INTERNAL_KEYWORD) ->
-                                    VisibilityLevel.INTERNAL
-                                else -> VisibilityLevel.PUBLIC
-                            }
-                        setVisibilityLevel(correctedVisibility)
-                    }
-                }
-            }
-        }
 
         return constructor
     }
