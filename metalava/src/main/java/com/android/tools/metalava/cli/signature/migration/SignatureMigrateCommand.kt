@@ -222,9 +222,13 @@ class SignatureMigrateCommand(
         val outputFormat = computeInitialOutputFormat(currentFormat, targetFormat, codebase)
 
         val propertyChanges =
-            CustomizableProperty.entries.mapNotNull { property ->
-                property.takeIf { it.defaultable }?.computeChangeIfAny(outputFormat, targetFormat)
-            }
+            CustomizableProperty.entries
+                .mapNotNull { property ->
+                    property
+                        .takeIf { it.defaultable }
+                        ?.computeChangeIfAny(outputFormat, targetFormat)
+                }
+                .toSet()
 
         return FileToMigrate(file, currentFormat, codebase, outputFormat, propertyChanges)
     }
@@ -571,7 +575,7 @@ private data class FileToMigrate(
     var outputFormat: FileFormat,
 
     /** The [PropertyChange]s that need to be made to migrate this file to the target format. */
-    val propertyChanges: List<PropertyChange<*>>,
+    val propertyChanges: Set<PropertyChange<*>>,
 ) {
     fun write(outputFormat: FileFormat) {
         file.printWriter().use { writer -> writeSignatureFile(codebase, outputFormat, writer) }
