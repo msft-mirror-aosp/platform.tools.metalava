@@ -162,18 +162,12 @@ internal class TurbineClassBuilder(
 
         // Set up the SuperClass
         val superClassType =
-            when (classKind) {
-                // Normal classes and enums have a non-null super class type.
-                ClassKind.CLASS,
-                ClassKind.ENUM ->
-                    typeBoundClass.superClassType()?.let {
-                        classTypeItemFactory.getSuperClassType(it)
-                    }
-                // Interfaces and annotations (which are a form of interface) do not.
-                ClassKind.INTERFACE,
-                ClassKind.ANNOTATION_TYPE,
-                // Turbine does not support typealiases (which only exist in kotlin).
-                ClassKind.TYPEALIAS, -> null
+            // Only use the super class type if the class kind allows explicit super class type to
+            // be specified, or it has an implicit super class.
+            if (classKind.allowsExplicitSuperClass || classKind.implicitSuperClassType != null) {
+                typeBoundClass.superClassType()?.let { classTypeItemFactory.getSuperClassType(it) }
+            } else {
+                null
             }
 
         // Set interface types
