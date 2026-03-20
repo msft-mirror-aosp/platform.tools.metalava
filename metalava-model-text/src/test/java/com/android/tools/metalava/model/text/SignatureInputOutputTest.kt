@@ -991,6 +991,35 @@ class SignatureInputOutputTest : Assertions {
         )
     }
 
+    @Test
+    fun `Test record classes, java-record-classes=no`() {
+        val api =
+            """
+                package test.pkg {
+                  public record Test {
+                    ctor public Test(int, String);
+                    method public int a();
+                    method public String b();
+                  }
+                }
+            """
+        runInputOutputTest(
+            api,
+            FORMAT_V6_WITHOUT_JAVA_RECORD_CLASSES,
+            // TODO(b/482390286): Should not be a record class.
+            expectedOutput =
+                """
+                    package test.pkg {
+                      public record Test {
+                        ctor public Test(int, String);
+                        method public int a();
+                        method public String b();
+                      }
+                    }
+                """,
+        )
+    }
+
     companion object {
         private val kotlinStyleFormat =
             FileFormat.V5.buildCopy { this[KOTLIN_NAME_TYPE_ORDER] = true }
