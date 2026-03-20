@@ -37,8 +37,6 @@ import com.android.tools.metalava.model.visitors.ApiType
 import com.google.common.truth.Truth.assertThat
 import java.io.PrintWriter
 import java.io.StringWriter
-import kotlin.test.assertEquals
-import org.junit.Assert.assertThrows
 import org.junit.Test
 
 /**
@@ -987,17 +985,9 @@ class SignatureInputOutputTest : Assertions {
                   }
                 }
             """
-        val exception =
-            assertThrows(Exception::class.java) {
-                runInputOutputTest(
-                    api,
-                    FORMAT_V6_WITH_JAVA_RECORD_CLASSES,
-                )
-            }
-
-        assertEquals(
-            "test:5: expected one of interface, enum, @interface, class, typealias; found: record",
-            exception.message
+        runInputOutputTest(
+            api,
+            FORMAT_V6_WITH_JAVA_RECORD_CLASSES,
         )
     }
 
