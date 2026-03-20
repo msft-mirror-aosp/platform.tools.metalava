@@ -1006,11 +1006,10 @@ class SignatureInputOutputTest : Assertions {
         runInputOutputTest(
             api,
             FORMAT_V6_WITHOUT_JAVA_RECORD_CLASSES,
-            // TODO(b/482390286): Should not be a record class.
             expectedOutput =
                 """
                     package test.pkg {
-                      public record Test {
+                      public class Test {
                         ctor public Test(int, String);
                         method public int a();
                         method public String b();
