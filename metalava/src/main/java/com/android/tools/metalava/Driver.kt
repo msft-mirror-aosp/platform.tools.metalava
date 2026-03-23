@@ -535,16 +535,38 @@ class Driver(
         if (apiLintOptions.apiLintEnabled) {
             MultiplatformLint(reporter).check(multiplatformCodebase)
 
-            // For the regular, non-multiplatform codebase operations, either the android or jvm
-            // source set was used. Find which one of these it was.
-            val (mainSourceSet, mainCodebase) =
+            // For the regular, non-multiplatform codebase operations, if they happened, either the
+            // android or jvm source set would have been used. Find which one of these it was.
+            // If neither exist, treat the common source set as the main one.
+            val mainCodebaseEntry =
                 multiplatformCodebase.sourceSetToCodebase.entries.singleOrNull {
                     it.key == "androidMain"
                 }
                     ?: multiplatformCodebase.sourceSetToCodebase.entries.singleOrNull {
                         it.key == "jvmMain"
                     }
-                    ?: error("Multiplatform codebase must have main android or jvm source set")
+                    ?: multiplatformCodebase.sourceSetToCodebase.entries.singleOrNull {
+                        it.key == "commonMain"
+                    }
+            val mainSourceSet = mainCodebaseEntry?.key
+            val mainCodebase = mainCodebaseEntry?.value
+
+            // If there isn't an android or jvm source set, API lint won't have run yet for common.
+            // Run it here so that the common source set can be treated as the "old" codebase in
+            // the checks below, and any lint issues in common will only be reported once here
+            // instead of being duplicated.
+            if (mainSourceSet == "commonMain") {
+                ApiLint.check(
+                    mainCodebase!!,
+                    null,
+                    reporter,
+                    apiPredicateConfig,
+                    ApiLint.Config(
+                        manifest = miscellaneousOptions.manifest,
+                        allowedAcronyms = apiLintOptions.allowedAcronyms,
+                    ),
+                )
+            }
 
             // Run regular API lint checks for each source set.
             for ((sourceSet, codebase) in multiplatformCodebase.sourceSetToCodebase) {
@@ -555,9 +577,9 @@ class Driver(
                 runApiChecksFromOptions(codebase) { codebase, _ ->
                     ApiLint.check(
                         codebase,
-                        // By making the main android/jvm codebase the "oldCodebase", any issues
-                        // which have already been reported for the main codebase through the non-
-                        // multiplatform checks will be skipped.
+                        // By making the main android/jvm/common codebase the "oldCodebase", any
+                        // issues which have already been reported for the main codebase through the
+                        // non-multiplatform checks or the common check above will be skipped.
                         oldCodebase = mainCodebase,
                         reporter,
                         apiPredicateConfig,
