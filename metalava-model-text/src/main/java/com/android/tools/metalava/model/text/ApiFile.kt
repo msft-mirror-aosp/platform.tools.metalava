@@ -966,6 +966,16 @@ private constructor(
     private fun typeItemFactoryForClass(classItem: ClassItem?): TextTypeItemFactory =
         classItem?.let { classToTypeItemFactory[classItem] } ?: globalTypeItemFactory
 
+    /** Map from class member kind token to its parse function. */
+    private val classMemberKindToParseFunction =
+        mapOf<String, (Tokenizer, SkeletonClassItem, TextTypeItemFactory) -> Unit>(
+            "ctor" to ::parseConstructor,
+            "enum_constant" to ::parseEnumConstant,
+            "field" to ::parseField,
+            "method" to ::parseMethod,
+            "property" to ::parseProperty,
+        )
+
     /** Parse the class body, adding members to [containingClass]. */
     private fun parseClassBody(
         tokenizer: Tokenizer,
@@ -976,18 +986,14 @@ private constructor(
         while (true) {
             if ("}" == token) {
                 break
-            } else if ("ctor" == token) {
-                parseConstructor(tokenizer, containingClass, classTypeItemFactory)
-            } else if ("method" == token) {
-                parseMethod(tokenizer, containingClass, classTypeItemFactory)
-            } else if ("field" == token) {
-                parseField(tokenizer, containingClass, classTypeItemFactory)
-            } else if ("enum_constant" == token) {
-                parseEnumConstant(tokenizer, containingClass, classTypeItemFactory)
-            } else if ("property" == token) {
-                parseProperty(tokenizer, containingClass, classTypeItemFactory)
             } else {
-                throw ApiParseException("expected ctor, enum_constant, field or method", tokenizer)
+                val parseFunction =
+                    classMemberKindToParseFunction[token]
+                        ?: throw ApiParseException(
+                            "expected one of ${classMemberKindToParseFunction.keys.joinToString()}",
+                            tokenizer
+                        )
+                parseFunction(tokenizer, containingClass, classTypeItemFactory)
             }
             token = tokenizer.requireToken()
         }
