@@ -310,6 +310,14 @@ class Driver(
             "$PROGRAM_NAME analyzed API in ${stopwatch.elapsed(SECONDS)} seconds\n"
         )
 
+        // Run operations on the regular codebase.
+        runCodebaseChecks(stopwatch, codebase)
+
+        // Run additional operations on the multiplatform codebase, if it exists.
+        multiplatformCodebase?.let { runMultiplatformCodebaseChecks(multiplatformCodebase) }
+    }
+
+    private fun runCodebaseChecks(stopwatch: Stopwatch, codebase: Codebase) {
         generateApiHistoryFromOptions(codebase)
 
         // Generate signature files based on provided input flags (i.e. if api file locations were
@@ -376,9 +384,6 @@ class Driver(
                 apiPredicateConfig,
             )
             .generateStubs()
-
-        // Run additional operations on the multiplatform codebase, if it exists.
-        multiplatformCodebase?.let { runMultiplatformCodebaseChecks(multiplatformCodebase) }
 
         val packageCount = codebase.size()
         progressTracker.progress(
