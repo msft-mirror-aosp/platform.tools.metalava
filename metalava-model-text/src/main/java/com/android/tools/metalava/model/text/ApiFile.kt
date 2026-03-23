@@ -977,20 +977,15 @@ private constructor(
             if ("}" == token) {
                 break
             } else if ("ctor" == token) {
-                token = tokenizer.requireToken()
-                parseConstructor(tokenizer, cl, classTypeItemFactory, token)
+                parseConstructor(tokenizer, cl, classTypeItemFactory)
             } else if ("method" == token) {
-                token = tokenizer.requireToken()
-                parseMethod(tokenizer, cl, classTypeItemFactory, token)
+                parseMethod(tokenizer, cl, classTypeItemFactory)
             } else if ("field" == token) {
-                token = tokenizer.requireToken()
-                parseField(tokenizer, cl, classTypeItemFactory, token, false)
+                parseField(tokenizer, cl, classTypeItemFactory, false)
             } else if ("enum_constant" == token) {
-                token = tokenizer.requireToken()
-                parseField(tokenizer, cl, classTypeItemFactory, token, true)
+                parseField(tokenizer, cl, classTypeItemFactory, true)
             } else if ("property" == token) {
-                token = tokenizer.requireToken()
-                parseProperty(tokenizer, cl, classTypeItemFactory, token)
+                parseProperty(tokenizer, cl, classTypeItemFactory)
             } else {
                 throw ApiParseException("expected ctor, enum_constant, field or method", tokenizer)
             }
@@ -1249,9 +1244,8 @@ private constructor(
         tokenizer: Tokenizer,
         containingClass: SkeletonClassItem,
         classTypeItemFactory: TextTypeItemFactory,
-        startingToken: String
     ) {
-        var token = startingToken
+        var token = tokenizer.requireToken()
         val method: ConstructorItem
 
         val (modifiers, targetLanguages) = parseModifiersAndTargetLanguages(tokenizer, token)
@@ -1310,9 +1304,8 @@ private constructor(
         tokenizer: Tokenizer,
         cl: SkeletonClassItem,
         classTypeItemFactory: TextTypeItemFactory,
-        startingToken: String
     ) {
-        var token = startingToken
+        var token = tokenizer.requireToken()
         val method: MethodItem
 
         val (modifiers, targetLanguages) = parseModifiersAndTargetLanguages(tokenizer, token)
@@ -1425,10 +1418,9 @@ private constructor(
         tokenizer: Tokenizer,
         cl: SkeletonClassItem,
         classTypeItemFactory: TextTypeItemFactory,
-        startingToken: String,
         isEnumConstant: Boolean,
     ) {
-        var token = startingToken
+        var token = tokenizer.requireToken()
         val (modifiers, targetLanguages) = parseModifiersAndTargetLanguages(tokenizer, token)
         token = tokenizer.current
         tokenizer.assertIdent(token)
@@ -1681,9 +1673,8 @@ private constructor(
         tokenizer: Tokenizer,
         cl: SkeletonClassItem,
         classTypeItemFactory: TextTypeItemFactory,
-        startingToken: String
     ) {
-        var token = startingToken
+        var token = tokenizer.requireToken()
         val modifiers = parseModifiers(tokenizer, token)
 
         // Get a TypeParameterList and accompanying TypeParameterScope
