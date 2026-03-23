@@ -671,7 +671,8 @@ private constructor(
             throw ApiParseException("expected = found $token", tokenizer)
         }
 
-        val typeString = scanForTypeString(tokenizer, tokenizer.requireToken())
+        tokenizer.requireToken()
+        val typeString = scanForTypeString(tokenizer)
         token = tokenizer.current
         if (";" != token) {
             throw ApiParseException("expected ; found $token", tokenizer)
@@ -753,7 +754,8 @@ private constructor(
         token = tokenizer.requireToken()
 
         if ("extends" == token && classKind != ClassKind.INTERFACE) {
-            val superClassTypeString = parseSuperTypeString(tokenizer, tokenizer.requireToken())
+            tokenizer.requireToken()
+            val superClassTypeString = parseSuperTypeString(tokenizer)
             superClassType =
                 typeItemFactory.getSuperClassType(
                     superClassTypeString,
@@ -772,7 +774,7 @@ private constructor(
                 if ("{" == token) {
                     break
                 } else if ("," != token) {
-                    val interfaceTypeString = parseSuperTypeString(tokenizer, token)
+                    val interfaceTypeString = parseSuperTypeString(tokenizer)
                     val interfaceType = typeItemFactory.getInterfaceType(interfaceTypeString)
                     interfaceTypes.add(interfaceType)
                     token = tokenizer.current
@@ -1002,8 +1004,8 @@ private constructor(
      * Parse a super type string, i.e. a string representing a super class type or a super interface
      * type.
      */
-    private fun parseSuperTypeString(tokenizer: Tokenizer, initialToken: String): String {
-        var token = getAnnotationCompleteToken(tokenizer, initialToken)
+    private fun parseSuperTypeString(tokenizer: Tokenizer): String {
+        var token = getAnnotationCompleteToken(tokenizer)
 
         // Use the token directly if it is complete, otherwise construct the super class type
         // string from as many tokens as necessary.
@@ -1020,7 +1022,7 @@ private constructor(
                 // However, this type cannot be an array, so unlike [parseType] this does
                 // not need to check if the next token has annotations.
                 do {
-                    token = getAnnotationCompleteToken(tokenizer, tokenizer.current)
+                    token = getAnnotationCompleteToken(tokenizer)
                     append(" ")
                     append(token)
                 } while (isIncompleteTypeToken(token))
@@ -1140,14 +1142,15 @@ private constructor(
     }
 
     /**
-     * If the [startingToken] contains the beginning of an annotation, pulls additional tokens from
+     * If [Tokenizer.current] contains the beginning of an annotation, pulls additional tokens from
      * [tokenizer] to complete the annotation, returning the full token. If there isn't an
-     * annotation, returns the original [startingToken].
+     * annotation, returns the original [Tokenizer.current].
      *
      * When the method returns, the [tokenizer] will point to the token after the end of the
      * returned string.
      */
-    private fun getAnnotationCompleteToken(tokenizer: Tokenizer, startingToken: String): String {
+    private fun getAnnotationCompleteToken(tokenizer: Tokenizer): String {
+        val startingToken = tokenizer.current
         return if (startingToken.contains('@')) {
             val prefix = startingToken.substringBefore('@')
             val annotationStart = startingToken.substring(startingToken.indexOf('@'))
@@ -1339,11 +1342,11 @@ private constructor(
             }
             token = tokenizer.requireToken()
             tokenizer.assertIdent(token)
-            returnTypeString = scanForTypeString(tokenizer, token)
+            returnTypeString = scanForTypeString(tokenizer)
             token = tokenizer.current
         } else {
             // Java style: parse the return type, the name, and then the parameter list.
-            returnTypeString = scanForTypeString(tokenizer, token)
+            returnTypeString = scanForTypeString(tokenizer)
             token = tokenizer.current
             tokenizer.assertIdent(token)
             name = token
@@ -1466,11 +1469,11 @@ private constructor(
             name = parseNameWithColon(token, tokenizer)
             token = tokenizer.requireToken()
             tokenizer.assertIdent(token)
-            typeString = scanForTypeString(tokenizer, token)
+            typeString = scanForTypeString(tokenizer)
             token = tokenizer.current
         } else {
             // Java style: parse the name, then the type.
-            typeString = scanForTypeString(tokenizer, token)
+            typeString = scanForTypeString(tokenizer)
             token = tokenizer.current
             tokenizer.assertIdent(token)
             name = token
@@ -1713,25 +1716,22 @@ private constructor(
         // Get a TypeParameterList and accompanying TypeParameterScope
         val (typeParameterList, typeItemFactory) =
             parseTypeParameterList(tokenizer, classTypeItemFactory)
-        var token = tokenizer.current
 
         val typeString: String
         val receiverNamePair: Pair<TypeItem?, String>
         if (kotlinNameTypeOrder) {
             // Kotlin style: parse the name, then the type.
             receiverNamePair = parsePropertyReceiverAndName(tokenizer, typeItemFactory)
-            token = tokenizer.current
-            typeString = scanForTypeString(tokenizer, token)
-            token = tokenizer.current
+            typeString = scanForTypeString(tokenizer)
         } else {
             // Java style: parse the type, then the name.
-            typeString = scanForTypeString(tokenizer, token)
+            typeString = scanForTypeString(tokenizer)
             receiverNamePair = parsePropertyReceiverAndName(tokenizer, typeItemFactory)
-            token = tokenizer.current
         }
         val type = typeItemFactory.getGeneralType(typeString)
         synchronizeNullability(type, modifiers)
 
+        val token = tokenizer.current
         if (";" != token) {
             throw ApiParseException("expected ; found $token", tokenizer)
         }
@@ -1774,7 +1774,7 @@ private constructor(
         // If there's no receiver, scanning for the type string should just return the name.
         // If there is a receiver, because of how the tokens are broken up, it should return
         // "receiver.name", which can then be split on the last "." to the receiver and name.
-        val receiverAndName = scanForTypeString(tokenizer, tokenizer.current)
+        val receiverAndName = scanForTypeString(tokenizer)
         val namePossiblyWithColon: String
         val receiverTypeString: String?
         if (receiverAndName.contains(".")) {
@@ -1971,13 +1971,13 @@ private constructor(
                     } else {
                         name
                     }
-                token = tokenizer.requireToken()
+                tokenizer.requireToken()
                 // Token should now represent the type
-                typeString = scanForTypeString(tokenizer, token)
+                typeString = scanForTypeString(tokenizer)
                 token = tokenizer.current
             } else {
                 // Java style: parse the type, then the public name if it has one.
-                typeString = scanForTypeString(tokenizer, token)
+                typeString = scanForTypeString(tokenizer)
                 token = tokenizer.current
                 if (Tokenizer.isIdent(token)) {
                     name = token
@@ -2112,7 +2112,7 @@ private constructor(
     }
 
     /**
-     * Scans the token stream from [tokenizer] for a type string, starting with the [startingToken]
+     * Scans the token stream from [tokenizer] for a type string, starting with [Tokenizer.current]
      * and ensuring that the full type string is gathered, even when there are type-use annotations.
      *
      * After this method is called, `tokenizer.current` will point to the token after the type.
@@ -2124,8 +2124,8 @@ private constructor(
      * To handle arrays with type-use annotations, this looks forward at the next token and includes
      * it if it contains an annotation. This is necessary to handle type strings like "Foo @A []".
      */
-    private fun scanForTypeString(tokenizer: Tokenizer, startingToken: String): String {
-        var prev = getAnnotationCompleteToken(tokenizer, startingToken)
+    private fun scanForTypeString(tokenizer: Tokenizer): String {
+        var prev = getAnnotationCompleteToken(tokenizer)
         var type = prev
         var token = tokenizer.current
         // Look both at the last used token and the next one:
@@ -2134,7 +2134,7 @@ private constructor(
         // If the next token has annotations, this is an array type like "Foo @A []", so the next
         // token is part of the type.
         while (isIncompleteTypeToken(prev) || isIncompleteTypeToken(token)) {
-            token = getAnnotationCompleteToken(tokenizer, token)
+            token = getAnnotationCompleteToken(tokenizer)
             type += " $token"
             prev = token
             token = tokenizer.current
