@@ -600,11 +600,11 @@ private constructor(
     }
 
     private fun parsePackage(tokenizer: Tokenizer) {
-        var token: String = tokenizer.requireToken()
+        tokenizer.requireToken()
 
         // Metalava: including annotations in file now
-        val annotations = getAnnotations(tokenizer, token)
-        token = tokenizer.current
+        val annotations = getAnnotations(tokenizer)
+        var token = tokenizer.current
         tokenizer.assertIdent(token)
         val name: String = token
 
@@ -710,14 +710,12 @@ private constructor(
 
     /** Parse a class starting with [Tokenizer.current]. */
     private fun parseClass(pkg: PackageItem, tokenizer: Tokenizer) {
-        var token = tokenizer.current
-
-        val (modifiers, targetLanguages) = parseModifiersAndTargetLanguages(tokenizer, token)
+        val (modifiers, targetLanguages) = parseModifiersAndTargetLanguages(tokenizer)
         // Remember this position as this seems like a good place to use to report issues with the
         // class item.
         val classPosition = tokenizer.fileLocation()
 
-        token = tokenizer.current
+        var token = tokenizer.current
         val classKind =
             ClassKind.bySignatureKeyword(token)
                 ?: throw ApiParseException(
@@ -1208,13 +1206,13 @@ private constructor(
     }
 
     /**
-     * Collects all the sequential annotations from the [tokenizer] beginning with [startingToken],
-     * returning them as a (possibly empty) list.
+     * Collects all the sequential annotations from the [tokenizer] beginning with
+     * [Tokenizer.current], returning them as a (possibly empty) list.
      *
      * When the method returns, the [tokenizer] will point to the token after the annotation list.
      */
-    private fun getAnnotations(tokenizer: Tokenizer, startingToken: String) = buildList {
-        var token = startingToken
+    private fun getAnnotations(tokenizer: Tokenizer) = buildList {
+        var token = tokenizer.current
         while (true) {
             // If the token does not start with '@' then it is not an annotation so break out.
             if (!token.startsWith('@')) break
@@ -1253,15 +1251,15 @@ private constructor(
         containingClass: SkeletonClassItem,
         classTypeItemFactory: TextTypeItemFactory,
     ) {
-        var token = tokenizer.requireToken()
+        tokenizer.requireToken()
         val method: ConstructorItem
 
-        val (modifiers, targetLanguages) = parseModifiersAndTargetLanguages(tokenizer, token)
+        val (modifiers, targetLanguages) = parseModifiersAndTargetLanguages(tokenizer)
 
         // Get a TypeParameterList and accompanying TypeItemFactory
         val (typeParameterList, typeItemFactory) =
             parseTypeParameterList(tokenizer, classTypeItemFactory)
-        token = tokenizer.current
+        var token = tokenizer.current
 
         tokenizer.assertIdent(token)
         // For nested classes, strip outer classes from name
@@ -1314,15 +1312,15 @@ private constructor(
         containingClass: SkeletonClassItem,
         classTypeItemFactory: TextTypeItemFactory,
     ) {
-        var token = tokenizer.requireToken()
+        tokenizer.requireToken()
         val method: MethodItem
 
-        val (modifiers, targetLanguages) = parseModifiersAndTargetLanguages(tokenizer, token)
+        val (modifiers, targetLanguages) = parseModifiersAndTargetLanguages(tokenizer)
 
         // Get a TypeParameterList and accompanying TypeParameterScope
         val (typeParameterList, typeItemFactory) =
             parseTypeParameterList(tokenizer, classTypeItemFactory)
-        token = tokenizer.current
+        var token = tokenizer.current
         tokenizer.assertIdent(token)
 
         val returnTypeString: String
@@ -1456,9 +1454,9 @@ private constructor(
         classTypeItemFactory: TextTypeItemFactory,
         isEnumConstant: Boolean,
     ) {
-        var token = tokenizer.requireToken()
-        val (modifiers, targetLanguages) = parseModifiersAndTargetLanguages(tokenizer, token)
-        token = tokenizer.current
+        tokenizer.requireToken()
+        val (modifiers, targetLanguages) = parseModifiersAndTargetLanguages(tokenizer)
+        var token = tokenizer.current
         tokenizer.assertIdent(token)
 
         val typeString: String
@@ -1540,17 +1538,16 @@ private constructor(
      */
     private fun parseModifiersAndTargetLanguages(
         tokenizer: Tokenizer,
-        startingToken: String,
     ): Pair<MutableModifierList, Set<TargetLanguage>> {
-        var token = startingToken
+        val token = tokenizer.current
         // Check if there's a token describing the target languages of the item. If there is, get
         // the next token, if not, use the set of all languages.
         val targetLanguages =
             TargetLanguageSet.signatureFileRepresentationToTargetLanguageSet[token]?.also {
-                token = tokenizer.requireToken()
+                tokenizer.requireToken()
             } ?: TargetLanguageSet.ALL
 
-        val modifiers = parseModifiers(tokenizer, token)
+        val modifiers = parseModifiers(tokenizer)
         return modifiers to targetLanguages
     }
 
@@ -1559,11 +1556,11 @@ private constructor(
      *
      * If there is no visibility modifier, [VisibilityLevel.PACKAGE_PRIVATE] is used.
      *
-     * When the method returns, the current token of [tokenizer] will be the first token after the
-     * modifiers.
+     * The method starts processing from the current token of [tokenizer]. When the method returns,
+     * the current token of [tokenizer] will be the first token after the modifiers.
      */
-    private fun parseModifiers(tokenizer: Tokenizer, startingToken: String): MutableModifierList {
-        val annotations = getAnnotations(tokenizer, startingToken)
+    private fun parseModifiers(tokenizer: Tokenizer): MutableModifierList {
+        val annotations = getAnnotations(tokenizer)
         val modifiers = createModifiers(annotations)
         parseKeywordModifiers(tokenizer, modifiers)
         return modifiers
@@ -1710,13 +1707,13 @@ private constructor(
         containingClass: SkeletonClassItem,
         classTypeItemFactory: TextTypeItemFactory,
     ) {
-        var token = tokenizer.requireToken()
-        val modifiers = parseModifiers(tokenizer, token)
+        tokenizer.requireToken()
+        val modifiers = parseModifiers(tokenizer)
 
         // Get a TypeParameterList and accompanying TypeParameterScope
         val (typeParameterList, typeItemFactory) =
             parseTypeParameterList(tokenizer, classTypeItemFactory)
-        token = tokenizer.current
+        var token = tokenizer.current
 
         val typeString: String
         val receiverNamePair: Pair<TypeItem?, String>
@@ -1955,10 +1952,10 @@ private constructor(
             // default value
             val hasOptionalKeyword = token == "optional"
             if (hasOptionalKeyword) {
-                token = tokenizer.requireToken()
+                tokenizer.requireToken()
             }
 
-            val modifiers = parseModifiers(tokenizer, token)
+            val modifiers = parseModifiers(tokenizer)
             token = tokenizer.current
 
             val typeString: String
