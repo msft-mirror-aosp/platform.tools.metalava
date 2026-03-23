@@ -116,9 +116,10 @@ private constructor(
  * A [Comparator] used to sort all [MemberItem]s of a class.
  *
  * This sorts [MemberItem]s into the following groups (using the [kindOrdinal] function):
+ * * Record component [PropertyItem]s
  * * [ConstructorItem]s
  * * [MethodItem]s
- * * [PropertyItem]s
+ * * Other [PropertyItem]s
  * * Enum constant [FieldItem]s.
  * * Other [FieldItem]s.
  *
@@ -140,7 +141,7 @@ internal class MemberItemComparator(private val callableComparator: Comparator<C
         when (this) {
             is ConstructorItem -> CONSTRUCTOR_ORDER
             is MethodItem -> METHOD_ORDER
-            is PropertyItem -> PROPERTY_ORDER
+            is PropertyItem -> if (isRecordComponent()) RECORD_COMPONENT_ORDER else PROPERTY_ORDER
             is FieldItem -> if (isEnumConstant()) ENUM_CONSTANT_ORDER else FIELD_ORDER
             else -> error("unknown member item type $this of $javaClass")
         }
@@ -161,7 +162,8 @@ internal class MemberItemComparator(private val callableComparator: Comparator<C
     }
 
     companion object {
-        const val CONSTRUCTOR_ORDER = 0
+        const val RECORD_COMPONENT_ORDER = 0
+        const val CONSTRUCTOR_ORDER = RECORD_COMPONENT_ORDER + 1
         const val METHOD_ORDER = CONSTRUCTOR_ORDER + 1
         const val PROPERTY_ORDER = METHOD_ORDER + 1
         const val ENUM_CONSTANT_ORDER = PROPERTY_ORDER + 1

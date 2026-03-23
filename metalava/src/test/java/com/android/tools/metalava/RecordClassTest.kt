@@ -92,6 +92,8 @@ class RecordClassTest : DriverTest() {
                 """
                     package test.pkg {
                       public record Test {
+                        record_component #0 c1: int;
+                        record_component #1 c2: int;
                         ctor public Test(int, int);
                         ctor public Test(@NonNull String, @NonNull String);
                         method public int c1();
@@ -146,6 +148,8 @@ class RecordClassTest : DriverTest() {
                 """
                     package test.pkg {
                       public record Test {
+                        record_component #0 @NonNull c1: String;
+                        record_component #1 @NonNull c2: String;
                         ctor public Test(int, int);
                         ctor public Test(@NonNull String, @NonNull String);
                         method @NonNull public String c1();
@@ -210,6 +214,7 @@ class RecordClassTest : DriverTest() {
                 """
                     package test.pkg {
                       public record Test {
+                        record_component #0 c: int;
                         ctor public Test(int);
                         method public int c();
                       }

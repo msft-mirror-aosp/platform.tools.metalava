@@ -185,7 +185,17 @@ class SignatureWriter(
 
     /** Write [property] as a record component, if allowed. */
     private fun writeRecordComponent(property: PropertyItem) {
-        // Ignore record component properties for now.
+        // If the signature file does not support record classes then do not write the component.
+        if (!javaRecordClasses) return
+
+        write("    record_component #")
+        write(property.recordComponentIndex.toString())
+        write(" ")
+        writeAnnotations(property)
+        write(property.name())
+        write(": ")
+        writeType(property.type())
+        write(";\n")
     }
 
     override fun visitMethod(method: MethodItem) {
@@ -299,6 +309,10 @@ class SignatureWriter(
     private fun writeModifiers(item: Item) {
         (item as? SelectableItem)?.let { writeTargetLanguage(it) }
         modifierListWriter.write(item)
+    }
+
+    private fun writeAnnotations(item: Item) {
+        modifierListWriter.writeAnnotations(item)
     }
 
     private fun writeTargetLanguage(item: SelectableItem) {

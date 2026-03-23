@@ -1017,6 +1017,8 @@ class SignatureInputOutputTest : Assertions {
             """
                 package test.pkg {
                   public record Test {
+                    record_component #0 a: int;
+                    record_component #1 b: String;
                     ctor public Test(int, String);
                     method public int a();
                     method public String b();
@@ -1035,6 +1037,8 @@ class SignatureInputOutputTest : Assertions {
             """
                 package test.pkg {
                   public record Test {
+                    record_component #0 a: int;
+                    record_component #1 b: String;
                     ctor public Test(int, String);
                     method public int a();
                     method public String b();
@@ -1054,6 +1058,26 @@ class SignatureInputOutputTest : Assertions {
                       }
                     }
                 """,
+        )
+    }
+
+    @Test
+    fun `Test record classes, not in alphabetical order`() {
+        val api =
+            """
+                package test.pkg {
+                  public record Test {
+                    record_component #0 b: int;
+                    record_component #1 a: String;
+                    ctor public Test(int, String);
+                    method public int a();
+                    method public String b();
+                  }
+                }
+            """
+        runInputOutputTest(
+            api,
+            FORMAT_V6_WITH_JAVA_RECORD_CLASSES,
         )
     }
 }
