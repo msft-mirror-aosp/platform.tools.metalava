@@ -622,7 +622,7 @@ private constructor(
             if ("}" == token) {
                 break
             } else {
-                parseClass(pkg, tokenizer, token)
+                parseClass(pkg, tokenizer)
             }
         }
     }
@@ -708,8 +708,9 @@ private constructor(
         )
     }
 
-    private fun parseClass(pkg: PackageItem, tokenizer: Tokenizer, startingToken: String) {
-        var token = startingToken
+    /** Parse a class starting with [Tokenizer.current]. */
+    private fun parseClass(pkg: PackageItem, tokenizer: Tokenizer) {
+        var token = tokenizer.current
 
         val (modifiers, targetLanguages) = parseModifiersAndTargetLanguages(tokenizer, token)
         // Remember this position as this seems like a good place to use to report issues with the
