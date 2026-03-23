@@ -966,10 +966,10 @@ private constructor(
     private fun typeItemFactoryForClass(classItem: ClassItem?): TextTypeItemFactory =
         classItem?.let { classToTypeItemFactory[classItem] } ?: globalTypeItemFactory
 
-    /** Parse the class body, adding members to [cl]. */
+    /** Parse the class body, adding members to [containingClass]. */
     private fun parseClassBody(
         tokenizer: Tokenizer,
-        cl: SkeletonClassItem,
+        containingClass: SkeletonClassItem,
         classTypeItemFactory: TextTypeItemFactory,
     ) {
         var token = tokenizer.requireToken()
@@ -977,15 +977,15 @@ private constructor(
             if ("}" == token) {
                 break
             } else if ("ctor" == token) {
-                parseConstructor(tokenizer, cl, classTypeItemFactory)
+                parseConstructor(tokenizer, containingClass, classTypeItemFactory)
             } else if ("method" == token) {
-                parseMethod(tokenizer, cl, classTypeItemFactory)
+                parseMethod(tokenizer, containingClass, classTypeItemFactory)
             } else if ("field" == token) {
-                parseField(tokenizer, cl, classTypeItemFactory, false)
+                parseField(tokenizer, containingClass, classTypeItemFactory)
             } else if ("enum_constant" == token) {
-                parseField(tokenizer, cl, classTypeItemFactory, true)
+                parseEnumConstant(tokenizer, containingClass, classTypeItemFactory)
             } else if ("property" == token) {
-                parseProperty(tokenizer, cl, classTypeItemFactory)
+                parseProperty(tokenizer, containingClass, classTypeItemFactory)
             } else {
                 throw ApiParseException("expected ctor, enum_constant, field or method", tokenizer)
             }
@@ -1240,6 +1240,7 @@ private constructor(
         return parameters.map { it.create(containingCallable, typeItemFactory, methodFingerprint) }
     }
 
+    /** Parse a constructor member of [containingClass]. */
     private fun parseConstructor(
         tokenizer: Tokenizer,
         containingClass: SkeletonClassItem,
@@ -1300,9 +1301,10 @@ private constructor(
         }
     }
 
+    /** Parse a method member of [containingClass]. */
     private fun parseMethod(
         tokenizer: Tokenizer,
-        cl: SkeletonClassItem,
+        containingClass: SkeletonClassItem,
         classTypeItemFactory: TextTypeItemFactory,
     ) {
         var token = tokenizer.requireToken()
@@ -1349,11 +1351,11 @@ private constructor(
                 returnTypeString,
                 modifiers.annotations(),
                 MethodFingerprint(name, parameters.size),
-                cl.isAnnotationType()
+                containingClass.isAnnotationType()
             )
         synchronizeNullability(returnType, modifiers)
 
-        if (cl.isInterface() && !modifiers.isDefault() && !modifiers.isStatic()) {
+        if (containingClass.isInterface() && !modifiers.isDefault() && !modifiers.isStatic()) {
             modifiers.setAbstract(true)
         }
 
@@ -1385,7 +1387,7 @@ private constructor(
                 modifiers = modifiers,
                 documentationFactory = ItemDocumentation.NONE_FACTORY,
                 name = name,
-                containingClass = cl,
+                containingClass = containingClass,
                 typeParameterList = typeParameterList,
                 returnType = returnType,
                 parameterItemsFactory = { containingCallable ->
@@ -1407,16 +1409,43 @@ private constructor(
         if (appending) {
             // If the method already exists in the class item because it was defined in a previous
             // signature file then replace it with this one, otherwise just add this method.
-            cl.replaceOrAddMethod(method)
+            containingClass.replaceOrAddMethod(method)
         } else {
             // Just add the method to the class.
-            cl.addMethod(method)
+            containingClass.addMethod(method)
         }
     }
 
+    /** Parse a field member of [containingClass]. */
     private fun parseField(
         tokenizer: Tokenizer,
-        cl: SkeletonClassItem,
+        containingClass: SkeletonClassItem,
+        classTypeItemFactory: TextTypeItemFactory,
+    ) =
+        parseFieldOrEnumConstant(
+            tokenizer,
+            containingClass,
+            classTypeItemFactory,
+            isEnumConstant = false,
+        )
+
+    /** Parse an enum constant member of [containingClass]. */
+    private fun parseEnumConstant(
+        tokenizer: Tokenizer,
+        containingClass: SkeletonClassItem,
+        classTypeItemFactory: TextTypeItemFactory,
+    ) =
+        parseFieldOrEnumConstant(
+            tokenizer,
+            containingClass,
+            classTypeItemFactory,
+            isEnumConstant = true,
+        )
+
+    /** Parse a field or enum constant of [containingClass]. */
+    private fun parseFieldOrEnumConstant(
+        tokenizer: Tokenizer,
+        containingClass: SkeletonClassItem,
         classTypeItemFactory: TextTypeItemFactory,
         isEnumConstant: Boolean,
     ) {
@@ -1471,7 +1500,7 @@ private constructor(
                     // Report that the value is being ignored.
                     reportIssue(
                         Issues.SIGNATURE_FILE_ERROR,
-                        "Field $name in $cl has a value of `$valueString` but is not `static` and `final`; ignoring value"
+                        "Field $name in $containingClass has a value of `$valueString` but is not `static` and `final`; ignoring value"
                     )
                     null
                 }
@@ -1486,14 +1515,14 @@ private constructor(
                 modifiers = modifiers,
                 documentationFactory = ItemDocumentation.NONE_FACTORY,
                 name = name,
-                containingClass = cl,
+                containingClass = containingClass,
                 type = type,
                 isEnumConstant = isEnumConstant,
                 constantValueProvider = constantValueProvider,
                 targetLanguages = targetLanguages,
             )
         field.markForMainApiSurface()
-        cl.addField(field)
+        containingClass.addField(field)
     }
 
     /**
@@ -1671,7 +1700,7 @@ private constructor(
 
     private fun parseProperty(
         tokenizer: Tokenizer,
-        cl: SkeletonClassItem,
+        containingClass: SkeletonClassItem,
         classTypeItemFactory: TextTypeItemFactory,
     ) {
         var token = tokenizer.requireToken()
@@ -1707,7 +1736,7 @@ private constructor(
                 fileLocation = tokenizer.fileLocation(),
                 modifiers = modifiers,
                 name = receiverNamePair.second,
-                containingClass = cl,
+                containingClass = containingClass,
                 type = type,
                 receiver = receiverNamePair.first,
                 typeParameterList = typeParameterList,
@@ -1720,10 +1749,10 @@ private constructor(
         if (appending) {
             // If there is already a property with the same signature from a previous file, replaces
             // the old version with this one, otherwise just adds the property.
-            cl.replaceOrAddProperty(property)
+            containingClass.replaceOrAddProperty(property)
         } else {
             // Just add the property to the class.
-            cl.addProperty(property)
+            containingClass.addProperty(property)
         }
     }
 
