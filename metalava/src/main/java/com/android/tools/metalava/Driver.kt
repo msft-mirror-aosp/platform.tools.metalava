@@ -293,7 +293,7 @@ class Driver(
     internal fun processFlags() {
         val stopwatch = Stopwatch.createStarted()
 
-        val codebase = createCodebaseFromOptions() ?: return
+        val codebase = createCodebaseFromOptions()
 
         // Create a multiplatform codebase if requested.
         val multiplatformCodebase = createOptionalMultiplatformCodebase()
@@ -310,8 +310,8 @@ class Driver(
             "$PROGRAM_NAME analyzed API in ${stopwatch.elapsed(SECONDS)} seconds\n"
         )
 
-        // Run operations on the regular codebase.
-        runCodebaseChecks(stopwatch, codebase)
+        // Run operations on the regular codebase, if it exists.
+        codebase?.let { runCodebaseChecks(stopwatch, codebase) }
 
         // Run additional operations on the multiplatform codebase, if it exists.
         multiplatformCodebase?.let { runMultiplatformCodebaseChecks(multiplatformCodebase) }
