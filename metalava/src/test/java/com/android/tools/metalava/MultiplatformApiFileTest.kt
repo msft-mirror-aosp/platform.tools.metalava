@@ -274,8 +274,6 @@ class MultiplatformApiFileTest : DriverTest() {
                         """
                         // Signature format: 5.0
                         package test.pkg {
-                          public class ${'$'}TopLevelDeclarations {
-                          }
                           public final class Common extends kotlin.Any {
                             ctor public Common();
                           }

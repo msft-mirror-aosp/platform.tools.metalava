@@ -535,6 +535,10 @@ class Driver(
     }
 
     private fun runMultiplatformCodebaseChecks(multiplatformCodebase: MultiplatformCodebase) {
+        for (codebase in multiplatformCodebase.sourceSetToCodebase.values) {
+            ApiAnalyzer(sourceParser, codebase, reporter, apiAnalyzerConfig).computeApi()
+        }
+
         if (apiLintOptions.apiLintEnabled) {
             MultiplatformLint(reporter).check(multiplatformCodebase)
 
