@@ -30,6 +30,7 @@ import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ModifierListWriter
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.PrimitiveTypeItem.Primitive
+import com.android.tools.metalava.model.RecordComponents
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterBindings
 import com.android.tools.metalava.model.TypeParameterList
@@ -74,9 +75,13 @@ internal class JavaStubWriter(
         writer.print(" ")
         writer.print(cls.simpleName())
 
-        generateTypeParameterList(typeList = cls.typeParameterList, addSpace = false)
-        generateSuperClassDeclaration(cls)
-        generateInterfaceList(cls)
+        if (classKind == ClassKind.RECORD) {
+            cls.recordComponents?.let { generateRecordComponents(it) }
+        } else {
+            generateTypeParameterList(typeList = cls.typeParameterList, addSpace = false)
+            generateSuperClassDeclaration(cls)
+            generateInterfaceList(cls)
+        }
         writer.println(" {")
 
         // Enum constants must be written out first.
@@ -160,6 +165,19 @@ internal class JavaStubWriter(
                 writer.print(' ')
             }
         }
+    }
+
+    private fun generateRecordComponents(recordComponents: RecordComponents) {
+        writer.write("(")
+        for ((index, component) in recordComponents.withIndex()) {
+            if (index > 0) writer.print(", ")
+            modifierListWriter.writeAnnotations(component)
+            writer.print(component.type.toTypeString())
+            writer.print(' ')
+            val name = component.name
+            writer.print(name)
+        }
+        writer.write(")")
     }
 
     override fun visitConstructor(constructor: ConstructorItem) {

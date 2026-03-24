@@ -102,7 +102,8 @@ class RecordClassTest : DriverTest() {
                       }
                     }
                 """,
-            // TODO(b/482390286): Will not compile as it does not declare its components correctly.
+            // TODO(b/482390286): Will not compile as it does not delegate to the canonical
+            //   constructor correctly.
             checkCompilation = false,
             stubFiles =
                 arrayOf(
@@ -110,7 +111,7 @@ class RecordClassTest : DriverTest() {
                         """
                             package test.pkg;
                             @SuppressWarnings({"unchecked", "deprecation", "all"})
-                            public record Test {
+                            public record Test(int c1, int c2) {
                             public Test(int c1, int c2) { throw new RuntimeException("Stub!"); }
                             public Test(@android.annotation.NonNull java.lang.String c1, @android.annotation.NonNull java.lang.String c2) { throw new RuntimeException("Stub!"); }
                             public int c1() { throw new RuntimeException("Stub!"); }
@@ -158,7 +159,8 @@ class RecordClassTest : DriverTest() {
                       }
                     }
                 """,
-            // TODO(b/482390286): Will not compile as it does not declare its components correctly.
+            // TODO(b/482390286): Will not compile as it does not delegate to the canonical
+            //   constructor correctly.
             checkCompilation = false,
             stubFiles =
                 arrayOf(
@@ -166,7 +168,7 @@ class RecordClassTest : DriverTest() {
                         """
                             package test.pkg;
                             @SuppressWarnings({"unchecked", "deprecation", "all"})
-                            public record Test {
+                            public record Test(@android.annotation.NonNull java.lang.String c1, @android.annotation.NonNull java.lang.String c2) {
                             public Test(int c1, int c2) { throw new RuntimeException("Stub!"); }
                             public Test(@android.annotation.NonNull java.lang.String c1, @android.annotation.NonNull java.lang.String c2) { throw new RuntimeException("Stub!"); }
                             @android.annotation.NonNull
@@ -220,15 +222,14 @@ class RecordClassTest : DriverTest() {
                       }
                     }
                 """,
-            // TODO(b/482390286): Will not compile as it does not declare its components correctly.
-            checkCompilation = false,
+            checkCompilation = true,
             stubFiles =
                 arrayOf(
                     java(
                         """
                             package test.pkg;
                             @SuppressWarnings({"unchecked", "deprecation", "all"})
-                            public record Test {
+                            public record Test(int c) {
                             public Test(int c) { throw new RuntimeException("Stub!"); }
                             public int c() { throw new RuntimeException("Stub!"); }
                             public boolean equals(java.lang.Object obj) { throw new RuntimeException("Stub!"); }
