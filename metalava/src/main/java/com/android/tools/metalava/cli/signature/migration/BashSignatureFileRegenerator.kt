@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2023 The Android Open Source Project
+ * Copyright (C) 2026 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,9 +14,14 @@
  * limitations under the License.
  */
 
-package com.android.tools.metalava
+package com.android.tools.metalava.cli.signature.migration
 
-import com.android.tools.metalava.model.testing.FilterAction.EXCLUDE
-import com.android.tools.metalava.model.testing.FilterByProvider
-
-@FilterByProvider("psi", "k1", action = EXCLUDE) class UastTestK2 : UastTestBase()
+/** A [SignatureFileRegenerator] that will invoke [command] as a bash command. */
+class BashSignatureFileRegenerator(
+    private val command: String,
+    private val commandExecutor: CommandExecutor = DefaultCommandExecutor()
+) : SignatureFileRegenerator {
+    override fun regenerateFromSources() {
+        commandExecutor.executeCommand(listOf("/bin/bash", "-c", command))
+    }
+}

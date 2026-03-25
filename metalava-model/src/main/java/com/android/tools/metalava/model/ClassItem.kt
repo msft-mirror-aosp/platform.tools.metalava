@@ -54,9 +54,6 @@ interface ClassItem :
     /** Is this a top level class? */
     fun isTopLevelClass(): Boolean = containingClass() == null
 
-    /** The origin of this class. */
-    override val origin: ClassOrigin
-
     /** This [ClassItem] and all of its nested classes, recursively */
     fun allClasses(): Sequence<ClassItem> {
         return sequenceOf(this).plus(nestedClasses().asSequence().flatMap { it.allClasses() })
@@ -316,6 +313,12 @@ interface ClassItem :
             Comparator.comparing { it.qualifiedName() }
 
         fun classNameSorter(): Comparator<in ClassItem> = qualifiedComparator
+
+        /**
+         * The name used for a fake class which is a container for top level functions and
+         * properties in a non-JVM API surface.
+         */
+        const val TOP_LEVEL_DECLARATION_FACADE_NAME = "\$TopLevelDeclarations"
     }
 
     fun findMethod(
