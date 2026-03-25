@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2024 The Android Open Source Project
+ * Copyright (C) 2026 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,15 +14,15 @@
  * limitations under the License.
  */
 
-package com.android.tools.metalava.model.psi
+package com.android.tools.metalava.cli.signature.migration
 
-import com.android.tools.metalava.model.ModelOptions
+import java.io.File
 
-/**
- * The model options provided by this model.
- *
- * Accessible outside this model to allow callers to specify it.
- */
-object PsiModelOptions {
-    val useK2Uast = ModelOptions.Key.of("psi.useK2Uast", true)
+/** Provides support for committing a change to a version control system. */
+interface ChangeCommitter {
+    /** Commit a change with [description] and the contents of [files]. */
+    fun commit(
+        description: ChangeDescription,
+        files: List<File>,
+    )
 }

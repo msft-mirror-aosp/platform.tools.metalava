@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2023 The Android Open Source Project
+ * Copyright (C) 2026 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,9 +14,13 @@
  * limitations under the License.
  */
 
-package com.android.tools.metalava
+package com.android.tools.metalava.cli.signature.migration
 
-import com.android.tools.metalava.model.testing.FilterAction.EXCLUDE
-import com.android.tools.metalava.model.testing.FilterByProvider
+/** A description of a change. */
+data class ChangeDescription(
+    /** The title of the change, i.e. a single line giving a brief overview of the change. */
+    val title: String,
 
-@FilterByProvider("psi", "k2", action = EXCLUDE) class UastTestK1 : UastTestBase()
+    /** More detail of the change, formatted to a line length of around 70-80 characters. */
+    val detail: String,
+)

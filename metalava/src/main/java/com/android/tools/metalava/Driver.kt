@@ -42,7 +42,8 @@ import com.android.tools.metalava.cli.signature.SignatureCatCommand
 import com.android.tools.metalava.cli.signature.SignatureFormatOptions
 import com.android.tools.metalava.cli.signature.SignatureToDexCommand
 import com.android.tools.metalava.cli.signature.SignatureToJDiffCommand
-import com.android.tools.metalava.cli.signature.UpdateSignatureHeaderCommand
+import com.android.tools.metalava.cli.signature.migration.SignatureMigrateCommand
+import com.android.tools.metalava.cli.signature.migration.SignatureReformatCommand
 import com.android.tools.metalava.compatibility.CompatibilityCheck
 import com.android.tools.metalava.jar.JarCodebaseLoader
 import com.android.tools.metalava.lint.ApiLint
@@ -56,10 +57,12 @@ import com.android.tools.metalava.model.DelegatedVisitor
 import com.android.tools.metalava.model.ItemVisitor
 import com.android.tools.metalava.model.annotation.DefaultAnnotationManager
 import com.android.tools.metalava.model.multiplatform.MultiplatformCodebase
-import com.android.tools.metalava.model.psi.PsiModelOptions
 import com.android.tools.metalava.model.snapshot.NonFilteringDelegatingVisitor
 import com.android.tools.metalava.model.source.EnvironmentManager
+import com.android.tools.metalava.model.source.SourceParser
 import com.android.tools.metalava.model.source.SourceSet
+import com.android.tools.metalava.model.text.CustomizableProperty.Companion.ADD_ADDITIONAL_OVERRIDES
+import com.android.tools.metalava.model.text.CustomizableProperty.Companion.JAVA_RECORD_CLASSES
 import com.android.tools.metalava.model.text.SignatureFile
 import com.android.tools.metalava.model.text.SignatureWriter
 import com.android.tools.metalava.model.text.createFilteringVisitorForSignatures
@@ -176,9 +179,10 @@ class Driver(
                 MakeAnnotationsPackagePrivateCommand(),
                 MergeSignaturesCommand(),
                 SignatureCatCommand(),
+                SignatureMigrateCommand(),
+                SignatureReformatCommand(),
                 SignatureToDexCommand(),
                 SignatureToJDiffCommand(),
-                UpdateSignatureHeaderCommand(),
                 VersionCommand(),
             )
             return command
@@ -282,14 +286,14 @@ class Driver(
     private val apiPredicateConfig by lazy {
         ApiPredicate.Config(
             ignoreShown = apiSelectionOptions.showUnannotated,
-            addAdditionalOverrides = signatureFormatOptions.fileFormat.addAdditionalOverrides,
+            addAdditionalOverrides = signatureFormatOptions.fileFormat[ADD_ADDITIONAL_OVERRIDES],
         )
     }
 
     internal fun processFlags() {
         val stopwatch = Stopwatch.createStarted()
 
-        val codebase = createCodebaseFromOptions() ?: return
+        val codebase = createCodebaseFromOptions()
 
         // Create a multiplatform codebase if requested.
         val multiplatformCodebase = createOptionalMultiplatformCodebase()
@@ -306,6 +310,14 @@ class Driver(
             "$PROGRAM_NAME analyzed API in ${stopwatch.elapsed(SECONDS)} seconds\n"
         )
 
+        // Run operations on the regular codebase, if it exists.
+        codebase?.let { runCodebaseChecks(stopwatch, codebase) }
+
+        // Run additional operations on the multiplatform codebase, if it exists.
+        multiplatformCodebase?.let { runMultiplatformCodebaseChecks(multiplatformCodebase) }
+    }
+
+    private fun runCodebaseChecks(stopwatch: Stopwatch, codebase: Codebase) {
         generateApiHistoryFromOptions(codebase)
 
         // Generate signature files based on provided input flags (i.e. if api file locations were
@@ -358,7 +370,10 @@ class Driver(
 
         // Generate the stubs. This must be done as the last operation in this method as it can
         // modify the [codebase].
-        val generatorConfig = stubGenerationOptions.generatorConfig()
+        val generatorConfig =
+            stubGenerationOptions.generatorConfig(
+                javaRecordClasses = signatureFormatOptions.fileFormat[JAVA_RECORD_CLASSES],
+            )
         StubGenerator(
                 generatorConfig,
                 codebase,
@@ -369,9 +384,6 @@ class Driver(
                 apiPredicateConfig,
             )
             .generateStubs()
-
-        // Run additional operations on the multiplatform codebase, if it exists.
-        multiplatformCodebase?.let { runMultiplatformCodebaseChecks(multiplatformCodebase) }
 
         val packageCount = codebase.size()
         progressTracker.progress(
@@ -523,16 +535,38 @@ class Driver(
         if (apiLintOptions.apiLintEnabled) {
             MultiplatformLint(reporter).check(multiplatformCodebase)
 
-            // For the regular, non-multiplatform codebase operations, either the android or jvm
-            // source set was used. Find which one of these it was.
-            val (mainSourceSet, mainCodebase) =
+            // For the regular, non-multiplatform codebase operations, if they happened, either the
+            // android or jvm source set would have been used. Find which one of these it was.
+            // If neither exist, treat the common source set as the main one.
+            val mainCodebaseEntry =
                 multiplatformCodebase.sourceSetToCodebase.entries.singleOrNull {
                     it.key == "androidMain"
                 }
                     ?: multiplatformCodebase.sourceSetToCodebase.entries.singleOrNull {
                         it.key == "jvmMain"
                     }
-                    ?: error("Multiplatform codebase must have main android or jvm source set")
+                    ?: multiplatformCodebase.sourceSetToCodebase.entries.singleOrNull {
+                        it.key == "commonMain"
+                    }
+            val mainSourceSet = mainCodebaseEntry?.key
+            val mainCodebase = mainCodebaseEntry?.value
+
+            // If there isn't an android or jvm source set, API lint won't have run yet for common.
+            // Run it here so that the common source set can be treated as the "old" codebase in
+            // the checks below, and any lint issues in common will only be reported once here
+            // instead of being duplicated.
+            if (mainSourceSet == "commonMain") {
+                ApiLint.check(
+                    mainCodebase!!,
+                    null,
+                    reporter,
+                    apiPredicateConfig,
+                    ApiLint.Config(
+                        manifest = miscellaneousOptions.manifest,
+                        allowedAcronyms = apiLintOptions.allowedAcronyms,
+                    ),
+                )
+            }
 
             // Run regular API lint checks for each source set.
             for ((sourceSet, codebase) in multiplatformCodebase.sourceSetToCodebase) {
@@ -543,16 +577,15 @@ class Driver(
                 runApiChecksFromOptions(codebase) { codebase, _ ->
                     ApiLint.check(
                         codebase,
-                        // By making the main android/jvm codebase the "oldCodebase", any issues
-                        // which have already been reported for the main codebase through the non-
-                        // multiplatform checks will be skipped.
+                        // By making the main android/jvm/common codebase the "oldCodebase", any
+                        // issues which have already been reported for the main codebase through the
+                        // non-multiplatform checks or the common check above will be skipped.
                         oldCodebase = mainCodebase,
                         reporter,
                         apiPredicateConfig,
                         ApiLint.Config(
                             manifest = miscellaneousOptions.manifest,
                             allowedAcronyms = apiLintOptions.allowedAcronyms,
-                            useK2Uast = sourceOptions.modelOptions[PsiModelOptions.useK2Uast],
                         ),
                     )
                 }
@@ -713,15 +746,18 @@ class Driver(
             }
 
         progressTracker.progress("Reading Codebase: ")
-        val codebase =
-            sourceParser.parseSources(
+
+        val inputs =
+            SourceParser.Inputs(
                 sourceSet,
                 "Codebase loaded from source folders",
                 classPath = sourceOptions.classpath,
                 apiPackages = sourceOptions.apiPackageFilter,
                 projectDescription = sourceOptions.projectDescription,
-                compiledSourceJar = sourceOptions.compiledSourceJar
-            ) ?: return null
+                compiledSourceJar = sourceOptions.compiledSourceJar,
+            )
+
+        val codebase = sourceParser.parseSources(inputs) ?: return null
 
         progressTracker.progress("Analyzing API: ")
 
@@ -772,7 +808,6 @@ class Driver(
                 ApiLint.Config(
                     manifest = miscellaneousOptions.manifest,
                     allowedAcronyms = apiLintOptions.allowedAcronyms,
-                    useK2Uast = sourceOptions.modelOptions[PsiModelOptions.useK2Uast],
                 ),
             )
         }

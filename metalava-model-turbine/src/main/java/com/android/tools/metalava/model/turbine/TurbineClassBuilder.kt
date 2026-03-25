@@ -48,6 +48,7 @@ import com.android.tools.metalava.model.SkeletonTypeParameterItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.VisibilityLevel
+import com.android.tools.metalava.model.WellKnownTypes
 import com.android.tools.metalava.model.addDefaultRetentionPolicyAnnotation
 import com.android.tools.metalava.model.createMutableModifiers
 import com.android.tools.metalava.model.hasAnnotation
@@ -161,18 +162,12 @@ internal class TurbineClassBuilder(
 
         // Set up the SuperClass
         val superClassType =
-            when (classKind) {
-                // Normal classes and enums have a non-null super class type.
-                ClassKind.CLASS,
-                ClassKind.ENUM ->
-                    typeBoundClass.superClassType()?.let {
-                        classTypeItemFactory.getSuperClassType(it)
-                    }
-                // Interfaces and annotations (which are a form of interface) do not.
-                ClassKind.INTERFACE,
-                ClassKind.ANNOTATION_TYPE,
-                // Turbine does not support typealiases (which only exist in kotlin).
-                ClassKind.TYPEALIAS, -> null
+            // Only use the super class type if the class kind allows explicit super class type to
+            // be specified, or it has an implicit super class.
+            if (classKind.allowsExplicitSuperClass || classKind.implicitSuperClassType != null) {
+                typeBoundClass.superClassType()?.let { classTypeItemFactory.getSuperClassType(it) }
+            } else {
+                null
             }
 
         // Set interface types
@@ -308,6 +303,7 @@ internal class TurbineClassBuilder(
             TurbineTyKind.INTERFACE -> ClassKind.INTERFACE
             TurbineTyKind.ENUM -> ClassKind.ENUM
             TurbineTyKind.ANNOTATION -> ClassKind.ANNOTATION_TYPE
+            TurbineTyKind.RECORD -> ClassKind.RECORD
             else -> ClassKind.CLASS
         }
     }
@@ -355,13 +351,17 @@ internal class TurbineClassBuilder(
         param: TyVarInfo,
         typeItemFactory: TurbineTypeItemFactory,
     ): List<BoundsTypeItem> {
-        val typeBounds = mutableListOf<BoundsTypeItem>()
-        val upperBounds = param.upperBound()
+        val upperBounds = param.upperBound().bounds()
+        val lowerBound = param.lowerBound()
 
-        upperBounds.bounds().mapTo(typeBounds) { typeItemFactory.getBoundsType(it) }
-        param.lowerBound()?.let { typeBounds.add(typeItemFactory.getBoundsType(it)) }
+        if (upperBounds.isEmpty() && lowerBound == null) {
+            return WellKnownTypes.defaultTypeParameterBounds(forKotlin = false)
+        }
 
-        return typeBounds.toList()
+        return buildList {
+            upperBounds.mapTo(this) { typeItemFactory.getBoundsType(it) }
+            lowerBound?.let { add(typeItemFactory.getBoundsType(it)) }
+        }
     }
 
     /** This method sets up the nested class hierarchy. */
@@ -445,6 +445,18 @@ internal class TurbineClassBuilder(
         }
     }
 
+    /** Check if this [MethodInfo] is one of the methods defined in the [Record] class. */
+    private fun MethodInfo.isRecordClassMethod(): Boolean {
+        val name = name()
+        val parameters = parameters()
+        return when (name) {
+            "hashCode",
+            "toString" -> parameters.isEmpty()
+            "equals" -> parameters.size == 1 && parameters[0].type() == Type.ClassTy.OBJECT
+            else -> false
+        }
+    }
+
     private fun createMethods(
         classItem: SkeletonClassItem,
         methods: List<MethodInfo>,
@@ -455,6 +467,13 @@ internal class TurbineClassBuilder(
             if (method.sym().name() == "<init>") continue
 
             val decl: MethDecl? = method.decl()
+
+            // Ignore any implicit implementations of Record class methods.
+            val isRecordClass = classItem.classKind == ClassKind.RECORD
+            if (isRecordClass && decl == null && method.isRecordClassMethod()) {
+                continue
+            }
+
             val methodModifierItem =
                 createModifiers(
                     ItemKind.METHOD,
