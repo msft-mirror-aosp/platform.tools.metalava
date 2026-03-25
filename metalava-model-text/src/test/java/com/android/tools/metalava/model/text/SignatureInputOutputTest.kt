@@ -20,6 +20,7 @@ import com.android.tools.metalava.model.ArrayTypeItem
 import com.android.tools.metalava.model.Assertions
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.Codebase
+import com.android.tools.metalava.model.CodebaseFragment
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.StripJavaLangPrefix
 import com.android.tools.metalava.model.VisibilityLevel
@@ -74,6 +75,18 @@ class SignatureInputOutputTest : Assertions {
 
         CodebaseContext(codebase).codebaseTest()
 
+        val fragment =
+            CodebaseFragment.create(codebase) { delegatedVisitor ->
+                createFilteringVisitorForSignatures(
+                    delegate = delegatedVisitor,
+                    fileFormat = fileFormat,
+                    apiType = ApiType.ALL,
+                    preFiltered = true,
+                    showUnannotated = false,
+                    apiPredicateConfig = ApiPredicate.Config()
+                )
+            }
+
         val output =
             StringWriter().use { stringWriter ->
                 PrintWriter(stringWriter).use { printWriter ->
@@ -84,17 +97,7 @@ class SignatureInputOutputTest : Assertions {
                             fileFormat = fileFormat,
                         )
 
-                    val visitor =
-                        createFilteringVisitorForSignatures(
-                            delegate = signatureWriter,
-                            fileFormat = fileFormat,
-                            apiType = ApiType.ALL,
-                            preFiltered = true,
-                            showUnannotated = false,
-                            apiPredicateConfig = ApiPredicate.Config()
-                        )
-
-                    codebase.accept(visitor)
+                    fragment.accept(signatureWriter)
                 }
                 stringWriter.toString()
             }
