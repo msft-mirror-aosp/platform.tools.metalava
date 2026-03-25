@@ -744,7 +744,10 @@ class SnapshotDeltaMakerTest : BaseTextCodebaseTest() {
         val deltaCodebase =
             SnapshotDeltaMaker.createDelta(
                     baseCodebase,
-                    CodebaseFragment.create(combinedCodebase, ::NonFilteringDelegatingVisitor),
+                    CodebaseFragment.create(
+                        combinedCodebase,
+                        factory = ::NonFilteringDelegatingVisitor,
+                    ),
                     testData.checkMemberItemEquivalence,
                 )
                 .codebase
