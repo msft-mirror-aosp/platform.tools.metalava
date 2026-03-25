@@ -62,6 +62,7 @@ import com.intellij.psi.PsiField
 import com.intellij.psi.PsiMethod
 import com.intellij.psi.PsiModifierListOwner
 import com.intellij.psi.PsiParameter
+import com.intellij.psi.PsiRecordComponent
 import com.intellij.psi.PsiReference
 import com.intellij.psi.PsiType
 import com.intellij.psi.PsiTypeParameter
@@ -197,6 +198,10 @@ internal class PsiClassBuilder(
             classTypeItemFactory = classTypeItemFactory,
         )
 
+        if (classKind == ClassKind.RECORD) {
+            createRecordComponents(classItem, psiClass.recordComponents, classTypeItemFactory)
+        }
+
         // This actually gets all nested classes not just inner, i.e. non-static nested,
         // classes.
         val psiNestedClasses = psiClass.innerClasses
@@ -213,6 +218,34 @@ internal class PsiClassBuilder(
             )
         }
         return classItem
+    }
+
+    private fun createRecordComponents(
+        classItem: SkeletonClassItem,
+        components: Array<PsiRecordComponent>,
+        classTypeItemFactory: PsiTypeItemFactory
+    ) {
+        for ((index, component) in components.withIndex()) {
+            val modifiers = createModifiers(component)
+            modifiers.setVisibilityLevel(VisibilityLevel.PUBLIC)
+            modifiers.setFinal(false)
+
+            val type = classTypeItemFactory.getGeneralType(PsiTypeInfo(component.type, component))
+
+            val propertyItem =
+                itemFactory.createRecordComponentItem(
+                    fileLocation = PsiFileLocation.fromPsiElement(component),
+                    modifiers = modifiers,
+                    name = component.name,
+                    containingClass = classItem,
+                    type = type,
+                    recordComponentIndex = index,
+                )
+
+            classItem.addProperty(propertyItem)
+        }
+
+        classItem.initializeRecordComponents()
     }
 
     /** Create [MutableModifierList] for [psiModifierListOwner] in [psiCodebase]. */

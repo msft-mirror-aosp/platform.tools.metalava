@@ -4,10 +4,6 @@ com.android.tools.metalava.model.testsuite.annotationitem.CommonAnnotationItemTe
   unknown annotation class with named attribute - array value[kotlin]
   unknown annotation class with named attribute - string value[kotlin]
 
-com.android.tools.metalava.model.testsuite.classitem.CommonRecordClassTest
-  Test empty record class[java]
-  Test simple record class[java]
-
 com.android.tools.metalava.model.testsuite.value.CommonParameterizedFieldValueTest
   testFieldValue[kotlin,source,null - intermediate non-constant expression]
   testFieldValue[kotlin,source,unsigned int - expression]
