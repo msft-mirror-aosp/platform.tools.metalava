@@ -266,7 +266,9 @@ internal class PsiCodebaseAssembler(
         return if (uastEnvironment.isKMP && kaCodebaseAssembler != null) {
             kaCodebaseAssembler!!.findClassInModule(finder, qualifiedName)
         } else {
-            finder.findClass(qualifiedName, projectSearchScope)
+            finder.findClass(qualifiedName, projectSearchScope)?.takeIf {
+                it.qualifiedName == qualifiedName
+            }
         }
     }
 
@@ -382,6 +384,7 @@ internal class PsiCodebaseAssembler(
     internal fun initializeFromSources(
         sourceSet: SourceSet,
         apiPackages: PackageFilter?,
+        includeKotlinInCodebase: Boolean,
     ) {
         // Get the list of `PsiFile`s from the `SourceSet`.
         val psiFiles = Extractor.createUnitsForFiles(uastEnvironment.ideaProject, sourceSet.sources)
@@ -394,9 +397,14 @@ internal class PsiCodebaseAssembler(
 
         // Add type aliases.
         val kotlinFiles = psiFiles.filterIsInstance<KtFile>()
-        kaCodebaseAssembler =
-            psiCodebase.mainAnalysisModule?.let { KaCodebaseAssembler(kotlinFiles, psiCodebase) }
-        kaCodebaseAssembler?.let { kaCodebaseAssembler ->
+        if (includeKotlinInCodebase) {
+            kaCodebaseAssembler =
+                psiCodebase.mainAnalysisModule?.let {
+                    KaCodebaseAssembler(kotlinFiles, psiCodebase)
+                }
+        }
+
+        kaCodebaseAssembler?.apply {
             // Provide a list of all packages when all typealiases are needed in order to inline
             // usages. If that isn't necessary, just typealiases from source will be processed.
             val allPackages =
@@ -405,7 +413,7 @@ internal class PsiCodebaseAssembler(
                 } else {
                     null
                 }
-            kaCodebaseAssembler.createTypeAliases(allPackages)
+            createTypeAliases(allPackages)
         }
 
         // Tracker for which source files of `@JvmMultifileClass`es have already been processed.
@@ -421,6 +429,9 @@ internal class PsiCodebaseAssembler(
         // example in ApiAnalyzer) wouldn't be possible because non-visible classes are no longer
         // accessible from there.
         determineIfInaccessibleClassesMakeSuperClassesNonExhaustive(psiClasses)
+
+        // Copy type use only nullness annotations to items.
+        copyTypeUseOnlyNullnessAnnotationsToItems()
 
         // Psi does not correctly track annotations in some cases so fix them up. Done here as it
         // cannot fix them up earlier because it requires resolving annotation classes and doing it
@@ -577,11 +588,13 @@ internal class PsiCodebaseAssembler(
     /**
      * Check to see whether [typeAnnotation] should be copied to its associated [MethodItem].
      *
-     * Replicates behavior of [PsiModifierItem]'s `filterIncorrectTypeUseAnnotations` method.
+     * Only annotations that are usable in a declaration context should be copied to the method
+     * item.
+     *
+     * Similar to the behavior of [PsiModifierItem.filterIncorrectTypeUseAnnotations].
      */
-    private fun shouldCopyTypeAnnotationToMethodItem(typeAnnotation: AnnotationItem) =
-        typeAnnotation.annotationUse.usableInDeclarationContext ||
-            typeAnnotation.isNullnessAnnotation()
+    internal fun shouldCopyTypeAnnotationToMethodItem(typeAnnotation: AnnotationItem) =
+        typeAnnotation.annotationUse.usableInDeclarationContext
 
     /**
      * Adds a class to the codebase based on the [psiClass].

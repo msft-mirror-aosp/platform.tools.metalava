@@ -243,6 +243,9 @@ internal class TurbineCodebaseInitialiser(
         createInitialPackages(sourceSet)
 
         createAllCommandLineClasses(commandLineSourceClasses, apiPackages)
+
+        // Copy type use only nullness annotations to items.
+        copyTypeUseOnlyNullnessAnnotationsToItems()
     }
 
     /**

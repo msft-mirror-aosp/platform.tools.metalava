@@ -44,7 +44,7 @@ class SourceSet(val sources: List<File>, val sourcePath: List<File>) {
      * the roots as a mixture of relative and absolute files will not work.
      */
     fun extractRoots(reporter: Reporter): SourceSet {
-        val absoluteSources = sources.map { it.absoluteFile }
+        val absoluteSources = sources.map { it.absoluteFile }.distinct()
         val absoluteSourcePaths =
             mutableListOf<File>().also {
                 sourcePath.filter { it.path.isNotBlank() }.mapTo(it) { it.absoluteFile }
