@@ -37,12 +37,6 @@ abstract class CodebaseFragment private constructor() {
     protected abstract val visitorFactory: (DelegatedVisitor) -> ItemVisitor
 
     /**
-     * Create an [ItemVisitor] that will visit this fragment and delegate its contents to
-     * [delegate].
-     */
-    fun createVisitor(delegate: DelegatedVisitor) = visitorFactory(delegate)
-
-    /**
      * Return a [CodebaseFragment] that will take a snapshot of this [CodebaseFragment].
      *
      * @param referenceVisitorFactory a factory for creating an [ItemVisitor] that delegates to a
