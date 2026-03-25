@@ -700,16 +700,16 @@ class SnapshotDeltaMakerTest : BaseTextCodebaseTest() {
                     writer = printWriter,
                     fileFormat = fileFormat,
                 )
-            val visitor =
-                createFilteringVisitorForSignatures(
-                    signatureWriter,
+            val deltaFragment =
+                createCodebaseFragmentForSignatureFile(
+                    deltaCodebase,
                     fileFormat,
                     ApiType.ALL,
                     preFiltered = true,
                     showUnannotated = true,
                     apiPredicateConfig = ApiPredicate.Config()
                 )
-            deltaCodebase.accept(visitor)
+            deltaFragment.accept(signatureWriter)
         }
         val output = stringWriter.toString().replace("\n\n", "\n").trimEnd()
         return output

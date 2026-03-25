@@ -111,16 +111,14 @@ class SignatureInputOutputTest : Assertions {
         CodebaseContext(codebase).codebaseTest()
 
         val baseFragment =
-            CodebaseFragment.create(codebase) { delegatedVisitor ->
-                createFilteringVisitorForSignatures(
-                    delegate = delegatedVisitor,
-                    fileFormat = fileFormat,
-                    apiType = ApiType.ALL,
-                    preFiltered = true,
-                    showUnannotated = false,
-                    apiPredicateConfig = ApiPredicate.Config()
-                )
-            }
+            createCodebaseFragmentForSignatureFile(
+                codebase,
+                fileFormat = fileFormat,
+                apiType = ApiType.ALL,
+                preFiltered = true,
+                showUnannotated = false,
+                apiPredicateConfig = ApiPredicate.Config()
+            )
 
         val fragment = codebaseKind.transformFragment(baseFragment)
 

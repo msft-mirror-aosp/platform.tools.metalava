@@ -65,7 +65,7 @@ import com.android.tools.metalava.model.text.CustomizableProperty.Companion.JAVA
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.model.text.SignatureFile
 import com.android.tools.metalava.model.text.SignatureWriter
-import com.android.tools.metalava.model.text.createFilteringVisitorForSignatures
+import com.android.tools.metalava.model.text.createCodebaseFragmentForSignatureFile
 import com.android.tools.metalava.model.visitors.ApiFilters
 import com.android.tools.metalava.model.visitors.ApiPredicate
 import com.android.tools.metalava.model.visitors.ApiType
@@ -477,16 +477,14 @@ class Driver(
         preFiltered: Boolean,
     ): CodebaseFragment {
         var codebaseFragment =
-            CodebaseFragment.create(codebase) { delegate ->
-                createFilteringVisitorForSignatures(
-                    delegate = delegate,
-                    fileFormat = fileFormat,
-                    apiType = apiType,
-                    preFiltered = preFiltered,
-                    showUnannotated = apiSelectionOptions.showUnannotated,
-                    apiPredicateConfig = apiPredicateConfig,
-                )
-            }
+            createCodebaseFragmentForSignatureFile(
+                codebase,
+                fileFormat = fileFormat,
+                apiType = apiType,
+                preFiltered = preFiltered,
+                showUnannotated = apiSelectionOptions.showUnannotated,
+                apiPredicateConfig = apiPredicateConfig,
+            )
 
         // If reverting some changes then create a snapshot that combines the items from the sources
         // for any un-reverted changes and items from the previously released API for any reverted

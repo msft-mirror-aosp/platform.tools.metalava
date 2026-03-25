@@ -22,6 +22,8 @@ import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.ClassOrVariableTypeItem
 import com.android.tools.metalava.model.ClassTypeItem
+import com.android.tools.metalava.model.Codebase
+import com.android.tools.metalava.model.CodebaseFragment
 import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.DelegatedVisitor
 import com.android.tools.metalava.model.FieldItem
@@ -494,12 +496,32 @@ private fun getInterfacesInOrder(
     return sortedInterfaces
 }
 
+/** Create a [CodebaseFragment] suitable for writing to a signature file. */
+fun createCodebaseFragmentForSignatureFile(
+    codebase: Codebase,
+    fileFormat: FileFormat,
+    apiType: ApiType,
+    preFiltered: Boolean,
+    showUnannotated: Boolean,
+    apiPredicateConfig: ApiPredicate.Config,
+) =
+    CodebaseFragment.create(codebase) { delegate ->
+        createFilteringVisitorForSignatures(
+            delegate,
+            fileFormat,
+            apiType,
+            preFiltered,
+            showUnannotated,
+            apiPredicateConfig,
+        )
+    }
+
 /**
  * Create an [ApiVisitor] that will filter the [Item] to which is applied according to the supplied
  * parameters and in a manner appropriate for writing signatures, e.g. flattening nested classes. It
  * will delegate any visitor calls that pass through its filter to this [SignatureWriter] instance.
  */
-fun createFilteringVisitorForSignatures(
+private fun createFilteringVisitorForSignatures(
     delegate: DelegatedVisitor,
     fileFormat: FileFormat,
     apiType: ApiType,
