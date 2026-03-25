@@ -217,6 +217,14 @@ interface ClassItem :
      */
     val isMultiFileClass: Boolean
 
+    /**
+     * The [RecordComponents] for this [ClassItem].
+     *
+     * Is null unless [classKind] is [ClassKind.RECORD], in which case this is set to the, possibly
+     * empty, [RecordComponents].
+     */
+    val recordComponents: RecordComponents?
+
     override fun describe(capitalize: Boolean): String {
         val descriptor =
             if (classKind == ClassKind.TYPEALIAS) {

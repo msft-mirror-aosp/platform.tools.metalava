@@ -30,6 +30,8 @@ import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.MutableModifierList
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PropertyItem
+import com.android.tools.metalava.model.RecordComponentItem
+import com.android.tools.metalava.model.RecordComponents
 import com.android.tools.metalava.model.ReferencableMethodSet
 import com.android.tools.metalava.model.SkeletonClassItem
 import com.android.tools.metalava.model.SourceFile
@@ -320,6 +322,8 @@ internal class DefaultClassItem(
         replaceOrAddItem(property, mutableProperties)
     }
 
+    override var recordComponents: RecordComponents? = null
+
     /** The mutable list of nested [ClassItem] that backs [nestedClasses]. */
     private val mutableNestedClasses = mutableListOf<ClassItem>()
 
@@ -401,6 +405,16 @@ internal class DefaultClassItem(
             }
             return optionalAliasedType!!
         }
+
+    override fun initializeRecordComponents() {
+        require(classKind == ClassKind.RECORD)
+        recordComponents =
+            RecordComponents(
+                properties()
+                    .filter { it.isRecordComponent() }
+                    .filterIsInstance<RecordComponentItem>()
+            )
+    }
 }
 
 /**
