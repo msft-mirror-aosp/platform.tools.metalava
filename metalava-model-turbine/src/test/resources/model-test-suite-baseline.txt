@@ -1,3 +1,7 @@
+com.android.tools.metalava.model.testsuite.classitem.CommonRecordClassTest
+  Test empty record class
+  Test simple record class
+
 com.android.tools.metalava.model.testsuite.fielditem.CommonFieldItemTest
   Test implicit nullability of constant field initialized from @NonNull method
 
