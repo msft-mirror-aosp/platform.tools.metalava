@@ -1559,12 +1559,11 @@ private constructor(
      *
      * If there is no visibility modifier, [VisibilityLevel.PACKAGE_PRIVATE] is used.
      *
-     * The method starts processing from the current token of [tokenizer]. When the method returns,
-     * the current token of [tokenizer] will be the first token after the modifiers.
+     * The method starts processing using [Tokenizer.current] from [tokenizer]. When the method
+     * returns, the current token of [tokenizer] will be the first token after the modifiers.
      */
     private fun parseModifiers(tokenizer: Tokenizer): MutableModifierList {
-        val annotations = getAnnotations(tokenizer)
-        val modifiers = createModifiers(annotations)
+        val modifiers = parseModifierAnnotations(tokenizer)
         parseKeywordModifiers(tokenizer, modifiers)
         return modifiers
     }
@@ -1695,8 +1694,16 @@ private constructor(
         }
     }
 
-    /** Creates a [MutableModifierList], setting the deprecation based on the [annotations]. */
-    private fun createModifiers(annotations: List<AnnotationItem>): MutableModifierList {
+    /**
+     * Parses and creates modifiers, including annotations but not keyword modifiers.
+     *
+     * The method starts processing using [Tokenizer.current] from [tokenizer]. When the method
+     * returns, the current token of [tokenizer] will be the first token after the modifiers.
+     */
+    private fun parseModifierAnnotations(
+        tokenizer: Tokenizer,
+    ): MutableModifierList {
+        val annotations = getAnnotations(tokenizer)
         val modifiers = createMutableModifiers(VisibilityLevel.PACKAGE_PRIVATE, annotations)
         // @Deprecated is also treated as a "modifier"
         if (annotations.any { it.qualifiedName == JAVA_LANG_DEPRECATED }) {
