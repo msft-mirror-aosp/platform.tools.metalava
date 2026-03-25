@@ -44,9 +44,6 @@ open class ApiVisitor(
     /** Whether to include inherited fields too */
     private val inlineInheritedFields: Boolean = true,
 
-    /** Comparator to sort callables with. */
-    private val callableComparator: Comparator<CallableItem> = CallableItem.comparator,
-
     /** The filters to use to determine what parts of the API will be visited. */
     private val apiFilters: ApiFilters,
 
@@ -263,12 +260,12 @@ open class ApiVisitor(
 
         private val constructors =
             cls.constructors().mapIfNotEmpty {
-                asSequence().filter { filterEmit.test(it) }.sortToList(callableComparator)
+                asSequence().filter { filterEmit.test(it) }.sortToList(CallableItem.comparator)
             }
 
         private val methods =
             cls.methods().mapIfNotEmpty {
-                asSequence().filter { filterEmit.test(it) }.sortToList(callableComparator)
+                asSequence().filter { filterEmit.test(it) }.sortToList(CallableItem.comparator)
             }
 
         private val fields by
