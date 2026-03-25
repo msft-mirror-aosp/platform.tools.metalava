@@ -16,7 +16,6 @@ com.android.tools.metalava.model.testsuite.annotationitem.CommonAnnotationItemTe
 
 com.android.tools.metalava.model.testsuite.classitem.CommonRecordClassTest
   Test simple record class[psi,java]
-  Test simple record class[turbine]
 
 com.android.tools.metalava.model.testsuite.classitem.CommonValueClassTest
   Usage of value class with type parameter[psi,kotlin]
