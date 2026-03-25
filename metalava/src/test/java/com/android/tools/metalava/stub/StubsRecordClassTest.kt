@@ -37,6 +37,8 @@ class StubsRecordClassTest : AbstractStubsTest() {
                         // - style=java
                         package test.pkg {
                           public record Test {
+                            record_component #0 a: int;
+                            record_component #1 b: String;
                             ctor public Test(int, String);
                             method public int a();
                             method public String b();

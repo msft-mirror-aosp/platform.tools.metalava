@@ -39,6 +39,7 @@ import com.android.tools.metalava.model.MutableModifierList
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.PrimitiveTypeItem
+import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.SkeletonClassItem
 import com.android.tools.metalava.model.SkeletonTypeParameterItem
@@ -847,6 +848,10 @@ private constructor(
 
         // Parse the class body adding each member created to the class item being populated.
         parseClassBody(tokenizer, cl, typeItemFactory)
+
+        if (classKind == ClassKind.RECORD) {
+            cl.initializeRecordComponents()
+        }
     }
 
     /**
@@ -975,6 +980,7 @@ private constructor(
             "field" to ::parseField,
             "method" to ::parseMethod,
             "property" to ::parseProperty,
+            "record_component" to ::parseRecordComponent,
         )
 
     /** Parse the class body, adding members to [containingClass]. */
@@ -1563,7 +1569,7 @@ private constructor(
      * returns, the current token of [tokenizer] will be the first token after the modifiers.
      */
     private fun parseModifiers(tokenizer: Tokenizer): MutableModifierList {
-        val modifiers = parseModifierAnnotations(tokenizer)
+        val modifiers = parseModifierAnnotations(VisibilityLevel.PACKAGE_PRIVATE, tokenizer)
         parseKeywordModifiers(tokenizer, modifiers)
         return modifiers
     }
@@ -1701,10 +1707,11 @@ private constructor(
      * returns, the current token of [tokenizer] will be the first token after the modifiers.
      */
     private fun parseModifierAnnotations(
+        visibilityLevel: VisibilityLevel,
         tokenizer: Tokenizer,
     ): MutableModifierList {
         val annotations = getAnnotations(tokenizer)
-        val modifiers = createMutableModifiers(VisibilityLevel.PACKAGE_PRIVATE, annotations)
+        val modifiers = createMutableModifiers(visibilityLevel, annotations)
         // @Deprecated is also treated as a "modifier"
         if (annotations.any { it.qualifiedName == JAVA_LANG_DEPRECATED }) {
             modifiers.setDeprecated(true)
@@ -1802,6 +1809,71 @@ private constructor(
         val receiverType = receiverTypeString?.let { typeItemFactory.getGeneralType(it) }
 
         return receiverType to name
+    }
+
+    /** Parse [token] which is expected to be of the format `#<record-component-index>`. */
+    private fun parseRecordComponentIndex(token: String): Int? {
+        if (!token.startsWith('#')) return null
+        val index =
+            try {
+                token.substring(1).toInt()
+            } catch (_: NumberFormatException) {
+                return null
+            }
+
+        if (index < 0) return null
+
+        return index
+    }
+
+    /** Parse a record component class member into a [PropertyItem]. */
+    private fun parseRecordComponent(
+        tokenizer: Tokenizer,
+        containingClass: SkeletonClassItem,
+        classTypeItemFactory: TextTypeItemFactory,
+    ) {
+        val location = tokenizer.fileLocation()
+
+        // Parse a record component index.
+        var token = tokenizer.requireToken()
+        val recordComponentIndex =
+            parseRecordComponentIndex(token)
+                ?: throw ApiParseException(
+                    "Expected record component index #<index> but found '$token'",
+                    tokenizer
+                )
+
+        // Parse the modifiers, which will really just be annotations. Record components are always
+        // public.
+        tokenizer.requireToken()
+        val modifiers = parseModifierAnnotations(VisibilityLevel.PUBLIC, tokenizer)
+
+        // Parse the component name.
+        token = tokenizer.current
+        val name = parseNameWithColon(token, tokenizer)
+
+        // Parse the type.
+        tokenizer.requireToken()
+        val typeString = scanForTypeString(tokenizer)
+
+        // Make sure that the whole record component was parsed.
+        token = tokenizer.current
+        if (";" != token) {
+            throw ApiParseException("expected ; found $token", tokenizer)
+        }
+
+        // Represent the record component as a property item.
+        val propertyItem =
+            itemFactory.createRecordComponentItem(
+                fileLocation = location,
+                modifiers = modifiers,
+                name = name,
+                containingClass = containingClass,
+                type = classTypeItemFactory.getGeneralType(typeString),
+                recordComponentIndex = recordComponentIndex,
+            )
+
+        containingClass.addProperty(propertyItem)
     }
 
     /**
