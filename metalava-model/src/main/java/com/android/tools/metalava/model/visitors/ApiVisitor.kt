@@ -17,15 +17,12 @@
 package com.android.tools.metalava.model.visitors
 
 import com.android.tools.metalava.model.BaseItemVisitor
-import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassKind
-import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.FilterPredicate
 import com.android.tools.metalava.model.ItemVisitor
 import com.android.tools.metalava.model.MemberItem
 import com.android.tools.metalava.model.PackageItem
-import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.TargetLanguage
 import com.android.tools.metalava.model.TargetLanguageSet
@@ -258,33 +255,18 @@ open class ApiVisitor(
                     it
                 }
 
-        private val constructors =
-            cls.constructors().mapIfNotEmpty {
-                asSequence().filter { filterEmit.test(it) }.sortToList(CallableItem.comparator)
+        private val constructors = cls.constructors().filter { filterEmit.test(it) }
+
+        private val methods = cls.methods().filter { filterEmit.test(it) }
+
+        private val fields =
+            if (inlineInheritedFields) {
+                cls.filteredFields(filterEmit, showUnannotated)
+            } else {
+                cls.fields().filter { filterEmit.test(it) }
             }
 
-        private val methods =
-            cls.methods().mapIfNotEmpty {
-                asSequence().filter { filterEmit.test(it) }.sortToList(CallableItem.comparator)
-            }
-
-        private val fields by
-            lazy(LazyThreadSafetyMode.NONE) {
-                val fieldSequence =
-                    if (inlineInheritedFields) {
-                        cls.filteredFields(filterEmit, showUnannotated).asSequence()
-                    } else {
-                        cls.fields().asSequence().filter { filterEmit.test(it) }
-                    }
-
-                // Sort the fields so that enum constants come first.
-                fieldSequence.sortToList(FieldItem.comparatorEnumConstantFirst)
-            }
-
-        private val properties =
-            cls.properties().mapIfNotEmpty {
-                asSequence().filter { filterEmit.test(it) }.sortToList(PropertyItem.comparator)
-            }
+        private val properties = cls.properties().filter { filterEmit.test(it) }
 
         /** Whether the class body contains any emmittable [MemberItem]s. */
         fun containsNoEmittableMembers() =
