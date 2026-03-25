@@ -405,6 +405,7 @@ private constructor(
                     receiver = property.receiver?.snapshot(),
                     typeParameterList = typeParameterList,
                     setterVisibility = property.setterVisibility,
+                    recordComponentIndex = propertyToSnapshot.recordComponentIndex,
                 )
             }
         newProperty.copySelectedApiVariants(propertyToSnapshot)

@@ -272,6 +272,7 @@ class DefaultItemFactory(
         setter: MethodItem? = null,
         constructorParameter: ParameterItem? = null,
         backingField: FieldItem? = null,
+        recordComponentIndex: Int = -1,
     ): PropertyItem =
         DefaultPropertyItem(
             codebase,
@@ -290,6 +291,7 @@ class DefaultItemFactory(
             receiver,
             typeParameterList,
             setterVisibility,
+            recordComponentIndex,
         )
 
     /** Create a [ClassItem] which is a typealias. */

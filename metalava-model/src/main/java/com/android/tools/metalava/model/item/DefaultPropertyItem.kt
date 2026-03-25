@@ -53,6 +53,7 @@ internal class DefaultPropertyItem(
     override val receiver: TypeItem?,
     override val typeParameterList: TypeParameterList,
     override val setterVisibility: VisibilityLevel?,
+    override val recordComponentIndex: Int,
 ) :
     DefaultMemberItem(
         codebase,
@@ -108,6 +109,7 @@ internal class DefaultPropertyItem(
                 receiver = receiver,
                 typeParameterList = typeParameterList,
                 setterVisibility = setterVisibility,
+                recordComponentIndex = recordComponentIndex,
             )
             .also { duplicated -> duplicated.inheritedFrom = containingClass() }
     }

@@ -51,6 +51,16 @@ interface PropertyItem : MemberItem, TypeParameterListOwner, InheritableItem {
      */
     val setterVisibility: VisibilityLevel?
 
+    /**
+     * The 0-based index of this within the list of record components of a [ClassKind.RECORD] class.
+     *
+     * Is -1 for properties that are not record components.
+     */
+    val recordComponentIndex: Int
+
+    /** Check to see whether this is a record component. */
+    fun isRecordComponent(): Boolean = recordComponentIndex >= 0
+
     override fun findCorrespondingItemIn(
         codebase: Codebase,
         superMethods: Boolean,
