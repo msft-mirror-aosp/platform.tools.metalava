@@ -144,13 +144,14 @@ class AnnotationsMerger(
                 // resolve types in the stubs
                 val roots =
                     SourceSet(config.sources, config.sourcePath).extractRoots(reporter).sourcePath
-                val javaStubsCodebase =
-                    sourceParser.parseSources(
+                val inputs =
+                    SourceParser.Inputs(
                         SourceSet(javaStubFiles, roots),
                         "Codebase loaded from stubs",
                         classPath = config.classpath,
                         apiPackages = config.apiPackageFilter,
                     )
+                val javaStubsCodebase = sourceParser.parseSources(inputs)
                 if (javaStubsCodebase != null) {
                     mergeJavaStubsCodebase(javaStubsCodebase)
                 }

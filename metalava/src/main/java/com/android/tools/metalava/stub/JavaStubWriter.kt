@@ -18,6 +18,7 @@ package com.android.tools.metalava.stub
 
 import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.ClassOrVariableTypeItem
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.ConstructorItem
@@ -42,6 +43,12 @@ internal class JavaStubWriter(
     private val stubConstructorManager: StubConstructorManager,
 ) : DelegatedVisitor {
 
+    /**
+     * If true then include Java record class related information in the generated stubs. Otherwise,
+     * treat record classes as normal classes as much as possible.
+     */
+    private val javaRecordClasses = config.javaRecordClasses
+
     override fun visitClass(cls: ClassItem) {
         if (cls.isTopLevelClass()) {
             val qualifiedName = cls.containingPackage().qualifiedName()
@@ -57,13 +64,13 @@ internal class JavaStubWriter(
 
         appendModifiers(cls)
 
-        when {
-            cls.isAnnotationType() -> writer.print("@interface")
-            cls.isInterface() -> writer.print("interface")
-            cls.isEnum() -> writer.print("enum")
-            else -> writer.print("class")
-        }
-
+        val classKind =
+            when (val kind = cls.classKind) {
+                // Only use RECORD if java-record-classes=true
+                ClassKind.RECORD -> if (javaRecordClasses) kind else ClassKind.CLASS
+                else -> kind
+            }
+        writer.print(classKind.signatureKeyword)
         writer.print(" ")
         writer.print(cls.simpleName())
 
@@ -110,10 +117,10 @@ internal class JavaStubWriter(
     }
 
     private fun generateSuperClassDeclaration(cls: ClassItem) {
-        if (cls.isEnum() || cls.isAnnotationType() || cls.isInterface()) {
-            // No extends statement for enums and annotations; it's implied by the "enum" and
-            // "@interface" keywords. Normal interfaces do support an extends statement but it is
-            // generated in [generateInterfaceList].
+        val classKind = cls.classKind
+        if (!classKind.allowsExplicitSuperClass) {
+            // Normal interfaces do support an extends statement, but that is for super interfaces
+            // not a super class and so it is generated in [generateInterfaceList].
             return
         }
 

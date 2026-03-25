@@ -21,21 +21,19 @@ import com.android.tools.lint.checks.infrastructure.TestFiles.base64gzip
 import com.android.tools.metalava.DriverTest
 import com.android.tools.metalava.cli.common.ARG_HIDE
 import com.android.tools.metalava.model.provider.Capability
-import com.android.tools.metalava.model.testing.FilterAction
-import com.android.tools.metalava.model.testing.FilterByProvider
 import com.android.tools.metalava.model.testing.RequiresCapabilities
 import com.android.tools.metalava.testing.createAndroidModuleDescription
 import com.android.tools.metalava.testing.createCommonModuleDescription
 import com.android.tools.metalava.testing.createModuleDescription
 import com.android.tools.metalava.testing.createNativeModuleDescription
 import com.android.tools.metalava.testing.createProjectDescription
+import com.android.tools.metalava.testing.defaultJsPlatforms
 import com.android.tools.metalava.testing.defaultJvmPlatforms
 import com.android.tools.metalava.testing.kotlin
 import com.android.tools.metalava.testing.standardProjectXmlClasspath
 import org.junit.Test
 
 @RequiresCapabilities(Capability.KOTLIN, Capability.MULTIPLATFORM)
-@FilterByProvider("psi", "k1", action = FilterAction.EXCLUDE)
 class MultiplatformLintTest : DriverTest() {
     private fun checkLint(
         commonSource: Array<TestFile>,
@@ -794,6 +792,58 @@ class MultiplatformLintTest : DriverTest() {
                 androidMain/src/test/pkg/clashingBadClassName.kt:2: error: Class must start with uppercase char: clashingBadClassName [StartWithUpper]
                 commonMain/src/test/pkg/commonBadClassName.kt:2: error: Class must start with uppercase char: commonBadClassName [StartWithUpper]
                 nativeMain/src/test/pkg/nativeBadClassName.kt:2: error: Class must start with uppercase char: nativeBadClassName [StartWithUpper]
+                """,
+        )
+    }
+
+    @Test
+    fun `Check API lint runs with no android or jvm source set`() {
+        val commonSource =
+            kotlin(
+                "commonMain/src/test/pkg/common.kt",
+                """
+                package test.pkg
+                class common
+                """
+            )
+        val nativeSource =
+            kotlin(
+                "nativeMain/src/test/pkg/native.kt",
+                """
+                package test.pkg
+                class native
+                """
+            )
+        val jsSource =
+            kotlin(
+                "jsMain/src/test/pkg/js.kt",
+                """
+                package test.pkg
+                class js
+                """
+            )
+        check(
+            sourceFiles = arrayOf(commonSource, nativeSource, jsSource),
+            projectDescription =
+                createProjectDescription(
+                    createCommonModuleDescription(arrayOf(commonSource)),
+                    createNativeModuleDescription(arrayOf(nativeSource)),
+                    createModuleDescription(
+                        moduleName = "jsMain",
+                        android = false,
+                        kotlinPlatforms = defaultJsPlatforms,
+                        sourceFiles = arrayOf(jsSource)
+                    )
+                ),
+            enableMultiplatform = true,
+            skipSourceArgs = true, // Don't create a regular Codebase
+            apiLint = "", // Enabled
+            expectedFail = DefaultLintErrorMessage,
+            expectedIssues =
+                """
+                commonMain/src/test/pkg/common.kt:2: error: Class must start with uppercase char: common [StartWithUpper]
+                jsMain/src/test/pkg/js.kt:2: error: Class must start with uppercase char: js [StartWithUpper]
+                nativeMain/src/test/pkg/native.kt:2: error: Class must start with uppercase char: native [StartWithUpper]
                 """,
         )
     }
