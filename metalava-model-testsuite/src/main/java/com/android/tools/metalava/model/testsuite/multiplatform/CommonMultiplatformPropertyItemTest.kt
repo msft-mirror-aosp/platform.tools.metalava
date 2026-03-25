@@ -16,9 +16,8 @@
 
 package com.android.tools.metalava.model.testsuite.multiplatform
 
+import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.multiplatform.transformValues
-import com.android.tools.metalava.model.testing.FilterAction.EXCLUDE
-import com.android.tools.metalava.model.testing.FilterByProvider
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.testing.createAndroidModuleDescription
 import com.android.tools.metalava.testing.createCommonModuleDescription
@@ -28,7 +27,6 @@ import com.android.tools.metalava.testing.kotlin
 import com.google.common.truth.Truth.assertThat
 import org.junit.Test
 
-@FilterByProvider("psi", "k1", action = EXCLUDE)
 class CommonMultiplatformPropertyItemTest : BaseModelTest() {
     @Test
     fun `Definition of expect actual property`() {
@@ -352,6 +350,41 @@ class CommonMultiplatformPropertyItemTest : BaseModelTest() {
             // properties are not included in the multiplatform model.
             assertThat(testPkg.topLevelClasses()).isEmpty()
             assertThat(testPkg.allClasses().toList()).isEmpty()
+        }
+    }
+
+    @Test
+    fun `Baseline id for top level regular PropertyItem`() {
+        val commonSource =
+            kotlin(
+                "commonMain/src/test/pkg/Foo.kt",
+                """
+                package test.pkg
+                val foo = 0
+                val String.foo
+                    get() = 0
+                """
+            )
+        runMultiplatformCodebaseTest(
+            inputSet(commonSource),
+            projectDescription =
+                createProjectDescription(
+                    createCommonModuleDescription(arrayOf(commonSource)),
+                )
+        ) {
+            val commonCodebase = multiplatformCodebase.sourceSetToCodebase["commonMain"]!!
+            val facadeClass =
+                commonCodebase.assertClass(
+                    "test.pkg.${ClassItem.TOP_LEVEL_DECLARATION_FACADE_NAME}"
+                )
+
+            val topLevelVal = facadeClass.assertProperty("foo")
+            assertThat(topLevelVal.baselineElementId()).isEqualTo("test.pkg#foo")
+
+            val topLevelExtensionVal =
+                facadeClass.assertProperty("foo", receiverTypeString = "kotlin.String")
+            assertThat(topLevelExtensionVal.baselineElementId())
+                .isEqualTo("test.pkg#kotlin.String.foo")
         }
     }
 }

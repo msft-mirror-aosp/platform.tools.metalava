@@ -19,8 +19,6 @@ package com.android.tools.metalava.multiplatform
 import com.android.tools.metalava.DriverTest
 import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.provider.Capability
-import com.android.tools.metalava.model.testing.FilterAction
-import com.android.tools.metalava.model.testing.FilterByProvider
 import com.android.tools.metalava.model.testing.RequiresCapabilities
 import com.android.tools.metalava.testing.createAndroidModuleDescription
 import com.android.tools.metalava.testing.createCommonModuleDescription
@@ -32,9 +30,6 @@ import com.google.common.truth.Truth.assertThat
 import org.junit.Test
 
 @RequiresCapabilities(Capability.KOTLIN, Capability.MULTIPLATFORM)
-// K1 does not support KMP, but the capabilities above are configured for psi altogether and not
-// differentiated between K1 and K2.
-@FilterByProvider("psi", "k1", action = FilterAction.EXCLUDE)
 class MultiplatformCodebaseTest : DriverTest() {
     @Test
     fun `Test creation of multiplatform codebase`() {
@@ -130,6 +125,42 @@ class MultiplatformCodebaseTest : DriverTest() {
             val fooMethod = fooClass.assertMethod("foo", emptyList())
             assertThat(fooMethod.returnType().modifiers.nullability)
                 .isEqualTo(TypeNullability.NONNULL)
+        }
+    }
+
+    @Test
+    fun `Test creation of multiplatform codebase with no regular codebase`() {
+        val commonSource =
+            kotlin(
+                "commonMain/src/test/pkg/Foo.kt",
+                """
+                package test.pkg
+                expect class Foo
+                """
+            )
+        val nativeSource =
+            kotlin(
+                "nativeMain/src/test/pkg/Foo.kt",
+                """
+                package test.pkg
+                actual class Foo
+                """
+            )
+        check(
+            sourceFiles = arrayOf(commonSource, nativeSource),
+            projectDescription =
+                createProjectDescription(
+                    createCommonModuleDescription(arrayOf(commonSource)),
+                    createNativeModuleDescription(arrayOf(nativeSource)),
+                ),
+            enableMultiplatform = true,
+            skipSourceArgs = true,
+        ) {
+            assertThat(codebase).isNull()
+            assertThat(multiplatformCodebase).isNotNull()
+
+            multiplatformCodebase!!.assertSourceSets("commonMain", "nativeMain")
+            multiplatformCodebase.assertClass("test.pkg.Foo")
         }
     }
 }
