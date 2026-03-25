@@ -505,7 +505,10 @@ fun createCodebaseFragmentForSignatureFile(
     showUnannotated: Boolean,
     apiPredicateConfig: ApiPredicate.Config,
 ) =
-    CodebaseFragment.create(codebase) { delegate ->
+    CodebaseFragment.create(
+        codebase,
+        callableComparator = fileFormat[OVERLOADED_METHOD_ORDER].comparator,
+    ) { delegate ->
         createFilteringVisitorForSignatures(
             delegate,
             fileFormat,
@@ -537,7 +540,6 @@ private fun createFilteringVisitorForSignatures(
     return FilteringApiVisitor(
         delegate = delegate,
         inlineInheritedFields = true,
-        callableComparator = fileFormat[OVERLOADED_METHOD_ORDER].comparator,
         interfaceListSorter = interfaceListSorter,
         interfaceListComparator = interfaceListComparator,
         apiFilters = apiFilters,
