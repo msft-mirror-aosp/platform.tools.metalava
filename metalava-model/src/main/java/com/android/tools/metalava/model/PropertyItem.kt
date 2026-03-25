@@ -105,9 +105,7 @@ interface PropertyItem : MemberItem, TypeParameterListOwner, InheritableItem {
                 }
 
     companion object {
-        val comparator: java.util.Comparator<PropertyItem> = Comparator { a, b ->
-            a.name().compareTo(b.name())
-        }
+        val comparator: Comparator<PropertyItem> = Comparator.comparing { it.name() }
 
         /** Returns whether the two types should be considered equal property receivers. */
         fun equalReceivers(receiver1: TypeItem?, receiver2: TypeItem?): Boolean {
