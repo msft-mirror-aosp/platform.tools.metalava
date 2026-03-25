@@ -16,7 +16,6 @@
 
 package com.android.tools.metalava.model.psi
 
-import com.android.tools.metalava.model.ModelOptions
 import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.provider.InputFormat
 import com.android.tools.metalava.model.source.EnvironmentManager
@@ -43,13 +42,7 @@ internal class PsiSourceModelProvider : SourceModelProvider {
             Capability.PACKAGE_HTML_FILES,
             Capability.HIDDEN_ITEMS,
             Capability.API_VARIANT_SELECTORS,
-            Capability.MULTIPLATFORM, // Only K2 has this capability
-        )
-
-    override val modelOptionsList: List<ModelOptions> =
-        listOf(
-            ModelOptions.build("k1") { this[PsiModelOptions.useK2Uast] = false },
-            ModelOptions.build("k2") { this[PsiModelOptions.useK2Uast] = true },
+            Capability.MULTIPLATFORM,
         )
 
     override fun createEnvironmentManager(
