@@ -28,6 +28,7 @@ import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.testing.java
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
+import kotlin.test.assertTrue
 import org.junit.Test
 
 class CommonRecordClassTest : BaseModelTest() {
@@ -59,6 +60,7 @@ class CommonRecordClassTest : BaseModelTest() {
                 }
             }
         assertNotNull(canonicalConstructor, message = "canonical constructor")
+        assertTrue(canonicalConstructor.isPrimary, message = "canonical constructor is primary")
 
         // Check for the accessor methods.
         for (component in expectedComponents) {
