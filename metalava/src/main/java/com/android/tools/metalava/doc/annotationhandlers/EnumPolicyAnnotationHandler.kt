@@ -20,17 +20,70 @@ import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.SelectableItem
+import com.android.tools.metalava.model.value.AnnotationValue
 import com.android.tools.metalava.reporter.Reporter
 import java.util.function.Predicate
 
 /** Handles @android.processor.devicepolicy.EnumPolicyDefinition annotation. */
 class EnumPolicyAnnotationHandler(
-    private val codebase: Codebase,
-    private val reporter: Reporter,
-    private val filterReference: Predicate<SelectableItem>
-) {
+    codebase: Codebase,
+    reporter: Reporter,
+    filterReference: Predicate<SelectableItem>
+) : BaseDevicePolicyAnnotationHandler(codebase, reporter, filterReference) {
 
-    fun processPolicyAnnotation(annotation: AnnotationItem, item: Item): String {
-        return ""
+    private val policyHandler =
+        PolicyDefinitionAnnotationHandler(codebase, reporter, filterReference)
+
+    /** Processes a policy annotation and returns a documentation string. */
+    override fun processPolicyAnnotation(annotation: AnnotationItem, item: Item): String {
+        val resolutionMechanismDoc = buildResolutionMechanismDoc(annotation, item)
+        // TODO(b/492421367): handles the intDef field.
+        val defaultValue =
+            annotation.getIntAttribute("defaultValue").elseReportMissing(item, "defaultValue") ?: -1
+
+        val basePolicyDefinition =
+            annotation.getPolicyDefinitionAttribute("base").elseReportMissing(item, "base")
+        val baseDocs =
+            basePolicyDefinition?.let {
+                policyHandler.processPolicyAnnotation(basePolicyDefinition, item)
+            } ?: ""
+
+        return buildString {
+            append("\n<p>Policy Type: Enum</p>\n <ul>\n")
+            append(baseDocs)
+            append("   <li>Resolution Mechanism: $resolutionMechanismDoc</li>\n")
+            // TODO(b/492421367): show the enum name rather than integer value.
+            append("   <li>Default Enum policy value: $defaultValue</li>\n")
+            append(" </ul>\n")
+        }
+    }
+
+    private fun buildResolutionMechanismDoc(annotation: AnnotationItem, item: Item): String {
+        val resolutionMechanismValue = annotation.findAttribute("resolutionMechanism")?.value
+        val resolutionMechanismAnnotation =
+            (resolutionMechanismValue as? AnnotationValue)?.annotationItem
+
+        var resolutionMechanismDoc = ""
+
+        if (resolutionMechanismAnnotation != null) {
+            val custom = resolutionMechanismAnnotation.getBooleanAttribute("custom") ?: false
+            val notCoexistable =
+                resolutionMechanismAnnotation.getBooleanAttribute("notCoexistable") ?: false
+            val mostRestrictiveValue =
+                resolutionMechanismAnnotation.findAttribute("mostRestrictive")?.value
+            val mostRestrictive = mostRestrictiveValue?.asFlatList() ?: emptyList()
+
+            if (custom) {
+                resolutionMechanismDoc = "custom"
+            } else if (notCoexistable) {
+                resolutionMechanismDoc = "not coexistable"
+            } else if (mostRestrictive.isNotEmpty()) {
+                resolutionMechanismDoc = "most restrictive: [${mostRestrictive.joinToString(", ")}]"
+            } else {
+                reportOnMissingFields("resolutionMechanism", item)
+            }
+        }
+
+        return resolutionMechanismDoc
     }
 }
