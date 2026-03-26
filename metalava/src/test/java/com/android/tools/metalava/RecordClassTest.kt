@@ -102,9 +102,7 @@ class RecordClassTest : DriverTest() {
                       }
                     }
                 """,
-            // TODO(b/482390286): Will not compile as it does not delegate to the canonical
-            //   constructor correctly.
-            checkCompilation = false,
+            checkCompilation = true,
             stubFiles =
                 arrayOf(
                     java(
@@ -112,8 +110,7 @@ class RecordClassTest : DriverTest() {
                             package test.pkg;
                             @SuppressWarnings({"unchecked", "deprecation", "all"})
                             public record Test(int c1, int c2) {
-                            public Test(int c1, int c2) { throw new RuntimeException("Stub!"); }
-                            public Test(@android.annotation.NonNull java.lang.String c1, @android.annotation.NonNull java.lang.String c2) { throw new RuntimeException("Stub!"); }
+                            public Test(@android.annotation.NonNull java.lang.String c1, @android.annotation.NonNull java.lang.String c2) { this(0, 0); throw new RuntimeException("Stub!"); }
                             public int c1() { throw new RuntimeException("Stub!"); }
                             public int c2() { throw new RuntimeException("Stub!"); }
                             public int sum() { throw new RuntimeException("Stub!"); }
@@ -159,9 +156,7 @@ class RecordClassTest : DriverTest() {
                       }
                     }
                 """,
-            // TODO(b/482390286): Will not compile as it does not delegate to the canonical
-            //   constructor correctly.
-            checkCompilation = false,
+            checkCompilation = true,
             stubFiles =
                 arrayOf(
                     java(
@@ -169,8 +164,7 @@ class RecordClassTest : DriverTest() {
                             package test.pkg;
                             @SuppressWarnings({"unchecked", "deprecation", "all"})
                             public record Test(@android.annotation.NonNull java.lang.String c1, @android.annotation.NonNull java.lang.String c2) {
-                            public Test(int c1, int c2) { throw new RuntimeException("Stub!"); }
-                            public Test(@android.annotation.NonNull java.lang.String c1, @android.annotation.NonNull java.lang.String c2) { throw new RuntimeException("Stub!"); }
+                            public Test(int c1, int c2) { this("", ""); throw new RuntimeException("Stub!"); }
                             @android.annotation.NonNull
                             public java.lang.String c1() { throw new RuntimeException("Stub!"); }
                             @android.annotation.NonNull
@@ -230,7 +224,6 @@ class RecordClassTest : DriverTest() {
                             package test.pkg;
                             @SuppressWarnings({"unchecked", "deprecation", "all"})
                             public record Test(int c) {
-                            public Test(int c) { throw new RuntimeException("Stub!"); }
                             public int c() { throw new RuntimeException("Stub!"); }
                             public boolean equals(java.lang.Object obj) { throw new RuntimeException("Stub!"); }
                             public int hashCode() { throw new RuntimeException("Stub!"); }

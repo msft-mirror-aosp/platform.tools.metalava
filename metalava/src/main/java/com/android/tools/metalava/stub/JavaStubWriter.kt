@@ -181,6 +181,12 @@ internal class JavaStubWriter(
     }
 
     override fun visitConstructor(constructor: ConstructorItem) {
+        val isRecordConstructor =
+            javaRecordClasses && constructor.containingClass().classKind == ClassKind.RECORD
+        if (isRecordConstructor && constructor.isPrimary) {
+            return
+        }
+
         appendDocumentation(constructor, writer, config)
         appendModifiers(constructor)
         generateTypeParameterList(typeList = constructor.typeParameterList, addSpace = true)
@@ -191,7 +197,13 @@ internal class JavaStubWriter(
 
         writer.print(" { ")
 
-        writeConstructorDelegationToSuperIfNeeded(constructor)
+        if (isRecordConstructor) {
+            val canonicalConstructor =
+                constructor.containingClass().constructors().find { it.isPrimary }!!
+            writeConstructorDelegate(constructor, canonicalConstructor)
+        } else {
+            writeConstructorDelegationToSuperIfNeeded(constructor)
+        }
 
         writeThrowStub()
 
@@ -215,7 +227,12 @@ internal class JavaStubWriter(
         delegatingConstructor: ConstructorItem,
         delegateConstructor: ConstructorItem
     ) {
-        val delegateReference = "super"
+        val delegateReference =
+            if (delegatingConstructor.containingClass() == delegateConstructor.containingClass()) {
+                "this"
+            } else {
+                "super"
+            }
         writer.print(delegateReference)
         writer.print("(")
 
