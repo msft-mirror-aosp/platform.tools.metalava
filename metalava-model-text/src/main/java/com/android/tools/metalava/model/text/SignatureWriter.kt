@@ -152,6 +152,12 @@ class SignatureWriter(
     }
 
     override fun visitProperty(property: PropertyItem) {
+        // Treat record component properties specially.
+        if (property.isRecordComponent()) {
+            writeRecordComponent(property)
+            return
+        }
+
         write("    property ")
         writeModifiers(property)
         writeTypeParameterList(property.typeParameterList, addSpace = true)
@@ -175,6 +181,11 @@ class SignatureWriter(
             write(property.name())
         }
         write(";\n")
+    }
+
+    /** Write [property] as a record component, if allowed. */
+    private fun writeRecordComponent(property: PropertyItem) {
+        // Ignore record component properties for now.
     }
 
     override fun visitMethod(method: MethodItem) {
