@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model.psi
 
+import androidx.tracing.Tracer
 import com.android.tools.lint.UastEnvironment
 import com.android.tools.lint.annotations.Extractor
 import com.android.tools.metalava.model.AnnotationItem
@@ -151,7 +152,7 @@ internal class PsiCodebaseAssembler(
             )
         } else {
             val documentationFactory =
-                psiJavaFile.packageStatement?.let { it.createItemDocumentation(psiCodebase) }
+                psiJavaFile.packageStatement?.createItemDocumentation(psiCodebase)
             val sourceFile = PsiSourceFile(psiCodebase, psiJavaFile)
             SourcePackageInfo(
                 sourceFile = sourceFile,
@@ -385,15 +386,17 @@ internal class PsiCodebaseAssembler(
         sourceSet: SourceSet,
         apiPackages: PackageFilter?,
         includeKotlinInCodebase: Boolean,
+        tracer: Tracer,
     ) {
         // Get the list of `PsiFile`s from the `SourceSet`.
         val psiFiles = Extractor.createUnitsForFiles(uastEnvironment.ideaProject, sourceSet.sources)
 
         // Get the `PsiClass`es from the `PsiFile`s.
-        val psiClasses = getPsiClassesFromPsiFiles(psiFiles)
+        val psiClasses =
+            tracer.trace("getPsiClassesFromPsiFiles") { getPsiClassesFromPsiFiles(psiFiles) }
 
         // Create the initial set of packages that were found in the source files.
-        createInitialPackages(sourceSet)
+        tracer.trace("createInitialPackages") { createInitialPackages(sourceSet) }
 
         // Add type aliases.
         val kotlinFiles = psiFiles.filterIsInstance<KtFile>()
@@ -413,14 +416,16 @@ internal class PsiCodebaseAssembler(
                 } else {
                     null
                 }
-            createTypeAliases(allPackages)
+            tracer.trace("createTypeAliases") { createTypeAliases(allPackages) }
         }
 
         // Tracker for which source files of `@JvmMultifileClass`es have already been processed.
         val multiFileClasses = HashMap<FqName, Set<PsiFile>>()
         // Process the `PsiClass`es.
-        for (psiClass in psiClasses) {
-            initializeClassFromSources(psiClass, multiFileClasses, apiPackages)
+        tracer.trace("initializeClassFromSources") {
+            for (psiClass in psiClasses) {
+                initializeClassFromSources(psiClass, multiFileClasses, apiPackages)
+            }
         }
 
         // Determining sealed class exhaustivity is done here because it requires looking at

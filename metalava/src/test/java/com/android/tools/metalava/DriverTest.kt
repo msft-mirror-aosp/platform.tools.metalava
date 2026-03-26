@@ -35,6 +35,7 @@ import com.android.tools.metalava.cli.common.ARG_PROJECT
 import com.android.tools.metalava.cli.common.ARG_QUIET
 import com.android.tools.metalava.cli.common.ARG_REPEAT_ERRORS_MAX
 import com.android.tools.metalava.cli.common.ARG_SOURCE_PATH
+import com.android.tools.metalava.cli.common.ARG_TRACE_FILE
 import com.android.tools.metalava.cli.common.ARG_VERBOSE
 import com.android.tools.metalava.cli.common.CheckerContext
 import com.android.tools.metalava.cli.common.CheckerFunction
@@ -97,6 +98,7 @@ import java.io.PrintStream
 import java.io.PrintWriter
 import java.io.StringWriter
 import java.net.URI
+import java.nio.file.Files
 import junit.framework.ComparisonFailure
 import kotlin.text.Charsets.UTF_8
 import org.intellij.lang.annotations.Language
@@ -571,6 +573,8 @@ abstract class DriverTest :
         skipSourceArgs: Boolean = false,
         /** Signature files to parse into a MultiplatformCodebase for compatibility checks. */
         multiplatformCompatibilityApi: List<TestFile>? = null,
+        /** Whether tracing should be enabled */
+        enableTracing: Boolean = false,
         /**
          * Called on a [CheckerContext] after the analysis phase in the metalava main command.
          *
@@ -1088,6 +1092,16 @@ abstract class DriverTest :
                 emptyArray()
             }
 
+        val traceFile: File?
+        val tracingArguments =
+            if (enableTracing) {
+                traceFile = File(project, "trace.perfetto-trace")
+                arrayOf(ARG_TRACE_FILE, traceFile.path)
+            } else {
+                traceFile = null
+                emptyArray()
+            }
+
         // Run optional additional setup steps on the project directory
         projectSetup?.invoke(project)
 
@@ -1148,6 +1162,7 @@ abstract class DriverTest :
                 *multiplatformApiArgs,
                 *multiplatformSignatureSourceOptions,
                 *multiplatformCompatibilityArgs,
+                *tracingArguments,
                 // Must always be last as this can consume a following argument, breaking the test.
                 *apiLintArgs,
             ) +
@@ -1377,6 +1392,11 @@ abstract class DriverTest :
                 SignatureFile.fromFiles(multiplatformSignatureFiles),
                 Codebase.Config.NOOP
             )
+        }
+
+        if (traceFile != null) {
+            assertTrue("Trace file exists", traceFile.exists())
+            assertTrue("Trace file is not empty", Files.size(traceFile.toPath()) > 0)
         }
     }
 
