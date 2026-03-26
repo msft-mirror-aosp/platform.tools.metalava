@@ -191,41 +191,53 @@ internal class JavaStubWriter(
 
         writer.print(" { ")
 
-        writeConstructorBody(constructor)
+        writeConstructorDelegationToSuperIfNeeded(constructor)
+
+        writeThrowStub()
+
         writer.println(" }")
     }
 
-    private fun writeConstructorBody(constructor: ConstructorItem) {
+    /** Writes the appropriate delegation to a super constructor, if needed. */
+    private fun writeConstructorDelegationToSuperIfNeeded(constructor: ConstructorItem) {
         val optionalSuperConstructor =
             stubConstructorManager.optionalSuperConstructor(constructor.containingClass())
         optionalSuperConstructor?.let { superConstructor ->
             val parameters = superConstructor.parameters()
             if (parameters.isNotEmpty()) {
-                writer.print("super(")
-
-                // Get the types to which this class binds the super class's type parameters, if
-                // any.
-                val typeParameterBindings =
-                    constructor
-                        .containingClass()
-                        .mapTypeVariables(superConstructor.containingClass())
-
-                for ((index, parameter) in parameters.withIndex()) {
-                    if (index > 0) {
-                        writer.write(", ")
-                    }
-                    // Always make sure to add appropriate casts to the parameters in the super call
-                    // as without the casts the compiler will fail if there is more than one
-                    // constructor that could match.
-                    val defaultValueWithCast =
-                        defaultValueWithCastForType(parameter.type(), typeParameterBindings)
-                    writer.write(defaultValueWithCast)
-                }
-                writer.print("); ")
+                writeConstructorDelegate(constructor, superConstructor)
             }
         }
+    }
 
-        writeThrowStub()
+    /** Write the code to delegate from [delegatingConstructor] to [delegateConstructor]. */
+    private fun writeConstructorDelegate(
+        delegatingConstructor: ConstructorItem,
+        delegateConstructor: ConstructorItem
+    ) {
+        val delegateReference = "super"
+        writer.print(delegateReference)
+        writer.print("(")
+
+        // Get the types to which this class binds the super class's type parameters, if any.
+        val typeParameterBindings =
+            delegatingConstructor
+                .containingClass()
+                .mapTypeVariables(delegateConstructor.containingClass())
+
+        val parameters = delegateConstructor.parameters()
+        for ((index, parameter) in parameters.withIndex()) {
+            if (index > 0) {
+                writer.write(", ")
+            }
+            // Always make sure to add appropriate casts to the parameters in the super call
+            // as without the casts the compiler will fail if there is more than one
+            // constructor that could match.
+            val defaultValueWithCast =
+                defaultValueWithCastForType(parameter.type(), typeParameterBindings)
+            writer.write(defaultValueWithCast)
+        }
+        writer.print("); ")
     }
 
     /**
