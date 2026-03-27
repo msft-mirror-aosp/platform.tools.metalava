@@ -17,9 +17,7 @@
 package com.android.tools.metalava.stub
 
 import com.android.tools.lint.checks.infrastructure.TestFile
-import com.android.tools.metalava.ARG_EXCLUDE_ANNOTATION
 import com.android.tools.metalava.DriverTest
-import com.android.tools.metalava.model.ANDROIDX_NONNULL
 import com.android.tools.metalava.model.text.FORMAT_V5_WITH_JAVA_STYLE
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.testing.java
@@ -73,7 +71,7 @@ abstract class AbstractStubsTest : DriverTest() {
                 // files.
                 ignoreParameterNamesInStubFiles = true,
                 checkCompilation = checkCompilation,
-                extraArguments = arrayOf(*extraArguments, ARG_EXCLUDE_ANNOTATION, ANDROIDX_NONNULL),
+                extraArguments = arrayOf(*extraArguments),
                 skipEmitPackages = skipEmitPackages,
                 format = format
             )
