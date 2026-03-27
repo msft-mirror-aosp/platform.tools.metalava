@@ -258,15 +258,13 @@ class StubsRecordClassTest : AbstractStubsTest() {
                       }
                     }
                """,
-            // TODO(b/482390286): Does not compile as type parameter is missing. Fix.
-            checkCompilation = false,
             stubFiles =
                 arrayOf(
                     java(
                         """
                             package test.pkg;
                             @SuppressWarnings({"unchecked", "deprecation", "all"})
-                            public record Test(T c) {
+                            public record Test<T>(T c) {
                             public T c() { throw new RuntimeException("Stub!"); }
                             }
                         """
@@ -314,11 +312,10 @@ class StubsRecordClassTest : AbstractStubsTest() {
             stubFiles =
                 arrayOf(
                     java(
-                        // TODO(b/482390286): Does not implement interface.
                         """
                             package test.pkg;
                             @SuppressWarnings({"unchecked", "deprecation", "all"})
-                            public record Test(int c) {
+                            public record Test(int c) implements test.pkg.Interface {
                             public int c() { throw new RuntimeException("Stub!"); }
                             }
                         """
