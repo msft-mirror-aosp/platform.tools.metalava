@@ -171,7 +171,6 @@ class StubsConstructorTest : AbstractStubsTest() {
     fun `Arguments to super constructors with showAnnotations`() {
         // When overriding constructors we have to supply arguments
         checkStubs(
-            showAnnotations = arrayOf("android.annotation.SystemApi"),
             sourceFiles =
                 arrayOf(
                     java(
