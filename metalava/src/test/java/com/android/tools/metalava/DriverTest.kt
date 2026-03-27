@@ -94,6 +94,7 @@ import java.io.PrintStream
 import java.io.PrintWriter
 import java.io.StringWriter
 import java.net.URI
+import junit.framework.ComparisonFailure
 import kotlin.text.Charsets.UTF_8
 import org.intellij.lang.annotations.Language
 import org.junit.Assert.assertEquals
@@ -164,10 +165,9 @@ abstract class DriverTest :
                 )
             val exitCode = Driver.run(executionEnvironment, args)
             if (exitCode == 0) {
-                assertTrue(
-                    "Test expected to fail but didn't. Expected failure: $expectedFail",
-                    expectedFail.isEmpty()
-                )
+                if (expectedFail.isNotEmpty()) {
+                    errorCollector.addError(AssertionError(expectedFail))
+                }
             } else {
                 val actualFail = cleanupString(sw.toString(), null).trim()
                 if (expectedFail != actualFail) {
@@ -184,23 +184,15 @@ abstract class DriverTest :
                         // the signature was passed at the same time
                         // ignore
                     } else {
-                        if (reportedCompatError) {
-                            // if a compatibility error was unexpectedly reported, then mark that as
-                            // an error but keep going, so we can see the actual compatibility error
-                            if (expectedFail != actualFail) {
-                                addError(
-                                    "ComparisonFailure: expected failure $expectedFail, actual $actualFail"
-                                )
-                            }
-                        } else {
-                            // no compatibility error; check for other errors now, and
-                            // if one is found, fail right away
-                            assertEquals(
-                                "expectedFail does not match actual failures",
+                        // If the failure was unexpected then report an error but carry on so that
+                        // other checks can be performed.
+                        val failure =
+                            ComparisonFailure(
+                                "expectedFailure mismatch",
                                 expectedFail,
-                                actualFail
+                                actualFail,
                             )
-                        }
+                        errorCollector.addError(failure)
                     }
                 }
             }
