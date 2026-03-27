@@ -18,14 +18,15 @@ package com.android.tools.metalava
 
 import com.android.tools.metalava.model.text.FORMAT_V6_WITHOUT_JAVA_RECORD_CLASSES
 import com.android.tools.metalava.model.text.FORMAT_V6_WITH_JAVA_RECORD_CLASSES
+import com.android.tools.metalava.stub.AbstractStubsTest
 import com.android.tools.metalava.testing.KnownSourceFiles
 import com.android.tools.metalava.testing.java
 import org.junit.Test
 
-class RecordClassTest : DriverTest() {
+class RecordClassTest : AbstractStubsTest() {
     @Test
     fun `Test record class with java-record-classes=no`() {
-        check(
+        checkStubs(
             format = FORMAT_V6_WITHOUT_JAVA_RECORD_CLASSES,
             sourceFiles =
                 arrayOf(
@@ -50,7 +51,6 @@ class RecordClassTest : DriverTest() {
                       }
                     }
                 """,
-            checkCompilation = true,
             stubFiles =
                 arrayOf(
                     java(
@@ -69,7 +69,7 @@ class RecordClassTest : DriverTest() {
 
     @Test
     fun `Test record class with int components and additional String constructor`() {
-        check(
+        checkStubs(
             format = FORMAT_V6_WITH_JAVA_RECORD_CLASSES,
             sourceFiles =
                 arrayOf(
@@ -102,7 +102,6 @@ class RecordClassTest : DriverTest() {
                       }
                     }
                 """,
-            checkCompilation = true,
             stubFiles =
                 arrayOf(
                     java(
@@ -123,7 +122,7 @@ class RecordClassTest : DriverTest() {
 
     @Test
     fun `Test record class with String components and additional int constructor`() {
-        check(
+        checkStubs(
             format = FORMAT_V6_WITH_JAVA_RECORD_CLASSES,
             sourceFiles =
                 arrayOf(
@@ -156,7 +155,6 @@ class RecordClassTest : DriverTest() {
                       }
                     }
                 """,
-            checkCompilation = true,
             stubFiles =
                 arrayOf(
                     java(
@@ -180,7 +178,7 @@ class RecordClassTest : DriverTest() {
 
     @Test
     fun `Test record class with int component and overrides of Object methods`() {
-        check(
+        checkStubs(
             format = FORMAT_V6_WITH_JAVA_RECORD_CLASSES,
             sourceFiles =
                 arrayOf(
@@ -216,7 +214,8 @@ class RecordClassTest : DriverTest() {
                       }
                     }
                 """,
-            checkCompilation = true,
+            // Includes extra overrides that are not present in the signature file.
+            checkTextStubEquivalence = false,
             stubFiles =
                 arrayOf(
                     java(
