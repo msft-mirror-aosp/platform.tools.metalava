@@ -20,6 +20,7 @@ import com.android.tools.lint.checks.infrastructure.TestFile
 import com.android.tools.metalava.ARG_EXCLUDE_ANNOTATION
 import com.android.tools.metalava.DriverTest
 import com.android.tools.metalava.model.ANDROIDX_NONNULL
+import com.android.tools.metalava.model.text.FORMAT_V5_WITH_JAVA_STYLE
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.testing.java
 import org.intellij.lang.annotations.Language
@@ -36,7 +37,7 @@ abstract class AbstractStubsTest : DriverTest() {
         docStubs: Boolean = false,
         showAnnotations: Array<String> = emptyArray(),
         skipEmitPackages: List<String>? = null,
-        format: FileFormat = FileFormat.V5,
+        format: FileFormat = FORMAT_V5_WITH_JAVA_STYLE,
         sourceFiles: Array<TestFile> = emptyArray(),
         signatureSources: Array<String> = emptyArray(),
         checkCompilation: Boolean = true,
