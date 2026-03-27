@@ -169,8 +169,8 @@ abstract class DriverTest :
                     expectedFail.isEmpty()
                 )
             } else {
-                val actualFail = cleanupString(sw.toString(), null)
-                if (cleanupString(expectedFail, null).trim() != actualFail.trim()) {
+                val actualFail = cleanupString(sw.toString(), null).trim()
+                if (cleanupString(expectedFail, null) != actualFail) {
                     val reportedCompatError =
                         actualFail.startsWith(
                             "Aborting: Found compatibility problems checking the "
@@ -187,7 +187,7 @@ abstract class DriverTest :
                         if (reportedCompatError) {
                             // if a compatibility error was unexpectedly reported, then mark that as
                             // an error but keep going, so we can see the actual compatibility error
-                            if (expectedFail.trimIndent() != actualFail) {
+                            if (expectedFail != actualFail) {
                                 addError(
                                     "ComparisonFailure: expected failure $expectedFail, actual $actualFail"
                                 )
@@ -197,7 +197,7 @@ abstract class DriverTest :
                             // if one is found, fail right away
                             assertEquals(
                                 "expectedFail does not match actual failures",
-                                expectedFail.trimIndent(),
+                                expectedFail,
                                 actualFail
                             )
                         }
@@ -592,7 +592,7 @@ abstract class DriverTest :
 
         val actualExpectedFail =
             when {
-                expectedFail != null -> expectedFail
+                expectedFail != null -> expectedFail.trimIndent()
                 (releasedApiCheck.required() || releasedRemovedApiCheck.required()) &&
                     expectedIssues?.contains(": error:") == true -> {
                     "Aborting: Found compatibility problems"
