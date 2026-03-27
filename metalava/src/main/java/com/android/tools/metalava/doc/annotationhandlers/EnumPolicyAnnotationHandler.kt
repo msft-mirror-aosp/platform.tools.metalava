@@ -16,11 +16,17 @@
 
 package com.android.tools.metalava.doc.annotationhandlers
 
+import com.android.tools.metalava.model.ANDROIDX_INT_DEF
 import com.android.tools.metalava.model.AnnotationItem
+import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.value.AnnotationValue
+import com.android.tools.metalava.model.value.ClassObjectValue
+import com.android.tools.metalava.model.value.FieldReferenceValue
+import com.android.tools.metalava.model.value.asAny
+import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
 import java.util.function.Predicate
 
@@ -37,7 +43,7 @@ class EnumPolicyAnnotationHandler(
     /** Processes a policy annotation and returns a documentation string. */
     override fun processPolicyAnnotation(annotation: AnnotationItem, item: Item): String {
         val resolutionMechanismDoc = buildResolutionMechanismDoc(annotation, item)
-        // TODO(b/492421367): handles the intDef field.
+        val enumValueToCodeReference = buildEnumValueToCodeReferenceMap(annotation, item)
         val defaultValue =
             annotation.getIntAttribute("defaultValue").elseReportMissing(item, "defaultValue") ?: -1
 
@@ -52,8 +58,19 @@ class EnumPolicyAnnotationHandler(
             append("\n<p>Policy Type: Enum</p>\n <ul>\n")
             append(baseDocs)
             append("   <li>Resolution Mechanism: $resolutionMechanismDoc</li>\n")
-            // TODO(b/492421367): show the enum name rather than integer value.
-            append("   <li>Default Enum policy value: $defaultValue</li>\n")
+            if (enumValueToCodeReference.isNotEmpty()) {
+                append("   <li>Enum policy values:\n     <ul>\n")
+                enumValueToCodeReference.entries
+                    .map { entry ->
+                        if (entry.key == defaultValue) {
+                            "        <li>${entry.value} (default)</li>\n"
+                        } else {
+                            "        <li>${entry.value}</li>\n"
+                        }
+                    }
+                    .joinTo(this, separator = "")
+                append("     </ul>\n   </li>\n")
+            }
             append(" </ul>\n")
         }
     }
@@ -85,5 +102,77 @@ class EnumPolicyAnnotationHandler(
         }
 
         return resolutionMechanismDoc
+    }
+
+    /**
+     * Build a map from the enum integer values to the corresponding integer variable's code
+     * reference. For example:
+     * ```
+     * class SomeClass {
+     *   int ENUM_VALUE_1 = 1;
+     *   int ENUM_VALUE_2 = 2;
+     *   @IntDef({
+     *     ENUM_VALUE_1,
+     *     ENUM_VALUE_2,
+     *   })
+     *   public @interface SomeEnumValue {}
+     * }
+     * ```
+     *
+     * will be translated to:
+     * ```
+     * {
+     *   1: "{@link SomeClass.SomeEnumValue#ENUM_VALUE_1}",
+     *   2: "{@link SomeClass.SomeEnumValue#ENUM_VALUE_2}",
+     * }
+     * ```
+     */
+    private fun buildEnumValueToCodeReferenceMap(
+        annotation: AnnotationItem,
+        item: Item
+    ): Map<Int, String> {
+        // Get the enum value class object. Currently the @EnumPolicyDefinition annotation's intDef
+        // field is of type: Class<?>.
+        val enumValueClassObject = annotation.findAttribute("intDef")?.value as? ClassObjectValue
+        val qualifiedName = (enumValueClassObject?.typeItem as? ClassTypeItem)?.qualifiedName
+        val classItem = qualifiedName?.let { codebase.resolveClass(it) }
+
+        // Find the @IntDef annotation of the enum value class
+        val intDefAnnotation =
+            classItem?.modifiers?.annotations()?.find { it.qualifiedName == ANDROIDX_INT_DEF }
+
+        val enumValueAttrs =
+            intDefAnnotation?.findAttribute("value")?.value?.asFlatList() ?: emptyList()
+
+        val enumValueToName = mutableMapOf<Int, String>()
+
+        for (enumValueAttr in enumValueAttrs) {
+            if (enumValueAttr is FieldReferenceValue) {
+                val qualifiedClassName = enumValueAttr.qualifiedClassName
+                val fieldName = enumValueAttr.fieldName
+                val fieldItem = enumValueAttr.resolve()
+                val fieldValue = fieldItem?.constantValue?.asAny() as? Int
+                if (fieldValue == null) {
+                    reporter.report(
+                        Issues.INVALID_DEVICE_POLICY_ANNOTATION,
+                        item,
+                        "Failed to resolve the value of: $fieldName"
+                    )
+                    continue
+                }
+                if (filterReference.test(fieldItem)) {
+                    val link = "{@link $qualifiedClassName#$fieldName}"
+                    enumValueToName[fieldValue] = link
+                } else {
+                    reporter.report(
+                        Issues.INVALID_DEVICE_POLICY_ANNOTATION,
+                        item,
+                        "Cannot locate $fieldName required by $item (may be hidden or removed)"
+                    )
+                    enumValueToName[fieldValue] = fieldName
+                }
+            }
+        }
+        return enumValueToName
     }
 }

@@ -17,6 +17,7 @@
 package com.android.tools.metalava.doc.annotationhandlers
 
 import com.android.tools.metalava.DriverTest
+import com.android.tools.metalava.intDefAnnotationSource
 import com.android.tools.metalava.lint.DefaultLintErrorMessage
 import com.android.tools.metalava.testing.java
 import org.junit.Test
@@ -62,16 +63,34 @@ class EnumPolicyAnnotationHandlerTest : DriverTest() {
         java(
             """
             package android.processor.devicepolicy;
+
+            import android.annotation.IntDef;
             import java.lang.annotation.Retention;
             import java.lang.annotation.RetentionPolicy;
 
-            @Retention(RetentionPolicy.SOURCE)
-            public @interface EnumPolicyValue {}
+            public final class EnumPolicyValues {
+                public static final int ENUM_POLICY_VALUE_1 = 1;
+                public static final int ENUM_POLICY_VALUE_2 = 2;
+
+                /**
+                 * Possible values.
+                 *
+                 * @hide
+                 */
+                @Retention(RetentionPolicy.SOURCE)
+                @IntDef(
+                        prefix = {"ENUM_POLICY_"},
+                        value = {
+                            ENUM_POLICY_VALUE_1,
+                            ENUM_POLICY_VALUE_2,
+                    })
+                public @interface EnumPolicyValue {}
+            }
 
             @Retention(RetentionPolicy.SOURCE)
             public @interface EnumPolicyDefinition {
                 PolicyDefinition base();
-                Class<?> intDef() default EnumPolicyValue.class;
+                Class<?> intDef();
                 EnumResolutionMechanism resolutionMechanism() default @EnumResolutionMechanism();
                 int defaultValue() default 0;
             }
@@ -103,11 +122,12 @@ class EnumPolicyAnnotationHandlerTest : DriverTest() {
                     androidManifestSource,
                     policyDefinitionSource,
                     enumPolicyDefinitionSource,
+                    intDefAnnotationSource,
                     java(
                         """
                         package test.pkg;
                         import android.processor.devicepolicy.EnumPolicyDefinition;
-                        import android.processor.devicepolicy.EnumPolicyValue;
+                        import android.processor.devicepolicy.EnumPolicyValues.EnumPolicyValue;
                         import android.processor.devicepolicy.PolicyDefinition;
                         import android.processor.devicepolicy.EnumResolutionMechanism;
 
@@ -152,7 +172,12 @@ class EnumPolicyAnnotationHandlerTest : DriverTest() {
                          *   <li>Affected Resource: Device Wide</li>
                          *   <li>Required Permission: {@link android.Manifest.permission#ENUM_TEST android.permission.ENUM_TEST}</li>
                          *   <li>Resolution Mechanism: custom</li>
-                         *   <li>Default Enum policy value: 1</li>
+                         *   <li>Enum policy values:
+                         *     <ul>
+                         *        <li>{@link android.processor.devicepolicy.EnumPolicyValues#ENUM_POLICY_VALUE_1} (default)</li>
+                         *        <li>{@link android.processor.devicepolicy.EnumPolicyValues#ENUM_POLICY_VALUE_2}</li>
+                         *     </ul>
+                         *   </li>
                          * </ul>
                          */
                         public static final int POLICY_FIELD = 1;
@@ -170,11 +195,12 @@ class EnumPolicyAnnotationHandlerTest : DriverTest() {
                 arrayOf(
                     policyDefinitionSource,
                     enumPolicyDefinitionSource,
+                    intDefAnnotationSource,
                     java(
                         """
                         package test.pkg;
                         import android.processor.devicepolicy.EnumPolicyDefinition;
-                        import android.processor.devicepolicy.EnumPolicyValue;
+                        import android.processor.devicepolicy.EnumPolicyValues.EnumPolicyValue;
                         import android.processor.devicepolicy.PolicyDefinition;
                         import android.processor.devicepolicy.EnumResolutionMechanism;
 
@@ -225,7 +251,12 @@ class EnumPolicyAnnotationHandlerTest : DriverTest() {
                          *   <li>Affected Resource: Per User</li>
                          *   <li>Required Permission: android.permission.DOES_NOT_EXIST</li>
                          *   <li>Resolution Mechanism: </li>
-                         *   <li>Default Enum policy value: 1</li>
+                         *   <li>Enum policy values:
+                         *     <ul>
+                         *        <li>{@link android.processor.devicepolicy.EnumPolicyValues#ENUM_POLICY_VALUE_1} (default)</li>
+                         *        <li>{@link android.processor.devicepolicy.EnumPolicyValues#ENUM_POLICY_VALUE_2}</li>
+                         *     </ul>
+                         *   </li>
                          * </ul>
                          */
                         public static final int POLICY_FIELD = 1;
