@@ -233,4 +233,97 @@ class StubsRecordClassTest : AbstractStubsTest() {
                 ),
         )
     }
+
+    @Test
+    fun `Test record class with generic component`() {
+        checkStubs(
+            format = FORMAT_V6_WITH_JAVA_RECORD_CLASSES,
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+
+                            public record Test<T>(T c) {}
+                        """
+                    ),
+                ),
+            api =
+                """
+                    package test.pkg {
+                      public record Test<T> {
+                        record_component #0 c: T;
+                        ctor public Test(T);
+                        method public T c();
+                      }
+                    }
+               """,
+            // TODO(b/482390286): Does not compile as type parameter is missing. Fix.
+            checkCompilation = false,
+            stubFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            @SuppressWarnings({"unchecked", "deprecation", "all"})
+                            public record Test(T c) {
+                            public T c() { throw new RuntimeException("Stub!"); }
+                            }
+                        """
+                    ),
+                ),
+        )
+    }
+
+    @Test
+    fun `Test record class implementing an interface`() {
+        checkStubs(
+            format = FORMAT_V6_WITH_JAVA_RECORD_CLASSES,
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+
+                            public interface Interface {
+                                int c();
+                            }
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+
+                            public record Test(int c) implements Interface {}
+                        """
+                    ),
+                ),
+            api =
+                """
+                    package test.pkg {
+                      public interface Interface {
+                        method public int c();
+                      }
+                      public record Test implements test.pkg.Interface {
+                        record_component #0 c: int;
+                        ctor public Test(int);
+                        method public int c();
+                      }
+                    }
+               """,
+            stubFiles =
+                arrayOf(
+                    java(
+                        // TODO(b/482390286): Does not implement interface.
+                        """
+                            package test.pkg;
+                            @SuppressWarnings({"unchecked", "deprecation", "all"})
+                            public record Test(int c) {
+                            public int c() { throw new RuntimeException("Stub!"); }
+                            }
+                        """
+                    ),
+                ),
+        )
+    }
 }
