@@ -75,6 +75,9 @@ abstract class AbstractStubsTest : DriverTest() {
                 signatureSources = arrayOf(readFileFilterBlankLines(getApiFile())),
                 showAnnotations = showAnnotations,
                 stubFiles = stubFilesArr,
+                // Signature files do not contain parameter names so ignore them when comparing stub
+                // files.
+                ignoreParameterNamesInStubFiles = true,
                 checkCompilation = checkCompilation,
                 extraArguments = arrayOf(*extraArguments, ARG_EXCLUDE_ANNOTATION, ANDROIDX_NONNULL),
                 skipEmitPackages = skipEmitPackages,
