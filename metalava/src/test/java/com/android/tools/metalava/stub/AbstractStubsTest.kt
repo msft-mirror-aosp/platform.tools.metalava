@@ -40,9 +40,13 @@ abstract class AbstractStubsTest : DriverTest() {
         sourceFiles: Array<TestFile> = emptyArray(),
         signatureSources: Array<String> = emptyArray(),
         checkCompilation: Boolean = true,
-        checkTextStubEquivalence: Boolean = false,
+        checkTextStubEquivalence: Boolean? = null,
     ) {
         val stubFilesArr = if (source.isNotEmpty()) arrayOf(java(source)) else stubFiles
+        if (stubFilesArr.isEmpty()) {
+            error("must provide at least one expected stub files")
+        }
+
         check(
             sourceFiles = sourceFiles,
             signatureSources = signatureSources,
@@ -56,21 +60,10 @@ abstract class AbstractStubsTest : DriverTest() {
             skipEmitPackages = skipEmitPackages,
             format = format,
         )
-        if (checkTextStubEquivalence) {
-            if (stubFilesArr.isEmpty()) {
-                addError(
-                    "Stub files may not be empty when checkTextStubEquivalence is set to true."
-                )
-                return
-            }
-            if (docStubs) {
-                addError("From-text stub generation is not supported for documentation stub.")
-                return
-            }
-            if (stubFilesArr.any { it !is TestFile.JavaTestFile }) {
-                addError("From-text stub generation is only supported for Java stubs.")
-                return
-            }
+        if (checkTextStubEquivalence == true) {
+            error("checkTextStubEquivalence defaults to true where possible")
+        }
+        if (checkTextStubEquivalence ?: !docStubs) {
             check(
                 signatureSources = arrayOf(readFileFilterBlankLines(getApiFile())),
                 showAnnotations = showAnnotations,

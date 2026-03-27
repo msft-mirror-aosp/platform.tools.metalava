@@ -163,7 +163,6 @@ class StubsConstructorTest : AbstractStubsTest() {
                     }
                     }
                     """,
-            checkTextStubEquivalence = true
         )
     }
 

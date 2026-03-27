@@ -535,6 +535,8 @@ class StubsAnnotationTest : AbstractStubsTest() {
                 }
                 }
                 """,
+            // Includes documentation so cannot match what is generated from signature file.
+            checkTextStubEquivalence = false,
         )
     }
 
