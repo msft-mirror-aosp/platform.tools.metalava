@@ -14,16 +14,15 @@
  * limitations under the License.
  */
 
-package com.android.tools.metalava
+package com.android.tools.metalava.stub
 
 import com.android.tools.metalava.model.text.FORMAT_V6_WITHOUT_JAVA_RECORD_CLASSES
 import com.android.tools.metalava.model.text.FORMAT_V6_WITH_JAVA_RECORD_CLASSES
-import com.android.tools.metalava.stub.AbstractStubsTest
 import com.android.tools.metalava.testing.KnownSourceFiles
 import com.android.tools.metalava.testing.java
 import org.junit.Test
 
-class RecordClassTest : AbstractStubsTest() {
+class StubsRecordClassTest : AbstractStubsTest() {
     @Test
     fun `Test record class with java-record-classes=no`() {
         checkStubs(
