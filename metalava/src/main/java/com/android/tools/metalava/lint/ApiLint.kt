@@ -50,10 +50,13 @@ import com.android.tools.metalava.lint.ResourceType.TRANSITION
 import com.android.tools.metalava.lint.ResourceType.XML
 import com.android.tools.metalava.manifest.Manifest
 import com.android.tools.metalava.manifest.SetMinSdkVersion
+import com.android.tools.metalava.manifest.emptyManifest
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ArrayTypeItem
+import com.android.tools.metalava.model.BaseTypeVisitor
 import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.ClassOrVariableTypeItem
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.ConstructorItem
@@ -61,6 +64,7 @@ import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.FilterPredicate
 import com.android.tools.metalava.model.InheritableItem
 import com.android.tools.metalava.model.Item
+import com.android.tools.metalava.model.JAVA_LANG_STRING
 import com.android.tools.metalava.model.JAVA_LANG_THROWABLE
 import com.android.tools.metalava.model.MemberItem
 import com.android.tools.metalava.model.MethodItem
@@ -68,6 +72,7 @@ import com.android.tools.metalava.model.MultipleTypeVisitor
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.PrimitiveTypeItem
+import com.android.tools.metalava.model.PrimitiveTypeItem.Primitive
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.TargetLanguageSet
 import com.android.tools.metalava.model.TypeItem
@@ -76,6 +81,7 @@ import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.TypeParameterListOwner
 import com.android.tools.metalava.model.TypeStringConfiguration
 import com.android.tools.metalava.model.VariableTypeItem
+import com.android.tools.metalava.model.WildcardTypeItem
 import com.android.tools.metalava.model.findAnnotation
 import com.android.tools.metalava.model.hasAnnotation
 import com.android.tools.metalava.model.value.asInt
@@ -83,7 +89,6 @@ import com.android.tools.metalava.model.value.asString
 import com.android.tools.metalava.model.visitors.ApiPredicate
 import com.android.tools.metalava.model.visitors.ApiType
 import com.android.tools.metalava.model.visitors.ApiVisitor
-import com.android.tools.metalava.options
 import com.android.tools.metalava.reporter.FileLocation
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Issues.ABSTRACT_INNER
@@ -195,15 +200,28 @@ private constructor(
     private val codebase: Codebase,
     oldCodebase: Codebase?,
     reporter: Reporter,
-    private val manifest: Manifest,
     apiPredicateConfig: ApiPredicate.Config,
-    private val allowedAcronyms: List<String>,
+    private val config: Config,
 ) :
     ApiVisitor(
         visitParameterItems = false,
         apiFilters = ApiType.PUBLIC_API.getNonElidingApiFilters(apiPredicateConfig),
         targetLanguages = TargetLanguageSet.SOURCE,
     ) {
+
+    data class Config(
+        /** Platform [Manifest] from which */
+        val manifest: Manifest = emptyManifest,
+
+        /** The list of allowed acronyms. */
+        val allowedAcronyms: List<String> = emptyList(),
+    )
+
+    private val manifest
+        get() = config.manifest
+
+    private val allowedAcronyms
+        get() = config.allowedAcronyms
 
     private val filteredReporter = FilteringReporter(reporter, oldCodebase, filterEmit)
 
@@ -232,8 +250,8 @@ private constructor(
         val allCallables = methods.asSequence() + constructors.asSequence()
         filteredReporter.withContext(cls) {
             checkClass(cls, methods, constructors, allCallables, fields, superClass, interfaces)
+            kotlinInterop.checkClass(cls, allCallables + fields)
         }
-        kotlinInterop.checkClass(cls, allCallables + fields)
     }
 
     override fun visitCallable(callable: CallableItem) {
@@ -267,6 +285,10 @@ private constructor(
         }
     }
 
+    override fun visitConstructor(constructor: ConstructorItem) {
+        filteredReporter.withContext(constructor) { kotlinInterop.checkConstructor(constructor) }
+    }
+
     override fun visitField(field: FieldItem) {
         filteredReporter.withContext(field) {
             checkField(field)
@@ -287,7 +309,7 @@ private constructor(
         checkCollectionsOverArrays(type, typeString, item)
         checkBoxed(type, item)
         checkIcu(type, typeString, item)
-        checkBitSet(type, typeString, item)
+        checkBitSet(type, item)
         checkHasNullability(item)
         checkUri(typeString, item)
         checkFutures(typeString, item)
@@ -296,16 +318,23 @@ private constructor(
     // Enforce type parameter naming rules:
     // https://developer.android.com/kotlin/style-guide#type_variable_names
     fun <T> checkTypeParameterNames(item: T) where T : Item, T : TypeParameterListOwner {
-        for (typeParameter: TypeParameterItem in item.typeParameterList) {
-            if (!isValidGenericTypeName(typeParameter.name())) {
-                report(
-                    TYPE_PARAMETER_NAME,
-                    item,
-                    "Invalid type parameter name \"${typeParameter.name()}\". Type parameter names must follow" +
-                        " the Google naming guidelines specified here:" +
-                        " https://developer.android.com/kotlin/style-guide#type_variable_names"
-                )
-            }
+        val invalidTypeParameters =
+            item.typeParameterList
+                .filter { !isValidGenericTypeName(it.name()) }
+                .map { "\"${it.name()}\"" }
+
+        if (invalidTypeParameters.isNotEmpty()) {
+            report(
+                TYPE_PARAMETER_NAME,
+                item,
+                "Invalid type parameter ${if (invalidTypeParameters.size > 1) "names" else "name"} ${
+                    invalidTypeParameters.joinToString(
+                        separator = ", "
+                    )
+                }. Type parameter names must follow" +
+                    " the Google naming guidelines specified here:" +
+                    " https://developer.android.com/kotlin/style-guide#type_variable_names"
+            )
         }
     }
 
@@ -351,7 +380,12 @@ private constructor(
         checkGoogle(cls, methods, fields)
         checkManager(cls, methods, constructors)
         checkStaticUtils(cls, methods, constructors, fields)
-        checkCallbackHandlers(cls, callables, superClass)
+        // suspend funs are assumed to follow the rules of structured concurrency by default:
+        // any callbacks supplied to a suspend fun will not be called (nor references to them held)
+        // after the call returns. The calling CoroutineContext generally contains a
+        // ContinuationInterceptor/CoroutineDispatcher which provides a default analog to an
+        // Executor; the ExecutorRegistration lint check is not necessary for suspend funs.
+        checkCallbackHandlers(cls, callables.filterNot { it.modifiers.isSuspend() }, superClass)
         checkGenericCallbacks(cls, methods, constructors, fields)
         checkResourceNames(cls, fields)
         checkFiles(callables)
@@ -435,6 +469,9 @@ private constructor(
     }
 
     private fun checkClassNames(cls: ClassItem) {
+        // Don't check the name for the class generated to hold top level declarations, which isn't
+        // a real class.
+        if (cls.simpleName() == ClassItem.TOP_LEVEL_DECLARATION_FACADE_NAME) return
         // Existing violations
         val qualifiedName = cls.qualifiedName()
         if (
@@ -631,11 +668,16 @@ private constructor(
             method.parameters().size == 1 &&
                 method.name().startsWith("on") &&
                 method.parameters().first().type() !is PrimitiveTypeItem &&
-                method.returnType().toTypeString() == Void.TYPE.name
+                (method.returnType() as? PrimitiveTypeItem)?.kind == Primitive.VOID
 
         if (!methods.all(::isSingleParamCallbackMethod)) return
 
-        fun TypeItem.extendsThrowable() = asClass()?.extends(JAVA_LANG_THROWABLE) ?: false
+        fun TypeItem.extendsThrowable() =
+            // The only types that can represent a Throwable are either a type parameter or class.
+            (this as? ClassOrVariableTypeItem)
+                ?.asErasedClass(codebase)
+                ?.extends(JAVA_LANG_THROWABLE) == true
+
         fun isErrorMethod(method: MethodItem) =
             method.name().run { startsWith("onError") || startsWith("onFail") } &&
                 method.parameters().first().type().extendsThrowable()
@@ -1062,35 +1104,59 @@ private constructor(
         }
     }
 
+    /**
+     * Check to see whether [builderClass] is following the builder pattern as defined in
+     * http://go/android-api-guidelines#builders and if it is make sure that it is following the
+     * guidelines correctly.
+     */
     private fun checkBuilder(
-        cls: ClassItem,
+        builderClass: ClassItem,
         methods: Sequence<MethodItem>,
         constructors: Sequence<ConstructorItem>,
         superClass: ClassItem?,
         interfaces: Sequence<TypeItem>,
     ) {
-        if (!cls.simpleName().endsWith("Builder")) {
+        // A class is considered to be following the builder pattern if and only if:
+        // * Its name ends with "Builder".
+        // * It directly extends `java.lang.Object` (implicitly or otherwise).
+        // * It does not implement any interfaces.
+        if (
+            !builderClass.simpleName().endsWith("Builder") ||
+                (superClass != null && !superClass.isJavaLangObject()) ||
+                interfaces.any()
+        ) {
             return
         }
-        if (superClass != null && !superClass.isJavaLangObject()) {
-            return
-        }
-        if (interfaces.any()) {
-            return
-        }
-        if (cls.isTopLevelClass()) {
+
+        // Builders must be nested class of the class they are building.
+        if (builderClass.isTopLevelClass()) {
             report(
                 TOP_LEVEL_BUILDER,
-                cls,
-                "Builder should be defined as inner class: ${cls.qualifiedName()}"
+                builderClass,
+                "Builder should be defined as nested class: ${builderClass.qualifiedName()}"
             )
         }
-        if (!cls.modifiers.isFinal()) {
-            report(STATIC_FINAL_BUILDER, cls, "Builder must be final: ${cls.qualifiedName()}")
+
+        // They must be final classes.
+        if (!builderClass.modifiers.isFinal()) {
+            report(
+                STATIC_FINAL_BUILDER,
+                builderClass,
+                "Builder must be final: ${builderClass.qualifiedName()}"
+            )
         }
-        if (!cls.modifiers.isStatic() && !cls.isTopLevelClass()) {
-            report(STATIC_FINAL_BUILDER, cls, "Builder must be static: ${cls.qualifiedName()}")
+
+        // They must be static classes.
+        if (!builderClass.modifiers.isStatic() && !builderClass.isTopLevelClass()) {
+            report(
+                STATIC_FINAL_BUILDER,
+                builderClass,
+                "Builder must be static: ${builderClass.qualifiedName()}"
+            )
         }
+
+        // Constructor arguments cannot be optional, i.e. nullable. Options properties must be set
+        // using setter methods.
         for (constructor in constructors) {
             for (arg in constructor.parameters()) {
                 if (arg.type().modifiers.isNullable) {
@@ -1102,14 +1168,18 @@ private constructor(
                 }
             }
         }
+
         // Maps each setter to a list of potential getters that would satisfy it.
         val expectedGetters = mutableListOf<Pair<Item, Set<String>>>()
         var builtType: TypeItem? = null
-        val clsType = cls.type()
+        val builderType = builderClass.type()
 
         for (method in methods) {
             val name = method.name()
             if (name == "build") {
+                // TODO(b/477255952): Provide stricter checking of the `build` methods.
+                // * What is there are multiple matching methods? At the moment it just uses the
+                //   last one it finds.
                 builtType = method.type()
                 continue
             } else if (name.startsWith("get") || name.startsWith("is")) {
@@ -1122,14 +1192,15 @@ private constructor(
                 name.startsWith("set") || name.startsWith("add") || name.startsWith("clear")
             ) {
                 val returnType = method.returnType()
-                val methodReturnsBuilderClassType =
-                    clsType.isAssignableFromWithoutUnboxing(returnType)
-                if (!methodReturnsBuilderClassType) {
+
+                // If the return type and builder type are not equal (after erasing to handle
+                // type variables) then it is an error.
+                if (returnType.asErasedType() != builderType.asErasedType()) {
                     report(
                         SETTER_RETURNS_THIS,
                         method,
                         "Methods must return the builder object (return type " +
-                            "$clsType instead of $returnType): ${method.describe()}"
+                            "$builderType instead of $returnType): ${method.describe()}"
                     )
                 }
 
@@ -1200,31 +1271,65 @@ private constructor(
         if (builtType == null) {
             report(
                 MISSING_BUILD_METHOD,
-                cls,
-                "${cls.qualifiedName()} does not declare a `build()` method, but builder classes are expected to"
+                builderClass,
+                "${builderClass.qualifiedName()} does not declare a `build()` method, but builder classes are expected to"
             )
         }
-        builtType?.asClass()?.let { builtClass ->
-            val builtMethods =
-                builtClass
-                    .filteredMethods(filterReference, includeSuperClassMethods = true)
-                    .map { it.name() }
-                    .toSet()
-            for ((setter, expectedGetterNames) in expectedGetters) {
-                if (builtMethods.intersect(expectedGetterNames).isEmpty()) {
-                    val expectedGetterCalls = expectedGetterNames.map { "$it()" }
-                    val errorString =
-                        if (expectedGetterCalls.size == 1) {
-                            "${builtClass.qualifiedName()} does not declare a " +
-                                "`${expectedGetterCalls.first()}` method matching " +
-                                setter.describe()
-                        } else {
-                            "${builtClass.qualifiedName()} does not declare a getter method " +
-                                "matching ${setter.describe()} (expected one of: " +
-                                "$expectedGetterCalls)"
-                        }
-                    report(MISSING_GETTER_MATCHING_BUILDER, setter, errorString)
-                }
+
+        // TODO(b/477255952): Provide stricter checking of the `build` methods.
+        // 1. What if the returned type is an array of classes? At the moment that is
+        //    allowed and this will run the check for expected getters on the innermost component.
+        // 2. What if the returned type is not a class? At the moment that is allowed but
+        //    it is not clear if that makes sense.
+        // 3. What is the built class cannot be resolved? At the moment that is allowed.
+        // 4. Types that are allowed but do not resolve to a class, e.g. primitives, are ignored
+        //    here.
+
+        // Resolve the built type to a class, if possible.
+        builtType?.builtClass()?.let { builtClass ->
+            // Check to make sure it provides the expected getters.
+            checkGettersOnBuiltClass(builtClass, expectedGetters)
+        }
+    }
+
+    /** Get the [ClassItem] being built by a build method that returned this [TypeItem]. */
+    private fun TypeItem.builtClass(): ClassItem? =
+        when (this) {
+            // The built type can either be a ClassTypeItem or a VariableTypeItem.
+            is ClassOrVariableTypeItem -> asErasedClass(codebase)
+
+            // TODO(b/477255952): This should probably be an error.
+            // If it is an array then the built class is considered to be the innermost component.
+            is ArrayTypeItem -> innermostComponentType().builtClass()
+
+            // Otherwise, there is no built class.
+            else -> null
+        }
+
+    /** Check that [builtClass] provides the [expectedGetters]. */
+    private fun checkGettersOnBuiltClass(
+        builtClass: ClassItem,
+        expectedGetters: List<Pair<Item, Set<String>>>,
+    ) {
+        val builtMethods =
+            builtClass
+                .filteredMethods(filterReference, includeSuperClassMethods = true)
+                .map { it.name() }
+                .toSet()
+        for ((setter, expectedGetterNames) in expectedGetters) {
+            if (builtMethods.intersect(expectedGetterNames).isEmpty()) {
+                val expectedGetterCalls = expectedGetterNames.map { "$it()" }
+                val errorString =
+                    if (expectedGetterCalls.size == 1) {
+                        "${builtClass.qualifiedName()} does not declare a " +
+                            "`${expectedGetterCalls.first()}` method matching " +
+                            setter.describe()
+                    } else {
+                        "${builtClass.qualifiedName()} does not declare a getter method " +
+                            "matching ${setter.describe()} (expected one of: " +
+                            "$expectedGetterCalls)"
+                    }
+                report(MISSING_GETTER_MATCHING_BUILDER, setter, errorString)
             }
         }
     }
@@ -1255,13 +1360,59 @@ private constructor(
         }
     }
 
-    private fun checkLayering(
-        cls: ClassItem,
-        callables: Sequence<CallableItem>,
-        fields: Sequence<FieldItem>
-    ) {
-        fun packageRank(pkg: PackageItem): Int {
-            return when (pkg.qualifiedName()) {
+    /** Encapsulate a [packageItem] and its associated [rank]. */
+    private class PackageRank private constructor(private val codebase: Codebase) :
+        BaseTypeVisitor() {
+        /**
+         * The [PackageItem].
+         *
+         * Must only be read if [rank] is not [INVALID_RANK].
+         */
+        private lateinit var packageItem: PackageItem
+
+        private var rank = INVALID_RANK
+
+        /** Construct from a [ClassItem]. */
+        constructor(classItem: ClassItem) : this(classItem.codebase) {
+            // Extract the package item from the class and get its rank.
+            packageItem = classItem.containingPackage()
+            rank = packageItem.packageRank()
+        }
+
+        /** Construct from a [TypeItem]. */
+        constructor(codebase: Codebase, type: TypeItem) : this(codebase) {
+            // Visit the [type] searching for any [ClassTypeItem] references passing in this as the
+            // visitor. This class's visitor methods will ensure that the rank and packageItem are
+            // set the highest package rank for all the classes referenced in this type. If none are
+            // found (or no packages have a valid rank) then it will leave this in an invalid state
+            // so [TypeItem.packageRank] will discard it.
+            type.accept(this)
+        }
+
+        override fun visitClassType(classType: ClassTypeItem) {
+            val classItem = classType.resolveClass(codebase) ?: return
+            val newPackageItem = classItem.containingPackage()
+            val newRank = newPackageItem.packageRank()
+
+            // Use the rank if it is higher than the existing one.
+            if (newRank > rank) {
+                packageItem = newPackageItem
+                rank = newRank
+            }
+        }
+
+        override fun visit(variableType: VariableTypeItem) {
+            // Visit the lower type bound.
+            variableType.asErasedType().accept(this)
+        }
+
+        /**
+         * Get the package rank for this [PackageItem].
+         *
+         * Higher means the package is more restricted about what it can depend upon.
+         */
+        private fun PackageItem.packageRank() =
+            when (qualifiedName()) {
                 "android.service",
                 "android.accessibilityservice",
                 "android.inputmethodservice",
@@ -1283,64 +1434,64 @@ private constructor(
                 "android.graphics" -> 100
                 "android.os" -> 110
                 "android.util" -> 120
-                else -> -1
+                else -> INVALID_RANK
             }
-        }
 
-        fun getTypePackage(type: TypeItem?): PackageItem? {
-            return if (type == null || type is PrimitiveTypeItem) {
-                null
-            } else {
-                type.asClass()?.containingPackage()
-            }
-        }
+        /** True if this is value. */
+        fun valid() = rank != INVALID_RANK
 
-        fun getTypeRank(type: TypeItem?): Int {
-            type ?: return -1
-            val pkg = getTypePackage(type) ?: return -1
-            return packageRank(pkg)
-        }
+        operator fun compareTo(other: PackageRank) = rank.compareTo(other.rank)
 
-        val classPackage = cls.containingPackage()
-        val classRank = packageRank(classPackage)
-        if (classRank == -1) {
-            return
+        override fun toString() = if (valid()) packageItem.toString() else "invalid"
+
+        companion object {
+            /** The invalid or unknown rank. */
+            private const val INVALID_RANK = -1
         }
+    }
+
+    /** Get the [PackageRank] for this [ClassItem], returning `null` if it could not be found. */
+    private fun ClassItem.packageRank() = PackageRank(this).takeIf { it.valid() }
+
+    /** Get the [PackageRank] for this [TypeItem], returning `null` if it could not be found. */
+    private fun TypeItem.packageRank() = PackageRank(codebase, this).takeIf { it.valid() }
+
+    private fun checkLayering(
+        cls: ClassItem,
+        callables: Sequence<CallableItem>,
+        fields: Sequence<FieldItem>
+    ) {
+        val classRank = cls.packageRank() ?: return
+
         for (field in fields) {
-            val fieldTypeRank = getTypeRank(field.type())
-            if (fieldTypeRank != -1 && fieldTypeRank < classRank) {
+            val fieldTypeRank = field.type().packageRank() ?: continue
+            if (fieldTypeRank < classRank) {
                 report(
                     PACKAGE_LAYERING,
-                    cls,
-                    "Field type `${field.type().toTypeString()}` violates package layering: nothing in `$classPackage` should depend on `${getTypePackage(
-                        field.type()
-                    )}`"
+                    field,
+                    "Field type `${field.type().toTypeString()}` violates package layering: nothing in `$classRank` should depend on `$fieldTypeRank`"
                 )
             }
         }
 
         for (callable in callables) {
             val returnType = callable.returnType()
-            val returnTypeRank = getTypeRank(returnType)
-            if (returnTypeRank != -1 && returnTypeRank < classRank) {
+            val returnTypeRank = returnType.packageRank() ?: continue
+            if (returnTypeRank < classRank) {
                 report(
                     PACKAGE_LAYERING,
-                    cls,
-                    "Method return type `${returnType.toTypeString()}` violates package layering: nothing in `$classPackage` should depend on `${getTypePackage(
-                        returnType
-                    )}`"
+                    callable,
+                    "Method return type `${returnType.toTypeString()}` violates package layering: nothing in `$classRank` should depend on `$returnTypeRank`"
                 )
             }
 
             for (parameter in callable.parameters()) {
-                val parameterTypeRank = getTypeRank(parameter.type())
-                if (parameterTypeRank != -1 && parameterTypeRank < classRank) {
+                val parameterTypeRank = parameter.type().packageRank() ?: continue
+                if (parameterTypeRank < classRank) {
                     report(
                         PACKAGE_LAYERING,
-                        cls,
-                        "Method parameter type `${parameter.type().toTypeString()}` violates package layering: nothing in `$classPackage` should depend on `${getTypePackage(
-                            parameter.type()
-                        )}`"
+                        parameter,
+                        "Method parameter type `${parameter.type().toTypeString()}` violates package layering: nothing in `$classRank` should depend on `$parameterTypeRank`"
                     )
                 }
             }
@@ -1444,11 +1595,7 @@ private constructor(
                 return
             }
 
-            // TODO(b/278505954): remove the flag once fully switched to K2 UAST
-            val skipConstructorParameter =
-                @Suppress("DEPRECATION") options.useK2Uast != true &&
-                    propertyItem.constructorParameter != null
-            if (getter.name() != propertyItem.name() && !skipConstructorParameter) {
+            if (getter.name() != propertyItem.name()) {
                 // Only properties beginning with "is" have the correct autogenerated getter name.
                 // Others need to be set with @JvmName.
                 report(
@@ -1475,7 +1622,7 @@ private constructor(
             val name = method.name()
             if (isBooleanGetter(method)) {
                 // Checks for Java and Kotlin getters are handled separately
-                if (method.isKotlinProperty()) {
+                if (method.isKotlinProperty) {
                     checkKotlinProperty(method)
                 } else {
                     val pattern =
@@ -1494,7 +1641,7 @@ private constructor(
             } else if (isBooleanSetter(method)) {
                 // Handled in the getter case (if the setter is part of the API, the getter also
                 // has to be: https://youtrack.jetbrains.com/issue/KT-3110)
-                if (method.isKotlinProperty()) continue
+                if (method.isKotlinProperty) continue
 
                 val pattern =
                     goodBooleanGetterSetterPrefixes.match(name, GetterSetterPattern::setter)
@@ -1513,35 +1660,34 @@ private constructor(
     }
 
     private fun checkCollections(type: TypeItem, item: Item) {
+        // Primitive types cannot be collections.
         if (type is PrimitiveTypeItem) {
             return
         }
 
-        when (type.asClass()?.qualifiedName()) {
-            "java.util.Vector",
-            "java.util.LinkedList",
-            "java.util.ArrayList",
-            "java.util.Stack",
-            "java.util.HashMap",
-            "java.util.HashSet",
-            "android.util.ArraySet",
-            "android.util.ArrayMap" -> {
-                if (item.containingClass()?.qualifiedName() == "android.os.Bundle") {
-                    return
-                }
-                val where =
-                    when (item) {
-                        is MethodItem -> "Return type"
-                        is FieldItem -> "Field type"
-                        else -> "Parameter type"
-                    }
-                val erased = type.toErasedTypeString()
-                report(
-                    CONCRETE_COLLECTION,
-                    item,
-                    "$where is concrete collection (`$erased`); must be higher-level interface"
-                )
+        // The bundle class is allowed to use ArrayList for legacy reasons. This is not an Android
+        // API council guideline but is rather a pragmatic exception due to it using ArrayList
+        // since creation.
+        if (item.containingClass()?.qualifiedName() == "android.os.Bundle") {
+            if (type is ClassTypeItem && type.qualifiedName == "java.util.ArrayList") {
+                return
             }
+        }
+
+        // If the types uses one of the concrete collection classes then it is a problem.
+        if (type.usesAnyClassIn(CONCRETE_COLLECTION_CLASSES)) {
+            val where =
+                when (item) {
+                    is MethodItem -> "Return type"
+                    is FieldItem -> "Field type"
+                    else -> "Parameter type"
+                }
+            val erased = type.toErasedTypeString()
+            report(
+                CONCRETE_COLLECTION,
+                item,
+                "$where is concrete collection (`$erased`); must be higher-level interface"
+            )
         }
     }
 
@@ -1630,14 +1776,22 @@ private constructor(
     }
 
     /**
-     * Whether the type is a collection. To preserve legacy behavior, primitive arrays (for which
-     * [TypeItem.asClass] is null) are not considered collections but other arrays are
-     * (b/343748165).
+     * Whether the type is a collection.
+     *
+     * To preserve legacy behavior, primitive arrays are not considered collections but other arrays
+     * are (b/343748165).
      */
-    private fun TypeItem.isCollection(): Boolean {
-        val asClass = asClass() ?: return false
-        return this is ArrayTypeItem || asClass.isCollection()
-    }
+    private fun TypeItem.isCollection(): Boolean =
+        when (this) {
+            // Historically arrays are considered collections unless their innermost component type
+            // is primitive.
+            is ArrayTypeItem -> innermostComponentType() !is PrimitiveTypeItem
+            // A class reference is a collection if the referenced ClassItem is a collection.
+            is ClassTypeItem -> resolveClass(codebase)?.isCollection() == true
+            // A variable type is a collection if its erased type is a collection.
+            is VariableTypeItem -> asTypeParameter.asErasedType().isCollection()
+            else -> false
+        }
 
     private fun checkFlags(fields: Sequence<FieldItem>) {
         var known: MutableMap<String, Int>? = null
@@ -1676,7 +1830,7 @@ private constructor(
             // Get the throwable class, which for a type parameter will be the lower bound. A
             // method that throws a type parameter is treated as if it throws its lower bound, so
             // it makes sense for this check to treat it as if it was replaced with its lower bound.
-            val throwableClass = throwableType.erasedClass ?: continue
+            val throwableClass = throwableType.asErasedClass(codebase) ?: continue
             if (isUncheckedException(throwableClass)) {
                 report(
                     BANNED_THROW,
@@ -1749,12 +1903,47 @@ private constructor(
         }
     }
 
-    private fun checkBitSet(type: TypeItem, typeString: String, item: Item) {
-        if (
-            typeString.startsWith("java.util.BitSet") &&
-                type.asClass()?.qualifiedName() == "java.util.BitSet"
-        ) {
-            report(HEAVY_BIT_SET, item, "Type must not be heavy BitSet (${item.describe()})")
+    /**
+     * Check whether this [TypeItem] uses any of the [qualifiedClassNames] in any way.
+     *
+     * This will only check the [TypeParameterItem.typeBounds] of a
+     * [VariableTypeItem.asTypeParameter] if specifically requested. That is because when the check
+     * has to prevent any type being used it is better to check the [TypeParameterItem]s directly
+     * rather than every use as the latter would produce a lot of noise.
+     *
+     * Care has to be taken when checking [TypeParameterItem]s as they can form cycles, e.g.
+     * * in `Foo<T extends Foo<T>>` type parameter `T` depends on itself
+     * * in `Foo<A extends Foo<A, B>, B extends Foo<A, B>>` both `A` and `B` depend on each other.
+     */
+    private fun TypeItem.usesAnyClassIn(
+        qualifiedClassNames: Set<String>,
+        checkVariableTypes: Boolean = false,
+    ): Boolean =
+        when (this) {
+            is ArrayTypeItem ->
+                componentType.usesAnyClassIn(qualifiedClassNames, checkVariableTypes)
+            is ClassTypeItem ->
+                qualifiedName in qualifiedClassNames ||
+                    arguments.any { it.usesAnyClassIn(qualifiedClassNames, checkVariableTypes) }
+            is WildcardTypeItem ->
+                extendsBound?.usesAnyClassIn(qualifiedClassNames, checkVariableTypes) == true ||
+                    superBound?.usesAnyClassIn(qualifiedClassNames, checkVariableTypes) == true
+            // Make sure that there are no references to the class in the type parameter.
+            is VariableTypeItem ->
+                checkVariableTypes &&
+                    asTypeParameter.typeBounds().any {
+                        it.usesAnyClassIn(
+                            qualifiedClassNames,
+                            // Always set this to `true` to avoid getting trapped in a cycle.
+                            checkVariableTypes = false,
+                        )
+                    }
+            else -> false
+        }
+
+    private fun checkBitSet(type: TypeItem, item: Item) {
+        if (type.usesAnyClassIn(HEAVY_BIT_SET_CLASSES)) {
+            report(HEAVY_BIT_SET, item, "Type must not use heavy BitSet (${item.describe()})")
         }
     }
 
@@ -1776,7 +1965,19 @@ private constructor(
             )
         }
         for (method in methods) {
-            if (method.returnType().asClass() == cls) {
+            // A Manager class must not be returned, in any form so report an issue if the return
+            // type contains any use of the Manager class name. That includes checking for variable
+            // types.
+            if (
+                method
+                    .returnType()
+                    .usesAnyClassIn(
+                        setOf(cls.qualifiedName()),
+                        // Make sure to check that the manager is not returned through a type
+                        // parameter.
+                        checkVariableTypes = true,
+                    )
+            ) {
                 report(
                     MANAGER_LOOKUP,
                     method,
@@ -1936,7 +2137,8 @@ private constructor(
 
         // Only report issues with an actual type and not a generic type that extends Number as
         // there is nothing that can be done to avoid auto-boxing when using generic types.
-        val qualifiedName = (type as? ClassTypeItem)?.asClass()?.qualifiedName() ?: return
+        val qualifiedName =
+            (type as? ClassTypeItem)?.resolveClass(codebase)?.qualifiedName() ?: return
         if (isBoxType(qualifiedName)) {
             report(AUTO_BOXING, item, "Must avoid boxed primitives (`$qualifiedName`)")
         }
@@ -1953,7 +2155,7 @@ private constructor(
         }
 
         val hasDefaultConstructor =
-            cls.hasImplicitDefaultConstructor() ||
+            cls.constructors().any { it.isImplicitConstructor() } ||
                 run {
                     if (constructors.count() == 1) {
                         val constructor = constructors.first()
@@ -2599,7 +2801,18 @@ private constructor(
     }
 
     private fun checkCollectionsOverArrays(type: TypeItem, typeString: String, item: Item) {
-        if (type !is ArrayTypeItem || (item is ParameterItem && item.isVarArgs())) {
+        // This check only applies to array types.
+        if (type !is ArrayTypeItem) {
+            return
+        }
+
+        // Vararg parameters have to use arrays.
+        if (item is ParameterItem && item.isVarArgs()) {
+            return
+        }
+
+        // Annotation classes cannot use collections and have to use arrays.
+        if (item is MethodItem && item.containingClass().isAnnotationType()) {
             return
         }
 
@@ -2607,42 +2820,33 @@ private constructor(
         // (go/android-api-guidelines#exception-for-kotlin)
         if (item.targetLanguages == TargetLanguageSet.KOTLIN_ONLY) return
 
-        when (typeString) {
-            "java.lang.String[]",
-            "byte[]",
-            "short[]",
-            "int[]",
-            "long[]",
-            "float[]",
-            "double[]",
-            "boolean[]",
-            "char[]" -> {
-                return
-            }
-            else -> {
-                val action =
-                    when (item) {
-                        is MethodItem -> {
-                            if (item.name() == "values" && item.containingClass().isEnum()) {
-                                return
-                            }
-                            if (item.containingClass().extends("java.lang.annotation.Annotation")) {
-                                // Annotation are allowed to use arrays
-                                return
-                            }
-                            "Method should return"
-                        }
-                        is FieldItem -> "Field should be"
-                        else -> "Method parameter should be"
-                    }
-                val component = type.asClass()?.simpleName() ?: ""
-                report(
-                    ARRAY_RETURN,
-                    item,
-                    "$action Collection<$component> (or subclass) instead of raw array; was `$typeString`"
-                )
+        // Arrays of some component types are allowed.
+        val componentType = type.componentType
+        when (componentType) {
+            // Primitive arrays are allowed. (go/android-api-guidelines#exception-for-primitives)
+            is PrimitiveTypeItem -> return
+
+            // String arrays are also allowed. They are not specifically allowed in the API
+            // guidelines but there are hundreds of uses in the existing APIs so disallowing would
+            // cause issues.
+            is ClassTypeItem -> {
+                if (componentType.qualifiedName == JAVA_LANG_STRING) return
             }
         }
+
+        val action =
+            when (item) {
+                is MethodItem -> "Method should return"
+                is FieldItem -> "Field should be"
+                is ParameterItem -> "Method parameter should be"
+                else -> error("internal error: should never be called for $item")
+            }
+        val component = componentType.toCanonicalTypeString()
+        report(
+            ARRAY_RETURN,
+            item,
+            "$action Collection<$component> (or subclass) instead of raw array; was `$typeString`"
+        )
     }
 
     private fun checkUserHandle(cls: ClassItem, methods: Sequence<MethodItem>) {
@@ -2990,7 +3194,7 @@ private constructor(
         val lastRequiredParameter = requiredParameters.last()
         val hasTrailingLambda =
             lastRequiredParameter.parameterIndex == parameters.lastIndex &&
-                lastRequiredParameter.type().isSamCompatibleOrKotlinLambda()
+                lastRequiredParameter.type().isSamCompatibleOrKotlinLambda(codebase)
         val lastRequiredParameterIndex =
             if (hasTrailingLambda) {
                     requiredParameters.dropLast(1).lastOrNull()
@@ -3095,18 +3299,16 @@ private constructor(
             codebase: Codebase,
             oldCodebase: Codebase?,
             reporter: Reporter,
-            manifest: Manifest,
             apiPredicateConfig: ApiPredicate.Config,
-            allowedAcronyms: List<String>,
+            config: Config,
         ) {
             val apiLint =
                 ApiLint(
                     codebase,
                     oldCodebase,
                     reporter,
-                    manifest,
                     apiPredicateConfig,
-                    allowedAcronyms,
+                    config,
                 )
             apiLint.check()
         }
@@ -3301,6 +3503,22 @@ private constructor(
                 s = s.replace(acronym, decapitalized)
             }
         }
+
+        /** The set of heavyweight BitSet classes that are disallowed by [checkBitSet] */
+        private val HEAVY_BIT_SET_CLASSES = setOf("java.util.BitSet")
+
+        /** The set of concrete classes that are disallowed by [checkCollections] */
+        private val CONCRETE_COLLECTION_CLASSES =
+            setOf(
+                "java.util.Vector",
+                "java.util.LinkedList",
+                "java.util.ArrayList",
+                "java.util.Stack",
+                "java.util.HashMap",
+                "java.util.HashSet",
+                "android.util.ArraySet",
+                "android.util.ArrayMap",
+            )
     }
 }
 

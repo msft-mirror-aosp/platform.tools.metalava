@@ -891,7 +891,8 @@ class CommonTargetLanguageTest : BaseModelTest() {
                 assertThat(modifiers.isNonNull).isTrue()
             }
 
-            assertThat(fooClass.methods()).hasSize(7)
+            // The private method is not generated since it can't be part of the API surface.
+            assertThat(fooClass.methods()).hasSize(6)
         }
     }
 
@@ -1194,6 +1195,7 @@ class CommonTargetLanguageTest : BaseModelTest() {
             val jvmNameOnGetGetter = fooClass.assertMethod("getJvmNameOnGet", emptyList())
             assertThat(jvmNameOnGetGetter.targetLanguages)
                 .containsExactlyElementsIn(TargetLanguageSet.NOT_KOTLIN)
+            assertThat(jvmNameOnGetGetter.property).isNotNull()
             val jvmNameOnGetSetter = fooClass.assertMethod("setJvmNameOnGet-Vxmw0xk", listOf("int"))
             assertThat(jvmNameOnGetSetter.targetLanguages).containsExactly(TargetLanguage.BYTECODE)
 
@@ -1202,13 +1204,16 @@ class CommonTargetLanguageTest : BaseModelTest() {
             val jvmNameOnSetSetter = fooClass.assertMethod("setJvmNameOnSet", listOf("int"))
             assertThat(jvmNameOnSetSetter.targetLanguages)
                 .containsExactlyElementsIn(TargetLanguageSet.NOT_KOTLIN)
+            assertThat(jvmNameOnSetSetter.property).isNotNull()
 
             val jvmNameOnBothGetter = fooClass.assertMethod("getJvmNameOnBoth", emptyList())
             assertThat(jvmNameOnBothGetter.targetLanguages)
                 .containsExactlyElementsIn(TargetLanguageSet.NOT_KOTLIN)
+            assertThat(jvmNameOnBothGetter.property).isNotNull()
             val jvmNameOnBothSetter = fooClass.assertMethod("setJvmNameOnBoth", listOf("int"))
             assertThat(jvmNameOnBothSetter.targetLanguages)
                 .containsExactlyElementsIn(TargetLanguageSet.NOT_KOTLIN)
+            assertThat(jvmNameOnBothSetter.property).isNotNull()
         }
     }
 
@@ -1924,6 +1929,7 @@ class CommonTargetLanguageTest : BaseModelTest() {
 
             val kotlinCtor = fooClass.assertConstructor(listOf("test.pkg.IntValue"))
             assertThat(kotlinCtor.targetLanguages).containsExactly(TargetLanguage.KOTLIN)
+            assertThat(kotlinCtor.parameters().single().hasDefaultValue()).isTrue()
 
             val bytecodeCtor =
                 fooClass.assertConstructor(
@@ -1931,13 +1937,14 @@ class CommonTargetLanguageTest : BaseModelTest() {
                 )
             assertThat(bytecodeCtor.targetLanguages).containsExactly(TargetLanguage.BYTECODE)
 
-            // When a kotlin constructor has a single default parameter, an overload is generated
-            // with no parameters.
-            val defaultCtor = fooClass.assertConstructor(emptyList())
-            assertThat(defaultCtor.targetLanguages).containsExactlyElementsIn(TargetLanguageSet.ALL)
+            val bytecodeDefaultCtor =
+                fooClass.assertConstructor(
+                    listOf("int", "int", "kotlin.jvm.internal.DefaultConstructorMarker")
+                )
+            assertThat(bytecodeDefaultCtor.targetLanguages).containsExactly(TargetLanguage.BYTECODE)
 
-            // Check that the bytecode constructor with extra int and DefaultConstructorMarker
-            // params is not generated.
+            // Usually, when a kotlin constructor has a single default parameter, an overload is
+            // generated with no parameters, but this is not the case with the value class type.
             assertThat(fooClass.constructors()).hasSize(3)
         }
     }
@@ -2006,10 +2013,16 @@ class CommonTargetLanguageTest : BaseModelTest() {
                 )
         ) {
             val fooClass = codebase.assertClass("test.pkg.Foo")
-            val fooCtor = fooClass.assertConstructor(listOf("test.pkg.IntValue"))
-            assertThat(fooCtor.targetLanguages)
-                .containsExactlyElementsIn(TargetLanguageSet.NOT_JAVA)
-            assertThat(fooClass.constructors()).hasSize(1)
+            val sourceCtor = fooClass.assertConstructor(listOf("test.pkg.IntValue"))
+            assertThat(sourceCtor.targetLanguages)
+                .containsExactlyElementsIn(TargetLanguageSet.KOTLIN_ONLY)
+            val bytecodeCtor =
+                fooClass.assertConstructor(
+                    listOf("test.pkg.IntValue", "kotlin.jvm.internal.DefaultConstructorMarker")
+                )
+            assertThat(bytecodeCtor.targetLanguages)
+                .containsExactlyElementsIn(TargetLanguageSet.BYTECODE_ONLY)
+            assertThat(fooClass.constructors()).hasSize(2)
         }
     }
 
@@ -2489,7 +2502,7 @@ class CommonTargetLanguageTest : BaseModelTest() {
                 ),
         ) {
             val fooClass = codebase.assertClass("test.pkg.Foo")
-            val fooProperty = fooClass.assertProperty("foo")
+            val fooProperty = fooClass.assertProperty("foo", receiverTypeString = "T")
             assertThat(fooProperty.targetLanguages)
                 .containsExactlyElementsIn(TargetLanguageSet.KOTLIN_ONLY)
 
@@ -3089,6 +3102,848 @@ class CommonTargetLanguageTest : BaseModelTest() {
             // There is no Kotlin foo, because the function is deprecated hidden and not usable from
             // Kotlin source.
             assertThat(fooClass.methods()).hasSize(3)
+        }
+    }
+
+    @Test
+    fun `Test compiler generated default version of function with optional parameters`() {
+        runCodebaseTest(
+            inputSet(
+                kotlin(
+                    """
+                    package test.pkg
+                    class Foo {
+                        fun foo(i: Int = 0, s: String = "") = Unit
+                    }
+                    """
+                )
+            ),
+            compiledSourceJar =
+                base64gzip(
+                    "test.jar",
+                    // kotlinc version info: kotlinc-jvm 1.9.23 (JRE 21.0.8+9-LTS)
+                    "" +
+                        "H4sIAAAAAAAA/wvwZmYRYeDg4GBgYFBkQAYiDCwMvq4hjrqefm76vo5+nm6u" +
+                        "wSF6vm7/TjEwfPY9c9rHW1fvIq+3rta5M+c3BxlcMX7wtEjPy1fH0/di6aot" +
+                        "QR+8dAu1vM6c0Q77cE7/5Mkzj58+esrEEODNzrFeWHO9JdACcyAOwGm9EBCX" +
+                        "pBaX6Bdkp+u75efrJeckFhfnBsf6CzuK2G6+H+ulGbqhpqspSOCmk49Py4wV" +
+                        "E1M8u9184itmbfOeWbbbu2x5r3/b/oer/x8QN7WTeLTY/lTF8lyWlvZ71c/O" +
+                        "2aa/O/7t+3x5e0abg2bOYWwrv/hZ6+br9+UatNXM/r5T/NOKp3tXbm9u27LQ" +
+                        "OGK3ktAny+a4qNWpiYeKEg+kGTzp9JAsmnrayXpKucxxnsuq+4sWlmsIC24t" +
+                        "u5bFc3qqRWblW4drwnqLrjwOFPHWc/X5oTCNfa+BiuA0qxOGOmVJkl0nsr/v" +
+                        "nteRMsHF5ssfj5VLF028dcLYx9SvyS3dpfa08D1ejYmJW0N+7l84d7bXqUUN" +
+                        "0XpqhbPniX75LMl1XVjy2IqNU9MKzlQvTKmI2nXrB+/bX9e5A4QbmnfqHJtQ" +
+                        "ujCxMXGT0atNUh73nky6HB21ff3lZTOMJFMdWks1/jmuCJ4ZUNy9sKrO7H2W" +
+                        "69mrn56nr3umsWAn17O5C0+Lnj+/batRdea/XzkXn/7LiZt/9dSxbY8zKidP" +
+                        "MHUwU3TvvDQ9MdB6tmzWxQpRc+a2zq6Opua47XIq7yttea5UPGLjz7YRfGXD" +
+                        "tW7Pa9egEmb7V90hAS/u68XFrJmR+Cfgk9vyU/7uJt8N3qn2JvivOHzGY7FZ" +
+                        "yA6XI2K8pwOaG/w2Lzg/4Y2yVWWW0ZOzX/ML9glc2OB4TYrF1EZttqyaAvP0" +
+                        "P0ukbO9qfMr+lDXvm1viI+tl6y7p7gr6sjTxVMe6CybveFRynwSoHFt2a5JZ" +
+                        "xCWLCecT2DYv/jRP8KZKfIyBXV3Tyvd6M56sPVRTWpv3WFus3b8qhTejr3hl" +
+                        "2dxHTw++tTLlfxP4RS9TV9bxe+H547XypyMUO9jt5JK+dvwz1Uh8yzFTJK9r" +
+                        "p0hY10bGGXI3ZG7uByXeF7J9abVMDAwsLPgSrzQQw/NObmJmnl52fklOZl58" +
+                        "bn5KaU5qckJCQhoQsyT5sWkEJF1IYgBnjK9Ke/YKA3VKgDMGI5MIA8J05EwD" +
+                        "ypmoAFc+RTcF2fVCKCbUY81u6PqRXSiNot+GGa+PA7xZ2UDKmIHwPJCewQzi" +
+                        "AQCCFldofQQAAA=="
+                ),
+        ) {
+            val fooClass = codebase.assertClass("test.pkg.Foo")
+
+            val sourceFunction = fooClass.assertMethod("foo", listOf("int", "java.lang.String"))
+            assertThat(sourceFunction.targetLanguages).isEqualTo(TargetLanguageSet.ALL)
+
+            val generatedFunction =
+                fooClass.assertMethod(
+                    "foo\$default",
+                    listOf("test.pkg.Foo", "int", "java.lang.String", "int", "java.lang.Object")
+                )
+            assertThat(generatedFunction.targetLanguages).isEqualTo(TargetLanguageSet.BYTECODE_ONLY)
+        }
+    }
+
+    @Test
+    fun `Test compiler generated default version of top level function with optional parameters`() {
+        runCodebaseTest(
+            inputSet(
+                kotlin(
+                    """
+                    @file:JvmName("Foo")
+                    package test.pkg
+                    fun foo(i: Int = 0, s: String = "") = Unit
+                    """
+                )
+            ),
+            compiledSourceJar =
+                base64gzip(
+                    "test.jar",
+                    // kotlinc version info: kotlinc-jvm 1.9.23 (JRE 21.0.8+9-LTS)
+                    "" +
+                        "H4sIAAAAAAAA/wvwZmYRYeDg4GBgYFBkQAYiDCwMvq4hjrqefm76vo5+nm6u" +
+                        "wSF6vm7/TjEwfPY9c9rHW1fvIq+3rta5M+c3BxlcMX7wtEjPy1fH0/di6aot" +
+                        "QR+8dAu1vM6c0Q77cE7/5Mkzj58+esrEEODNzrFeWHO9JdACcyAOwGm9EBCX" +
+                        "pBaX6Bdkp+u75efrJeckFhfnBsf6CzuK2G6+XbZ9qcPKLR6OfxiWbj3FdJH9" +
+                        "8o8EH49rU5KOfDh0ucT6Sub2zSnlt36k/JD+x3O/g78tvX7KR79oxsb2vc/P" +
+                        "3LH+/vjOm/f29vWMFa2ybXvEOr/5/Y7N1++SMWhz6u/fIV509SvfLVvBDHaz" +
+                        "5lohV56nq+7vKZJ/FbEqb3HZkQ33eh6tuy68S7Z4pVC/tmjmulSXPaIvrxnw" +
+                        "SPPoFD40WvNVWdbr6Vc3Zn8t3aSjzufD1aKVmo849i0UqRF0rP/1Rbn/p0OA" +
+                        "wuG0rZWb9x+L1X068XgOn/GMxZsm2c1fWGE9IbGN7faLDmE7HlPnt+sY/95W" +
+                        "PXumIPCUcq8Pn9g0CbHZ15/9MpDasiJda0JQi8qDeYIFD+PP7Luw57DpcoZs" +
+                        "g02ZsmdmrDFcUPa7LeLJHy3e22rXFpbu3Weh/UzvXFHYwVkN1o07vZYWFIZt" +
+                        "3HZz3etJk2fYpmkmZX6umH7QcPe9V5dnrPwe2F41K99LNeqwY/SR+ZXWIm6L" +
+                        "NB48FOxfaumvb27HO3Ua88PVE31UYmPfPb57dZZkGr8p/6/ff0p+6ZRL8D52" +
+                        "eONZHDHvmcWslB/vH546++f6nhuKhcFuIodSF5sl9vrxOnVfWCm++fmM/4Z8" +
+                        "FX5mzp9SExb77bHhdGTkfizC93aNxz9xt6zsNVuYRTbtaHd9pPZ+dubepVev" +
+                        "bH/vcbv3qknisoi8sFfPd9iv/Dwph2va67gwltAtG02/hT0U3Lf0dmjWj4OG" +
+                        "OfLZdnK/KlqO281LuHucbZ7c5f8N6Tds3NQcrRw1HRNzYjfdWCZiPCVp5j6v" +
+                        "pqn7QekwZs9cFg8mBoatzPjSoTQQw7NBbmJmnl52fklOZl58bn5KaU5qckJC" +
+                        "QhoQsyT5sWk8ePT8kYYnMFton/ATTyo7fT486UISAzjRSx/f8lQFaJQmONEz" +
+                        "MokwIKxDzhCgXIcKcOVBdFOQvSOEYkI91qyErh/ZhdIo+tmZ8QZBgDcrG0gZ" +
+                        "MxCeB1nFDOIBAHhtNvpZBAAA"
+                ),
+        ) {
+            val fooClass = codebase.assertClass("test.pkg.Foo")
+
+            val sourceFunction = fooClass.assertMethod("foo", listOf("int", "java.lang.String"))
+            assertThat(sourceFunction.targetLanguages).isEqualTo(TargetLanguageSet.ALL)
+
+            val generatedFunction =
+                fooClass.assertMethod(
+                    "foo\$default",
+                    listOf("int", "java.lang.String", "int", "java.lang.Object")
+                )
+            assertThat(generatedFunction.targetLanguages).isEqualTo(TargetLanguageSet.BYTECODE_ONLY)
+        }
+    }
+
+    @Test
+    fun `Test compiler generated default version of internal functions with optional parameters`() {
+        runCodebaseTest(
+            inputSet(
+                kotlin(
+                    """
+                    package test.pkg
+                    @PublishedApi
+                    internal fun foo(i: Int = 0, s: String = "") = Unit
+
+                    class Foo {
+                        @PublishedApi
+                        internal fun foo(i: Int = 0, s: String = "") = Unit
+                    }
+                    """
+                )
+            ),
+            compiledSourceJar =
+                base64gzip(
+                    "test.jar",
+                    // kotlinc version info: kotlinc-jvm 1.9.23 (JRE 21.0.8+9-LTS)
+                    "" +
+                        "H4sIAAAAAAAA/31VezQTehxfzLORZtai601DNrTr0TwumZqh2dRR0byG2MhY" +
+                        "HleP22M1FcvR2FWZipUeqNCEGok0NHl1leYdNc8c8ti9q3PPvepU39/5/PE7" +
+                        "5/f7fM/3ez7fzxePkwdCAMrKygAAwACwMiAAIMAb4+dqifXxQHq7+mA9MEQ/" +
+                        "hLeHtAkAmPEWPvfCWSJEajhL8xZh6z2CVftm8RAN4em9CestohfdJ0x6WsaZ" +
+                        "ewqFFrsmW5DPngkHhvqH5AB4nJJysaZZsYMsgZ0M+B+mB8uQQI5PQB6IjkB6" +
+                        "xMYiQinB8fFUYuAOTV8Np8Se8ZhsN5wWHK+hUKB/F4/1OpHDPf+gMNXdi5RU" +
+                        "Sc2m9UgQr6qpqTZLaqRlpZrrUwINvWXfp3yJed6aSw6J40IOOqL80d9L8ypB" +
+                        "8jqg9aMebc5UO8klfavHMJpl70B5w3JhNSmaT9+vL+DGqpAa14GYbYRfj0MS" +
+                        "VmNhIGyyoSHjfBP5incTWl2OMZVJ5IvRWfmTubm4nYxSTzTr8qTkeEyzpojZ" +
+                        "0+2s5WdLUqktfEMjWw7WZlDGF/8YJABPzMnxu2Ydm0LOMzfVUYSiMTqlD2f3" +
+                        "kR+BrhkDM1PCgrK0O3a8TkEjnMQGEw+yGkv8iwL0EmbKeeEHlBItB609qArL" +
+                        "GxhLze4MA+2k/D7dmTsb11++cEeVdgbU0qwEJwddyRFo2EBRQpuzUmJU14Uq" +
+                        "gQlv3x5eNlfNhtzWdFS3s3BeKd8n+oT2e9DiSAQGZxHJZqNd7qGIq5oJVhHq" +
+                        "r7f3Ld26dbs0+wYpj16ZuldoUni/LOwVqiwgjdW7TdFgRo14n7wAjeR22Kpx" +
+                        "UrVQAQwKZn58XwUxvm6uapjvyeW2VJuvObmlQTCaGEhKS38/77RWRZVK+sAO" +
+                        "7luQ/B0YiNVxzqrq7R3iWd+gwxLqKh8atQfbDF/vFTdsYXL83Axc94hGcAdP" +
+                        "+pQT0lOjPukIkUCUo8HNNcf8TXKZcdrQT75l2oa+9cVme0eptwbj31ofLgs4" +
+                        "JULm6Vx7MqTqzX3BQ7HqjXd2x9WX7Ln01/VO0jtlFi5U9eUUMU/TNy012PTT" +
+                        "lCaBeZsDSXZyuffQsXpaa05R0vXMNJ8zXOAASsterMiYylpSx4ycfi9dC1bX" +
+                        "tc9JLDl6CjjVKDD03PZxTR2YncFKD8LAPV4YgWYF7m/Dn0kVPgtbkex/iiMH" +
+                        "AGwH/kzYkG+EjUv4V9oEnEzaEOm4l95LAvc24ZpfKl7Bfb2+6VMU4rRKXMgN" +
+                        "dy+7wDc+yKGDhZvDhsvjyPM6UlDik5PBkgybyz3pGmZnHEbQGb/XzOS8PXJY" +
+                        "KjepbVt3DFx6t7W65hCMobcTejbfXhwas+j4rievUr4vsyvMakcdK//uKCq2" +
+                        "dqN5puuj0o5w/6iU/GlykF5GZc3ZVvcJcYAtrDM3uL1CyY1uhDjePeyqYX4n" +
+                        "bPsDraLOxjmzM/VQGigae06QFPn8NyZcXCMB/mnCjrlYv2EtP6J2NpPX4Ni/" +
+                        "1ZUJ0slt7jlkNx5VdjR506DvY0OR58IGxjTFsG6DWsAEk+g8rVXXGXgcfS8r" +
+                        "ZV0J3kz/nJeuoq5VllQyvB3eO5BGpIfa244qe525COXuclQDqR6+oC0Bj0ms" +
+                        "q/iV8JFixLSHKMc8ughaVNbfgenoJi+yMa5uw8AC5QIXq+XUPIOtvDdTkYz2" +
+                        "xZKNMGiujcZtUYnFFWTV+9VOR97RHjUb3ZA84S8kQ+AOEB8rdqlxl6B5FDZW" +
+                        "cbWLN4+kSt3jutD9I1jREtY+LSAOXlaa2R7Z2t6gS0UUVLilYIrBpraNUSwq" +
+                        "qyUmeyYbLs0xpmQKX0gT2qB9TSgFk6yNJncb+3TrScbJu9t6UiaehkmgeGGf" +
+                        "M1s5Or1CZY5mOStBt4VfZZteMkPa3ezJ9ufQaow5x4J3d33QPyhfbCoa6TZY" +
+                        "Tq/aGXW4TP6la7Ngq1J00qDY+rJ9Utqs+vL89YHdShzYKOwCrIApPL+0+rMA" +
+                        "WUa/VLrIBMiT/5kAdWT4z9ipwftjENGxCZT9MSRqbBidQg4NCgoKlwEY4qMI" +
+                        "F4MH++FYmdFbNPqsC6E/b51D+Ia8CAF8MXJdUe1qUxmZxRcjXyUHAfyfcKXJ" +
+                        "f94kX8eP9sq3LCsnCvwVw5Hvrodv/69sCOSr//7y35/CbxlW1qjzFcMrhZ+2" +
+                        "EY9TUPz8DCg7a1fJSvhy+wfr5KfgbwcAAA=="
+                ),
+        ) {
+            val fooClass = codebase.assertClass("test.pkg.Foo")
+
+            val sourceFooFunction = fooClass.assertMethod("foo", listOf("int", "java.lang.String"))
+            assertThat(sourceFooFunction.targetLanguages).isEqualTo(TargetLanguageSet.ALL)
+            assertThat(sourceFooFunction.modifiers.getVisibilityLevel())
+                .isEqualTo(VisibilityLevel.INTERNAL)
+
+            val generatedFooFunction =
+                fooClass.assertMethod(
+                    "foo\$default",
+                    listOf("test.pkg.Foo", "int", "java.lang.String", "int", "java.lang.Object")
+                )
+            assertThat(generatedFooFunction.targetLanguages)
+                .isEqualTo(TargetLanguageSet.BYTECODE_ONLY)
+            assertThat(generatedFooFunction.modifiers.getVisibilityLevel())
+                .isEqualTo(VisibilityLevel.INTERNAL)
+
+            val fooKtClass = codebase.assertClass("test.pkg.FooKt")
+
+            val sourceFooKtFunction =
+                fooKtClass.assertMethod("foo", listOf("int", "java.lang.String"))
+            assertThat(sourceFooKtFunction.targetLanguages).isEqualTo(TargetLanguageSet.ALL)
+            assertThat(sourceFooKtFunction.modifiers.getVisibilityLevel())
+                .isEqualTo(VisibilityLevel.INTERNAL)
+
+            val generatedFooKtFunction =
+                fooKtClass.assertMethod(
+                    "foo\$default",
+                    listOf("int", "java.lang.String", "int", "java.lang.Object")
+                )
+            assertThat(generatedFooKtFunction.targetLanguages)
+                .isEqualTo(TargetLanguageSet.BYTECODE_ONLY)
+            assertThat(generatedFooKtFunction.modifiers.getVisibilityLevel())
+                .isEqualTo(VisibilityLevel.INTERNAL)
+        }
+    }
+
+    @Test
+    fun `Test compiler generated default version of annotated function with optional parameters`() {
+        runCodebaseTest(
+            inputSet(
+                kotlin(
+                    """
+                    package test.pkg
+                    annotation class Anno
+
+                    class Foo {
+                        @Anno
+                        fun foo(i: Int = 0, s: String = "") = Unit
+                    }
+                    """
+                )
+            ),
+            compiledSourceJar =
+                base64gzip(
+                    "test.jar",
+                    // kotlinc version info: kotlinc-jvm 1.9.23 (JRE 21.0.8+9-LTS)
+                    "" +
+                        "H4sIAAAAAAAA/wvwZmYRYeDg4GBgYFBkQAYiDCwMvq4hjrqefm76vo5+nm6u" +
+                        "wSF6vm7/TjEwfPY9c9rHW1fvIq+3rta5M+c3BxlcMX7wtEjPy1fH0/di6aot" +
+                        "QR+8dAu1vM6c0Q77cE7/5Mkzj58+esrEEODNzrFeWHO9JdACcyAOwGm9MBCX" +
+                        "pBaX6Bdkp+s75uXl6yXnJBYXt07Y68/kKHD0vs6jg5pMdU0iUYFFHm+2XHSZ" +
+                        "7O3AW2cSwp1zouj43I/fOspC/gWKtUX8cpdM36igpma2ef/c2nyj33b7791j" +
+                        "lFnspiExVeK9oURleqCItYJTps7yS9ypJp/W/U42NeAzamlODd90yWPx44zE" +
+                        "X47skYcSf/uHhkuKRloppiw38hFd+K//ixrf1wetvH7f/7069z5G4NRbBbOF" +
+                        "fXv6jIo0ep+EG85M+6Gf4n1PTEDjwb/N27arXf7QETD3fNG6FRzhU7J29ocH" +
+                        "zjwftcjz+eeZols4jn5br1BhxF+kY8bkXJD/+EvmAr3SE6vDd2uutwjkt7r4" +
+                        "N0DX2OOVDa/2m5itsw3Cxbc21dr5z7RIeCLyqWBjm8616hM/NH7c+BDo0imY" +
+                        "Kj/7xqtGoZzk5ewTE8wP3jMHBfYjnYliOowMDFsY8QW2EHJgu+VDwzo3ONBf" +
+                        "2FHg37db92L7nbxFNQIEWJcqFAX4+rTMWDCxYlmD4GXxedveBm7be2/i7tzH" +
+                        "kx/m/3hl/8G1l7/tx4t+o3Nx+kxOs87VWP8+++aM+dv39vZ1TBVNx3ksX7pd" +
+                        "snu77e1dBYMDElyydg+2Hf+7rfbCix2+mQpHF+Rzx594zrPylJdtO08Jd6YE" +
+                        "T2alklLbxltPnaKPWPMxtZ3sCt69olzD+eH27WGveH5y/+t7v7rlaJTAtrd9" +
+                        "2tKK4nUpxVzeeq4OFfYTfteeVxbr9nki+Wx345eW/HI22+gfl3hr393sW//K" +
+                        "fZGkpET6jIx5O87mTfo1rX3Pc6GJiTuDftcfWTt71pmHYnnRGklN80S/lEp0" +
+                        "Xe/kUTZ5FXTa9lmtv5HN2pipj9gY57zm1fBNWDTnMEeRmMkZ457rkzS/x5yM" +
+                        "jimq8n7NG7TFeplPmGRAcmxXvcCrLY4rtp4sKKgL27ZlUlpm62djb2PRCzqs" +
+                        "3M8u9E49d37VLbbqiT+/Ri4/bf7UKcvttke4b7B2CsdLQyOOmet5Q7edSlgR" +
+                        "u7Y889SX0wuerjLlun/3/XepvB/zzG3CNUVMdoY/XxjwXMXi77r33heLXysJ" +
+                        "idzYGaF7OKjo+Y/mh2/3h8Yu7JXzuvfm3cfLS5aUSnw5vGy3to347CXhUZmN" +
+                        "Iicd9/tuyi7ZNNXiifHq+wl1igseCkba8i3b6GdmrqLA3f1nR9D8rhVPwo+E" +
+                        "TZLKPnqo3CfO9/rLxZfE26aoxC7UnPJoEtunGct4rE9KhN4O9L78aG4vY6tO" +
+                        "msHsLb96uFJPTH92Sd5ecfKteacnXO8url69OTu+MP3Hn7Q729NmTX92QTOu" +
+                        "N1/+WP/boJLGrLu2TqcO2rJ3800rmK8gZxHh9rTjn0vEwVeCmwTXcDzlqGqZ" +
+                        "KOFz1Mz/mz4oLTNeLN7Xw8TAoMqCLy1LAzG83MpNzMzTy84vycnMi8/NTynN" +
+                        "SU1OSEhIA2KWJD82jYCkC0kM4ELpq9KevaAiRwJcKDEyiTAgTEcusEClIirA" +
+                        "VUaim4KcE4VRTKjHXtShG4DsfSEUA94wYsu+6PqRvSiNon8HC94gC/BmZQMp" +
+                        "YwFCAaBVIqwgHgCcT6E6OgYAAA=="
+                ),
+        ) {
+            val fooClass = codebase.assertClass("test.pkg.Foo")
+
+            val sourceFunction = fooClass.assertMethod("foo", listOf("int", "java.lang.String"))
+            assertThat(sourceFunction.targetLanguages).isEqualTo(TargetLanguageSet.ALL)
+            assertThat(sourceFunction.annotationNames()).containsExactly("test.pkg.Anno")
+
+            val generatedFunction =
+                fooClass.assertMethod(
+                    "foo\$default",
+                    listOf("test.pkg.Foo", "int", "java.lang.String", "int", "java.lang.Object")
+                )
+            assertThat(generatedFunction.targetLanguages).isEqualTo(TargetLanguageSet.BYTECODE_ONLY)
+            assertThat(generatedFunction.annotationNames()).containsExactly("test.pkg.Anno")
+        }
+    }
+
+    @Test
+    fun `Test compiler generated default version of deprecated function with optional parameters`() {
+        runCodebaseTest(
+            inputSet(
+                kotlin(
+                    """
+                    package test.pkg
+                    class Foo {
+                        @Deprecated("", level = DeprecationLevel.HIDDEN)
+                        fun foo(i: Int = 0, s: String = "") = Unit
+                    }
+                    """
+                )
+            ),
+            compiledSourceJar =
+                base64gzip(
+                    "test.jar",
+                    // kotlinc version info: kotlinc-jvm 1.9.23 (JRE 21.0.8+9-LTS)
+                    "" +
+                        "H4sIAAAAAAAA/wvwZmYRYeDg4GBgYFBkQAYiDCwMvq4hjrqefm76vo5+nm6u" +
+                        "wSF6vm7/TjEwfPY9c9rHW1fvIq+3rta5M+c3BxlcMX7wtEjPy1fH0/di6aot" +
+                        "QR+8dAu1vM6c0Q77cE7/5Mkzj58+esrEEODNzrFeWHO9JdACcyAOwGm9EBCX" +
+                        "pBaX6Bdkp+u75efrJeckFhfnBscGX3YQsZ29zFOKqyVsQ42mlle3h5frXMFj" +
+                        "kqISj6Y86rgsPm9aiebCzEMmmcfV2/c/XP3/gHhpTYGE/N/AvvJgCTv5ou9v" +
+                        "7la/A6Jn7/fH72fUeWzpbCYWmCO/ddY3N4lXCTzXFN8X3n7uePnePWuRvDXK" +
+                        "RxesrWoU35/kIer9VefSBZ8VFySv/DjQLdG2Slx4bcCdOgmjHtG5ryr3zd3x" +
+                        "mPXs1KC5ivG5rRvfs36bZfGKY/rxRY4qe3UXdZizMktc2veCc37in6wV4myh" +
+                        "lS4suZcjo6PXG2444TDv4bnMF4nrc6sddawYv+eqTyhVPt9b0mPUs4v9UO7V" +
+                        "Qzuuff37fc/h201Mks+6rq5eu/5OyU+dvMUJSTyPQ64tPp94IpY/RUKBM006" +
+                        "aX753xkPXT9ucjHneByz32FlXoJFN2OKr8aO4wZFy45N66hsPj6HS/NtXBfb" +
+                        "qSUnPZxfbRT7aV9ZFK52JSLphp3lPKOpTUla105uXCkhpLGsZdrF+DYu9eOi" +
+                        "S8/cW/K/5uqLD3enTJ0VcCrrqIGItq+H9wS/EzeupN7iOtuwKzInsP3V7Q2O" +
+                        "i6XXVTWuKL1dvejzxPc/nVYJ77qz/nOf+vflfp9rPpk85r+r8O3WoneucnP3" +
+                        "8TUZ+LH5+mcXqD/Ly+6WnytYfijvuKj0PP0NLotWbEpc8qS70e3asrm6ogtM" +
+                        "bf8zHzNn4jqVsvXISgHeE9+YJzRyRigHJXkpnXwtolh6Wbxoe13SI6PYxVWT" +
+                        "7C7zv7wsbNK5UmVpn82yzkDPP/4vT0+sn2DjLNiWyNmjkJ5awF5+Up1735KY" +
+                        "zCjuy6+e63ssD1t+eUvWzplrf55sfb/j/v6DRpGiXYkxGa62axc9iEwSn1wl" +
+                        "XfKtwejcO6WnDxY2u/M9C1DpmNRcaXNv6X9W7opN3T4sk/NEHbsNJjScPPLs" +
+                        "5D92UPI+eu8Q+3wmBgYNFnzJWxqI4bkrNzEzTy87vyQnMy8+Nz+lNCc1OSEh" +
+                        "IQ2IWZL82DQCki4kMYCzzlelPXuFgTolwFmHkUmEAWE6crYC5V1UgCsno5uC" +
+                        "7HohFBPqsWZIdP3ILpRG0R/HjNfHAd6sbCBlzEB4HkjvYgbxAGxz5tyfBAAA"
+                ),
+        ) {
+            val fooClass = codebase.assertClass("test.pkg.Foo")
+
+            val sourceFunction = fooClass.assertMethod("foo", listOf("int", "java.lang.String"))
+            assertThat(sourceFunction.targetLanguages).isEqualTo(TargetLanguageSet.BYTECODE_ONLY)
+            assertThat(sourceFunction.modifiers.isDeprecated()).isTrue()
+
+            val generatedFunction =
+                fooClass.assertMethod(
+                    "foo\$default",
+                    listOf("test.pkg.Foo", "int", "java.lang.String", "int", "java.lang.Object")
+                )
+            assertThat(generatedFunction.targetLanguages).isEqualTo(TargetLanguageSet.BYTECODE_ONLY)
+            assertThat(generatedFunction.modifiers.isDeprecated()).isTrue()
+        }
+    }
+
+    @Test
+    fun `Test compiler generated default version of constructor with optional parameters`() {
+        runCodebaseTest(
+            inputSet(
+                kotlin(
+                    """
+                    package test.pkg
+                    class Foo(i: Int = 0, s: String = "")
+                    """
+                )
+            ),
+            compiledSourceJar =
+                base64gzip(
+                    "test.jar",
+                    // kotlinc version info: kotlinc-jvm 1.9.23 (JRE 21.0.8+9-LTS)
+                    "" +
+                        "H4sIAAAAAAAA/wvwZmYRYeDg4GBgYFBkQAYiDCwMvq4hjrqefm76vo5+nm6u" +
+                        "wSF6vm7/TjEwfPY9c9rHW1fvIq+3rta5M+c3BxlcMX7wtEjPy1fH0/di6aot" +
+                        "QR+8dAu1vM6c0Q77cE7/5Mkzj58+esrEEODNzrFeWHO9JdACcyAOwGm9EBCX" +
+                        "pBaX6Bdkp+u75efrJeckFhfnBt/3vxwg8i9vd+lSHg3hAmZHkSmGE/keTRZo" +
+                        "XqTia2aSVPHw5borhdfXqb69+2jyw/sfrv5vUO/hb/vxQj7VZvtshylLbJ9b" +
+                        "P583/35u/d9//5gPGOcYiSyd7/XcJMO6ujCGIXmD9Z7zcye45z7PXf24ehPD" +
+                        "3IM3xCZO0JdIW5X32OqRg5pSVv5aOSMd00dL3pbU3PTa0RHU7h6os1PE8OHf" +
+                        "iHffDxV0Ny5V82lrVZi2sGOO3/7XHR6/PI84H+8N2RpSkckodnhL+aPqgwZf" +
+                        "Zf0rri93aJua9fi+4PY86ZUdSsd0epLmOK7Xsua/7cQ3mceyUimo7eOxs1+v" +
+                        "VjTFTV/4pd6xzXz72ndmedFPt/6f+N1pp/fp00uen7TI/KTyYXKP5owVKxJ5" +
+                        "uKWeiWhpm5w3+Lk94vL0PzO8/WK35sUvv53k1aPBKGWo8F994RqrhY952+ae" +
+                        "3izprZ09LS1+XuSXjG2WAY+XnJqePjtq7t5VU3yCN2+NXLsuXcNd4//n1Qtv" +
+                        "tq1ylm9xdFnDPknjVm9/bVtnW8efv3Hbn6rLV2h/ETXfePyw8zyOVP65p99X" +
+                        "TxSJvd/7S0n0ya5dG6Zfv894+Ebjk7gLT5YfNnmt8E513n71KYGS1yxkQnZM" +
+                        "7OB9pL68rN3vtXBpir3iadW1ERKx2r01h13eMi0tNjJdM9FEI4TVTnWPBcdh" +
+                        "WZ/UVDfDXkmr8BNHYruiwv9kSe5lPRAWe6oldPrzKXPUY+edr/3XtGef7Xz1" +
+                        "3Clps7fu3Mp9R3pLicezBTOfhRY/DS19kzhX9NAp66DLMw/qbSiYtzX4syg7" +
+                        "++GfJleMIxcfbZS12u2/stv9QqxNwccLR4WmcT6a2H08wnLRfa7QNXILJyRp" +
+                        "uaoeLVE76yNVD064sxj8qyqZGBg+MuNLuNJADM83uYmZeXrZ+SU5mXnxufkp" +
+                        "pTmpyQkJCWlAzJLkx6YRkHQhiQFs9lelPXuFgTolwJmCkUmEAWE6coYB5UpU" +
+                        "gCuPopuC7HohFBPqsWY1dP3ILpRG0W/BjNfHAd6sbCBlzEB4HkhPYQbxAAlk" +
+                        "yHF5BAAA"
+                ),
+        ) {
+            val fooClass = codebase.assertClass("test.pkg.Foo")
+
+            val sourceCtor = fooClass.assertConstructor(listOf("int", "java.lang.String"))
+            assertThat(sourceCtor.targetLanguages).isEqualTo(TargetLanguageSet.ALL)
+
+            val generatedCtor =
+                fooClass.assertConstructor(
+                    listOf(
+                        "int",
+                        "java.lang.String",
+                        "int",
+                        "kotlin.jvm.internal.DefaultConstructorMarker"
+                    )
+                )
+            assertThat(generatedCtor.targetLanguages).isEqualTo(TargetLanguageSet.BYTECODE_ONLY)
+        }
+    }
+
+    @Test
+    fun `Test compiler generated default version of internal constructor with optional parameters`() {
+        runCodebaseTest(
+            inputSet(
+                kotlin(
+                    """
+                    package test.pkg
+                    class Foo internal constructor(i: Int = 0, s: String = "")
+                    """
+                )
+            ),
+            compiledSourceJar =
+                base64gzip(
+                    "test.jar",
+                    // kotlinc version info: kotlinc-jvm 1.9.23 (JRE 21.0.8+9-LTS)
+                    "" +
+                        "H4sIAAAAAAAA/wvwZmYRYeDg4GBgYFBkQAYiDCwMvq4hjrqefm76vo5+nm6u" +
+                        "wSF6vm7/TjEwfPY9c9rHW1fvIq+3rta5M+c3BxlcMX7wtEjPy1fH0/di6aot" +
+                        "QR+8dAu1vM6c0Q77cE7/5Mkzj58+esrEEODNzrFeWHO9JdACcyAOwGm9EBCX" +
+                        "pBaX6Bdkp+u75efrJeckFhfnBt/3vxwg8i9vd+lSHg3hggYFrlMzPNg/enYE" +
+                        "Bk5Wk5Yy3POhJPzVjuzrk77lfTz55v6Hq/8b1Hv40z5etD9VkWfeqOFZfa78" +
+                        "nK39/tv/fv39y96gfiNRw8t+6rnIC0X3jhQy9hzM+yxX7iS3dc72s9ven2Qq" +
+                        "YUv2d3GyS56xesfX1R3OMztWbN1deGRDVP/kaZe/pRo/VPKSlXPd+CToSAt/" +
+                        "UuUF3sOxbNNmGUhOa45oUyq6tbdPWemluiC/rHnQ1aCHS1kjeDbfW/medfGV" +
+                        "cpuHsvOZJK9pf613v7M3c4lS14wNBn2ebHsXvbHJ4bb0MX7yZKWHpNrr69fD" +
+                        "H3NWxbZd+s8qGXd/y67o/ZlTw/+53+N9aqerP3md+uMlBycf8DdalpAUx5sc" +
+                        "cWHDioDIhaptL/cfldr3RD2m6NWq0iqru2LBST6cFzoYf9pzpl7lmJtj/Ib/" +
+                        "V/G0sGs6Z+W+6FaZ3JZZ5Rn01LHeffXG6d3PFsQb+Z69JrZl1ryFMgv/nF/f" +
+                        "lia9SqRWmK1wo6hHUqa93UfJZa+UPvHvmrtsfs2DsxfCvxyR4++vUJpiW7Ru" +
+                        "73u3oJIa81edIRNefzoXF1PLxSPcPqnasXl+76U1h3fMrvgnvbDnZ2Dv4sTW" +
+                        "7M4bal1FWbUvjjBsdP+mvCnmUlfHx7OXbpj7hOoHWKkHH1bzbHYKfZB8SPuw" +
+                        "wZ1DPmFpMptnLC5u9bmzbIWu68ZphjEMOVeX+kSUVnqdrLz0dOmd5/onXld7" +
+                        "V15yy1wYGHtnz4G5id7tKXyzMuPMwuNCj8tdjVRfsyc5dK7kG6bTzyOtTeML" +
+                        "Kwxm+TvrTg6NkqnwSy/XLH0qsau7Wu/d7oijUo42BR8FXh//kr6wqTdZJOjM" +
+                        "khn+hrM9jScfkwcl3UlVnI+qmRgYvjDjS7rSQAzPObmJmXl62fklOZl58bn5" +
+                        "KaU5qckJCQlpQMyS5MemEZB0IYkBnC2+Ku3ZKwzUKQHOFoxMIgwI05GzDChf" +
+                        "ogJcuRTdFGTXC6GYUI81s6HrR3ahNIp+K2a8Pg7wZmUDKWMGwvNAehoziAcA" +
+                        "OjmNJHsEAAA="
+                ),
+        ) {
+            val fooClass = codebase.assertClass("test.pkg.Foo")
+
+            val sourceCtor = fooClass.assertConstructor(listOf("int", "java.lang.String"))
+            assertThat(sourceCtor.targetLanguages).isEqualTo(TargetLanguageSet.ALL)
+            assertThat(sourceCtor.modifiers.getVisibilityLevel())
+                .isEqualTo(VisibilityLevel.INTERNAL)
+
+            val generatedCtor =
+                fooClass.assertConstructor(
+                    listOf(
+                        "int",
+                        "java.lang.String",
+                        "int",
+                        "kotlin.jvm.internal.DefaultConstructorMarker"
+                    )
+                )
+            assertThat(generatedCtor.targetLanguages).isEqualTo(TargetLanguageSet.BYTECODE_ONLY)
+            assertThat(generatedCtor.modifiers.getVisibilityLevel())
+                .isEqualTo(VisibilityLevel.INTERNAL)
+        }
+    }
+
+    @Test
+    fun `Test compiler generated default version of annotated constructor with optional parameters`() {
+        runCodebaseTest(
+            inputSet(
+                kotlin(
+                    """
+                    package test.pkg
+                    annotation class Anno
+                    class Foo @Anno constructor(i: Int = 0, s: String = "")
+                    """
+                )
+            ),
+            compiledSourceJar =
+                base64gzip(
+                    "test.jar",
+                    // kotlinc version info: kotlinc-jvm 1.9.23 (JRE 21.0.8+9-LTS)
+                    "" +
+                        "H4sIAAAAAAAA/wvwZmYRYeDg4GBgYFBkQAYiDCwMvq4hjrqefm76vo5+nm6u" +
+                        "wSF6vm7/TjEwfPY9c9rHW1fvIq+3rta5M+c3BxlcMX7wtEjPy1fH0/di6aot" +
+                        "QR+8dAu1vM6c0Q77cE7/5Mkzj58+esrEEODNzrFeWHO9JdACcyAOwGm9MBCX" +
+                        "pBaX6Bdkp+s75uXl6yXnJBYXt07Y68/kKHD0vs6jg5pMdU0iUYFFHm+2XHSZ" +
+                        "7O3AW2cSwp1zouj43I/fOspC/gWKtUX8cpdM36igpma2ef/c2nyj33b7791j" +
+                        "lFnspiExVeK9oURleqCItYJTps7yS9ypJp/W/U42NeAzamlODd90yWPx44zE" +
+                        "X47skYcSf/uHhkuKRloppiw38hFd+K//ixrf1wetvH7f/7069z5G4NRbBbOF" +
+                        "fXv6jIo0ep+EG85M+6Gf4n1PTEDjwb/N27arXf7QETD3fNG6FRzhU7J29ocH" +
+                        "zjwftcjz+eeZols4jn5br1BhxF+kY8bkXJD/+EvmAr3SE6vDd2uutwjkt7r4" +
+                        "N0DX2OOVDa/2m5itsw3Cxbc21dr5z7RIeCLyqWBjm8616hM/NH7c+BDo0imY" +
+                        "Kj/7xqtGoZzk5ewTE8wP3jMHBfYjnYliOowMDFsY8QW2EHJgu+VDwzo3+L6/" +
+                        "sKPAv2/r9sb1My310lXoagrSKmqw4zRk8iry7Hbj0bfJ7d+aU71XuTz60eSH" +
+                        "9z9c/d+g3sPf9uOFfOqcvdPktTytP7898+bM9vtP6v7++8d8oNgmWUNjosb3" +
+                        "FZeLti/WYD8WkPM5+R2bTc7O/Nm5D1fL+LBlx7YF7U3RCN/7K/Touq7UG1HR" +
+                        "N5Il1sZvu8VxOKM3cZvcUd3tuiHGz4x8YvwSj07t4XjvkrVcnCXkqJB0ZVv1" +
+                        "XA9Wo5Lbx2PD27yOKPLH6F/5K/xS3ZLHsOd3+6H3POv2PTZ8z6WVMmP9tf+q" +
+                        "e8uETzK1GT5a0BDItnnV+cgeyxMLjkwIbDdKlFgZL+5yefKX7xJe/81TKoon" +
+                        "S8T9XbZ8j5h8pX5A9JcK0e81okd55cpd5mSxS0+e1fP0wIHYXjWTXccNyi6u" +
+                        "URSxf9B1OWRxdc6lfzPMKnMdRKxF/qt8zZx54SDX4Wc/PW8aarUli5z3l/kl" +
+                        "6br7vduJ0HP+Yb2p2yxTn3ttyxXp9Uy+6RPYFvDtefhpjahdl7Wc/fRLVi72" +
+                        "WLr2hcOL2NMBb77s8hWsf3DWIaNSaT57tc20XzYcfnvet3qVHZ3no8Jqtu7b" +
+                        "eQPzE5UPC+2rd57ff6qtXPS7NTBLZLx847b3hvhtI4EIxU6jXz8NPBmD+v8o" +
+                        "zbXpylZsE/M+Zy6Snb6j1Mud2f9kVMgq7ukc57+cLpB+nDlbcUph+yepp4EL" +
+                        "pd89cPN7veqpWdDW3AUr1P0ErgnHByzW+Xmq5Nln8ZSzX1/qVK42ubrCV3de" +
+                        "4i77utYctrbceKGdCXZukXfT523oe5attvmG5Lv5yx6bXHeyN3xQNXd649Ur" +
+                        "dp6L12tYOefKvTn85cOFw2vaLW2UOo7L8a54d1m8nfXKt4neBvMSjBwtt/68" +
+                        "ElUPLjd0xRTudjMxMMix4EvK0kAML7ZyEzPz9LLzS3Iy8+Jz81NKc1KTExIS" +
+                        "0oCYJcmPTSMg6UISA9jsr0p79oJKHAlwmcTIJMKAMB25vAIViqgAVxGJbgpy" +
+                        "RhRGMaEee0mHbgCy94VQDHjDiC33outH9qI0iv7tLHiDLMCblQ2kjAUIBUCu" +
+                        "ZwXxAG/YMW85BgAA"
+                ),
+        ) {
+            val fooClass = codebase.assertClass("test.pkg.Foo")
+
+            val sourceCtor = fooClass.assertConstructor(listOf("int", "java.lang.String"))
+            assertThat(sourceCtor.targetLanguages).isEqualTo(TargetLanguageSet.ALL)
+            assertThat(sourceCtor.annotationNames()).containsExactly("test.pkg.Anno")
+
+            val generatedCtor =
+                fooClass.assertConstructor(
+                    listOf(
+                        "int",
+                        "java.lang.String",
+                        "int",
+                        "kotlin.jvm.internal.DefaultConstructorMarker"
+                    )
+                )
+            assertThat(generatedCtor.targetLanguages).isEqualTo(TargetLanguageSet.BYTECODE_ONLY)
+            assertThat(generatedCtor.annotationNames()).containsExactly("test.pkg.Anno")
+        }
+    }
+
+    @Test
+    fun `Test compiler generated default version of deprecated constructor with optional parameters`() {
+        runCodebaseTest(
+            inputSet(
+                kotlin(
+                    """
+                    package test.pkg
+                    class Foo @Deprecated("", level = DeprecationLevel.HIDDEN) constructor(i: Int = 0, s: String = "")
+                    """
+                )
+            ),
+            compiledSourceJar =
+                base64gzip(
+                    "test.jar",
+                    // kotlinc version info: kotlinc-jvm 1.9.23 (JRE 21.0.8+9-LTS)
+                    "" +
+                        "H4sIAAAAAAAA/wvwZmYRYeDg4GBgYFBkQAYiDCwMvq4hjrqefm76vo5+nm6u" +
+                        "wSF6vm7/TjEwfPY9c9rHW1fvIq+3rta5M+c3BxlcMX7wtEjPy1fH0/di6aot" +
+                        "QR+8dAu1vM6c0Q77cE7/5Mkzj58+esrEEODNzrFeWHO9JdACcyAOwGm9EBCX" +
+                        "pBaX6Bdkp+u75efrJeckFhfXBvv6CztK1KVtv5s3XcxLUCdB0F5TNNPxi8IR" +
+                        "DZFHarmmSTsKpLYlR+66q7r78rHJD/MrvsoXHKowOLLY/tSPc9s6HJM2fT73" +
+                        "ue7M749n3pyPv7+POeKwcVuPyMQ1MuW3ps5V8Gg0fNJXMT/c5t127Xy+vhbl" +
+                        "4AuSPbzXy59yt62cFLu/58bUha+3Xxf/LqH2aq5D1br4lZ2PAyxiuq5ZOa/S" +
+                        "XtSxnZVZYtK8F9z9ib+yVkj/KH26iPlY9u6w23lGG064TEvMk6i68j4sJr7r" +
+                        "wvO4o99C754oXSRyTEJtrvPDklmNOd9s3uvyV4YHKBx2WllXOuPr61nnE2Qq" +
+                        "uS19DF6oLlU3zFRs1GxrsSlRbrv4675L4PwzS1ONn/z3PbGhVtaz7O+uwKxH" +
+                        "zO8ri7Q/KEt+k5Fs4ZUrc/HInemx2o+HWypPOyTkBd/hH67L2ibsOaq6fFLU" +
+                        "9vWXlxqpXvISuL/G+Vv/ukurWqK0eWY/Vw+eFnZBR7e8Luni8qdnDpp5RT/8" +
+                        "kxK6etPZSOOp5r66y89mhNq6cTqdlI/n0U1f4bO6JPDI4SJ3Iedox+535Wve" +
+                        "/Vp087Vcxwdb+w8ti9QKdmw/7hz+0nlx6U+bF4p7Xv+89LbL1rzo5O9T35kl" +
+                        "97Ml2ezW3nk588Pj7ubdjvolR/pec64R4Oc0Vf4iEyzi6N5qMvtN1q2JS/+8" +
+                        "CL+jMf/hM82VUqtUeJOOKOxxqqgTaGNa9thEecZBnZ+ipx6Jua499k19y6cU" +
+                        "/4lHeya0qWooCYvrTvIVrfXbOWmLeFen//yJV8y7PG/1/olZbLO7pO2nI3u2" +
+                        "ivAFn8/++jtWCKXPlunb4BDx81LqXMk3POX+j1eH+Kaz9SVe/p87Ycvywsan" +
+                        "Fo9UXe8sPvL9+8LbFQmPF/q2erFszFjc4/77y+5Ezv7vE7sMfCuVzhwxkvZ+" +
+                        "bA5K3GrGanxzmRgYjFnwJW5pIIbnrdzEzDy97PySnMy8+Nz8lNKc1OSEhIQ0" +
+                        "IGZJ8mPTCEi6kMQAzjhflfbsFQbqlABnHEYmEQaE6ciZCpRzUQGufIxuCrLr" +
+                        "hVBMqMeaHdH1I7tQGkV/DDNeHwd4s7KBlDED4XkgvYMZxAMAGczJo50EAAA="
+                ),
+        ) {
+            val fooClass = codebase.assertClass("test.pkg.Foo")
+
+            val sourceCtor = fooClass.assertConstructor(listOf("int", "java.lang.String"))
+            assertThat(sourceCtor.targetLanguages).isEqualTo(TargetLanguageSet.BYTECODE_ONLY)
+            assertThat(sourceCtor.modifiers.isDeprecated()).isTrue()
+
+            val generatedCtor =
+                fooClass.assertConstructor(
+                    listOf(
+                        "int",
+                        "java.lang.String",
+                        "int",
+                        "kotlin.jvm.internal.DefaultConstructorMarker"
+                    )
+                )
+            assertThat(generatedCtor.targetLanguages).isEqualTo(TargetLanguageSet.BYTECODE_ONLY)
+            assertThat(generatedCtor.modifiers.isDeprecated()).isTrue()
+        }
+    }
+
+    @Test
+    fun `Test compiler generated default version of reified functions with optional parameters`() {
+        runCodebaseTest(
+            inputSet(
+                kotlin(
+                    """
+                    package test.pkg
+                    class Foo {
+                        internal inline fun <reified T> internalReified(i: Int = 0, s: String = "") = Unit
+                        inline fun <reified T> publicReified(i: Int = 0, s: String = "") = Unit
+                    }
+                    """
+                )
+            ),
+            compiledSourceJar =
+                base64gzip(
+                    "test.jar",
+                    // kotlinc version info: kotlinc-jvm 1.9.23 (JRE 21.0.8+9-LTS)
+                    "" +
+                        "H4sIAAAAAAAA/wvwZmYRYeDg4GBgYFBkQAYiDCwMvq4hjrqefm76vo5+nm6u" +
+                        "wSF6vm7/TjEwfPY9c9rHW1fvIq+3rta5M+c3BxlcMX7wtEjPy1fH0/di6aot" +
+                        "QR+8dAu1vM6c0Q77cE7/5Mkzj58+esrEEODNzrFeWHO9JdACcyAOwGm9EBCX" +
+                        "pBaX6Bdkp+u75efrJeckFhevDTnvL+wo8i/td3a5ZqrjgW1NCmKaHToP+IUU" +
+                        "VbKcdDQXTCl4aLKFm+fuu0nvplQY2VZ+eXf1/4HJx5ozLX65S97XCdVIOHIk" +
+                        "z+rzXvP8e7/3mW/+/ff49XwGucRGRc25Drfcr9ZWH/0unMBzTdH+2bbTe2ur" +
+                        "k79f0DzNosTzUfUh584zAif989QFne+4iHC2rbARYHReVWF3Ucl5/4clwd93" +
+                        "7H7ZYfswpMhUz6btYM3CirAFKq8P3Y6fcydtRtytqqg9EVWFP/0f6lyYmLQj" +
+                        "9utSbZvfH3ak/dfKELcRFe8omtBw1CDAruDU1dL4deYx30XXf57l3Mgj/PP0" +
+                        "13Va01zk82a8cLV3VlMvqt65eulGpr+szvefqvA4h789GTrH9l6B6mGnfZvr" +
+                        "w1foxaStlmKUdebZeOelYYm8aVlsYJ64op7ife5zjXy/e1zyN949a+r+iWv6" +
+                        "nIrsrY857oouY3PmVZgY+mm/4KlZqiEzkyvuZ/XNjIoyNl191cQ0lnGt7etl" +
+                        "RZGaqcuiz1bmTrPtn1vTE3zk1RTRk1mbL27ccS8raqPJ7OulZ7smawsqzZ3w" +
+                        "8dOSlasL7sbIbt+1TvCfX/iaZ5JVeiZzV+RfDF3Gdj7EM/9La3yhxioNm/S9" +
+                        "gbdLX0XXXC+9wvkr9V3e510BZbczpxzZdzx1sd+O3SqVO3cd67+VnXYy/8rp" +
+                        "c10BbmmbH3oGFm9zVcj4OvP5z0neD6sZny24GL24zvCV8l4Xk3OTUlev03p/" +
+                        "Jf3FfI4Mka4CSY+EeceeZDLwzGi42q33KePhs+tvlxwriT8vzuMyzVr4xZcV" +
+                        "LMEiSybbdszm8P9sEtpx6Umyopeic7V8m+QuXebIO1nFNkr+Pc/eFHx5y35E" +
+                        "yfuw4azHtYezn792e7GZadWSl1UnDiyJfdWXdm7jiTnJE4++Net+ky92M1hM" +
+                        "pejJL6VevomL/6t8OlcvmBkQttj5yYv7rpc+WzxJfMx5VnqLmRvPu3cKQQ7r" +
+                        "Gj4yvUtsUvjE6pOU1b6vZkf/S1kV5hmMbUxHmG04Dvo0lHAEPbwhmvBEHZRb" +
+                        "tuou+/OOiYHhNSu+3CINxPDMmpuYmaeXnV+Sk5kXn5ufUpqTmpyQkJAGxCxJ" +
+                        "fmwaAUkXkhjAOfGr0p69wkCdEuCcyMgkwoAwHTmXgooCVICrYEA3Bdn1Qigm" +
+                        "1GPN3+j6kV0ojaJ/LTNeHwd4s7KBlDED4XkgzQn2AQCe5Ge97gQAAA=="
+                ),
+        ) {
+            val fooClass = codebase.assertClass("test.pkg.Foo")
+
+            val publicReified =
+                fooClass.assertMethod("publicReified", listOf("int", "java.lang.String"))
+            assertThat(publicReified.targetLanguages).isEqualTo(TargetLanguageSet.KOTLIN_ONLY)
+            assertThat(publicReified.modifiers.getVisibilityLevel())
+                .isEqualTo(VisibilityLevel.PUBLIC)
+
+            val internalReified =
+                fooClass.assertMethod("internalReified", listOf("int", "java.lang.String"))
+            assertThat(internalReified.targetLanguages).isEqualTo(TargetLanguageSet.KOTLIN_ONLY)
+            assertThat(internalReified.modifiers.getVisibilityLevel())
+                .isEqualTo(VisibilityLevel.INTERNAL)
+
+            assertThat(fooClass.methods()).hasSize(2)
+        }
+    }
+
+    @Test
+    fun `Test compiler generated default version of top level reified functions with optional parameters`() {
+        runCodebaseTest(
+            inputSet(
+                kotlin(
+                    """
+                    package test.pkg
+                    internal inline fun <reified T> internalReified(i: Int = 0, s: String = "") = Unit
+                    inline fun <reified T> publicReified(i: Int = 0, s: String = "") = Unit
+                    """
+                )
+            ),
+            compiledSourceJar =
+                base64gzip(
+                    "test.jar",
+                    // kotlinc version info: kotlinc-jvm 1.9.23 (JRE 21.0.8+9-LTS)
+                    "" +
+                        "H4sIAAAAAAAA/wvwZmYRYeDg4GBgYFBkQAYiDCwMvq4hjrqefm76vo5+nm6u" +
+                        "wSF6vm7/TjEwfPY9c9rHW1fvIq+3rta5M+c3BxlcMX7wtEjPy1fH0/di6aot" +
+                        "QR+8dAu1vM6c0Q77cE7/5Mkzj58+esrEEODNzrFeWHO9JdACcyAOwGm9KBCX" +
+                        "pBaX6Bdkp+uHABneJXrJOYnFxWtDfP2FA0Vs89Nu7QubsNBpoajgRg4OI4eY" +
+                        "zlkSQqVJjs7SZmvill/+9aKkrSSuU/vy1P8H5z88t8PgyFL7UxX3G2pEhcT0" +
+                        "nt0rtk87Z/t975n39vZ1TBVdoW2CT4+fsszYPkeqsVyL+VjC+27nhyxKOZbv" +
+                        "X//e5x45OSp1xZ88jSbZeLOl9xM0dHZM3Xxt1atTG7Zu3HF6w58939YU/VSW" +
+                        "1l+fnW7Inj4jz11rwsLN9TcK/xVa5q34nfTyqOQTiWN7+/ddv9d3pUyfw65j" +
+                        "3YsfV04Y7Dc4US56U6DNYM5h3TtpEtqnizbbLOja+cWj7c+D3zzC02+d5t2v" +
+                        "WdWYFLHHa661xVQxnj6mwx8c18t5vJ9iMf9MsaZlnaLdYum1c3KyT4cvUpyy" +
+                        "4GHPuYWe7Ke3nMxiDrp07cCCR+orBefuvBiR3NH3q/VOoH36DbdzD77c+GOx" +
+                        "x3edSfpkw7CbObPkv+YmT1pbnHdDbekalqUcS+//e1X86sydBR+5r295beLX" +
+                        "q7j4/R2v2S4RswMPL58dOnHh/ruvr/zN873CHP/e7pPLBu1dQcfVT+aEbnNa" +
+                        "WBV76HCo6p5v0ywsVj5dFbj+9c/1S/m6rPcGnOzbr53seTU8UUJzYYrIsYhm" +
+                        "Ru98tmmxLlyZXeKaVc52kbeD7H7LKj/rzq/KrvAx841+EhKjZOM8Lzgnecqq" +
+                        "K302iiodj/lCp03+blQmliyxPKJ+T6VT1KxNdvWup+7M8Jro/1xd6/lNH5uL" +
+                        "yQcf2Dw8q8qj1vV8R/fzHd7L7yxNzhMyqSx2vMbqeFSaQ+uvuKNYYaQ4i+h6" +
+                        "YZebU1tqGfl++p66s9R49q3ml4/mdWeKfzd8/IgxLdbGpbL/n8qMw4ttP0is" +
+                        "lGiV+Gz4ifNB59w/3KDEO3HSId4qJgaGPyz4Eq80EMPzTm5iZp5edn5JTmZe" +
+                        "fG5+SmlOanJCQkIaELMk+bFpPBB69EjDE5iXtE/4iSdxM27a4z1FYosEOKvo" +
+                        "N+0TUwWapQPOKoxMIgwI+5CzESivogJcORfdFGT/iKKYUI8rA6IbgexIaRQj" +
+                        "bJjxBkOANysbSBkzEF4C0quYQTwAWP/HnJIEAAA="
+                ),
+        ) {
+            val testKtClass = codebase.assertClass("test.pkg.TestKt")
+
+            val publicReified =
+                testKtClass.assertMethod("publicReified", listOf("int", "java.lang.String"))
+            assertThat(publicReified.targetLanguages).isEqualTo(TargetLanguageSet.KOTLIN_ONLY)
+            assertThat(publicReified.modifiers.getVisibilityLevel())
+                .isEqualTo(VisibilityLevel.PUBLIC)
+
+            val internalReified =
+                testKtClass.assertMethod("internalReified", listOf("int", "java.lang.String"))
+            assertThat(internalReified.targetLanguages).isEqualTo(TargetLanguageSet.KOTLIN_ONLY)
+            assertThat(internalReified.modifiers.getVisibilityLevel())
+                .isEqualTo(VisibilityLevel.INTERNAL)
+
+            assertThat(testKtClass.methods()).hasSize(2)
+        }
+    }
+
+    @Test
+    fun `Test synthetic constructor is not included for private constructor`() {
+        // See https://youtrack.jetbrains.com/issue/KT-51073: a public version of this constructor
+        // is generated by the compiler, and it should not be included.
+        runCodebaseTest(
+            inputSet(
+                kotlin(
+                    """
+                    package test.pkg
+                    class Foo private constructor(i: Int) {
+                        class Builder {
+                            fun build(): Foo {
+                                return Foo(0)
+                            }
+                        }
+                    }
+                    """
+                )
+            ),
+            compiledSourceJar =
+                base64gzip(
+                    "test.jar",
+                    // kotlinc version info: kotlinc-jvm 1.9.23 (JRE 21.0.9+10-b1163.91)
+                    "" +
+                        "H4sIAAAAAAAA/wvwZmYRYeDg4GBgYFBkQAYiDCwMvq4hjrqefm76vo5+nm6u" +
+                        "wSF6vm7/TjEwfPY9c9rHW1fvIq+3rta5M+c3BxlcMX7wtEjPy1fH0/di6aot" +
+                        "QR+8dAu1vM6c0Q77cE7/5Mkzj58+esrEEODNzrFeWHO9JdACcyAOwGm9EBCX" +
+                        "pBaX6Bdkp+u75efrJeckFhdPDTyfL+QoUWt8wGl7xLYtYRlXw1xb5XaJ2K4I" +
+                        "Fe7O3MS5tlNKT+YMQ7JsRNnZdzofT9x/VH8hWJi/reJLv1Hd5gXfsjb9/ltx" +
+                        "//u9M/v+/nx9u5yh/2KCRpZk9vfPP+7Ych62kWg2Fgp++EvJovz+F/eiBZ9P" +
+                        "GEScD13wxbst5252iaTRV7ftHTKfzDZpCKyxXzkjcW1x6PuORs0q27awu697" +
+                        "nN+uPiDrq76Oa0sP08Pd65+6T/yxS5ZtY9+kRr7FwYK9qSVbJmzPKZgiYZbV" +
+                        "XC8tr/aS6/DB/55Ga/4rzvHSbXPiPvQjZZai+QxObbWGPBu1P91GsZNXPVQ8" +
+                        "vPjnmpzPXNt3Gs+/+aVgecJnpvVn0nXvpZyPeLcj5EHq6Ye398z8+fHqI79r" +
+                        "AdFnOJ71Cz/lPzvXfL1USPShyjcTj7LI9JhW3uRrn7TwSmCjjbdareRe8dr5" +
+                        "E4rUZTj2ayul/lKN+NLk4JYbf2TjEvuE/dyTMxT8p8wMva/WGCZ8M3Tjoqfh" +
+                        "jgJZC0Utm52NzLL3TTMy97us+z7w+xSj5XNu7z9yytVqXaBJcvD95Tu2RjT0" +
+                        "Xg1RaFda12jZs2rr0jPCtwy/Rf62nl6gFxTOW57f+O9pFHde1NrFczbJBaQL" +
+                        "l7Xvig35aGD7U+/VlHiBfY7Pc75N+Fhw9/C0dukVAZ2r2nPffDmQdOfIWrk1" +
+                        "EqsN845rLJt46+59UNIJTwuX/c3IwPCLCV/SkUJLOipOpZk5KalFkCSUGxgL" +
+                        "TEIitsannXYf3XQlauHX3aGOwtMn2a003DhDLVtDLcuDx5+5x2LDmVl3Ix8p" +
+                        "7z8av8Df18TwiHv9lI/vxJLXvjv816L83MybxfV//nziPcD4ime227Fj1faS" +
+                        "le6JO8pnrEjQWMwk0WwtZvyQ1al/j/jfjTIzmHTa/iQvnVp5KOHqq7tKOU9k" +
+                        "nwQknJhZrpV2I+u//wfB5rv+3pPWXv1v5bT4bplE756NJn89NGSrnV5f4Fjs" +
+                        "tMp64UsVR4flXemRrGuMTbLrqoVmOWTm28yu8pKWzBSsOP8keiLLMtcaYVVm" +
+                        "YbfjSrMuaPvFv7HSWHgm4J+v3TQ3nlbBEs7553Q2tS1NNOVNSBA+ZL9iS3aA" +
+                        "6Z30Hftn7OZbX9C+u3vn4fCKWyFin9XyNzj//n3cpvzn5z3ZuZ/d9JaaRGpt" +
+                        "qft3nNu7+kQYk5wPz80bXKC0FBZVNikz3m29q71CymJZPpcLohO9fqvu+Gx0" +
+                        "0c136fp0rTAW27/JspbPsnUXhyk8igh6vYcLmLT6Q06t0Zt5t77iBvvyqcvk" +
+                        "l7tfbtO8t+ic994FOfetD556nrPH23B+o9g3DTF//gRRvqdG1zgeSv5sULk8" +
+                        "87PoUnMx64PHlhdzfZNkTV9ZUG25d8LdAvXZE+Zv2S+94lHesgJh01P8nPs9" +
+                        "pGbbRtjp/bzxqVBSVCvw68beuXIRPdo7bjXLHu4s1HWzOxbV83o/uBTinDtV" +
+                        "jhmYjPiZ8SUlaSCGF4K5iZl5etn5JTmZefG5+SmlOanJCQkJaUDMkuTHphGQ" +
+                        "dCGJAWz2V6U9e4WBOiXAJRwjkwgDwnTk0g9UxKICXAUuuinIGUEIxYR6rOUm" +
+                        "un5k30uh6N/FhC/zoJuD7FNpFHNYWfGGXIA3KxtIGQsQigM9ksgK4gEABC1I" +
+                        "IY4GAAA="
+                )
+        ) {
+            val fooClass = codebase.assertClass("test.pkg.Foo")
+            val visibleConstructors = fooClass.constructors().filter { !it.isPrivate }
+            assertThat(visibleConstructors).isEmpty()
+        }
+    }
+
+    @Test
+    fun `Test synthetic constructor when there is a version with a final int parameter`() {
+        runCodebaseTest(
+            inputSet(
+                kotlin(
+                    """
+                    package test.pkg
+                    class Foo(i: Int = 0) {
+                        constructor(i1: Int = 0, i2: Int = 0): this(i1 + i2)
+                    }
+                    """
+                ),
+            ),
+            compiledSourceJar =
+                base64gzip(
+                    "test.jar",
+                    // kotlinc version info: kotlinc-jvm 1.9.23 (JRE 21.0.9+10-b1163.91)
+                    "" +
+                        "H4sIAAAAAAAA/wvwZmYRYeDg4GBgYFBkQAYiDCwMvq4hjrqefm76vo5+nm6u" +
+                        "wSF6vm7/TjEwfPY9c9rHW1fvIq+3rta5M+c3BxlcMX7wtEjPy1fH0/di6aot" +
+                        "QR+8dAu1vM6c0Q77cE7/5Mkzj58+esrEEODNzrFeWHO9JdACcyAOwGm9EBCX" +
+                        "pBaX6Bdkp+u75efrJeckFhfPnXQ677KDSNt/SevO18tWTnbKz9S8Pomtpfr2" +
+                        "AjGVqJCTQVEqXZtOtnlmnTLpjL05uUv0VfaGp7y7uo4whepUahyZ2emZ2J0y" +
+                        "/+f5mR/L/1l+Oh9/fx/zjWPBbYu4gp/OL/f/22yh12BYkf7I6Yet4Nxf+bfS" +
+                        "E91FEwyflKeqXPVm2y22xlRyza2ozR0yXHo5FiFh8qmnArL+nL2dmDDpXkPi" +
+                        "ajGW3rw1VUafzuv92tcTMsNl0fP9fPYdjv5vjweumuTofvTkQo9diZuMHz2P" +
+                        "LfAxfvKi+u7007yyZpLbVn6KP7HJ7d61VUuuyjj/5H9mEPLIRcPxWOX/Q4sU" +
+                        "DWXVShhil3h/9Q9Kf73E78Spi19Tjz79fOfpva9Lvfm/y0y3/vbn61O1+PTq" +
+                        "0PRtjyzuPO6uuWt06tqr49dtvhdVX142ST6ca5ZX+eK4yln3N69bdPLdcXXF" +
+                        "wyXObg8vLrjPN7l80d3FXksFy13Wawqt/LzGonSNy/JqjXOb79j2sXuq20yw" +
+                        "iqyw7pjypt13ptetWlHXjUJel+ZscJy84atupo7P+bmPtFLPZz7dFSWf9KiL" +
+                        "5XhyV1X0a6mjNy8y7phxhsHVp7FSKviUQbTkvi0p9f+a5myNXs/3sLciW0TX" +
+                        "4HhDLPNjlg29/UVsFguUq9757d31pe7Py17R0xE7ra2Mtz1asGithKlzl3Tw" +
+                        "9mPlmzWYn00zDj5tuXnfAjnnM/d2bD4495D9WZNlExLDekNzz266KfA5/Fn8" +
+                        "xbKuyNcTZft2dfZ/aLlWeyta4VQSd1hDVsNShtM7nIW0GWOfxHHrHK21yTjo" +
+                        "aTjzUWJXV6ex5inNLs1P+xlBibLveFlFKBMDw0lmfIlSGojheSI3MTNPLzu/" +
+                        "JCczLz43P6U0JzU5ISEhDYhZkvzYNAKSLiQxgBP8V6U9e4WBOiXACZ6RSYQB" +
+                        "YTpyZgDlOFSAK/+hm4LseiEUE+qxZiN0/cgulEYtBZjx+jjAm5UNpIwZCM8D" +
+                        "6QJmEA8AaxZ3d1UEAAA="
+                )
+        ) {
+            val fooClass = codebase.assertClass("test.pkg.Foo")
+            // The compiler generates a no-args version of a primary constructor with all optional
+            // parameters, even without JvmOverloads.
+            val noArgsCtor = fooClass.assertConstructor(emptyList())
+            assertThat(noArgsCtor.targetLanguages).containsExactlyElementsIn(TargetLanguageSet.ALL)
+
+            val sourceOneArg = fooClass.assertConstructor(listOf("int"))
+            assertThat(sourceOneArg.targetLanguages)
+                .containsExactlyElementsIn(TargetLanguageSet.ALL)
+            val bytecodeOneArgGenerated =
+                fooClass.assertConstructor(
+                    listOf("int", "int", "kotlin.jvm.internal.DefaultConstructorMarker")
+                )
+            assertThat(bytecodeOneArgGenerated.targetLanguages)
+                .containsExactlyElementsIn(TargetLanguageSet.BYTECODE_ONLY)
+
+            val sourceTwoArg = fooClass.assertConstructor(listOf("int", "int"))
+            assertThat(sourceTwoArg.targetLanguages)
+                .containsExactlyElementsIn(TargetLanguageSet.ALL)
+            val bytecodeTwoArgGenerated =
+                fooClass.assertConstructor(
+                    listOf("int", "int", "int", "kotlin.jvm.internal.DefaultConstructorMarker")
+                )
+            assertThat(bytecodeTwoArgGenerated.targetLanguages)
+                .containsExactlyElementsIn(TargetLanguageSet.BYTECODE_ONLY)
+
+            assertThat(fooClass.constructors()).hasSize(5)
         }
     }
 }

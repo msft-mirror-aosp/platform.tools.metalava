@@ -157,7 +157,6 @@ class CommonTypeModifiersTest : BaseModelTest() {
                       }
                     }
                 """
-                    .trimIndent()
             )
         ) {
             val methods = codebase.assertClass("test.pkg.Foo").methods()
@@ -255,7 +254,6 @@ class CommonTypeModifiersTest : BaseModelTest() {
                 @java.lang.annotation.Target({ java.lang.annotation.ElementType.TYPE_USE, java.lang.annotation.ElementType.PARAMETER })
                 public @interface A {}
             """
-                    .trimIndent()
             )
         ) {
             val fooClass = codebase.assertClass("test.pkg.Foo")
@@ -289,6 +287,9 @@ class CommonTypeModifiersTest : BaseModelTest() {
                     public class Foo {
                         public test.pkg.@test.pkg.A Foo foo() {}
                     }
+
+                    @java.lang.annotation.Target(java.lang.annotation.ElementType.TYPE_USE)
+                    public @interface A {}
                 """
             ),
             signature(
@@ -300,7 +301,6 @@ class CommonTypeModifiersTest : BaseModelTest() {
                       }
                     }
                 """
-                    .trimIndent()
             )
         ) {
             val method = codebase.assertClass("test.pkg.Foo").methods().single()
@@ -324,6 +324,15 @@ class CommonTypeModifiersTest : BaseModelTest() {
                     public class Foo {
                         public java.util.@test.pkg.A Map<java.lang.@test.pkg.B @test.pkg.C String, java.lang.@test.pkg.D String> foo() {}
                     }
+
+                    @java.lang.annotation.Target(java.lang.annotation.ElementType.TYPE_USE)
+                    public @interface A {}
+                    @java.lang.annotation.Target(java.lang.annotation.ElementType.TYPE_USE)
+                    public @interface B {}
+                    @java.lang.annotation.Target(java.lang.annotation.ElementType.TYPE_USE)
+                    public @interface C {}
+                    @java.lang.annotation.Target(java.lang.annotation.ElementType.TYPE_USE)
+                    public @interface D {}
                 """
             ),
             signature(
@@ -335,7 +344,6 @@ class CommonTypeModifiersTest : BaseModelTest() {
                       }
                     }
                 """
-                    .trimIndent()
             )
         ) {
             val method = codebase.assertClass("test.pkg.Foo").methods().single()
@@ -368,6 +376,13 @@ class CommonTypeModifiersTest : BaseModelTest() {
                     public class Foo {
                         public test.pkg.@test.pkg.A @test.pkg.B Foo @test.pkg.B @test.pkg.C [] foo() {}
                     }
+
+                    @java.lang.annotation.Target(java.lang.annotation.ElementType.TYPE_USE)
+                    public @interface A {}
+                    @java.lang.annotation.Target(java.lang.annotation.ElementType.TYPE_USE)
+                    public @interface B {}
+                    @java.lang.annotation.Target(java.lang.annotation.ElementType.TYPE_USE)
+                    public @interface C {}
                 """
             ),
             signature(
@@ -379,8 +394,7 @@ class CommonTypeModifiersTest : BaseModelTest() {
                       }
                     }
                 """
-                    .trimIndent()
-            )
+            ),
         ) {
             val method = codebase.assertClass("test.pkg.Foo").methods().single()
             assertThat(method.annotationNames()).isEmpty()
@@ -406,6 +420,9 @@ class CommonTypeModifiersTest : BaseModelTest() {
                     public class Foo {
                         public <T> @test.pkg.A T[] foo() {}
                     }
+
+                    @java.lang.annotation.Target(java.lang.annotation.ElementType.TYPE_USE)
+                    public @interface A {}
                 """
             ),
             signature(
@@ -419,7 +436,6 @@ class CommonTypeModifiersTest : BaseModelTest() {
                       }
                     }
                 """
-                    .trimIndent()
             )
         ) {
             val method = codebase.assertClass("test.pkg.Foo").methods().single()
@@ -442,8 +458,16 @@ class CommonTypeModifiersTest : BaseModelTest() {
                     public class Foo {
                         public test.pkg.@test.pkg.A Foo @test.pkg.B [] @test.pkg.C [] @test.pkg.D [] foo() {}
                     }
+
+                    @java.lang.annotation.Target(java.lang.annotation.ElementType.TYPE_USE)
+                    public @interface A {}
+                    @java.lang.annotation.Target(java.lang.annotation.ElementType.TYPE_USE)
+                    public @interface B {}
+                    @java.lang.annotation.Target(java.lang.annotation.ElementType.TYPE_USE)
+                    public @interface C {}
+                    @java.lang.annotation.Target(java.lang.annotation.ElementType.TYPE_USE)
+                    public @interface D {}
                 """
-                    .trimIndent()
             ),
             signature(
                 """
@@ -454,7 +478,6 @@ class CommonTypeModifiersTest : BaseModelTest() {
                       }
                     }
                 """
-                    .trimIndent()
             )
         ) {
             val method = codebase.assertClass("test.pkg.Foo").methods().single()
@@ -494,7 +517,6 @@ class CommonTypeModifiersTest : BaseModelTest() {
                         public void foo(test.pkg.@test.pkg.A Foo @test.pkg.B [] @test.pkg.C [] @test.pkg.D ... arg) {}
                     }
                 """
-                    .trimIndent()
             ),
             signature(
                 """
@@ -505,7 +527,6 @@ class CommonTypeModifiersTest : BaseModelTest() {
                       }
                     }
                 """
-                    .trimIndent()
             )
         ) {
             val type =
@@ -547,6 +568,15 @@ class CommonTypeModifiersTest : BaseModelTest() {
                             return new Outer<P1>.Inner<P2>();
                         }
                     }
+
+                    @java.lang.annotation.Target(java.lang.annotation.ElementType.TYPE_USE)
+                    public @interface A {}
+                    @java.lang.annotation.Target(java.lang.annotation.ElementType.TYPE_USE)
+                    public @interface B {}
+                    @java.lang.annotation.Target(java.lang.annotation.ElementType.TYPE_USE)
+                    public @interface C {}
+                    @java.lang.annotation.Target(java.lang.annotation.ElementType.TYPE_USE)
+                    public @interface D {}
                 """
             ),
             signature(
@@ -562,7 +592,6 @@ class CommonTypeModifiersTest : BaseModelTest() {
                       }
                     }
                 """
-                    .trimIndent()
             )
         ) {
             val method = codebase.assertClass("test.pkg.Outer").methods().single()
@@ -607,6 +636,13 @@ class CommonTypeModifiersTest : BaseModelTest() {
                 """
                     package test.pkg;
                     public class Foo implements test.pkg.@test.pkg.A Bar, test.pkg.Baz {}
+
+                    public interface Bar {}
+
+                    public interface Baz {}
+
+                    @java.lang.annotation.Target(java.lang.annotation.ElementType.TYPE_USE)
+                    public @interface A {}
                 """
             ),
             signature(
@@ -617,7 +653,6 @@ class CommonTypeModifiersTest : BaseModelTest() {
                       }
                     }
                 """
-                    .trimIndent()
             )
         ) {
             val foo = codebase.assertClass("test.pkg.Foo")
@@ -658,7 +693,6 @@ class CommonTypeModifiersTest : BaseModelTest() {
                       }
                     }
                 """
-                    .trimIndent()
             )
         ) {
             val foo = codebase.assertClass("test.pkg.Foo")
@@ -678,6 +712,19 @@ class CommonTypeModifiersTest : BaseModelTest() {
                 """
                     package test.pkg;
                     public interface Foo extends test.pkg.@test.pkg.A Bar, test.pkg.@test.pkg.B Baz<@test.pkg.C String>, test.pkg.Biz {}
+
+                    public interface Bar {}
+
+                    public interface Baz {}
+
+                    public interface Biz {}
+
+                    @java.lang.annotation.Target(java.lang.annotation.ElementType.TYPE_USE)
+                    public @interface A {}
+                    @java.lang.annotation.Target(java.lang.annotation.ElementType.TYPE_USE)
+                    public @interface B {}
+                    @java.lang.annotation.Target(java.lang.annotation.ElementType.TYPE_USE)
+                    public @interface C {}
                 """
             ),
             signature(
@@ -688,7 +735,6 @@ class CommonTypeModifiersTest : BaseModelTest() {
                       }
                     }
                 """
-                    .trimIndent()
             )
         ) {
             val foo = codebase.assertClass("test.pkg.Foo")
@@ -739,7 +785,6 @@ class CommonTypeModifiersTest : BaseModelTest() {
                       }
                     }
                 """
-                    .trimIndent()
             )
         ) {
             val foo = codebase.assertClass("test.pkg.Foo")
@@ -782,7 +827,6 @@ class CommonTypeModifiersTest : BaseModelTest() {
                       }
                     }
                 """
-                    .trimIndent()
             )
         ) {
             // Check the modifiers contain one annotation, `@test.pkg.A(a=1, b=2, c=3)`
@@ -840,7 +884,6 @@ class CommonTypeModifiersTest : BaseModelTest() {
                         public int foo() {}
                     }
                 """
-                    .trimIndent()
             ),
             signature(
                 """
@@ -854,7 +897,6 @@ class CommonTypeModifiersTest : BaseModelTest() {
                       }
                     }
                 """
-                    .trimIndent()
             ),
             kotlin(
                 """
@@ -863,7 +905,6 @@ class CommonTypeModifiersTest : BaseModelTest() {
                         fun foo(): Int {}
                     }
                 """
-                    .trimIndent()
             ),
             signature(
                 """
@@ -876,7 +917,6 @@ class CommonTypeModifiersTest : BaseModelTest() {
                       }
                     }
                 """
-                    .trimIndent()
             )
         ) {
             val primitive = codebase.assertClass("test.pkg.Foo").methods().single().returnType()
@@ -899,7 +939,6 @@ class CommonTypeModifiersTest : BaseModelTest() {
                         public @NonNull String nonNullString() {}
                     }
                 """
-                    .trimIndent()
             ),
             signature(
                 """
@@ -915,7 +954,6 @@ class CommonTypeModifiersTest : BaseModelTest() {
                       }
                     }
                 """
-                    .trimIndent()
             ),
             kotlin(
                 """
@@ -925,7 +963,6 @@ class CommonTypeModifiersTest : BaseModelTest() {
                         fun nonNullString(): String {}
                     }
                 """
-                    .trimIndent()
             ),
             signature(
                 """
@@ -940,7 +977,6 @@ class CommonTypeModifiersTest : BaseModelTest() {
                       }
                     }
                 """
-                    .trimIndent()
             )
         ) {
             val fooClass = codebase.assertClass("test.pkg.Foo")
@@ -976,7 +1012,6 @@ class CommonTypeModifiersTest : BaseModelTest() {
                         public java.lang.@Nullable String @NonNull [] nullableStringNonNullArray() {}
                     }
                 """
-                    .trimIndent()
             ),
             signature(
                 """
@@ -994,7 +1029,6 @@ class CommonTypeModifiersTest : BaseModelTest() {
                       }
                     }
                 """
-                    .trimIndent()
             ),
             kotlin(
                 """
@@ -1004,7 +1038,6 @@ class CommonTypeModifiersTest : BaseModelTest() {
                         fun nullableStringNonNullArray(): Array<String?> {}
                     }
                 """
-                    .trimIndent()
             ),
             signature(
                 """
@@ -1021,7 +1054,6 @@ class CommonTypeModifiersTest : BaseModelTest() {
                       }
                     }
                 """
-                    .trimIndent()
             )
         ) {
             val fooClass = codebase.assertClass("test.pkg.Foo")
@@ -1084,7 +1116,6 @@ class CommonTypeModifiersTest : BaseModelTest() {
                         public java.lang.@Nullable String @NonNull [] @Nullable [] @NonNull [] foo() {}
                     }
                 """
-                    .trimIndent()
             ),
             signature(
                 """
@@ -1099,7 +1130,6 @@ class CommonTypeModifiersTest : BaseModelTest() {
                       }
                     }
                 """
-                    .trimIndent()
             ),
             kotlin(
                 """
@@ -1108,7 +1138,6 @@ class CommonTypeModifiersTest : BaseModelTest() {
                         fun foo(): Array<Array<Array<String?>>?>
                     }
                 """
-                    .trimIndent()
             ),
             signature(
                 """
@@ -1122,7 +1151,6 @@ class CommonTypeModifiersTest : BaseModelTest() {
                       }
                     }
                 """
-                    .trimIndent()
             )
         ) {
             val fooClass = codebase.assertClass("test.pkg.Foo")
@@ -1159,7 +1187,6 @@ class CommonTypeModifiersTest : BaseModelTest() {
                         public void nullableStringNonNullVararg(java.lang.@Nullable String @NonNull ... arg) {}
                     }
                 """
-                    .trimIndent()
             ),
             signature(
                 """
@@ -1177,7 +1204,6 @@ class CommonTypeModifiersTest : BaseModelTest() {
                       }
                     }
                 """
-                    .trimIndent()
             ),
             kotlin(
                 """
@@ -1188,7 +1214,6 @@ class CommonTypeModifiersTest : BaseModelTest() {
                         fun nullableStringNonNullVararg(vararg arg: String?) = Unit
                     }
                 """
-                    .trimIndent()
             ),
             signature(
                 """
@@ -1205,7 +1230,6 @@ class CommonTypeModifiersTest : BaseModelTest() {
                       }
                     }
                 """
-                    .trimIndent()
             )
         ) {
             val fooClass = codebase.assertClass("test.pkg.Foo")
@@ -1292,7 +1316,6 @@ class CommonTypeModifiersTest : BaseModelTest() {
                         public @Nullable Map<@NonNull Integer, @Nullable String> nullableMap() {}
                     }
                 """
-                    .trimIndent()
             ),
             signature(
                 """
@@ -1308,7 +1331,6 @@ class CommonTypeModifiersTest : BaseModelTest() {
                       }
                     }
                 """
-                    .trimIndent()
             ),
             kotlin(
                 """
@@ -1318,7 +1340,6 @@ class CommonTypeModifiersTest : BaseModelTest() {
                         fun nullableMap(): Map<Int, String?>? {}
                     }
                 """
-                    .trimIndent()
             ),
             signature(
                 """
@@ -1333,7 +1354,6 @@ class CommonTypeModifiersTest : BaseModelTest() {
                       }
                     }
                 """
-                    .trimIndent()
             )
         ) {
             val fooClass = codebase.assertClass("test.pkg.Foo")
@@ -1381,7 +1401,6 @@ class CommonTypeModifiersTest : BaseModelTest() {
                         public class Inner<P2> {}
                     }
                 """
-                    .trimIndent()
             ),
             signature(
                 """
@@ -1395,7 +1414,6 @@ class CommonTypeModifiersTest : BaseModelTest() {
                       }
                     }
                 """
-                    .trimIndent()
             ),
             kotlin(
                 """
@@ -1407,7 +1425,6 @@ class CommonTypeModifiersTest : BaseModelTest() {
                         inner class Inner<P2>
                     }
                 """
-                    .trimIndent()
             ),
             signature(
                 """
@@ -1420,7 +1437,6 @@ class CommonTypeModifiersTest : BaseModelTest() {
                       }
                     }
                 """
-                    .trimIndent()
             ),
         ) {
             val innerClass = codebase.assertClass("test.pkg.Foo").methods().single().returnType()
@@ -1452,7 +1468,6 @@ class CommonTypeModifiersTest : BaseModelTest() {
                         public @NonNull Foo<?> unbounded() {}
                     }
                 """
-                    .trimIndent()
             ),
             signature(
                 """
@@ -1468,7 +1483,6 @@ class CommonTypeModifiersTest : BaseModelTest() {
                       }
                     }
                 """
-                    .trimIndent()
             ),
             kotlin(
                 """
@@ -1479,7 +1493,6 @@ class CommonTypeModifiersTest : BaseModelTest() {
                         fun unbounded(): Foo<*> {}
                     }
                 """
-                    .trimIndent()
             ),
             signature(
                 """
@@ -1494,7 +1507,6 @@ class CommonTypeModifiersTest : BaseModelTest() {
                       }
                     }
                 """
-                    .trimIndent()
             )
         ) {
             val fooClass = codebase.assertClass("test.pkg.Foo")
@@ -1549,7 +1561,6 @@ class CommonTypeModifiersTest : BaseModelTest() {
                             public java.lang.@Nullable String foo() {}
                         }
                     """
-                        .trimIndent()
                 ),
                 KnownSourceFiles.libcoreNullableSource
             )
@@ -1561,7 +1572,6 @@ class CommonTypeModifiersTest : BaseModelTest() {
                         fun foo(): String? {}
                     }
                 """
-                    .trimIndent()
             )
         val nullabilityTest = { codebase: Codebase, annotations: Boolean ->
             val stringType = codebase.assertClass("test.pkg.Foo").methods().single().returnType()
@@ -1601,7 +1611,6 @@ class CommonTypeModifiersTest : BaseModelTest() {
                             public @Nullable String foo() {}
                         }
                     """
-                        .trimIndent()
                 ),
                 java(
                     """
@@ -1611,7 +1620,6 @@ class CommonTypeModifiersTest : BaseModelTest() {
                         @Target({ ElementType.METHOD, ElementType.FIELD, ElementType.PARAMETER })
                         public @interface Nullable {}
                     """
-                        .trimIndent()
                 )
             ),
             inputSet(
@@ -1627,7 +1635,6 @@ class CommonTypeModifiersTest : BaseModelTest() {
                           }
                         }
                     """
-                        .trimIndent()
                 )
             )
         ) {
@@ -1649,7 +1656,6 @@ class CommonTypeModifiersTest : BaseModelTest() {
                     public String nonConstantString = "non null value";
                 }
             """
-                    .trimIndent()
             ),
             signature(
                 """
@@ -1662,7 +1668,6 @@ class CommonTypeModifiersTest : BaseModelTest() {
                   }
                 }
             """
-                    .trimIndent()
             )
         ) {
             val fooClass = codebase.assertClass("test.pkg.Foo")
@@ -1690,7 +1695,6 @@ class CommonTypeModifiersTest : BaseModelTest() {
                 package test.pkg;
                 public class Foo {}
             """
-                    .trimIndent()
             ),
             signature(
                 """
@@ -1701,14 +1705,12 @@ class CommonTypeModifiersTest : BaseModelTest() {
                   }
                 }
             """
-                    .trimIndent()
             ),
             kotlin(
                 """
                 package test.pkg
                 class Foo
             """
-                    .trimIndent()
             ),
             signature(
                 """
@@ -1719,7 +1721,6 @@ class CommonTypeModifiersTest : BaseModelTest() {
                   }
                 }
             """
-                    .trimIndent()
             )
         ) {
             val ctorReturn =
@@ -1740,7 +1741,6 @@ class CommonTypeModifiersTest : BaseModelTest() {
                         public boolean equals(Object other) {}
                     }
                 """
-                    .trimIndent()
             ),
             signature(
                 """
@@ -1754,7 +1754,6 @@ class CommonTypeModifiersTest : BaseModelTest() {
                       }
                     }
                 """
-                    .trimIndent()
             )
         ) {
             val equals = codebase.assertClass("test.pkg.Foo").methods().single()
@@ -1775,7 +1774,6 @@ class CommonTypeModifiersTest : BaseModelTest() {
                         public String toString() {}
                     }
                 """
-                    .trimIndent()
             ),
             signature(
                 """
@@ -1789,7 +1787,6 @@ class CommonTypeModifiersTest : BaseModelTest() {
                       }
                     }
                 """
-                    .trimIndent()
             )
         ) {
             val strType = codebase.assertClass("test.pkg.Foo").methods().single().returnType()
@@ -1808,7 +1805,6 @@ class CommonTypeModifiersTest : BaseModelTest() {
                         String[] values();
                     }
                 """
-                    .trimIndent()
             ),
             kotlin(
                 """
@@ -1817,7 +1813,6 @@ class CommonTypeModifiersTest : BaseModelTest() {
                         fun values(): Array<String>
                     }
                 """
-                    .trimIndent()
             ),
             signature(
                 """
@@ -1831,7 +1826,6 @@ class CommonTypeModifiersTest : BaseModelTest() {
                       }
                     }
                 """
-                    .trimIndent()
             )
         ) {
             val strArray = codebase.assertClass("test.pkg.Foo").methods().single().returnType()
@@ -1852,7 +1846,6 @@ class CommonTypeModifiersTest : BaseModelTest() {
                         A
                     }
                 """
-                    .trimIndent()
             )
         ) {
             val fooEnum = codebase.assertClass("test.pkg.Foo")
@@ -1874,7 +1867,6 @@ class CommonTypeModifiersTest : BaseModelTest() {
                         companion object
                     }
                 """
-                    .trimIndent()
             )
         ) {
             val fooClass = codebase.assertClass("test.pkg.Foo")
@@ -1896,7 +1888,6 @@ class CommonTypeModifiersTest : BaseModelTest() {
                         fun oneParamToUnit(): (String) -> Unit {}
                     }
                 """
-                    .trimIndent()
             )
         ) {
             val fooClass = codebase.assertClass("test.pkg.Foo")
@@ -1950,7 +1941,6 @@ class CommonTypeModifiersTest : BaseModelTest() {
                         fun foo(): T {}
                     }
                 """
-                    .trimIndent()
             )
         ) {
             // T is unbounded, so it has an implicit `Any?` bound, making it possibly nullable, but
@@ -1972,7 +1962,6 @@ class CommonTypeModifiersTest : BaseModelTest() {
                         fun foo(): T? {}
                     }
                 """
-                    .trimIndent()
             )
         ) {
             // T is unbounded, so it has an implicit `Any?` bound, making it possibly nullable, but
@@ -1994,7 +1983,6 @@ class CommonTypeModifiersTest : BaseModelTest() {
                         fun foo(): T {}
                     }
                 """
-                    .trimIndent()
             )
         ) {
             // T is bounded by `Any` so it cannot be nullable which means that the variable on its
@@ -2014,7 +2002,6 @@ class CommonTypeModifiersTest : BaseModelTest() {
                         fun foo(): T {}
                     }
                 """
-                    .trimIndent()
             )
         ) {
             // T is bounded by `Number?`, making it possibly nullable, but not necessarily. That
@@ -2036,7 +2023,6 @@ class CommonTypeModifiersTest : BaseModelTest() {
                         var nonNullListNullableString: List<String?>
                     }
                 """
-                    .trimIndent()
             )
         ) {
             val fooClass = codebase.assertClass("test.pkg.Foo")
@@ -2082,7 +2068,6 @@ class CommonTypeModifiersTest : BaseModelTest() {
                         fun foo(): String?.(Int, Int?) -> String {}
                     }
                 """
-                    .trimIndent()
             )
         ) {
             val extensionFunctionType =
@@ -2112,7 +2097,6 @@ class CommonTypeModifiersTest : BaseModelTest() {
                     }
                     typealias FunctionType = (String) -> Int?
                 """
-                    .trimIndent()
             )
         ) {
             val functionType = codebase.assertClass("test.pkg.Foo").methods().single().returnType()
@@ -2246,7 +2230,6 @@ class CommonTypeModifiersTest : BaseModelTest() {
                         public class Bar<B> {}
                     }
                 """
-                    .trimIndent()
             ),
             kotlin(
                 """
@@ -2255,7 +2238,6 @@ class CommonTypeModifiersTest : BaseModelTest() {
                         inner class Bar<B>
                     }
                 """
-                    .trimIndent()
             ),
             signature(
                 """
@@ -2269,7 +2251,6 @@ class CommonTypeModifiersTest : BaseModelTest() {
                       }
                     }
                 """
-                    .trimIndent()
             ),
         ) {
             val foo = codebase.assertClass("test.pkg.Foo").constructors().single().returnType()
@@ -2298,7 +2279,6 @@ class CommonTypeModifiersTest : BaseModelTest() {
                         fun foo(): List<*>
                     }
                 """
-                    .trimIndent()
             )
         ) {
             val fooMethod = codebase.assertClass("test.pkg.Foo").methods().single()
