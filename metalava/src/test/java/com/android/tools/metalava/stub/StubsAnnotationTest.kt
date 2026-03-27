@@ -535,7 +535,6 @@ class StubsAnnotationTest : AbstractStubsTest() {
                 }
                 }
                 """,
-            filterBlankLinesFromStubFiles = false,
         )
     }
 

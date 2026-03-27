@@ -41,7 +41,6 @@ abstract class AbstractStubsTest : DriverTest() {
         signatureSources: Array<String> = emptyArray(),
         checkCompilation: Boolean = true,
         checkTextStubEquivalence: Boolean = false,
-        filterBlankLinesFromStubFiles: Boolean = true,
     ) {
         val stubFilesArr = if (source.isNotEmpty()) arrayOf(java(source)) else stubFiles
         check(
@@ -56,7 +55,6 @@ abstract class AbstractStubsTest : DriverTest() {
             docStubs = docStubs,
             skipEmitPackages = skipEmitPackages,
             format = format,
-            filterBlankLinesFromStubFiles = filterBlankLinesFromStubFiles,
         )
         if (checkTextStubEquivalence) {
             if (stubFilesArr.isEmpty()) {

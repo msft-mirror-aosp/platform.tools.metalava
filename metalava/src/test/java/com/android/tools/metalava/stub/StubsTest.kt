@@ -390,7 +390,6 @@ class StubsTest : AbstractStubsTest() {
                     public HeaderComments() { throw new RuntimeException("Stub!"); }
                     }
                     """,
-            filterBlankLinesFromStubFiles = false,
         )
     }
 
