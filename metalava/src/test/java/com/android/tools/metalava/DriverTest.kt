@@ -170,10 +170,7 @@ abstract class DriverTest :
                 )
             } else {
                 val actualFail = cleanupString(sw.toString(), null)
-                if (
-                    cleanupString(expectedFail, null).replace(".", "").trim() !=
-                        actualFail.replace(".", "").trim()
-                ) {
+                if (cleanupString(expectedFail, null).trim() != actualFail.trim()) {
                     val reportedCompatError =
                         actualFail.startsWith(
                             "Aborting: Found compatibility problems checking the "
