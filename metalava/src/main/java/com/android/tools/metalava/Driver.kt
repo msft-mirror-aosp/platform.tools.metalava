@@ -54,7 +54,6 @@ import com.android.tools.metalava.model.ClassPathResolver
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.CodebaseFragment
 import com.android.tools.metalava.model.DelegatedVisitor
-import com.android.tools.metalava.model.ItemVisitor
 import com.android.tools.metalava.model.annotation.DefaultAnnotationManager
 import com.android.tools.metalava.model.multiplatform.MultiplatformCodebase
 import com.android.tools.metalava.model.snapshot.NonFilteringDelegatingVisitor
@@ -63,9 +62,10 @@ import com.android.tools.metalava.model.source.SourceParser
 import com.android.tools.metalava.model.source.SourceSet
 import com.android.tools.metalava.model.text.CustomizableProperty.Companion.ADD_ADDITIONAL_OVERRIDES
 import com.android.tools.metalava.model.text.CustomizableProperty.Companion.JAVA_RECORD_CLASSES
+import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.model.text.SignatureFile
 import com.android.tools.metalava.model.text.SignatureWriter
-import com.android.tools.metalava.model.text.createFilteringVisitorForSignatures
+import com.android.tools.metalava.model.text.createCodebaseFragmentForSignatureFile
 import com.android.tools.metalava.model.visitors.ApiFilters
 import com.android.tools.metalava.model.visitors.ApiPredicate
 import com.android.tools.metalava.model.visitors.ApiType
@@ -418,16 +418,12 @@ class Driver(
     private fun createApiSignatureFilesFromOptions(codebase: Codebase) {
         val fileFormat = signatureFormatOptions.fileFormat
         val codebaseFragment =
-            createCodeFragmentForSignatureFile(codebase) { delegate ->
-                createFilteringVisitorForSignatures(
-                    delegate = delegate,
-                    fileFormat = fileFormat,
-                    apiType = ApiType.PUBLIC_API,
-                    preFiltered = codebase.preFiltered,
-                    showUnannotated = apiSelectionOptions.showUnannotated,
-                    apiPredicateConfig = apiPredicateConfig,
-                )
-            }
+            createSignatureFileFragment(
+                codebase,
+                fileFormat = fileFormat,
+                apiType = ApiType.PUBLIC_API,
+                preFiltered = codebase.preFiltered,
+            )
 
         runApiChecksFromOptions(codebase) { _, previouslyReleasedCodebase ->
             val flaggedApiLintVisitor =
@@ -451,16 +447,12 @@ class Driver(
 
         signatureFileOptions.removedApiFile?.let { apiSignatureFile ->
             val removedApiCodebaseFragment =
-                createCodeFragmentForSignatureFile(codebase) { delegate ->
-                    createFilteringVisitorForSignatures(
-                        delegate = delegate,
-                        fileFormat = fileFormat,
-                        apiType = ApiType.REMOVED,
-                        preFiltered = false,
-                        showUnannotated = apiSelectionOptions.showUnannotated,
-                        apiPredicateConfig = apiPredicateConfig,
-                    )
-                }
+                createSignatureFileFragment(
+                    codebase,
+                    fileFormat = fileFormat,
+                    apiType = ApiType.REMOVED,
+                    preFiltered = false,
+                )
 
             createOutputFileFromCodebaseFragment(
                 progressTracker,
@@ -478,11 +470,21 @@ class Driver(
         }
     }
 
-    private fun createCodeFragmentForSignatureFile(
+    private fun createSignatureFileFragment(
         codebase: Codebase,
-        fragmentFactory: (DelegatedVisitor) -> ItemVisitor
+        fileFormat: FileFormat,
+        apiType: ApiType,
+        preFiltered: Boolean,
     ): CodebaseFragment {
-        var codebaseFragment = CodebaseFragment.create(codebase, fragmentFactory)
+        var codebaseFragment =
+            createCodebaseFragmentForSignatureFile(
+                codebase,
+                fileFormat = fileFormat,
+                apiType = apiType,
+                preFiltered = preFiltered,
+                showUnannotated = apiSelectionOptions.showUnannotated,
+                apiPredicateConfig = apiPredicateConfig,
+            )
 
         // If reverting some changes then create a snapshot that combines the items from the sources
         // for any un-reverted changes and items from the previously released API for any reverted
