@@ -615,9 +615,7 @@ abstract class DriverTest :
         val expectedToFail = expectedIssues.containsErrorIssue() || !expectedFail.isNullOrEmpty()
 
         // Get the expected failure message.
-        // Ignore the special string which meant expecting compatibility errors.
-        val expectedFailureMessage =
-            expectedFail.takeIf { it != "Aborting: Found compatibility problems" }?.trimIndent()
+        val expectedFailureMessage = expectedFail?.trimIndent()
 
         // Unit test which checks that a signature file is as expected
         val androidJar = getAndroidJar()
