@@ -120,6 +120,7 @@ object Issues {
 
     // Record related issues
     val USING_JAVA_LANG_RECORD by Issue(Severity.ERROR, Category.API_LINT)
+    val HIDING_RECORD_COMPONENT by Issue(Severity.ERROR, Category.API_LINT)
 
     // Metalava warnings (not from doclava)
 

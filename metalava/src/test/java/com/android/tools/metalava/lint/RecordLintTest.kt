@@ -137,14 +137,18 @@ class RecordLintTest : DriverTest() {
 
     @Test
     fun `Test hiding record component and accessor method`() {
+        // Turbine does not track the location of the component yet, instead it uses the class
+        // location.
+        val componentCLocation = if (codebaseCreatorConfig.providerName == "turbine") 5 else 13
         check(
             format = FORMAT_V6_WITH_JAVA_STYLE,
             hideAnnotations = arrayOf(ANDROID_HIDE, "test.pkg.HideComponent"),
             apiLint = "", // enabled
-            // TODO(b/482390286): Should report that it is not allowed to hide record components or
-            //  their corresponding accessors.
+            // TODO(b/482390286): Should report that it is not allowed to hide record components
+            //  accessors.
             expectedIssues =
                 """
+                    src/test/pkg/Test.java:$componentCLocation: error: Cannot hide record component test.pkg.Test#c as record components are an indivisible part of a record class [HidingRecordComponent]
                 """,
             sourceFiles =
                 arrayOf(
@@ -185,13 +189,13 @@ class RecordLintTest : DriverTest() {
                     ),
                 ),
             api =
-                // TODO(b/482390286): Should include component 'c' and accessor methods for 'a' and
-                //  'b'.
+                // TODO(b/482390286): Should include accessor methods for 'a' and 'b'.
                 """
                     package test.pkg {
                       public record Test {
                         record_component #0 a: int;
                         record_component #1 b: int;
+                        record_component #2 c: int;
                         ctor public Test(int, int, int);
                         method public int c();
                       }

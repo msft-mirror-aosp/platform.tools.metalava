@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model.item
 
+import com.android.tools.metalava.model.ApiVariantSelectors
 import com.android.tools.metalava.model.ApiVariantSelectorsFactory
 import com.android.tools.metalava.model.BaseModifierList
 import com.android.tools.metalava.model.CallableBody
@@ -312,7 +313,7 @@ class DefaultItemFactory(
             fileLocation,
             sourceLanguage,
             documentationFactory,
-            variantSelectorsFactory = defaultVariantSelectorsFactory,
+            variantSelectorsFactory = ApiVariantSelectors.RECORD_COMPONENT_FACTORY,
             modifiers,
             name,
             containingClass,
