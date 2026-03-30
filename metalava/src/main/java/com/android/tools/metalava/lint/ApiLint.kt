@@ -259,11 +259,18 @@ private constructor(
             checkExceptions(callable, filterReference)
             checkContextFirst(callable)
             checkListenerLast(callable)
+
+            for (typeParameterItem in callable.typeParameterList) {
+                checkEveryType(typeParameterItem.type(), callable, TypeUseSite.TYPE_PARAMETER)
+            }
+
             val returnType = callable.returnType()
-            checkType(returnType, callable)
+            checkEveryType(returnType, callable, TypeUseSite.RETURN)
+
             checkNullableCollections(returnType, callable)
             for (parameter in callable.parameters()) {
-                checkType(parameter.type(), parameter)
+                val parameterType = parameter.type()
+                checkEveryType(parameterType, parameter, TypeUseSite.PARAMETER)
             }
             checkParameterOrder(callable)
         }
@@ -292,7 +299,8 @@ private constructor(
     override fun visitField(field: FieldItem) {
         filteredReporter.withContext(field) {
             checkField(field)
-            checkType(field.type(), field)
+            val type = field.type()
+            checkEveryType(type, field, TypeUseSite.FIELD)
             kotlinInterop.checkField(field)
         }
     }
@@ -301,7 +309,28 @@ private constructor(
         filteredReporter.withContext(property) { kotlinInterop.checkProperty(property) }
     }
 
-    private fun checkType(type: TypeItem, item: Item) {
+    /**
+     * Called for every type in the source.
+     *
+     * @param type the type being checked.
+     * @param item the [Item] to which the [type] belongs.
+     * @param typeUseSite indicates where [item] uses [type].
+     */
+    private fun checkEveryType(type: TypeItem, item: Item, typeUseSite: TypeUseSite) {
+        if (typeUseSite.legacyCheckType) {
+            legacyCheckType(type, item)
+        }
+    }
+
+    /**
+     * Legacy type checks.
+     *
+     * These were added before proper support for types so do not handle all the possible types in
+     * the source.
+     *
+     * DO NOT ADD ANY MORE CHECKS TO THIS, ADD THEM TO [checkEveryType] INSTEAD.
+     */
+    private fun legacyCheckType(type: TypeItem, item: Item) {
         val typeString = type.toTypeString()
         checkPfd(typeString, item)
         checkNumbers(typeString, item)
@@ -313,6 +342,7 @@ private constructor(
         checkHasNullability(item)
         checkUri(typeString, item)
         checkFutures(typeString, item)
+        // DO NOT ADD ANY MORE CHECKS TO THIS, ADD THEM TO [checkEveryType] INSTEAD.
     }
 
     // Enforce type parameter naming rules:
@@ -401,6 +431,17 @@ private constructor(
         checkTypedef(cls)
         checkAccessorNullabilityMatches(methods)
         checkDataClass(cls)
+
+        // Check class types.
+        for (typeParameterItem in cls.typeParameterList) {
+            checkEveryType(typeParameterItem.type(), cls, TypeUseSite.TYPE_PARAMETER)
+        }
+        superClass?.let {
+            cls.superClassType()?.let { checkEveryType(it, cls, TypeUseSite.SUPER_CLASS) }
+        }
+        for (interfaceType in interfaces) {
+            checkEveryType(interfaceType, cls, TypeUseSite.INTERFACE)
+        }
     }
 
     private fun checkField(field: FieldItem) {
@@ -1870,6 +1911,8 @@ private constructor(
                     }
                 }
             }
+
+            checkEveryType(throwableType, callable, TypeUseSite.THROWS)
         }
     }
 
