@@ -3226,12 +3226,39 @@ private constructor(
      */
     private val javaLangRecordTypeChecker = JavaLangRecordTypeChecker()
 
-    /** Reports [Issues.USING_JAVA_LANG_RECORD] if [type] uses the [JAVA_LANG_RECORD] type. */
+    /**
+     * Reports [Issues.USING_JAVA_LANG_RECORD] if [type] uses the [JAVA_LANG_RECORD] type.
+     *
+     * This check is needed because Apps which target Android versions that do not support `record`
+     * classes will have any `record` classes of their own desugared. That will add implementations
+     * for all the standard `record` methods that the compiler creates and change the super class to
+     * a special `...RecordTag` class. That means it would not be possible to pass a desugared
+     * record to an API that takes a `java.lang.Record` type. At best that would be picked up by the
+     * Android linter (if it checks for that), at worst it would result in a runtime error.
+     *
+     * This check avoids that by disallowing use of the `java.lang.Record` type in the API at all
+     * and forcing developers to use `java.lang.Object`. That is not a big limitation as the
+     * `java.lang.Record` provides nothing of value over the `java.lang.Object` class. By default,
+     * it does provide implementations of `Object` methods that adhere to a specific contract but
+     * that behavior is not guaranteed for `java.lang.Record` subclasses as implementations can
+     * provide their own implementations of those methods.
+     */
     private fun checkForJavaLangRecordTypeUse(
         type: TypeItem,
         item: Item,
         typeUseSite: TypeUseSite
     ) {
+        // If is ok for record classes to implicitly use java.lang.Record as their super class as
+        // record classes in the API will never be desugared so will always have java.lang.Record
+        // as their super class.
+        if (
+            typeUseSite == TypeUseSite.SUPER_CLASS &&
+                type is ClassTypeItem &&
+                type.qualifiedName == JAVA_LANG_RECORD
+        ) {
+            return
+        }
+
         if (javaLangRecordTypeChecker.typeReferencesJavaLangRecord(type)) {
             report(
                 Issues.USING_JAVA_LANG_RECORD,
