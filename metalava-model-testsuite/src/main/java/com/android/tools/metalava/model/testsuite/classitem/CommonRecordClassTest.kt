@@ -147,8 +147,10 @@ class CommonRecordClassTest : BaseModelTest() {
                 component("b", classTypeItem(JAVA_LANG_STRING)),
             )
 
-            // TODO(b/482390286): Should be described as a record component
-            assertEquals("property test.pkg.Test#a", testClass.recordComponents!!["a"]!!.describe())
+            assertEquals(
+                "record component test.pkg.Test#a",
+                testClass.recordComponents!!["a"]!!.describe()
+            )
         }
     }
 
