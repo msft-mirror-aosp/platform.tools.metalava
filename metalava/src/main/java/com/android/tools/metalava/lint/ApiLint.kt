@@ -267,7 +267,7 @@ private constructor(
             val returnType = callable.returnType()
             checkEveryType(returnType, callable, TypeUseSite.RETURN)
 
-            checkNullableCollections(returnType, callable)
+            checkNullableCollections(returnType, callable, TypeUseSite.RETURN)
             for (parameter in callable.parameters()) {
                 val parameterType = parameter.type()
                 checkEveryType(parameterType, parameter, TypeUseSite.PARAMETER)
@@ -455,7 +455,7 @@ private constructor(
         checkServices(field)
         checkFieldName(field)
         checkSettingKeys(field)
-        checkNullableCollections(field.type(), field)
+        checkNullableCollections(field.type(), field, TypeUseSite.FIELD)
     }
 
     private fun checkEnums(cls: ClassItem) {
@@ -657,7 +657,7 @@ private constructor(
 
         for (parameter in method.parameters()) {
             // We require nonnull collections as parameters to callback methods
-            checkNullableCollections(parameter.type(), parameter)
+            checkNullableCollections(parameter.type(), parameter, TypeUseSite.PARAMETER)
         }
     }
 
@@ -1726,7 +1726,7 @@ private constructor(
         }
     }
 
-    private fun checkNullableCollections(type: TypeItem, item: Item) {
+    private fun checkNullableCollections(type: TypeItem, item: Item, typeUseSite: TypeUseSite) {
         val superItem: Item? =
             when (item) {
                 is MethodItem -> item.findPredicateSuperMethod(filterReference)
@@ -1746,23 +1746,24 @@ private constructor(
             object : MultipleTypeVisitor() {
                 override fun visitType(type: TypeItem, other: List<TypeItem>) {
                     // type is from the main type, other is from the supertype
-                    checkNullableCollections(type, item, other.singleOrNull())
+                    checkNullableCollections(type, item, other.singleOrNull(), typeUseSite)
                 }
             },
             listOfNotNull(superType)
         )
     }
 
-    private fun checkNullableCollections(type: TypeItem, item: Item, superType: TypeItem?) {
+    private fun checkNullableCollections(
+        type: TypeItem,
+        item: Item,
+        superType: TypeItem?,
+        typeUseSite: TypeUseSite,
+    ) {
         if (!type.isCollection()) return
 
         // Allow a nullable collection when it is present in the super type
         if (type.modifiers.isNullable && superType?.modifiers?.isNullable != true) {
-            val where =
-                when (item) {
-                    is MethodItem -> "Return type of ${item.describe()}"
-                    else -> "Type of ${item.describe()}"
-                }
+            val where = typeUseSite.describe(item)
 
             val erased = type.toErasedTypeString()
             report(
