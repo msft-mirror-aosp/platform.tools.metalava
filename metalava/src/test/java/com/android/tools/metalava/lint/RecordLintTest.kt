@@ -17,6 +17,9 @@
 package com.android.tools.metalava.lint
 
 import com.android.tools.metalava.DriverTest
+import com.android.tools.metalava.model.ANDROID_HIDE
+import com.android.tools.metalava.model.ANDROID_SYSTEM_API
+import com.android.tools.metalava.model.text.FORMAT_V6_WITH_JAVA_STYLE
 import com.android.tools.metalava.testing.KnownSourceFiles
 import com.android.tools.metalava.testing.java
 import org.junit.Test
@@ -74,6 +77,139 @@ class RecordLintTest : DriverTest() {
                         """
                     ),
                 )
+        )
+    }
+
+    @Test
+    fun `Test system api record class`() {
+        check(
+            format = FORMAT_V6_WITH_JAVA_STYLE,
+            showAnnotations = arrayOf(ANDROID_SYSTEM_API),
+            hideAnnotations = arrayOf(ANDROID_HIDE, "test.pkg.HideComponent"),
+            apiLint = "", // enabled
+            sourceFiles =
+                arrayOf(
+                    KnownSourceFiles.hideAnnotation,
+                    KnownSourceFiles.systemApiSource,
+                    java(
+                        """
+                            package test.pkg;
+
+                            import android.annotation.Hide;
+                            import android.annotation.SystemApi;
+
+                            @SystemApi
+                            @Hide
+                            public record Test(
+                                int a,
+                                int b
+                            ) {}
+                        """
+                    ),
+                ),
+            api =
+                """
+                    package test.pkg {
+                      public record Test {
+                        record_component #0 a: int;
+                        record_component #1 b: int;
+                        ctor public Test(int, int);
+                        method public int a();
+                        method public int b();
+                      }
+                    }
+                """,
+            stubFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            @SuppressWarnings({"unchecked", "deprecation", "all"})
+                            public record Test(int a, int b) {
+                            public int a() { throw new RuntimeException("Stub!"); }
+                            public int b() { throw new RuntimeException("Stub!"); }
+                            }
+                        """
+                    ),
+                ),
+        )
+    }
+
+    @Test
+    fun `Test hiding record component and accessor method`() {
+        check(
+            format = FORMAT_V6_WITH_JAVA_STYLE,
+            hideAnnotations = arrayOf(ANDROID_HIDE, "test.pkg.HideComponent"),
+            apiLint = "", // enabled
+            // TODO(b/482390286): Should report that it is not allowed to hide record components or
+            //  their corresponding accessors.
+            expectedIssues =
+                """
+                """,
+            sourceFiles =
+                arrayOf(
+                    KnownSourceFiles.hideAnnotation,
+                    java(
+                        """
+                            package test.pkg;
+
+                            import android.annotation.Hide;
+                            import java.lang.annotation.ElementType;
+                            import java.lang.annotation.Target;
+
+                            @Target(ElementType.RECORD_COMPONENT)
+                            @Hide
+                            public @interface HideComponent {}
+                        """,
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+
+                            import android.annotation.Hide;
+
+                            public record Test(
+                                // This will not apply to the component but will apply to the
+                                // constructor parameter and accessor for this component.
+                                @Hide
+                                int a,
+                                int b,
+                                // This will only apply to the component.
+                                @HideComponent
+                                int c
+                            ) {
+                                @Hide
+                                public int b() { return b; }
+                            }
+                        """
+                    ),
+                ),
+            api =
+                // TODO(b/482390286): Should include component 'c' and accessor methods for 'a' and
+                //  'b'.
+                """
+                    package test.pkg {
+                      public record Test {
+                        record_component #0 a: int;
+                        record_component #1 b: int;
+                        ctor public Test(int, int, int);
+                        method public int c();
+                      }
+                    }
+                """,
+            stubFiles =
+                arrayOf(
+                    java(
+                        // TODO(b/482390286): Should include accessor methods.
+                        """
+                            package test.pkg;
+                            @SuppressWarnings({"unchecked", "deprecation", "all"})
+                            public record Test(int a, int b, int c) {
+                            public int c() { throw new RuntimeException("Stub!"); }
+                            }
+                        """
+                    ),
+                ),
         )
     }
 }
