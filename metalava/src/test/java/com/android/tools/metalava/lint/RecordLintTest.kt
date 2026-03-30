@@ -27,8 +27,12 @@ class RecordLintTest : DriverTest() {
         check(
             apiLint = "", // enabled
             expectedIssues =
-                // TODO(b/482390286): Should prevent use of java.lang.Record in the API surface.
                 """
+                    src/android/pkg/UsingJavaLangRecord.java:5: error: Implemented interface of class android.pkg.UsingJavaLangRecord contains java.lang.Record, that can cause issues for desugared record classes, please use java.lang.Object instead [UsingJavaLangRecord]
+                    src/android/pkg/UsingJavaLangRecord.java:5: error: Super class of class android.pkg.UsingJavaLangRecord contains java.lang.Record, that can cause issues for desugared record classes, please use java.lang.Object instead [UsingJavaLangRecord]
+                    src/android/pkg/UsingJavaLangRecord.java:6: error: Type of field android.pkg.UsingJavaLangRecord.field contains java.lang.Record, that can cause issues for desugared record classes, please use java.lang.Object instead [UsingJavaLangRecord]
+                    src/android/pkg/UsingJavaLangRecord.java:7: error: Return type of method android.pkg.UsingJavaLangRecord.method(Record) contains java.lang.Record, that can cause issues for desugared record classes, please use java.lang.Object instead [UsingJavaLangRecord]
+                    src/android/pkg/UsingJavaLangRecord.java:7: error: Type of parameter record in android.pkg.UsingJavaLangRecord.method(Record record) contains java.lang.Record, that can cause issues for desugared record classes, please use java.lang.Object instead [UsingJavaLangRecord]
                 """,
             sourceFiles =
                 arrayOf(

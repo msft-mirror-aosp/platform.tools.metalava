@@ -64,6 +64,8 @@ import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.FilterPredicate
 import com.android.tools.metalava.model.InheritableItem
 import com.android.tools.metalava.model.Item
+import com.android.tools.metalava.model.JAVA_LANG_OBJECT
+import com.android.tools.metalava.model.JAVA_LANG_RECORD
 import com.android.tools.metalava.model.JAVA_LANG_STRING
 import com.android.tools.metalava.model.JAVA_LANG_THROWABLE
 import com.android.tools.metalava.model.MemberItem
@@ -320,6 +322,8 @@ private constructor(
         if (typeUseSite.legacyCheckType) {
             legacyCheckType(type, item, typeUseSite)
         }
+
+        checkForJavaLangRecordTypeUse(type, item, typeUseSite)
     }
 
     /**
@@ -3196,6 +3200,45 @@ private constructor(
                         "or a combination of OutcomeReceiver<R,E>, Executor, and CancellationSignal (platform) instead of $it (${item.describe()})"
                 )
             }
+    }
+
+    /** Checks whether a [TypeItem] uses [JAVA_LANG_RECORD] type. */
+    private class JavaLangRecordTypeChecker : BaseTypeVisitor() {
+        private var found: Boolean = false
+
+        /** Returns `true` if [type] uses [JAVA_LANG_RECORD] type. */
+        fun typeReferencesJavaLangRecord(type: TypeItem): Boolean {
+            found = false
+            type.accept(this)
+            return found
+        }
+
+        override fun visitClassType(classType: ClassTypeItem) {
+            if (classType.qualifiedName == JAVA_LANG_RECORD) {
+                found = true
+            }
+        }
+    }
+
+    /**
+     * Instance of [JavaLangRecordTypeChecker], shared across all calls to
+     * [checkForJavaLangRecordTypeUse].
+     */
+    private val javaLangRecordTypeChecker = JavaLangRecordTypeChecker()
+
+    /** Reports [Issues.USING_JAVA_LANG_RECORD] if [type] uses the [JAVA_LANG_RECORD] type. */
+    private fun checkForJavaLangRecordTypeUse(
+        type: TypeItem,
+        item: Item,
+        typeUseSite: TypeUseSite
+    ) {
+        if (javaLangRecordTypeChecker.typeReferencesJavaLangRecord(type)) {
+            report(
+                Issues.USING_JAVA_LANG_RECORD,
+                item,
+                "${typeUseSite.describe(item)} contains $JAVA_LANG_RECORD, that can cause issues for desugared record classes, please use $JAVA_LANG_OBJECT instead"
+            )
+        }
     }
 
     private fun checkMethodSuffixListenableFutureReturn(method: MethodItem) {
