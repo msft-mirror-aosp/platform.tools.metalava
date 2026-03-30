@@ -1029,7 +1029,7 @@ class SignatureInputOutputTest : Assertions {
             """
         runInputOutputTest(
             api,
-            FORMAT_V6_WITH_JAVA_RECORD_CLASSES,
+            FORMAT_V6_WITH_JAVA_STYLE,
         )
     }
 
@@ -1079,7 +1079,7 @@ class SignatureInputOutputTest : Assertions {
             """
         runInputOutputTest(
             api,
-            FORMAT_V6_WITH_JAVA_RECORD_CLASSES,
+            FORMAT_V6_WITH_JAVA_STYLE,
         )
     }
 
