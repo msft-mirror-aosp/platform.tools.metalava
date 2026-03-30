@@ -129,14 +129,10 @@ internal object PsiModifierItem {
     private fun shouldRemoveNullnessAnnotations(
         modifiers: BaseModifierList,
     ): Boolean {
-        // Kotlin varargs are not nullable but can sometimes and up with an @Nullable annotation
+        // Kotlin varargs are not nullable but can sometimes and up with a @Nullable annotation
         // added to the [PsiParameter] so remove it from the modifiers. Only Kotlin varargs have a
         // `vararg` modifier.
-        if (modifiers.isVarArg()) {
-            return true
-        }
-
-        return false
+        return modifiers.isVarArg()
     }
 
     private fun hasDeprecatedAnnotation(modifiers: BaseModifierList) =
@@ -435,7 +431,7 @@ internal object PsiModifierItem {
         codebase: PsiBasedCodebase,
         element: PsiModifierListOwner
     ): MutableModifierList {
-        var flags =
+        val flags =
             element.modifierList?.let { modifierList -> computeFlag(element, modifierList) }
                 ?: PACKAGE_PRIVATE
 
@@ -468,7 +464,7 @@ internal object PsiModifierItem {
                 ?: (annotated.javaPsi as? PsiModifierListOwner)?.annotations
                 ?: PsiAnnotation.EMPTY_ARRAY
 
-        var flags = computeFlag(element, modifierList)
+        val flags = computeFlag(element, modifierList)
 
         // The below code remedies a problem where companion objects as fields don't have
         // annotations in signature files (b/401235591). This code takes the annotations
@@ -479,7 +475,7 @@ internal object PsiModifierItem {
             // The following checks if the field is indeed a companion object. Companion objects
             // are the only case where there is a field that has sourcePsi being a UClass, and
             // that UClass's sourcePsi is a KtObjectDeclaration. Other field types (e.g.
-            // primitives, lambdas, etc) don't have this property.
+            // primitives, lambdas, etc.) don't have this property.
             if (
                 companionObjectClass is UClass &&
                     companionObjectClass.sourcePsi is KtObjectDeclaration &&
@@ -513,7 +509,7 @@ internal object PsiModifierItem {
         } else {
             val isPrimitiveVariable = element is UVariable && element.type is PsiPrimitiveType
 
-            var annotations =
+            val annotations =
                 uAnnotations
                     // Uast sometimes puts nullability annotations on primitives!?
                     .filter {
