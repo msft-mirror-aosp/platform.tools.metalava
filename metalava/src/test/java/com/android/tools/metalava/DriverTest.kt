@@ -51,6 +51,7 @@ import com.android.tools.metalava.cli.lint.ARG_API_LINT_PREVIOUS_API
 import com.android.tools.metalava.cli.lint.ARG_BASELINE_API_LINT
 import com.android.tools.metalava.cli.lint.ARG_ERROR_MESSAGE_API_LINT
 import com.android.tools.metalava.cli.lint.ARG_UPDATE_BASELINE_API_LINT
+import com.android.tools.metalava.cli.multiplatform.ARG_MULTIPLATFORM_API_DIR
 import com.android.tools.metalava.cli.multiplatform.ARG_MULTIPLATFORM_ENABLED
 import com.android.tools.metalava.cli.signature.ARG_FORMAT
 import com.android.tools.metalava.model.ANDROIDX_ANNOTATION_PACKAGE
@@ -554,6 +555,11 @@ abstract class DriverTest :
         /** Whether to create a multiplatform codebase. Only supported with psi. */
         enableMultiplatform: Boolean = false,
         /**
+         * A map from expected multiplatform API file name to contents. There should be one for each
+         * source set with an expected signature file.
+         */
+        multiplatformApi: Map<String, String> = emptyMap(),
+        /**
          * If true, this does not include arguments specifying source files (from [sourceFiles]) in
          * the command run by Driver. This allows creating a multiplatform codebase (when
          * [enableMultiplatform] is true) without creating a regular codebase.
@@ -1036,6 +1042,16 @@ abstract class DriverTest :
                 emptyArray()
             }
 
+        // Generate multiplatform API files if specified.
+        var multiplatformApiDirectory: File? = null
+        val multiplatformApiArgs =
+            if (multiplatformApi.isNotEmpty()) {
+                multiplatformApiDirectory = getOrCreateFolder("multiplatform-api")
+                arrayOf(ARG_MULTIPLATFORM_API_DIR, multiplatformApiDirectory.path)
+            } else {
+                emptyArray()
+            }
+
         // Run optional additional setup steps on the project directory
         projectSetup?.invoke(project)
 
@@ -1093,6 +1109,7 @@ abstract class DriverTest :
                 *errorMessageCheckCompatibilityReleasedArgs,
                 *repeatErrorsMaxArgs,
                 *multiplatformOptions,
+                *multiplatformApiArgs,
                 // Must always be last as this can consume a following argument, breaking the test.
                 *apiLintArgs,
             ) +
@@ -1289,6 +1306,34 @@ abstract class DriverTest :
                 sources = generated,
                 classPath = listOf(KnownJarFiles.stubAnnotationsJar),
             )
+        }
+
+        // Validate multiplatform API files exist and have the expected contents.
+        if (multiplatformApiDirectory != null) {
+            assertTrue(
+                "${multiplatformApiDirectory.path} does not exist even though $ARG_MULTIPLATFORM_API_DIR was used",
+                multiplatformApiDirectory.exists(),
+            )
+            for ((sourceSet, expectedApi) in multiplatformApi) {
+                val sourceSetApiFile = File(multiplatformApiDirectory, sourceSet)
+                assertTrue(
+                    "${sourceSetApiFile.path} does not exist but was expected",
+                    sourceSetApiFile.exists(),
+                )
+                assertSignatureFilesMatch(
+                    expectedApi,
+                    sourceSetApiFile.readText(),
+                    expectedFormat = format
+                )
+            }
+            // Check that there aren't additional API files which were not expected.
+            for (sourceSetApiFile in multiplatformApiDirectory.listFiles()) {
+                assertTrue(
+                    "${sourceSetApiFile.path} was generated but was not expected",
+                    sourceSetApiFile.name in multiplatformApi,
+                )
+            }
+            // TODO(b/407735666): try parsing back the multiplatform API files to validate
         }
     }
 

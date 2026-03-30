@@ -25,6 +25,7 @@ val MULTIPLATFORM_OPTIONS_HELP =
       Options controlling the handling of multiplatform API operations
 
       --multiplatform-enabled                    Flag to enable Multiplatform API operation.
+      --multiplatform-api-directory <file>       Directory to put multiplatform API signature files.
     """
         .trimIndent()
 

@@ -63,6 +63,7 @@ import com.android.tools.metalava.model.source.SourceSet
 import com.android.tools.metalava.model.text.CustomizableProperty.Companion.ADD_ADDITIONAL_OVERRIDES
 import com.android.tools.metalava.model.text.CustomizableProperty.Companion.JAVA_RECORD_CLASSES
 import com.android.tools.metalava.model.text.FileFormat
+import com.android.tools.metalava.model.text.MultiplatformSignatureWriter
 import com.android.tools.metalava.model.text.SignatureFile
 import com.android.tools.metalava.model.text.SignatureWriter
 import com.android.tools.metalava.model.text.createCodebaseFragmentForSignatureFile
@@ -592,6 +593,41 @@ class Driver(
                     )
                 }
             }
+        }
+
+        // Write multiplatform signature files if requested.
+        multiplatformOptions.apiDirectory?.let { outputDirectory ->
+            val format = signatureFormatOptions.fileFormat
+            MultiplatformSignatureWriter.write(
+                codebase = multiplatformCodebase,
+                outputDirectory = outputDirectory,
+                // Convert a [Codebase] to a [CodebaseFragment].
+                fragmentCreator = { sourceSetCodebase ->
+                    createSignatureFileFragment(
+                        sourceSetCodebase,
+                        fileFormat = format,
+                        apiType = ApiType.PUBLIC_API,
+                        preFiltered = sourceSetCodebase.preFiltered,
+                    )
+                },
+                // Write the signature file for a [sourceSetCodebase] to the [outputFile].
+                outputCreator = { sourceSetCodebase, outputFile, description ->
+                    createOutputFileFromCodebaseFragment(
+                        progressTracker,
+                        sourceSetCodebase,
+                        outputFile,
+                        description,
+                    ) { printWriter ->
+                        SignatureWriter(
+                            writer = printWriter,
+                            fileFormat = format,
+                            // Do not write target languages because multiplatform APIs are all
+                            // treated as effectively Kotlin-only.
+                            writeTargetLanguages = false,
+                        )
+                    }
+                }
+            )
         }
     }
 
