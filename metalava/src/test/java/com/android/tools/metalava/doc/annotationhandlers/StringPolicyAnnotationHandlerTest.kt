@@ -129,6 +129,20 @@ class StringPolicyAnnotationHandlerTest : DriverTest() {
                          * A test policy for string policy definition.
                          *
                          * Some other human handwritten comments.
+                         * <br>
+                         * <p>Policy Type: String</p>
+                         * <ul>
+                         *   <li>Allowed Scopes:
+                         *    <ul>
+                         *       <li>User</li>
+                         *     </ul>
+                         *   </li>
+                         *   <li>Affected Resource: Device Wide</li>
+                         *   <li>Required Permission: {@link android.Manifest.permission#TEST android.permission.TEST}</li>
+                         *   <li>Empty string: Allowed</li>
+                         *   <li>Unprintable characters: Allowed</li>
+                         *   <li>Max Length: 100</li>
+                         * </ul>
                          */
                         public static final java.lang.String POLICY_FIELD = "";
                         }

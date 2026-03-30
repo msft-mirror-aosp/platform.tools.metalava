@@ -29,12 +29,40 @@ class StringPolicyAnnotationHandler(
     reporter: Reporter,
     filterReference: Predicate<SelectableItem>
 ) : BaseDevicePolicyAnnotationHandler(codebase, reporter, filterReference) {
+    private val policyHandler =
+        PolicyDefinitionAnnotationHandler(codebase, reporter, filterReference)
+
     /**
      * Processes the [StringPolicyDefinition] annotation and returns the documentation for the
      * policy.
      */
     override fun processPolicyAnnotation(annotation: AnnotationItem, item: Item): String {
-        // TODO(b/492421367): Implement the StringPolicyDefinition annotation handler.
-        return ""
+        val emptyStringAllowed = annotation.getBooleanAttribute("emptyStringAllowed") ?: false
+
+        val unprintableCharactersAllowed =
+            annotation.getBooleanAttribute("unprintableCharactersAllowed") ?: false
+        val maxLength = annotation.getIntAttribute("maxLength") ?: Integer.MAX_VALUE
+
+        val basePolicyDefinition =
+            annotation.getPolicyDefinitionAttribute("base").elseReportMissing(item, "base")
+        val baseDocs =
+            basePolicyDefinition?.let {
+                policyHandler.processPolicyAnnotation(basePolicyDefinition, item)
+            } ?: ""
+
+        return buildString {
+            append("\n<p>Policy Type: String</p>\n <ul>\n")
+            append(baseDocs)
+            append(
+                "   <li>Empty string: ${if (emptyStringAllowed) "Allowed" else "Not allowed"}</li>\n"
+            )
+            append(
+                "   <li>Unprintable characters: ${if (unprintableCharactersAllowed) "Allowed" else "Not allowed"}</li>\n"
+            )
+            append(
+                "   <li>Max Length: ${if (maxLength == Integer.MAX_VALUE) "No limit" else maxLength}</li>\n"
+            )
+            append(" </ul>\n")
+        }
     }
 }
