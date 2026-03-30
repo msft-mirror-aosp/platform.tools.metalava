@@ -16,25 +16,39 @@
 
 package com.android.tools.metalava.model.text
 
+import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.ClassKind
+import com.android.tools.metalava.model.ClassOrVariableTypeItem
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.DelegatedVisitor
-import com.android.tools.metalava.model.ExceptionTypeItem
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ModifierListWriter
+import com.android.tools.metalava.model.MutableModifierList
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.StripJavaLangPrefix
 import com.android.tools.metalava.model.TargetLanguageSet
-import com.android.tools.metalava.model.TypeAliasItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.TypeStringConfiguration
+import com.android.tools.metalava.model.text.CustomizableProperty.Companion.FLAGGED_API_INHERITANCE
+import com.android.tools.metalava.model.text.CustomizableProperty.Companion.INCLUDE_DEFAULT_PARAMETER_VALUES
+import com.android.tools.metalava.model.text.CustomizableProperty.Companion.INCLUDE_TYPE_USE_ANNOTATIONS
+import com.android.tools.metalava.model.text.CustomizableProperty.Companion.JAVA_RECORD_CLASSES
+import com.android.tools.metalava.model.text.CustomizableProperty.Companion.KOTLIN_NAME_TYPE_ORDER
+import com.android.tools.metalava.model.text.CustomizableProperty.Companion.KOTLIN_STYLE_NULLS
+import com.android.tools.metalava.model.text.CustomizableProperty.Companion.NORMALIZE_ABSTRACT_MODIFIER
+import com.android.tools.metalava.model.text.CustomizableProperty.Companion.NORMALIZE_FINAL_MODIFIER
+import com.android.tools.metalava.model.text.CustomizableProperty.Companion.OVERLOADED_METHOD_ORDER
+import com.android.tools.metalava.model.text.CustomizableProperty.Companion.SORT_WHOLE_EXTENDS_LIST
+import com.android.tools.metalava.model.text.CustomizableProperty.Companion.STRIP_JAVA_LANG_PREFIX
+import com.android.tools.metalava.model.text.CustomizableProperty.Companion.TYPE_ARGUMENT_SPACING
 import com.android.tools.metalava.model.text.FileFormat.TypeArgumentSpacing
 import com.android.tools.metalava.model.visitors.ApiPredicate
 import com.android.tools.metalava.model.visitors.ApiType
@@ -55,10 +69,30 @@ class SignatureWriter(
         }
     }
 
+    /** See [INCLUDE_DEFAULT_PARAMETER_VALUES]. */
+    private val includeDefaultParameterValues = fileFormat[INCLUDE_DEFAULT_PARAMETER_VALUES]
+
+    /** See [JAVA_RECORD_CLASSES]. */
+    private val javaRecordClasses = fileFormat[JAVA_RECORD_CLASSES]
+
+    /** See [KOTLIN_NAME_TYPE_ORDER]. */
+    private val kotlinNameTypeOrder = fileFormat[KOTLIN_NAME_TYPE_ORDER]
+
+    /** See [STRIP_JAVA_LANG_PREFIX] property. */
+    private val stripJavaLangPrefix = fileFormat[STRIP_JAVA_LANG_PREFIX]
+
+    /**
+     * Indicates whether this should use the legacy behavior for stripping `java.lang.` prefixes.
+     */
+    private val stripJavaLangPrefixLegacy = stripJavaLangPrefix == StripJavaLangPrefix.LEGACY
+
     private val modifierListWriter =
         ModifierListWriter.forSignature(
             writer = writer,
-            skipNullnessAnnotations = fileFormat.kotlinStyleNulls,
+            skipNullnessAnnotations = fileFormat[KOTLIN_STYLE_NULLS],
+            normalizeFinal = fileFormat[NORMALIZE_FINAL_MODIFIER],
+            normalizeAbstract = fileFormat[NORMALIZE_ABSTRACT_MODIFIER],
+            flaggedApiInheritance = fileFormat[FLAGGED_API_INHERITANCE],
         )
 
     internal fun write(text: String) {
@@ -99,7 +133,7 @@ class SignatureWriter(
         write(" ")
         writeModifiers(field)
 
-        if (fileFormat.kotlinNameTypeOrder) {
+        if (kotlinNameTypeOrder) {
             // Kotlin style: write the name of the field, then the type.
             write(field.name())
             write(": ")
@@ -115,26 +149,11 @@ class SignatureWriter(
         write("\n")
     }
 
-    override fun visitTypeAlias(typeAlias: TypeAliasItem) {
-        write("  ")
-
-        writeModifiers(typeAlias)
-
-        write("typealias ")
-
-        write(typeAlias.simpleName)
-        writeTypeParameterList(typeAlias.typeParameterList, addSpace = false)
-
-        write(" = ")
-        writeType(typeAlias.aliasedType)
-        write(";\n\n")
-    }
-
     override fun visitProperty(property: PropertyItem) {
         write("    property ")
         writeModifiers(property)
         writeTypeParameterList(property.typeParameterList, addSpace = true)
-        if (fileFormat.kotlinNameTypeOrder) {
+        if (kotlinNameTypeOrder) {
             // Kotlin style: write the name of the property, then the type.
             property.receiver?.let {
                 writeType(it)
@@ -161,7 +180,7 @@ class SignatureWriter(
         writeModifiers(method)
         writeTypeParameterList(method.typeParameterList, addSpace = true)
 
-        if (fileFormat.kotlinNameTypeOrder) {
+        if (kotlinNameTypeOrder) {
             // Kotlin style: write the name of the method and the parameters, then the type.
             write(method.name())
             writeParameterList(method)
@@ -193,36 +212,86 @@ class SignatureWriter(
 
         writeModifiers(cls)
 
-        if (cls.isAnnotationType()) {
-            write("@interface")
-        } else if (cls.isInterface()) {
-            write("interface")
-        } else if (cls.isEnum()) {
-            write("enum")
-        } else {
-            write("class")
-        }
+        // Get the keyword to use for the class kind.
+        val classKind =
+            when (val kind = cls.classKind) {
+                // Only use RECORD if java-record-classes=true
+                ClassKind.RECORD -> if (javaRecordClasses) kind else ClassKind.CLASS
+                else -> kind
+            }
+        write(classKind.signatureKeyword)
         write(" ")
-        write(cls.fullName())
-        writeTypeParameterList(cls.typeParameterList, addSpace = false)
-        writeSuperClassStatement(cls)
-        writeInterfaceList(cls)
 
-        write(" {\n")
+        if (classKind == ClassKind.TYPEALIAS) {
+            // The rest of a typealias is written in a different format than any other class.
+            write(cls.simpleName())
+            writeTypeParameterList(cls.typeParameterList, addSpace = false)
+            write(" = ")
+            writeType(cls.aliasedType)
+            write(";\n\n")
+        } else {
+            // Write the rest of a normal class.
+            write(cls.fullName())
+            writeTypeParameterList(cls.typeParameterList, addSpace = false)
+            writeSuperClassStatement(cls)
+            writeInterfaceList(cls)
+            propagateSuppressAnnotationsToSubclasses(cls)
+
+            write(" {\n")
+        }
+    }
+
+    /**
+     * This method takes annotations that suppress compatibility checks and propagates them down to
+     * nested classes, enums, and interfaces so that in the final Metalava text file generated, the
+     * inner classes are also marked with the annotation. For more details, see b/292090022
+     */
+    private fun propagateSuppressAnnotationsToSubclasses(cls: ClassItem) {
+        val annotationsToPassDown: List<AnnotationItem> =
+            cls.modifiers.annotations().filter { it.isSuppressCompatibilityAnnotation() }
+        val addAnnotationsMutator: MutableModifierList.() -> Unit = {
+            annotationsToPassDown.forEach { newAnnotation ->
+                if (
+                    !this.annotations().any { existingAnnotation ->
+                        existingAnnotation.qualifiedName.equals(newAnnotation.qualifiedName)
+                    }
+                ) {
+                    this.addAnnotation(newAnnotation)
+                }
+            }
+        }
+        cls.nestedClasses().forEach { nestedClass ->
+            // The reason we want to prevent class annotations from being passed down to
+            // inner annotations is because adding an experimental annotation to the inner
+            // annotation definition makes usages of the inner annotation on methods/parameters
+            // get labeled as experimental. This can make the resulting signature files bloated
+            // when these annotations are attached to methods and parameters
+            if (nestedClass.classKind != ClassKind.ANNOTATION_TYPE) {
+                try {
+                    nestedClass.mutateModifiers(addAnnotationsMutator)
+                } catch (e: IllegalStateException) {
+                    // the inner class is frozen - don't do anything
+                }
+            }
+        }
     }
 
     override fun afterVisitClass(cls: ClassItem) {
-        write("  }\n\n")
+        // Typealiases are written differently from any other class, and don't have an opening `{`.
+        if (cls.classKind != ClassKind.TYPEALIAS) {
+            write("  }\n\n")
+        }
     }
 
     private fun writeModifiers(item: Item) {
         (item as? SelectableItem)?.let { writeTargetLanguage(it) }
-        modifierListWriter.write(item, normalizeFinal = fileFormat.normalizeFinalModifier)
+        modifierListWriter.write(item)
     }
 
     private fun writeTargetLanguage(item: SelectableItem) {
         // Properties and type aliases are always only for Kotlin use, so don't bother writing it.
-        if (item is PropertyItem || item is TypeAliasItem) return
+        if (item is PropertyItem || (item is ClassItem && item.classKind == ClassKind.TYPEALIAS))
+            return
 
         val modifier =
             TargetLanguageSet.targetLanguageSetToSignatureFileRepresentation[item.targetLanguages]
@@ -231,7 +300,8 @@ class SignatureWriter(
     }
 
     private fun writeSuperClassStatement(cls: ClassItem) {
-        if (cls.isEnum() || cls.isAnnotationType() || cls.isInterface()) {
+        val classKind = cls.classKind
+        if (!classKind.allowsExplicitSuperClass) {
             return
         }
 
@@ -248,14 +318,14 @@ class SignatureWriter(
      */
     private val legacySuperTypeStringConfiguration =
         TypeStringConfiguration(
-            annotations = fileFormat.includeTypeUseAnnotations,
-            kotlinStyleNulls = fileFormat.kotlinStyleNulls,
+            annotations = fileFormat[INCLUDE_TYPE_USE_ANNOTATIONS],
+            kotlinStyleNulls = fileFormat[KOTLIN_STYLE_NULLS],
         )
 
     private fun writeExtendsOrImplementsType(typeItem: TypeItem) {
         write(" ")
 
-        if (fileFormat.stripJavaLangPrefix != StripJavaLangPrefix.LEGACY) {
+        if (!stripJavaLangPrefixLegacy) {
             writeType(typeItem)
         } else {
             val superClassString = typeItem.toTypeString(legacySuperTypeStringConfiguration)
@@ -282,11 +352,12 @@ class SignatureWriter(
     /** [TypeStringConfiguration] for use when writing types in [writeTypeParameterList]. */
     private val typeParameterItemStringConfiguration =
         TypeStringConfiguration(
-            spaceBetweenTypeArguments = fileFormat.typeArgumentSpacing != TypeArgumentSpacing.NONE,
+            spaceBetweenTypeArguments =
+                fileFormat[TYPE_ARGUMENT_SPACING] != TypeArgumentSpacing.NONE,
             stripJavaLangPrefix =
                 // Only strip `java.lang.` prefix if always requested. That is because the LEGACY
                 // behavior is not to strip `java.lang.` prefix in bounds.
-                when (fileFormat.stripJavaLangPrefix) {
+                when (stripJavaLangPrefix) {
                     StripJavaLangPrefix.ALWAYS -> StripJavaLangPrefix.ALWAYS
                     else -> StripJavaLangPrefix.NEVER
                 },
@@ -309,13 +380,13 @@ class SignatureWriter(
             if (writtenParams > 0) {
                 write(", ")
             }
-            if (parameter.hasDefaultValue() && fileFormat.includeDefaultParameterValues) {
+            if (parameter.hasDefaultValue() && includeDefaultParameterValues) {
                 // Indicate the parameter has a default.
                 write("optional ")
             }
             writeModifiers(parameter)
 
-            if (fileFormat.kotlinNameTypeOrder) {
+            if (kotlinNameTypeOrder) {
                 // Kotlin style: the parameter must have a name (use `_` if it doesn't have a public
                 // name). Write the name and then the type.
                 val name = parameter.publicName() ?: "_"
@@ -340,10 +411,11 @@ class SignatureWriter(
     /** [TypeStringConfiguration] for use when writing types in [writeType]. */
     private val typeStringConfiguration =
         TypeStringConfiguration(
-            annotations = fileFormat.includeTypeUseAnnotations,
-            kotlinStyleNulls = fileFormat.kotlinStyleNulls,
-            spaceBetweenTypeArguments = fileFormat.typeArgumentSpacing == TypeArgumentSpacing.SPACE,
-            stripJavaLangPrefix = fileFormat.stripJavaLangPrefix,
+            annotations = fileFormat[INCLUDE_TYPE_USE_ANNOTATIONS],
+            kotlinStyleNulls = fileFormat[KOTLIN_STYLE_NULLS],
+            spaceBetweenTypeArguments =
+                fileFormat[TYPE_ARGUMENT_SPACING] == TypeArgumentSpacing.SPACE,
+            stripJavaLangPrefix = stripJavaLangPrefix,
         )
 
     private fun writeType(type: TypeItem?) {
@@ -361,12 +433,12 @@ class SignatureWriter(
         val throws = callable.throwsTypes()
         if (throws.isNotEmpty()) {
             write(" throws ")
-            throws.sortedWith(ExceptionTypeItem.fullNameComparator).forEachIndexed { i, type ->
+            throws.sortedWith(ClassOrVariableTypeItem.fullNameComparator).forEachIndexed { i, type
+                ->
                 if (i > 0) {
                     write(", ")
                 }
-                if (fileFormat.stripJavaLangPrefix != StripJavaLangPrefix.LEGACY) writeType(type)
-                else write(type.toTypeString())
+                if (!stripJavaLangPrefixLegacy) writeType(type) else write(type.toTypeString())
             }
         }
     }
@@ -438,12 +510,12 @@ fun createFilteringVisitorForSignatures(
     val apiFilters = apiType.getApiFilters(apiPredicateConfig)
 
     val (interfaceListSorter, interfaceListComparator) =
-        if (fileFormat.sortWholeExtendsList) Pair(null, TypeItem.totalComparator)
+        if (fileFormat[SORT_WHOLE_EXTENDS_LIST]) Pair(null, TypeItem.totalComparator)
         else Pair(::getInterfacesInOrder, null)
     return FilteringApiVisitor(
         delegate = delegate,
         inlineInheritedFields = true,
-        callableComparator = fileFormat.overloadedMethodOrder.comparator,
+        callableComparator = fileFormat[OVERLOADED_METHOD_ORDER].comparator,
         interfaceListSorter = interfaceListSorter,
         interfaceListComparator = interfaceListComparator,
         apiFilters = apiFilters,

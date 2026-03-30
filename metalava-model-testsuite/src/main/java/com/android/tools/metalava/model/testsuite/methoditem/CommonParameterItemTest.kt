@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model.testsuite.methoditem
 
+import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.provider.InputFormat
 import com.android.tools.metalava.model.testing.testTypeString
 import com.android.tools.metalava.model.testsuite.BaseModelTest
@@ -25,11 +26,11 @@ import com.android.tools.metalava.testing.kotlin
 import com.google.common.truth.Truth.assertWithMessage
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /** Common tests for implementations of [ParameterItem]. */
 class CommonParameterItemTest : BaseModelTest() {
-
     @Test
     fun `Test deprecated parameter by annotation`() {
         runCodebaseTest(
@@ -284,7 +285,7 @@ class CommonParameterItemTest : BaseModelTest() {
                     "method2" to "java.lang.String![]",
                     "method3" to "java.lang.String![]![]",
                     "method4" to "T",
-                    "method5" to "java.util.Map.Entry<T!,java.lang.String!>",
+                    "method5" to "java.util.Map.Entry<T,java.lang.String!>",
                 )
             val methods = codebase.assertClass("test.pkg.Foo").methods()
             assertEquals("method count", expectedTypes.size, methods.size)
@@ -346,7 +347,7 @@ class CommonParameterItemTest : BaseModelTest() {
                     "method2" to "java.lang.String![]?",
                     "method3" to "java.lang.String![]![]?",
                     "method4" to "T?",
-                    "method5" to "java.util.Map.Entry<T!,java.lang.String!>?",
+                    "method5" to "java.util.Map.Entry<T,java.lang.String!>?",
                 )
             val methods = codebase.assertClass("test.pkg.Foo").methods()
             assertEquals("method count", expectedTypes.size, methods.size)
@@ -606,9 +607,9 @@ class CommonParameterItemTest : BaseModelTest() {
             signature(
                 """
                     // Signature format: 5.0
-                    // - language=kotlin
                     // - include-default-parameter-values=no
                     // - kotlin-name-type-order=yes
+                    // - kotlin-style-nulls=yes
                     package test.pkg {
                       public final class Foo {
                         ctor public Foo();
@@ -652,9 +653,9 @@ class CommonParameterItemTest : BaseModelTest() {
             signature(
                 """
                     // Signature format: 5.0
-                    // - language=kotlin
                     // - include-default-parameter-values=yes
                     // - kotlin-name-type-order=yes
+                    // - kotlin-style-nulls=yes
                     package test.pkg {
                       public final class Foo {
                         ctor public Foo();
@@ -667,6 +668,25 @@ class CommonParameterItemTest : BaseModelTest() {
             val parameter =
                 codebase.assertClass("test.pkg.Foo").methods().single().parameters().single()
             assertEquals("hasDefaultValue", true, parameter.hasDefaultValue())
+        }
+    }
+
+    @Test
+    fun `Test varargs modifier on kotlin parameter`() {
+        runCodebaseTest(
+            kotlin(
+                """
+                package test.pkg
+                class Foo {
+                    @JvmSynthetic
+                    fun foo(vararg ints: Int) = Unit
+                }
+                """
+            )
+        ) {
+            val parameterItem =
+                codebase.assertClass("test.pkg.Foo").methods().single().parameters().single()
+            assertTrue(parameterItem.modifiers.isVarArg())
         }
     }
 }

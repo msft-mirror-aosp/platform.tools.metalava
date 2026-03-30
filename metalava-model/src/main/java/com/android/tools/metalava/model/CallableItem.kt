@@ -35,6 +35,63 @@ interface CallableItem : MemberItem, TypeParameterListOwner {
     /** The list of parameters */
     @MetalavaApi fun parameters(): List<ParameterItem>
 
+    override fun describe(capitalize: Boolean) =
+        describeCallableItem(includeParameterTypes = true, capitalize = capitalize)
+
+    fun describeCallableItem(
+        includeParameterNames: Boolean = false,
+        includeParameterTypes: Boolean = false,
+        includeReturnValue: Boolean = false,
+        capitalize: Boolean = false
+    ) = buildString {
+        if (isConstructor()) {
+            append(if (capitalize) "Constructor" else "constructor")
+        } else {
+            append(if (capitalize) "Method" else "method")
+        }
+        append(' ')
+        if (includeReturnValue && !isConstructor()) {
+            append(returnType().toSimpleTypeString())
+            append(' ')
+        }
+        appendCallableSignature(includeParameterNames, includeParameterTypes)
+    }
+
+    fun StringBuilder.appendCallableSignature(
+        includeParameterNames: Boolean,
+        includeParameterTypes: Boolean
+    ) {
+        append(containingClass().qualifiedName())
+        if (!isConstructor()) {
+            append('.')
+            append(name())
+        }
+        if (includeParameterNames || includeParameterTypes) {
+            append('(')
+            var first = true
+            for (parameter in parameters()) {
+                if (first) {
+                    first = false
+                } else {
+                    append(',')
+                    if (includeParameterNames && includeParameterTypes) {
+                        append(' ')
+                    }
+                }
+                if (includeParameterTypes) {
+                    append(parameter.type().toSimpleTypeString())
+                    if (includeParameterNames) {
+                        append(' ')
+                    }
+                }
+                if (includeParameterNames) {
+                    append(parameter.publicName() ?: parameter.name())
+                }
+            }
+            append(')')
+        }
+    }
+
     override fun type() = returnType()
 
     /** Types of exceptions that this callable can throw */
@@ -46,7 +103,7 @@ interface CallableItem : MemberItem, TypeParameterListOwner {
     /** Returns true if this callable throws the given exception */
     fun throws(qualifiedName: String): Boolean {
         for (type in throwsTypes()) {
-            val throwableClass = type.erasedClass ?: continue
+            val throwableClass = type.asErasedClass(codebase) ?: continue
             if (throwableClass.extends(qualifiedName)) {
                 return true
             }
@@ -67,24 +124,38 @@ interface CallableItem : MemberItem, TypeParameterListOwner {
         throwsTypes: LinkedHashSet<ExceptionTypeItem>
     ): LinkedHashSet<ExceptionTypeItem> {
         for (exceptionType in throwsTypes()) {
-            if (exceptionType is VariableTypeItem) {
-                throwsTypes.add(exceptionType)
-            } else {
-                val classItem = exceptionType.erasedClass ?: continue
-                if (predicate.test(classItem)) {
+            when (exceptionType) {
+                is VariableTypeItem -> {
                     throwsTypes.add(exceptionType)
-                } else {
-                    // Excluded, but it may have super class throwables that are included; if so,
-                    // include those.
-                    classItem
-                        .allSuperClasses()
-                        .firstOrNull { superClass -> predicate.test(superClass) }
-                        ?.let { superClass -> throwsTypes.add(superClass.type()) }
+                }
+                is ClassTypeItem -> {
+                    val classItem = exceptionType.asErasedClass(codebase) ?: continue
+                    if (predicate.test(classItem)) {
+                        throwsTypes.add(exceptionType)
+                    } else {
+                        // Excluded, but it may have super class throwables that are included; if
+                        // so, include those.
+                        classItem
+                            .allSuperClasses()
+                            .firstOrNull { superClass -> predicate.test(superClass) }
+                            ?.let { superClass -> throwsTypes.add(superClass.type()) }
+                    }
                 }
             }
         }
         return throwsTypes
     }
+
+    /**
+     * Create an overload of this [CallableItem] with a copy of [parameters].
+     *
+     * The returned [CallableItem] will have its own parameters that are a copy of [parameters] with
+     * one exception. If [parameters] contains a varargs parameter which is last and its type is an
+     * [ArrayTypeItem] whose [ArrayTypeItem.isVarargs] is `false` then this will replace that type
+     * with an identical one except that [ArrayTypeItem.isVarargs] will be `true`. That ensures
+     * correct behavior for Kotlin varargs.
+     */
+    fun createOverload(parameters: List<ParameterItem>): CallableItem
 
     /** Override to specialize return type. */
     override fun findCorrespondingItemIn(
@@ -94,17 +165,21 @@ interface CallableItem : MemberItem, TypeParameterListOwner {
     ): CallableItem?
 
     override fun baselineElementId() = buildString {
-        append(containingClass().qualifiedName())
+        if (containingClass().simpleName() != ClassItem.TOP_LEVEL_DECLARATION_FACADE_NAME) {
+            append(containingClass().qualifiedName())
+        } else {
+            append(containingPackage().qualifiedName())
+        }
         append("#")
         append(name())
         append("(")
-        parameters().joinTo(this) { it.type().toSimpleType() }
+        parameters().joinTo(this) { it.type().toSimpleTypeString() }
         append(")")
     }
 
     override fun toStringForItem(): String {
         return "${if (isConstructor()) "constructor" else "method"} ${
-            containingClass().qualifiedName()}.${name()}(${parameters().joinToString { it.type().toSimpleType() }})"
+            containingClass().qualifiedName()}.${name()}(${parameters().joinToString { it.type().toSimpleTypeString() }})"
     }
 
     override fun equalsToItem(other: Any?): Boolean {
@@ -193,7 +268,17 @@ interface CallableItem : MemberItem, TypeParameterListOwner {
             val parameter1Type = parameters1[i].type()
             val parameter2Type = parameters2[i].type()
             if (parameter1Type == parameter2Type) continue
-            if (parameter1Type.toErasedTypeString() == parameter2Type.toErasedTypeString()) continue
+            // If these have the same erased type, they're considered equal for bytecode. If this
+            // is a Kotlin-only callable, don't accept any equivalent-erased types as equal, but
+            // allow for the case that one version has wildcards that the other doesn't (common
+            // when comparing types generated from PSI vs the Kotlin analysis API).
+            if (parameter1Type.toErasedTypeString() == parameter2Type.toErasedTypeString()) {
+                if (TargetLanguage.BYTECODE in targetLanguages) {
+                    continue
+                } else if (equalWithFlattenedWildcards(parameter1Type, parameter2Type)) {
+                    continue
+                }
+            }
 
             val convertedType =
                 parameter1Type.convertType(other.containingClass(), containingClass())
@@ -226,7 +311,7 @@ interface CallableItem : MemberItem, TypeParameterListOwner {
             is PrimitiveTypeItem -> false
             is ArrayTypeItem -> componentType.hasHiddenType(filterReference)
             is ClassTypeItem ->
-                asClass()?.let { !filterReference.test(it) } == true ||
+                resolveClass(codebase)?.let { !filterReference.test(it) } == true ||
                     outerClassType?.hasHiddenType(filterReference) == true ||
                     arguments.any { it.hasHiddenType(filterReference) }
             is VariableTypeItem ->
