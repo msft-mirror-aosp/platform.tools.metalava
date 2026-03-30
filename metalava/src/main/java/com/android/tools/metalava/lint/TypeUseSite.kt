@@ -21,20 +21,36 @@ import com.android.tools.metalava.model.TypeItem
 
 /** Sites where an [Item] can use a [TypeItem] */
 enum class TypeUseSite(
+    /** Text label that describes a [TypeUseSite]. */
+    private val label: String,
     /** True for sites that are handled by the [ApiLint.legacyCheckType]. */
     val legacyCheckType: Boolean = false,
 ) {
-    TYPE_PARAMETER,
-    SUPER_CLASS,
-    INTERFACE,
-    THROWS,
+    TYPE_PARAMETER(
+        label = "Type parameter",
+    ),
+    SUPER_CLASS(
+        label = "Super class",
+    ),
+    INTERFACE(
+        label = "Implemented interface",
+    ),
+    THROWS(
+        label = "Throws type",
+    ),
     RETURN(
+        label = "Return type",
         legacyCheckType = true,
     ),
     PARAMETER(
+        label = "Parameter type",
         legacyCheckType = true,
     ),
     FIELD(
+        label = "Field type",
         legacyCheckType = true,
     ),
+    ;
+
+    override fun toString() = label
 }

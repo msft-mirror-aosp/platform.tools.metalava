@@ -318,7 +318,7 @@ private constructor(
      */
     private fun checkEveryType(type: TypeItem, item: Item, typeUseSite: TypeUseSite) {
         if (typeUseSite.legacyCheckType) {
-            legacyCheckType(type, item)
+            legacyCheckType(type, item, typeUseSite)
         }
     }
 
@@ -330,11 +330,11 @@ private constructor(
      *
      * DO NOT ADD ANY MORE CHECKS TO THIS, ADD THEM TO [checkEveryType] INSTEAD.
      */
-    private fun legacyCheckType(type: TypeItem, item: Item) {
+    private fun legacyCheckType(type: TypeItem, item: Item, typeUseSite: TypeUseSite) {
         val typeString = type.toTypeString()
         checkPfd(typeString, item)
         checkNumbers(typeString, item)
-        checkCollections(type, item)
+        checkCollections(type, item, typeUseSite)
         checkCollectionsOverArrays(type, typeString, item)
         checkBoxed(type, item)
         checkIcu(type, typeString, item)
@@ -1700,7 +1700,7 @@ private constructor(
         }
     }
 
-    private fun checkCollections(type: TypeItem, item: Item) {
+    private fun checkCollections(type: TypeItem, item: Item, typeUseSite: TypeUseSite) {
         // Primitive types cannot be collections.
         if (type is PrimitiveTypeItem) {
             return
@@ -1717,17 +1717,11 @@ private constructor(
 
         // If the types uses one of the concrete collection classes then it is a problem.
         if (type.usesAnyClassIn(CONCRETE_COLLECTION_CLASSES)) {
-            val where =
-                when (item) {
-                    is MethodItem -> "Return type"
-                    is FieldItem -> "Field type"
-                    else -> "Parameter type"
-                }
             val erased = type.toErasedTypeString()
             report(
                 CONCRETE_COLLECTION,
                 item,
-                "$where is concrete collection (`$erased`); must be higher-level interface"
+                "$typeUseSite is concrete collection (`$erased`); must be higher-level interface"
             )
         }
     }
