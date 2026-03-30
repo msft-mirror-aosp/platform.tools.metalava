@@ -248,4 +248,40 @@ class MultiplatformApiFileTest : DriverTest() {
                 )
         )
     }
+
+    @Test
+    fun `Test inclusion of empty top level declarations facade class`() {
+        val commonSource =
+            arrayOf(
+                kotlin(
+                    "commonMain/src/test/pkg/Common.kt",
+                    """
+                    package test.pkg
+                    class Common
+                    internal fun common() = Unit
+                    """
+                )
+            )
+        check(
+            sourceFiles = commonSource,
+            projectDescription =
+                createProjectDescription(createCommonModuleDescription(commonSource)),
+            enableMultiplatform = true,
+            skipSourceArgs = true, // Don't create a regular Codebase
+            multiplatformApi =
+                mapOf(
+                    "commonMain.txt" to
+                        """
+                        // Signature format: 5.0
+                        package test.pkg {
+                          public class ${'$'}TopLevelDeclarations {
+                          }
+                          public final class Common extends kotlin.Any {
+                            ctor public Common();
+                          }
+                        }
+                        """
+                )
+        )
+    }
 }
