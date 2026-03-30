@@ -15,7 +15,6 @@ com.android.tools.metalava.model.testsuite.annotationitem.CommonAnnotationItemTe
   unknown annotation class with named attribute - string value[psi,kotlin]
 
 com.android.tools.metalava.model.testsuite.classitem.CommonRecordClassTest
-  Test record annotated component[text]
 
 com.android.tools.metalava.model.testsuite.classitem.CommonValueClassTest
   Usage of value class with type parameter[psi,kotlin]

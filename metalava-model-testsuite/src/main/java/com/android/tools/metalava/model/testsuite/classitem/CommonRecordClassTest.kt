@@ -419,7 +419,6 @@ class CommonRecordClassTest : BaseModelTest() {
                 )
             }
 
-            // TODO(b/482390286): Should not include fields.
             assertEquals(
                 """
                     class test.pkg.Test
@@ -434,10 +433,6 @@ class CommonRecordClassTest : BaseModelTest() {
                         type: @test.pkg.TypeAnno @test.pkg.MixedAnno int
                     record component test.pkg.Test#c
                         @test.pkg.RecordAnno
-                        @test.pkg.MixedAnno
-                        type: @test.pkg.TypeAnno @test.pkg.MixedAnno int
-                    field test.pkg.Test.c
-                        @test.pkg.FieldAnno
                         @test.pkg.MixedAnno
                         type: @test.pkg.TypeAnno @test.pkg.MixedAnno int
                 """
