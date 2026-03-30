@@ -27,7 +27,10 @@ class RecordLintTest : DriverTest() {
         check(
             apiLint = "", // enabled
             expectedIssues =
+                // TODO(b/482390286): Should not stop a record class having java.lang.Record as the
+                // super class.
                 """
+                    src/android/pkg/Test.java:3: error: Super class of class android.pkg.Test contains java.lang.Record, that can cause issues for desugared record classes, please use java.lang.Object instead [UsingJavaLangRecord]
                     src/android/pkg/UsingJavaLangRecord.java:5: error: Implemented interface of class android.pkg.UsingJavaLangRecord contains java.lang.Record, that can cause issues for desugared record classes, please use java.lang.Object instead [UsingJavaLangRecord]
                     src/android/pkg/UsingJavaLangRecord.java:5: error: Super class of class android.pkg.UsingJavaLangRecord contains java.lang.Record, that can cause issues for desugared record classes, please use java.lang.Object instead [UsingJavaLangRecord]
                     src/android/pkg/UsingJavaLangRecord.java:6: error: Type of field android.pkg.UsingJavaLangRecord.field contains java.lang.Record, that can cause issues for desugared record classes, please use java.lang.Object instead [UsingJavaLangRecord]
@@ -62,6 +65,14 @@ class RecordLintTest : DriverTest() {
                             public class UsingJavaLangRecord<T extends Record> extends SuperClass<Record> implements Interface<Record> {
                                 public final @NonNull Record field;
                                 public @NonNull Record method(@NonNull Record record) {return record;}
+                            }
+                        """
+                    ),
+                    java(
+                        """
+                            package android.pkg;
+
+                            public record Test(int a) {
                             }
                         """
                     ),
