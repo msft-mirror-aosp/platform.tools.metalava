@@ -58,6 +58,15 @@ abstract class BaseDevicePolicyAnnotationHandler(
         return PolicyResource.fromId(resource)?.resourceName ?: resource.toString()
     }
 
+    /** A helper function to format the allow/disallow status of a field. */
+    protected fun StringBuilder.appendAllowed(
+        name: String,
+        allowed: Boolean,
+        leadingSpaces: String = "   ",
+    ) {
+        append("$leadingSpaces<li>$name: ${if (allowed) "Allowed" else "Not allowed"}</li>\n")
+    }
+
     /** Report missing required fields inside the annotation. */
     protected fun reportOnMissingFields(fieldName: String, item: Item) {
         reporter.report(
