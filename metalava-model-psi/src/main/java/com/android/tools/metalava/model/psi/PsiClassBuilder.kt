@@ -245,7 +245,7 @@ internal class PsiClassBuilder(
             classItem.addProperty(propertyItem)
         }
 
-        classItem.initializeRecordComponents()
+        classItem.markCanonicalRecordConstructor()
     }
 
     /** Create [MutableModifierList] for [psiModifierListOwner] in [psiCodebase]. */

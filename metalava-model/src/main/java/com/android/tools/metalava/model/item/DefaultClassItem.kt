@@ -45,6 +45,8 @@ import com.android.tools.metalava.model.scope.NameClassification
 import com.android.tools.metalava.model.scope.ReferencableNameScope
 import com.android.tools.metalava.model.utils.extractSimpleName
 import com.android.tools.metalava.reporter.FileLocation
+import java.util.Optional
+import kotlin.jvm.optionals.getOrNull
 
 internal class DefaultClassItem(
     codebase: DefaultCodebase,
@@ -322,7 +324,28 @@ internal class DefaultClassItem(
         replaceOrAddItem(property, mutableProperties)
     }
 
-    override var recordComponents: RecordComponents? = null
+    private lateinit var optionalRecordComponents: Optional<RecordComponents>
+
+    override val recordComponents: RecordComponents?
+        get() {
+            if (!::optionalRecordComponents.isInitialized) {
+                optionalRecordComponents = Optional.ofNullable(createRecordComponents())
+            }
+
+            return optionalRecordComponents.getOrNull()
+        }
+
+    /** Create [RecordComponents] from the [PropertyItem]s. */
+    private fun createRecordComponents() =
+        if (classKind == ClassKind.RECORD)
+            RecordComponents(
+                properties()
+                    .filter { it.isRecordComponent() }
+                    .filterIsInstance<RecordComponentItem>()
+            )
+        else {
+            null
+        }
 
     /** The mutable list of nested [ClassItem] that backs [nestedClasses]. */
     private val mutableNestedClasses = mutableListOf<ClassItem>()
@@ -406,14 +429,8 @@ internal class DefaultClassItem(
             return optionalAliasedType!!
         }
 
-    override fun initializeRecordComponents() {
+    override fun markCanonicalRecordConstructor() {
         require(classKind == ClassKind.RECORD)
-        recordComponents =
-            RecordComponents(
-                properties()
-                    .filter { it.isRecordComponent() }
-                    .filterIsInstance<RecordComponentItem>()
-            )
 
         // Find the canonical constructor and set it as the primary constructor.
         //

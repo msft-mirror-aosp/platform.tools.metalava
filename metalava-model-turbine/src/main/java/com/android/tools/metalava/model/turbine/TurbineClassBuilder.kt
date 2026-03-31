@@ -711,7 +711,7 @@ internal class TurbineClassBuilder(
             classItem.addProperty(propertyItem)
         }
 
-        classItem.initializeRecordComponents()
+        classItem.markCanonicalRecordConstructor()
     }
 
     /** Get an [ItemDocumentationFactory] for [decl] in [classItem]. */

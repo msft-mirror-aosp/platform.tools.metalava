@@ -265,7 +265,7 @@ private constructor(
         // in the snapshot class.
         if (cls.classKind == ClassKind.RECORD) {
             val snapshotClass = cls.getSnapshotClass()
-            snapshotClass.initializeRecordComponents()
+            snapshotClass.markCanonicalRecordConstructor()
         }
     }
 

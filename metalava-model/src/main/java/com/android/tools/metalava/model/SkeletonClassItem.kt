@@ -65,11 +65,11 @@ interface SkeletonClassItem : ClassItem {
     fun replaceOrAddMethod(method: MethodItem)
 
     /**
-     * Create a [RecordComponents] object and store it in [ClassItem.recordComponents].
+     * Mark the canonical [ConstructorItem] for a record class by setting
+     * [ConstructorItem.isPrimary] to `true`.
      *
-     * Must only be called on a [ClassItem] whose [classKind] is [ClassKind.RECORD]. Will construct
-     * the [RecordComponents] from all [properties] whose [PropertyItem.isRecordComponent] returns
-     * `true`.
+     * Must only be called on a [ClassItem] whose [classKind] is [ClassKind.RECORD]. Must be called
+     * after constructors are created.
      */
-    fun initializeRecordComponents()
+    fun markCanonicalRecordConstructor()
 }

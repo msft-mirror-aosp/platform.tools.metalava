@@ -220,8 +220,11 @@ interface ClassItem :
     /**
      * The [RecordComponents] for this [ClassItem].
      *
-     * Is null unless [classKind] is [ClassKind.RECORD], in which case this is set to the, possibly
-     * empty, [RecordComponents].
+     * Is null unless [classKind] is [ClassKind.RECORD], in which case this is a possibly empty
+     * [RecordComponents].
+     *
+     * This is initialized on demand and must only be accessed after the [RecordComponentItem]s from
+     * which it is constructed have been added to the class.
      */
     val recordComponents: RecordComponents?
 

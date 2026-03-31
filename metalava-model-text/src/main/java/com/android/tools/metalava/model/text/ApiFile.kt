@@ -853,7 +853,7 @@ private constructor(
         parseClassBody(tokenizer, cl, typeItemFactory)
 
         if (classKind == ClassKind.RECORD) {
-            cl.initializeRecordComponents()
+            cl.markCanonicalRecordConstructor()
         }
     }
 
