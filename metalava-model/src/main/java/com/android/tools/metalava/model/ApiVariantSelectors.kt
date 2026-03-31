@@ -259,7 +259,7 @@ sealed class ApiVariantSelectors {
                     // The item is originally hidden if the Javadoc contains @hide or similar, or
                     // it is tagged with a hide annotation. That is true even if the hide annotation
                     // is superseded by a show annotation.
-                    item.documentation?.isHidden == true || item.hasHideAnnotation()
+                    item.wasOriginallyHidden()
                 }
 
         override var inheritableHidden: Boolean
@@ -330,7 +330,7 @@ sealed class ApiVariantSelectors {
             get() =
                 _showability
                     ?: let {
-                        _showability = item.codebase.annotationManager.getShowabilityForItem(item)
+                        _showability = item.computeShowability()
                         _showability!!
                     }
 
@@ -625,3 +625,14 @@ sealed class ApiVariantSelectors {
             }
     }
 }
+
+/**
+ * Check to see whether this [SelectableItem] was originally hidden, i.e. either had `@hide` block
+ * tag in the documentation or was annotated with a hide annotation.
+ */
+private fun SelectableItem.wasOriginallyHidden(): Boolean =
+    documentation?.isHidden == true || hasHideAnnotation()
+
+/** Compute the [Showability] of this [SelectableItem]. */
+private fun SelectableItem.computeShowability(): Showability =
+    codebase.annotationManager.getShowabilityForItem(this)
