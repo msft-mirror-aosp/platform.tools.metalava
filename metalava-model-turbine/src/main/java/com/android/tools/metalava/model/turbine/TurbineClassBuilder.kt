@@ -205,11 +205,6 @@ internal class TurbineClassBuilder(
         // Create constructors
         createConstructors(classItem, typeBoundClass.methods(), classTypeItemFactory)
 
-        // Create record components.
-        if (classKind == ClassKind.RECORD) {
-            classItem.markCanonicalRecordConstructor()
-        }
-
         // Create InnerClasses.
         val children = typeBoundClass.children()
         createNestedClasses(classItem, children.values.asList(), classTypeItemFactory)

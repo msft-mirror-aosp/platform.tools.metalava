@@ -63,13 +63,4 @@ interface SkeletonClassItem : ClassItem {
      * the list of methods.
      */
     fun replaceOrAddMethod(method: MethodItem)
-
-    /**
-     * Mark the canonical [ConstructorItem] for a record class by setting
-     * [ConstructorItem.isPrimary] to `true`.
-     *
-     * Must only be called on a [ClassItem] whose [classKind] is [ClassKind.RECORD]. Must be called
-     * after constructors are created.
-     */
-    fun markCanonicalRecordConstructor()
 }

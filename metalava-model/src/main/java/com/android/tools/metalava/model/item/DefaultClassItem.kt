@@ -428,52 +428,6 @@ internal class DefaultClassItem(
             }
             return optionalAliasedType!!
         }
-
-    override fun markCanonicalRecordConstructor() {
-        require(classKind == ClassKind.RECORD)
-
-        // Find the canonical constructor and set it as the primary constructor.
-        //
-        // This purposely does not fail if it cannot find it because that can fail when processing
-        // java header classes created by Turbine as that can create a private nested class with no
-        // constructors.
-        mutableConstructors
-            .find { it.isCanonicalRecordConstructor() }
-            ?.let { canonicalConstructor ->
-                (canonicalConstructor as DefaultConstructorItem).isPrimary = true
-            }
-    }
-
-    companion object {
-        /**
-         * Check to see if this [ConstructorItem] is the canonical constructor of a record class.
-         *
-         * This will return `true` iff [ConstructorItem.parameters] has the same number and types as
-         * the record components.
-         */
-        fun ConstructorItem.isCanonicalRecordConstructor(): Boolean {
-            val containingClass = containingClass()
-            if (containingClass.classKind != ClassKind.RECORD) {
-                return false
-            }
-            val parameters = parameters()
-            val components = containingClass.recordComponents ?: return false
-            val count = components.size
-            if (count != parameters.size) {
-                return false
-            }
-
-            for (index in 0..<count) {
-                val component = components[index]
-                val parameter = parameters[index]
-                if (component.type != parameter.type()) {
-                    return false
-                }
-            }
-
-            return true
-        }
-    }
 }
 
 /**

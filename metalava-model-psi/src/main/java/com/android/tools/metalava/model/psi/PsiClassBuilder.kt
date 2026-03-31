@@ -203,10 +203,6 @@ internal class PsiClassBuilder(
             classTypeItemFactory = classTypeItemFactory,
         )
 
-        if (classKind == ClassKind.RECORD) {
-            classItem.markCanonicalRecordConstructor()
-        }
-
         // This actually gets all nested classes not just inner, i.e. non-static nested,
         // classes.
         val psiNestedClasses = psiClass.innerClasses

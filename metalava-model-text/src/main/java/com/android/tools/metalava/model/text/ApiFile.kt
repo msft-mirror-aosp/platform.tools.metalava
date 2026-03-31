@@ -851,10 +851,6 @@ private constructor(
 
         // Parse the class body adding each member created to the class item being populated.
         parseClassBody(tokenizer, cl, typeItemFactory)
-
-        if (classKind == ClassKind.RECORD) {
-            cl.markCanonicalRecordConstructor()
-        }
     }
 
     /**
