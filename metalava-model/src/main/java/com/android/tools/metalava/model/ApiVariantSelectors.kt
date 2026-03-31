@@ -88,7 +88,7 @@ sealed class ApiVariantSelectors {
         /**
          * An [ApiVariantSelectors] factory that will always return an immutable
          * [ApiVariantSelectors]. It will return `false` for all the properties and throw an error
-         * on any attempt to set a property.
+         * on any attempt to set a property, or if [ApiVariantSelectors.inheritInto] is called.
          */
         val IMMUTABLE_FACTORY: ApiVariantSelectorsFactory = { Immutable }
 
@@ -100,12 +100,13 @@ sealed class ApiVariantSelectors {
     }
 
     /**
-     * An immutable [ApiVariantSelectors] that will return `false` for all the properties and fail
-     * on any attempt to set the `var` properties.
+     * Base class for [ApiVariantSelectors] that do not allow hiding of [SelectableItem]s.
+     *
+     * The implementation of [ApiVariantSelectors] properties return values that will prevent
+     * [SelectableItem]s from being hidden in any way. Attempting to mutate them may result in an
+     * error being thrown.
      */
-    @Suppress("ConvertObjectToDataObject") // Requires language level 1.9
-    private object Immutable : ApiVariantSelectors() {
-
+    private abstract class BaseNotHideableSelectors : ApiVariantSelectors() {
         override val originallyHidden: Boolean
             get() = false
 
@@ -136,7 +137,13 @@ sealed class ApiVariantSelectors {
             get() = Showability.NO_EFFECT
 
         override fun duplicate(item: Item): ApiVariantSelectors = this
+    }
 
+    /**
+     * An immutable [ApiVariantSelectors] that will return `false` for all the properties and fail
+     * on any attempt to set the `var` properties.
+     */
+    private object Immutable : BaseNotHideableSelectors() {
         override fun inheritInto() = error("Cannot inheritInto() $this")
 
         override fun toString() = "Immutable"
