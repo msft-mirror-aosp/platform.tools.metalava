@@ -110,6 +110,7 @@ class IntegerPolicyAnnotationHandlerTest : DriverTest() {
                         """
                         package test.pkg;
                         import android.processor.devicepolicy.IntegerPolicyDefinition;
+                        import android.processor.devicepolicy.IntegerResolutionMechanism;
                         import android.processor.devicepolicy.PolicyDefinition;
 
                         @Retention(RetentionPolicy.SOURCE)
@@ -161,6 +162,7 @@ class IntegerPolicyAnnotationHandlerTest : DriverTest() {
                          *   </li>
                          *   <li>Affected Resource: Device Wide</li>
                          *   <li>Required Permission: {@link android.Manifest.permission#TEST android.permission.TEST}</li>
+                         *   <li>Resolution Mechanism: custom</li>
                          *   <li>Min Value: 10</li>
                          *   <li>Max Value: 100</li>
                          * </ul>

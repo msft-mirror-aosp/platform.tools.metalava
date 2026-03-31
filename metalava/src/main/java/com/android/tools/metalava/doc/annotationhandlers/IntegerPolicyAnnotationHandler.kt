@@ -20,6 +20,8 @@ import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.SelectableItem
+import com.android.tools.metalava.model.value.AnnotationValue
+import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
 import java.util.function.Predicate
 
@@ -47,11 +49,12 @@ class IntegerPolicyAnnotationHandler(
                 policyHandler.processPolicyAnnotation(basePolicyDefinition, item)
             } ?: ""
 
-        // TODO(b/492421367): handle the IntegerResolutionMechanism field.
+        val resolutionMechanismDoc = buildIntegerResolutionMechanismDoc(annotation, item)
 
         return buildString {
             append("\n<p>Policy Type: Integer</p>\n <ul>\n")
             append(baseDocs)
+            append("   <li>Resolution Mechanism: $resolutionMechanismDoc</li>\n")
             append(
                 "   <li>Min Value: ${if (minValue == Integer.MIN_VALUE) "No limit" else minValue}</li>\n"
             )
@@ -60,5 +63,36 @@ class IntegerPolicyAnnotationHandler(
             )
             append(" </ul>\n")
         }
+    }
+
+    private fun buildIntegerResolutionMechanismDoc(annotation: AnnotationItem, item: Item): String {
+        val resolutionMechanismValue = annotation.findAttribute("resolutionMechanism")?.value
+        val resolutionMechanismAnnotation =
+            (resolutionMechanismValue as? AnnotationValue)?.annotationItem
+
+        var resolutionMechanismDoc = ""
+
+        if (resolutionMechanismAnnotation != null) {
+            val custom = resolutionMechanismAnnotation.getBooleanAttribute("custom") ?: false
+            val notCoexistable =
+                resolutionMechanismAnnotation.getBooleanAttribute("notCoexistable") ?: false
+
+            if (custom) {
+                resolutionMechanismDoc = "custom"
+            } else if (notCoexistable) {
+                resolutionMechanismDoc = "notCoexistable"
+            } else {
+                reporter.report(
+                    Issues.INVALID_DEVICE_POLICY_ANNOTATION,
+                    item,
+                    "IntegerResolutionMechanism must have either 'custom' or 'notCoexistable' set to true."
+                )
+            }
+        } else {
+            // Should not fall into this branch because resolutionMechanism is a required field.
+            // Missing it will cause Java compiler errors.
+            reportOnMissingFields("resolutionMechanism", item)
+        }
+        return resolutionMechanismDoc
     }
 }
