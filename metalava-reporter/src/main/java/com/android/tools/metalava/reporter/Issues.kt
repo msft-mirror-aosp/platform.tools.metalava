@@ -119,7 +119,7 @@ object Issues {
     val INVALID_DEVICE_POLICY_ANNOTATION by Issue(Severity.ERROR, Category.DOCUMENTATION)
 
     // Record related issues
-    val USING_JAVA_LANG_RECORD by Issue(Severity.ERROR, Category.BINARY_AND_SOURCE_COMPATIBILITY)
+    val USING_JAVA_LANG_RECORD by Issue(Severity.ERROR, Category.API_LINT)
 
     // Metalava warnings (not from doclava)
 

@@ -255,7 +255,7 @@ Available Issues                             |  Category                        
   UseParcelFileDescriptor                    |  api_lint                             |   error
   UserHandle                                 |  api_lint                             |   warning
   UserHandleName                             |  api_lint                             |   warning
-  UsingJavaLangRecord                        |  binary_and_source_compatibility      |   error
+  UsingJavaLangRecord                        |  api_lint                             |   error
   ValueClassDefinition                       |  api_lint                             |   error
   ValueClassUsageFromConstructor             |  api_lint                             |   hidden
   ValueClassUsageWithoutJvmName              |  api_lint                             |   hidden
