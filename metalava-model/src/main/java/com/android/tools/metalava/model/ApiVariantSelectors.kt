@@ -18,8 +18,8 @@ package com.android.tools.metalava.model
 
 import com.android.tools.metalava.reporter.Issues
 
-/** A factory that will create an [ApiVariantSelectors] for a specific [Item]. */
-typealias ApiVariantSelectorsFactory = (Item) -> ApiVariantSelectors
+/** A factory that will create an [ApiVariantSelectors] for a specific [SelectableItem]. */
+typealias ApiVariantSelectorsFactory = (SelectableItem) -> ApiVariantSelectors
 
 /** Contains properties that select which, if any, variant of an API an [Item] belongs in. */
 sealed class ApiVariantSelectors {
@@ -95,14 +95,8 @@ sealed class ApiVariantSelectors {
         /**
          * An [ApiVariantSelectors] factory that will return a new, mutable, [ApiVariantSelectors]
          * for each [SelectableItem].
-         *
-         * This cannot be used on an [Item] that is not a [SelectableItem], use [IMMUTABLE_FACTORY]
-         * instead.
          */
-        val MUTABLE_FACTORY: ApiVariantSelectorsFactory = {
-            if (it is SelectableItem) Mutable(it)
-            else error("Cannot create Mutable for non-SelectableItem, use Immutable instead")
-        }
+        val MUTABLE_FACTORY: ApiVariantSelectorsFactory = { Mutable(it) }
     }
 
     /**
