@@ -27,7 +27,6 @@ import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.ExceptionTypeItem
 import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.ItemDocumentationFactory
-import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.SourceLanguage
 import com.android.tools.metalava.model.TargetLanguage
 import com.android.tools.metalava.model.TargetLanguageSet
@@ -35,7 +34,6 @@ import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.createImmutableModifiers
-import com.android.tools.metalava.model.duplicatingFactory
 import com.android.tools.metalava.reporter.FileLocation
 
 internal class DefaultConstructorItem(
@@ -86,27 +84,6 @@ internal class DefaultConstructorItem(
     }
 
     override fun isImplicitConstructor() = implicitConstructor
-
-    override fun createOverload(parameters: List<ParameterItem>): ConstructorItem =
-        DefaultConstructorItem(
-            codebase,
-            fileLocation,
-            sourceLanguage,
-            targetLanguages,
-            modifiers,
-            documentation.duplicatingFactory(),
-            variantSelectors::duplicate,
-            name(),
-            containingClass(),
-            typeParameterList,
-            returnType(),
-            parameterItemsFactory = overloadParameterItemFactory(parameters),
-            throwsTypes,
-            body::duplicate,
-            implicitConstructor,
-            // This is an overload so cannot be the primary constructor by definition.
-            isPrimary = false,
-        )
 
     companion object {
         fun createImplicitDefaultConstructor(
