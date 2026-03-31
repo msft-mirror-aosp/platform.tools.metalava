@@ -43,6 +43,7 @@ import com.android.tools.metalava.model.ModifierFlags.Companion.VARARG
 import com.android.tools.metalava.model.ModifierFlags.Companion.VOLATILE
 import com.android.tools.metalava.model.MutableModifierList
 import com.android.tools.metalava.model.ParameterItem
+import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.SkeletonClassItem
 import com.android.tools.metalava.model.SkeletonTypeParameterItem
 import com.android.tools.metalava.model.TypeItem
@@ -190,6 +191,11 @@ internal class TurbineClassBuilder(
                 interfaceTypes = interfaceTypes,
             )
 
+        // Create record components.
+        if (classKind == ClassKind.RECORD) {
+            createRecordComponents(classItem, typeBoundClass.components(), classTypeItemFactory)
+        }
+
         // Create fields
         createFields(classItem, typeBoundClass.fields(), classTypeItemFactory)
 
@@ -201,7 +207,7 @@ internal class TurbineClassBuilder(
 
         // Create record components.
         if (classKind == ClassKind.RECORD) {
-            createRecordComponents(classItem, typeBoundClass.components(), classTypeItemFactory)
+            classItem.markCanonicalRecordConstructor()
         }
 
         // Create InnerClasses.
@@ -682,6 +688,11 @@ internal class TurbineClassBuilder(
             // overrides even if they specify their elements in different orders.
             .sortedWith(ClassOrVariableTypeItem.fullNameComparator)
 
+    /**
+     * Create the [PropertyItem]s used to model record components.
+     *
+     * Must be called before creating any other members of [classItem].
+     */
     private fun createRecordComponents(
         classItem: SkeletonClassItem,
         components: List<TypeBoundClass.RecordComponentInfo>,
@@ -710,8 +721,6 @@ internal class TurbineClassBuilder(
 
             classItem.addProperty(propertyItem)
         }
-
-        classItem.markCanonicalRecordConstructor()
     }
 
     /** Get an [ItemDocumentationFactory] for [decl] in [classItem]. */

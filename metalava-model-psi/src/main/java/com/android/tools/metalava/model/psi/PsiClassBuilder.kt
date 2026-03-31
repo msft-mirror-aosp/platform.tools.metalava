@@ -32,6 +32,7 @@ import com.android.tools.metalava.model.JVM_NAME
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.MutableModifierList
 import com.android.tools.metalava.model.ParameterItem
+import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.SkeletonClassItem
 import com.android.tools.metalava.model.SkeletonTypeParameterItem
 import com.android.tools.metalava.model.SourceLanguage
@@ -190,6 +191,10 @@ internal class PsiClassBuilder(
                 isMultiFileClass = psiClass.isMultiFileClass(),
             )
 
+        if (classKind == ClassKind.RECORD) {
+            createRecordComponents(classItem, psiClass.recordComponents, classTypeItemFactory)
+        }
+
         // Add methods, constructors, fields.
         addMembersToClassItem(
             classItem = classItem,
@@ -199,7 +204,7 @@ internal class PsiClassBuilder(
         )
 
         if (classKind == ClassKind.RECORD) {
-            createRecordComponents(classItem, psiClass.recordComponents, classTypeItemFactory)
+            classItem.markCanonicalRecordConstructor()
         }
 
         // This actually gets all nested classes not just inner, i.e. non-static nested,
@@ -220,6 +225,11 @@ internal class PsiClassBuilder(
         return classItem
     }
 
+    /**
+     * Create the [PropertyItem]s used to model record components.
+     *
+     * Must be called before creating any other members of [classItem].
+     */
     private fun createRecordComponents(
         classItem: SkeletonClassItem,
         components: Array<PsiRecordComponent>,
@@ -244,8 +254,6 @@ internal class PsiClassBuilder(
 
             classItem.addProperty(propertyItem)
         }
-
-        classItem.markCanonicalRecordConstructor()
     }
 
     /** Create [MutableModifierList] for [psiModifierListOwner] in [psiCodebase]. */
