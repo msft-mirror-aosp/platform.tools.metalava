@@ -263,6 +263,9 @@ interface MethodItem : CallableItem, InheritableItem, PossiblyPropertyRelated {
      */
     val isKotlinProperty: Boolean
 
+    /** Whether this method is a getter for a [RecordComponentItem]. */
+    val isRecordComponentGetter: Boolean
+
     /**
      * Determines if the method is a method that needs to be overridden in any child classes that
      * extend this [MethodItem] in order to prevent errors when compiling the stubs or the reverse

@@ -66,13 +66,16 @@ class CommonRecordClassTest : BaseModelTest() {
         assertTrue(canonicalConstructor.isPrimary, message = "canonical constructor is primary")
 
         // Check for the accessor methods.
-        for (component in expectedComponents) {
-            val method = assertMethod(component.name, emptyList())
+        for (expectedComponent in expectedComponents) {
+            val name = expectedComponent.name
+            val method = assertMethod(name, emptyList())
             assertEquals(
-                component.type,
+                expectedComponent.type,
                 method.returnType(),
-                message = "method ${component.name} return type"
+                message = "method $name return type"
             )
+
+            assertTrue(method.isRecordComponentGetter)
         }
     }
 

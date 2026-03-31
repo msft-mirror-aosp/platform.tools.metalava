@@ -40,6 +40,9 @@ private constructor(private val recordComponentItems: List<RecordComponentItem>)
     /** Get the [RecordComponentItem] by its [name]. */
     operator fun get(name: String) = byName[name]
 
+    /** Check whether there is a [RecordComponentItem] called [name]. */
+    operator fun contains(name: String) = name in byName
+
     /** Iterate over in declaration order. */
     override fun iterator() = recordComponentItems.iterator()
 
