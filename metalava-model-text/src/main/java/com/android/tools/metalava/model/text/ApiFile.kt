@@ -39,7 +39,6 @@ import com.android.tools.metalava.model.MutableModifierList
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.PrimitiveTypeItem
-import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.SkeletonClassItem
 import com.android.tools.metalava.model.SkeletonTypeParameterItem
@@ -826,6 +825,14 @@ private constructor(
             superClassType = WellKnownTypes.JAVA_LANG_OBJECT_NON_NULL_TYPE
         }
 
+        val textRecordComponents =
+            if (classKind == ClassKind.RECORD) {
+                // Parse record components
+                parseRecordComponents(tokenizer)
+            } else {
+                null
+            }
+
         // Create the DefaultClassItem and set its package but do not add it to the package or
         // register it.
         val cl =
@@ -851,9 +858,12 @@ private constructor(
             classToTypeItemFactory[cl] = typeItemFactory
         }
 
-        if (classKind == ClassKind.RECORD) {
-            // Parse record components
-            parseRecordComponents(tokenizer, cl, typeItemFactory)
+        if (textRecordComponents != null) {
+            for (textRecordComponent in textRecordComponents) {
+                // Represent the record component as a property item.
+                val propertyItem = textRecordComponent.createRecordComponent(cl, typeItemFactory)
+                cl.addProperty(propertyItem)
+            }
         }
 
         // Parse the class body adding each member created to the class item being populated.
@@ -1853,31 +1863,48 @@ private constructor(
     }
 
     /**
-     * Parse record components, adding them to [containingClass].
+     * Parse record components, returning them as a list of [TextRecordComponent].
      *
      * Starts with [Tokenizer.current]. On return [Tokenizer.current] points to the next token after
      * the record component.
      */
     private fun parseRecordComponents(
         tokenizer: Tokenizer,
-        containingClass: SkeletonClassItem,
-        classTypeItemFactory: TextTypeItemFactory,
-    ) {
+    ) = buildList {
         var token = tokenizer.current
         while (true) {
             if (token != "record_component") break
 
-            parseRecordComponent(tokenizer, containingClass, classTypeItemFactory)
+            val textRecordComponent = parseRecordComponent(tokenizer)
+            add(textRecordComponent)
             token = tokenizer.requireToken()
         }
     }
 
-    /** Parse a record component class member into a [PropertyItem]. */
-    private fun parseRecordComponent(
-        tokenizer: Tokenizer,
-        containingClass: SkeletonClassItem,
-        classTypeItemFactory: TextTypeItemFactory,
-    ) {
+    /** Encapsulates information about a record component extracted from the signature file. */
+    private data class TextRecordComponent(
+        val location: FileLocation,
+        val modifiers: MutableModifierList,
+        val name: String,
+        val typeString: String,
+        val recordComponentIndex: Int,
+    )
+
+    private fun TextRecordComponent.createRecordComponent(
+        classItem: ClassItem,
+        typeItemFactory: TextTypeItemFactory,
+    ) =
+        itemFactory.createRecordComponentItem(
+            fileLocation = location,
+            modifiers = modifiers,
+            name = name,
+            containingClass = classItem,
+            type = typeItemFactory.getGeneralType(typeString),
+            recordComponentIndex = recordComponentIndex,
+        )
+
+    /** Parse a record component class member into a [TextRecordComponent]. */
+    private fun parseRecordComponent(tokenizer: Tokenizer): TextRecordComponent {
         val location = tokenizer.fileLocation()
 
         // Parse a record component index.
@@ -1908,18 +1935,13 @@ private constructor(
             throw ApiParseException("expected ; found $token", tokenizer)
         }
 
-        // Represent the record component as a property item.
-        val propertyItem =
-            itemFactory.createRecordComponentItem(
-                fileLocation = location,
-                modifiers = modifiers,
-                name = name,
-                containingClass = containingClass,
-                type = classTypeItemFactory.getGeneralType(typeString),
-                recordComponentIndex = recordComponentIndex,
-            )
-
-        containingClass.addProperty(propertyItem)
+        return TextRecordComponent(
+            location,
+            modifiers,
+            name,
+            typeString,
+            recordComponentIndex,
+        )
     }
 
     /**
