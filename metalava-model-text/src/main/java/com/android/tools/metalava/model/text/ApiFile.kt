@@ -791,6 +791,7 @@ private constructor(
         if ("{" != token) {
             throw ApiParseException("expected {, was $token", tokenizer)
         }
+        // Move to the next token.
         tokenizer.requireToken()
 
         // Above we marked all enums as static but for a top level class it's implicit
@@ -848,6 +849,11 @@ private constructor(
         // [typeItemFactoryForClass].
         if (!typeItemFactory.typeParameterScope.isEmpty()) {
             classToTypeItemFactory[cl] = typeItemFactory
+        }
+
+        if (classKind == ClassKind.RECORD) {
+            // Parse record components
+            parseRecordComponents(tokenizer, cl, typeItemFactory)
         }
 
         // Parse the class body adding each member created to the class item being populated.
@@ -996,7 +1002,6 @@ private constructor(
             "field" to ::parseField,
             "method" to ::parseMethod,
             "property" to ::parseProperty,
-            "record_component" to ::parseRecordComponent,
         )
 
     /**
@@ -1845,6 +1850,26 @@ private constructor(
         if (index < 0) return null
 
         return index
+    }
+
+    /**
+     * Parse record components, adding them to [containingClass].
+     *
+     * Starts with [Tokenizer.current]. On return [Tokenizer.current] points to the next token after
+     * the record component.
+     */
+    private fun parseRecordComponents(
+        tokenizer: Tokenizer,
+        containingClass: SkeletonClassItem,
+        classTypeItemFactory: TextTypeItemFactory,
+    ) {
+        var token = tokenizer.current
+        while (true) {
+            if (token != "record_component") break
+
+            parseRecordComponent(tokenizer, containingClass, classTypeItemFactory)
+            token = tokenizer.requireToken()
+        }
     }
 
     /** Parse a record component class member into a [PropertyItem]. */
