@@ -37,6 +37,7 @@ import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PackageList
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.PropertyItem
+import com.android.tools.metalava.model.RecordComponentItem
 import com.android.tools.metalava.model.SUPPRESS_COMPATIBILITY_ANNOTATION_QUALIFIED
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.TargetLanguageSet
@@ -508,9 +509,24 @@ class ApiAnalyzer(
                     preserveClassNesting = true,
                     // Only SelectableItems can have variantSelectors.
                     visitParameterItems = false,
+                    // RecordComponentItems need to be checked to see if they are hidden.
+                    visitRecordComponentItems = true,
                 ) {
                 override fun visitSelectableItem(item: SelectableItem) {
                     item.variantSelectors.inheritInto()
+                }
+
+                override fun visitRecordComponentItem(component: RecordComponentItem) {
+                    val codebase = component.codebase
+                    val hasHideAnnotations =
+                        codebase.annotationManager.hasHideAnnotations(component.modifiers)
+                    if (hasHideAnnotations) {
+                        codebase.reporter.report(
+                            Issues.HIDING_RECORD_COMPONENT,
+                            component,
+                            "Cannot hide ${component.describe()} as record components are an indivisible part of a record class"
+                        )
+                    }
                 }
             }
 

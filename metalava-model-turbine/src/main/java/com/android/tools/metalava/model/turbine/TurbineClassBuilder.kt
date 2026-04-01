@@ -43,6 +43,7 @@ import com.android.tools.metalava.model.ModifierFlags.Companion.VARARG
 import com.android.tools.metalava.model.ModifierFlags.Companion.VOLATILE
 import com.android.tools.metalava.model.MutableModifierList
 import com.android.tools.metalava.model.ParameterItem
+import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.SkeletonClassItem
 import com.android.tools.metalava.model.SkeletonTypeParameterItem
 import com.android.tools.metalava.model.TypeItem
@@ -162,18 +163,12 @@ internal class TurbineClassBuilder(
 
         // Set up the SuperClass
         val superClassType =
-            when (classKind) {
-                // Normal classes and enums have a non-null super class type.
-                ClassKind.CLASS,
-                ClassKind.ENUM ->
-                    typeBoundClass.superClassType()?.let {
-                        classTypeItemFactory.getSuperClassType(it)
-                    }
-                // Interfaces and annotations (which are a form of interface) do not.
-                ClassKind.INTERFACE,
-                ClassKind.ANNOTATION_TYPE,
-                // Turbine does not support typealiases (which only exist in kotlin).
-                ClassKind.TYPEALIAS, -> null
+            // Only use the super class type if the class kind allows explicit super class type to
+            // be specified, or it has an implicit super class.
+            if (classKind.allowsExplicitSuperClass || classKind.implicitSuperClassType != null) {
+                typeBoundClass.superClassType()?.let { classTypeItemFactory.getSuperClassType(it) }
+            } else {
+                null
             }
 
         // Set interface types
@@ -194,6 +189,18 @@ internal class TurbineClassBuilder(
                 origin = origin,
                 superClassType = superClassType,
                 interfaceTypes = interfaceTypes,
+                recordComponentItemsFactory =
+                    if (classKind == ClassKind.RECORD)
+                        { classItem ->
+                            createRecordComponents(
+                                classItem,
+                                typeBoundClass.components(),
+                                classTypeItemFactory
+                            )
+                        }
+                    else {
+                        null
+                    },
             )
 
         // Create fields
@@ -309,6 +316,7 @@ internal class TurbineClassBuilder(
             TurbineTyKind.INTERFACE -> ClassKind.INTERFACE
             TurbineTyKind.ENUM -> ClassKind.ENUM
             TurbineTyKind.ANNOTATION -> ClassKind.ANNOTATION_TYPE
+            TurbineTyKind.RECORD -> ClassKind.RECORD
             else -> ClassKind.CLASS
         }
     }
@@ -399,6 +407,7 @@ internal class TurbineClassBuilder(
         fields: ImmutableList<FieldInfo>,
         typeItemFactory: TurbineTypeItemFactory,
     ) {
+        val ignorePrivateMemberFields = classItem.classKind == ClassKind.RECORD
         for (field in fields) {
             val flags = field.access()
             val decl = field.decl()
@@ -408,6 +417,15 @@ internal class TurbineClassBuilder(
                     flags,
                     field.annotations(),
                 )
+
+            // Ignore private member fields in records.
+            if (
+                ignorePrivateMemberFields &&
+                    fieldModifierItem.isPrivate() &&
+                    !fieldModifierItem.isStatic()
+            )
+                continue
+
             val isEnumConstant = (flags and TurbineFlag.ACC_ENUM) != 0
             val type =
                 typeItemFactory.getFieldType(
@@ -450,6 +468,18 @@ internal class TurbineClassBuilder(
         }
     }
 
+    /** Check if this [MethodInfo] is one of the methods defined in the [Record] class. */
+    private fun MethodInfo.isRecordClassMethod(): Boolean {
+        val name = name()
+        val parameters = parameters()
+        return when (name) {
+            "hashCode",
+            "toString" -> parameters.isEmpty()
+            "equals" -> parameters.size == 1 && parameters[0].type() == Type.ClassTy.OBJECT
+            else -> false
+        }
+    }
+
     private fun createMethods(
         classItem: SkeletonClassItem,
         methods: List<MethodInfo>,
@@ -460,6 +490,13 @@ internal class TurbineClassBuilder(
             if (method.sym().name() == "<init>") continue
 
             val decl: MethDecl? = method.decl()
+
+            // Ignore any implicit implementations of Record class methods.
+            val isRecordClass = classItem.classKind == ClassKind.RECORD
+            if (isRecordClass && decl == null && method.isRecordClassMethod()) {
+                continue
+            }
+
             val methodModifierItem =
                 createModifiers(
                     ItemKind.METHOD,
@@ -652,6 +689,37 @@ internal class TurbineClassBuilder(
             // element-by-element comparison to see if the signature matches, and that should match
             // overrides even if they specify their elements in different orders.
             .sortedWith(ClassOrVariableTypeItem.fullNameComparator)
+
+    /**
+     * Create the [PropertyItem]s used to model record components.
+     *
+     * Must be called before creating any other members of [classItem].
+     */
+    private fun createRecordComponents(
+        classItem: ClassItem,
+        components: List<TypeBoundClass.RecordComponentInfo>,
+        classTypeItemFactory: TurbineTypeItemFactory,
+    ) =
+        components.mapIndexed { index, componentInfo ->
+            val modifiers =
+                createModifiers(
+                    ItemKind.PROPERTY,
+                    componentInfo.access(),
+                    componentInfo.annotations()
+                )
+            modifiers.setVisibilityLevel(VisibilityLevel.PUBLIC)
+
+            val type = classTypeItemFactory.getGeneralType(componentInfo.type())
+
+            itemFactory.createRecordComponentItem(
+                fileLocation = classItem.fileLocation,
+                modifiers = modifiers,
+                name = componentInfo.name(),
+                containingClass = classItem,
+                type = type,
+                recordComponentIndex = index,
+            )
+        }
 
     /** Get an [ItemDocumentationFactory] for [decl] in [classItem]. */
     private fun itemDocumentationFactoryForDecl(classItem: ClassItem, decl: Tree?) =

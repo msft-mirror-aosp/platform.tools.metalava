@@ -30,6 +30,8 @@ import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.MutableModifierList
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PropertyItem
+import com.android.tools.metalava.model.RecordComponentItemsFactory
+import com.android.tools.metalava.model.RecordComponents
 import com.android.tools.metalava.model.ReferencableMethodSet
 import com.android.tools.metalava.model.SkeletonClassItem
 import com.android.tools.metalava.model.SourceFile
@@ -68,6 +70,7 @@ internal class DefaultClassItem(
      */
     optionalAliasedType: TypeItem?,
     override val isMultiFileClass: Boolean = false,
+    recordComponentItemsFactory: RecordComponentItemsFactory? = null,
 ) :
     DefaultSelectableItem(
         codebase = codebase,
@@ -319,6 +322,13 @@ internal class DefaultClassItem(
     override fun replaceOrAddProperty(property: PropertyItem) {
         replaceOrAddItem(property, mutableProperties)
     }
+
+    override val recordComponents =
+        if (classKind == ClassKind.RECORD && recordComponentItemsFactory != null) {
+            RecordComponents.create(recordComponentItemsFactory(this))
+        } else {
+            RecordComponents.EMPTY
+        }
 
     /** The mutable list of nested [ClassItem] that backs [nestedClasses]. */
     private val mutableNestedClasses = mutableListOf<ClassItem>()

@@ -113,6 +113,7 @@ Available Issues                             |  Category                        
   HiddenSuperclass                           |  documentation                        |   warning
   HiddenTypeParameter                        |  documentation                        |   warning
   HiddenTypedefConstant                      |  unknown                              |   error
+  HidingRecordComponent                      |  api_lint                             |   error
   IgnoringSymlink                            |  unknown                              |   info
   InconsistentMergeAnnotation                |  api_lint                             |   warning_error_when_new
   InfixRemoval                               |  source_compatibility_only            |   error
@@ -125,6 +126,7 @@ Available Issues                             |  Category                        
   InternalError                              |  unknown                              |   error
   InternalField                              |  api_lint                             |   error
   InvalidBlockTagUse                         |  documentation                        |   error
+  InvalidDevicePolicyAnnotation              |  documentation                        |   error
   InvalidDocThrowsType                       |  documentation                        |   error
   InvalidFeatureEnforcement                  |  documentation                        |   error
   InvalidIfTag                               |  documentation                        |   error
@@ -254,6 +256,7 @@ Available Issues                             |  Category                        
   UseParcelFileDescriptor                    |  api_lint                             |   error
   UserHandle                                 |  api_lint                             |   warning
   UserHandleName                             |  api_lint                             |   warning
+  UsingJavaLangRecord                        |  api_lint                             |   error
   ValueClassDefinition                       |  api_lint                             |   error
   ValueClassUsageFromConstructor             |  api_lint                             |   hidden
   ValueClassUsageWithoutJvmName              |  api_lint                             |   hidden

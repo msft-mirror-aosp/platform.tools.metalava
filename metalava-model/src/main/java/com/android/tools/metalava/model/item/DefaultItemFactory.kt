@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model.item
 
+import com.android.tools.metalava.model.ApiVariantSelectors
 import com.android.tools.metalava.model.ApiVariantSelectorsFactory
 import com.android.tools.metalava.model.BaseModifierList
 import com.android.tools.metalava.model.CallableBody
@@ -35,6 +36,8 @@ import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.PropertyItem
+import com.android.tools.metalava.model.RecordComponentItem
+import com.android.tools.metalava.model.RecordComponentItemsFactory
 import com.android.tools.metalava.model.SkeletonClassItem
 import com.android.tools.metalava.model.SkeletonTypeParameterItem
 import com.android.tools.metalava.model.SourceFile
@@ -106,6 +109,7 @@ class DefaultItemFactory(
         optionalAliasedType: TypeItem? = null,
         isFileFacade: Boolean = false,
         isMultiFileClass: Boolean = false,
+        recordComponentItemsFactory: RecordComponentItemsFactory? = null,
     ): SkeletonClassItem =
         DefaultClassItem(
             codebase,
@@ -127,6 +131,7 @@ class DefaultItemFactory(
             isFileFacade = isFileFacade,
             optionalAliasedType = optionalAliasedType,
             isMultiFileClass = isMultiFileClass,
+            recordComponentItemsFactory = recordComponentItemsFactory ?: { emptyList() },
         )
 
     /** Create a [ConstructorItem]. */
@@ -272,6 +277,7 @@ class DefaultItemFactory(
         setter: MethodItem? = null,
         constructorParameter: ParameterItem? = null,
         backingField: FieldItem? = null,
+        recordComponentIndex: Int = -1,
     ): PropertyItem =
         DefaultPropertyItem(
             codebase,
@@ -290,6 +296,44 @@ class DefaultItemFactory(
             receiver,
             typeParameterList,
             setterVisibility,
+            recordComponentIndex,
+        )
+
+    /** Create a [PropertyItem] for use as a record component. */
+    fun createRecordComponentItem(
+        fileLocation: FileLocation,
+        sourceLanguage: SourceLanguage = defaultSourceLanguage,
+        documentationFactory: ItemDocumentationFactory = ItemDocumentation.NONE_FACTORY,
+        modifiers: BaseModifierList,
+        name: String,
+        containingClass: ClassItem,
+        type: TypeItem,
+        recordComponentIndex: Int,
+        getter: MethodItem? = null,
+        constructorParameter: ParameterItem? = null,
+    ): RecordComponentItem =
+        DefaultPropertyItem(
+            codebase,
+            fileLocation,
+            sourceLanguage,
+            documentationFactory,
+            variantSelectorsFactory = ApiVariantSelectors.RECORD_COMPONENT_FACTORY,
+            modifiers,
+            name,
+            containingClass,
+            type,
+            getter,
+            // Record components are immutable.
+            setter = null,
+            constructorParameter,
+            // Record component backing fields are private.
+            backingField = null,
+            // Record components have no receiver.
+            receiver = null,
+            typeParameterList = TypeParameterList.NONE,
+            // Record components are immutable.
+            setterVisibility = null,
+            recordComponentIndex,
         )
 
     /** Create a [ClassItem] which is a typealias. */
