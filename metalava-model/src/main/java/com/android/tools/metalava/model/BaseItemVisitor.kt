@@ -92,7 +92,6 @@ open class BaseItemVisitor(
             }
 
             for (property in cls.properties()) {
-                if (property.isRecordComponent()) continue
                 property.accept(this)
             }
 

@@ -128,16 +128,8 @@ interface PropertyItem : MemberItem, TypeParameterListOwner, InheritableItem {
                 }
 
     companion object {
-        /**
-         * Defines an order on [PropertyItem]s.
-         * * They are first ordered by their [PropertyItem.recordComponentIndex]. That means that
-         *   non-record component [PropertyItem]s come first (as they have an index of `-1`) and
-         *   record component [PropertyItem]s are ordered by their index.
-         * * They are then ordered by their [PropertyItem.name].
-         */
-        val comparator: Comparator<PropertyItem> =
-            Comparator.comparing<PropertyItem, Int> { it.recordComponentIndex }
-                .thenComparing { it.name() }
+        /** Orders [PropertyItem]s by their [PropertyItem.name]. */
+        val comparator: Comparator<PropertyItem> = Comparator.comparing { it.name() }
 
         /** Returns whether the two types should be considered equal property receivers. */
         fun equalReceivers(receiver1: TypeItem?, receiver2: TypeItem?): Boolean {

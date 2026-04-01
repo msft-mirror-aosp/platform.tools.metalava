@@ -154,11 +154,6 @@ class SignatureWriter(
     }
 
     override fun visitProperty(property: PropertyItem) {
-        // Record components are handled in visitClass
-        if (property.isRecordComponent()) {
-            return
-        }
-
         write("    property ")
         writeModifiers(property)
         writeTypeParameterList(property.typeParameterList, addSpace = true)

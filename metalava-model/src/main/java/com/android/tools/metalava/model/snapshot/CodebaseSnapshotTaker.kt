@@ -423,11 +423,6 @@ private constructor(
     }
 
     override fun visitProperty(property: PropertyItem) {
-        // Record components are handled elsewhere.
-        if (property.isRecordComponent()) {
-            return
-        }
-
         val propertyToSnapshot = property.actualItemToSnapshot
         val containingClass = property.containingClass().getSnapshotClass()
 
