@@ -440,6 +440,9 @@ private constructor(
         for (typeParameterItem in cls.typeParameterList) {
             checkEveryType(typeParameterItem.type(), cls, TypeUseSite.TYPE_PARAMETER)
         }
+        for (component in cls.recordComponents) {
+            checkEveryType(component.type, component, TypeUseSite.RECORD_COMPONENT)
+        }
         superClass?.let {
             cls.superClassType()?.let { checkEveryType(it, cls, TypeUseSite.SUPER_CLASS) }
         }

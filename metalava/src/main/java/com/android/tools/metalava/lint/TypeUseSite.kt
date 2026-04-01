@@ -21,6 +21,7 @@ import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.ParameterItem
+import com.android.tools.metalava.model.RecordComponentItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterListOwner
 import kotlin.reflect.KClass
@@ -46,6 +47,10 @@ enum class TypeUseSite(
     TYPE_PARAMETER(
         label = "Type parameter",
         supportedClass = TypeParameterListOwner::class,
+    ),
+    RECORD_COMPONENT(
+        label = "Record component",
+        supportedClass = RecordComponentItem::class,
     ),
     SUPER_CLASS(
         label = "Super class",
