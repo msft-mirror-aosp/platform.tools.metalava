@@ -50,6 +50,16 @@ interface ConstructorItem : CallableItem {
      */
     val isPrimary: Boolean
 
+    /** True if this is the canonical constructor of a Java record class. */
+    val isCanonicalRecordComponentConstructor: Boolean
+        get() = isPrimary && containingClass().classKind == ClassKind.RECORD
+
+    override val isRecordComponentRelated: Boolean
+        get() = isCanonicalRecordComponentConstructor
+
+    override val recordComponentRelationship: String?
+        get() = if (isRecordComponentRelated) "canonical" else null
+
     /**
      * True if this is a [ConstructorItem] that was created implicitly by the compiler and so does
      * not have any corresponding source code.

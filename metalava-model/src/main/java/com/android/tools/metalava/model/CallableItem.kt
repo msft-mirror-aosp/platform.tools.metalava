@@ -20,7 +20,7 @@ import java.util.Objects
 
 /** Common to [MethodItem] and [ConstructorItem]. */
 @MetalavaApi
-interface CallableItem : MemberItem, TypeParameterListOwner {
+interface CallableItem : MemberItem, TypeParameterListOwner, PossiblyRecordComponentRelated {
 
     /** Whether this callable is a constructor or a method. */
     @MetalavaApi fun isConstructor(): Boolean

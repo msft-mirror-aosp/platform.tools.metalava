@@ -266,6 +266,12 @@ interface MethodItem : CallableItem, InheritableItem, PossiblyPropertyRelated {
     /** Whether this method is a getter for a [RecordComponentItem]. */
     val isRecordComponentGetter: Boolean
 
+    override val isRecordComponentRelated: Boolean
+        get() = isRecordComponentGetter
+
+    override val recordComponentRelationship: String?
+        get() = if (isRecordComponentRelated) "record component getter" else null
+
     /**
      * Determines if the method is a method that needs to be overridden in any child classes that
      * extend this [MethodItem] in order to prevent errors when compiling the stubs or the reverse
