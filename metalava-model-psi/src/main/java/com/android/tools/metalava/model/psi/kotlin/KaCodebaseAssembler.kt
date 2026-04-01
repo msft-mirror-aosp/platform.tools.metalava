@@ -426,7 +426,18 @@ private constructor(
         // Skip classes loaded from the classpath.
         if (!processIfClasspath && classifierSymbol.origin == KaSymbolOrigin.LIBRARY) return null
         // Skip private classes since these aren't part of the API surface
-        if (!processIfClasspath && classifierSymbol.visibility == KaSymbolVisibility.PRIVATE)
+        if (
+            classifierSymbol.visibility == KaSymbolVisibility.PRIVATE &&
+                // Do process a private class if adding from the classpath, since a private class
+                // may have been specifically requested.
+                !processIfClasspath &&
+                // Process a private class when creating a multiplatform codebase (this is true when
+                // addingToPsiCodebase is false) if the class is nested. The reason for doing this
+                // is that if not all nested classes are created, there can be issues later if a
+                // private nested class does need to be created later at the same time the other
+                // nested classes are being processed.
+                (addingToPsiCodebase || containingClass == null)
+        )
             return null
 
         // Find the class in the codebase.

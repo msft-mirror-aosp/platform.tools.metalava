@@ -22,6 +22,7 @@ import com.android.tools.metalava.testing.createAndroidModuleDescription
 import com.android.tools.metalava.testing.createCommonModuleDescription
 import com.android.tools.metalava.testing.createNativeModuleDescription
 import com.android.tools.metalava.testing.createProjectDescription
+import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
 import org.junit.Test
 
@@ -276,6 +277,47 @@ class MultiplatformApiFileTest : DriverTest() {
                         package test.pkg {
                           public final class Common extends kotlin.Any {
                             ctor public Common();
+                          }
+                        }
+                        """
+                )
+        )
+    }
+
+    @Test
+    fun `Test private nested class as superclass`() {
+        val androidSource =
+            arrayOf(
+                java(
+                    "androidMain/src/test/pkg/OuterClass.java",
+                    """
+                    package test.pkg;
+                    public class OuterClass {
+                        private class PrivateNestedClass {}
+                        public class NestedClassWithSuper extends PrivateNestedClass {}
+                    }
+                    """
+                )
+            )
+        check(
+            sourceFiles = androidSource,
+            projectDescription =
+                createProjectDescription(
+                    createAndroidModuleDescription(androidSource, dependsOn = emptyList())
+                ),
+            enableMultiplatform = true,
+            skipSourceArgs = true, // Don't create a regular Codebase
+            multiplatformApi =
+                mapOf(
+                    "androidMain.txt" to
+                        """
+                        // Signature format: 5.0
+                        package test.pkg {
+                          public class OuterClass extends kotlin.Any {
+                            ctor public OuterClass();
+                          }
+                          public class OuterClass.NestedClassWithSuper extends kotlin.Any {
+                            ctor public OuterClass.NestedClassWithSuper();
                           }
                         }
                         """
