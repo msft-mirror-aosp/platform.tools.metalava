@@ -791,6 +791,7 @@ private constructor(
         if ("{" != token) {
             throw ApiParseException("expected {, was $token", tokenizer)
         }
+        tokenizer.requireToken()
 
         // Above we marked all enums as static but for a top level class it's implicit
         if (classKind == ClassKind.ENUM && !fullName.contains(".")) {
@@ -998,13 +999,18 @@ private constructor(
             "record_component" to ::parseRecordComponent,
         )
 
-    /** Parse the class body, adding members to [containingClass]. */
+    /**
+     * Parse the class body, adding members to [containingClass].
+     *
+     * Starts with [Tokenizer.current]. On return [Tokenizer.current] points to the next token after
+     * the last member.
+     */
     private fun parseClassBody(
         tokenizer: Tokenizer,
         containingClass: SkeletonClassItem,
         classTypeItemFactory: TextTypeItemFactory,
     ) {
-        var token = tokenizer.requireToken()
+        var token = tokenizer.current
         while (true) {
             if ("}" == token) {
                 break
