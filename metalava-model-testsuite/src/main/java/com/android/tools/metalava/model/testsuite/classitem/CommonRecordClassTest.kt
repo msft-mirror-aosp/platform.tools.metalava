@@ -52,7 +52,7 @@ class CommonRecordClassTest : BaseModelTest() {
         )
 
         // Extract the components and check against the expected components.
-        val components = recordComponents?.map { RecordComponentInfo(it.name, it.type) }
+        val components = recordComponents.map { RecordComponentInfo(it.name, it.type) }
         assertEquals(expectedComponents.toList(), components, message = "components")
 
         // Find the canonical constructor.
@@ -152,7 +152,7 @@ class CommonRecordClassTest : BaseModelTest() {
 
             assertEquals(
                 "record component test.pkg.Test#a",
-                testClass.recordComponents!!["a"]!!.describe()
+                testClass.recordComponents["a"]!!.describe()
             )
         }
     }

@@ -24,7 +24,8 @@ package com.android.tools.metalava.model
  *
  * [RecordComponentItem.name]s are unique within this collection so it also provides access by name.
  */
-class RecordComponents(private val recordComponentItems: List<RecordComponentItem>) :
+class RecordComponents
+private constructor(private val recordComponentItems: List<RecordComponentItem>) :
     // Allow the [RecordComponentItem]s to be iterated over.
     Iterable<RecordComponentItem> {
     /** Map from [RecordComponentItem.name] to [RecordComponentItem]. */
@@ -41,4 +42,12 @@ class RecordComponents(private val recordComponentItems: List<RecordComponentIte
 
     /** Iterate over in declaration order. */
     override fun iterator() = recordComponentItems.iterator()
+
+    companion object {
+        internal val EMPTY = RecordComponents(emptyList())
+
+        /** Create a [RecordComponents] from [components]. */
+        fun create(components: List<RecordComponentItem>) =
+            if (components.isEmpty()) EMPTY else RecordComponents(components)
+    }
 }

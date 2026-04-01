@@ -80,7 +80,7 @@ internal class JavaStubWriter(
         // Record class is special as it declares components after the class name and type
         // declarations and before interfaces.
         if (classKind == ClassKind.RECORD) {
-            cls.recordComponents?.let { generateRecordComponents(it) }
+            generateRecordComponents(cls.recordComponents)
         }
 
         generateSuperClassDeclaration(cls)

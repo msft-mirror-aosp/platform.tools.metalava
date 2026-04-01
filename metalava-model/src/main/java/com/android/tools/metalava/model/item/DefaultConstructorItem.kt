@@ -132,7 +132,7 @@ internal class DefaultConstructorItem(
                 return false
             }
             val parameters = parameters()
-            val components = containingClass.recordComponents ?: return false
+            val components = containingClass.recordComponents
             val count = components.size
             if (count != parameters.size) {
                 return false

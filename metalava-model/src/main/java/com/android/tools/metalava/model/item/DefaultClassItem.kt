@@ -45,8 +45,6 @@ import com.android.tools.metalava.model.scope.NameClassification
 import com.android.tools.metalava.model.scope.ReferencableNameScope
 import com.android.tools.metalava.model.utils.extractSimpleName
 import com.android.tools.metalava.reporter.FileLocation
-import java.util.Optional
-import kotlin.jvm.optionals.getOrNull
 
 internal class DefaultClassItem(
     codebase: DefaultCodebase,
@@ -324,27 +322,27 @@ internal class DefaultClassItem(
         replaceOrAddItem(property, mutableProperties)
     }
 
-    private lateinit var optionalRecordComponents: Optional<RecordComponents>
+    private lateinit var optionalRecordComponents: RecordComponents
 
-    override val recordComponents: RecordComponents?
+    override val recordComponents: RecordComponents
         get() {
             if (!::optionalRecordComponents.isInitialized) {
-                optionalRecordComponents = Optional.ofNullable(createRecordComponents())
+                optionalRecordComponents = createRecordComponents()
             }
 
-            return optionalRecordComponents.getOrNull()
+            return optionalRecordComponents
         }
 
     /** Create [RecordComponents] from the [PropertyItem]s. */
     private fun createRecordComponents() =
         if (classKind == ClassKind.RECORD)
-            RecordComponents(
+            RecordComponents.create(
                 properties()
                     .filter { it.isRecordComponent() }
                     .filterIsInstance<RecordComponentItem>()
             )
         else {
-            null
+            RecordComponents.EMPTY
         }
 
     /** The mutable list of nested [ClassItem] that backs [nestedClasses]. */

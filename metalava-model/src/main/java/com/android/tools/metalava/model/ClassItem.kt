@@ -220,13 +220,14 @@ interface ClassItem :
     /**
      * The [RecordComponents] for this [ClassItem].
      *
-     * Is null unless [classKind] is [ClassKind.RECORD], in which case this is a possibly empty
-     * [RecordComponents].
+     * A record class with no components and a non-record class will both have an empty
+     * [RecordComponents] instance. If it is necessary to differentiate between them then the caller
+     * must check whether [classKind] is [ClassKind.RECORD], or not.
      *
      * This is initialized on demand and must only be accessed after the [RecordComponentItem]s from
      * which it is constructed have been added to the class.
      */
-    val recordComponents: RecordComponents?
+    val recordComponents: RecordComponents
 
     override fun describe(capitalize: Boolean): String {
         val descriptor =
