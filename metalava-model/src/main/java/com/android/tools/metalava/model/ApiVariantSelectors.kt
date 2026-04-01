@@ -97,15 +97,6 @@ sealed class ApiVariantSelectors {
          * for each [SelectableItem].
          */
         val MUTABLE_FACTORY: ApiVariantSelectorsFactory = { Mutable(it) }
-
-        /**
-         * An [ApiVariantSelectors] factory for use by [RecordComponentItem]s that will return a
-         * [RecordComponentSelectors] instance.
-         */
-        val RECORD_COMPONENT_FACTORY: ApiVariantSelectorsFactory = {
-            if (it is RecordComponentItem) RecordComponentSelectors(it)
-            else error("Cannot create RecordComponentSelectors for non-RecordComponentItem")
-        }
     }
 
     /**
@@ -156,39 +147,6 @@ sealed class ApiVariantSelectors {
         override fun inheritInto() = error("Cannot inheritInto() $this")
 
         override fun toString() = "Immutable"
-    }
-
-    /**
-     * An [ApiVariantSelectors] specifically for record components.
-     *
-     * It will report issues if any attempt is made to hide [item] or to include it in a specific
-     * API surface.
-     */
-    private class RecordComponentSelectors(private val item: SelectableItem) :
-        BaseNotHideableSelectors() {
-        private var inheritIntoWasCalled = false
-
-        override fun inheritInto() {
-            if (inheritIntoWasCalled) return
-            inheritIntoWasCalled = true
-
-            if (item.wasOriginallyHidden()) {
-                item.codebase.reporter.report(
-                    Issues.HIDING_RECORD_COMPONENT,
-                    item,
-                    "Cannot hide ${item.describe()} as record components are an indivisible part of a record class"
-                )
-            }
-        }
-
-        override fun toString() = buildString {
-            append(item.describe())
-            append(" {\n")
-            append("    inheritIntoWasCalled=")
-            append(inheritIntoWasCalled)
-            append(",\n")
-            append("}")
-        }
     }
 
     /**
