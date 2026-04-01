@@ -189,6 +189,18 @@ internal class PsiClassBuilder(
                 isFileFacade = psiClass.isFileFacade(),
                 optionalAliasedType = null,
                 isMultiFileClass = psiClass.isMultiFileClass(),
+                recordComponentItemsFactory =
+                    if (classKind == ClassKind.RECORD)
+                        { classItem ->
+                            createRecordComponents(
+                                classItem,
+                                psiClass.recordComponents,
+                                classTypeItemFactory
+                            )
+                        }
+                    else {
+                        null
+                    },
             )
 
         if (classKind == ClassKind.RECORD) {
@@ -227,30 +239,26 @@ internal class PsiClassBuilder(
      * Must be called before creating any other members of [classItem].
      */
     private fun createRecordComponents(
-        classItem: SkeletonClassItem,
+        classItem: ClassItem,
         components: Array<PsiRecordComponent>,
         classTypeItemFactory: PsiTypeItemFactory
-    ) {
-        for ((index, component) in components.withIndex()) {
+    ) =
+        components.mapIndexed { index, component ->
             val modifiers = createModifiers(component)
             modifiers.setVisibilityLevel(VisibilityLevel.PUBLIC)
             modifiers.setFinal(false)
 
             val type = classTypeItemFactory.getGeneralType(PsiTypeInfo(component.type, component))
 
-            val propertyItem =
-                itemFactory.createRecordComponentItem(
-                    fileLocation = PsiFileLocation.fromPsiElement(component),
-                    modifiers = modifiers,
-                    name = component.name,
-                    containingClass = classItem,
-                    type = type,
-                    recordComponentIndex = index,
-                )
-
-            classItem.addProperty(propertyItem)
+            itemFactory.createRecordComponentItem(
+                fileLocation = PsiFileLocation.fromPsiElement(component),
+                modifiers = modifiers,
+                name = component.name,
+                containingClass = classItem,
+                type = type,
+                recordComponentIndex = index,
+            )
         }
-    }
 
     /** Create [MutableModifierList] for [psiModifierListOwner] in [psiCodebase]. */
     private fun createModifiers(psiModifierListOwner: PsiModifierListOwner) =

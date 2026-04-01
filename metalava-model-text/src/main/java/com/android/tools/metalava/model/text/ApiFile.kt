@@ -849,6 +849,14 @@ private constructor(
                 superClassType = superClassType,
                 interfaceTypes = interfaceTypes.toList(),
                 targetLanguages = targetLanguages,
+                recordComponentItemsFactory =
+                    if (textRecordComponents == null) null
+                    else
+                        { classItem ->
+                            textRecordComponents.map {
+                                it.createRecordComponent(classItem, typeItemFactory)
+                            }
+                        }
             )
         cl.markForMainApiSurface()
 
@@ -856,14 +864,6 @@ private constructor(
         // [typeItemFactoryForClass].
         if (!typeItemFactory.typeParameterScope.isEmpty()) {
             classToTypeItemFactory[cl] = typeItemFactory
-        }
-
-        if (textRecordComponents != null) {
-            for (textRecordComponent in textRecordComponents) {
-                // Represent the record component as a property item.
-                val propertyItem = textRecordComponent.createRecordComponent(cl, typeItemFactory)
-                cl.addProperty(propertyItem)
-            }
         }
 
         // Parse the class body adding each member created to the class item being populated.

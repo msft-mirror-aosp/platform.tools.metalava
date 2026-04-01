@@ -225,7 +225,7 @@ private constructor(
             containingClass = containingClass,
             type = classTypeItemFactory.getGeneralType(type),
             recordComponentIndex = recordComponentIndex,
-        ) as RecordComponentItem
+        )
 
     /**
      * Take a snapshot of the [RecordComponentItem]s in this [RecordComponents].
@@ -264,8 +264,9 @@ private constructor(
         val snapshotInterfaceTypes =
             classToSnapshot.interfaceTypes().map { classTypeItemFactory.getInterfaceType(it) }
 
+        val classKind = classToSnapshot.classKind
         val optionalAliasedType =
-            if (classToSnapshot.classKind == ClassKind.TYPEALIAS) {
+            if (classKind == ClassKind.TYPEALIAS) {
                 classTypeItemFactory.getGeneralType(classToSnapshot.aliasedType)
             } else {
                 null
@@ -280,7 +281,7 @@ private constructor(
                 modifiers = classToSnapshot.modifiers.snapshot(),
                 documentationFactory = snapshotDocumentation(classToSnapshot, cls),
                 source = sourceFileCache.snapshotSourceFile(cls.sourceFile()),
-                classKind = classToSnapshot.classKind,
+                classKind = classKind,
                 containingClass = containingClass,
                 containingPackage = containingPackage,
                 qualifiedName = classToSnapshot.qualifiedName(),
@@ -288,16 +289,20 @@ private constructor(
                 origin = classToSnapshot.origin,
                 superClassType = snapshotSuperClassType,
                 interfaceTypes = snapshotInterfaceTypes,
-                optionalAliasedType = optionalAliasedType
+                optionalAliasedType = optionalAliasedType,
+                recordComponentItemsFactory =
+                    if (classKind == ClassKind.RECORD)
+                        { classItem ->
+                            classToSnapshot.recordComponents.snapshot(
+                                classItem,
+                                classTypeItemFactory
+                            )
+                        }
+                    else {
+                        null
+                    },
             )
         newClass.copySelectedApiVariants(classToSnapshot)
-
-        // Take a snapshot of the record components.
-        val snapshotComponents =
-            classToSnapshot.recordComponents.snapshot(newClass, classTypeItemFactory)
-        for (snapshotComponent in snapshotComponents) {
-            newClass.addProperty(snapshotComponent as PropertyItem)
-        }
     }
 
     /** Execute [body] within [SnapshotTypeItemFactoryContext]. */

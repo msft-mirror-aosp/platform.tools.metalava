@@ -36,6 +36,8 @@ import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.PropertyItem
+import com.android.tools.metalava.model.RecordComponentItem
+import com.android.tools.metalava.model.RecordComponentItemsFactory
 import com.android.tools.metalava.model.SkeletonClassItem
 import com.android.tools.metalava.model.SkeletonTypeParameterItem
 import com.android.tools.metalava.model.SourceFile
@@ -107,6 +109,7 @@ class DefaultItemFactory(
         optionalAliasedType: TypeItem? = null,
         isFileFacade: Boolean = false,
         isMultiFileClass: Boolean = false,
+        recordComponentItemsFactory: RecordComponentItemsFactory? = null,
     ): SkeletonClassItem =
         DefaultClassItem(
             codebase,
@@ -128,6 +131,7 @@ class DefaultItemFactory(
             isFileFacade = isFileFacade,
             optionalAliasedType = optionalAliasedType,
             isMultiFileClass = isMultiFileClass,
+            recordComponentItemsFactory = recordComponentItemsFactory ?: { emptyList() },
         )
 
     /** Create a [ConstructorItem]. */
@@ -307,7 +311,7 @@ class DefaultItemFactory(
         recordComponentIndex: Int,
         getter: MethodItem? = null,
         constructorParameter: ParameterItem? = null,
-    ): PropertyItem =
+    ): RecordComponentItem =
         DefaultPropertyItem(
             codebase,
             fileLocation,

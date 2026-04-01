@@ -16,6 +16,8 @@
 
 package com.android.tools.metalava.model
 
+typealias RecordComponentItemsFactory = (ClassItem) -> List<RecordComponentItem>
+
 /** An [Item] that represents a component in a record class. */
 interface RecordComponentItem : Item {
     /** The modifiers of this, only the annotations are useful. */

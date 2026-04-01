@@ -189,12 +189,19 @@ internal class TurbineClassBuilder(
                 origin = origin,
                 superClassType = superClassType,
                 interfaceTypes = interfaceTypes,
+                recordComponentItemsFactory =
+                    if (classKind == ClassKind.RECORD)
+                        { classItem ->
+                            createRecordComponents(
+                                classItem,
+                                typeBoundClass.components(),
+                                classTypeItemFactory
+                            )
+                        }
+                    else {
+                        null
+                    },
             )
-
-        // Create record components.
-        if (classKind == ClassKind.RECORD) {
-            createRecordComponents(classItem, typeBoundClass.components(), classTypeItemFactory)
-        }
 
         // Create fields
         createFields(classItem, typeBoundClass.fields(), classTypeItemFactory)
@@ -689,11 +696,11 @@ internal class TurbineClassBuilder(
      * Must be called before creating any other members of [classItem].
      */
     private fun createRecordComponents(
-        classItem: SkeletonClassItem,
+        classItem: ClassItem,
         components: List<TypeBoundClass.RecordComponentInfo>,
         classTypeItemFactory: TurbineTypeItemFactory,
-    ) {
-        for ((index, componentInfo) in components.withIndex()) {
+    ) =
+        components.mapIndexed { index, componentInfo ->
             val modifiers =
                 createModifiers(
                     ItemKind.PROPERTY,
@@ -704,19 +711,15 @@ internal class TurbineClassBuilder(
 
             val type = classTypeItemFactory.getGeneralType(componentInfo.type())
 
-            val propertyItem =
-                itemFactory.createRecordComponentItem(
-                    fileLocation = classItem.fileLocation,
-                    modifiers = modifiers,
-                    name = componentInfo.name(),
-                    containingClass = classItem,
-                    type = type,
-                    recordComponentIndex = index,
-                )
-
-            classItem.addProperty(propertyItem)
+            itemFactory.createRecordComponentItem(
+                fileLocation = classItem.fileLocation,
+                modifiers = modifiers,
+                name = componentInfo.name(),
+                containingClass = classItem,
+                type = type,
+                recordComponentIndex = index,
+            )
         }
-    }
 
     /** Get an [ItemDocumentationFactory] for [decl] in [classItem]. */
     private fun itemDocumentationFactoryForDecl(classItem: ClassItem, decl: Tree?) =

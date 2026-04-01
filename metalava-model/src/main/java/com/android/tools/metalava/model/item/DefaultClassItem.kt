@@ -30,7 +30,7 @@ import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.MutableModifierList
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PropertyItem
-import com.android.tools.metalava.model.RecordComponentItem
+import com.android.tools.metalava.model.RecordComponentItemsFactory
 import com.android.tools.metalava.model.RecordComponents
 import com.android.tools.metalava.model.ReferencableMethodSet
 import com.android.tools.metalava.model.SkeletonClassItem
@@ -70,6 +70,7 @@ internal class DefaultClassItem(
      */
     optionalAliasedType: TypeItem?,
     override val isMultiFileClass: Boolean = false,
+    recordComponentItemsFactory: RecordComponentItemsFactory? = null,
 ) :
     DefaultSelectableItem(
         codebase = codebase,
@@ -322,26 +323,10 @@ internal class DefaultClassItem(
         replaceOrAddItem(property, mutableProperties)
     }
 
-    private lateinit var optionalRecordComponents: RecordComponents
-
-    override val recordComponents: RecordComponents
-        get() {
-            if (!::optionalRecordComponents.isInitialized) {
-                optionalRecordComponents = createRecordComponents()
-            }
-
-            return optionalRecordComponents
-        }
-
-    /** Create [RecordComponents] from the [PropertyItem]s. */
-    private fun createRecordComponents() =
-        if (classKind == ClassKind.RECORD)
-            RecordComponents.create(
-                properties()
-                    .filter { it.isRecordComponent() }
-                    .filterIsInstance<RecordComponentItem>()
-            )
-        else {
+    override val recordComponents =
+        if (classKind == ClassKind.RECORD && recordComponentItemsFactory != null) {
+            RecordComponents.create(recordComponentItemsFactory(this))
+        } else {
             RecordComponents.EMPTY
         }
 
