@@ -27,10 +27,16 @@ import org.junit.Test
 class RecordLintTest : DriverTest() {
     @Test
     fun `Test using java-lang-Record class`() {
+        val testOtherGetterLocation =
+            if (codebaseCreatorConfig.providerName == "turbine") "" else "1:"
+        val testConstructorLocation =
+            if (codebaseCreatorConfig.providerName == "turbine") "" else "3:"
         check(
             apiLint = "", // enabled
             expectedIssues =
                 """
+                    src/android/pkg/Test.java:$testOtherGetterLocation error: Return type of method android.pkg.Test.other() contains java.lang.Record, that can cause issues for desugared record classes, please use java.lang.Object instead [UsingJavaLangRecord]
+                    src/android/pkg/Test.java:$testConstructorLocation error: Type of parameter other in android.pkg.Test(int a, Record other) contains java.lang.Record, that can cause issues for desugared record classes, please use java.lang.Object instead [UsingJavaLangRecord]
                     src/android/pkg/UsingJavaLangRecord.java:5: error: Implemented interface of class android.pkg.UsingJavaLangRecord contains java.lang.Record, that can cause issues for desugared record classes, please use java.lang.Object instead [UsingJavaLangRecord]
                     src/android/pkg/UsingJavaLangRecord.java:5: error: Super class of class android.pkg.UsingJavaLangRecord contains java.lang.Record, that can cause issues for desugared record classes, please use java.lang.Object instead [UsingJavaLangRecord]
                     src/android/pkg/UsingJavaLangRecord.java:6: error: Type of field android.pkg.UsingJavaLangRecord.field contains java.lang.Record, that can cause issues for desugared record classes, please use java.lang.Object instead [UsingJavaLangRecord]
@@ -72,7 +78,9 @@ class RecordLintTest : DriverTest() {
                         """
                             package android.pkg;
 
-                            public record Test(int a) {
+                            import type.use.only.NonNull;
+
+                            public record Test(int a, @NonNull Record other) {
                             }
                         """
                     ),
