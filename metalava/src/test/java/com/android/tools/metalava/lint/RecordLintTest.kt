@@ -145,7 +145,7 @@ class RecordLintTest : DriverTest() {
             hideAnnotations = arrayOf(ANDROID_HIDE, "test.pkg.HideComponent"),
             apiLint = "", // enabled
             // TODO(b/482390286): Should report that it is not allowed to hide record components
-            //  accessors.
+            //  accessors or the canonical constructor.
             expectedIssues =
                 """
                     src/test/pkg/Test.java:$componentCLocation: error: Cannot hide record component test.pkg.Test#c as record components are an indivisible part of a record class [HidingRecordComponent]
@@ -183,20 +183,24 @@ class RecordLintTest : DriverTest() {
                                 int c
                             ) {
                                 @Hide
+                                public Test {
+                                }
+
+                                @Hide
                                 public int b() { return b; }
                             }
                         """
                     ),
                 ),
             api =
-                // TODO(b/482390286): Should include accessor methods for 'a' and 'b'.
+                // TODO(b/482390286): Should include accessor methods for 'a' and 'b' and the
+                //  canonical constructor.
                 """
                     package test.pkg {
                       public record Test {
                         record_component #0 a: int;
                         record_component #1 b: int;
                         record_component #2 c: int;
-                        ctor public Test(int, int, int);
                         method public int c();
                       }
                     }
