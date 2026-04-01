@@ -33,6 +33,8 @@ import com.android.tools.metalava.model.ModifierList
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.PropertyItem
+import com.android.tools.metalava.model.RecordComponentItem
+import com.android.tools.metalava.model.RecordComponents
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.Showability
 import com.android.tools.metalava.model.SkeletonClassItem
@@ -205,6 +207,38 @@ private constructor(
         selectedApiVariants = original.selectedApiVariants
     }
 
+    /**
+     * Take a snapshot of this [RecordComponentItem].
+     *
+     * @param containingClass the containing [ClassItem] for the snapshot.
+     * @param classTypeItemFactory the factory used to create the type, in case it references type
+     *   parameters in the new record class.
+     */
+    private fun RecordComponentItem.snapshot(
+        containingClass: ClassItem,
+        classTypeItemFactory: SnapshotTypeItemFactory
+    ) =
+        itemFactory.createRecordComponentItem(
+            fileLocation,
+            modifiers = modifiers.snapshot(snapshotCodebase),
+            name = name,
+            containingClass = containingClass,
+            type = classTypeItemFactory.getGeneralType(type),
+            recordComponentIndex = recordComponentIndex,
+        ) as RecordComponentItem
+
+    /**
+     * Take a snapshot of the [RecordComponentItem]s in this [RecordComponents].
+     *
+     * @param containingClass the containing [ClassItem] for the snapshots.
+     * @param classTypeItemFactory the factory used to create types, in case they reference type
+     *   parameters in the new record class.
+     */
+    private fun RecordComponents.snapshot(
+        containingClass: ClassItem,
+        classTypeItemFactory: SnapshotTypeItemFactory
+    ) = map { it.snapshot(containingClass, classTypeItemFactory) }
+
     override fun visitClass(cls: ClassItem) {
         val classToSnapshot = cls.actualItemToSnapshot
 
@@ -257,6 +291,13 @@ private constructor(
                 optionalAliasedType = optionalAliasedType
             )
         newClass.copySelectedApiVariants(classToSnapshot)
+
+        // Take a snapshot of the record components.
+        val snapshotComponents =
+            classToSnapshot.recordComponents.snapshot(newClass, classTypeItemFactory)
+        for (snapshotComponent in snapshotComponents) {
+            newClass.addProperty(snapshotComponent as PropertyItem)
+        }
     }
 
     /** Execute [body] within [SnapshotTypeItemFactoryContext]. */
@@ -377,6 +418,11 @@ private constructor(
     }
 
     override fun visitProperty(property: PropertyItem) {
+        // Record components are handled elsewhere.
+        if (property.isRecordComponent()) {
+            return
+        }
+
         val propertyToSnapshot = property.actualItemToSnapshot
         val containingClass = property.containingClass().getSnapshotClass()
 
@@ -405,7 +451,6 @@ private constructor(
                     receiver = property.receiver?.snapshot(),
                     typeParameterList = typeParameterList,
                     setterVisibility = property.setterVisibility,
-                    recordComponentIndex = propertyToSnapshot.recordComponentIndex,
                 )
             }
         newProperty.copySelectedApiVariants(propertyToSnapshot)
