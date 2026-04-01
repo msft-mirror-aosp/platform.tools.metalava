@@ -140,15 +140,18 @@ class RecordLintTest : DriverTest() {
         // Turbine does not track the location of the component yet, instead it uses the class
         // location.
         val componentCLocation = if (codebaseCreatorConfig.providerName == "turbine") 5 else 13
+        val componentAGetterLocation =
+            if (codebaseCreatorConfig.providerName == "turbine") "" else ":1"
         check(
             format = FORMAT_V6_WITH_JAVA_STYLE,
             hideAnnotations = arrayOf(ANDROID_HIDE, "test.pkg.HideComponent"),
             apiLint = "", // enabled
-            // TODO(b/482390286): Should report that it is not allowed to hide record components
-            //  accessors or the canonical constructor.
             expectedIssues =
                 """
+                    src/test/pkg/Test.java$componentAGetterLocation: error: Cannot hide record component getter method test.pkg.Test.a() as it is an indivisible part of a record class [HidingRecordComponent]
                     src/test/pkg/Test.java:$componentCLocation: error: Cannot hide record component test.pkg.Test#c as record components are an indivisible part of a record class [HidingRecordComponent]
+                    src/test/pkg/Test.java:16: error: Cannot hide canonical constructor test.pkg.Test(int,int,int) as it is an indivisible part of a record class [HidingRecordComponent]
+                    src/test/pkg/Test.java:20: error: Cannot hide record component getter method test.pkg.Test.b() as it is an indivisible part of a record class [HidingRecordComponent]
                 """,
             sourceFiles =
                 arrayOf(
@@ -193,14 +196,15 @@ class RecordLintTest : DriverTest() {
                     ),
                 ),
             api =
-                // TODO(b/482390286): Should include accessor methods for 'a' and 'b' and the
-                //  canonical constructor.
                 """
                     package test.pkg {
                       public record Test {
                         record_component #0 a: int;
                         record_component #1 b: int;
                         record_component #2 c: int;
+                        ctor public Test(int, int, int);
+                        method public int a();
+                        method public int b();
                         method public int c();
                       }
                     }
@@ -208,11 +212,12 @@ class RecordLintTest : DriverTest() {
             stubFiles =
                 arrayOf(
                     java(
-                        // TODO(b/482390286): Should include accessor methods.
                         """
                             package test.pkg;
                             @SuppressWarnings({"unchecked", "deprecation", "all"})
                             public record Test(int a, int b, int c) {
+                            public int a() { throw new RuntimeException("Stub!"); }
+                            public int b() { throw new RuntimeException("Stub!"); }
                             public int c() { throw new RuntimeException("Stub!"); }
                             }
                         """

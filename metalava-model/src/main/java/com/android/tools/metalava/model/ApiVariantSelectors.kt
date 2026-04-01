@@ -443,6 +443,26 @@ sealed class ApiVariantSelectors {
                     }
                 }
             }
+
+            // Check to see whether item has a relationship with a record component. If it does then
+            // it cannot be hidden.
+            (item as? PossiblyRecordComponentRelated)?.recordComponentRelationship?.let {
+                recordComponentRelationship ->
+
+                // Record component getters or canonical constructors cannot be hidden.
+                if (originallyHidden) {
+                    item.codebase.reporter.report(
+                        Issues.HIDING_RECORD_COMPONENT,
+                        item,
+                        "Cannot hide $recordComponentRelationship ${item.describe()} as it is an indivisible part of a record class"
+                    )
+                }
+
+                // Force this to not be hidden, doconly or removed.
+                propertyHasBeenSetBits = ALL_PROPERTIES_SET
+                propertyValueBits = NOT_RESTRICTED_SETTINGS
+                _showability = Showability.NO_EFFECT
+            }
         }
 
         /**
@@ -559,6 +579,20 @@ sealed class ApiVariantSelectors {
 
             /** The count of the number of bits used. */
             private const val COUNT_BITS_USED = INHERIT_INTO_BIT_POSITION + 1
+
+            /**
+             * Value of [propertyValueBits] that will ensure that the associated [item] is not
+             * restricted in any way.
+             *
+             * This sets all the [Boolean] properties to `false` apart from [accessible] which is
+             * set to `true`.
+             */
+            private const val NOT_RESTRICTED_SETTINGS: Int = ACCESSIBLE_BIT_MASK
+
+            /**
+             * Value of [propertyHasBeenSetBits] that indicates all the properties have been set.
+             */
+            private const val ALL_PROPERTIES_SET: Int = (1 shl COUNT_BITS_USED) - 1
 
             /** Map from bit to the associated property name, used in toString() */
             private val propertyNamePerBit =
