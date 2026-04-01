@@ -33,6 +33,7 @@ import com.android.tools.metalava.model.ModifierListWriter
 import com.android.tools.metalava.model.MutableModifierList
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PropertyItem
+import com.android.tools.metalava.model.RecordComponentItem
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.StripJavaLangPrefix
 import com.android.tools.metalava.model.TargetLanguageSet
@@ -153,9 +154,8 @@ class SignatureWriter(
     }
 
     override fun visitProperty(property: PropertyItem) {
-        // Treat record component properties specially.
+        // Record components are handled in visitClass
         if (property.isRecordComponent()) {
-            writeRecordComponent(property)
             return
         }
 
@@ -184,18 +184,18 @@ class SignatureWriter(
         write(";\n")
     }
 
-    /** Write [property] as a record component, if allowed. */
-    private fun writeRecordComponent(property: PropertyItem) {
+    /** Write [component] as a record component, if allowed. */
+    private fun writeRecordComponent(component: RecordComponentItem) {
         // If the signature file does not support record classes then do not write the component.
         if (!javaRecordClasses) return
 
         write("    record_component #")
-        write(property.recordComponentIndex.toString())
+        write(component.recordComponentIndex.toString())
         write(" ")
-        writeAnnotations(property)
-        write(property.name())
+        writeAnnotations(component)
+        write(component.name)
         write(": ")
-        writeType(property.type())
+        writeType(component.type)
         write(";\n")
     }
 
@@ -262,6 +262,10 @@ class SignatureWriter(
             propagateSuppressAnnotationsToSubclasses(cls)
 
             write(" {\n")
+
+            for (component in cls.recordComponents) {
+                writeRecordComponent(component)
+            }
         }
     }
 

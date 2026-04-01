@@ -21,6 +21,9 @@ interface RecordComponentItem : Item {
     /** The modifiers of this, only the annotations are useful. */
     override val modifiers: ModifierList
 
+    /** The index of this record component. */
+    val recordComponentIndex: Int
+
     /** The name of the component. */
     val name: String
 
