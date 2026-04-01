@@ -509,20 +509,24 @@ class ApiAnalyzer(
                     preserveClassNesting = true,
                     // Only SelectableItems can have variantSelectors.
                     visitParameterItems = false,
-                    // RecordComponentItems are SelectableItems at the moment because they are
-                    // implemented as PropertyItems.
-                    // TODO(b/482390286): Remove when RecordComponentItems are no longer implemented
-                    //  as PropertyItems.
+                    // RecordComponentItems need to be checked to see if they are hidden.
                     visitRecordComponentItems = true,
                 ) {
                 override fun visitSelectableItem(item: SelectableItem) {
                     item.variantSelectors.inheritInto()
                 }
 
-                // TODO(b/482390286): Remove when RecordComponentItems are no longer implemented
-                //  as PropertyItems.
                 override fun visitRecordComponentItem(component: RecordComponentItem) {
-                    (component as PropertyItem).variantSelectors.inheritInto()
+                    val codebase = component.codebase
+                    val hasHideAnnotations =
+                        codebase.annotationManager.hasHideAnnotations(component.modifiers)
+                    if (hasHideAnnotations) {
+                        codebase.reporter.report(
+                            Issues.HIDING_RECORD_COMPONENT,
+                            component,
+                            "Cannot hide ${component.describe()} as record components are an indivisible part of a record class"
+                        )
+                    }
                 }
             }
 
