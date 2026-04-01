@@ -100,13 +100,14 @@ sealed class ApiVariantSelectors {
     }
 
     /**
-     * Base class for [ApiVariantSelectors] that do not allow hiding of [SelectableItem]s.
+     * An immutable [ApiVariantSelectors] that will return `false` for all the properties and fail
+     * on any attempt to set the `var` properties.
      *
      * The implementation of [ApiVariantSelectors] properties return values that will prevent
      * [SelectableItem]s from being hidden in any way. Attempting to mutate them may result in an
      * error being thrown.
      */
-    private abstract class BaseNotHideableSelectors : ApiVariantSelectors() {
+    private object Immutable : ApiVariantSelectors() {
         override val originallyHidden: Boolean
             get() = false
 
@@ -137,13 +138,7 @@ sealed class ApiVariantSelectors {
             get() = Showability.NO_EFFECT
 
         override fun duplicate(item: Item): ApiVariantSelectors = this
-    }
 
-    /**
-     * An immutable [ApiVariantSelectors] that will return `false` for all the properties and fail
-     * on any attempt to set the `var` properties.
-     */
-    private object Immutable : BaseNotHideableSelectors() {
         override fun inheritInto() = error("Cannot inheritInto() $this")
 
         override fun toString() = "Immutable"
