@@ -16,7 +16,6 @@
 
 package com.android.tools.metalava.model.item
 
-import com.android.tools.metalava.model.ApiVariantSelectors
 import com.android.tools.metalava.model.ApiVariantSelectorsFactory
 import com.android.tools.metalava.model.BaseModifierList
 import com.android.tools.metalava.model.CallableBody
@@ -277,7 +276,6 @@ class DefaultItemFactory(
         setter: MethodItem? = null,
         constructorParameter: ParameterItem? = null,
         backingField: FieldItem? = null,
-        recordComponentIndex: Int = -1,
     ): PropertyItem =
         DefaultPropertyItem(
             codebase,
@@ -296,43 +294,26 @@ class DefaultItemFactory(
             receiver,
             typeParameterList,
             setterVisibility,
-            recordComponentIndex,
         )
 
     /** Create a [PropertyItem] for use as a record component. */
     fun createRecordComponentItem(
         fileLocation: FileLocation,
         sourceLanguage: SourceLanguage = defaultSourceLanguage,
-        documentationFactory: ItemDocumentationFactory = ItemDocumentation.NONE_FACTORY,
         modifiers: BaseModifierList,
         name: String,
         containingClass: ClassItem,
         type: TypeItem,
         recordComponentIndex: Int,
-        getter: MethodItem? = null,
-        constructorParameter: ParameterItem? = null,
     ): RecordComponentItem =
-        DefaultPropertyItem(
+        DefaultRecordComponentItem(
             codebase,
             fileLocation,
             sourceLanguage,
-            documentationFactory,
-            variantSelectorsFactory = ApiVariantSelectors.RECORD_COMPONENT_FACTORY,
             modifiers,
             name,
             containingClass,
             type,
-            getter,
-            // Record components are immutable.
-            setter = null,
-            constructorParameter,
-            // Record component backing fields are private.
-            backingField = null,
-            // Record components have no receiver.
-            receiver = null,
-            typeParameterList = TypeParameterList.NONE,
-            // Record components are immutable.
-            setterVisibility = null,
             recordComponentIndex,
         )
 
