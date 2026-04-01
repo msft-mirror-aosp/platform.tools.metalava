@@ -33,6 +33,16 @@ open class BaseItemVisitor(
      * Defaults to `true` as that is the safest option which avoids inadvertently ignoring them.
      */
     protected val visitParameterItems: Boolean = true,
+
+    /**
+     * Determines whether this will visit [RecordComponentItem]s or not.
+     *
+     * If this is `true` then [RecordComponentItem]s will be visited, and passed to [visitItem],
+     * [visitParameter] and [afterVisitItem] in that order. Otherwise, they will not be visited.
+     *
+     * Defaults to `true` as that is the safest option which avoids inadvertently ignoring them.
+     */
+    private val visitRecordComponentItems: Boolean = false,
 ) : ItemVisitor {
     /** Calls [visitItem] before invoking [body] after which it calls [afterVisitItem]. */
     protected inline fun <T : Item> wrapBodyWithCallsToVisitMethodsForItem(
@@ -67,6 +77,12 @@ open class BaseItemVisitor(
         wrapBodyWithCallsToVisitMethodsForSelectableItem(cls) {
             visitClass(cls)
 
+            if (visitRecordComponentItems) {
+                for (component in cls.recordComponents) {
+                    component.accept(this)
+                }
+            }
+
             for (constructor in cls.constructors()) {
                 constructor.accept(this)
             }
@@ -76,6 +92,7 @@ open class BaseItemVisitor(
             }
 
             for (property in cls.properties()) {
+                if (property.isRecordComponent()) continue
                 property.accept(this)
             }
 
@@ -91,6 +108,10 @@ open class BaseItemVisitor(
 
             afterVisitClass(cls)
         }
+    }
+
+    override fun visit(component: RecordComponentItem) {
+        wrapBodyWithCallsToVisitMethodsForItem(component) { visitRecordComponentItem(component) }
     }
 
     override fun visit(field: FieldItem) {
@@ -212,6 +233,9 @@ open class BaseItemVisitor(
     open fun visitPackage(pkg: PackageItem) {}
 
     open fun visitClass(cls: ClassItem) {}
+
+    /** Visits a [RecordComponentItem]. */
+    open fun visitRecordComponentItem(component: RecordComponentItem) {}
 
     open fun visitCallable(callable: CallableItem) {}
 

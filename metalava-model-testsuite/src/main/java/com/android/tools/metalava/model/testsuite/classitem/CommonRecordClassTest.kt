@@ -396,7 +396,7 @@ class CommonRecordClassTest : BaseModelTest() {
 
             val annotations = buildString {
                 testClass.accept(
-                    object : BaseItemVisitor() {
+                    object : BaseItemVisitor(visitRecordComponentItems = true) {
                         override fun visitItem(item: Item) {
                             append(item.describe())
                             append("\n")
@@ -422,6 +422,10 @@ class CommonRecordClassTest : BaseModelTest() {
             assertEquals(
                 """
                     class test.pkg.Test
+                    record component test.pkg.Test#c
+                        @test.pkg.RecordAnno
+                        @test.pkg.MixedAnno
+                        type: @test.pkg.TypeAnno @test.pkg.MixedAnno int
                     constructor test.pkg.Test(int)
                     parameter c in test.pkg.Test(int c)
                         @test.pkg.ParameterAnno
@@ -429,10 +433,6 @@ class CommonRecordClassTest : BaseModelTest() {
                         type: @test.pkg.TypeAnno @test.pkg.MixedAnno int
                     method test.pkg.Test.c()
                         @test.pkg.MethodAnno
-                        @test.pkg.MixedAnno
-                        type: @test.pkg.TypeAnno @test.pkg.MixedAnno int
-                    record component test.pkg.Test#c
-                        @test.pkg.RecordAnno
                         @test.pkg.MixedAnno
                         type: @test.pkg.TypeAnno @test.pkg.MixedAnno int
                 """

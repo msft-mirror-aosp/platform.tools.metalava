@@ -37,6 +37,7 @@ import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PackageList
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.PropertyItem
+import com.android.tools.metalava.model.RecordComponentItem
 import com.android.tools.metalava.model.SUPPRESS_COMPATIBILITY_ANNOTATION_QUALIFIED
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.TargetLanguageSet
@@ -508,9 +509,20 @@ class ApiAnalyzer(
                     preserveClassNesting = true,
                     // Only SelectableItems can have variantSelectors.
                     visitParameterItems = false,
+                    // RecordComponentItems are SelectableItems at the moment because they are
+                    // implemented as PropertyItems.
+                    // TODO(b/482390286): Remove when RecordComponentItems are no longer implemented
+                    //  as PropertyItems.
+                    visitRecordComponentItems = true,
                 ) {
                 override fun visitSelectableItem(item: SelectableItem) {
                     item.variantSelectors.inheritInto()
+                }
+
+                // TODO(b/482390286): Remove when RecordComponentItems are no longer implemented
+                //  as PropertyItems.
+                override fun visitRecordComponentItem(component: RecordComponentItem) {
+                    (component as PropertyItem).variantSelectors.inheritInto()
                 }
             }
 

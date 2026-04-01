@@ -85,7 +85,11 @@ interface PropertyItem : MemberItem, TypeParameterListOwner, InheritableItem {
     }
 
     override fun accept(visitor: ItemVisitor) {
-        visitor.visit(this)
+        if (isRecordComponent()) {
+            visitor.visit(this as RecordComponentItem)
+        } else {
+            visitor.visit(this)
+        }
     }
 
     override fun equalsToItem(other: Any?): Boolean {
