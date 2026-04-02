@@ -130,7 +130,7 @@ class AndroidApiChecks(
         val documentation = callable.documentation ?: return
 
         val annotation = callable.modifiers.findAnnotation("androidx.annotation.RequiresPermission")
-        val requiresPermissionInfo = annotation?.getRequiresPermissionInfo()
+        val requiresPermissionInfo = annotation?.getRequiresPermissionInfo(callable)
         if (requiresPermissionInfo != null) {
             val conditional = requiresPermissionInfo.conditional
             val permissions = requiresPermissionInfo.permissionValues.mapNotNull { it.asString() }

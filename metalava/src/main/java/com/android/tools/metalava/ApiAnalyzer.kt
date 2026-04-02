@@ -534,7 +534,7 @@ class ApiAnalyzer(
         val annotation = method.modifiers.findAnnotation(ANDROIDX_REQUIRES_PERMISSION)
         var hasAnnotation = false
 
-        val requiresPermissionInfo = annotation?.getRequiresPermissionInfo()
+        val requiresPermissionInfo = annotation?.getRequiresPermissionInfo(method)
         if (requiresPermissionInfo != null) {
             hasAnnotation = true
             val values = requiresPermissionInfo.permissionValues

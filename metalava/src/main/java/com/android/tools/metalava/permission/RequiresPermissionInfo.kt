@@ -17,20 +17,26 @@
 package com.android.tools.metalava.permission
 
 import com.android.tools.metalava.model.ANDROIDX_REQUIRES_PERMISSION
-import com.android.tools.metalava.model.AnnotationAttribute
 import com.android.tools.metalava.model.AnnotationItem
+import com.android.tools.metalava.model.Item
+import com.android.tools.metalava.model.annotation.binding.bindTo
 import com.android.tools.metalava.model.value.ArrayElementValue
 import com.android.tools.metalava.model.value.FieldReferenceValue
 import com.android.tools.metalava.model.value.StringValue
-import com.android.tools.metalava.model.value.asBoolean
 
-/** Encapsulate information extracted from an [ANDROIDX_REQUIRES_PERMISSION] attribute. */
-data class RequiresPermissionInfo(
-    /** The list of permissions, either [StringValue] or [FieldReferenceValue]. */
-    val permissionValues: List<ArrayElementValue>,
-
-    /** `true` if any permission in [permissionValues] is needed, `false` if all are needed. */
-    val any: Boolean,
+/**
+ * Proxy class bound to an instance of the [ANDROIDX_REQUIRES_PERMISSION] annotation class.
+ *
+ * The constructor parameters are initialized from their corresponding annotation attribute. The
+ * [value], [allOf] [anyOf] parameters are nullable so they will only be set if the attribute is
+ * specified.
+ *
+ * @see bindTo
+ */
+class RequiresPermissionInfo(
+    value: ArrayElementValue?,
+    allOf: List<ArrayElementValue>?,
+    anyOf: List<ArrayElementValue>?,
 
     /**
      * `true` if the set of permissions required is conditional, `false` otherwise.
@@ -41,37 +47,48 @@ data class RequiresPermissionInfo(
      */
     val conditional: Boolean,
 ) {
-    companion object {
-        internal fun from(annotationItem: AnnotationItem): RequiresPermissionInfo? {
-            var permissionsAttribute: AnnotationAttribute? = null
-            var any = false
-            var conditional = false
-            for (attribute in annotationItem.attributes) {
-                when (attribute.name) {
-                    "value",
-                    "allOf" -> {
-                        permissionsAttribute = attribute
-                    }
-                    "anyOf" -> {
-                        any = true
-                        permissionsAttribute = attribute
-                    }
-                    "conditional" -> conditional = attribute.value.asBoolean() == true
-                }
-            }
+    /**
+     * The optional list of permission values.
+     *
+     * Will be `null` if none of [value], [allOf] or [anyOf] are specified.
+     */
+    private val optionalPermissionValues = value?.let { listOf(it) } ?: allOf ?: anyOf
 
-            return if (permissionsAttribute == null) {
-                null
-            } else {
-                RequiresPermissionInfo(permissionsAttribute.value.asFlatList(), any, conditional)
+    /** The list of permissions, either [StringValue] or [FieldReferenceValue]. */
+    val permissionValues: List<ArrayElementValue> = optionalPermissionValues.orEmpty()
+
+    /** `true` if any permission in [permissionValues] is needed, `false` if all are needed. */
+    val any = anyOf != null
+
+    /** Allow [permissionValues] to be accessed in a destructuring declaration. */
+    operator fun component1() = permissionValues
+
+    /** Allow [any] to be accessed in a destructuring declaration. */
+    operator fun component2() = any
+
+    /** Allow [conditional] to be accessed in a destructuring declaration. */
+    operator fun component3() = conditional
+
+    companion object {
+        /**
+         * Get an instance of [RequiresPermissionInfo] from [annotationItem], or `null` if it
+         * provides no permissions.
+         *
+         * This must only be called on [ANDROIDX_REQUIRES_PERMISSION] annotations. It is the
+         * caller's responsibility to ensure that.
+         */
+        internal fun from(annotationItem: AnnotationItem, item: Item) =
+            annotationItem.bindTo<RequiresPermissionInfo>(item)?.takeIf {
+                it.optionalPermissionValues != null
             }
-        }
     }
 }
 
 /**
- * Get an instance of [RequiresPermissionInfo] from [AnnotationItem], or `null` if the annotation is
- * not a `RequiresPermission` annotation.
+ * Get an instance of [RequiresPermissionInfo] from [AnnotationItem], or `null` if it provides no
+ * permissions.
+ *
+ * This must only be called on [ANDROIDX_REQUIRES_PERMISSION] annotations. It is the caller's
+ * responsibility to ensure that.
  */
-fun AnnotationItem.getRequiresPermissionInfo() =
-    if (qualifiedName == ANDROIDX_REQUIRES_PERMISSION) RequiresPermissionInfo.from(this) else null
+fun AnnotationItem.getRequiresPermissionInfo(item: Item) = RequiresPermissionInfo.from(this, item)

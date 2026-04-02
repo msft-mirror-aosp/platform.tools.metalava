@@ -371,7 +371,8 @@ class DocAnalyzer(
                         return
                     }
 
-                    val requiresPermissionInfo = annotation.getRequiresPermissionInfo() ?: return
+                    val requiresPermissionInfo =
+                        annotation.getRequiresPermissionInfo(item) ?: return
                     val (values, any, conditional) = requiresPermissionInfo
                     if (values.isNotEmpty() && !conditional) {
                         // Look at macros_override.cs for the usage of these
