@@ -165,7 +165,6 @@ Available Issues                             |  Category                        
   MissingBuildMethod                         |  api_lint                             |   warning
   MissingColumn                              |  documentation                        |   warning
   MissingEnvironmentsValue                   |  api_lint                             |   error
-  MissingFromValue                           |  api_lint                             |   error
   MissingGetterMatchingBuilder               |  api_lint                             |   warning
   MissingInnerNullability                    |  api_lint                             |   hidden
   MissingJvmstatic                           |  api_lint                             |   warning

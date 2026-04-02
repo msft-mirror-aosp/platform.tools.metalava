@@ -48,6 +48,7 @@ import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.SelectableItem
+import com.android.tools.metalava.model.annotation.binding.bindTo
 import com.android.tools.metalava.model.doc.DocContentOwner
 import com.android.tools.metalava.model.getCallableParameterDescriptorUsingDots
 import com.android.tools.metalava.model.value.ArrayElementValue
@@ -594,29 +595,15 @@ class DocAnalyzer(
                     annotationItem: AnnotationItem,
                     item: Item
                 ) {
-                    val environmentsValue =
-                        annotationItem
-                            .findAttribute("environments")
-                            ?.value
-                            ?.asFlatList()
-                            ?.firstOrNull()
-                            ?.asString()
-                    val fromValue = annotationItem.findAttribute("from")?.value?.asInt()
+                    val proxy = annotationItem.bindTo<RestrictedForEnvironmentProxy>(item) ?: return
+                    val environmentsValue = proxy.environments.firstOrNull()
+                    val fromValue = proxy.from
 
                     if (environmentsValue == null) {
                         reporter.report(
                             Issues.MISSING_ENVIRONMENTS_VALUE,
                             item,
                             "Missing 'environments' value for @RestrictedForEnvironment annotation"
-                        )
-                        return
-                    }
-
-                    if (fromValue == null) {
-                        reporter.report(
-                            Issues.MISSING_FROM_VALUE,
-                            item,
-                            "Missing 'from' value for @RestrictedForEnvironment annotation"
                         )
                         return
                     }
