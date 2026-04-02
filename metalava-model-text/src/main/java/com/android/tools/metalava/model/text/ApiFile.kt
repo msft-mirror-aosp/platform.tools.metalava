@@ -58,6 +58,7 @@ import com.android.tools.metalava.model.createImmutableModifiers
 import com.android.tools.metalava.model.createMutableModifiers
 import com.android.tools.metalava.model.item.DefaultCodebase
 import com.android.tools.metalava.model.item.PackageInfo
+import com.android.tools.metalava.model.multiplatform.MultiplatformCodebase
 import com.android.tools.metalava.model.parser.FileLocationTracker
 import com.android.tools.metalava.model.parser.TokenPurpose
 import com.android.tools.metalava.model.parser.Tokenizer
@@ -365,6 +366,107 @@ private constructor(
 
             apiStatsConsumer(parser.stats)
             return assembler.codebase
+        }
+
+        /**
+         * Parses the [signatureFiles] into a [MultiplatformCodebase].
+         *
+         * Each signature file represents a source set. If there is a common signature file, all
+         * other signature files are parsed as a delta on the common one.
+         */
+        fun parseMultiplatformApi(
+            signatureFiles: List<SignatureFile>,
+            codebaseConfig: Codebase.Config = Codebase.Config.NOOP,
+        ): MultiplatformCodebase {
+            // Find the common signature file, if it exists.
+            val commonSignatureFile =
+                signatureFiles.firstOrNull {
+                    it.file.nameWithoutExtension ==
+                        MultiplatformSignatureWriter.COMMON_SOURCE_SET_NAME
+                }
+            val sourceSetToCodebase =
+                if (commonSignatureFile != null) {
+                    // When there is a common source set, each other signature file is parsed as an
+                    // extension on common.
+                    val commonSourceSet =
+                        apiFileForBaseSourceSet(commonSignatureFile, codebaseConfig).codebase
+                    signatureFiles.associateBy(
+                        { signatureFile -> signatureFile.file.nameWithoutExtension },
+                        { signatureFile ->
+                            if (signatureFile == commonSignatureFile) {
+                                commonSourceSet
+                            } else {
+                                apiFileForExtensionSourceSet(
+                                        extensionSignatureFile = signatureFile,
+                                        baseSignatureFile = commonSignatureFile,
+                                        codebaseConfig,
+                                    )
+                                    .codebase
+                            }
+                        }
+                    )
+                } else {
+                    // When there is no common source set, each signature file is parsed separately.
+                    signatureFiles.associateBy(
+                        { signatureFile -> signatureFile.file.nameWithoutExtension },
+                        { signatureFile ->
+                            apiFileForBaseSourceSet(signatureFile, codebaseConfig).codebase
+                        }
+                    )
+                }
+            return MultiplatformCodebase(sourceSetToCodebase)
+        }
+
+        /** Parses a [signatureFile] as a single source set of a [MultiplatformCodebase]. */
+        private fun apiFileForBaseSourceSet(
+            signatureFile: SignatureFile,
+            codebaseConfig: Codebase.Config,
+        ): ApiFile {
+            val assembler =
+                TextCodebaseAssembler.createAssembler(
+                    location = signatureFile.file,
+                    description =
+                        "Codebase for source set ${signatureFile.file.nameWithoutExtension}",
+                    codebaseConfig = codebaseConfig,
+                    classPathResolver = null,
+                )
+            val parser =
+                ApiFile(
+                    assembler = assembler,
+                    formatForLegacyFiles = null,
+                    allowClassModifierChanges = true,
+                )
+            parser.parseApiSingleFile(
+                appending = false,
+                path = signatureFile.file.toPath(),
+                apiText = signatureFile.readContents(),
+                apiVariant = signatureFile.apiVariantFor(codebaseConfig.apiSurfaces)
+            )
+            parser.performAnyDeferredMerges()
+            return parser
+        }
+
+        /**
+         * Parses the [extensionSignatureFile] as a delta on [baseSignatureFile] to represent one
+         * source set of a [MultiplatformCodebase].
+         *
+         * The [baseSignatureFile] will be parsed each time this function is called to avoid
+         * conflicts between the state of each source set [Codebase].
+         */
+        private fun apiFileForExtensionSourceSet(
+            extensionSignatureFile: SignatureFile,
+            baseSignatureFile: SignatureFile,
+            codebaseConfig: Codebase.Config,
+        ): ApiFile {
+            val parser = apiFileForBaseSourceSet(baseSignatureFile, codebaseConfig)
+            parser.parseApiSingleFile(
+                appending = true,
+                path = extensionSignatureFile.file.toPath(),
+                apiText = extensionSignatureFile.readContents(),
+                apiVariant = extensionSignatureFile.apiVariantFor(codebaseConfig.apiSurfaces)
+            )
+            parser.performAnyDeferredMerges()
+            return parser
         }
 
         /**

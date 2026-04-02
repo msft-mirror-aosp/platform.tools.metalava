@@ -62,6 +62,31 @@ class CommonMultiplatformPropertyItemTest : BaseModelTest() {
             )
         runMultiplatformCodebaseTest(
             inputSet(commonSource, androidSource, nativeSource),
+            inputSet(
+                signature(
+                    "commonMain.txt",
+                    """
+                    // Signature format: 5.0
+                    package test.pkg {
+                      public final class Foo extends kotlin.Any {
+                        property public kotlin.Int foo;
+                      }
+                    }
+                    """
+                ),
+                signature(
+                    "androidMain.txt",
+                    """
+                    // Signature format: 5.0
+                    """
+                ),
+                signature(
+                    "nativeMain.txt",
+                    """
+                    // Signature format: 5.0
+                    """
+                )
+            ),
             projectDescription =
                 createProjectDescription(
                     createCommonModuleDescription(arrayOf(commonSource)),
@@ -103,6 +128,32 @@ class CommonMultiplatformPropertyItemTest : BaseModelTest() {
             )
         runMultiplatformCodebaseTest(
             inputSet(commonSource, androidSource),
+            inputSet(
+                signature(
+                    "commonMain.txt",
+                    """
+                    // Signature format: 5.0
+                    package test.pkg {
+                      public final class Common extends kotlin.Any {
+                        ctor public Common();
+                        property public kotlin.Int common;
+                      }
+                    }
+                    """
+                ),
+                signature(
+                    "androidMain.txt",
+                    """
+                    // Signature format: 5.0
+                    package test.pkg {
+                      public final class Android extends kotlin.Any {
+                        ctor public Android();
+                        property public kotlin.Int android;
+                      }
+                    }
+                    """
+                ),
+            ),
             projectDescription =
                 createProjectDescription(
                     createCommonModuleDescription(arrayOf(commonSource)),
@@ -163,6 +214,31 @@ class CommonMultiplatformPropertyItemTest : BaseModelTest() {
             )
         runMultiplatformCodebaseTest(
             inputSet(commonSource, androidSource, nativeSource),
+            inputSet(
+                signature(
+                    "commonMain.txt",
+                    """
+                    // Signature format: 5.0
+                    package test.pkg {
+                      public final class Foo extends kotlin.Any {
+                        property public kotlin.Int kotlin.String.foo;
+                      }
+                    }
+                    """
+                ),
+                signature(
+                    "androidMain.txt",
+                    """
+                    // Signature format: 5.0
+                    """
+                ),
+                signature(
+                    "nativeMain.txt",
+                    """
+                    // Signature format: 5.0
+                    """
+                )
+            ),
             projectDescription =
                 createProjectDescription(
                     createCommonModuleDescription(arrayOf(commonSource)),
@@ -215,6 +291,44 @@ class CommonMultiplatformPropertyItemTest : BaseModelTest() {
             )
         runMultiplatformCodebaseTest(
             inputSet(commonSource, androidSource, nativeSource),
+            inputSet(
+                // This file wouldn't be output by metalava because it has an internal property.
+                signature(
+                    "commonMain.txt",
+                    """
+                    // Signature format: 5.0
+                    package test.pkg {
+                      public class Foo extends kotlin.Any {
+                        property internal final kotlin.Int foo;
+                      }
+                    }
+                    """
+                ),
+                signature(
+                    "androidMain.txt",
+                    """
+                    // Signature format: 5.0
+                    package test.pkg {
+                      public class Foo extends kotlin.Any {
+                        ctor public Foo();
+                        property public final kotlin.Int foo;
+                      }
+                    }
+                    """
+                ),
+                signature(
+                    "nativeMain.txt",
+                    """
+                    // Signature format: 5.0
+                    package test.pkg {
+                      public class Foo extends kotlin.Any {
+                        ctor public Foo();
+                        property protected final kotlin.Int foo;
+                      }
+                    }
+                    """
+                )
+            ),
             projectDescription =
                 createProjectDescription(
                     createCommonModuleDescription(arrayOf(commonSource)),
@@ -256,6 +370,23 @@ class CommonMultiplatformPropertyItemTest : BaseModelTest() {
             )
         runMultiplatformCodebaseTest(
             inputSet(commonSource),
+            inputSet(
+                signature(
+                    "commonMain.txt",
+                    """
+                    // Signature format: 5.0
+                    package test.pkg {
+                      public final class Foo extends kotlin.Any {
+                        ctor public Foo();
+                        property public kotlin.Int kotlin.collections.List<kotlin.String>.list;
+                        property public kotlin.Int kotlin.collections.List<kotlin.String?>.list;
+                        property public kotlin.Int kotlin.String.string;
+                        property public kotlin.Int kotlin.String?.string;
+                      }
+                    }
+                    """
+                )
+            ),
             projectDescription =
                 createProjectDescription(
                     createCommonModuleDescription(arrayOf(commonSource)),
@@ -323,6 +454,41 @@ class CommonMultiplatformPropertyItemTest : BaseModelTest() {
 
         runMultiplatformCodebaseTest(
             inputSet(commonSource, androidSource, nativeSource),
+            inputSet(
+                signature(
+                    "commonMain.txt",
+                    """
+                    // Signature format: 5.0
+                    package test.pkg {
+                      public class ${'$'}TopLevelDeclarations {
+                        property public static final kotlin.Int kotlin.Int.foo;
+                      }
+                    }
+                    """
+                ),
+                signature(
+                    "androidMain.txt",
+                    """
+                    // Signature format: 5.0
+                    package test.pkg {
+                      public class ${'$'}TopLevelDeclarations {
+                        property public static final kotlin.Int kotlin.Int.android;
+                      }
+                    }
+                    """
+                ),
+                signature(
+                    "nativeMain.txt",
+                    """
+                    // Signature format: 5.0
+                    package test.pkg {
+                      public class ${'$'}TopLevelDeclarations {
+                        property public static final kotlin.Int kotlin.Int.native;
+                      }
+                    }
+                    """
+                )
+            ),
             projectDescription =
                 createProjectDescription(
                     createCommonModuleDescription(arrayOf(commonSource)),
@@ -367,6 +533,20 @@ class CommonMultiplatformPropertyItemTest : BaseModelTest() {
             )
         runMultiplatformCodebaseTest(
             inputSet(commonSource),
+            inputSet(
+                signature(
+                    "commonMain.txt",
+                    """
+                    // Signature format: 5.0
+                    package test.pkg {
+                      public class ${'$'}TopLevelDeclarations {
+                        property public static final kotlin.Int foo;
+                        property public static final kotlin.Int kotlin.String.foo;
+                      }
+                    }
+                    """
+                )
+            ),
             projectDescription =
                 createProjectDescription(
                     createCommonModuleDescription(arrayOf(commonSource)),

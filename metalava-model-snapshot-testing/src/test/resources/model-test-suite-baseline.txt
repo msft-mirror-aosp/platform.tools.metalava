@@ -33,6 +33,27 @@ com.android.tools.metalava.model.testsuite.methoditem.CommonParameterItemTest
   Test publicName reports correct name when called on binary class - Object#equals[turbine]
   Test publicName reports correct name when called on binary class - ViewGroup#onLayout[turbine]
 
+com.android.tools.metalava.model.testsuite.multiplatform.CommonMultiplatformCallableItemTest
+  Definition of suspend function[text]
+  Definition of top level expect actual function[text]
+  Expect actual parameter definitions with different modifiers[text]
+
+com.android.tools.metalava.model.testsuite.multiplatform.CommonMultiplatformClassItemTest
+  Test listing constructors of a class[text]
+
+com.android.tools.metalava.model.testsuite.multiplatform.CommonMultiplatformCodebaseTest
+  Test baseline keys[text]
+  Test resolving classes[text]
+
+com.android.tools.metalava.model.testsuite.multiplatform.CommonMultiplatformPropertyItemTest
+  Definition of top level expect actual extension property[text]
+
+com.android.tools.metalava.model.testsuite.multiplatform.CommonMultiplatformTypeParameterItemTest
+  Type parameter with different names per source set[text]
+
+com.android.tools.metalava.model.testsuite.multiplatform.CommonMultiplatformTypeTest
+  Test usage of dynamic type for js source set[text]
+
 com.android.tools.metalava.model.testsuite.typeitem.CommonParameterizedInvalidTypeTest
   Test invalid source reference[turbine,genericStringInnerNumber - generic and inner both undefined]
   Test invalid source reference[turbine,genericStringInnerNumber - generic defined but inner undefined]

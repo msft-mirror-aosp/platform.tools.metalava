@@ -39,6 +39,19 @@ class CommonMultiplatformTypeTest : BaseModelTest() {
             )
         runMultiplatformCodebaseTest(
             inputSet(jsSource),
+            inputSet(
+                signature(
+                    "jsMain.txt",
+                    """
+                    // Signature format: 5.0
+                    package test.pkg {
+                      public interface Foo {
+                        method public dynamic! foo();
+                      }
+                    }
+                    """
+                )
+            ),
             projectDescription =
                 createProjectDescription(
                     createModuleDescription(
