@@ -84,7 +84,7 @@ typealias ApiVersionLabelProvider = (ApiVersion) -> String
  *   deprecation versions.
  * - Transferring docs from hidden super methods.
  * - Performing tweaks for common documentation mistakes, such as ending the first sentence with ",
- *   e.g. " where javadoc will sadly see the ". " and think "aha, that's the end of the sentence!"
+ *   e.g. " where Javadoc will sadly see the ". " and think "aha, that's the end of the sentence!"
  *   (It works around this by replacing the space with &nbsp;.)
  */
 class DocAnalyzer(
@@ -134,11 +134,11 @@ class DocAnalyzer(
         }
 
     private fun documentsFromAnnotations() {
-        // Note: Doclava1 inserts its own javadoc parameters into the documentation,
-        // which is then later processed by javadoc to insert actual descriptions.
+        // Note: Doclava1 inserts its own Javadoc parameters into the documentation,
+        // which is then later processed by Javadoc to insert actual descriptions.
         // This indirection makes the actual descriptions of the annotations more
         // configurable from a separate file -- but since this tool isn't hooked
-        // into javadoc anymore (and is going to be used by for example Dokka too)
+        // into Javadoc anymore (and is going to be used by for example Dokka too)
         // instead metalava will generate the descriptions directly in-line into the
         // docs.
         //
@@ -296,7 +296,7 @@ class DocAnalyzer(
                  */
                 private fun handleKotlinDeprecation(annotation: AnnotationItem, item: Item) {
                     // Ignore Items without documentation.
-                    item as? SelectableItem ?: return
+                    if (item !is SelectableItem) return
                     val documentation = item.documentation ?: return
 
                     // Drop out if it already has a deprecated Javadoc tag.
@@ -794,7 +794,7 @@ class DocAnalyzer(
     }
 
     /**
-     * Add [blockTagType] with [content] to the [item]'s [Item.documentation].
+     * Add [blockTagType] with [content] to the [item]'s [SelectableItem.documentation].
      *
      * If there is an existing [blockTagType] then an [Issues.FORBIDDEN_TAG] error will be reported,
      * and it will be removed. Irrespective of that a new [blockTagType] will be added with some
