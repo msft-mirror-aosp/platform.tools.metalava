@@ -1024,7 +1024,7 @@ private fun createSymbolToSdkExtSinceMap(xmlFile: File): Map<String, SdkAndVersi
     data class OuterClass(val name: String, val idAndVersion: IdAndVersion?)
 
     val sdkExtensionsById = mutableMapOf<Int, SdkExtension>()
-    var lastSeenClass: OuterClass? = null
+    lateinit var lastSeenClass: OuterClass
     val elementToIdAndVersionMap = mutableMapOf<String, IdAndVersion>()
     val memberTags = listOf("class", "method", "field")
     val parser = SAXParserFactory.newDefaultInstance().newSAXParser()
@@ -1096,7 +1096,7 @@ private fun createSymbolToSdkExtSinceMap(xmlFile: File): Map<String, SdkAndVersi
                             lastSeenClass =
                                 OuterClass(name.replace('/', '.').replace('$', '.'), idAndVersion)
                             if (idAndVersion != null) {
-                                elementToIdAndVersionMap[lastSeenClass!!.name] = idAndVersion
+                                elementToIdAndVersionMap[lastSeenClass.name] = idAndVersion
                             }
                         }
                         "method",
@@ -1107,27 +1107,21 @@ private fun createSymbolToSdkExtSinceMap(xmlFile: File): Map<String, SdkAndVersi
                                     // to
                                     // name of class instead, and strip signature: '<init>()V' ->
                                     // 'Foo'
-                                    lastSeenClass!!.name.substringAfterLast('.')
+                                    lastSeenClass.name.substringAfterLast('.')
                                 } else {
                                     // strip signature: 'foo()V' -> 'foo'
                                     name.substringBefore('(')
                                 }
-                            val element = "${lastSeenClass!!.name}#$shortName"
+                            val element = "${lastSeenClass.name}#$shortName"
                             if (idAndVersion != null) {
                                 elementToIdAndVersionMap[element] = idAndVersion
-                            } else if (sdksList == null && lastSeenClass!!.idAndVersion != null) {
+                            } else if (sdksList == null && lastSeenClass.idAndVersion != null) {
                                 // The method/field does not have an `sdks` attribute so fall back
                                 // to the idAndVersion from the containing class.
-                                elementToIdAndVersionMap[element] = lastSeenClass!!.idAndVersion!!
+                                elementToIdAndVersionMap[element] = lastSeenClass.idAndVersion!!
                             }
                         }
                     }
-                }
-            }
-
-            override fun endElement(uri: String, localName: String, qualifiedName: String) {
-                if (qualifiedName == "class") {
-                    lastSeenClass = null
                 }
             }
         }
