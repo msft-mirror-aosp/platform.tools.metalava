@@ -23,7 +23,6 @@ import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.value.AnnotationValue
 import com.android.tools.metalava.model.value.asBoolean
 import com.android.tools.metalava.model.value.asInt
-import com.android.tools.metalava.model.value.asString
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
 import java.util.function.Predicate
@@ -65,14 +64,6 @@ abstract class BaseDevicePolicyAnnotationHandler(
         if (this == null) reportOnMissingFields(name, item)
         return this
     }
-}
-
-/**
- * Helper to retrieve string type attribute's value of an annotation (e.g. {@link
- * android.processor.devicepolicy.PolicyDefinition#allowedScopes}).
- */
-fun AnnotationItem.getStringAttribute(name: String): String? {
-    return findAttribute(name)?.value?.asString()
 }
 
 /**

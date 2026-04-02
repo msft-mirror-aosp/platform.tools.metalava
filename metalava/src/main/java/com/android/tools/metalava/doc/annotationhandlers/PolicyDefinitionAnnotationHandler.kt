@@ -21,8 +21,7 @@ import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.SelectableItem
-import com.android.tools.metalava.model.value.AnnotationValue
-import com.android.tools.metalava.model.value.asInt
+import com.android.tools.metalava.model.annotation.binding.bindTo
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
 import java.util.function.Predicate
@@ -36,62 +35,8 @@ class PolicyDefinitionAnnotationHandler(
 
     /** Processes a policy annotation and returns a documentation string. */
     override fun processPolicyAnnotation(annotation: AnnotationItem, item: Item): String {
-        val basePolicy = parseBasePolicy(annotation, item)
-        return basePolicy.generateBaseDocs()
-    }
-
-    /** Extracts allowed DPC values from the annotation. */
-    private fun extractAllowedDpcTypes(annotation: AnnotationItem): List<String> {
-        val allowedDpcTypesValue = annotation.findAttribute("allowedDpcTypes")?.value
-        val allowedDpcAnnotation = (allowedDpcTypesValue as? AnnotationValue)?.annotationItem
-        if (allowedDpcAnnotation == null) {
-            return emptyList()
-        }
-
-        return AllowedDpcType.entries.mapNotNull {
-            if (allowedDpcAnnotation.getIntAttribute(it.attributeName) == DPC_ANNOTATION_ALLOWED) {
-                it.description
-            } else {
-                null
-            }
-        }
-    }
-
-    /** Parses the base policy definition from the annotation. */
-    fun parseBasePolicy(annotation: AnnotationItem, item: Item): BasePolicyDefinition {
-        val allowedScopesItem = annotation.findAttribute("allowedScopes")?.value
-        val allowedScopesList =
-            allowedScopesItem?.asFlatList()?.mapNotNull { it.asInt() } ?: emptyList()
-        if (allowedScopesList.isEmpty()) {
-            reporter.report(
-                Issues.INVALID_DEVICE_POLICY_ANNOTATION,
-                item,
-                "Missing required field 'allowedScopes' inside $item"
-            )
-        }
-
-        val affectedResource =
-            annotation
-                .getIntAttribute("affectedResource")
-                .elseReportMissing(item, "affectedResource") ?: -1
-        val requiredPermission = annotation.getStringAttribute("requiredPermission")
-        val requiredCrossUserPermission =
-            annotation.getStringAttribute("requiredCrossUserPermission")
-
-        val allowedDpcTypes = extractAllowedDpcTypes(annotation)
-
-        return BasePolicyDefinition(
-            item = item,
-            allowedScopes = allowedScopesList,
-            affectedResource = affectedResource,
-            requiredPermission = requiredPermission,
-            requiredCrossUserPermission = requiredCrossUserPermission,
-            allowedDpcTypes = allowedDpcTypes,
-        )
-    }
-
-    companion object {
-        private const val DPC_ANNOTATION_ALLOWED = 1
+        val proxy = annotation.bindTo<PolicyDefinitionProxy>(item)
+        return proxy?.generateDocs() ?: ""
     }
 }
 
@@ -129,28 +74,41 @@ enum class AllowedDpcType(
     ),
 }
 
-/** Data class to hold the parsed {@link android.processor.devicepolicy.PolicyDefinition}. */
-data class BasePolicyDefinition(
+/**
+ * Proxy class bound to an instance of the `android.processor.devicepolicy.PolicyDefinition`
+ * annotation class.
+ *
+ * @see bindTo
+ */
+class PolicyDefinitionProxy(
     /** The item on which this was annotated. */
     private val item: Item,
-    // Contains parsed values of {@link
-    // android.processor.devicepolicy.PolicyDefinition#allowedScopes}
     private val allowedScopes: List<Int>,
-    // Contains parsed value of {@link
-    // android.processor.devicepolicy.PolicyDefinition#affectedResource}
     private val affectedResource: Int,
-    // Contains parsed value of {@link
-    // android.processor.devicepolicy.PolicyDefinition#requiredPermission}
     private val requiredPermission: String?,
-    // Contains parsed value of {@link
-    // android.processor.devicepolicy.PolicyDefinition#requiredCrossUserPermission}
     private val requiredCrossUserPermission: String?,
-    // Contains parsed values of {@link
-    // android.processor.devicepolicy.PolicyDefinition#allowedDpcTypes}
-    private val allowedDpcTypes: List<String>,
+    /**
+     * The `AllowedDpcTypes` [AnnotationItem] that will be converted into a [List] of [String]
+     * names.
+     */
+    allowedDpcTypes: AnnotationItem,
 ) {
     private val codebase = item.codebase
     private val reporter = codebase.reporter
+
+    /** Convert the allowedDpcTypes [AnnotationItem] to a [List] of [String] names. */
+    private val allowedDpcTypes = allowedDpcTypes.extractAllowedDpcTypes()
+
+    init {
+        // Validate the properties.
+        if (allowedScopes.isEmpty()) {
+            reporter.report(
+                Issues.INVALID_DEVICE_POLICY_ANNOTATION,
+                item,
+                "'allowedScopes' is empty on $item: Must provide at least one scope"
+            )
+        }
+    }
 
     /** Resolves a permission code link to a format suitable for documentation. */
     private fun resolvePermissionCodeLink(value: String, item: Item): String {
@@ -177,7 +135,7 @@ data class BasePolicyDefinition(
     }
 
     /** Generates documentation for the base policy definition. */
-    fun generateBaseDocs() = buildString {
+    fun generateDocs() = buildString {
         allowedScopes
             .takeIf { it.isNotEmpty() }
             ?.let { scopes ->
@@ -213,6 +171,18 @@ data class BasePolicyDefinition(
     }
 
     companion object {
+        private const val DPC_ANNOTATION_ALLOWED = 1
+
+        /** Extracts allowed DPC values from the annotation. */
+        private fun AnnotationItem.extractAllowedDpcTypes() =
+            AllowedDpcType.entries.mapNotNull {
+                if (getIntAttribute(it.attributeName) == DPC_ANNOTATION_ALLOWED) {
+                    it.description
+                } else {
+                    null
+                }
+            }
+
         /** Converts scope ID from [allowedScopes] to a human-readable name. */
         private fun getScopeName(scope: Int) =
             PolicyScope.fromId(scope)?.scopeName ?: scope.toString()
