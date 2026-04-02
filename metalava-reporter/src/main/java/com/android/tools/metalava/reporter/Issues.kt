@@ -123,6 +123,7 @@ object Issues {
     val HIDING_RECORD_COMPONENT by Issue(Severity.ERROR, Category.API_LINT)
 
     // Metalava warnings (not from doclava)
+    val INVALID_ANNOTATION_BINDING by Issue(Severity.ERROR, Category.API_LINT)
 
     val INVALID_FEATURE_ENFORCEMENT by Issue(Severity.ERROR, Category.DOCUMENTATION)
 
