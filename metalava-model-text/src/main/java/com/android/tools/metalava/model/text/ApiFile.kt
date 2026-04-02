@@ -963,9 +963,22 @@ private constructor(
         val newClassAnnotations = newClassCharacteristics.modifiers.annotations().toSet()
         val existingClassAnnotations = existingCharacteristics.modifiers.annotations().toSet()
 
-        val extraAnnotations = newClassAnnotations.subtract(existingClassAnnotations)
-        if (extraAnnotations.isNotEmpty()) {
-            existingClass.mutateModifiers { mutateAnnotations { addAll(extraAnnotations) } }
+        // If class modifier changes are allowed, overwrite the old annotations with the new ones.
+        // Otherwise, add the new ones.
+        if (allowClassModifierChanges) {
+            if (existingClassAnnotations != newClassAnnotations) {
+                existingClass.mutateModifiers {
+                    mutateAnnotations {
+                        clear()
+                        addAll(newClassAnnotations)
+                    }
+                }
+            }
+        } else {
+            val extraAnnotations = newClassAnnotations.subtract(existingClassAnnotations)
+            if (extraAnnotations.isNotEmpty()) {
+                existingClass.mutateModifiers { mutateAnnotations { addAll(extraAnnotations) } }
+            }
         }
 
         // If the class modifiers are allowed to change and have, update them.
