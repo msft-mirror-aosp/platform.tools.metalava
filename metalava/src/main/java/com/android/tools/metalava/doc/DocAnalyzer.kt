@@ -723,30 +723,6 @@ class DocAnalyzer(
         descriptionOwner.append(tagDescription)
     }
 
-    private fun stripLeadingAsterisks(s: String): String {
-        if (s.contains("*")) {
-            val sb = StringBuilder(s.length)
-            var strip = true
-            for (c in s) {
-                if (strip) {
-                    if (c.isWhitespace() || c == '*') {
-                        continue
-                    } else {
-                        strip = false
-                    }
-                } else {
-                    if (c == '\n') {
-                        strip = true
-                    }
-                }
-                sb.append(c)
-            }
-            return sb.toString()
-        }
-
-        return s
-    }
-
     fun applyApiVersions(apiVersionsFile: File) {
         val apiLookup =
             getApiLookup(
