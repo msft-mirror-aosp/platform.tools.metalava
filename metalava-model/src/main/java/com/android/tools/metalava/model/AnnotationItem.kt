@@ -18,6 +18,7 @@ package com.android.tools.metalava.model
 
 import com.android.tools.metalava.model.annotation.AnnotationClass
 import com.android.tools.metalava.model.annotation.AnnotationDefaults
+import com.android.tools.metalava.model.annotation.binding.AnnotationBindingFactory
 import com.android.tools.metalava.model.api.flags.ApiFlag
 import com.android.tools.metalava.model.api.flags.ApiFlags
 import com.android.tools.metalava.model.type.TypeItemParser
@@ -29,6 +30,7 @@ import com.android.tools.metalava.model.value.ValueProvider
 import com.android.tools.metalava.model.value.ValueStringConfiguration
 import com.android.tools.metalava.reporter.FileLocation
 import java.lang.StringBuilder
+import kotlin.reflect.KClass
 
 fun isNullnessAnnotation(qualifiedName: String): Boolean =
     isNullableAnnotation(qualifiedName) || isNonNullAnnotation(qualifiedName)
@@ -479,6 +481,12 @@ interface AnnotationContext : ClassResolver, ValueContext {
      */
     fun defaultsForAnnotationClass(qualifiedName: String) =
         resolveClass(qualifiedName)?.annotationClass?.defaults ?: AnnotationDefaults.EMPTY
+
+    /** Get an [AnnotationBindingFactory] for [kClass] with [defaults]. */
+    fun <T : Any> bindingFactoryFor(
+        kClass: KClass<T>,
+        defaults: AnnotationDefaults?,
+    ): AnnotationBindingFactory<T> = error("unsupported")
 
     companion object {
         /**

@@ -54,6 +54,6 @@ fun <T : Any> AnnotationItem.bindTo(
     kClass: KClass<T>,
     item: Item,
 ): T? {
-    val factory = AnnotationBinding(kClass, annotationClass?.defaults)
+    val factory = item.codebase.bindingFactoryFor(kClass, annotationClass?.defaults)
     return factory.createInstanceFrom(this, item)
 }
