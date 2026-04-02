@@ -5,19 +5,13 @@ com.android.tools.metalava.model.testsuite.methoditem.CommonMethodModifierTest
   Test final method in final class
 
 com.android.tools.metalava.model.testsuite.multiplatform.CommonMultiplatformCallableItemTest
-  Definition of suspend function
-  Definition of top level expect actual function
   Expect actual parameter definitions with different modifiers
 
 com.android.tools.metalava.model.testsuite.multiplatform.CommonMultiplatformClassItemTest
   Test listing constructors of a class
 
 com.android.tools.metalava.model.testsuite.multiplatform.CommonMultiplatformCodebaseTest
-  Test baseline keys
   Test resolving classes
-
-com.android.tools.metalava.model.testsuite.multiplatform.CommonMultiplatformPropertyItemTest
-  Definition of top level expect actual extension property
 
 com.android.tools.metalava.model.testsuite.multiplatform.CommonMultiplatformTypeParameterItemTest
   Type parameter with different names per source set

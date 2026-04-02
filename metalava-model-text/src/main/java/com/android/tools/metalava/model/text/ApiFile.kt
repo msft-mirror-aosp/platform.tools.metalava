@@ -951,6 +951,10 @@ private constructor(
                 superClassType = superClassType,
                 interfaceTypes = interfaceTypes.toList(),
                 targetLanguages = targetLanguages,
+                // Classes with the placeholder name for top level declarations in a
+                // MultiplatformCodebase are definitely facade classes. There isn't enough
+                // information to tell for other classes, so this defaults to false otherwise.
+                isFileFacade = fullName == ClassItem.TOP_LEVEL_DECLARATION_FACADE_NAME,
                 recordComponentItemsFactory =
                     if (textRecordComponents == null) null
                     else
