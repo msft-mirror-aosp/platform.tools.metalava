@@ -18,6 +18,8 @@ package com.android.tools.metalava.model.testsuite.annotationitem.binding
 
 import com.android.tools.lint.checks.infrastructure.TestFile
 import com.android.tools.metalava.model.AnnotationItem
+import com.android.tools.metalava.model.Assertions
+import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.annotation.binding.bindTo
 import com.android.tools.metalava.model.testing.value.fieldReferenceValue
@@ -128,7 +130,10 @@ class CommonParameterizedAnnotationBindingTest : BaseModelTest() {
     /** Binding for [requiredStringAnnotation] and similar. */
     data class ArrayElementValueStringAnno(val s: List<ArrayElementValue>)
 
-    companion object {
+    /** Binding for [requiredClassReferenceAnnotation] and similar. */
+    data class ClassItemAnno(val c: ClassItem)
+
+    companion object : Assertions {
         /** See [BooleanAnno]. */
         private val requiredBooleanAnnotation =
             java(
@@ -204,6 +209,16 @@ class CommonParameterizedAnnotationBindingTest : BaseModelTest() {
                 """
             )
 
+        private val requiredClassReferenceAnnotation =
+            java(
+                """
+                    package test.pkg;
+                    public @interface ClassAnno {
+                        Class<?> c();
+                    }
+                """
+            )
+
         @EntryPoint
         inline fun <reified T : Any> testParams(
             name: String,
@@ -221,6 +236,23 @@ class CommonParameterizedAnnotationBindingTest : BaseModelTest() {
             ) {
                 expectedBound
             }
+
+        @EntryPoint
+        inline fun <reified T : Any> testParams(
+            name: String,
+            sourceFiles: List<TestFile>,
+            annotation: String,
+            expectedIssues: String = "",
+            noinline expectedBoundProvider: BoundProviderContext.() -> T?,
+        ) =
+            TestParams(
+                name,
+                sourceFiles,
+                annotation,
+                kClass = T::class,
+                expectedIssues,
+                expectedBoundProvider,
+            )
 
         private val params =
             listOf(
@@ -378,6 +410,25 @@ class CommonParameterizedAnnotationBindingTest : BaseModelTest() {
                                     literalValue("b"),
                                 )
                         ),
+                ),
+
+                // ClassItem binding tests
+                testParams(
+                    name = "ClassItem reference to String class",
+                    sourceFiles = listOf(requiredClassReferenceAnnotation),
+                    annotation = """@ClassAnno(c = String.class)""",
+                ) {
+                    ClassItemAnno(c = codebase.assertResolvedClass("java.lang.String"))
+                },
+                testParams<ClassItemAnno>(
+                    name = "ClassItem reference to Unknown class",
+                    sourceFiles = listOf(requiredClassReferenceAnnotation),
+                    annotation = """@ClassAnno(c = Unknown.class)""",
+                    expectedBound = null,
+                    expectedIssues =
+                        """
+                            MAIN_SRC/src/test/pkg/Test.java:2: error: Attribute 'c' is invalid: `Unknown.class` cannot be converted to com.android.tools.metalava.model.ClassItem [InvalidAnnotationBinding]
+                        """,
                 ),
             )
 

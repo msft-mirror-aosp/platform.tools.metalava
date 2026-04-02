@@ -17,10 +17,14 @@
 package com.android.tools.metalava.model.annotation.binding
 
 import com.android.tools.metalava.model.AnnotationItem
+import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.ClassResolver
+import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.annotation.AnnotationDefaults
 import com.android.tools.metalava.model.value.AnnotationValue
 import com.android.tools.metalava.model.value.ArrayElementValue
+import com.android.tools.metalava.model.value.ClassObjectValue
 import com.android.tools.metalava.model.value.Value
 import com.android.tools.metalava.model.value.asBoolean
 import com.android.tools.metalava.model.value.asInt
@@ -330,6 +334,21 @@ internal class AnnotationBinding<T : Any>(
             // Converter from a [Value] to a [Boolean].
             registerValueConverter { value -> value.asBoolean() }
 
+            // Converter from a [Value] to a [TypeItem].
+            val typeItemConverter = registerValueConverter { value ->
+                (value as? ClassObjectValue)?.typeItem
+            }
+
+            // Converter from a [Value] to a [ClassItem].
+            registerValueConverter { value ->
+                typeItemConverter(this, value)?.let { typeItem ->
+                    (typeItem as? ClassTypeItem)?.let { classTypeItem ->
+                        val qualifiedName = classTypeItem.qualifiedName
+                        classResolver.resolveClass(qualifiedName)
+                    }
+                }
+            }
+
             // Converter from a [Value] to an [Int].
             registerValueConverter { value -> value.asInt() }
 
@@ -463,4 +482,7 @@ internal class ConverterContext(
     fun doNotInstantiate() {
         doNotInstantiate = true
     }
+
+    /** The [ClassResolver] that can be used to resolve [ClassTypeItem]s to [ClassItem]. */
+    val classResolver: ClassResolver = annotation.annotationContext
 }

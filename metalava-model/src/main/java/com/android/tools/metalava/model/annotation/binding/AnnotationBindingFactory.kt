@@ -18,11 +18,13 @@ package com.android.tools.metalava.model.annotation.binding
 
 import com.android.tools.metalava.model.AnnotationAttribute
 import com.android.tools.metalava.model.AnnotationItem
+import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.value.AnnotationValue
 import com.android.tools.metalava.model.value.ArrayElementValue
 import com.android.tools.metalava.model.value.ArrayValue
 import com.android.tools.metalava.model.value.BooleanValue
+import com.android.tools.metalava.model.value.ClassObjectValue
 import com.android.tools.metalava.model.value.FieldReferenceValue
 import com.android.tools.metalava.model.value.IntValue
 import com.android.tools.metalava.model.value.StringValue
@@ -58,6 +60,7 @@ interface AnnotationBindingFactory<T : Any> {
  * * [ArrayElementValue] - for an [ArrayElementValue]; used when a [FieldReferenceValue] needs to be
  *   handled specially.
  * * [Boolean] - for a [BooleanValue].
+ * * [ClassItem] - for a [ClassObjectValue]
  * * [Int] - for an [IntValue].
  * * [String] - for a [StringValue].
  * * Any normal concrete class - for an [AnnotationValue]; its [AnnotationValue.annotationItem] is
