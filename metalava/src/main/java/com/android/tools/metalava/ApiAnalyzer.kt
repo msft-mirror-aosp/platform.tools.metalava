@@ -463,10 +463,8 @@ class ApiAnalyzer(
                         // a member needs to be emitted if
                         //  1) it doesn't have a hide annotation;
                         //  2) it is either public or has a show annotation;
-                        //  3) it is not `expect`
                         !member.hasHideAnnotation() &&
-                            (member.isPublic || member.hasShowAnnotation()) &&
-                            !member.modifiers.isExpect()
+                            (member.isPublic || member.hasShowAnnotation())
                     }
             ) {
                 cls.emit = false

@@ -1083,12 +1083,16 @@ class ApiAnalyzerTest : DriverTest() {
                 ),
             enableMultiplatform = true,
             skipSourceArgs = true, // skip creating a regular codebase
-            // TODO: foo should appear in commonMain.txt
             multiplatformApi =
                 mapOf(
                     "commonMain.txt" to
                         """
                         // Signature format: 5.0
+                        package test.pkg {
+                          public class ${'$'}TopLevelDeclarations {
+                            method public static final void foo();
+                          }
+                        }
                         """,
                     "androidMain.txt" to
                         """
