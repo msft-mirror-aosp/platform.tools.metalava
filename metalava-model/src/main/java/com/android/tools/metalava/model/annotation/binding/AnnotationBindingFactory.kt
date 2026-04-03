@@ -19,6 +19,9 @@ package com.android.tools.metalava.model.annotation.binding
 import com.android.tools.metalava.model.AnnotationAttribute
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.Item
+import com.android.tools.metalava.model.value.BooleanValue
+import com.android.tools.metalava.model.value.IntValue
+import com.android.tools.metalava.model.value.StringValue
 import kotlin.reflect.KClass
 
 /** A binding factory that will create an instance of [T] from an [AnnotationItem]. */
@@ -46,6 +49,11 @@ interface AnnotationBindingFactory<T : Any> {
  * ```
  * data class Foo(val alpha: Int, val beta: String)
  * ```
+ *
+ * Supported parameter types are:
+ * * [Boolean] - for a [BooleanValue].
+ * * [Int] - for an [IntValue].
+ * * [String] - for a [StringValue].
  */
 inline fun <reified T : Any> AnnotationItem.bindTo(item: Item) = bindTo(T::class, item)
 

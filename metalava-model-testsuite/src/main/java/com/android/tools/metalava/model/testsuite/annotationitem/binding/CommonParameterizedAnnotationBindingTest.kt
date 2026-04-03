@@ -85,13 +85,51 @@ class CommonParameterizedAnnotationBindingTest : BaseModelTest() {
     /** Class that cannot be instantiated, used for testing error handling. */
     class InvalidClass(val invalid: Runnable)
 
+    /** Binding for [requiredBooleanAnnotation]. */
+    data class BooleanAnno(
+        val value: Boolean,
+    )
+
+    /** Binding for [requiredIntAnnotation]. */
+    data class IntAnno(
+        val value: Int,
+    )
+
+    /** Binding for [requiredStringAnnotation]. */
+    data class StringAnno(
+        val value: String,
+    )
+
     companion object {
+        /** See [BooleanAnno]. */
         private val requiredBooleanAnnotation =
             java(
                 """
                     package test.pkg;
                     public @interface BooleanAnno {
-                        boolean b();
+                        boolean value();
+                    }
+                """
+            )
+
+        /** See [IntAnno]. */
+        private val requiredIntAnnotation =
+            java(
+                """
+                    package test.pkg;
+                    public @interface IntAnno {
+                        int value();
+                    }
+                """
+            )
+
+        /** See [StringAnno]. */
+        private val requiredStringAnnotation =
+            java(
+                """
+                    package test.pkg;
+                    public @interface StringAnno {
+                        String value();
                     }
                 """
             )
@@ -120,7 +158,7 @@ class CommonParameterizedAnnotationBindingTest : BaseModelTest() {
                 testParams(
                     name = "no parameters class",
                     sourceFiles = listOf(requiredBooleanAnnotation),
-                    annotation = "@BooleanAnno(b = true)",
+                    annotation = "@BooleanAnno(value = true)",
                     expectedBound = Empty(),
                 ),
 
@@ -128,10 +166,40 @@ class CommonParameterizedAnnotationBindingTest : BaseModelTest() {
                 testParams<InvalidClass>(
                     name = "invalid parameters",
                     sourceFiles = listOf(requiredBooleanAnnotation),
-                    annotation = "@BooleanAnno(b = true)",
+                    annotation = "@BooleanAnno(value = true)",
                     expectedBound = null,
                     expectedIssues =
                         "MAIN_SRC/src/test/pkg/Test.java:2: error: internal error: could not bind com.android.tools.metalava.model.testsuite.annotationitem.binding.CommonParameterizedAnnotationBindingTest.InvalidClass to test.pkg.BooleanAnno: No argument provided for a required parameter: parameter #0 invalid of fun `<init>`(java.lang.Runnable): com.android.tools.metalava.model.testsuite.annotationitem.binding.CommonParameterizedAnnotationBindingTest.InvalidClass [InvalidAnnotationBinding]",
+                ),
+
+                // Invalid value test.
+                testParams<StringAnno>(
+                    name = "invalid value",
+                    sourceFiles = listOf(requiredBooleanAnnotation),
+                    annotation = "@BooleanAnno(value = false)",
+                    expectedBound = null,
+                    expectedIssues =
+                        "MAIN_SRC/src/test/pkg/Test.java:2: error: Attribute 'value' is invalid: `false` cannot be converted to kotlin.String [InvalidAnnotationBinding]",
+                ),
+
+                // Single value types tests.
+                testParams(
+                    name = "boolean",
+                    sourceFiles = listOf(requiredBooleanAnnotation),
+                    annotation = "@BooleanAnno(value = false)",
+                    expectedBound = BooleanAnno(value = false),
+                ),
+                testParams(
+                    name = "int",
+                    sourceFiles = listOf(requiredIntAnnotation),
+                    annotation = "@IntAnno(value = 12)",
+                    expectedBound = IntAnno(value = 12),
+                ),
+                testParams(
+                    name = "String",
+                    sourceFiles = listOf(requiredStringAnnotation),
+                    annotation = """@StringAnno(value = "a")""",
+                    expectedBound = StringAnno(value = "a"),
                 ),
             )
 

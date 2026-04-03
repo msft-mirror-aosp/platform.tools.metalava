@@ -79,4 +79,31 @@ class AnnotationBindingTest {
     fun `Test multiple constructors, one annotated`() {
         AnnotationBinding(OneAnnotatedConstructors::class, null)
     }
+
+    private val outer = "outer"
+
+    inner class InnerClass {
+        override fun toString() = "$outer - inner"
+    }
+
+    @Test
+    fun `Test parameter with no name`() {
+        val exception =
+            assertThrows(IllegalStateException::class.java) {
+                AnnotationBinding(InnerClass::class, null)
+            }
+
+        assertEquals(
+            "internal error: com.android.tools.metalava.model.annotation.binding.AnnotationBindingTest.InnerClass: Cannot get name for parameter 0",
+            exception.message
+        )
+    }
+
+    data class UnsupportedType(val p: Pair<Int, Int>)
+
+    @Test
+    fun `Test parameter with unsupported type`() {
+        // Just ignores the unsupported type for now.
+        AnnotationBinding(UnsupportedType::class, null)
+    }
 }
