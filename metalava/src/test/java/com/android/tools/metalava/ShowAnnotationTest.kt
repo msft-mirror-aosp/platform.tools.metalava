@@ -17,7 +17,7 @@
 package com.android.tools.metalava
 
 import com.android.tools.lint.checks.infrastructure.TestFiles.base64gzip
-import com.android.tools.metalava.lint.DefaultLintErrorMessage
+import com.android.tools.metalava.cli.common.ARG_HIDE
 import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.testing.RequiresCapabilities
 import com.android.tools.metalava.model.text.FileFormat
@@ -34,7 +34,6 @@ class ShowAnnotationTest : DriverTest() {
             includeSystemApiAnnotations = SystemApiType.PRIVILEGED_APPS,
             expectedIssues =
                 "src/test/pkg/Foo.java:18: error: @SystemApi APIs must also be marked @hide: method test.pkg.Foo.method4() [UnhiddenSystemApi]",
-            expectedFail = DefaultLintErrorMessage,
             sourceFiles =
                 arrayOf(
                     java(
@@ -89,7 +88,6 @@ class ShowAnnotationTest : DriverTest() {
             showUnannotated = true,
             expectedIssues =
                 "src/test/pkg/Foo.java:18: error: @SystemApi APIs must also be marked @hide: method test.pkg.Foo.method4() [UnhiddenSystemApi]",
-            expectedFail = DefaultLintErrorMessage,
             sourceFiles =
                 arrayOf(
                     java(
@@ -374,7 +372,6 @@ class ShowAnnotationTest : DriverTest() {
                     src/test/pkg/Class1.java:12: error: Attempting to unhide class test.pkg.Class1.InnerClass1, but surrounding class test.pkg.Class1 is hidden and should also be annotated with @android.annotation.SystemApi [ShowingMemberInHiddenClass]
                     src/test/pkg/Class2.java:11: error: Attempting to unhide method test.pkg.Class2.InnerClass2.method2(), but surrounding class test.pkg.Class2.InnerClass2 is hidden and should also be annotated with @android.annotation.SystemApi [ShowingMemberInHiddenClass]
                 """,
-            expectedFail = DefaultLintErrorMessage,
         )
     }
 
@@ -503,24 +500,21 @@ class ShowAnnotationTest : DriverTest() {
                         """
                     package androidx.room;
 
-                    import androidx.annotation.IntDef;
+                    import android.annotation.IntDef;
 
                     @IntDef(OnConflictStrategy.REPLACE)
                     public @interface OnConflictStrategy {
                         int REPLACE = 1;
                     }
                     """
-                    )
+                    ),
+                    intDefAnnotationSource,
                 ),
-            expectedIssues =
-                """
-                src/androidx/room/OnConflictStrategy.java:3: info: Unresolved import: `androidx.annotation.IntDef` [UnresolvedImport]
-                """,
             api =
                 """
                 // Signature format: 4.0
                 package androidx.room {
-                  @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.CLASS) public @interface OnConflictStrategy {
+                  @IntDef(androidx.room.OnConflictStrategy.REPLACE) @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.CLASS) public @interface OnConflictStrategy {
                     field public static final int REPLACE = 1; // 0x1
                   }
                 }
@@ -707,6 +701,51 @@ class ShowAnnotationTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
+    @Test
+    fun `Check @PublishedApi handling on properties`() {
+        check(
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
+                        package test.pkg
+                        object Foo {
+                            @PublishedApi internal const val CONST = 0
+
+                            @PublishedApi @JvmField internal var jvmField = 0
+
+                            @PublishedApi internal var regularProperty = 0
+                        }
+                        """
+                    )
+                ),
+            extraArguments =
+                arrayOf(
+                    ARG_SHOW_ANNOTATION,
+                    "kotlin.PublishedApi",
+                    ARG_HIDE,
+                    "UnhiddenSystemApi",
+                    ARG_SHOW_UNANNOTATED
+                ),
+            api =
+                """
+                package test.pkg {
+                  public final class Foo {
+                    method @InaccessibleFromKotlin @kotlin.PublishedApi internal int getRegularProperty();
+                    method @InaccessibleFromKotlin @kotlin.PublishedApi internal void setRegularProperty(int);
+                    property @kotlin.PublishedApi internal static int CONST;
+                    property @kotlin.PublishedApi internal int jvmField;
+                    property @kotlin.PublishedApi internal int regularProperty;
+                    field @kotlin.PublishedApi internal static final int CONST = 0; // 0x0
+                    field public static final test.pkg.Foo INSTANCE;
+                    field @kotlin.PublishedApi internal static int jvmField;
+                  }
+                }
+                """
+        )
+    }
+
     @Test
     fun `Methods inherit showAnnotations but fields and classes don't`() {
         // "ShowAnnotations" are implicitly inherited between functions, but between
@@ -788,13 +827,13 @@ class ShowAnnotationTest : DriverTest() {
                     java(
                         """
                     package test.pkg;
-                    /** @hide */
+                    /** */
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class Class1 {
                     public Class1() { throw new RuntimeException("Stub!"); }
-                    /** @hide */
+                    /** */
                     public void member() { throw new RuntimeException("Stub!"); }
-                    /** @hide */
+                    /** */
                     public static final java.lang.String FIELD = "Class1.FIELD";
                     }
                     """
@@ -802,11 +841,11 @@ class ShowAnnotationTest : DriverTest() {
                     java(
                         """
                     package test.pkg;
-                    /** @hide */
+                    /** */
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class Class2 extends test.pkg.Class1 {
                     public Class2() { throw new RuntimeException("Stub!"); }
-                    /** @hide */
+                    /** */
                     public void member() { throw new RuntimeException("Stub!"); }
                     }
                     """
@@ -870,9 +909,9 @@ class ShowAnnotationTest : DriverTest() {
                   @SuppressWarnings({"unchecked", "deprecation", "all"})
                   public class Foo {
                   public Foo() { throw new RuntimeException("Stub!"); }
-                  /** @hide */
+                  /** */
                   public void method1() { throw new RuntimeException("Stub!"); }
-                  /** @hide */
+                  /** */
                   public void method2() { throw new RuntimeException("Stub!"); }
                   }
               """

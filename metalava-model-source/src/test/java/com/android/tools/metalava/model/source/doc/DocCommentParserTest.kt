@@ -16,34 +16,74 @@
 
 package com.android.tools.metalava.model.source.doc
 
-import com.android.tools.metalava.reporter.Issues
-import java.io.PrintWriter
-import java.io.StringWriter
+import com.android.tools.metalava.model.source.javadoc.BarTagData
+import com.android.tools.metalava.model.source.javadoc.JavadocText
+import com.android.tools.metalava.model.source.javadoc.TextContainsAnyVisitor
+import com.android.tools.metalava.model.source.javadoc.dumpContentStructure
+import junit.framework.TestCase.assertFalse
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 import org.junit.Test
 
-class DocCommentParserTest {
+class DocCommentParserTest : BaseDocCommentTest() {
+    /** Context object used for the optional lambda taken by [checkDocComment]. */
+    private data class DocCommentContext(val docComment: DocComment)
+
     /** Create a [DocComment] from [input], compare it against the [expectedString] */
     private fun checkDocComment(
         input: String,
-        expectedString: String,
-        expectedPrintOutput: String,
+        expectedString: String? = null,
+        expectedPrintOutput: String? = null,
         expectedIssues: String = "",
+        checker: DocCommentContext.() -> Unit = {},
     ) {
-        val reporter = CollatingDocumentationIssueReporter()
-        var docComment = DocCommentParser.parseText(input.trimIndent(), reporter)
-        assertEquals(expectedString.trimIndent(), docComment.toString())
-        assertEquals(expectedIssues.trimIndent(), reporter.toString().trim())
+        val docComment = createTestDocComment(input, expectedIssues)
+        if (expectedString != null) {
+            assertEquals(expectedString.trimIndent(), docComment.toString())
+        }
 
-        val writer = StringWriter()
-        PrintWriter(writer).use { printWriter -> docComment.printAsJavadocComment(printWriter) }
-        assertEquals(expectedPrintOutput.trimIndent(), writer.toString().trim())
+        if (expectedPrintOutput != null) {
+            checkPrintOutput(docComment, expectedPrintOutput)
+        }
+
+        DocCommentContext(docComment).checker()
+    }
+
+    /** Dump the internal structure of this [DocComment]. */
+    private fun DocComment.dumpStructure(): String = buildString {
+        description?.let { append(it.dumpContentStructure()) }
+        for (section in blockTagSections) {
+            append("blockTag: ")
+            append(section.tagType)
+            section.tagData?.let { tagData ->
+                append(" ")
+                append(tagData)
+            }
+            append("\n")
+            section.description?.let { append(it.dumpContentStructure().prependIndent("  ")) }
+        }
+    }
+
+    /** Check the model structure of this [DocComment]. */
+    internal fun DocComment.assertStructure(expected: String, message: String? = null) {
+        // Generate a string representation of the model structure.
+        val actualStructure = dumpStructure()
+        assertEquals(expected.trimIndent(), actualStructure.trimEnd(), message)
+    }
+
+    @Test
+    fun `Test non-existent comment`() {
+        checkDocComment(
+            input = "",
+            expectedString = "description: <<>>",
+            expectedPrintOutput = "",
+        )
     }
 
     @Test
     fun `Test empty comment`() {
         checkDocComment(
-            input = "",
+            input = "/***/",
             expectedString = "description: <<>>",
             expectedPrintOutput =
                 """
@@ -59,7 +99,7 @@ class DocCommentParserTest {
             expectedString = "description: <<Description>>",
             expectedPrintOutput =
                 """
-                    /**Description */
+                    /** Description */
                 """,
         )
     }
@@ -71,7 +111,7 @@ class DocCommentParserTest {
             expectedString = "description: <<Description {@code something}>>",
             expectedPrintOutput =
                 """
-                    /**Description {@code something} */
+                    /** Description {@code something} */
                 """,
         )
     }
@@ -87,7 +127,7 @@ class DocCommentParserTest {
                 """,
             expectedPrintOutput =
                 """
-                    /** @see something */
+                    /** @see resolved.something something */
                 """,
         )
     }
@@ -110,13 +150,22 @@ class DocCommentParserTest {
             expectedPrintOutput =
                 """
                     /**
-                     *Some text
+                     * Some text
                      *
-                     * @see something
-                     * @see other thing
+                     * @see resolved.something something
+                     * @see resolved.other thing
                      */
                 """,
-        )
+        ) {
+            docComment.assertStructure(
+                """
+                    text: 'Some text'
+                    blockTag: see LabeledRefTagData(sourceReference=something, resolvedReference=ClassReference(qualifiedName=resolved.something))
+                    blockTag: see LabeledRefTagData(sourceReference=other, resolvedReference=ClassReference(qualifiedName=resolved.other))
+                      text: 'thing'
+                """
+            )
+        }
     }
 
     @Test
@@ -141,8 +190,8 @@ class DocCommentParserTest {
                     /**
                      * Some text
                      *
-                     * @see something
-                     * @see other thing
+                     * @see resolved.something something
+                     * @see resolved.other thing
                      */
                 """,
         )
@@ -186,8 +235,8 @@ class DocCommentParserTest {
             expectedPrintOutput =
                 """
                     /**
-                     * @hide
                      * @deprecated
+                     * @hide
                      */
                 """,
         )
@@ -217,6 +266,31 @@ class DocCommentParserTest {
                      */
                 """,
         )
+    }
+
+    @Test
+    fun `Test @throws block tag`() {
+        checkDocComment(
+            input =
+                """
+                    /**
+                     * @throws SomeException reason
+                     */
+                """,
+            expectedString =
+                """
+                    description: <<>>
+                    @throws <<SomeException reason>>
+                """,
+            expectedPrintOutput = "/** @throws resolved.SomeException reason */",
+        ) {
+            docComment.assertStructure(
+                """
+                    blockTag: throws ThrowsTagData(throwableType=ClassReference(qualifiedName=resolved.SomeException))
+                      text: 'reason'
+                """
+            )
+        }
     }
 
     @Test
@@ -262,10 +336,6 @@ class DocCommentParserTest {
                 """
                     /** An invalid block tag at the end of the text. @hide */
                 """,
-            expectedIssues =
-                """
-                    2:49: Invalid @hide syntax, it is ignored as it must be a block tag [InvalidHideDocTag]
-                """,
         )
     }
 
@@ -291,10 +361,6 @@ class DocCommentParserTest {
                      * @deprecated for some reason. @hide
                      */
                 """,
-            expectedIssues =
-                """
-                    3:33: Invalid @hide syntax, it is ignored as it must be a block tag [InvalidHideDocTag]
-                """,
         )
     }
 
@@ -314,10 +380,6 @@ class DocCommentParserTest {
             expectedPrintOutput =
                 """
                     /** An inline tag at the end of some text {@hide reason why hidden} */
-                """,
-            expectedIssues =
-                """
-                    2:43: Invalid @hide syntax, it is ignored as it must be a block tag [InvalidHideDocTag]
                 """,
         )
     }
@@ -342,15 +404,102 @@ class DocCommentParserTest {
                 """
                     /**
                      * An inline tag.
-                     *
-                     * @see Something
-                     * {@hide}
+                     * @see resolved.Something {@hide}
                      */
                 """,
-            expectedIssues =
+        )
+    }
+
+    @Test
+    fun `Test ordering of block tags`() {
+        checkDocComment(
+            input =
                 """
-                    4:5: Invalid @hide syntax, it is ignored as it must be a block tag [InvalidHideDocTag]
+                    /**
+                     * @serial some reason
+                     * @hide
+                     * @throws
+                     * @version current
+                     * @author me
+                     * @throws Throwable
+                     * @unknown
+                     * @param
+                     * @serialData some other reason
+                     * @inheritDoc
+                     * @sdkExtSince 7
+                     * @param p2
+                     * @serialField field name and type and explanation
+                     * @since 1.4
+                     * @return something
+                     * @deprecated
+                     * @attr ref xml-thing
+                     * @mysterious
+                     * @author them
+                     * @param p1
+                     * @apiSince 12
+                     * @exception Exception
+                     * @see #field
+                     * @see #Class()
+                     */
                 """,
+            expectedString =
+                """
+                    description: <<>>
+                    @serial <<some reason>>
+                    @hide <<>>
+                    @throws <<>>
+                    @version <<current>>
+                    @author <<me>>
+                    @throws <<Throwable>>
+                    @unknown <<>>
+                    @param <<>>
+                    @serialData <<some other reason>>
+                    @inheritDoc <<>>
+                    @sdkExtSince <<7>>
+                    @param <<p2>>
+                    @serialField <<field name and type and explanation>>
+                    @since <<1.4>>
+                    @return <<something>>
+                    @deprecated <<>>
+                    @attr <<ref xml-thing>>
+                    @mysterious <<>>
+                    @author <<them>>
+                    @param <<p1>>
+                    @apiSince <<12>>
+                    @throws <<Exception>>
+                    @see <<#field>>
+                    @see <<#Class()>>
+                """,
+            expectedPrintOutput =
+                """
+                    /**
+                     * @inheritDoc
+                     * @author me
+                     * @author them
+                     * @version current
+                     * @param p1
+                     * @param p2
+                     * @param
+                     * @return something
+                     * @attr ref xml-thing
+                     * @throws resolved.Exception
+                     * @throws resolved.Throwable
+                     * @throws
+                     * @see #field
+                     * @see #Class()
+                     * @since 1.4
+                     * @serial some reason
+                     * @serialData some other reason
+                     * @serialField field name and type and explanation
+                     * @deprecated
+                     * @hide
+                     * @apiSince 12
+                     * @sdkExtSince 7
+                     * @mysterious
+                     * @unknown
+                     */
+                """,
+            expectedIssues = "11:5: Cannot use 'inheritDoc' as a block tag [InvalidTagForm]",
         )
     }
 
@@ -413,6 +562,29 @@ class DocCommentParserTest {
     }
 
     @Test
+    fun `Test a block tag split across multiple lines`() {
+        checkDocComment(
+            input =
+                """
+                    /**
+                     * @see
+                     *
+                     * "Me"
+                     */
+                """,
+            expectedString =
+                """
+                    description: <<>>
+                    @see <<\n *\n * "Me">>
+                """,
+            expectedPrintOutput =
+                """
+                    /** @see "Me" */
+                """,
+        )
+    }
+
+    @Test
     fun `Test multiple blank lines`() {
         checkDocComment(
             input =
@@ -468,6 +640,7 @@ class DocCommentParserTest {
                 """
                     /** {@code unclosed} */
                 """,
+            expectedIssues = "2:6: unclosed inline '@code' tag [UnclosedInlineTag]",
         )
     }
 
@@ -483,18 +656,350 @@ class DocCommentParserTest {
         val length = str.length
         assertEquals(str.lineOffsetFor(length + 1), 2)
     }
-}
 
-/**
- * A [DocumentationIssueReporter] that collates any issues reported and returns them from
- * [toString].
- */
-class CollatingDocumentationIssueReporter : DocumentationIssueReporter {
-    private val builder = StringBuilder()
-
-    override fun report(issue: Issues.Issue, message: String, lineOffset: Int, charOffset: Int) {
-        builder.append("${lineOffset + 1}:${charOffset + 1}: $message [${issue.name}]\n")
+    @Test
+    fun `Test block tag data`() {
+        checkDocComment(
+            input =
+                """
+                    /**
+                     * @bar foo block after
+                     */
+                """,
+            expectedString =
+                """
+                    description: <<>>
+                    @bar <<foo block after>>
+                """,
+            expectedPrintOutput =
+                """
+                    /** @bar foo block after */
+                """,
+            expectedIssues =
+                "2:9: @bar tag cannot contain 'e' or 'o' in the identifier [InvalidJavadoc]",
+        ) {
+            val barBlockTagSection = docComment.blockTagSections.single()
+            assertEquals(BarTagData("foo"), barBlockTagSection.tagData)
+        }
     }
 
-    override fun toString() = builder.toString()
+    @Test
+    fun `Test append DocContent to empty`() {
+        checkDocComment(
+            input =
+                """
+                    /***/
+                """,
+            expectedString =
+                """
+                    description: <<>>
+                """,
+            expectedPrintOutput =
+                """
+                    /** */
+                """,
+        ) {
+            val text = JavadocText("appended")
+            docComment.append(text)
+            checkPrintOutput(docComment, "/** appended */")
+        }
+    }
+
+    @Test
+    fun `Test append DocContent to existing`() {
+        checkDocComment(
+            input =
+                """
+                    /** existing */
+                """,
+            expectedString =
+                """
+                    description: << existing>>
+                """,
+            expectedPrintOutput =
+                """
+                    /** existing */
+                """,
+        ) {
+            val text = JavadocText("appended")
+            docComment.append(text)
+            checkPrintOutput(
+                docComment,
+                """
+                    /**
+                     * existing.
+                     * <br>
+                     * appended
+                     */
+                """,
+            )
+        }
+    }
+
+    @Test
+    fun `Test append String to empty`() {
+        checkDocComment(
+            input =
+                """
+                    /***/
+                """,
+            expectedString =
+                """
+                    description: <<>>
+                """,
+            expectedPrintOutput =
+                """
+                    /** */
+                """,
+        ) {
+            docComment.append("some {@code text} to append")
+            checkPrintOutput(
+                docComment,
+                """
+                    /** some {@code text} to append */
+                """,
+            )
+            docComment.assertStructure(
+                """
+                    text: 'some '
+                    inlineTag: code
+                      text: 'text'
+                    text: ' to append'
+                """
+            )
+        }
+    }
+
+    @Test
+    fun `Test append String to existing`() {
+        checkDocComment(
+            input =
+                """
+                    /** existing */
+                """,
+            expectedString =
+                """
+                    description: << existing>>
+                """,
+            expectedPrintOutput =
+                """
+                    /** existing */
+                """,
+        ) {
+            docComment.append("some {@code text} to append")
+            checkPrintOutput(
+                docComment,
+                """
+                    /**
+                     * existing.
+                     * <br>
+                     * some {@code text} to append
+                     */
+                """,
+            )
+            docComment.assertStructure(
+                """
+                    text: 'existing'
+                    text: '.'
+                    text: '\n <br>\n '
+                    text: 'some '
+                    inlineTag: code
+                      text: 'text'
+                    text: ' to append'
+                """
+            )
+        }
+    }
+
+    /** Checks if "Wally" is in the text. */
+    private val wallyPredicate = TextContainsAnyVisitor { it.containsWord("Wally") }
+
+    @Test
+    fun `Test check predicate in main description`() {
+        checkDocComment(
+            input =
+                """
+                    /**
+                     * Wally is here.
+                     */
+                """,
+        ) {
+            assertTrue(docComment.check(wallyPredicate))
+        }
+    }
+
+    @Test
+    fun `Test check predicate in block tag description`() {
+        checkDocComment(
+            input =
+                """
+                    /**
+                     * Not here.
+                     * @deprecated Wally is deprecated.
+                     */
+                """,
+        ) {
+            assertTrue(docComment.check(wallyPredicate))
+        }
+    }
+
+    @Test
+    fun `Test check predicate fails`() {
+        checkDocComment(
+            input =
+                """
+                    /**
+                     * Not here.
+                     * @deprecated Or here.
+                     */
+                """,
+        ) {
+            assertFalse(docComment.check(wallyPredicate))
+        }
+    }
+
+    @Test
+    fun `Test @see HTML a tag`() {
+        checkDocComment(
+            input =
+                """
+                    /**
+                     * @see <a href="link.html">Label</a>
+                     */
+                """,
+            expectedString =
+                """
+                    description: <<>>
+                    @see <<<a href="link.html">Label</a>>>
+                """,
+            expectedPrintOutput = """/** @see <a href="link.html">Label</a> */"""
+        ) {
+            docComment.assertStructure(
+                """
+                    blockTag: see
+                      text: '<a href="link.html">Label</a>'
+                """
+            )
+        }
+    }
+
+    @Test
+    fun `Test @see literal string`() {
+        checkDocComment(
+            input =
+                """
+                    /**
+                     * @see "literal string"
+                     */
+                """,
+            expectedString =
+                """
+                    description: <<>>
+                    @see <<"literal string">>
+                """,
+            expectedPrintOutput = """/** @see "literal string" */""",
+        ) {
+            docComment.assertStructure(
+                """
+                    blockTag: see
+                      text: '"literal string"'
+                """
+            )
+        }
+    }
+
+    @Test
+    fun `Test @see reference without label`() {
+        checkDocComment(
+            input =
+                """
+                    /**
+                     * @see Reference
+                     */
+                """,
+            expectedString =
+                """
+                    description: <<>>
+                    @see <<Reference>>
+                """,
+            expectedPrintOutput = """/** @see resolved.Reference Reference */""",
+        ) {
+            docComment.assertStructure(
+                """
+                    blockTag: see LabeledRefTagData(sourceReference=Reference, resolvedReference=ClassReference(qualifiedName=resolved.Reference))
+                """
+            )
+        }
+    }
+
+    @Test
+    fun `Test @see reference with label`() {
+        checkDocComment(
+            input =
+                """
+                    /**
+                     * @see Reference Label
+                     */
+                """,
+            expectedString =
+                """
+                    description: <<>>
+                    @see <<Reference Label>>
+                """,
+            expectedPrintOutput = """/** @see resolved.Reference Label */""",
+        ) {
+            docComment.assertStructure(
+                """
+                    blockTag: see LabeledRefTagData(sourceReference=Reference, resolvedReference=ClassReference(qualifiedName=resolved.Reference))
+                      text: 'Label'
+                """
+            )
+        }
+    }
+
+    @Test
+    fun `Test {@throws} - block tag as inline tag`() {
+        checkDocComment(
+            input =
+                """
+                    /**
+                     * {@throws Exception}
+                     */
+                """,
+            expectedString = """description: <<\n * {@throws Exception}>>""",
+            expectedPrintOutput = """/** {@throws resolved.Exception} */""",
+            expectedIssues = "2:6: Cannot use 'throws' as an inline tag [InvalidTagForm]",
+        ) {
+            docComment.assertStructure(
+                """
+                    inlineTag: throws ThrowsTagData(throwableType=ClassReference(qualifiedName=resolved.Exception))
+                """
+            )
+        }
+    }
+
+    @Test
+    fun `Test @link - inline tag as block tag`() {
+        checkDocComment(
+            input =
+                """
+                    /**
+                     * @link String
+                     */
+                """,
+            expectedString =
+                """
+                    description: <<>>
+                    @link <<String>>
+                """,
+            expectedPrintOutput = """/** @link resolved.String String */""",
+            expectedIssues = "2:5: Cannot use 'link' as a block tag [InvalidTagForm]",
+        ) {
+            docComment.assertStructure(
+                """
+                    blockTag: link LabeledRefTagData(sourceReference=String, resolvedReference=ClassReference(qualifiedName=resolved.String))
+                """
+            )
+        }
+    }
 }

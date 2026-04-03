@@ -20,12 +20,11 @@ import com.android.tools.lint.checks.infrastructure.TestFile
 import com.android.tools.metalava.model.BaseItemVisitor
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassKind
-import com.android.tools.metalava.model.ClassResolver
+import com.android.tools.metalava.model.ClassPathResolver
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.TargetLanguageSet
 import com.android.tools.metalava.model.api.surface.ApiSurfaces
-import com.android.tools.metalava.model.noOpAnnotationManager
 import com.android.tools.metalava.model.testing.value.literalValue
 import com.android.tools.metalava.testing.getAndroidJar
 import com.google.common.truth.Truth.assertThat
@@ -66,10 +65,9 @@ class ApiFileTest : BaseTextCodebaseTest() {
                 """
             ),
         ) {
-            assertThat(reportedIssues)
-                .isEqualTo(
-                    "MAIN_SRC/file2.txt:1: error: Preceding file MAIN_SRC/file1.txt has different setting of kotlin-style-nulls which may cause issues [SignatureFileError]"
-                )
+            assertAndRemoveReportedIssues(
+                "MAIN_SRC/file2.txt:1: error: Preceding file MAIN_SRC/file1.txt has different setting of kotlin-style-nulls which may cause issues [SignatureFileError]"
+            )
 
             codebase.assertClass("test.pkg.Foo")
             codebase.assertClass("test.pkg.Bar")
@@ -121,7 +119,7 @@ class ApiFileTest : BaseTextCodebaseTest() {
                     .assertMethod("foo", emptyList())
                     .throwsTypes()
                     .first()
-            assertSame(throwable, exception.erasedClass)
+            assertSame(throwable, exception.asErasedClass(codebase))
         }
     }
 
@@ -146,7 +144,7 @@ class ApiFileTest : BaseTextCodebaseTest() {
             val error = codebase.assertClass("java.lang.Error")
 
             // Get the super class to force it to be loaded.
-            val errorSuperClass = error.superClassType()?.asClass()
+            val errorSuperClass = error.superClassType()?.resolveClass(codebase)
 
             // Now get the throwable class.
             val throwable = codebase.assertClass("java.lang.Throwable", expectedEmit = false)
@@ -160,7 +158,7 @@ class ApiFileTest : BaseTextCodebaseTest() {
                     .assertMethod("foo", emptyList())
                     .throwsTypes()
                     .first()
-            assertSame(error, exception.erasedClass)
+            assertSame(error, exception.asErasedClass(codebase))
         }
     }
 
@@ -189,7 +187,7 @@ class ApiFileTest : BaseTextCodebaseTest() {
                     .assertMethod("foo", emptyList())
                     .throwsTypes()
                     .first()
-            assertSame(throwable, exception.erasedClass)
+            assertSame(throwable, exception.asErasedClass(codebase))
         }
     }
 
@@ -214,7 +212,7 @@ class ApiFileTest : BaseTextCodebaseTest() {
 
             // Force the unknown exception class to be resolved, creating a stub in the process. It
             // is checked below.
-            exceptionType.erasedClass
+            exceptionType.asErasedClass(codebase)
 
             val unknownExceptionClass =
                 codebase.assertClass("other.UnknownException", expectedEmit = false)
@@ -228,14 +226,14 @@ class ApiFileTest : BaseTextCodebaseTest() {
                     .assertMethod("foo", emptyList())
                     .throwsTypes()
                     .first()
-            assertSame(unknownExceptionClass, exception.erasedClass)
+            assertSame(unknownExceptionClass, exception.asErasedClass(codebase))
         }
     }
 
     @Test
     fun `Test unknown custom exception from other codebase`() {
-        val testClassResolver =
-            TestClassResolver.create(
+        val testClassPathResolver =
+            TestClassPathResolver.create(
                 "other.UnknownException",
                 "java.lang.Throwable",
             )
@@ -255,10 +253,10 @@ class ApiFileTest : BaseTextCodebaseTest() {
         val codebase =
             ApiFile.parseApi(
                 listOf(signatureFile),
-                classResolver = testClassResolver,
+                classPathResolver = testClassPathResolver,
             )
 
-        val unknownExceptionClass = testClassResolver.resolveClass("other.UnknownException")!!
+        val unknownExceptionClass = testClassPathResolver.resolveClass("other.UnknownException")!!
 
         // Make sure the UnknownException retrieved from the other codebase is used in the throws
         // types.
@@ -268,7 +266,7 @@ class ApiFileTest : BaseTextCodebaseTest() {
                 .assertMethod("foo", emptyList())
                 .throwsTypes()
                 .first()
-        assertSame(unknownExceptionClass, exception.erasedClass)
+        assertSame(unknownExceptionClass, exception.asErasedClass(codebase))
     }
 
     @Test
@@ -324,7 +322,13 @@ class ApiFileTest : BaseTextCodebaseTest() {
                     ),
                 ) {}
             }
-        assertThat(exception.message).contains("Contradicting declaration of package test.pkg")
+        assertThat(exception.message)
+            .endsWith(
+                """
+                    Contradicting declaration of package test.pkg. Previously seen with annotations "[@androidx.annotation.PackageAnnotation1]", but now with "[@androidx.annotation.PackageAnnotation2]"
+                """
+                    .trimIndent()
+            )
     }
 
     /** Dump the package structure of [codebase] to a string for easy comparison. */
@@ -565,7 +569,11 @@ class ApiFileTest : BaseTextCodebaseTest() {
             // Resolve the class. Even though it does not exist, the text model will fabricate an
             // instance.
             val unknownInterfaceClass =
-                codebase.assertClass("test.pkg.Foo").interfaceTypes().single().asClass()
+                codebase
+                    .assertClass("test.pkg.Foo")
+                    .interfaceTypes()
+                    .single()
+                    .resolveClass(codebase)
             assertNotNull(unknownInterfaceClass)
 
             // Make sure that the fabricated instance is of the correct structure.
@@ -591,19 +599,17 @@ class ApiFileTest : BaseTextCodebaseTest() {
                 """
             ),
         ) {
-            assertThat(reportedIssues)
-                .isEqualTo(
-                    """
-                        MAIN_SRC/api.txt:3: error: Type starts with "?" but doesn't appear to be wildcard: ? blah1 [TypeParseError]
-                        MAIN_SRC/api.txt:4: error: Format does not support Kotlin-style null type syntax: int? [TypeParseError]
-                        MAIN_SRC/api.txt:4: error: Invalid nullability suffix on primitive: int? [TypeParseError]
-                        MAIN_SRC/api.txt:5: error: Could not parse type `Comparable<test.pkg.Foo>blah2`. Found unexpected string after type parameters: blah2 [TypeParseError]
-                        MAIN_SRC/api.txt:6: error: Format does not support Kotlin-style null type syntax: int? [TypeParseError]
-                        MAIN_SRC/api.txt:6: error: Invalid nullability suffix on primitive: int? [TypeParseError]
-                        MAIN_SRC/api.txt:8: error: Type starts with "?" but doesn't appear to be wildcard: ? blah1 [TypeParseError]
-                    """
-                        .trimIndent()
-                )
+            assertAndRemoveReportedIssues(
+                """
+                    MAIN_SRC/api.txt:3: error: Type starts with "?" but doesn't appear to be wildcard: ? blah1 [TypeParseError]
+                    MAIN_SRC/api.txt:4: error: Format does not support Kotlin-style null type syntax: int? [TypeParseError]
+                    MAIN_SRC/api.txt:4: error: Invalid nullability suffix on primitive: int? [TypeParseError]
+                    MAIN_SRC/api.txt:5: error: Could not parse type `Comparable<test.pkg.Foo>blah2`. Found unexpected string after type parameters: blah2 [TypeParseError]
+                    MAIN_SRC/api.txt:6: error: Format does not support Kotlin-style null type syntax: int? [TypeParseError]
+                    MAIN_SRC/api.txt:6: error: Invalid nullability suffix on primitive: int? [TypeParseError]
+                    MAIN_SRC/api.txt:8: error: Type starts with "?" but doesn't appear to be wildcard: ? blah1 [TypeParseError]
+                """
+            )
 
             val fooClass = codebase.assertClass("test.pkg.Foo")
             val barClass = codebase.assertClass("test.pkg.Bar")
@@ -633,10 +639,9 @@ class ApiFileTest : BaseTextCodebaseTest() {
                 """
             ),
         ) {
-            assertThat(reportedIssues)
-                .isEqualTo(
-                    "MAIN_SRC/api.txt:4: error: Invalid nullability suffix on primitive: int? [TypeParseError]"
-                )
+            assertAndRemoveReportedIssues(
+                "MAIN_SRC/api.txt:4: error: Invalid nullability suffix on primitive: int? [TypeParseError]"
+            )
 
             val fooClass = codebase.assertClass("test.pkg.Foo")
 
@@ -684,14 +689,12 @@ class ApiFileTest : BaseTextCodebaseTest() {
                 """
             ),
         ) {
-            assertThat(reportedIssues)
-                .isEqualTo(
-                    """
-                        MAIN_SRC/api.txt:4: error: Field FIELD1 in class test.pkg.Foo has a value of `1` but is not `static` and `final`; ignoring value [SignatureFileError]
-                        MAIN_SRC/api.txt:5: error: Field FIELD2 in class test.pkg.Foo has a value of `2` but is not `static` and `final`; ignoring value [SignatureFileError]
-                    """
-                        .trimIndent()
-                )
+            assertAndRemoveReportedIssues(
+                """
+                    MAIN_SRC/api.txt:4: error: Field FIELD1 in class test.pkg.Foo has a value of `1` but is not `static` and `final`; ignoring value [SignatureFileError]
+                    MAIN_SRC/api.txt:5: error: Field FIELD2 in class test.pkg.Foo has a value of `2` but is not `static` and `final`; ignoring value [SignatureFileError]
+                """
+            )
 
             val fooClass = codebase.assertClass("test.pkg.Foo")
 
@@ -712,9 +715,11 @@ class ApiFileTest : BaseTextCodebaseTest() {
                         package test.pkg {
                             public class Foo {
                                 ctor public Foo();
+                                ctor public Foo(String notCurrent);
                                 method public void method(int notCurrent);
                                 method public void extensibleMethod(int parameter) throws Throwable;
                                 field public int field;
+                                property public int prop;
                             }
                             public class Outer {
                             }
@@ -732,9 +737,11 @@ class ApiFileTest : BaseTextCodebaseTest() {
                         package test.pkg {
                             public class Foo {
                                 ctor public Foo(int currentCtorParameter);
+                                ctor public Foo(String currentCtorParameter);
                                 method public void extensibleMethod(int parameter) throws Exception;
                                 method public void currentMethod(int currentMethodParameter);
                                 field public int currentField;
+                                property public int prop;
                             }
                             public class Outer.Middle.Inner {
                                 method public void currentInnerMethod();
@@ -744,7 +751,7 @@ class ApiFileTest : BaseTextCodebaseTest() {
                 )
             )
 
-        val files = testFiles.map { it.createFile(temporaryFolder.newFolder()) }
+        val files = testFiles.map { it.toFile() }
         val signatureFiles =
             SignatureFile.fromFiles(
                 files,
@@ -754,18 +761,18 @@ class ApiFileTest : BaseTextCodebaseTest() {
         val apiSurfaces = ApiSurfaces.create(needsBase = true)
         val codebaseConfig =
             Codebase.Config(
-                annotationManager = noOpAnnotationManager,
                 apiSurfaces = apiSurfaces,
             )
-        val classResolver = ClassLoaderBasedClassResolver(listOf(getAndroidJar()))
+        val classPathResolver = ClassLoaderBasedClassPathResolver(listOf(getAndroidJar()))
         val codebase =
             ApiFile.parseApi(
                 signatureFiles,
                 codebaseConfig = codebaseConfig,
-                classResolver = classResolver,
+                classPathResolver = classPathResolver,
             )
 
-        val current = buildList {
+        // Check the parts of the codebase that will be emitted.
+        val currentEmit = buildList {
             codebase.accept(
                 object : BaseItemVisitor(visitParameterItems = false) {
                     override fun visitSelectableItem(item: SelectableItem) {
@@ -776,20 +783,56 @@ class ApiFileTest : BaseTextCodebaseTest() {
                 }
             )
         }
-
         assertEquals(
             """
                 package test.pkg
                 class test.pkg.Foo
+                constructor test.pkg.Foo.Foo(String)
                 constructor test.pkg.Foo.Foo(int)
                 method test.pkg.Foo.extensibleMethod(int)
                 method test.pkg.Foo.currentMethod(int)
+                property test.pkg.Foo#prop
                 field Foo.currentField
                 class test.pkg.Outer.Middle.Inner
                 method test.pkg.Outer.Middle.Inner.currentInnerMethod()
             """
                 .trimIndent(),
-            current.joinToString("\n")
+            currentEmit.joinToString("\n"),
+            "emittable items"
+        )
+
+        // Check the entire codebase, to make sure there are no incorrect elements that aren't part
+        // of the emittable codebase.
+        val currentAll = buildList {
+            codebase.accept(
+                object : BaseItemVisitor(visitParameterItems = false) {
+                    override fun visitSelectableItem(item: SelectableItem) {
+                        add(item)
+                    }
+                }
+            )
+        }
+        assertEquals(
+            """
+                package test.pkg
+                class test.pkg.Foo
+                constructor test.pkg.Foo.Foo()
+                constructor test.pkg.Foo.Foo(String)
+                constructor test.pkg.Foo.Foo(int)
+                method test.pkg.Foo.method(int)
+                method test.pkg.Foo.extensibleMethod(int)
+                method test.pkg.Foo.currentMethod(int)
+                property test.pkg.Foo#prop
+                field Foo.field
+                field Foo.currentField
+                class test.pkg.Outer
+                class test.pkg.Outer.Middle
+                class test.pkg.Outer.Middle.Inner
+                method test.pkg.Outer.Middle.Inner.currentInnerMethod()
+            """
+                .trimIndent(),
+            currentAll.joinToString("\n"),
+            "all items"
         )
     }
 
@@ -952,12 +995,14 @@ class ApiFileTest : BaseTextCodebaseTest() {
         }
     }
 
-    class TestClassResolver(val map: Map<String, ClassItem>) : ClassResolver {
+    class TestClassPathResolver(val map: Map<String, ClassItem>) : ClassPathResolver {
         override fun resolveClass(erasedName: String): ClassItem? = map[erasedName]
 
+        override fun resolvePackage(pkgName: String) = TODO("Not yet implemented")
+
         companion object {
-            fun create(vararg names: String): ClassResolver {
-                return TestClassResolver(
+            fun create(vararg names: String): ClassPathResolver {
+                return TestClassPathResolver(
                     names.map { TestClassItem.create(it) }.associateBy { it.qualifiedName() }
                 )
             }

@@ -42,13 +42,26 @@ internal object DocCommentParser {
     /** The index of the group in [BLOCK_TAG_TYPE_GROUP_INDEX] that contains the block tag type. */
     private const val BLOCK_TAG_TYPE_GROUP_INDEX = 2
 
-    fun parseText(text: String, reporter: DocumentationIssueReporter): DocComment {
+    fun parseText(
+        context: DocCommentContext,
+        text: String,
+        reporter: DocumentationIssueReporter,
+    ): DocComment {
         val length = text.length
 
         // Trim any whitespace from the start as well as the start token `/**` (if any).
         val commentBodyStartInclusive = skipDocCommentStartToken(text)
+
+        // The comment does not exist if skipping forwards over whitespace reaches the end of the
+        // text. An empty comment (e.g. `/** */`) would stop at the end token.
         if (commentBodyStartInclusive == length) {
-            return DefaultDocComment(DocDescription.EMPTY, emptyList())
+            // There was no comment so return an empty DocComment immediately to save time.
+            return DefaultDocComment(
+                context,
+                ContentSupplier.NULL,
+                emptyList(),
+                noComment = true,
+            )
         }
 
         // Trim the end token (`*/`) as well as any whitespace that precedes or follows it.
@@ -69,14 +82,12 @@ internal object DocCommentParser {
 
         // The type of the previous block tag, null if there was none. This is set when matching a
         // block tag but used on the next iteration where the block tag is added to the list.
-        var blockTagType: String? = null
+        var blockTagType: TagType<*>? = null
 
         // The start of the description of the previous block tag, -1 if there was none. This is set
         // when matching a block tag but used on the next iteration where the block tag is added to
         // the list.
         var blockTagDescriptionStartInclusive = -1
-
-        var foundHide = false
 
         // Create a matcher for finding the start of block tags or the end of the content. Restrict
         // it to the main body of the comment so it does not have to deal with the doc start/end
@@ -103,13 +114,20 @@ internal object DocCommentParser {
             if (blockTagType != null) {
                 val blockTagDescriptionEndExclusive = matchStart
                 val blockTagDescription =
-                    DefaultDocDescription(
+                    LazyContentSupplier(
+                        context,
+                        reporter,
                         text,
                         blockTagDescriptionStartInclusive,
                         blockTagDescriptionEndExclusive,
-                        reporter,
                     )
-                blockTagSections.add(DefaultBlockTagSection(blockTagType, blockTagDescription))
+                val blockTagSection =
+                    DefaultBlockTagSection(
+                        context,
+                        blockTagType,
+                        blockTagDescription,
+                    )
+                blockTagSections.add(blockTagSection)
             }
 
             if (matchStart == commentBodyEndExclusive) {
@@ -117,12 +135,19 @@ internal object DocCommentParser {
                 break
             } else {
                 // A block tag was found so record the block tag type and start of the description
-                // for use in the next iteration of the loop. Intern it as the number of different
-                // types will be small and interning will ensure faster checking later.
-                blockTagType = matcher.group(BLOCK_TAG_TYPE_GROUP_INDEX)!!.intern()
+                // for use in the next iteration of the loop.
+                val tagTypeName = matcher.group(BLOCK_TAG_TYPE_GROUP_INDEX)!!
 
-                if (!foundHide && blockTagType == "hide") {
-                    foundHide = true
+                // Map it to a [TagType].
+                blockTagType = TagTypes.tagTypeOf(tagTypeName)
+                if (!blockTagType.form.supportsBlockTag) {
+                    val position = matcher.start(BLOCK_TAG_TYPE_GROUP_INDEX)
+                    reporter.report(
+                        Issues.INVALID_TAG_FORM,
+                        "Cannot use '$tagTypeName' as a block tag",
+                        text.lineOffsetFor(position),
+                        text.characterOffsetFor(position),
+                    )
                 }
 
                 // The start of the block tag description is the end of the match (which excludes
@@ -131,38 +156,24 @@ internal object DocCommentParser {
             }
         }
 
-        // If no block tag `@hide` was found then just look for an `@hide` anywhere in the comment.
-        // That matches the legacy behavior which some downstream clients rely upon.
-        if (!foundHide) {
-            // TODO(b/429965593): Remove warning.
-            // Search through the input for `@hide`.
-            //
-            // If a `@hide` was found then report it as an error.
-            val hideIndex = text.indexOf("@hide")
-            if (hideIndex > 0) {
-                val lineOffset = text.lineOffsetFor(hideIndex)
-                val charOffset = text.characterOffsetFor(hideIndex)
-                reporter.report(
-                    Issues.INVALID_HIDE_DOC_TAG,
-                    "Invalid @hide syntax, it is ignored as it must be a block tag",
-                    lineOffset,
-                    charOffset,
-                )
-            }
-        }
-
         // Create the description, from the start of the comment body to the start of the first
         // block tag, if present, or the end of the comment body, otherwise.
         val description =
-            DefaultDocDescription(
+            LazyContentSupplier(
+                context,
+                reporter,
                 text,
                 commentBodyStartInclusive,
                 descriptionEndExclusive,
-                reporter,
             )
 
         // Create the doc comment.
-        return DefaultDocComment(description, blockTagSections.toList())
+        return DefaultDocComment(
+            context,
+            description,
+            blockTagSections.toList(),
+            noComment = false,
+        )
     }
 
     /**
@@ -204,19 +215,6 @@ internal object DocCommentParser {
 
         return end + 1
     }
-
-    /**
-     * Starting with the character at position [startInclusive] and searching forwards, return the
-     * position of the first non-whitespace character.
-     */
-    private fun CharSequence.skipForwardsOverLeadingWhitespace(startInclusive: Int): Int {
-        val length = this.length
-        var index = startInclusive
-        while (index < length && this[index].isWhitespace()) {
-            index += 1
-        }
-        return index
-    }
 }
 
 /**
@@ -255,10 +253,23 @@ fun String.characterOffsetFor(index: Int): Int {
 }
 
 /**
+ * Starting with the character at position [startInclusive] and searching forwards, return the
+ * position of the first non-whitespace character.
+ */
+internal fun CharSequence.skipForwardsOverLeadingWhitespace(startInclusive: Int): Int {
+    val length = this.length
+    var index = startInclusive
+    while (index < length && this[index].isWhitespace()) {
+        index += 1
+    }
+    return index
+}
+
+/**
  * Starting with the character at position [endInclusive] and searching backwards, return the
  * position of the first non-whitespace character.
  */
-fun CharSequence.skipBackwardsOverTrailingWhitespace(endInclusive: Int): Int {
+internal fun CharSequence.skipBackwardsOverTrailingWhitespace(endInclusive: Int): Int {
     // Skip backwards over any trailing whitespace.
     var end = endInclusive
     while (end >= 0 && this[end].isWhitespace()) {

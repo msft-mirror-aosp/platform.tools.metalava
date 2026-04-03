@@ -34,6 +34,7 @@ import com.google.common.truth.Truth.assertThat
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
+import kotlin.test.assertSame
 import org.junit.Test
 
 /**
@@ -383,7 +384,7 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
             assertEquals(2, classItem.interfaceTypes().count())
 
             assertNotNull(superClassType)
-            assertEquals(null, superClassType.asClass())
+            assertEquals(null, superClassType.resolveClass(codebase))
         }
     }
 
@@ -688,7 +689,7 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
             val typeParameter1 = testClass1.typeParameterList.single()
             typeArgument1.assertReferencesTypeParameter(typeParameter1)
             assertEquals("S", (typeArgument1 as VariableTypeItem).toString())
-            assertEquals(0, typeParameter1.typeBounds().count())
+            typeParameter1.assertUsesDefaultTypeBounds()
             assertEquals("test.pkg.Test1<S>", testClassType1.toString())
             assertEquals(null, testClassType1.outerClassType)
 
@@ -724,19 +725,18 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
             ),
         ) {
             val testClass = codebase.assertClass("test.pkg.Test")
-            assertEquals(false, testClass.hasImplicitDefaultConstructor())
             assertEquals(2, testClass.constructors().count())
             val constructorItem = testClass.constructors().first()
             assertEquals("Test", constructorItem.name())
             assertEquals(testClass.type(), constructorItem.returnType())
-            assertEquals(false, testClass.hasImplicitDefaultConstructor())
+            assertEquals(false, constructorItem.isImplicitConstructor())
 
             val testClass1 = codebase.assertClass("test.pkg.Test.Test1")
             val constructorItem1 = testClass1.constructors().single()
             assertEquals("Test1", constructorItem1.name())
             assertEquals("test.pkg.Test.Test1", constructorItem1.returnType().toString())
             assertEquals(testClass1.type(), constructorItem1.returnType())
-            assertEquals(true, testClass1.hasImplicitDefaultConstructor())
+            assertEquals(true, constructorItem1.isImplicitConstructor())
         }
     }
 
@@ -825,12 +825,12 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
             assertNull(codebase.findClass("java.io.IOException"))
 
             // Resolve the types to classes.
-            val throwableClasses = methodItem.throwsTypes().map { it.erasedClass }
+            val throwableClasses = methodItem.throwsTypes().map { it.asErasedClass(codebase) }
 
             // This must be available after resolving throwable types.
             val ioExceptionClass = codebase.assertClass("java.io.IOException", expectedEmit = false)
 
-            assertEquals(listOf(testExceptionClass, ioExceptionClass), throwableClasses)
+            assertEquals(listOf(ioExceptionClass, testExceptionClass), throwableClasses)
         }
     }
 
@@ -873,7 +873,7 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
             ),
         ) {
             val classItem = codebase.assertClass("test.pkg.Test")
-            val ctorItem = classItem.createDefaultConstructor()
+            val ctorItem = classItem.createImplicitDefaultConstructor()
 
             assertEquals("Test", ctorItem.name())
             assertEquals(classItem, ctorItem.containingClass())
@@ -941,24 +941,29 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
             val methodComment =
                 """
                     /**
-                         * Method documentation
-                         * Multiple
-                         * Lines
-                         */
+                     * Method documentation
+                     * Multiple
+                     * Lines
+                     */
                 """
                     .trimIndent()
-            assertEquals(
-                sourceFile,
-                innerClassItem.sourceFile(),
-                message = "inner class sourceFile"
-            )
+            assertSame(sourceFile, innerClassItem.sourceFile(), message = "inner class sourceFile")
             assertEquals(headerComment, sourceFile.getHeaderComments())
-            assertEquals(methodComment, methodItem.documentation.text)
-            assertEquals("/** Class documentation */", classItem.documentation.text)
-            assertEquals("/** Field Doc */", fieldItem.documentation.text)
-            assertEquals("", fieldItem1.documentation.text)
-            assertEquals("", pkgItem.documentation.text)
-            assertEquals(classItem.sourceFile(), classItem1.sourceFile())
+            methodItem.assertPrintedDocumentation(
+                expectedOutput = methodComment,
+                message = "method"
+            )
+            classItem.assertPrintedDocumentation(
+                expectedOutput = "/** Class documentation */",
+                message = "class"
+            )
+            fieldItem.assertPrintedDocumentation(
+                expectedOutput = "/** Field Doc */",
+                message = "field"
+            )
+            fieldItem1.assertPrintedDocumentation(expectedOutput = "", message = "field1")
+            pkgItem.assertPrintedDocumentation(expectedOutput = "", message = "package")
+            assertSame(classItem.sourceFile(), classItem1.sourceFile())
         }
     }
 
