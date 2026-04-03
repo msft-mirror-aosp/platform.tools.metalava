@@ -25,6 +25,9 @@ import com.android.tools.metalava.model.testing.RequiresCapabilities
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.testing.KnownSourceFiles
+import com.android.tools.metalava.testing.createAndroidModuleDescription
+import com.android.tools.metalava.testing.createCommonModuleDescription
+import com.android.tools.metalava.testing.createProjectDescription
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
 import org.junit.Test
@@ -1048,6 +1051,92 @@ class ApiAnalyzerTest : DriverTest() {
                         "49vOFPzpIZiAEMD/0Hf7ix0T8+v6k6X5HWW3Yuz/BYH0Z2fyO8ju1y38C8gy" +
                         "89+k5nec3a3k/QUnluX/Tcbv+bvbBf0l35n1r+3HoMEsO8fA29ty+wJNO3iA" +
                         "fwFEnOJ9NQoAAA=="
+                )
+        )
+    }
+
+    @RequiresCapabilities(Capability.MULTIPLATFORM)
+    @Test
+    fun `Multiplatform signature includes top level expect fun`() {
+        val commonSource =
+            kotlin(
+                "commonMain/src/test/pkg/Foo.kt",
+                """
+                package test.pkg
+                expect fun foo(): Unit
+                """
+            )
+        val androidSource =
+            kotlin(
+                "androidMain/src/test/pkg/Foo_android.kt",
+                """
+                package test.pkg
+                actual fun foo() = Unit
+                """
+            )
+        check(
+            sourceFiles = arrayOf(commonSource, androidSource),
+            projectDescription =
+                createProjectDescription(
+                    createCommonModuleDescription(arrayOf(commonSource)),
+                    createAndroidModuleDescription(arrayOf(androidSource)),
+                ),
+            enableMultiplatform = true,
+            skipSourceArgs = true, // skip creating a regular codebase
+            // TODO: foo should appear in commonMain.txt
+            multiplatformApi =
+                mapOf(
+                    "commonMain.txt" to
+                        """
+                        // Signature format: 5.0
+                        """,
+                    "androidMain.txt" to
+                        """
+                        // Signature format: 5.0
+                        """
+                )
+        )
+    }
+
+    @RequiresCapabilities(Capability.MULTIPLATFORM)
+    @Test
+    fun `Multiplatform signature includes top level expect val`() {
+        val commonSource =
+            kotlin(
+                "commonMain/src/test/pkg/Foo.kt",
+                """
+                package test.pkg
+                expect val foo: Int
+                """
+            )
+        val androidSource =
+            kotlin(
+                "androidMain/src/test/pkg/Foo_android.kt",
+                """
+                package test.pkg
+                actual val foo = 0
+                """
+            )
+        check(
+            sourceFiles = arrayOf(commonSource, androidSource),
+            projectDescription =
+                createProjectDescription(
+                    createCommonModuleDescription(arrayOf(commonSource)),
+                    createAndroidModuleDescription(arrayOf(androidSource)),
+                ),
+            enableMultiplatform = true,
+            skipSourceArgs = true, // skip creating a regular codebase
+            // TODO: foo should appear in commonMain.txt
+            multiplatformApi =
+                mapOf(
+                    "commonMain.txt" to
+                        """
+                        // Signature format: 5.0
+                        """,
+                    "androidMain.txt" to
+                        """
+                        // Signature format: 5.0
+                        """
                 )
         )
     }
