@@ -239,6 +239,30 @@ internal class AnnotationBinding<T : Any>(
         }
     }
 
+    /** Factory for creating [ValueConverter]s from [KType]. */
+    private interface ConverterFactory {
+        /** Create a [ValueConverter] from [type]. */
+        fun createConverter(type: KType): ValueConverter<*>
+    }
+
+    /**
+     * Creates [ValueConverter] that will convert a [Value] to a [List] of some element type `E`.
+     *
+     * The values of element type `E` will be converted from [Value]s by a [ValueConverter]
+     * retrieved by [converterForType].
+     */
+    private class ListConverterFactory : ConverterFactory {
+        override fun createConverter(type: KType): ValueConverter<List<*>> {
+            val elementType = type.arguments[0].type ?: error("Star projections are not supported")
+            val elementConverter =
+                converterForType(elementType) ?: error("unsupported element type: $elementType")
+            return { value ->
+                val context = this
+                value.asFlatList().mapNotNull { context.elementConverter(it) }
+            }
+        }
+    }
+
     companion object {
         /**
          * Select the binding constructor to use on this [KClass].
@@ -294,6 +318,12 @@ internal class AnnotationBinding<T : Any>(
             registerValueConverter { value -> value.asString() }
         }
 
+        /** Map from [KClass] to the [ConverterFactory]. */
+        private val valueConverterFactoryByKClass = buildMap {
+            // [ConverterFactory] that will convert to a [List] of elements.
+            put(List::class, ListConverterFactory() as ConverterFactory)
+        }
+
         /** Get the [ValueConverter] to use for converting [Value]s to [type]. */
         private fun converterForType(type: KType): (ValueConverter<*>)? {
             val classifier = type.classifier
@@ -301,6 +331,25 @@ internal class AnnotationBinding<T : Any>(
 
             // Try one of the built-in conversions first.
             valueConvertersByKClass[kClass]?.let {
+                return it
+            }
+
+            val kClass = classifier as? KClass<*> ?: return null
+
+            // Get the factory for the classifier.
+            val factory =
+                converterFactoryForKClass(kClass)
+                    // No factory was found so return `null` to indicate that the type is not
+                    // supported.
+                    ?: return null
+
+            // Create the converter from the type.
+            return factory.createConverter(type)
+        }
+
+        /** Get the [ConverterFactory], if any, for [kClass] */
+        private fun converterFactoryForKClass(kClass: KClass<*>): ConverterFactory? {
+            valueConverterFactoryByKClass[kClass]?.let {
                 return it
             }
 
@@ -318,6 +367,7 @@ internal class AnnotationBinding<T : Any>(
                 Boolean::class -> false
                 Int::class -> 0
                 String::class -> ""
+                List::class -> emptyList<Any>()
                 else ->
                     if (classifier.javaClass.isPrimitive)
                         error("Must provide a zero value for primitive type $classifier")

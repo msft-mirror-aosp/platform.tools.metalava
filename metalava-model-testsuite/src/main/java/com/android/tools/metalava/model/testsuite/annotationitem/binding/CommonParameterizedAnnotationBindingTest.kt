@@ -114,6 +114,11 @@ class CommonParameterizedAnnotationBindingTest : BaseModelTest() {
         val value: String?,
     )
 
+    /** Binding for [requiredStringListAnnotation]. */
+    data class StringListAnno(
+        val s: List<String>,
+    )
+
     companion object {
         /** See [BooleanAnno]. */
         private val requiredBooleanAnnotation =
@@ -166,6 +171,16 @@ class CommonParameterizedAnnotationBindingTest : BaseModelTest() {
                     package test.pkg;
                     public @interface StringAnno {
                         String value() default "unspecified";
+                    }
+                """
+            )
+
+        private val requiredStringListAnnotation =
+            java(
+                """
+                    package test.pkg;
+                    public @interface StringListAnno {
+                        String[] s();
                     }
                 """
             )
@@ -292,6 +307,28 @@ class CommonParameterizedAnnotationBindingTest : BaseModelTest() {
                     sourceFiles = listOf(optionalStringAnnotation),
                     annotation = """@StringAnno()""",
                     expectedBound = NullableStringAnno(value = null),
+                ),
+
+                // List tests
+                testParams(
+                    name = "String list of single string value",
+                    sourceFiles = listOf(optionalStringAnnotation),
+                    annotation = """@StringAnno(s = "a")""",
+                    expectedBound = StringListAnno(s = listOf("a")),
+                ),
+                testParams(
+                    name = "String list of string array value",
+                    sourceFiles = listOf(requiredStringListAnnotation),
+                    annotation = """@StringListAnno(s = {"a", "b"})""",
+                    expectedBound = StringListAnno(s = listOf("a", "b")),
+                ),
+                testParams(
+                    name = "String list missing attribute",
+                    sourceFiles = listOf(requiredStringListAnnotation),
+                    annotation = """@StringListAnno()""",
+                    expectedBound = StringListAnno(s = emptyList()),
+                    expectedIssues =
+                        "MAIN_SRC/src/test/pkg/Test.java:2: error: Required attribute 's' is missing on @test.pkg.StringListAnno [MissingRequiredAttribute]",
                 ),
             )
 

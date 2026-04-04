@@ -19,6 +19,7 @@ package com.android.tools.metalava.model.annotation.binding
 import com.android.tools.metalava.model.AnnotationAttribute
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.Item
+import com.android.tools.metalava.model.value.ArrayValue
 import com.android.tools.metalava.model.value.BooleanValue
 import com.android.tools.metalava.model.value.IntValue
 import com.android.tools.metalava.model.value.StringValue
@@ -54,6 +55,8 @@ interface AnnotationBindingFactory<T : Any> {
  * * [Boolean] - for a [BooleanValue].
  * * [Int] - for an [IntValue].
  * * [String] - for a [StringValue].
+ * * [List] - for [ArrayValue]s of the above types. It can also be used for single values of the
+ *   above.
  *
  * Annotations do not support nullable values so every attribute has to have a value, either
  * provided explicitly for required attributes or via a default for optional attributes. When
