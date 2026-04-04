@@ -19,6 +19,7 @@ package com.android.tools.metalava.model.annotation.binding
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.annotation.AnnotationDefaults
+import com.android.tools.metalava.model.value.AnnotationValue
 import com.android.tools.metalava.model.value.Value
 import com.android.tools.metalava.model.value.asBoolean
 import com.android.tools.metalava.model.value.asInt
@@ -263,6 +264,17 @@ internal class AnnotationBinding<T : Any>(
         }
     }
 
+    /** Creates [ValueConverter] that will bind a nested [AnnotationItem] to a class. */
+    private class NestedBindingConverterFactory<T : Any> : ConverterFactory {
+        override fun createConverter(type: KType): ValueConverter<T> {
+            @Suppress("UNCHECKED_CAST") val bindingClass = type.classifier as KClass<T>
+            return { value ->
+                val annotationItem = annotationItemConverter(value)
+                annotationItem?.bindTo(bindingClass, item)
+            }
+        }
+    }
+
     companion object {
         /**
          * Select the binding constructor to use on this [KClass].
@@ -308,6 +320,9 @@ internal class AnnotationBinding<T : Any>(
 
         /** Map from [KClass] to the [ValueConverter]. */
         private val valueConvertersByKClass = buildMap {
+            // Convert from a [Value] to an [AnnotationItem].
+            registerValueConverter { value -> (value as? AnnotationValue)?.annotationItem }
+
             // Converter from a [Value] to a [Boolean].
             registerValueConverter { value -> value.asBoolean() }
 
@@ -318,11 +333,22 @@ internal class AnnotationBinding<T : Any>(
             registerValueConverter { value -> value.asString() }
         }
 
+        /** Convert a [Value] to an [AnnotationItem]. */
+        private val annotationItemConverter = converterForClass<AnnotationItem>()
+
+        /** Get the [ValueConverter] to use for converting [Value]s to [T]. */
+        @Suppress("UNCHECKED_CAST")
+        private inline fun <reified T : Any> converterForClass() =
+            valueConvertersByKClass[T::class] as ValueConverter<T?>
+
         /** Map from [KClass] to the [ConverterFactory]. */
         private val valueConverterFactoryByKClass = buildMap {
             // [ConverterFactory] that will convert to a [List] of elements.
             put(List::class, ListConverterFactory() as ConverterFactory)
         }
+
+        /** Create [ValueConverter] that will bind a nested [AnnotationItem] to a nested class. */
+        private val nestedBindingConverterFactory = NestedBindingConverterFactory<Any>()
 
         /** Get the [ValueConverter] to use for converting [Value]s to [type]. */
         private fun converterForType(type: KType): (ValueConverter<*>)? {
@@ -353,7 +379,12 @@ internal class AnnotationBinding<T : Any>(
                 return it
             }
 
-            return null
+            // Ignore classes that cannot be created from an annotation.
+            if (kClass.isAbstract || kClass.isValue || kClass.isInner || kClass.java.isPrimitive)
+                return null
+
+            // Use the nested binding factory.
+            return nestedBindingConverterFactory
         }
 
         /**

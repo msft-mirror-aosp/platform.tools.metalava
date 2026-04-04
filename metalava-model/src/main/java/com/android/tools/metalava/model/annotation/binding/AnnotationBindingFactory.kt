@@ -19,6 +19,7 @@ package com.android.tools.metalava.model.annotation.binding
 import com.android.tools.metalava.model.AnnotationAttribute
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.Item
+import com.android.tools.metalava.model.value.AnnotationValue
 import com.android.tools.metalava.model.value.ArrayValue
 import com.android.tools.metalava.model.value.BooleanValue
 import com.android.tools.metalava.model.value.IntValue
@@ -55,6 +56,8 @@ interface AnnotationBindingFactory<T : Any> {
  * * [Boolean] - for a [BooleanValue].
  * * [Int] - for an [IntValue].
  * * [String] - for a [StringValue].
+ * * Any normal concrete class - for an [AnnotationValue]; its [AnnotationValue.annotationItem] is
+ *   bound to the class using this method.
  * * [List] - for [ArrayValue]s of the above types. It can also be used for single values of the
  *   above.
  *

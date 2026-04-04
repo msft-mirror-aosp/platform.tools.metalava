@@ -119,6 +119,9 @@ class CommonParameterizedAnnotationBindingTest : BaseModelTest() {
         val s: List<String>,
     )
 
+    /** Binding for [requiredContainerAnnotation]. */
+    data class ContainerAnno(val nested: StringAnno)
+
     companion object {
         /** See [BooleanAnno]. */
         private val requiredBooleanAnnotation =
@@ -181,6 +184,16 @@ class CommonParameterizedAnnotationBindingTest : BaseModelTest() {
                     package test.pkg;
                     public @interface StringListAnno {
                         String[] s();
+                    }
+                """
+            )
+
+        private val requiredContainerAnnotation =
+            java(
+                """
+                    package test.pkg;
+                    public @interface ContainerAnno {
+                        StringAnno nested();
                     }
                 """
             )
@@ -329,6 +342,14 @@ class CommonParameterizedAnnotationBindingTest : BaseModelTest() {
                     expectedBound = StringListAnno(s = emptyList()),
                     expectedIssues =
                         "MAIN_SRC/src/test/pkg/Test.java:2: error: Required attribute 's' is missing on @test.pkg.StringListAnno [MissingRequiredAttribute]",
+                ),
+
+                // Nested binding tests
+                testParams(
+                    name = "Container of StringAnno",
+                    sourceFiles = listOf(requiredContainerAnnotation),
+                    annotation = """@ContainerAnno(nested = @StringAnno(value = "a"))""",
+                    expectedBound = ContainerAnno(nested = StringAnno(value = "a")),
                 ),
             )
 
