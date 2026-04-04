@@ -109,6 +109,11 @@ class CommonParameterizedAnnotationBindingTest : BaseModelTest() {
         val value: String,
     )
 
+    /** Binding for [requiredStringAnnotation]. */
+    data class NullableStringAnno(
+        val value: String?,
+    )
+
     companion object {
         /** See [BooleanAnno]. */
         private val requiredBooleanAnnotation =
@@ -143,13 +148,24 @@ class CommonParameterizedAnnotationBindingTest : BaseModelTest() {
                 """
             )
 
-        /** See [StringAnno]. */
+        /** See [StringAnno], [NullableStringAnno]. */
         private val requiredStringAnnotation =
             java(
                 """
                     package test.pkg;
                     public @interface StringAnno {
                         String value();
+                    }
+                """
+            )
+
+        /** See [StringAnno], [NullableStringAnno]. */
+        private val optionalStringAnnotation =
+            java(
+                """
+                    package test.pkg;
+                    public @interface StringAnno {
+                        String value() default "unspecified";
                     }
                 """
             )
@@ -256,6 +272,26 @@ class CommonParameterizedAnnotationBindingTest : BaseModelTest() {
                     expectedBound = StringAnno(value = ""),
                     expectedIssues =
                         "MAIN_SRC/src/test/pkg/Test.java:2: error: Required attribute 'value' is missing on @test.pkg.StringAnno [MissingRequiredAttribute]",
+                ),
+
+                // Nullable/non-nullable tests
+                testParams(
+                    name = "nullable String with required annotation",
+                    sourceFiles = listOf(requiredStringAnnotation),
+                    annotation = """@StringAnno(value = "a")""",
+                    expectedBound = NullableStringAnno(value = "a"),
+                ),
+                testParams(
+                    name = "non-nullable String with optional annotation",
+                    sourceFiles = listOf(optionalStringAnnotation),
+                    annotation = """@StringAnno()""",
+                    expectedBound = StringAnno(value = "unspecified"),
+                ),
+                testParams(
+                    name = "nullable String with optional annotation",
+                    sourceFiles = listOf(optionalStringAnnotation),
+                    annotation = """@StringAnno()""",
+                    expectedBound = NullableStringAnno(value = null),
                 ),
             )
 

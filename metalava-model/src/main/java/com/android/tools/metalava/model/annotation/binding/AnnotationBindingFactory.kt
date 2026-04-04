@@ -69,6 +69,10 @@ interface AnnotationBindingFactory<T : Any> {
  *    compilation. Code that processes it must not abort, but it can treat it as an error.
  * 2. Falling back to a zero value, i.e. a default value of last resort, e.g. `0` for primitive
  *    numbers, `false` for booleans, etc.
+ *
+ * If a parameter type does not have a default value or a zero value then it must be made nullable
+ * to avoid exceptions being thrown when creating an instance from sources with missing required
+ * attributes.
  */
 inline fun <reified T : Any> AnnotationItem.bindTo(item: Item) = bindTo(T::class, item)
 

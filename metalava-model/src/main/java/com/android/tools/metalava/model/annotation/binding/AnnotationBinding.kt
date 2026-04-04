@@ -174,6 +174,9 @@ internal class AnnotationBinding<T : Any>(
          */
         private val zero: Any?,
     ) {
+        /** Indicates whether the parameter is nullable. */
+        private val nullable: Boolean = parameter.type.isMarkedNullable
+
         /** Convert this [Value] within [context] to a value appropriate for [parameter]. */
         private fun Value.convert(context: ConverterContext) = context.nullableConverter(this)
 
@@ -201,6 +204,12 @@ internal class AnnotationBinding<T : Any>(
             // If the parameter has already been set to a non-null value then there is no need to
             // provide a default.
             if (map[parameter] != null) return
+
+            // If the parameter is nullable and not yet been set then set it to `null`.
+            if (nullable) {
+                map[parameter] = null
+                return
+            }
 
             // If the annotation definition provides a default then use it.
             defaultProvider?.let { provider ->
