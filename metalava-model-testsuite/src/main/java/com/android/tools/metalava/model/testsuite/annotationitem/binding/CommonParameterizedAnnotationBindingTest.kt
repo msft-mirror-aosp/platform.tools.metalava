@@ -95,6 +95,11 @@ class CommonParameterizedAnnotationBindingTest : BaseModelTest() {
         val value: Int,
     )
 
+    /** Binding for [requiredIntAnnotation]. */
+    data class IntAnnoWithDefault(
+        val value: Int = 9,
+    )
+
     /** Binding for [requiredStringAnnotation]. */
     data class StringAnno(
         val value: String,
@@ -119,6 +124,17 @@ class CommonParameterizedAnnotationBindingTest : BaseModelTest() {
                     package test.pkg;
                     public @interface IntAnno {
                         int value();
+                    }
+                """
+            )
+
+        /** See [IntAnno]. */
+        private val optionalIntAnnotation =
+            java(
+                """
+                    package test.pkg;
+                    public @interface IntAnno {
+                        int value() default 17;
                     }
                 """
             )
@@ -200,6 +216,22 @@ class CommonParameterizedAnnotationBindingTest : BaseModelTest() {
                     sourceFiles = listOf(requiredStringAnnotation),
                     annotation = """@StringAnno(value = "a")""",
                     expectedBound = StringAnno(value = "a"),
+                ),
+
+                // Annotations/classes with defaults tests
+                testParams(
+                    name = "int annotation with default",
+                    sourceFiles = listOf(optionalIntAnnotation),
+                    annotation = "@IntAnno()",
+                    // Uses the default from the annotation definition.
+                    expectedBound = IntAnno(value = 17),
+                ),
+                testParams(
+                    name = "int annotation and class with defaults",
+                    sourceFiles = listOf(optionalIntAnnotation),
+                    annotation = "@IntAnno()",
+                    // Uses the default from the annotation definition.
+                    expectedBound = IntAnnoWithDefault(value = 17),
                 ),
             )
 

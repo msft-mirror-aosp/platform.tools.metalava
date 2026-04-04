@@ -59,10 +59,33 @@ internal class AnnotationBinding<T : Any>(
 
                 val nullableConverter = converterForType(type) ?: return@mapNotNull null
 
+                // Get the default value specified in the annotation class declaration, if any.
+                val default = annotationDefaults?.get(name)
+                val defaultProvider: DefaultProvider? =
+                    if (default != null) {
+                        // Wrap the default [Value] in a lambda that will convert it into an
+                        // appropriate value for the parameter.
+                        {
+                            val any = nullableConverter(default)
+                            if (any == null) {
+                                reportInvalidAttributeValue(
+                                    name,
+                                    default,
+                                    parameter.type,
+                                    label = "default ",
+                                )
+                            }
+                            any
+                        }
+                    } else {
+                        null
+                    }
+
                 ParameterBinder(
                     name,
                     parameter,
                     nullableConverter,
+                    defaultProvider,
                 )
             }
             .associateBy { it.name }
@@ -83,6 +106,11 @@ internal class AnnotationBinding<T : Any>(
                 val binder = bindersByName[name] ?: continue
                 val value = attribute.value
                 binder.bindToValue(context, this, value)
+            }
+
+            // Now iterate over all the parameter binders adding any additional defaults needed.
+            for (binder in bindersByName.values) {
+                binder.bindToDefault(context, this)
             }
         }
 
@@ -121,6 +149,9 @@ internal class AnnotationBinding<T : Any>(
 
         /** The [ValueConverter] that may produce a `null` value. */
         private val nullableConverter: ValueConverter<*>,
+
+        /** The default [Value] as provided by the annotation definition in the sources. */
+        private val defaultProvider: DefaultProvider?,
     ) {
         /** Convert this [Value] within [context] to a value appropriate for [parameter]. */
         private fun Value.convert(context: ConverterContext) = context.nullableConverter(this)
@@ -138,6 +169,24 @@ internal class AnnotationBinding<T : Any>(
             map[parameter] = any
             if (any == null) {
                 context.reportInvalidAttributeValue(name, value, parameter.type)
+            }
+        }
+
+        /**
+         * If this [parameter] is not already bound in [map] then bind it to the result of
+         * [defaultProvider].
+         */
+        fun bindToDefault(context: ConverterContext, map: MutableMap<KParameter, Any?>) {
+            // If the parameter has already been set to a non-null value then there is no need to
+            // provide a default.
+            if (map[parameter] != null) return
+
+            // If the annotation definition provides a default then use it.
+            defaultProvider?.let { provider ->
+                context.provider()?.let {
+                    map[parameter] = it
+                    return
+                }
             }
         }
     }
@@ -215,6 +264,12 @@ internal class AnnotationBinding<T : Any>(
 /** Lambda for converting [Value] to a value of type [T] using the [ConverterContext]. */
 internal typealias ValueConverter<T> = ConverterContext.(Value) -> T?
 
+/**
+ * Lambda for providing a default value, which may involve converting from a [Value] using the
+ * [ConverterContext].
+ */
+internal typealias DefaultProvider = ConverterContext.() -> Any?
+
 /** Contextual information provided to [ValueConverter]s. */
 internal class ConverterContext(
     /** The [AnnotationItem] being converted, may be nested. */
@@ -228,11 +283,11 @@ internal class ConverterContext(
         private set
 
     /** Report that attribute [name]'s [value] cannot be converted to [type]. */
-    fun reportInvalidAttributeValue(name: String, value: Value, type: KType) {
+    fun reportInvalidAttributeValue(name: String, value: Value, type: KType, label: String = "") {
         item.codebase.reporter.report(
             Issues.INVALID_ANNOTATION_BINDING,
             item,
-            "Attribute '$name' is invalid: `${value.toValueString()}` cannot be converted to $type",
+            "Attribute '$name' is invalid: $label`${value.toValueString()}` cannot be converted to $type",
             location = annotation.fileLocation
         )
 

@@ -37,6 +37,9 @@ class AnnotationDefaults(private val defaultsByName: Map<String, Value>) {
         }
     }
 
+    /** Get the default value, if any, for attribute [name]. */
+    operator fun get(name: String) = defaultsByName[name]
+
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (javaClass != other?.javaClass) return false

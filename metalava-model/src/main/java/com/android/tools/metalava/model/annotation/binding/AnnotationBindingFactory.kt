@@ -54,6 +54,10 @@ interface AnnotationBindingFactory<T : Any> {
  * * [Boolean] - for a [BooleanValue].
  * * [Int] - for an [IntValue].
  * * [String] - for a [StringValue].
+ *
+ * Annotations do not support nullable values so every attribute has to have a value, either
+ * provided explicitly for required attributes or via a default for optional attributes. When
+ * binding, if no attribute is provided then the default will be used.
  */
 inline fun <reified T : Any> AnnotationItem.bindTo(item: Item) = bindTo(T::class, item)
 
