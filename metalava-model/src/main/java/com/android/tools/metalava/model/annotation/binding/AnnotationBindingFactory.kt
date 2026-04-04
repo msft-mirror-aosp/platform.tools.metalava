@@ -58,6 +58,17 @@ interface AnnotationBindingFactory<T : Any> {
  * Annotations do not support nullable values so every attribute has to have a value, either
  * provided explicitly for required attributes or via a default for optional attributes. When
  * binding, if no attribute is provided then the default will be used.
+ *
+ * It is possible, e.g. when the definition of the annotation cannot be resolved, for the default to
+ * be unavailable. It may also be possible for Metalava to be given source code that does not
+ * provide a value for a required attribute. However, it is necessary to provide a value for every
+ * parameter in the binding constructor. That can be done in one of the following ways:
+ * 1. By specifying a default for the constructor parameter. If the attribute is optional then this
+ *    must be the same as the default value specified in the declaration. Otherwise, this should be
+ *    a value that indicates that a required attribute has not been provided. That will prevent
+ *    compilation. Code that processes it must not abort, but it can treat it as an error.
+ * 2. Falling back to a zero value, i.e. a default value of last resort, e.g. `0` for primitive
+ *    numbers, `false` for booleans, etc.
  */
 inline fun <reified T : Any> AnnotationItem.bindTo(item: Item) = bindTo(T::class, item)
 

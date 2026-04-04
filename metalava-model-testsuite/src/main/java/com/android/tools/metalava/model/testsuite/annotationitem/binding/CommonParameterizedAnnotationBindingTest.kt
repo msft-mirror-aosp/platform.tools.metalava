@@ -95,7 +95,11 @@ class CommonParameterizedAnnotationBindingTest : BaseModelTest() {
         val value: Int,
     )
 
-    /** Binding for [requiredIntAnnotation]. */
+    /**
+     * Binding for [requiredIntAnnotation].
+     *
+     * Used for testing that the parameter default will only be used as a last resort.
+     */
     data class IntAnnoWithDefault(
         val value: Int = 9,
     )
@@ -232,6 +236,26 @@ class CommonParameterizedAnnotationBindingTest : BaseModelTest() {
                     annotation = "@IntAnno()",
                     // Uses the default from the annotation definition.
                     expectedBound = IntAnnoWithDefault(value = 17),
+                ),
+
+                // Missing attribute for required annotation tests.
+                testParams(
+                    name = "int class with default",
+                    sourceFiles = listOf(requiredIntAnnotation),
+                    // This is not strictly valid.
+                    annotation = "@IntAnno()",
+                    // Uses the default from the class definition.
+                    expectedBound = IntAnnoWithDefault(),
+                    expectedIssues =
+                        "MAIN_SRC/src/test/pkg/Test.java:2: error: Required attribute 'value' is missing on @test.pkg.IntAnno [MissingRequiredAttribute]",
+                ),
+                testParams(
+                    name = "String with no value provided",
+                    sourceFiles = listOf(requiredStringAnnotation),
+                    annotation = """@StringAnno()""",
+                    expectedBound = StringAnno(value = ""),
+                    expectedIssues =
+                        "MAIN_SRC/src/test/pkg/Test.java:2: error: Required attribute 'value' is missing on @test.pkg.StringAnno [MissingRequiredAttribute]",
                 ),
             )
 

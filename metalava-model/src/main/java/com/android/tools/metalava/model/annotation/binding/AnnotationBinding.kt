@@ -81,11 +81,24 @@ internal class AnnotationBinding<T : Any>(
                         null
                     }
 
+                // Get a zero value to use as a last resort when a parameter is required but no
+                // value has been provided.
+                val zero =
+                    if (type.isMarkedNullable) {
+                        // If the parameter is nullable then always use a `null` as the `zero`
+                        // value.
+                        null
+                    } else {
+                        // Otherwise, compute one for the type.
+                        zeroValueForNonNullableType(type)
+                    }
+
                 ParameterBinder(
                     name,
                     parameter,
                     nullableConverter,
                     defaultProvider,
+                    zero,
                 )
             }
             .associateBy { it.name }
@@ -152,6 +165,14 @@ internal class AnnotationBinding<T : Any>(
 
         /** The default [Value] as provided by the annotation definition in the sources. */
         private val defaultProvider: DefaultProvider?,
+
+        /**
+         * The zero value, used as a last resort for non-nullable parameters that have no
+         * [defaultProvider] and are not optional.
+         *
+         * If this is used then it indicates a problem in the sources somewhere.
+         */
+        private val zero: Any?,
     ) {
         /** Convert this [Value] within [context] to a value appropriate for [parameter]. */
         private fun Value.convert(context: ConverterContext) = context.nullableConverter(this)
@@ -174,7 +195,7 @@ internal class AnnotationBinding<T : Any>(
 
         /**
          * If this [parameter] is not already bound in [map] then bind it to the result of
-         * [defaultProvider].
+         * [defaultProvider], falling back to [zero] if necessary.
          */
         fun bindToDefault(context: ConverterContext, map: MutableMap<KParameter, Any?>) {
             // If the parameter has already been set to a non-null value then there is no need to
@@ -187,6 +208,24 @@ internal class AnnotationBinding<T : Any>(
                     map[parameter] = it
                     return
                 }
+            }
+
+            // At this point if no parameter was set in the map there is a required attribute that
+            // has not been provided so report it missing.
+            if (parameter !in map) {
+                context.reportMissingAttribute(name)
+            }
+
+            // If the parameter is optional then it has its own default.
+            if (parameter.isOptional) return
+
+            // Otherwise, fallback to the zero value, if possible.
+            if (zero == null) {
+                // Null is not a valid value for the parameter. If it was then this function would
+                // have returned above. That means that an instance cannot be instantiated.
+                context.doNotInstantiate()
+            } else {
+                map[parameter] = zero
             }
         }
     }
@@ -258,6 +297,23 @@ internal class AnnotationBinding<T : Any>(
 
             return null
         }
+
+        /**
+         * Get a zero value for [type], or `null` if none could be found.
+         *
+         * Ignores [KType.isMarkedNullable] on [type].
+         */
+        private fun zeroValueForNonNullableType(type: KType) =
+            when (val classifier = type.classifier) {
+                null -> null
+                Boolean::class -> false
+                Int::class -> 0
+                String::class -> ""
+                else ->
+                    if (classifier.javaClass.isPrimitive)
+                        error("Must provide a zero value for primitive type $classifier")
+                    else null
+            }
     }
 }
 
@@ -293,6 +349,24 @@ internal class ConverterContext(
 
         // There was some inconsistency encountered between the source annotation instance and the
         // bound class so do not instantiate an instance.
+        doNotInstantiate = true
+    }
+
+    /** Report that no value was provided for the required attribute [name]. */
+    fun reportMissingAttribute(name: String) {
+        item.codebase.reporter.report(
+            Issues.MISSING_REQUIRED_ATTRIBUTE,
+            item,
+            "Required attribute '$name' is missing on @${annotation.originalName}",
+            location = annotation.fileLocation
+        )
+    }
+
+    /**
+     * An error that could not be compensated for and which will cause instantiation to fail was
+     * found.
+     */
+    fun doNotInstantiate() {
         doNotInstantiate = true
     }
 }

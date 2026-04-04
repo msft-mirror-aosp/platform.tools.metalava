@@ -81,6 +81,13 @@ sealed interface AnnotationItem {
     val qualifiedName: String
 
     /**
+     * The original name in the sources before normalizing the name.
+     *
+     * This must be used only when reporting issues with the original source.
+     */
+    val originalName: String
+
+    /**
      * Determines the effect that this will have on whether an item annotated with this annotation
      * will be shown as part of the API or not.
      */
@@ -512,7 +519,7 @@ internal abstract class BaseAnnotationItem(
     override val fileLocation: FileLocation,
 
     /** Fully qualified name of the annotation (prior to name mapping) */
-    internal val originalName: String,
+    override val originalName: String,
 
     /** Fully qualified name of the annotation (after name mapping) */
     override val qualifiedName: String,
