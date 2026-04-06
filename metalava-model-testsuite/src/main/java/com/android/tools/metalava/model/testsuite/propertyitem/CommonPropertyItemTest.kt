@@ -1426,8 +1426,7 @@ class CommonPropertyItemTest : BaseModelTest() {
             val intProperty = fooClass.assertProperty("intProperty")
             assertThat(intProperty.annotationNames()).containsExactly("test.pkg.Hide")
             val intValueProperty = fooClass.assertProperty("intValueProperty")
-            // TODO: this should have the Hide annotation
-            assertThat(intValueProperty.annotationNames()).isEmpty()
+            assertThat(intValueProperty.annotationNames()).containsExactly("test.pkg.Hide")
         }
     }
 }

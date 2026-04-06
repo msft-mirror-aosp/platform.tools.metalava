@@ -1163,7 +1163,7 @@ class CommonAnnotationItemTest : BaseModelTest() {
     private fun checkGetVsSetParamAnnotation(
         attributeType: String,
         attributePrimitive: Primitive,
-        expectedAttributeString: String,
+        underlyingKaValue: Any,
     ) {
         runCodebaseTest(
             kotlin(
@@ -1181,24 +1181,28 @@ class CommonAnnotationItemTest : BaseModelTest() {
             val testClass = codebase.assertClass("test.pkg.Test")
             val property = testClass.properties().single()
 
-            val expectedValue = primitiveValueForKind(attributePrimitive, 12)
-
             // Test the annotation on the property (the @get:Anno).
+            // This comes from the KaValueFactory, which does not have information about the
+            // underlying value being an int.
+            val expectedValueKa = primitiveValueForKind(attributePrimitive, underlyingKaValue)
             property.modifiers.annotations().single().let { anno ->
                 assertValuesAreStrictlyEqual(
-                    expectedValue,
+                    expectedValueKa,
                     anno.assertAttribute("attr").value,
                     message = "@get:Anno"
                 )
             }
 
             // Test the annotation on the setter parameter (the @setparam:Anno).
+            // This comes from the PsiValueFactory, which does have information about the underlying
+            // value being an int.
+            val expectedValuePsi = primitiveValueForKind(attributePrimitive, 12)
             val setter = property.setter
             assertNotNull(setter, message = "setter method")
             val parameter = setter.parameters().single()
             parameter.modifiers.annotations().single().let { anno ->
                 assertValuesAreStrictlyEqual(
-                    expectedValue,
+                    expectedValuePsi,
                     anno.assertAttribute("attr").value,
                     message = "@setparam:Anno"
                 )
@@ -1212,7 +1216,7 @@ class CommonAnnotationItemTest : BaseModelTest() {
         checkGetVsSetParamAnnotation(
             attributeType = "Byte",
             attributePrimitive = Primitive.BYTE,
-            expectedAttributeString = "12",
+            underlyingKaValue = 12.toByte(),
         )
     }
 
@@ -1222,7 +1226,7 @@ class CommonAnnotationItemTest : BaseModelTest() {
         checkGetVsSetParamAnnotation(
             attributeType = "Short",
             attributePrimitive = Primitive.SHORT,
-            expectedAttributeString = "12",
+            underlyingKaValue = 12.toShort(),
         )
     }
 
@@ -1232,7 +1236,7 @@ class CommonAnnotationItemTest : BaseModelTest() {
         checkGetVsSetParamAnnotation(
             attributeType = "Long",
             attributePrimitive = Primitive.LONG,
-            expectedAttributeString = "12L",
+            underlyingKaValue = 12L,
         )
     }
 
