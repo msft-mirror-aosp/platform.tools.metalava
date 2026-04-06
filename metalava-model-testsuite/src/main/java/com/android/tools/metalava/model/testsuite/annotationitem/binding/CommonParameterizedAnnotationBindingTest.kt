@@ -20,7 +20,10 @@ import com.android.tools.lint.checks.infrastructure.TestFile
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.annotation.binding.bindTo
+import com.android.tools.metalava.model.testing.value.fieldReferenceValue
+import com.android.tools.metalava.model.testing.value.literalValue
 import com.android.tools.metalava.model.testsuite.BaseModelTest
+import com.android.tools.metalava.model.value.ArrayElementValue
 import com.android.tools.metalava.testing.EntryPoint
 import com.android.tools.metalava.testing.EntryPointCallerRule
 import com.android.tools.metalava.testing.EntryPointCallerTracker
@@ -121,6 +124,9 @@ class CommonParameterizedAnnotationBindingTest : BaseModelTest() {
 
     /** Binding for [requiredContainerAnnotation]. */
     data class ContainerAnno(val nested: StringAnno)
+
+    /** Binding for [requiredStringAnnotation] and similar. */
+    data class ArrayElementValueStringAnno(val s: List<ArrayElementValue>)
 
     companion object {
         /** See [BooleanAnno]. */
@@ -351,6 +357,28 @@ class CommonParameterizedAnnotationBindingTest : BaseModelTest() {
                     annotation = """@ContainerAnno(nested = @StringAnno(value = "a"))""",
                     expectedBound = ContainerAnno(nested = StringAnno(value = "a")),
                 ),
+
+                // ArrayElementValue binding tests
+                testParams(
+                    name = "ArrayElementValue list of single string value",
+                    sourceFiles = listOf(requiredStringAnnotation),
+                    annotation = """@StringAnno(s = "a")""",
+                    expectedBound = ArrayElementValueStringAnno(s = listOf(literalValue("a"))),
+                ),
+                testParams(
+                    name = "ArrayElementValue list of string array value",
+                    sourceFiles = listOf(requiredStringListAnnotation),
+                    annotation =
+                        """@StringListAnno(s = {test.pkg.Constants.STRING_CONSTANT, "b"})""",
+                    expectedBound =
+                        ArrayElementValueStringAnno(
+                            s =
+                                listOf(
+                                    fieldReferenceValue("test.pkg.Constants", "STRING_CONSTANT"),
+                                    literalValue("b"),
+                                )
+                        ),
+                ),
             )
 
         @JvmStatic @Parameterized.Parameters fun params() = params
@@ -365,6 +393,16 @@ class CommonParameterizedAnnotationBindingTest : BaseModelTest() {
                     """
                         package test.pkg;
                         public class Test {
+                        }
+                    """
+                )
+            )
+            add(
+                java(
+                    """
+                        package test.pkg;
+                        public interface Constants {
+                            String STRING_CONSTANT = "string constant";
                         }
                     """
                 )

@@ -20,6 +20,7 @@ import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.annotation.AnnotationDefaults
 import com.android.tools.metalava.model.value.AnnotationValue
+import com.android.tools.metalava.model.value.ArrayElementValue
 import com.android.tools.metalava.model.value.Value
 import com.android.tools.metalava.model.value.asBoolean
 import com.android.tools.metalava.model.value.asInt
@@ -322,6 +323,9 @@ internal class AnnotationBinding<T : Any>(
         private val valueConvertersByKClass = buildMap {
             // Convert from a [Value] to an [AnnotationItem].
             registerValueConverter { value -> (value as? AnnotationValue)?.annotationItem }
+
+            // Converter from a [Value] to an [ArrayElementValue].
+            registerValueConverter { value -> value as? ArrayElementValue }
 
             // Converter from a [Value] to a [Boolean].
             registerValueConverter { value -> value.asBoolean() }

@@ -20,8 +20,10 @@ import com.android.tools.metalava.model.AnnotationAttribute
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.value.AnnotationValue
+import com.android.tools.metalava.model.value.ArrayElementValue
 import com.android.tools.metalava.model.value.ArrayValue
 import com.android.tools.metalava.model.value.BooleanValue
+import com.android.tools.metalava.model.value.FieldReferenceValue
 import com.android.tools.metalava.model.value.IntValue
 import com.android.tools.metalava.model.value.StringValue
 import kotlin.reflect.KClass
@@ -53,6 +55,8 @@ interface AnnotationBindingFactory<T : Any> {
  * ```
  *
  * Supported parameter types are:
+ * * [ArrayElementValue] - for an [ArrayElementValue]; used when a [FieldReferenceValue] needs to be
+ *   handled specially.
  * * [Boolean] - for a [BooleanValue].
  * * [Int] - for an [IntValue].
  * * [String] - for a [StringValue].
