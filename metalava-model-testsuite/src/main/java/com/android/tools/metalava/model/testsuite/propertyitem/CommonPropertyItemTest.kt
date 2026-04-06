@@ -1403,4 +1403,31 @@ class CommonPropertyItemTest : BaseModelTest() {
             }
         }
     }
+
+    @Test
+    fun `Test getter annotations on properties`() {
+        runCodebaseTest(
+            kotlin(
+                """
+                package test.pkg
+
+                @JvmInline value class IntValue(val value: Int)
+
+                annotation class Hide
+
+                class Foo {
+                    @get:Hide val intProperty: Int = 0
+                    @get:Hide val intValueProperty: IntValue = IntValue(0)
+                }
+                """
+            )
+        ) {
+            val fooClass = codebase.assertClass("test.pkg.Foo")
+            val intProperty = fooClass.assertProperty("intProperty")
+            assertThat(intProperty.annotationNames()).containsExactly("test.pkg.Hide")
+            val intValueProperty = fooClass.assertProperty("intValueProperty")
+            // TODO: this should have the Hide annotation
+            assertThat(intValueProperty.annotationNames()).isEmpty()
+        }
+    }
 }
