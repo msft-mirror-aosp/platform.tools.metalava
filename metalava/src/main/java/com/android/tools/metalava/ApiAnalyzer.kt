@@ -461,10 +461,9 @@ class ApiAnalyzer(
                     // a facade class needs to be emitted if it has any top-level fun/prop to emit
                     cls.members().none { member ->
                         // a member needs to be emitted if
-                        //  1) it doesn't have a hide annotation;
+                        //  1) it isn't hidden;
                         //  2) it is either public or has a show annotation;
-                        !member.hasHideAnnotation() &&
-                            (member.isPublic || member.hasShowAnnotation())
+                        !member.hidden && (member.isPublic || member.hasShowAnnotation())
                     }
             ) {
                 cls.emit = false

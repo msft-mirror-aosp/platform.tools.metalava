@@ -1166,15 +1166,9 @@ class ApiAnalyzerTest : DriverTest() {
                     KnownSourceFiles.hideAnnotation,
                 ),
             hideAnnotations = arrayOf("android.annotation.Hide"),
-            // TODO: TestKt shouldn't appear (it has @SuppressCompatibility here because it is empty
-            //  so it is vacuously true that all members are experimental).
             api =
                 """
                 // Signature format: 5.0
-                package test.pkg {
-                  @SuppressCompatibility public final class TestKt {
-                  }
-                }
                 """
         )
     }
