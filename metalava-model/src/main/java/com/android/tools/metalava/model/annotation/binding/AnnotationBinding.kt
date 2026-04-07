@@ -62,6 +62,8 @@ internal class AnnotationBinding<T : Any>(
                             "internal error: ${kClass.qualifiedName}: Cannot get name for parameter ${parameter.index}"
                         )
                 val type = parameter.type
+                val parameterKClass =
+                    type.classifier as? KClass<*> ?: error("internal error: Cannot support $type")
 
                 val nullableConverter = converterForType(type) ?: return@mapNotNull null
 
@@ -83,6 +85,10 @@ internal class AnnotationBinding<T : Any>(
                             }
                             any
                         }
+                    } else if (parameterKClass == Item::class) {
+                        // A parameter of type Item must be bound to the annotated item. This makes
+                        // the annotated item the default value of the parameter.
+                        { item }
                     } else {
                         null
                     }
@@ -378,12 +384,18 @@ internal class AnnotationBinding<T : Any>(
             val classifier = type.classifier
             val kClass = classifier as? KClass<*> ?: return null
 
+            // If binding to the annotated item then there is no value to convert. This returns a
+            // non-null converter to prevent an error being reported. The converter returns null to
+            // ensure that if a value was provided for a parameter of that type that it would
+            // report an error.
+            if (kClass == Item::class) {
+                return { null }
+            }
+
             // Try one of the built-in conversions first.
             valueConvertersByKClass[kClass]?.let {
                 return it
             }
-
-            val kClass = classifier as? KClass<*> ?: return null
 
             // Get the factory for the classifier.
             val factory =

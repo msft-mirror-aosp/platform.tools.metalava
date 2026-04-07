@@ -62,6 +62,7 @@ interface AnnotationBindingFactory<T : Any> {
  * * [Boolean] - for a [BooleanValue].
  * * [ClassItem] - for a [ClassObjectValue]
  * * [Int] - for an [IntValue].
+ * * [Item] - to bind to the annotated [Item].
  * * [String] - for a [StringValue].
  * * Any normal concrete class - for an [AnnotationValue]; its [AnnotationValue.annotationItem] is
  *   bound to the class using this method.

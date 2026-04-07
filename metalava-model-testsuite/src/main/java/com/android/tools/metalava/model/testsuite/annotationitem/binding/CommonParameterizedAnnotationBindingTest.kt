@@ -21,6 +21,7 @@ import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.Assertions
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
+import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.annotation.binding.bindTo
 import com.android.tools.metalava.model.testing.value.fieldReferenceValue
 import com.android.tools.metalava.model.testing.value.literalValue
@@ -48,6 +49,7 @@ class CommonParameterizedAnnotationBindingTest : BaseModelTest() {
 
     data class BoundProviderContext(
         val codebase: Codebase,
+        val annotatedItem: Item,
     )
 
     data class TestParams<T : Any>
@@ -117,6 +119,12 @@ class CommonParameterizedAnnotationBindingTest : BaseModelTest() {
     /** Binding for [requiredStringAnnotation]. */
     data class NullableStringAnno(
         val value: String?,
+    )
+
+    /** Binding for [requiredStringAnnotation]. */
+    data class StringWithItemAnno(
+        val item: Item,
+        val value: String,
     )
 
     /** Binding for [requiredStringListAnnotation]. */
@@ -430,6 +438,23 @@ class CommonParameterizedAnnotationBindingTest : BaseModelTest() {
                             MAIN_SRC/src/test/pkg/Test.java:2: error: Attribute 'c' is invalid: `Unknown.class` cannot be converted to com.android.tools.metalava.model.ClassItem [InvalidAnnotationBinding]
                         """,
                 ),
+
+                // Item binding tests
+                testParams(
+                    name = "Item binding",
+                    sourceFiles = listOf(requiredStringAnnotation),
+                    annotation = """@StringAnno(value = "string")""",
+                ) {
+                    StringWithItemAnno(item = annotatedItem, value = "string")
+                },
+                testParams<StringWithItemAnno>(
+                    name = "Attribute cannot be bound to Item parameter",
+                    sourceFiles = emptyList(),
+                    annotation = """@StringAnno(item = "item", value = "value")""",
+                    expectedBound = null,
+                    expectedIssues =
+                        """MAIN_SRC/src/test/pkg/Test.java:2: error: Attribute 'item' is invalid: `"item"` cannot be converted to com.android.tools.metalava.model.Item [InvalidAnnotationBinding]""",
+                ),
             )
 
         @JvmStatic @Parameterized.Parameters fun params() = params
@@ -483,7 +508,11 @@ class CommonParameterizedAnnotationBindingTest : BaseModelTest() {
             assertAndRemoveReportedIssues(params.expectedIssues)
 
             val expectedBoundProvider = params.expectedBoundProvider
-            val context = BoundProviderContext(codebase)
+            val context =
+                BoundProviderContext(
+                    codebase,
+                    annotatedItem = testClass,
+                )
             val expectedBound = context.expectedBoundProvider()
             assertEquals(expectedBound, bound)
         }
