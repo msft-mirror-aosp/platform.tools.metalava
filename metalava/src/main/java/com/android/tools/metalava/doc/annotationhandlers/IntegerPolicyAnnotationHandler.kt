@@ -40,11 +40,10 @@ class IntegerPolicyAnnotationHandler(
         val minValue = proxy.minValue
         val maxValue = proxy.maxValue
 
-        val resolutionMechanismDoc = buildIntegerResolutionMechanismDoc(proxy, item)
-
         return buildString {
             append("\n<p>Policy Type: Integer</p>\n <ul>\n")
             append(proxy.base.generateDocs())
+            val resolutionMechanismDoc = proxy.resolutionMechanism.generateDocs()
             append("   <li>Resolution Mechanism: $resolutionMechanismDoc</li>\n")
             append(
                 "   <li>Min Value: ${if (minValue == Integer.MIN_VALUE) "No limit" else minValue}</li>\n"
@@ -53,29 +52,6 @@ class IntegerPolicyAnnotationHandler(
                 "   <li>Max Value: ${if (maxValue == Integer.MAX_VALUE) "No limit" else maxValue}</li>\n"
             )
             append(" </ul>\n")
-        }
-    }
-
-    private fun buildIntegerResolutionMechanismDoc(
-        integerPolicyDefinitionProxy: IntegerPolicyDefinitionProxy,
-        item: Item
-    ): String {
-        val resolutionMechanismProxy = integerPolicyDefinitionProxy.resolutionMechanism
-
-        val custom = resolutionMechanismProxy.custom
-        val notCoexistable = resolutionMechanismProxy.notCoexistable
-
-        return if (custom) {
-            "custom"
-        } else if (notCoexistable) {
-            "notCoexistable"
-        } else {
-            reporter.report(
-                Issues.INVALID_DEVICE_POLICY_ANNOTATION,
-                item,
-                "IntegerResolutionMechanism must have either 'custom' or 'notCoexistable' set to true."
-            )
-            ""
         }
     }
 }
@@ -100,6 +76,21 @@ data class IntegerPolicyDefinitionProxy(
  * @see bindTo
  */
 data class IntegerResolutionMechanismProxy(
+    val item: Item,
     val custom: Boolean,
     val notCoexistable: Boolean,
-)
+) {
+    fun generateDocs() =
+        if (custom) {
+            "custom"
+        } else if (notCoexistable) {
+            "notCoexistable"
+        } else {
+            item.codebase.reporter.report(
+                Issues.INVALID_DEVICE_POLICY_ANNOTATION,
+                item,
+                "IntegerResolutionMechanism must have either 'custom' or 'notCoexistable' set to true."
+            )
+            ""
+        }
+}
