@@ -129,7 +129,7 @@ class CommonConstructorItemTest : BaseModelTest() {
             val testConstructor =
                 codebase.assertClass("test.pkg.Outer.Inner").constructors().single()
 
-            assertEquals("constructor test.pkg.Outer.Inner()", testConstructor.describe(false))
+            assertEquals("constructor test.pkg.Outer.Inner()", testConstructor.describe())
         }
     }
 

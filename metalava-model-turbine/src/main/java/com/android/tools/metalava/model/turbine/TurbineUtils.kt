@@ -19,6 +19,7 @@ package com.android.tools.metalava.model.turbine
 import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.ItemDocumentationFactory
 import com.android.tools.metalava.model.source.NO_SOURCE_COMMENT_FACTORY
+import com.android.tools.metalava.model.source.createSourceItemDocumentation
 import com.google.turbine.binder.bound.EnumConstantValue
 import com.google.turbine.binder.bound.TurbineClassValue
 import com.google.turbine.binder.sym.ClassSymbol
@@ -78,7 +79,7 @@ internal fun CompUnit.getHeaderComments(): String {
     // Search backwards for the start of the `package` keyword.
     val packageKeywordStart = source.lastIndexOf("package", packageNamePosition)
     // Return the content before the `package` keyword to match Java.
-    return source.substring(0, packageKeywordStart)
+    return source.substring(0, packageKeywordStart).replace("\r\n", "\n")
 }
 
 /** Get an [ItemDocumentationFactory] for [decl] in [sourceFile]. */
@@ -86,51 +87,22 @@ internal fun TurbineGlobalContext.itemDocumentationFactoryForDecl(
     sourceFile: TurbineSourceFile?,
     decl: Tree?
 ): ItemDocumentationFactory {
-    // If comments are not read then ignore the javadoc, unless it is for a package as it may
-    // contain @hide which needs to be respected.
-    if (!allowReadingComments && decl !is PkgDecl) return ItemDocumentation.NONE_FACTORY
+    // If comments are not read then ignore the javadoc.
+    if (!allowReadingComments) return ItemDocumentation.NONE_FACTORY
 
-    val doc: String? =
+    val turbineJavadoc =
         when (decl) {
             is TyDecl -> decl.javadoc()
             is MethDecl -> decl.javadoc()
             is VarDecl -> decl.javadoc()
-            is PkgDecl -> getDocCommentForPkgDecl(sourceFile, decl)
+            is PkgDecl -> decl.javadoc()
             null -> null
             else -> error("Should never be called")
-        }
+        } ?: return NO_SOURCE_COMMENT_FACTORY
 
-    if (doc == null || doc == "") return NO_SOURCE_COMMENT_FACTORY
-
-    return { item -> TurbineItemDocumentation(item, sourceFile, doc, decl?.position() ?: -1) }
-}
-
-/** Extract the package documentation comment for [pkgDecl] from [sourceFile]. */
-private fun TurbineGlobalContext.getDocCommentForPkgDecl(
-    sourceFile: TurbineSourceFile?,
-    pkgDecl: PkgDecl
-): String? {
-    sourceFile ?: return null
-
-    val source = sourceFile.compUnit.source().source()
-    // The PkgDecl.position() is the start of the package name not the `package` keyword.
-    val packageNamePosition = pkgDecl.position()
-    if (packageNamePosition == -1) return null
-
-    // Search backwards for the start of the `package` keyword.
-    val packageKeywordStart = source.lastIndexOf("package", packageNamePosition)
-    if (packageKeywordStart == -1) return null
-
-    // Search backwards for the end token of the comment.
-    val docCommentEnd = source.lastIndexOf("*/", packageKeywordStart)
-    if (docCommentEnd == -1) return null
-
-    // Search backwards for the start token of the comment.
-    val docCommentStart = source.lastIndexOf("/**", docCommentEnd)
-    if (docCommentStart == -1) return null
-
-    // Trim leading /** and trailing */ to match what Turbine does with Lexer.javadoc().
-    return source.substring(docCommentStart + 3, docCommentEnd)
+    return ItemDocumentationFactory { item ->
+        createSourceItemDocumentation(item, TurbineSourceComment(sourceFile, turbineJavadoc))
+    }
 }
 
 /**

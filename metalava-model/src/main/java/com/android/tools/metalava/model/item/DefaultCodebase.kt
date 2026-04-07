@@ -16,12 +16,11 @@
 
 package com.android.tools.metalava.model.item
 
-import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.AnnotationManager
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
-import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.PackageItem
+import com.android.tools.metalava.model.SkeletonClassItem
 import com.android.tools.metalava.model.api.surface.ApiSurfaces
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
@@ -39,7 +38,6 @@ open class DefaultCodebase(
     private val trustedApi: Boolean,
     private val supportsDocumentation: Boolean,
     val assembler: CodebaseAssembler,
-    override val isMultiplatform: Boolean,
 ) : Codebase {
 
     final override val annotationManager: AnnotationManager = config.annotationManager
@@ -68,8 +66,8 @@ open class DefaultCodebase(
 
     override val reporter: Reporter = config.reporter
 
-    /** Tracks [DefaultPackageItem] use in this [Codebase]. */
-    val packageTracker = PackageTracker(assembler::createPackageItem)
+    /** Tracks [PackageItem] use in this [Codebase]. */
+    val packageTracker = PackageTracker(assembler)
 
     final override fun getPackages() = packageTracker.getPackages()
 
@@ -77,22 +75,17 @@ open class DefaultCodebase(
 
     final override fun findPackage(pkgName: String) = packageTracker.findPackage(pkgName)
 
-    fun findOrCreatePackage(
-        packageName: String,
-        packageDocs: PackageDocs = PackageDocs.EMPTY,
-    ) = packageTracker.findOrCreatePackage(packageName, packageDocs)
+    fun findOrCreatePackage(packageName: String) = packageTracker.findOrCreatePackage(packageName)
 
     /**
      * Map from fully qualified name to [DefaultClassItem] for every class created by this.
      *
      * Classes are added via [registerClass] while initialising the codebase.
      */
-    private val allClassesByName = HashMap<String, DefaultClassItem>(CLASS_ESTIMATE)
+    private val allClassesByName = HashMap<String, SkeletonClassItem>(CLASS_ESTIMATE)
 
     /** Find a class created by this [Codebase]. */
     fun findClassInCodebase(className: String) = allClassesByName[className]
-
-    override fun getAllClassesByName(): Map<String, DefaultClassItem> = allClassesByName
 
     /**
      * A list of the top-level classes declared in the codebase's source (rather than on its
@@ -132,7 +125,7 @@ open class DefaultCodebase(
      * Register the class by name, return `true` if the class was registered and `false` if it was
      * not, i.e. because it is a duplicate.
      */
-    fun registerClass(classItem: DefaultClassItem): Boolean {
+    fun registerClass(classItem: SkeletonClassItem): Boolean {
         // Check for duplicates, ignore the class if it is a duplicate.
         val qualifiedName = classItem.qualifiedName()
         val existing = allClassesByName[qualifiedName]
@@ -182,12 +175,5 @@ open class DefaultCodebase(
             return it
         }
         return assembler.createPackageFromUnderlyingModel(pkgName)
-    }
-
-    override fun createAnnotation(
-        source: String,
-        context: Item?,
-    ): AnnotationItem? {
-        return AnnotationItem.createFromSource(this, source)
     }
 }

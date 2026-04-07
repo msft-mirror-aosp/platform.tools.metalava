@@ -16,13 +16,23 @@
 
 package com.android.tools.metalava.model.source.doc
 
-import com.android.tools.metalava.reporter.Issues
-import com.android.tools.metalava.reporter.LocationSpecificReporter
+import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.FieldItem
+import com.android.tools.metalava.model.ReferencableItem
+import com.android.tools.metalava.model.TypeParameterScope
+import com.android.tools.metalava.model.scope.NameClassification
+import com.android.tools.metalava.model.source.javadoc.ExprContext
+import com.android.tools.metalava.model.source.javadoc.TestTagTypes
+import com.android.tools.metalava.model.value.Value
+import com.android.tools.metalava.reporter.Issues.Issue
 import kotlin.test.assertEquals
+import org.junit.Before
+import org.mockito.kotlin.doReturn
+import org.mockito.kotlin.mock
 
 abstract class BaseDocCommentTest {
-    val reporter = CollatingDocumentationIssueReporter()
-    val context = NoOpDocCommentContext()
+    internal val reporter = CollatingDocumentationIssueReporter()
+    internal val context = TestDocCommentContext(reporter)
 
     /**
      * Create a [DocComment] from [input] for testing, verifying that [expectedIssues] were found.
@@ -37,6 +47,11 @@ abstract class BaseDocCommentTest {
                 input.trimIndent(),
                 reporter,
             )
+
+        // Parse all the descriptions
+        docComment.description
+        docComment.blockTagSections.forEach { it.description }
+
         reporter.assertJavadocParserIssues(expectedIssues)
         return docComment
     }
@@ -53,46 +68,97 @@ abstract class BaseDocCommentTest {
         var actualPrintOutput = docComment.asJavadocCommentString().trim()
         assertEquals(expectedPrintOutput.trimIndent(), actualPrintOutput, message)
     }
+
+    @Before
+    fun initializeTestTagTypes() {
+        // Make sure that the test tag types are registered.
+        TestTagTypes
+    }
 }
 
 /**
  * A [DocumentationIssueReporter] that collates any issues reported and returns them from
  * [toString].
  */
-class CollatingDocumentationIssueReporter : DocumentationIssueReporter {
-    private val builder = StringBuilder()
+internal class CollatingDocumentationIssueReporter : DocumentationIssueReporter {
+    private val list = mutableListOf<Report>()
 
-    override fun report(issue: Issues.Issue, message: String, lineOffset: Int, charOffset: Int) {
-        builder.append("${lineOffset + 1}:${charOffset + 1}: $message [${issue.name}]\n")
+    private data class Report(
+        val line: Int,
+        val charPosition: Int,
+        val issue: Issue,
+        val message: String,
+    )
+
+    override fun report(issue: Issue, message: String, lineOffset: Int, charOffset: Int) {
+        list.add(Report(lineOffset + 1, charOffset + 1, issue, message))
     }
 
-    override fun toString() = builder.toString()
+    override fun toString(): String {
+        list.sortWith(reportComparator)
+        return list.joinToString("\n") { report ->
+            "${report.line}:${report.charPosition}: ${report.message} [${report.issue.name}]"
+        }
+    }
 
     /** Verify that the reported issues matches [expectedIssues]. */
     fun assertJavadocParserIssues(expectedIssues: String) {
-        assertEquals(
-            expectedIssues.trimIndent(),
-            toString().trim(),
-            message = "javadoc parser issues"
-        )
+        assertEquals(expectedIssues.trimIndent(), toString(), message = "javadoc parser issues")
+    }
+
+    companion object {
+        private val reportComparator =
+            compareBy<Report>(
+                { it.line },
+                { it.charPosition },
+                { it.issue?.name },
+                { it.message },
+            )
     }
 }
 
-/** A test [DocCommentContext] that provides basic no-op implementations. */
-class NoOpDocCommentContext : DocCommentContext, DocCommentMutationListener {
-    override val mutationListener: DocCommentMutationListener
-        get() = this
+/** A test [DocCommentContext] that provides basic implementations. */
+internal class TestDocCommentContext(reporter: DocumentationIssueReporter) : DocCommentContext {
 
-    override fun docCommentMutated() {}
+    /** A map from flage name to enabled status. */
+    var flags: Map<String, Boolean> = emptyMap()
+
+    /** Qualify [sourceReference], if needed. */
+    private fun qualifySourceReference(sourceReference: String): String =
+        if (sourceReference.contains(".") || sourceReference.startsWith("#")) sourceReference
+        else "resolved.$sourceReference"
+
+    override fun resolveItemReference(
+        sourceReference: String,
+        nameClassification: NameClassification
+    ): ReferencableItem =
+        when (nameClassification) {
+            NameClassification.FIELD -> {
+                mock<FieldItem>(stubOnly = true) {
+                    on { constantValue } doReturn Value.createLiteralValue(null, sourceReference)
+                }
+            }
+            NameClassification.TYPE,
+            NameClassification.AMBIGUOUS -> {
+                val qualifiedName = qualifySourceReference(sourceReference)
+                mock<ClassItem>(stubOnly = true) { on { qualifiedName() } doReturn qualifiedName }
+            }
+            else ->
+                error(
+                    "referencableItemResolver did not return an item for ${nameClassification.describeName(sourceReference)}"
+                )
+        }
+
+    /** Implements [ExprContext.isFlagEnabled]. */
+    override fun isFlagEnabled(flagName: String) = flags[flagName] ?: false
 
     override fun ordinalInParamsList(name: String) = 0
 
     override fun isOverridingMethod() = false
 
-    override fun fullyQualifyComment(comment: String) = comment
+    override val containingClassItem: ClassItem?
+        get() = null
 
-    override fun resolveThrowableType(reporter: LocationSpecificReporter, typeName: String) =
-        ClassReference(typeName)
-
-    override fun resolveReference(sourceReference: String) = null
+    override val docTypeParser: DocTypeParser =
+        DocTypeParser.create(reporter, TypeParameterScope.empty)
 }

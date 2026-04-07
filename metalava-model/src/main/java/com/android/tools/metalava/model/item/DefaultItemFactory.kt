@@ -35,12 +35,18 @@ import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.PropertyItem
+import com.android.tools.metalava.model.RecordComponentItem
+import com.android.tools.metalava.model.RecordComponentItemsFactory
+import com.android.tools.metalava.model.SkeletonClassItem
+import com.android.tools.metalava.model.SkeletonTypeParameterItem
 import com.android.tools.metalava.model.SourceFile
 import com.android.tools.metalava.model.SourceLanguage
 import com.android.tools.metalava.model.TargetLanguage
 import com.android.tools.metalava.model.TargetLanguageSet
 import com.android.tools.metalava.model.TypeItem
+import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.TypeParameterList
+import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.value.OptionalValueProvider
 import com.android.tools.metalava.reporter.FileLocation
 
@@ -58,17 +64,21 @@ class DefaultItemFactory(
     /** Create a [PackageItem]. */
     fun createPackageItem(
         fileLocation: FileLocation,
+        sourceFile: SourceFile?,
         modifiers: BaseModifierList,
         documentationFactory: ItemDocumentationFactory,
         qualifiedName: String,
         containingPackage: PackageItem?,
         overviewDocumentation: ResourceFile?,
         targetLanguages: Set<TargetLanguage> = TargetLanguageSet.ALL,
-    ): DefaultPackageItem {
+    ): PackageItem {
         return DefaultPackageItem(
             codebase,
             fileLocation,
-            defaultSourceLanguage,
+            sourceFile,
+            // Treat all packages as being Java as Kotlin does not currently provide an equivalent
+            // to `package-info.java`.
+            SourceLanguage.JAVA,
             targetLanguages,
             modifiers,
             documentationFactory,
@@ -96,7 +106,10 @@ class DefaultItemFactory(
         superClassType: ClassTypeItem?,
         interfaceTypes: List<ClassTypeItem>,
         optionalAliasedType: TypeItem? = null,
-    ) =
+        isFileFacade: Boolean = false,
+        isMultiFileClass: Boolean = false,
+        recordComponentItemsFactory: RecordComponentItemsFactory? = null,
+    ): SkeletonClassItem =
         DefaultClassItem(
             codebase,
             fileLocation,
@@ -114,8 +127,10 @@ class DefaultItemFactory(
             origin,
             superClassType,
             interfaceTypes,
-            isFileFacade = false,
+            isFileFacade = isFileFacade,
             optionalAliasedType = optionalAliasedType,
+            isMultiFileClass = isMultiFileClass,
+            recordComponentItemsFactory = recordComponentItemsFactory ?: { emptyList() },
         )
 
     /** Create a [ConstructorItem]. */
@@ -198,6 +213,7 @@ class DefaultItemFactory(
         callableBodyFactory: CallableBodyFactory = CallableBody.UNAVAILABLE_FACTORY,
         defaultValueProvider: OptionalValueProvider?,
         isExtensionMethod: Boolean,
+        isKotlinProperty: Boolean = false,
     ): MethodItem =
         DefaultMethodItem(
             codebase,
@@ -216,6 +232,7 @@ class DefaultItemFactory(
             callableBodyFactory,
             defaultValueProvider,
             isExtensionMethod,
+            isKotlinProperty,
         )
 
     /** Create a [ParameterItem]. */
@@ -254,6 +271,7 @@ class DefaultItemFactory(
         type: TypeItem,
         receiver: TypeItem?,
         typeParameterList: TypeParameterList,
+        setterVisibility: VisibilityLevel?,
         getter: MethodItem? = null,
         setter: MethodItem? = null,
         constructorParameter: ParameterItem? = null,
@@ -275,6 +293,28 @@ class DefaultItemFactory(
             backingField,
             receiver,
             typeParameterList,
+            setterVisibility,
+        )
+
+    /** Create a [PropertyItem] for use as a record component. */
+    fun createRecordComponentItem(
+        fileLocation: FileLocation,
+        sourceLanguage: SourceLanguage = defaultSourceLanguage,
+        modifiers: BaseModifierList,
+        name: String,
+        containingClass: ClassItem,
+        type: TypeItem,
+        recordComponentIndex: Int,
+    ): RecordComponentItem =
+        DefaultRecordComponentItem(
+            codebase,
+            fileLocation,
+            sourceLanguage,
+            modifiers,
+            name,
+            containingClass,
+            type,
+            recordComponentIndex,
         )
 
     /** Create a [ClassItem] which is a typealias. */
@@ -282,31 +322,44 @@ class DefaultItemFactory(
         fileLocation: FileLocation,
         modifiers: BaseModifierList,
         qualifiedName: String,
-        containingPackage: DefaultPackageItem,
+        containingPackage: PackageItem,
         aliasedType: TypeItem,
         typeParameterList: TypeParameterList,
         origin: ClassOrigin,
         documentationFactory: ItemDocumentationFactory = ItemDocumentation.NONE_FACTORY,
     ): ClassItem =
-        DefaultClassItem.createTypeAlias(
+        DefaultClassItem(
             codebase,
             fileLocation,
+            // Typealiases can only be defined in Kotlin.
+            SourceLanguage.KOTLIN,
+            // Typealiases can only be referenced from Kotlin source.
+            TargetLanguageSet.KOTLIN_ONLY,
             modifiers,
             documentationFactory,
             defaultVariantSelectorsFactory,
-            aliasedType,
+            null,
+            ClassKind.TYPEALIAS,
+            // Typealiases can only be defined at the top leve.
+            containingClass = null,
+            containingPackage,
             qualifiedName,
             typeParameterList,
-            containingPackage,
             origin,
+            // Typealiases don't have a superclass or interface types, since they are not
+            // normal classes.
+            superClassType = null,
+            interfaceTypes = emptyList(),
+            isFileFacade = false,
+            optionalAliasedType = aliasedType,
         )
 
     /**
-     * Create a [DefaultTypeParameterItem].
+     * Create a [SkeletonTypeParameterItem].
      *
-     * This returns [DefaultTypeParameterItem] because access is needed to its
-     * [DefaultTypeParameterItem.bounds] after creation as full creation is a two stage process due
-     * to cyclical dependencies between [DefaultTypeParameterItem] in a type parameters list.
+     * This returns [SkeletonTypeParameterItem] because access is needed to its
+     * [SkeletonTypeParameterItem.bounds] after creation as full creation is a two stage process due
+     * to cyclical dependencies between [TypeParameterItem] in a type parameters list.
      *
      * TODO(b/351410134): Provide support in this factory for two stage initialization.
      */
@@ -314,11 +367,5 @@ class DefaultItemFactory(
         modifiers: BaseModifierList,
         name: String,
         isReified: Boolean,
-    ) =
-        DefaultTypeParameterItem(
-            codebase,
-            modifiers,
-            name,
-            isReified,
-        )
+    ): SkeletonTypeParameterItem = DefaultTypeParameterItem(modifiers, name, isReified)
 }

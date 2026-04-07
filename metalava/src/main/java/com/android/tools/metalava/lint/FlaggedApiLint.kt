@@ -133,7 +133,7 @@ class FlaggedApiLint(
 
     private fun checkFlaggedApiLiteral(item: Item) {
         if (item.codebase.preFiltered) {
-            // Flag constants aren't ever API, so prefiltered codebases would always only contain
+            // Flag constants aren't ever API, so prefitered codebases would always only contain
             // literals.
             return
         }
@@ -293,12 +293,8 @@ class FlaggedApiLint(
      */
     private fun normalizeModifiers(item: Item): String {
         return StringWriter().use { writer ->
-            val modifierListWriter =
-                ModifierListWriter.forSignature(
-                    writer,
-                    skipNullnessAnnotations = true,
-                )
-            modifierListWriter.write(item, normalizeFinal = true, skipRequiresPermission = true)
+            val modifierListWriter = ModifierListWriter.forNormalizing(writer)
+            modifierListWriter.write(item)
             val normalizedModifiers = writer.toString().trim()
             normalizedModifiers
         }

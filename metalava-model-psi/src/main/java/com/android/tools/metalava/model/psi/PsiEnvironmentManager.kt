@@ -57,6 +57,10 @@ internal class PsiEnvironmentManager(
      */
     private var closed = false
 
+    /** The first environment created by the manager. */
+    var initialEnvironment: UastEnvironment? = null
+        private set
+
     /** The list of available environments. */
     private val uastEnvironments = mutableListOf<UastEnvironment>()
 
@@ -86,6 +90,9 @@ internal class PsiEnvironmentManager(
 
         val environment = UastEnvironment.create(config)
         uastEnvironments.add(environment)
+        if (initialEnvironment == null) {
+            initialEnvironment = environment
+        }
 
         if (disableStderrDumping) {
             DefaultLogger.disableStderrDumping(environment.ideaProject)
@@ -122,7 +129,6 @@ internal class PsiEnvironmentManager(
         javaLanguageLevel: String,
         kotlinLanguageLevel: String,
         modelOptions: ModelOptions,
-        allowReadingComments: Boolean,
         jdkHome: File?,
     ): PsiSourceParser {
         return PsiSourceParser(
@@ -130,8 +136,6 @@ internal class PsiEnvironmentManager(
             codebaseConfig = codebaseConfig,
             javaLanguageLevel = javaLanguageLevelFromString(javaLanguageLevel),
             kotlinLanguageLevel = kotlinLanguageVersionSettings(kotlinLanguageLevel),
-            useK2Uast = modelOptions[PsiModelOptions.useK2Uast],
-            allowReadingComments = allowReadingComments,
             jdkHome = jdkHome,
         )
     }
@@ -146,6 +150,7 @@ internal class PsiEnvironmentManager(
             }
         }
         uastEnvironments.clear()
+        initialEnvironment = null
 
         // Only dispose of the application environment if this is the final environment to close.
         // If it was not then there is no point in checking to make sure that [Disposer] is empty
@@ -171,7 +176,7 @@ internal class PsiEnvironmentManager(
 
 private const val METALAVA_SYNTHETIC_SUFFIX = "metalava_module"
 
-fun javaLanguageLevelFromString(value: String): LanguageLevel {
+private fun javaLanguageLevelFromString(value: String): LanguageLevel {
     val level = LanguageLevel.parse(value)
     when {
         level == null ->

@@ -26,7 +26,13 @@ import com.android.tools.metalava.apilevels.ApiToExtensionsMap.Companion.ANDROID
 import com.android.tools.metalava.apilevels.ApiVersion
 import com.android.tools.metalava.cli.common.ExecutionEnvironment
 import com.android.tools.metalava.containsNullWord
+import com.android.tools.metalava.doc.annotationhandlers.EnumPolicyAnnotationHandler
+import com.android.tools.metalava.doc.annotationhandlers.IntegerPolicyAnnotationHandler
+import com.android.tools.metalava.doc.annotationhandlers.ListOfStringPolicyAnnotationHandler
+import com.android.tools.metalava.doc.annotationhandlers.StringPolicyAnnotationHandler
 import com.android.tools.metalava.model.ANDROIDX_ANNOTATION_PREFIX
+import com.android.tools.metalava.model.ANDROIDX_FLOAT_RANGE
+import com.android.tools.metalava.model.ANDROIDX_INT_RANGE
 import com.android.tools.metalava.model.ANNOTATION_ATTR_VALUE
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.CallableItem
@@ -71,12 +77,6 @@ private const val CARRIER_PRIVILEGES_MARKER = "carrier privileges"
 typealias ApiVersionLabelProvider = (ApiVersion) -> String
 
 /**
- * Lambda that when given an [ApiVersion] will return `true` if it can be referenced from within the
- * documentation and `false` if it cannot.
- */
-typealias ApiVersionFilter = (ApiVersion) -> Boolean
-
-/**
  * Walk over the API and apply tweaks to the documentation, such as
  * - Looking for annotations and converting them to auxiliary tags that will be processed by the
  *   documentation tools later.
@@ -95,9 +95,6 @@ class DocAnalyzer(
 
     /** Provides a string label for each [ApiVersion]. */
     private val apiVersionLabelProvider: ApiVersionLabelProvider,
-
-    /** Filter that determines whether an [ApiVersion] should be mentioned in the documentation. */
-    private val apiVersionFilter: ApiVersionFilter,
 
     /** Selects [Item]s whose documentation will be analyzed and/or enhanced. */
     private val apiPredicateConfig: ApiPredicate.Config,
@@ -234,10 +231,26 @@ class DocAnalyzer(
                     handleInliningDocs(annotation, item)
 
                     when (name) {
+                        "android.processor.devicepolicy.EnumPolicyDefinition" ->
+                            EnumPolicyAnnotationHandler(codebase, reporter, filterReference)
+                                .processPolicyAnnotation(annotation, item)
+                                .let { appendDocumentation(it, item, returnValue = false) }
+                        "android.processor.devicepolicy.StringPolicyDefinition" ->
+                            StringPolicyAnnotationHandler(codebase, reporter, filterReference)
+                                .processPolicyAnnotation(annotation, item)
+                                .let { appendDocumentation(it, item, returnValue = false) }
+                        "android.processor.devicepolicy.IntegerPolicyDefinition" ->
+                            IntegerPolicyAnnotationHandler(codebase, reporter, filterReference)
+                                .processPolicyAnnotation(annotation, item)
+                                .let { appendDocumentation(it, item, returnValue = false) }
+                        "android.processor.devicepolicy.ListOfStringPolicyDefinition" ->
+                            ListOfStringPolicyAnnotationHandler(codebase, reporter, filterReference)
+                                .processPolicyAnnotation(annotation, item)
+                                .let { appendDocumentation(it, item, returnValue = false) }
                         "androidx.annotation.RequiresPermission" ->
                             handleRequiresPermission(annotation, item)
-                        "androidx.annotation.IntRange",
-                        "androidx.annotation.FloatRange" -> handleRange(annotation, item)
+                        ANDROIDX_INT_RANGE,
+                        ANDROIDX_FLOAT_RANGE -> handleRange(annotation, item)
                         "androidx.annotation.IntDef",
                         "androidx.annotation.LongDef",
                         "androidx.annotation.StringDef" -> handleTypeDef(annotation, item)
@@ -284,9 +297,10 @@ class DocAnalyzer(
                 private fun handleKotlinDeprecation(annotation: AnnotationItem, item: Item) {
                     // Ignore Items without documentation.
                     item as? SelectableItem ?: return
+                    val documentation = item.documentation ?: return
 
                     // Drop out if it already has a deprecated Javadoc tag.
-                    if (item.documentation.hasBlockTagOfType("deprecated")) {
+                    if (documentation.hasBlockTagOfType("deprecated")) {
                         return
                     }
 
@@ -302,7 +316,7 @@ class DocAnalyzer(
                     }
 
                     // Create a deprecated block tag using the text from the Deprecated annotation.
-                    item.documentation.addUniqueBlockTagSectionWithSimpleText("deprecated", text)
+                    documentation.addUniqueBlockTagSectionWithSimpleText("deprecated", text)
                 }
 
                 private fun documentationContainsNullWord(item: Item): Boolean {
@@ -311,13 +325,13 @@ class DocAnalyzer(
                             item.description.containsNullWord()
                         }
                         is CallableItem -> {
-                            val documentation = item.documentation
+                            val documentation = item.documentation ?: return false
                             // Don't inspect param docs (and other tags) for this purpose.
                             documentation.mainDescription.containsNullWord() ||
                                 documentation.blockTagDescription("return").containsNullWord()
                         }
                         is SelectableItem -> {
-                            val documentation = item.documentation
+                            val documentation = item.documentation ?: return false
                             documentation.mainDescription.containsNullWord()
                         }
                         else -> false
@@ -338,8 +352,8 @@ class DocAnalyzer(
                         }
                         is CallableItem -> {
                             addDoc(annotation, "memberDoc", item.descriptionOwner)
-                            var returnDescriptionOwner =
-                                item.documentation.blockTagDescriptionOwner("return")
+                            val returnDescriptionOwner =
+                                item.requiredDocumentation.blockTagDescriptionOwner("return")
                             addDoc(annotation, "returnDoc", returnDescriptionOwner)
                         }
                         is ClassItem -> {
@@ -676,8 +690,10 @@ class DocAnalyzer(
                 is ParameterItem -> item.descriptionOwner
                 is MethodItem ->
                     // Document as part of return annotation, not member doc
-                    if (returnValue) item.documentation.blockTagDescriptionOwner("return")
-                    else item.descriptionOwner
+                    if (returnValue) {
+                        val documentation = item.requiredDocumentation
+                        documentation.blockTagDescriptionOwner("return")
+                    } else item.descriptionOwner
                 else -> item.descriptionOwner
             }
 
@@ -698,12 +714,11 @@ class DocAnalyzer(
 
         // Documentation of the annotation class that is to be copied into the item where the
         // annotation is used.
-        val annotationDocumentation = cls.documentation
+        val annotationDocumentation = cls.documentation ?: return
 
         // Get the text for the supplied tag as that is what needs to be copied into the use site.
         // If there is no such text then return immediately.
-        val tagDescription =
-            annotationDocumentation.blockTagDescription(tag, forAppending = true) ?: return
+        val tagDescription = annotationDocumentation.blockTagDescription(tag) ?: return
 
         descriptionOwner.append(tagDescription)
     }
@@ -814,7 +829,7 @@ class DocAnalyzer(
         blockTagType: String,
         content: String,
     ) {
-        val documentation = item.documentation
+        val documentation = item.requiredDocumentation
 
         // Report an issue if [blockTagType] is present in the sources.
         if (documentation.hasBlockTagOfType(blockTagType)) {
@@ -837,11 +852,6 @@ class DocAnalyzer(
      */
     private fun addApiVersionDocumentation(apiVersion: ApiVersion?, item: SelectableItem) {
         if (apiVersion != null) {
-            // Check to see whether an API version should not be included in the documentation.
-            if (!apiVersionFilter(apiVersion)) {
-                return
-            }
-
             // Always set @apiSince, overriding any existing value.
             val apiVersionLabel = apiVersionLabelProvider(apiVersion)
             addUniqueVersionBlockTag(item, "apiSince", apiVersionLabel)

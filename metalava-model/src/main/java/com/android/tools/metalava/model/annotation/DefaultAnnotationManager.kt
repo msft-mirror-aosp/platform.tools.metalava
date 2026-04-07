@@ -17,6 +17,8 @@
 package com.android.tools.metalava.model.annotation
 
 import com.android.tools.metalava.model.ANDROIDX_ANNOTATION_PREFIX
+import com.android.tools.metalava.model.ANDROIDX_FLOAT_RANGE
+import com.android.tools.metalava.model.ANDROIDX_INT_RANGE
 import com.android.tools.metalava.model.ANDROIDX_NONNULL
 import com.android.tools.metalava.model.ANDROIDX_NULLABLE
 import com.android.tools.metalava.model.ANDROID_ANNOTATION_PREFIX
@@ -65,6 +67,10 @@ import com.android.tools.metalava.model.computeTypeNullability
 import com.android.tools.metalava.model.hasAnnotation
 import com.android.tools.metalava.model.isNonNullAnnotation
 import com.android.tools.metalava.model.isNullableAnnotation
+import com.android.tools.metalava.reporter.Issues
+import com.android.tools.metalava.reporter.Reporter
+import com.android.tools.metalava.reporter.ThrowingReporter
+import kotlin.getValue
 
 /** The type of lambda that can construct a key from an [AnnotationItem] */
 typealias KeyFactory = (annotationItem: AnnotationItem) -> String
@@ -72,6 +78,7 @@ typealias KeyFactory = (annotationItem: AnnotationItem) -> String
 class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnnotationManager() {
 
     data class Config(
+        val reporter: Reporter = ThrowingReporter.INSTANCE,
         val passThroughAnnotations: Set<String> = emptySet(),
         val allShowAnnotations: AnnotationFilter = AnnotationFilter.emptyFilter(),
         val showAnnotations: AnnotationFilter = AnnotationFilter.emptyFilter(),
@@ -222,8 +229,8 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
             "android.annotation.HalfFloat" -> return "androidx.annotation.HalfFloat"
 
             // Ranges and sizes
-            "android.annotation.FloatRange" -> return "androidx.annotation.FloatRange"
-            "android.annotation.IntRange" -> return "androidx.annotation.IntRange"
+            "android.annotation.FloatRange" -> return ANDROIDX_FLOAT_RANGE
+            "android.annotation.IntRange" -> return ANDROIDX_INT_RANGE
             "android.annotation.Size" -> return "androidx.annotation.Size"
             "android.annotation.Px" -> return "androidx.annotation.Px"
             "android.annotation.Dimension" -> return "androidx.annotation.Dimension"
@@ -303,10 +310,6 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
 
             // This implementation only annotation shouldn't be used by metalava at all.
             "dalvik.annotation.codegen.CovariantReturnType" -> return null
-
-            // TODO(b/399105459): remove this workaround once there is full support for typealias
-            //  annotations from the classpath
-            "kotlin.jvm.JvmRepeatable" -> return "java.lang.annotation.Repeatable"
             else -> {
                 // Some new annotations added to the platform: assume they are support
                 // annotations?
@@ -486,6 +489,13 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
             return NO_ANNOTATION_TARGETS
         }
 
+        if (qualifiedName.startsWith("android.processor.devicepolicy.")) {
+            // We don't want to export device policy definition annotations.
+            // Skip them from checking into the API signature, external
+            // annotations, stubs, etc.
+            return NO_ANNOTATION_TARGETS
+        }
+
         // @RecentlyNullable and @RecentlyNonNull are specially recognized annotations by the
         // Kotlin
         // compiler: they always go in the stubs.
@@ -529,9 +539,6 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
 
         return ANNOTATION_EXTERNAL
     }
-
-    override fun isShowAnnotationName(annotationName: String): Boolean =
-        config.allShowAnnotations.matchesAnnotationName(annotationName)
 
     /** Check whether this has been configured in a way that could cause items to be reverted. */
     private fun couldRevertItems(): Boolean = config.apiFlags != null
@@ -600,7 +607,7 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
 
         // If the item is to be reverted then find the [Item] to which it will be reverted, if any,
         // and incorporate that into the [Showability].
-        if (itemShowability == REVERT_UNSTABLE_API) {
+        if (itemShowability.revertUnstableApi()) {
             val revertItem = findRevertItem(item)
 
             // If the [revertItem] cannot be found then there is no need to modify the item
@@ -650,11 +657,17 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
      *
      * Searches the previously released API (if available).
      */
-    private fun findRevertItem(item: SelectableItem): SelectableItem? {
-        return previouslyReleasedCodebase?.let { codebase ->
-            item.findCorrespondingItemIn(codebase)
+    private fun findRevertItem(item: SelectableItem) =
+        previouslyReleasedCodebase.let { codebase ->
+            if (codebase == null) {
+                config.reporter.report(
+                    Issues.NO_PREVIOUSLY_RELEASED_API,
+                    item,
+                    "Cannot revert $item (or any other API item) as no previously released API has been provided"
+                )
+                null
+            } else item.findCorrespondingItemIn(codebase)
         }
-    }
 
     override val typedefMode: TypedefMode = config.typedefMode
 }
@@ -710,6 +723,9 @@ private class LazyAnnotationInfo(
         return apiFlags[flagName]
     }
 
+    override val annotationClass
+        get() = annotationClassItem?.annotationClass
+
     companion object {
         /**
          * The annotation will cause the annotated item (and any enclosed items unless overridden by
@@ -754,7 +770,7 @@ private class LazyAnnotationInfo(
     }
 
     /** Resolve the [AnnotationItem] to a [ClassItem] lazily. */
-    private val annotationClass by lazy(LazyThreadSafetyMode.NONE, annotationItem::resolve)
+    private val annotationClassItem by lazy(LazyThreadSafetyMode.NONE, annotationItem::resolve)
 
     /** Flag to detect whether the [checkResolvedAnnotationClass] is in a cycle. */
     private var isCheckingResolvedAnnotationClass = false
@@ -776,7 +792,7 @@ private class LazyAnnotationInfo(
 
             // Try and resolve this to the class to see if it has been annotated with hide meta
             // annotations. If it could not be resolved then assume it has not been annotated.
-            val resolved = annotationClass ?: return false
+            val resolved = annotationClassItem ?: return false
 
             // Return the result of applying the test to the resolved class.
             return test(resolved)
@@ -785,15 +801,25 @@ private class LazyAnnotationInfo(
         }
     }
 
+    private fun isDirectlyExperimental(qualifiedName: String): Boolean {
+        return qualifiedName == SUPPRESS_COMPATIBILITY_ANNOTATION_QUALIFIED ||
+            config.suppressCompatibilityMetaAnnotations.contains(qualifiedName)
+    }
+
     /**
      * If true then this annotation will suppress compatibility checking on annotated items.
      *
-     * This is true if this annotation is
+     * This is true if this annotation is directly annotated with a suppress annotation, or is
+     * annotated directly with an annotation that is annotated with a suppress annotation. It won't
+     * check more than 1 level up (see b/460835117).
      */
     override val suppressCompatibility by
         lazy(LazyThreadSafetyMode.NONE) {
-            qualifiedName == SUPPRESS_COMPATIBILITY_ANNOTATION_QUALIFIED ||
-                config.suppressCompatibilityMetaAnnotations.contains(qualifiedName) ||
-                checkResolvedAnnotationClass { it.hasSuppressCompatibilityMetaAnnotation() }
+            isDirectlyExperimental(qualifiedName) ||
+                checkResolvedAnnotationClass {
+                    it.modifiers.annotations().any { metaAnnotation ->
+                        isDirectlyExperimental(metaAnnotation.qualifiedName)
+                    }
+                }
         }
 }

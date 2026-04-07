@@ -21,14 +21,11 @@ import com.android.tools.metalava.ARG_SHOW_ANNOTATION
 import com.android.tools.metalava.ARG_SHOW_UNANNOTATED
 import com.android.tools.metalava.DriverTest
 import com.android.tools.metalava.SystemApiType
-import com.android.tools.metalava.androidxNonNullSource
-import com.android.tools.metalava.androidxNullableSource
 import com.android.tools.metalava.cli.common.ARG_ERROR_CATEGORY
 import com.android.tools.metalava.cli.common.ARG_HIDE
 import com.android.tools.metalava.model.ANDROID_SYSTEM_API
 import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.testing.RequiresCapabilities
-import com.android.tools.metalava.model.text.ApiClassResolution
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.nonNullSource
 import com.android.tools.metalava.reporter.Issues
@@ -36,294 +33,12 @@ import com.android.tools.metalava.restrictToSource
 import com.android.tools.metalava.suppressLintSource
 import com.android.tools.metalava.systemApiSource
 import com.android.tools.metalava.testApiSource
+import com.android.tools.metalava.testing.KnownSourceFiles
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
 import org.junit.Test
 
 class CompatibilityCheckTest : DriverTest() {
-
-    @Test
-    fun `Should raise issue when adding private subclass to exhaustive sealed interface (sealed interface changes from exhaustive to nonexhaustive)`() {
-        check(
-            expectedIssues =
-                """
-                    load-api.txt:6: error: Sealed interface can no longer be exhaustively matched because an inaccessible subclass was added. [SealedClassExhaustivityChanged]
-                """
-                    .trimIndent(),
-            expectedFail = "",
-            extraArguments =
-                arrayOf(
-                    "--error",
-                    Issues.ADDED_SUBCLASS_TO_SEALED_CLASS.name,
-                    "--error",
-                    Issues.SEALED_CLASS_EXHAUSTIVITY_CHANGED.name
-                ),
-            checkCompatibilityApiReleased =
-                """
-                package test.pkg {
-                  public final class OriginalInterfaceImplementor implements test.pkg.SealedInterface {
-                    ctor public OriginalInterfaceImplementor();
-                  }
-                  public sealed exhaustive interface SealedInterface {
-                  }
-                }
-                """,
-            signatureSource =
-                """
-                package test.pkg {
-                  public final class OriginalInterfaceImplementor implements test.pkg.SealedInterface {
-                    ctor public OriginalInterfaceImplementor();
-                  }
-                  public sealed nonexhaustive interface SealedInterface {
-                  }
-                }
-                """
-        )
-    }
-
-    @Test
-    fun `Should raise issue when adding private subclass to exhaustive sealed class (sealed class changes from exhaustive to nonexhaustive)`() {
-        check(
-            expectedIssues =
-                """
-                load-api.txt:6: error: Sealed class can no longer be exhaustively matched because an inaccessible subclass was added. [SealedClassExhaustivityChanged]
-            """
-                    .trimIndent(),
-            expectedFail = "",
-            extraArguments =
-                arrayOf(
-                    "--error",
-                    Issues.ADDED_SUBCLASS_TO_SEALED_CLASS.name,
-                    "--error",
-                    Issues.SEALED_CLASS_EXHAUSTIVITY_CHANGED.name
-                ),
-            checkCompatibilityApiReleased =
-                """
-                package test.pkg {
-                  public final class MySubClass extends test.pkg.SealedClass {
-                    ctor public MySubClass();
-                  }
-                  public abstract sealed exhaustive class SealedClass {
-                  }
-                }
-                """,
-            signatureSource =
-                """
-                package test.pkg {
-                  public final class MySubClass extends test.pkg.SealedClass {
-                    ctor public MySubClass();
-                  }
-                  public abstract sealed nonexhaustive class SealedClass {
-                  }
-                }
-                """
-        )
-    }
-
-    @Test
-    fun `Don't raise issue when adding subclass to nonexhaustive sealed class`() {
-        check(
-            expectedIssues = "",
-            extraArguments = arrayOf("--error", Issues.ADDED_SUBCLASS_TO_SEALED_CLASS.name),
-            checkCompatibilityApiReleased =
-                """
-                package test.pkg {
-                  public final class OriginalSubclass extends test.pkg.SealedClass {
-                    ctor public OriginalSubclass();
-                  }
-                  public abstract sealed nonexhaustive class SealedClass {
-                  }
-                }
-                """,
-            signatureSource =
-                """
-                package test.pkg {
-                  public final class NewSubclass extends test.pkg.SealedClass {
-                    ctor public NewSubclass();
-                  }
-                  public final class OriginalSubclass extends test.pkg.SealedClass {
-                    ctor public OriginalSubclass();
-                  }
-                  public abstract sealed nonexhaustive class SealedClass {
-                  }
-                }
-                """
-        )
-    }
-
-    @Test
-    fun `Should raise issue when adding implementor to exhaustive sealed interface`() {
-        check(
-            expectedIssues =
-                """
-                    load-api.txt:3: error: Added a subclass to a sealed interface that can be exhaustively matched [AddedSubclassToSealedClass]
-                """
-                    .trimIndent(),
-            expectedFail = "",
-            extraArguments = arrayOf("--error", Issues.ADDED_SUBCLASS_TO_SEALED_CLASS.name),
-            checkCompatibilityApiReleased =
-                """
-                package test.pkg {
-                  public final class OriginalInterfaceImplementor implements test.pkg.SealedInterface {
-                    ctor public OriginalInterfaceImplementor();
-                  }
-                  public sealed exhaustive interface SealedInterface {
-                  }
-                }
-                """,
-            signatureSource =
-                """
-                package test.pkg {
-                  public final class NewInterfaceImplementor implements test.pkg.SealedInterface {
-                    ctor public NewInterfaceImplementor();
-                  }
-                  public final class OriginalInterfaceImplementor implements test.pkg.SealedInterface {
-                    ctor public OriginalInterfaceImplementor();
-                  }
-                  public sealed exhaustive interface SealedInterface {
-                  }
-                }
-                """
-        )
-    }
-
-    @Test
-    fun `Should raise issue when adding non-experimental subclass to exhaustive sealed class`() {
-        check(
-            expectedIssues =
-                """
-                load-api.txt:3: error: Added a subclass to a sealed class that can be exhaustively matched [AddedSubclassToSealedClass]
-            """
-                    .trimIndent(),
-            expectedFail = "",
-            extraArguments = arrayOf("--error", Issues.ADDED_SUBCLASS_TO_SEALED_CLASS.name),
-            checkCompatibilityApiReleased =
-                """
-                package test.pkg {
-                  public abstract sealed exhaustive class SealedClass {
-                  }
-                  public final class OriginalSubclass extends test.pkg.SealedClass {
-                    ctor public OriginalSubclass();
-                  }
-                }
-                """,
-            signatureSource =
-                """
-                package test.pkg {
-                  public final class NewSubclass extends test.pkg.SealedClass {
-                    ctor public NewSubclass();
-                  }
-                  public abstract sealed exhaustive class SealedClass {
-                  }
-                  public final class OriginalSubclass extends test.pkg.SealedClass {
-                    ctor public OriginalSubclass();
-                  }
-                }
-                """
-        )
-    }
-
-    @Test
-    fun `Should raise issue when adding experimental subclass to exhaustive sealed class`() {
-        check(
-            expectedIssues =
-                """
-                load-api.txt:3: error: Added a subclass to a sealed class that can be exhaustively matched [AddedSubclassToSealedClass]
-            """
-                    .trimIndent(),
-            expectedFail = "",
-            extraArguments = arrayOf("--error", Issues.ADDED_SUBCLASS_TO_SEALED_CLASS.name),
-            checkCompatibilityApiReleased =
-                """
-                package test.pkg {
-                  public abstract sealed exhaustive class SealedClass {
-                  }
-                  public final class OriginalSubclass extends test.pkg.SealedClass {
-                    ctor public OriginalSubclass();
-                  }
-                }
-                """,
-            signatureSource =
-                """
-                package test.pkg {
-                  @SuppressCompatibility @kotlin.RequiresOptIn public final class NewSubclass extends test.pkg.SealedClass {
-                    ctor public NewSubclass();
-                  }
-                  public abstract sealed exhaustive class SealedClass {
-                  }
-                  public final class OriginalSubclass extends test.pkg.SealedClass {
-                    ctor public OriginalSubclass();
-                  }
-                }
-                """,
-            suppressCompatibilityMetaAnnotations =
-                arrayOf("androidx.annotation.SuppressCompatibility")
-        )
-    }
-
-    @Test
-    fun `Should not raise issue when comparing against sealed interface without any exhaustivity modifier`() {
-        check(
-            expectedIssues = "",
-            extraArguments = arrayOf("--error", Issues.ADDED_SUBCLASS_TO_SEALED_CLASS.name),
-            checkCompatibilityApiReleased =
-                """
-                package test.pkg {
-                  public final class OriginalInterfaceImplementor implements test.pkg.SealedInterface {
-                    ctor public OriginalInterfaceImplementor();
-                  }
-                  public sealed interface SealedInterface {
-                  }
-                }
-                """,
-            signatureSource =
-                """
-                package test.pkg {
-                  public final class NewInterfaceImplementor implements test.pkg.SealedInterface {
-                    ctor public NewInterfaceImplementor();
-                  }
-                  public final class OriginalInterfaceImplementor implements test.pkg.SealedInterface {
-                    ctor public OriginalInterfaceImplementor();
-                  }
-                  public sealed exhaustive interface SealedInterface {
-                  }
-                }
-                """
-        )
-    }
-
-    @Test
-    fun `Should not raise issue when comparing against sealed class without any exhaustivity modifier`() {
-        check(
-            expectedIssues = "",
-            extraArguments = arrayOf("--error", Issues.ADDED_SUBCLASS_TO_SEALED_CLASS.name),
-            checkCompatibilityApiReleased =
-                """
-                package test.pkg {
-                  public abstract sealed class SealedClass {
-                  }
-                  public final class OriginalSubclass extends test.pkg.SealedClass {
-                    ctor public OriginalSubclass();
-                  }
-                }
-                """,
-            signatureSource =
-                """
-                package test.pkg {
-                  @SuppressCompatibility @kotlin.RequiresOptIn public final class NewSubclass extends test.pkg.SealedClass {
-                    ctor public NewSubclass();
-                  }
-                  public abstract sealed exhaustive class SealedClass {
-                  }
-                  public final class OriginalSubclass extends test.pkg.SealedClass {
-                    ctor public OriginalSubclass();
-                  }
-                }
-                """,
-            suppressCompatibilityMetaAnnotations =
-                arrayOf("androidx.annotation.SuppressCompatibility")
-        )
-    }
 
     @Test
     fun `Should not raise issue when experimental package is added`() {
@@ -642,7 +357,6 @@ class CompatibilityCheckTest : DriverTest() {
     @Test
     fun `Removed method from classpath`() {
         check(
-            apiClassResolution = ApiClassResolution.API_CLASSPATH,
             classpath =
                 arrayOf(
                     /* The following source file, compiled, then ran
@@ -1258,8 +972,8 @@ class CompatibilityCheckTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                src/test/pkg/Foo.kt:3: error: Source breaking change: Attempted to remove default value from parameter s1 in test.pkg.Foo [DefaultValueChange]
-                src/test/pkg/Foo.kt:7: error: Source breaking change: Attempted to remove default value from parameter s1 in test.pkg.Foo.method4 [DefaultValueChange]
+                src/test/pkg/Foo.kt:3: error: Source breaking change: Attempted to remove default value from parameter s1 in test.pkg.Foo(String s1) [DefaultValueChange]
+                src/test/pkg/Foo.kt:7: error: Source breaking change: Attempted to remove default value from parameter s1 in test.pkg.Foo.method4(boolean b, String s1) [DefaultValueChange]
                 """,
             format = FileFormat.V4,
             checkCompatibilityApiReleased =
@@ -1423,7 +1137,7 @@ class CompatibilityCheckTest : DriverTest() {
                 """
                 // Signature format: 4.0
                 package test.pkg {
-                  public @interface ExportedProperty {
+                  @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME) public @interface ExportedProperty {
                     method public abstract boolean resolveId() default false;
                     method public abstract float floating() default 1.0f;
                     method public abstract String! prefix() default "";
@@ -1756,187 +1470,6 @@ class CompatibilityCheckTest : DriverTest() {
                     }
                 }
             """
-        )
-    }
-
-    @Test
-    fun `Incompatible method change -- modifiers`() {
-        check(
-            expectedIssues =
-                """
-                src/test/pkg/MyClass.java:5: error: Binary breaking change: Method test.pkg.MyClass.myMethod2 has changed 'abstract' qualifier [ChangedAbstract]
-                src/test/pkg/MyClass.java:6: error: Binary breaking change: Method test.pkg.MyClass.myMethod3 has changed 'static' qualifier [ChangedStatic]
-                """,
-            checkCompatibilityApiReleased =
-                """
-                package test.pkg {
-                  public abstract class MyClass {
-                      method public void myMethod2();
-                      method public void myMethod3();
-                      method deprecated public void myMethod4();
-                  }
-                }
-                """,
-            sourceFiles =
-                arrayOf(
-                    java(
-                        """
-                    package test.pkg;
-
-                    public abstract class MyClass {
-                        private MyClass() {}
-                        public native abstract void myMethod2(); // Note that Errors.CHANGE_NATIVE is hidden by default
-                        public static void myMethod3() {}
-                        public void myMethod4() {}
-                    }
-                    """
-                    )
-                )
-        )
-    }
-
-    @Test
-    fun `Incompatible method change -- final`() {
-        check(
-            expectedIssues =
-                """
-                src/test/pkg/Outer.java:7: error: Binary breaking change: Method test.pkg.Outer.Class1.method1 has added 'final' qualifier [AddedFinal]
-                src/test/pkg/Outer.java:19: error: Method test.pkg.Outer.Class4.method4 has removed 'final' qualifier [RemovedFinalStrict]
-                """,
-            checkCompatibilityApiReleased =
-                """
-                package test.pkg {
-                  public abstract class Outer {
-                  }
-                  public class Outer.Class1 {
-                    ctor public Class1();
-                    method public void method1();
-                  }
-                  public final class Outer.Class2 {
-                    method public void method2();
-                  }
-                  public final class Outer.Class3 {
-                    method public void method3();
-                  }
-                  public class Outer.Class4 {
-                    method public final void method4();
-                  }
-                }
-                """,
-            sourceFiles =
-                arrayOf(
-                    java(
-                        """
-                    package test.pkg;
-
-                    public abstract class Outer {
-                        private Outer() {}
-                        public class Class1 {
-                            public Class1() {}
-                            public final void method1() { } // Added final
-                        }
-                        public final class Class2 {
-                            private Class2() {}
-                            public final void method2() { } // Added final but class is effectively final so no change
-                        }
-                        public final class Class3 {
-                            private Class3() {}
-                            public void method3() { } // Removed final but is still effectively final
-                        }
-                        public class Class4 {
-                            private Class4() {}
-                            public void method4() { } // Removed final
-                        }
-                    }
-                    """
-                    )
-                )
-        )
-    }
-
-    @Test
-    fun `Incompatible method change -- visibility`() {
-        check(
-            expectedIssues =
-                """
-                src/test/pkg/MyClass.java:6: error: Binary breaking change: Method test.pkg.MyClass.myMethod2 changed visibility from public to protected [ChangedScope]
-                """,
-            checkCompatibilityApiReleased =
-                """
-                package test.pkg {
-                  public abstract class MyClass {
-                      method protected void myMethod1();
-                      method public void myMethod2();
-                  }
-                }
-                """,
-            sourceFiles =
-                arrayOf(
-                    java(
-                        """
-                    package test.pkg;
-
-                    public abstract class MyClass {
-                        private MyClass() {}
-                        public void myMethod1() {}
-                        protected void myMethod2() {}
-                    }
-                    """
-                    )
-                )
-        )
-    }
-
-    @Test
-    fun `Incompatible method change -- return types`() {
-        check(
-            expectedIssues =
-                """
-                src/test/pkg/MyClass.java:5: error: Binary breaking change: Method test.pkg.MyClass.method1 has changed return type from float to int [ChangedType]
-                src/test/pkg/MyClass.java:6: error: Binary breaking change: Method test.pkg.MyClass.method2 has changed return type from java.util.List<java.lang.Number> to java.util.List<java.lang.Integer> [ChangedType]
-                src/test/pkg/MyClass.java:7: error: Binary breaking change: Method test.pkg.MyClass.method3 has changed return type from java.util.List<java.lang.Integer> to java.util.List<java.lang.Number> [ChangedType]
-                src/test/pkg/MyClass.java:8: error: Binary breaking change: Method test.pkg.MyClass.method4 has changed return type from java.lang.String to java.lang.String[] [ChangedType]
-                src/test/pkg/MyClass.java:9: error: Binary breaking change: Method test.pkg.MyClass.method5 has changed return type from java.lang.String[] to java.lang.String[][] [ChangedType]
-                src/test/pkg/MyClass.java:11: error: Binary breaking change: Method test.pkg.MyClass.method7 has changed return type from T (extends java.lang.Number) to java.lang.Number [ChangedType]
-                src/test/pkg/MyClass.java:13: error: Binary breaking change: Method test.pkg.MyClass.method9 has changed return type from X (extends java.lang.Throwable) to U (extends java.lang.Number) [ChangedType]
-                """,
-            checkCompatibilityApiReleased =
-                """
-                package test.pkg {
-                  public abstract class MyClass<T extends Number> {
-                      method public float method1();
-                      method public java.util.List<java.lang.Number> method2();
-                      method public java.util.List<java.lang.Integer> method3();
-                      method public String method4();
-                      method public String[] method5();
-                      method public <X extends java.lang.Throwable> T method6(java.util.function.Supplier<? extends X>);
-                      method public <X extends java.lang.Throwable> T method7(java.util.function.Supplier<? extends X>);
-                      method public <X extends java.lang.Throwable> Number method8(java.util.function.Supplier<? extends X>);
-                      method public <X extends java.lang.Throwable> X method9(java.util.function.Supplier<? extends X>);
-                  }
-                }
-                """,
-            sourceFiles =
-                arrayOf(
-                    java(
-                        """
-                    package test.pkg;
-
-                    public abstract class MyClass<U extends Number> { // Changing type variable name is fine/compatible
-                        private MyClass() {}
-                        public int method1() { return 0; }
-                        public java.util.List<Integer> method2() { return null; }
-                        public java.util.List<Number> method3() { return null; }
-                        public String[] method4() { return null; }
-                        public String[][] method5() { return null; }
-                        public <X extends java.lang.Throwable> U method6(java.util.function.Supplier<? extends X> arg) { return null; }
-                        public <X extends java.lang.Throwable> Number method7(java.util.function.Supplier<? extends X> arg) { return null; }
-                        public <X extends java.lang.Throwable> U method8(java.util.function.Supplier<? extends X> arg) { return null; }
-                        public <X extends java.lang.Throwable> U method9(java.util.function.Supplier<? extends X> arg) { return null; }
-                    }
-                    """
-                    )
-                )
         )
     }
 
@@ -2643,6 +2176,7 @@ class CompatibilityCheckTest : DriverTest() {
                 package androidx.annotation {
                   @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.CLASS) @java.lang.annotation.Target({java.lang.annotation.ElementType.ANNOTATION_TYPE, java.lang.annotation.ElementType.TYPE, java.lang.annotation.ElementType.METHOD, java.lang.annotation.ElementType.CONSTRUCTOR, java.lang.annotation.ElementType.FIELD, java.lang.annotation.ElementType.PACKAGE}) public @interface RestrictTo {
                     method @InaccessibleFromKotlin public abstract androidx.annotation.RestrictTo.Scope[] value();
+                    property public abstract androidx.annotation.RestrictTo.Scope[] value;
                   }
 
                   public enum RestrictTo.Scope {
@@ -3329,7 +2863,7 @@ class CompatibilityCheckTest : DriverTest() {
                     }
                     """
                     ),
-                    androidxNullableSource
+                    KnownSourceFiles.androidxNullableJavaSource
                 ),
             // The correct behavior would be for this test to fail, because of the removal of
             // nullability annotations on the child class. However, when we generate signature
@@ -3609,7 +3143,7 @@ class CompatibilityCheckTest : DriverTest() {
                     }
                     """
                     ),
-                    androidxNonNullSource,
+                    KnownSourceFiles.androidxNonNullJavaSource,
                 ),
         )
     }
@@ -3727,7 +3261,7 @@ class CompatibilityCheckTest : DriverTest() {
                 """
                 // Signature format: 4.0
                 package androidx.room {
-                  public @interface Relation {
+                  @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.CLASS) public @interface Relation {
                   }
                 }
                 """,
@@ -3864,7 +3398,7 @@ class CompatibilityCheckTest : DriverTest() {
                 """
                 // Signature format: 4.0
                 package androidx.annotation.experimental {
-                  public @interface UseExperimental {
+                  @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.CLASS) public @interface UseExperimental {
                     method public abstract Class<? extends java.lang.Object!> markerClass();
                   }
                 }
@@ -4475,7 +4009,6 @@ class CompatibilityCheckTest : DriverTest() {
     fun `Conversion from AutoCloseable to Closeable is not API-breaking`() {
         // Closeable implements AutoCloseable
         check(
-            apiClassResolution = ApiClassResolution.API_CLASSPATH,
             expectedIssues = "",
             checkCompatibilityApiReleased =
                 """
@@ -4530,7 +4063,6 @@ class CompatibilityCheckTest : DriverTest() {
     @Test
     fun `Conversion from MutableCollection to AbstractMutableCollection is not API-breaking`() {
         check(
-            apiClassResolution = ApiClassResolution.API_CLASSPATH,
             expectedIssues = "",
             checkCompatibilityApiReleased =
                 """
@@ -4571,7 +4103,6 @@ class CompatibilityCheckTest : DriverTest() {
     @Test
     fun `Expected API changes converting collections to Kotlin`() {
         check(
-            apiClassResolution = ApiClassResolution.API_CLASSPATH,
             // The parameter names are different between java.util.Collection and
             // kotlin.collections.Collection
             // Methods not defined in kotlin.collections.Collection appear abstract as they are not
@@ -4587,12 +4118,12 @@ class CompatibilityCheckTest : DriverTest() {
                 error: Binary breaking change: Method test.pkg.MyCollection.size has changed 'abstract' qualifier [ChangedAbstract]
                 error: Binary breaking change: Method test.pkg.MyCollection.toArray has changed 'abstract' qualifier [ChangedAbstract]
                 error: Binary breaking change: Method test.pkg.MyCollection.toArray has changed 'abstract' qualifier [ChangedAbstract]
-                error: Source breaking change: Attempted to remove parameter name from parameter p in test.pkg.MyCollection.add [ParameterNameChange]
-                error: Source breaking change: Attempted to remove parameter name from parameter p in test.pkg.MyCollection.addAll [ParameterNameChange]
-                error: Source breaking change: Attempted to remove parameter name from parameter p in test.pkg.MyCollection.remove [ParameterNameChange]
-                error: Source breaking change: Attempted to remove parameter name from parameter p in test.pkg.MyCollection.removeAll [ParameterNameChange]
-                error: Source breaking change: Attempted to remove parameter name from parameter p in test.pkg.MyCollection.retainAll [ParameterNameChange]
-                error: Source breaking change: Attempted to remove parameter name from parameter p in test.pkg.MyCollection.toArray [ParameterNameChange]
+                error: Source breaking change: Attempted to remove parameter name from parameter p in test.pkg.MyCollection.add(E p) [ParameterNameChange]
+                error: Source breaking change: Attempted to remove parameter name from parameter p in test.pkg.MyCollection.addAll(java.util.Collection<? extends E> p) [ParameterNameChange]
+                error: Source breaking change: Attempted to remove parameter name from parameter p in test.pkg.MyCollection.remove(Object p) [ParameterNameChange]
+                error: Source breaking change: Attempted to remove parameter name from parameter p in test.pkg.MyCollection.removeAll(java.util.Collection<?> p) [ParameterNameChange]
+                error: Source breaking change: Attempted to remove parameter name from parameter p in test.pkg.MyCollection.retainAll(java.util.Collection<?> p) [ParameterNameChange]
+                error: Source breaking change: Attempted to remove parameter name from parameter p in test.pkg.MyCollection.toArray(T[] p) [ParameterNameChange]
                 load-api.txt:5: error: Source breaking change: Attempted to change parameter name from o to element in method test.pkg.MyCollection.contains [ParameterNameChange]
                 load-api.txt:5: error: Source breaking change: Attempted to change parameter name from o to element in method test.pkg.MyCollection.contains [ParameterNameChange]
                 load-api.txt:6: error: Source breaking change: Attempted to change parameter name from c to elements in method test.pkg.MyCollection.containsAll [ParameterNameChange]
@@ -4641,7 +4172,6 @@ class CompatibilityCheckTest : DriverTest() {
     @Test
     fun `No issues using the same classpath class twice`() {
         check(
-            apiClassResolution = ApiClassResolution.API_CLASSPATH,
             expectedIssues = "",
             checkCompatibilityApiReleased =
                 """
@@ -5019,8 +4549,8 @@ class CompatibilityCheckTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                src/test/pkg/Foo.kt:7: error: Source breaking change: Attempted to remove default value from parameter p1 in test.pkg.Foo.noCompatibleOverloadNewParamNotOptional [DefaultValueChange]
-                src/test/pkg/Foo.kt:10: error: Source breaking change: Attempted to remove default value from parameter p1 in test.pkg.Foo.noCompatibleOverloadNoDefaultOnOverload [DefaultValueChange]
+                src/test/pkg/Foo.kt:7: error: Source breaking change: Attempted to remove default value from parameter p1 in test.pkg.Foo.noCompatibleOverloadNewParamNotOptional(int p0, boolean p1) [DefaultValueChange]
+                src/test/pkg/Foo.kt:10: error: Source breaking change: Attempted to remove default value from parameter p1 in test.pkg.Foo.noCompatibleOverloadNoDefaultOnOverload(int p0, boolean p1) [DefaultValueChange]
                 """,
             checkCompatibilityApiReleased =
                 """

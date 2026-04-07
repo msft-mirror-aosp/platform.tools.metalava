@@ -17,7 +17,7 @@
 package com.android.tools.metalava.model
 
 import com.android.tools.metalava.model.annotation.AnnotationClass
-import com.android.tools.metalava.model.scope.ReferencableNameScope
+import com.android.tools.metalava.model.scope.QualifiedNameScope
 
 /**
  * Represents a {@link https://docs.oracle.com/javase/8/docs/api/java/lang/Class.html Class}
@@ -31,7 +31,11 @@ interface ClassItem :
     SelectableItem,
     TypeParameterListOwner,
     ReferencableItem,
-    ReferencableNameScope {
+    // This is implemented because constructors cannot usually be referenced directly, e.g. in
+    // imports of `new` expressions. Instead, the class is referenced giving access to its
+    // constructors. Having ClassItem extend ReferencableCallableItem models that behavior.
+    ReferencableCallableItem,
+    QualifiedNameScope {
     /**
      * The qualified name of a class. In class foo.bar.Outer.Inner, the qualified name is the whole
      * thing.
@@ -49,9 +53,6 @@ interface ClassItem :
 
     /** Is this a top level class? */
     fun isTopLevelClass(): Boolean = containingClass() == null
-
-    /** The origin of this class. */
-    override val origin: ClassOrigin
 
     /** This [ClassItem] and all of its nested classes, recursively */
     fun allClasses(): Sequence<ClassItem> {
@@ -84,7 +85,7 @@ interface ClassItem :
      *
      * Interfaces always return `null` for this.
      */
-    @MetalavaApi fun superClass() = superClassType()?.asClass()
+    @MetalavaApi fun superClass() = superClassType()?.resolveClass(codebase)
 
     /** All super classes, if any */
     fun allSuperClasses(): Sequence<ClassItem> {
@@ -100,11 +101,23 @@ interface ClassItem :
     fun superClassType(): ClassTypeItem?
 
     /**
+     * A class is effectively sealed if it is either explicitly marked sealed, is a non-public
+     * interface, or an abstract class with no publicly accessible constructors. For more
+     * information, see b/220960090
+     */
+    fun isEffectivelySealed(): Boolean {
+        return modifiers.isSealed() ||
+            (isInterface() && !isPublic) ||
+            ((isClass() && modifiers.isAbstract()) &&
+                (constructors().none { (it.isPublic || it.isProtected) && !it.hidden }))
+    }
+
+    /**
      * This stores only the direct classes that inherit from this class, and not any indirect
-     * classes. This stores subclasses for both regular classes and interfaces (for interfaces, it
+     * classes. This stores subclasses for only sealed classes and interfaces (for interfaces, it
      * stores all the classes that implement that interface)
      */
-    fun subClasses(): List<ClassItem>
+    fun sealedClassDirectSubclasses(): List<ClassItem>
 
     /** Returns true if this class extends the given class (includes self) */
     fun extends(qualifiedName: String): Boolean {
@@ -128,7 +141,7 @@ interface ClassItem :
         }
 
         interfaceTypes().forEach {
-            val cls = it.asClass()
+            val cls = it.resolveClass(codebase)
             if (cls != null && cls.implements(qualifiedName)) {
                 return true
             }
@@ -202,7 +215,37 @@ interface ClassItem :
      * Whether this class is a multi-file facade class, generated from Kotlin files annotated with
      * [JvmMultifileClass]. This can only be true when [isFileFacade] is true.
      */
-    fun isMultiFileClass() = false
+    val isMultiFileClass: Boolean
+
+    /**
+     * The [RecordComponents] for this [ClassItem].
+     *
+     * A record class with no components and a non-record class will both have an empty
+     * [RecordComponents] instance. If it is necessary to differentiate between them then the caller
+     * must check whether [classKind] is [ClassKind.RECORD], or not.
+     *
+     * This is initialized on demand and must only be accessed after the [RecordComponentItem]s from
+     * which it is constructed have been added to the class.
+     */
+    val recordComponents: RecordComponents
+
+    override fun describe(capitalize: Boolean): String {
+        val descriptor =
+            if (classKind == ClassKind.TYPEALIAS) {
+                if (capitalize) {
+                    "Typealias"
+                } else {
+                    "typealias"
+                }
+            } else {
+                if (capitalize) {
+                    "Class"
+                } else {
+                    "class"
+                }
+            }
+        return "$descriptor ${qualifiedName()}"
+    }
 
     /** The containing class, for nested classes */
     @MetalavaApi override fun containingClass(): ClassItem?
@@ -247,10 +290,6 @@ interface ClassItem :
     // This replaces the interface types implemented by this class
     fun setInterfaceTypes(interfaceTypes: List<ClassTypeItem>)
 
-    /** The primary constructor for this class in Kotlin, if present. */
-    val primaryConstructor: ConstructorItem?
-        get() = constructors().singleOrNull { it.isPrimary }
-
     override fun baselineElementId() = qualifiedName()
 
     override fun accept(visitor: ItemVisitor) {
@@ -281,21 +320,17 @@ interface ClassItem :
             }
         }
 
-        /** A partial ordering over [ClassItem] comparing [ClassItem.fullName]. */
-        val fullNameComparator: Comparator<ClassItem> = Comparator.comparing { it.fullName() }
-
         /** A total ordering over [ClassItem] comparing [ClassItem.qualifiedName]. */
         private val qualifiedComparator: Comparator<ClassItem> =
             Comparator.comparing { it.qualifiedName() }
 
-        /**
-         * A total ordering over [ClassItem] comparing [ClassItem.fullName] first and then
-         * [ClassItem.qualifiedName].
-         */
-        val fullNameThenQualifierComparator: Comparator<ClassItem> =
-            fullNameComparator.thenComparing(qualifiedComparator)
+        fun classNameSorter(): Comparator<in ClassItem> = qualifiedComparator
 
-        fun classNameSorter(): Comparator<in ClassItem> = ClassItem.qualifiedComparator
+        /**
+         * The name used for a fake class which is a container for top level functions and
+         * properties in a non-JVM API surface.
+         */
+        const val TOP_LEVEL_DECLARATION_FACADE_NAME = "\$TopLevelDeclarations"
     }
 
     fun findMethod(
@@ -318,7 +353,7 @@ interface ClassItem :
 
         if (includeInterfaces) {
             for (itf in interfaceTypes()) {
-                val cls = itf.asClass() ?: continue
+                val cls = itf.resolveClass(codebase) ?: continue
                 cls.findMethod(template, includeSuperClasses, true)?.let {
                     return it
                 }
@@ -370,8 +405,43 @@ interface ClassItem :
 
         if (includeInterfaces) {
             for (itf in interfaceTypes()) {
-                val cls = itf.asClass() ?: continue
+                val cls = itf.resolveClass(codebase) ?: continue
                 cls.findField(fieldName, includeSuperClasses, true)?.let {
+                    return it
+                }
+            }
+        }
+        return null
+    }
+
+    /**
+     * Searches for a property with the [template]'s name and receiver in the class, including
+     * searching super classes and interfaces if specified.
+     */
+    fun findProperty(
+        template: PropertyItem,
+        includeSuperClasses: Boolean = false,
+        includeInterfaces: Boolean = false,
+    ): PropertyItem? {
+        properties()
+            .firstOrNull {
+                it.name() == template.name() &&
+                    PropertyItem.equalReceivers(template.receiver, it.receiver)
+            }
+            ?.let {
+                return it
+            }
+
+        if (includeSuperClasses) {
+            superClass()?.findProperty(template, true, includeInterfaces)?.let {
+                return it
+            }
+        }
+
+        if (includeInterfaces) {
+            for (itf in interfaceTypes()) {
+                val cls = itf.resolveClass(codebase) ?: continue
+                cls.findProperty(template, includeSuperClasses, true)?.let {
                     return it
                 }
             }
@@ -461,6 +531,12 @@ interface ClassItem :
     val annotationClass: AnnotationClass
 
     /**
+     * For a typealias, the underlying type for which this typealias is an alternative name. Null if
+     * this is not a typealias.
+     */
+    val optionalAliasedType: TypeItem?
+
+    /**
      * For a typealias, the underlying type for which this typealias is an alternative name
      *
      * This must only be called when [classKind] is [ClassKind.TYPEALIAS], and will throw an error
@@ -485,7 +561,7 @@ interface ClassItem :
         var superClassType: ClassTypeItem? = superClassType() ?: return null
         var prev: ClassItem? = null
         while (superClassType != null) {
-            val superClass = superClassType.asClass() ?: return null
+            val superClass = superClassType.resolveClass(codebase) ?: return null
             if (predicate.test(superClass)) {
                 if (prev == null || superClass == superClass()) {
                     // Direct reference; no need to map type variables
@@ -600,34 +676,23 @@ interface ClassItem :
         return list
     }
 
-    fun filteredInterfaceTypes(predicate: FilterPredicate): Collection<ClassTypeItem> {
-        val interfaceTypes =
-            filteredInterfaceTypes(
-                predicate,
-                LinkedHashSet(),
-                includeSelf = false,
-                includeParents = false,
-                target = this
-            )
+    fun filteredInterfaceTypes(predicate: FilterPredicate) =
+        filteredInterfaceTypes(
+            predicate,
+            LinkedHashSet(),
+            includeSelf = false,
+            includeParents = false,
+            target = this
+        )
 
-        return interfaceTypes
-    }
-
-    fun allInterfaceTypes(predicate: FilterPredicate): Collection<TypeItem> {
-        val interfaceTypes =
-            filteredInterfaceTypes(
-                predicate,
-                LinkedHashSet(),
-                includeSelf = false,
-                includeParents = true,
-                target = this
-            )
-        if (interfaceTypes.isEmpty()) {
-            return interfaceTypes
-        }
-
-        return interfaceTypes
-    }
+    fun allInterfaceTypes(predicate: FilterPredicate) =
+        filteredInterfaceTypes(
+            predicate,
+            LinkedHashSet(),
+            includeSelf = false,
+            includeParents = true,
+            target = this
+        )
 
     private fun filteredInterfaceTypes(
         predicate: FilterPredicate,
@@ -635,10 +700,10 @@ interface ClassItem :
         includeSelf: Boolean,
         includeParents: Boolean,
         target: ClassItem
-    ): LinkedHashSet<ClassTypeItem> {
+    ): Set<ClassTypeItem> {
         val superClassType = superClassType()
         if (superClassType != null) {
-            val superClass = superClassType.asClass()
+            val superClass = superClassType.resolveClass(codebase)
             if (superClass != null) {
                 if (!predicate.test(superClass)) {
                     superClass.filteredInterfaceTypes(
@@ -663,7 +728,7 @@ interface ClassItem :
             }
         }
         for (type in interfaceTypes()) {
-            val cls = type.asClass() ?: continue
+            val cls = type.resolveClass(codebase) ?: continue
             if (predicate.test(cls)) {
                 if (hasTypeVariables() && type.hasTypeArguments()) {
                     val replacementMap = target.mapTypeVariables(this)
@@ -704,6 +769,9 @@ interface ClassItem :
      * `{T->Y}`.
      */
     fun mapTypeVariables(target: ClassItem): TypeParameterBindings {
+        // Optimize trying to map variables from a class to its self.
+        if (this === target) return emptyMap()
+
         // Gather the supertypes to check for [target]. It is only possible for [target] to be found
         // in the class hierarchy through this class's interfaces if [target] is an interface.
         val candidates =
@@ -714,9 +782,8 @@ interface ClassItem :
             }
 
         for (superClassType in candidates.filterNotNull()) {
-            superClassType as? ClassTypeItem ?: continue
             // Get the class from the class type so that its type parameters can be accessed.
-            val declaringClass = superClassType.asClass() ?: continue
+            val declaringClass = superClassType.resolveClass(codebase) ?: continue
 
             if (declaringClass.qualifiedName() == target.qualifiedName()) {
                 // The target has been found, return the map directly.
@@ -755,17 +822,12 @@ interface ClassItem :
                 } else {
                     it
                 }
-                // Although a `ClassTypeItem`'s arguments can be `WildcardTypeItem`s as well as
-                // `ReferenceTypeItem`s, a `ClassTypeItem` used in an extends or implements list
-                // cannot have a `WildcardTypeItem` as an argument so this cast is safe. See
-                // https://docs.oracle.com/javase/specs/jls/se8/html/jls-8.html#jls-Superclass
-                as ReferenceTypeItem
             }
         return declaringClass.typeParameterList.zip(classTypeArguments).toMap()
     }
 
     /**
-     * Creates a default constructor in this class.
+     * Creates an implicit default constructor in this class.
      *
      * Default constructors that are added by Java have the same visibility as their class which is
      * the default behavior of this method if no [visibility] is provided. However, this is also
@@ -775,10 +837,11 @@ interface ClassItem :
      *
      * @param visibility the visibility of the constructor, defaults to the same as this class.
      */
-    fun createDefaultConstructor(
+    fun createImplicitDefaultConstructor(
         visibility: VisibilityLevel = modifiers.getVisibilityLevel()
     ): ConstructorItem
 
+    /** Add a method to this class. */
     fun addMethod(method: MethodItem)
 
     /**
