@@ -130,6 +130,20 @@ object PolicyDefinitionAnnotationTestFiles {
             }
 
             @Retention(RetentionPolicy.SOURCE)
+            public @interface LongResolutionMechanism {
+                boolean custom() default false;
+                boolean notCoexistable() default false;
+            }
+
+            @Retention(RetentionPolicy.SOURCE)
+            public @interface LongPolicyDefinition {
+                PolicyDefinition base();
+                long minValue() default Long.MIN_VALUE;
+                long maxValue() default Long.MAX_VALUE;
+                LongResolutionMechanism resolutionMechanism();
+            }
+
+            @Retention(RetentionPolicy.SOURCE)
             public @interface ListResolutionMechanism {
                 boolean custom() default false;
                 boolean union() default false;

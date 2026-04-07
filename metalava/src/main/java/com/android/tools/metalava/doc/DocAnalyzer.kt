@@ -29,6 +29,7 @@ import com.android.tools.metalava.containsNullWord
 import com.android.tools.metalava.doc.annotationhandlers.EnumPolicyAnnotationHandler
 import com.android.tools.metalava.doc.annotationhandlers.IntegerPolicyAnnotationHandler
 import com.android.tools.metalava.doc.annotationhandlers.ListOfStringPolicyAnnotationHandler
+import com.android.tools.metalava.doc.annotationhandlers.LongPolicyAnnotationHandler
 import com.android.tools.metalava.doc.annotationhandlers.StringPolicyAnnotationHandler
 import com.android.tools.metalava.model.ANDROIDX_ANNOTATION_PREFIX
 import com.android.tools.metalava.model.ANDROIDX_FLOAT_RANGE
@@ -242,6 +243,10 @@ class DocAnalyzer(
                                 .let { appendDocumentation(it, item, returnValue = false) }
                         "android.processor.devicepolicy.IntegerPolicyDefinition" ->
                             IntegerPolicyAnnotationHandler(codebase, reporter, filterReference)
+                                .processPolicyAnnotation(annotation, item)
+                                .let { appendDocumentation(it, item, returnValue = false) }
+                        "android.processor.devicepolicy.LongPolicyDefinition" ->
+                            LongPolicyAnnotationHandler(codebase, reporter, filterReference)
                                 .processPolicyAnnotation(annotation, item)
                                 .let { appendDocumentation(it, item, returnValue = false) }
                         "android.processor.devicepolicy.ListOfStringPolicyDefinition" ->
