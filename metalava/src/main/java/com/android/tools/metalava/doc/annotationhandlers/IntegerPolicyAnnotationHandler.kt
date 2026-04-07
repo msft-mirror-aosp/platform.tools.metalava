@@ -31,28 +31,12 @@ class IntegerPolicyAnnotationHandler(
     reporter: Reporter,
     filterReference: Predicate<SelectableItem>
 ) : BaseDevicePolicyAnnotationHandler(codebase, reporter, filterReference) {
-
     /**
      * Processes the [IntegerPolicyDefinitionProxy] and returns the documentation for the policy.
      */
     override fun processPolicyAnnotation(annotation: AnnotationItem, item: Item): String {
-        val proxy = annotation.bindTo<IntegerPolicyDefinitionProxy>(item) ?: return ""
-        val minValue = proxy.minValue
-        val maxValue = proxy.maxValue
-
-        return buildString {
-            append("\n<p>Policy Type: Integer</p>\n <ul>\n")
-            append(proxy.base.generateDocs())
-            val resolutionMechanismDoc = proxy.resolutionMechanism.generateDocs()
-            append("   <li>Resolution Mechanism: $resolutionMechanismDoc</li>\n")
-            append(
-                "   <li>Min Value: ${if (minValue == Integer.MIN_VALUE) "No limit" else minValue}</li>\n"
-            )
-            append(
-                "   <li>Max Value: ${if (maxValue == Integer.MAX_VALUE) "No limit" else maxValue}</li>\n"
-            )
-            append(" </ul>\n")
-        }
+        val proxy = annotation.bindTo<IntegerPolicyDefinitionProxy>(item)
+        return proxy?.generateDocs() ?: ""
     }
 }
 
@@ -67,7 +51,21 @@ data class IntegerPolicyDefinitionProxy(
     val minValue: Int,
     val maxValue: Int,
     val resolutionMechanism: IntegerResolutionMechanismProxy,
-)
+) {
+    fun generateDocs() = buildString {
+        append("\n<p>Policy Type: Integer</p>\n <ul>\n")
+        append(base.generateDocs())
+        val resolutionMechanismDoc = resolutionMechanism.generateDocs()
+        append("   <li>Resolution Mechanism: $resolutionMechanismDoc</li>\n")
+        append(
+            "   <li>Min Value: ${if (minValue == Integer.MIN_VALUE) "No limit" else minValue}</li>\n"
+        )
+        append(
+            "   <li>Max Value: ${if (maxValue == Integer.MAX_VALUE) "No limit" else maxValue}</li>\n"
+        )
+        append(" </ul>\n")
+    }
+}
 
 /**
  * Proxy class bound to an instance of the
