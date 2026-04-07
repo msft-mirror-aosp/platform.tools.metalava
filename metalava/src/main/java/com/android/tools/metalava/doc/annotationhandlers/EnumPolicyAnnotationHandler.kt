@@ -38,14 +38,34 @@ class EnumPolicyAnnotationHandler(
 
     /** Processes a policy annotation and returns a documentation string. */
     override fun processPolicyAnnotation(annotation: AnnotationItem, item: Item): String {
-        val proxy = annotation.bindTo<EnumPolicyDefinitionProxy>(item) ?: return ""
-        val enumValueToCodeReference = buildEnumValueToCodeReferenceMap(proxy, item)
-        val defaultValue = proxy.defaultValue
+        val proxy = annotation.bindTo<EnumPolicyDefinitionProxy>(item)
+        return proxy?.generateDocs(filterReference) ?: ""
+    }
+}
+
+/**
+ * Proxy class bound to an instance of the `android.processor.devicepolicy.EnumPolicyDefinition`
+ * annotation class.
+ *
+ * @see bindTo
+ */
+data class EnumPolicyDefinitionProxy(
+    val item: Item,
+    val base: PolicyDefinitionProxy,
+    val resolutionMechanism: EnumResolutionMechanismProxy,
+    val intDef: ClassItem?,
+    val defaultValue: Int = -1,
+) {
+    val reporter = item.codebase.reporter
+
+    fun generateDocs(filterReference: Predicate<SelectableItem>): String {
+        val enumValueToCodeReference = buildEnumValueToCodeReferenceMap(filterReference)
+        val defaultValue = defaultValue
 
         return buildString {
             append("\n<p>Policy Type: Enum</p>\n <ul>\n")
-            append(proxy.base.generateDocs())
-            val resolutionMechanismDoc = proxy.resolutionMechanism.generateDocs()
+            append(base.generateDocs())
+            val resolutionMechanismDoc = resolutionMechanism.generateDocs()
             append("   <li>Resolution Mechanism: $resolutionMechanismDoc</li>\n")
             if (enumValueToCodeReference.isNotEmpty()) {
                 append("   <li>Enum policy values:\n     <ul>\n")
@@ -88,12 +108,11 @@ class EnumPolicyAnnotationHandler(
      * ```
      */
     private fun buildEnumValueToCodeReferenceMap(
-        enumPolicyDefinitionProxy: EnumPolicyDefinitionProxy,
-        item: Item
+        filterReference: Predicate<SelectableItem>
     ): Map<Int, String> {
         // Get the enum value class object. Currently, the @EnumPolicyDefinition annotation's intDef
         // field is of type: Class<?>.
-        val classItem = enumPolicyDefinitionProxy.intDef
+        val classItem = intDef
 
         // Find the @IntDef annotation of the enum value class
         val intDefAnnotation =
@@ -134,19 +153,6 @@ class EnumPolicyAnnotationHandler(
         return enumValueToName
     }
 }
-
-/**
- * Proxy class bound to an instance of the `android.processor.devicepolicy.EnumPolicyDefinition`
- * annotation class.
- *
- * @see bindTo
- */
-data class EnumPolicyDefinitionProxy(
-    val base: PolicyDefinitionProxy,
-    val resolutionMechanism: EnumResolutionMechanismProxy,
-    val intDef: ClassItem?,
-    val defaultValue: Int = -1,
-)
 
 /**
  * Proxy class bound to an instance of the `android.processor.devicepolicy.EnumResolutionMechanism`
