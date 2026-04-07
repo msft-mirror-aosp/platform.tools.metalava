@@ -51,15 +51,15 @@ abstract class BaseDevicePolicyAnnotationHandler(
     }
 
     /** Report missing required fields inside the annotation. */
+    // TODO(b/499055608): This should not be necessary once all subclasses have switched to using
+    //  bindTo(...). Remove once it is unused.
     protected fun reportOnMissingFields(fieldName: String, item: Item) {
-        reporter.report(
-            Issues.INVALID_DEVICE_POLICY_ANNOTATION,
-            item,
-            "Missing required field '$fieldName' inside $item"
-        )
+        reporter.reportOnMissingFields(fieldName, item)
     }
 
     /** Extension to report an issue if the value is null. */
+    // TODO(b/499055608): This should not be necessary once all subclasses have switched to using
+    //  bindTo(...). Remove once it is unused.
     protected fun <T> T?.elseReportMissing(item: Item, name: String): T? {
         if (this == null) reportOnMissingFields(name, item)
         return this
@@ -88,4 +88,13 @@ fun AnnotationItem.getBooleanAttribute(name: String): Boolean? {
  */
 fun AnnotationItem.getPolicyDefinitionAttribute(name: String): AnnotationItem? {
     return (findAttribute(name)?.value as? AnnotationValue)?.annotationItem
+}
+
+/** Report missing required fields inside the annotation. */
+fun Reporter.reportOnMissingFields(fieldName: String, item: Item) {
+    report(
+        Issues.INVALID_DEVICE_POLICY_ANNOTATION,
+        item,
+        "Missing required field '$fieldName' inside $item"
+    )
 }

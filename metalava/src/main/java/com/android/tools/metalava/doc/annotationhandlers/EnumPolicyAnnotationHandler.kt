@@ -39,13 +39,13 @@ class EnumPolicyAnnotationHandler(
     /** Processes a policy annotation and returns a documentation string. */
     override fun processPolicyAnnotation(annotation: AnnotationItem, item: Item): String {
         val proxy = annotation.bindTo<EnumPolicyDefinitionProxy>(item) ?: return ""
-        val resolutionMechanismDoc = buildResolutionMechanismDoc(proxy, item)
         val enumValueToCodeReference = buildEnumValueToCodeReferenceMap(proxy, item)
         val defaultValue = proxy.defaultValue
 
         return buildString {
             append("\n<p>Policy Type: Enum</p>\n <ul>\n")
             append(proxy.base.generateDocs())
+            val resolutionMechanismDoc = proxy.resolutionMechanism.generateDocs()
             append("   <li>Resolution Mechanism: $resolutionMechanismDoc</li>\n")
             if (enumValueToCodeReference.isNotEmpty()) {
                 append("   <li>Enum policy values:\n     <ul>\n")
@@ -61,28 +61,6 @@ class EnumPolicyAnnotationHandler(
                 append("     </ul>\n   </li>\n")
             }
             append(" </ul>\n")
-        }
-    }
-
-    private fun buildResolutionMechanismDoc(
-        enumPolicyDefinitionProxy: EnumPolicyDefinitionProxy,
-        item: Item
-    ): String {
-        val resolutionMechanismProxy = enumPolicyDefinitionProxy.resolutionMechanism
-
-        val custom = resolutionMechanismProxy.custom
-        val notCoexistable = resolutionMechanismProxy.notCoexistable
-        val mostRestrictive = resolutionMechanismProxy.mostRestrictive
-
-        return if (custom) {
-            "custom"
-        } else if (notCoexistable) {
-            "not coexistable"
-        } else if (mostRestrictive.isNotEmpty()) {
-            "most restrictive: [${mostRestrictive.joinToString(", ")}]"
-        } else {
-            reportOnMissingFields("resolutionMechanism", item)
-            ""
         }
     }
 
@@ -177,7 +155,20 @@ data class EnumPolicyDefinitionProxy(
  * @see bindTo
  */
 data class EnumResolutionMechanismProxy(
+    val item: Item,
     val custom: Boolean,
     val mostRestrictive: List<Int>,
     val notCoexistable: Boolean,
-)
+) {
+    fun generateDocs() =
+        if (custom) {
+            "custom"
+        } else if (notCoexistable) {
+            "not coexistable"
+        } else if (mostRestrictive.isNotEmpty()) {
+            "most restrictive: [${mostRestrictive.joinToString(", ")}]"
+        } else {
+            item.codebase.reporter.reportOnMissingFields("resolutionMechanism", item)
+            ""
+        }
+}
