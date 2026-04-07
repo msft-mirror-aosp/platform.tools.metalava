@@ -42,22 +42,6 @@ abstract class BaseDevicePolicyAnnotationHandler(
     /** Processes a policy annotation and returns a documentation string. */
     abstract fun processPolicyAnnotation(annotation: AnnotationItem, item: Item): String
 
-    /**
-     * Converts scope ID ({@link android.processor.devicepolicy.PolicyDefinition#allowedScopes}) to
-     * a human-readable name.
-     */
-    protected fun getScopeName(scope: Int): String {
-        return PolicyScope.fromId(scope)?.scopeName ?: scope.toString()
-    }
-
-    /**
-     * Converts resource type ({@link
-     * android.processor.devicepolicy.PolicyDefinition#allowedResource}) to a human-readable name.
-     */
-    protected fun getResourceName(resource: Int): String {
-        return PolicyResource.fromId(resource)?.resourceName ?: resource.toString()
-    }
-
     /** A helper function to format the allow/disallow status of a field. */
     protected fun StringBuilder.appendAllowed(
         name: String,
@@ -80,25 +64,6 @@ abstract class BaseDevicePolicyAnnotationHandler(
     protected fun <T> T?.elseReportMissing(item: Item, name: String): T? {
         if (this == null) reportOnMissingFields(name, item)
         return this
-    }
-
-    enum class PolicyScope(val scopeName: String, val id: Int) {
-        USER("User", 1),
-        DEVICE("Device", 2),
-        PARENT_USER("Parent User", 3);
-
-        companion object {
-            fun fromId(id: Int): PolicyScope? = entries.firstOrNull { it.id == id }
-        }
-    }
-
-    enum class PolicyResource(val resourceName: String, val id: Int) {
-        DEVICE_WIDE("Device Wide", 1),
-        PER_USER("Per User", 2);
-
-        companion object {
-            fun fromId(id: Int): PolicyResource? = entries.firstOrNull { it.id == id }
-        }
     }
 }
 

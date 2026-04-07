@@ -37,7 +37,7 @@ class PolicyDefinitionAnnotationHandler(
     /** Processes a policy annotation and returns a documentation string. */
     override fun processPolicyAnnotation(annotation: AnnotationItem, item: Item): String {
         val basePolicy = parseBasePolicy(annotation, item)
-        return generateBaseDocs(basePolicy, item)
+        return basePolicy.generateBaseDocs()
     }
 
     /** Extracts allowed DPC values from the annotation. */
@@ -55,30 +55,6 @@ class PolicyDefinitionAnnotationHandler(
                 null
             }
         }
-    }
-
-    /** Resolves a permission code link to a format suitable for documentation. */
-    private fun resolvePermissionCodeLink(value: String, item: Item): String {
-        val permissionClass = codebase.findClass("android.Manifest.permission")
-        if (permissionClass == null) {
-            reporter.report(
-                Issues.INVALID_DEVICE_POLICY_ANNOTATION,
-                item,
-                "Cannot find permission field for $value required by $item (may be hidden or removed)"
-            )
-            return value
-        }
-        val fieldName = value.substringAfterLast(".").uppercase()
-        val field = permissionClass.findField(fieldName)
-        if (field is FieldItem) {
-            return "{@link ${field.containingClass().qualifiedName()}#${field.name()} $value}"
-        }
-        reporter.report(
-            Issues.INVALID_DEVICE_POLICY_ANNOTATION,
-            item,
-            "Cannot find permission field for $value required by $item (may be hidden or removed)"
-        )
-        return value
     }
 
     /** Parses the base policy definition from the annotation. */
@@ -105,45 +81,13 @@ class PolicyDefinitionAnnotationHandler(
         val allowedDpcTypes = extractAllowedDpcTypes(annotation)
 
         return BasePolicyDefinition(
+            item = item,
             allowedScopes = allowedScopesList,
             affectedResource = affectedResource,
             requiredPermission = requiredPermission,
             requiredCrossUserPermission = requiredCrossUserPermission,
             allowedDpcTypes = allowedDpcTypes,
         )
-    }
-
-    /** Generates documentation for the base policy definition. */
-    fun generateBaseDocs(basePolicy: BasePolicyDefinition, item: Item) = buildString {
-        basePolicy.allowedScopes
-            .takeIf { it.isNotEmpty() }
-            ?.let { scopes ->
-                append("   <li>Allowed Scopes:\n    <ul>\n")
-                scopes.joinTo(this, separator = "") { "       <li>${getScopeName(it)}</li>\n" }
-                append("     </ul>\n   </li>\n")
-            }
-
-        basePolicy.affectedResource.let {
-            append("   <li>Affected Resource: ${getResourceName(it)}</li>\n")
-        }
-        basePolicy.requiredPermission?.let { permission ->
-            append(
-                "   <li>Required Permission: ${resolvePermissionCodeLink(permission, item)}</li>\n"
-            )
-        }
-        basePolicy.requiredCrossUserPermission?.let { permission ->
-            append(
-                "   <li>Required Cross User Permission: ${resolvePermissionCodeLink(permission, item)}</li>\n"
-            )
-        }
-
-        basePolicy.allowedDpcTypes
-            .takeIf { it.isNotEmpty() }
-            ?.let { dpcTypes ->
-                append("   <li>Allowed DPC Types: \n    <ul>\n")
-                dpcTypes.joinTo(this, separator = "") { "       <li>$it</li>\n" }
-                append("     </ul>\n   </li>\n")
-            }
     }
 
     companion object {
@@ -187,19 +131,113 @@ enum class AllowedDpcType(
 
 /** Data class to hold the parsed {@link android.processor.devicepolicy.PolicyDefinition}. */
 data class BasePolicyDefinition(
+    /** The item on which this was annotated. */
+    private val item: Item,
     // Contains parsed values of {@link
     // android.processor.devicepolicy.PolicyDefinition#allowedScopes}
-    val allowedScopes: List<Int>,
+    private val allowedScopes: List<Int>,
     // Contains parsed value of {@link
     // android.processor.devicepolicy.PolicyDefinition#affectedResource}
-    val affectedResource: Int,
+    private val affectedResource: Int,
     // Contains parsed value of {@link
     // android.processor.devicepolicy.PolicyDefinition#requiredPermission}
-    val requiredPermission: String?,
+    private val requiredPermission: String?,
     // Contains parsed value of {@link
     // android.processor.devicepolicy.PolicyDefinition#requiredCrossUserPermission}
-    val requiredCrossUserPermission: String?,
+    private val requiredCrossUserPermission: String?,
     // Contains parsed values of {@link
     // android.processor.devicepolicy.PolicyDefinition#allowedDpcTypes}
-    val allowedDpcTypes: List<String>,
-)
+    private val allowedDpcTypes: List<String>,
+) {
+    private val codebase = item.codebase
+    private val reporter = codebase.reporter
+
+    /** Resolves a permission code link to a format suitable for documentation. */
+    private fun resolvePermissionCodeLink(value: String, item: Item): String {
+        val permissionClass = codebase.findClass("android.Manifest.permission")
+        if (permissionClass == null) {
+            reporter.report(
+                Issues.INVALID_DEVICE_POLICY_ANNOTATION,
+                item,
+                "Cannot find permission field for $value required by $item (may be hidden or removed)"
+            )
+            return value
+        }
+        val fieldName = value.substringAfterLast(".").uppercase()
+        val field = permissionClass.findField(fieldName)
+        if (field is FieldItem) {
+            return "{@link ${field.containingClass().qualifiedName()}#${field.name()} $value}"
+        }
+        reporter.report(
+            Issues.INVALID_DEVICE_POLICY_ANNOTATION,
+            item,
+            "Cannot find permission field for $value required by $item (may be hidden or removed)"
+        )
+        return value
+    }
+
+    /** Generates documentation for the base policy definition. */
+    fun generateBaseDocs() = buildString {
+        allowedScopes
+            .takeIf { it.isNotEmpty() }
+            ?.let { scopes ->
+                append("   <li>Allowed Scopes:\n    <ul>\n")
+                scopes.joinTo(this, separator = "") { "       <li>${getScopeName(it)}</li>\n" }
+                append("     </ul>\n   </li>\n")
+            }
+
+        affectedResource.let { append("   <li>Affected Resource: ${getResourceName(it)}</li>\n") }
+        requiredPermission?.let { permission ->
+            append(
+                "   <li>Required Permission: ${resolvePermissionCodeLink(permission, item)}</li>\n"
+            )
+        }
+        requiredCrossUserPermission?.let { permission ->
+            append(
+                "   <li>Required Cross User Permission: ${
+                    resolvePermissionCodeLink(
+                        permission,
+                        item
+                    )
+                }</li>\n"
+            )
+        }
+
+        allowedDpcTypes
+            .takeIf { it.isNotEmpty() }
+            ?.let { dpcTypes ->
+                append("   <li>Allowed DPC Types: \n    <ul>\n")
+                dpcTypes.joinTo(this, separator = "") { "       <li>$it</li>\n" }
+                append("     </ul>\n   </li>\n")
+            }
+    }
+
+    companion object {
+        /** Converts scope ID from [allowedScopes] to a human-readable name. */
+        private fun getScopeName(scope: Int) =
+            PolicyScope.fromId(scope)?.scopeName ?: scope.toString()
+
+        /** Converts resource type from [affectedResource] to a human-readable name. */
+        private fun getResourceName(resource: Int) =
+            PolicyResource.fromId(resource)?.resourceName ?: resource.toString()
+    }
+}
+
+enum class PolicyScope(val scopeName: String, val id: Int) {
+    USER("User", 1),
+    DEVICE("Device", 2),
+    PARENT_USER("Parent User", 3);
+
+    companion object {
+        fun fromId(id: Int): PolicyScope? = entries.firstOrNull { it.id == id }
+    }
+}
+
+enum class PolicyResource(val resourceName: String, val id: Int) {
+    DEVICE_WIDE("Device Wide", 1),
+    PER_USER("Per User", 2);
+
+    companion object {
+        fun fromId(id: Int): PolicyResource? = entries.firstOrNull { it.id == id }
+    }
+}
