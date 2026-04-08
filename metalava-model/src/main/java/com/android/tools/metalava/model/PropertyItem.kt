@@ -34,8 +34,6 @@ interface PropertyItem : MemberItem, TypeParameterListOwner, InheritableItem {
      */
     val constructorParameter: ParameterItem?
 
-    override fun describe(capitalize: Boolean) = toString()
-
     /** The type of this property */
     override fun type(): TypeItem
 
