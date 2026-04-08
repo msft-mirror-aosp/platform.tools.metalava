@@ -42,36 +42,69 @@ class PolicyDefinitionAnnotationHandler(
 
 enum class AllowedDpcType(
     val description: String,
-    val attributeName: String,
+    val getter: AllowedDpcTypesProxy.() -> Int,
 ) {
     DEVICE_OWNER(
         description = "Device Owner",
-        attributeName = "deviceOwner",
+        getter = AllowedDpcTypesProxy::deviceOwner,
     ),
     MANAGED_PROFILE_OWNER_OF_ORGANIZATION_OWNED_DEVICE(
         description = "Managed Profile Owner (Of Organization Owned Device)",
-        attributeName = "managedProfileOwnerOfOrganizationOwnedDevice",
+        getter = AllowedDpcTypesProxy::managedProfileOwnerOfOrganizationOwnedDevice,
     ),
     MANAGED_PROFILE_OWNER_OF_PERSONAL_OWNED_DEVICE(
         description = "Managed Profile Owner (Of Personally Owned Device)",
-        attributeName = "managedProfileOwnerOfPersonalOwnedDevice",
+        getter = AllowedDpcTypesProxy::managedProfileOwnerOfPersonalOwnedDevice,
     ),
     UNAFFILIATED_FULL_USER_PROFILE_OWNER(
         description = "Unaffiliated Full User Profile Owner",
-        attributeName = "unaffiliatedFullUserProfileOwner",
+        getter = AllowedDpcTypesProxy::unaffiliatedFullUserProfileOwner,
     ),
     FINANCED_DEVICE_OWNER(
         description = "Financed Device Owner",
-        attributeName = "financedDeviceOwner",
+        getter = AllowedDpcTypesProxy::financedDeviceOwner,
     ),
     PROFILE_OWNER_ON_USER_0(
         description = "Profile Owner on User 0",
-        attributeName = "profileOwnerOnUser0",
+        getter = AllowedDpcTypesProxy::profileOwnerOnUser0,
     ),
     AFFILIATED_FULL_USER_PROFILE_OWNER(
         description = "Affiliated Full User Profile Owner",
-        attributeName = "affiliatedFullUserProfileOwner",
+        getter = AllowedDpcTypesProxy::affiliatedFullUserProfileOwner,
     ),
+}
+
+class AllowedDpcTypesProxy(
+    val deviceOwner: Int,
+    val managedProfileOwnerOfOrganizationOwnedDevice: Int,
+    val managedProfileOwnerOfPersonalOwnedDevice: Int,
+    val unaffiliatedFullUserProfileOwner: Int,
+    val financedDeviceOwner: Int,
+    val profileOwnerOnUser0: Int,
+    val affiliatedFullUserProfileOwner: Int,
+) {
+    fun generateDocs(): String {
+        val dpcTypes =
+            AllowedDpcType.entries.mapNotNull {
+                if (it.getter(this) == DPC_ANNOTATION_ALLOWED) {
+                    it.description
+                } else {
+                    null
+                }
+            }
+
+        if (dpcTypes.isEmpty()) return ""
+
+        return buildString {
+            append("   <li>Allowed DPC Types: \n    <ul>\n")
+            dpcTypes.joinTo(this, separator = "") { "       <li>$it</li>\n" }
+            append("     </ul>\n   </li>\n")
+        }
+    }
+
+    companion object {
+        private const val DPC_ANNOTATION_ALLOWED = 1
+    }
 }
 
 /**
@@ -87,17 +120,10 @@ class PolicyDefinitionProxy(
     private val affectedResource: Int,
     private val requiredPermission: String?,
     private val requiredCrossUserPermission: String?,
-    /**
-     * The `AllowedDpcTypes` [AnnotationItem] that will be converted into a [List] of [String]
-     * names.
-     */
-    allowedDpcTypes: AnnotationItem,
+    private val allowedDpcTypes: AllowedDpcTypesProxy,
 ) {
     private val codebase = item.codebase
     private val reporter = codebase.reporter
-
-    /** Convert the allowedDpcTypes [AnnotationItem] to a [List] of [String] names. */
-    private val allowedDpcTypes = allowedDpcTypes.extractAllowedDpcTypes()
 
     init {
         // Validate the properties.
@@ -161,28 +187,10 @@ class PolicyDefinitionProxy(
             )
         }
 
-        allowedDpcTypes
-            .takeIf { it.isNotEmpty() }
-            ?.let { dpcTypes ->
-                append("   <li>Allowed DPC Types: \n    <ul>\n")
-                dpcTypes.joinTo(this, separator = "") { "       <li>$it</li>\n" }
-                append("     </ul>\n   </li>\n")
-            }
+        append(allowedDpcTypes.generateDocs())
     }
 
     companion object {
-        private const val DPC_ANNOTATION_ALLOWED = 1
-
-        /** Extracts allowed DPC values from the annotation. */
-        private fun AnnotationItem.extractAllowedDpcTypes() =
-            AllowedDpcType.entries.mapNotNull {
-                if (getIntAttribute(it.attributeName) == DPC_ANNOTATION_ALLOWED) {
-                    it.description
-                } else {
-                    null
-                }
-            }
-
         /** Converts scope ID from [allowedScopes] to a human-readable name. */
         private fun getScopeName(scope: Int) =
             PolicyScope.fromId(scope)?.scopeName ?: scope.toString()
