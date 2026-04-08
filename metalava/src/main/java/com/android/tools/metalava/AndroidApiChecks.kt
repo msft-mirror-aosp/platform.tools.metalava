@@ -31,7 +31,6 @@ import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.doc.DocContent
 import com.android.tools.metalava.model.doc.DocContentPredicate
 import com.android.tools.metalava.model.source.doc.DocContentPredicates
-import com.android.tools.metalava.model.source.doc.containsWord
 import com.android.tools.metalava.model.value.asString
 import com.android.tools.metalava.model.visitors.ApiPredicate
 import com.android.tools.metalava.model.visitors.ApiVisitor
@@ -250,7 +249,7 @@ class AndroidApiChecks(
 
         // Check to make sure that if the documentation mentions `null` that it also uses the
         // correct nullability annotations.
-        if (type.modifiers.isPlatformNullability == true && content.containsNullWord()) {
+        if (type.modifiers.isPlatformNullability && content.containsNullWord()) {
             reporter.report(
                 Issues.NULLABLE,
                 item,
