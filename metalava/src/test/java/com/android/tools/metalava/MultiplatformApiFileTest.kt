@@ -370,9 +370,15 @@ class MultiplatformApiFileTest : DriverTest() {
                           }
                         }
                         """,
-                    // TODO: the non-actual constructor and function should appear
                     "nativeMain.txt" to
                         """
+                        // Signature format: 5.0
+                        package test.pkg {
+                          public final class Foo extends kotlin.Any {
+                            ctor public Foo(kotlin.String? s);
+                            method public void foo(kotlin.String s);
+                          }
+                        }
                         """,
                 )
         )

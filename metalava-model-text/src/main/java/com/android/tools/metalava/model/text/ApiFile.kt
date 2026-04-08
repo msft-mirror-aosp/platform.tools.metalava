@@ -209,6 +209,8 @@ private constructor(
     private val assembler: TextCodebaseAssembler,
     private val formatForLegacyFiles: FileFormat?,
     private val allowClassModifierChanges: Boolean,
+    /** The [TargetLanguageSet] to use if an item does not have one specified. */
+    private val defaultTargetLanguageSet: Set<TargetLanguage> = TargetLanguageSet.ALL,
 ) {
 
     private val codebase = assembler.codebase
@@ -435,6 +437,7 @@ private constructor(
                     assembler = assembler,
                     formatForLegacyFiles = null,
                     allowClassModifierChanges = true,
+                    defaultTargetLanguageSet = TargetLanguageSet.KOTLIN_ONLY,
                 )
             parser.parseApiSingleFile(
                 appending = false,
@@ -1709,7 +1712,7 @@ private constructor(
         val targetLanguages =
             TargetLanguageSet.signatureFileRepresentationToTargetLanguageSet[token]?.also {
                 tokenizer.requireToken()
-            } ?: TargetLanguageSet.ALL
+            } ?: defaultTargetLanguageSet
 
         val modifiers = parseModifiers(tokenizer)
         return modifiers to targetLanguages

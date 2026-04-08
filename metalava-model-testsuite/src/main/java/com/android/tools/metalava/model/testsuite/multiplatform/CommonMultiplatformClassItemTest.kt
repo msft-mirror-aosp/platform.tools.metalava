@@ -1165,7 +1165,6 @@ class CommonMultiplatformClassItemTest : BaseModelTest() {
                     }
                     """
                 ),
-                // TODO: this one doesn't appear
                 signature(
                     "nativeMain.txt",
                     """
