@@ -529,9 +529,27 @@ class Driver(
 
     private fun createOptionalMultiplatformCodebase(): MultiplatformCodebase? {
         if (!multiplatformOptions.enabled) return null
-        return sourceOptions.projectDescription?.let { projectDescription ->
-            sourceParser.createMultiplatformCodebase(projectDescription)
-        } ?: error("Project description is required to create multiplatform codebase from sources.")
+
+        val projectDescription = sourceOptions.projectDescription
+        val sourceApiDirectory = multiplatformOptions.sourceApiDirectory
+
+        // Create multiplatform codebase from source code or from signature files.
+        return when {
+            projectDescription != null && sourceApiDirectory != null ->
+                error(
+                    "Cannot supply both a project description and source api directory for creating a multiplatform codebase"
+                )
+            projectDescription != null ->
+                sourceParser.createMultiplatformCodebase(projectDescription)
+            sourceApiDirectory != null ->
+                signatureFileLoader.loadMultiplatform(
+                    SignatureFile.fromFiles(sourceApiDirectory.listFiles().toList())
+                )
+            else ->
+                error(
+                    "Project description or source api directory is required to create multiplatform codebase from sources."
+                )
+        }
     }
 
     private fun runMultiplatformCodebaseChecks(multiplatformCodebase: MultiplatformCodebase) {

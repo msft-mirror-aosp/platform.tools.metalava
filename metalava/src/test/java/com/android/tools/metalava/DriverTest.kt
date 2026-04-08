@@ -52,6 +52,7 @@ import com.android.tools.metalava.cli.lint.ARG_BASELINE_API_LINT
 import com.android.tools.metalava.cli.lint.ARG_ERROR_MESSAGE_API_LINT
 import com.android.tools.metalava.cli.lint.ARG_UPDATE_BASELINE_API_LINT
 import com.android.tools.metalava.cli.multiplatform.ARG_MULTIPLATFORM_API_DIR
+import com.android.tools.metalava.cli.multiplatform.ARG_MULTIPLATFORM_API_SOURCES
 import com.android.tools.metalava.cli.multiplatform.ARG_MULTIPLATFORM_ENABLED
 import com.android.tools.metalava.cli.signature.ARG_FORMAT
 import com.android.tools.metalava.model.ANDROIDX_ANNOTATION_PACKAGE
@@ -559,6 +560,8 @@ abstract class DriverTest :
          * source set with an expected signature file.
          */
         multiplatformApi: Map<String, String> = emptyMap(),
+        /** Signature files to parse as source into a MultiplatformCodebase. */
+        multiplatformSignatureSource: List<TestFile> = emptyList(),
         /**
          * If true, this does not include arguments specifying source files (from [sourceFiles]) in
          * the command run by Driver. This allows creating a multiplatform codebase (when
@@ -1042,6 +1045,19 @@ abstract class DriverTest :
                 emptyArray()
             }
 
+        val multiplatformSignatureSourceOptions =
+            if (multiplatformSignatureSource.isNotEmpty()) {
+                // Create each multiplatform signature file in a new subdirectory.
+                val multiplatformSignatureSourceDirectory =
+                    File(project, "multiplatform-signature-source")
+                for (file in multiplatformSignatureSource) {
+                    file.createFile(multiplatformSignatureSourceDirectory)
+                }
+                arrayOf(ARG_MULTIPLATFORM_API_SOURCES, multiplatformSignatureSourceDirectory.path)
+            } else {
+                emptyArray()
+            }
+
         // Generate multiplatform API files if specified.
         var multiplatformApiDirectory: File? = null
         val multiplatformApiArgs =
@@ -1110,6 +1126,7 @@ abstract class DriverTest :
                 *repeatErrorsMaxArgs,
                 *multiplatformOptions,
                 *multiplatformApiArgs,
+                *multiplatformSignatureSourceOptions,
                 // Must always be last as this can consume a following argument, breaking the test.
                 *apiLintArgs,
             ) +
