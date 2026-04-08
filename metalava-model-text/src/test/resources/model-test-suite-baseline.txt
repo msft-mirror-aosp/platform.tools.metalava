@@ -10,9 +10,6 @@ com.android.tools.metalava.model.testsuite.multiplatform.CommonMultiplatformCall
 com.android.tools.metalava.model.testsuite.multiplatform.CommonMultiplatformClassItemTest
   Test listing constructors of a class
 
-com.android.tools.metalava.model.testsuite.multiplatform.CommonMultiplatformCodebaseTest
-  Test resolving classes
-
 com.android.tools.metalava.model.testsuite.multiplatform.CommonMultiplatformTypeParameterItemTest
   Type parameter with different names per source set
 

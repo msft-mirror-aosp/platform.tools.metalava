@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model.testsuite.multiplatform
 
+import com.android.tools.metalava.model.ClassOrigin
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.reporter.FileLocation
 import com.android.tools.metalava.testing.createAndroidModuleDescription
@@ -359,7 +360,7 @@ class CommonMultiplatformCodebaseTest : BaseModelTest() {
     }
 
     @Test
-    fun `Test resolving classes`() {
+    fun `Test resolving classes - source model`() {
         val commonSource =
             kotlin(
                 "commonMain/src/test/pkg/Foo.kt",
@@ -387,30 +388,6 @@ class CommonMultiplatformCodebaseTest : BaseModelTest() {
 
         runMultiplatformCodebaseTest(
             inputSet(commonSource, androidSource, nativeSource),
-            inputSet(
-                signature(
-                    "commonMain.txt",
-                    """
-                    // Signature format: 5.0
-                    package test.pkg {
-                      public final class Foo extends kotlin.Any {
-                      }
-                    }
-                    """
-                ),
-                signature(
-                    "androidMain.txt",
-                    """
-                    // Signature format: 5.0
-                    """
-                ),
-                signature(
-                    "nativeMain.txt",
-                    """
-                    // Signature format: 5.0
-                    """
-                )
-            ),
             projectDescription =
                 createProjectDescription(
                     createCommonModuleDescription(arrayOf(commonSource)),
@@ -440,6 +417,54 @@ class CommonMultiplatformCodebaseTest : BaseModelTest() {
                 multiplatformCodebase.resolveClass("kotlin.RequiresOptIn.Level")
             assertThat(requiresOptInLevel).isNotNull()
             requiresOptInLevel!!.assertSourceSets("commonMain", "androidMain", "nativeMain")
+        }
+    }
+
+    @Test
+    fun `Test resolving classes - text model`() {
+        runMultiplatformCodebaseTest(
+            inputSet(
+                signature(
+                    "commonMain.txt",
+                    """
+                    // Signature format: 5.0
+                    package test.pkg {
+                      public final class Foo extends kotlin.Any {
+                      }
+                    }
+                    """
+                ),
+                signature(
+                    "androidMain.txt",
+                    """
+                    // Signature format: 5.0
+                    """
+                ),
+                signature(
+                    "nativeMain.txt",
+                    """
+                    // Signature format: 5.0
+                    """
+                )
+            ),
+            // Project description is only needed for source models
+            projectDescription = null,
+        ) {
+            // Resolving a class from source
+            val fooClass = multiplatformCodebase.resolveClass("test.pkg.Foo")
+            assertThat(fooClass).isNotNull()
+
+            // Resolving a fake class - the model does not have a proper classpath, so any class
+            // which doesn't appear in source is created as a classpath class for all source sets.
+            val fakeClass = multiplatformCodebase.resolveClass("fake.pkg.Class")
+            assertThat(fakeClass).isNotNull()
+            fakeClass!!
+                .origin
+                .assertSourceSetValues(
+                    "commonMain" to ClassOrigin.CLASS_PATH,
+                    "androidMain" to ClassOrigin.CLASS_PATH,
+                    "nativeMain" to ClassOrigin.CLASS_PATH,
+                )
         }
     }
 
