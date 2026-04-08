@@ -278,7 +278,7 @@ class CompatibilityCheck(
                     report(
                         Issues.REMOVED_FROM_BYTECODE,
                         old,
-                        "${new.describe()} has been removed from bytecode",
+                        "${old.describe()} has been removed from bytecode",
                     )
                 }
                 TargetLanguage.KOTLIN -> {
@@ -293,7 +293,7 @@ class CompatibilityCheck(
                     report(
                         Issues.REMOVED_FROM_KOTLIN,
                         old,
-                        "${new.describe()} can no longer be resolved from Kotlin source",
+                        "${old.describe()} can no longer be resolved from Kotlin source",
                     )
                 }
                 TargetLanguage.JAVA -> {
@@ -311,7 +311,7 @@ class CompatibilityCheck(
                     report(
                         Issues.REMOVED_FROM_JAVA,
                         old,
-                        "${new.describe()} can no longer be resolved from Java source",
+                        "${old.describe()} can no longer be resolved from Java source",
                     )
                 }
             }
