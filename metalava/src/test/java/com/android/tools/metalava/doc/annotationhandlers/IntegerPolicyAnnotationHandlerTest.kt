@@ -17,87 +17,12 @@
 package com.android.tools.metalava.doc.annotationhandlers
 
 import com.android.tools.metalava.DriverTest
+import com.android.tools.metalava.doc.annotationhandlers.PolicyDefinitionAnnotationTestFiles.ANDROID_MANIFEST_SOURCE
+import com.android.tools.metalava.doc.annotationhandlers.PolicyDefinitionAnnotationTestFiles.POLICY_DEFINITION_SOURCE
 import com.android.tools.metalava.testing.java
 import org.junit.Test
 
 class IntegerPolicyAnnotationHandlerTest : DriverTest() {
-
-    private val POLICY_DEFINITION_SOURCE =
-        java(
-            """
-            package android.processor.devicepolicy;
-
-            import java.lang.annotation.Retention;
-            import java.lang.annotation.RetentionPolicy;
-
-            @Retention(RetentionPolicy.SOURCE)
-            public @interface PolicyDefinition {
-                int[] allowedScopes() default {};
-                int affectedResource() default 0;
-                String requiredPermission() default "";
-                String requiredCrossUserPermission() default "";
-                AllowedDpcTypes allowedDpcTypes() default @AllowedDpcTypes();
-            }
-
-            @Retention(RetentionPolicy.SOURCE)
-            public @interface AllowedDpcTypes {
-                int deviceOwner() default 2;
-                int managedProfileOwnerOfOrganizationOwnedDevice() default 2;
-                int managedProfileOwnerOfPersonalOwnedDevice() default 2;
-                int unaffiliatedFullUserProfileOwner() default 2;
-                int financedDeviceOwner() default 2;
-                int profileOwnerOnUser0() default 2;
-                int affiliatedFullUserProfileOwner() default 3;
-            }
-
-            @Retention(RetentionPolicy.SOURCE)
-            public @interface EnumResolutionMechanism {
-                boolean custom() default false;
-                int[] mostRestrictive() default {};
-                boolean notCoexistable() default false;
-            }
-
-            @Retention(RetentionPolicy.SOURCE)
-            public @interface EnumPolicyDefinition {
-                PolicyDefinition base();
-                Class<?> intDef();
-                EnumResolutionMechanism resolutionMechanism() default @EnumResolutionMechanism();
-                int defaultValue() default 0;
-            }
-
-            @Retention(RetentionPolicy.SOURCE)
-            public @interface IntegerResolutionMechanism {
-                boolean custom() default false;
-                boolean notCoexistable() default false;
-            }
-
-            @Retention(RetentionPolicy.SOURCE)
-            public @interface IntegerPolicyDefinition {
-                PolicyDefinition base();
-                int minValue() default Integer.MIN_VALUE;
-                int maxValue() default Integer.MAX_VALUE;
-                IntegerResolutionMechanism resolutionMechanism();
-            }
-            """
-        )
-
-    private val ANDROID_MANIFEST_SOURCE =
-        java(
-            """
-            package android;
-
-            public final class Manifest {
-                public static final class permission {
-                    public static final String TEST = "android.permission.TEST";
-                    public static final String ENUM_TEST = "android.permission.ENUM_TEST";
-                    public static final String BOOLEAN_TEST = "android.permission.BOOLEAN_TEST";
-                    public static final String INTEGER_TEST = "android.permission.INTEGER_TEST";
-                    public static final String LONG_TEST = "android.permission.LONG_TEST";
-                    public static final String LIST_TEST = "android.permission.LIST_TEST";
-                }
-            }
-            """
-        )
 
     @Test
     fun `Test IntegerPolicyDefinition generates docs`() {
@@ -112,6 +37,8 @@ class IntegerPolicyAnnotationHandlerTest : DriverTest() {
                         import android.processor.devicepolicy.IntegerPolicyDefinition;
                         import android.processor.devicepolicy.IntegerResolutionMechanism;
                         import android.processor.devicepolicy.PolicyDefinition;
+                        import android.processor.devicepolicy.AllowedDpcTypes;
+                        import static android.processor.devicepolicy.AllowedDpcTypes.ALLOWED;
 
                         @Retention(RetentionPolicy.SOURCE)
                         public class TestPolicy {
@@ -127,7 +54,15 @@ class IntegerPolicyAnnotationHandlerTest : DriverTest() {
                                 base = @PolicyDefinition(
                                     allowedScopes = {SCOPE_USER},
                                     affectedResource = RESOURCE_DEVICE_WIDE,
-                                    requiredPermission = "android.permission.TEST"
+                                    requiredPermission = "android.permission.TEST",
+                                    allowedDpcTypes = @AllowedDpcTypes(
+                                        deviceOwner = ALLOWED,
+                                        managedProfileOwnerOfOrganizationOwnedDevice = ALLOWED,
+                                        managedProfileOwnerOfPersonalOwnedDevice = ALLOWED,
+                                        unaffiliatedFullUserProfileOwner = ALLOWED,
+                                        profileOwnerOnUser0 = ALLOWED,
+                                        affiliatedFullUserProfileOwner = ALLOWED
+                                    )
                                 ),
                                 minValue = 10,
                                 maxValue = 100,
@@ -162,6 +97,16 @@ class IntegerPolicyAnnotationHandlerTest : DriverTest() {
                          *   </li>
                          *   <li>Affected Resource: Device Wide</li>
                          *   <li>Required Permission: {@link android.Manifest.permission#TEST android.permission.TEST}</li>
+                         *   <li>Allowed DPC Types:
+                         *    <ul>
+                         *       <li>Device Owner</li>
+                         *       <li>Managed Profile Owner (Of Organization Owned Device)</li>
+                         *       <li>Managed Profile Owner (Of Personally Owned Device)</li>
+                         *       <li>Unaffiliated Full User Profile Owner</li>
+                         *       <li>Profile Owner on User 0</li>
+                         *       <li>Affiliated Full User Profile Owner</li>
+                         *     </ul>
+                         *   </li>
                          *   <li>Resolution Mechanism: custom</li>
                          *   <li>Min Value: 10</li>
                          *   <li>Max Value: 100</li>

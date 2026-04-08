@@ -17,73 +17,12 @@
 package com.android.tools.metalava.doc.annotationhandlers
 
 import com.android.tools.metalava.DriverTest
+import com.android.tools.metalava.doc.annotationhandlers.PolicyDefinitionAnnotationTestFiles.ANDROID_MANIFEST_SOURCE
+import com.android.tools.metalava.doc.annotationhandlers.PolicyDefinitionAnnotationTestFiles.POLICY_DEFINITION_SOURCE
 import com.android.tools.metalava.testing.java
 import org.junit.Test
 
 class ListOfStringPolicyAnnotationHandlerTest : DriverTest() {
-
-    private val ANDROID_MANIFEST_SOURCE =
-        java(
-            """
-            package android;
-
-            public final class Manifest {
-                public static final class permission {
-                    public static final String TEST = "android.permission.TEST";
-                    public static final String ENUM_TEST = "android.permission.ENUM_TEST";
-                    public static final String BOOLEAN_TEST = "android.permission.BOOLEAN_TEST";
-                    public static final String INTEGER_TEST = "android.permission.INTEGER_TEST";
-                    public static final String LONG_TEST = "android.permission.LONG_TEST";
-                    public static final String LIST_TEST = "android.permission.LIST_TEST";
-                }
-            }
-            """
-        )
-
-    private val POLICY_DEFINITION_SOURCE =
-        java(
-            """
-            package android.processor.devicepolicy;
-
-            import java.lang.annotation.Retention;
-            import java.lang.annotation.RetentionPolicy;
-
-            @Retention(RetentionPolicy.SOURCE)
-            public @interface PolicyDefinition {
-                int[] allowedScopes() default {};
-                int affectedResource() default 0;
-                String requiredPermission() default "";
-                String requiredCrossUserPermission() default "";
-                AllowedDpcTypes allowedDpcTypes() default @AllowedDpcTypes();
-            }
-
-            @Retention(RetentionPolicy.SOURCE)
-            public @interface AllowedDpcTypes {
-                int deviceOwner() default 2;
-                int managedProfileOwnerOfOrganizationOwnedDevice() default 2;
-                int managedProfileOwnerOfPersonalOwnedDevice() default 2;
-                int unaffiliatedFullUserProfileOwner() default 2;
-                int financedDeviceOwner() default 2;
-                int profileOwnerOnUser0() default 2;
-                int affiliatedFullUserProfileOwner() default 3;
-            }
-
-            @Retention(RetentionPolicy.SOURCE)
-            public @interface ListResolutionMechanism {
-                boolean custom() default false;
-                boolean union() default false;
-            }
-
-            @Retention(RetentionPolicy.SOURCE)
-            public @interface ListOfStringPolicyDefinition {
-                PolicyDefinition base();
-                boolean emptyListAllowed() default false;
-                boolean emptyStringAllowed() default false;
-                boolean unprintableCharactersAllowed() default false;
-                ListResolutionMechanism resolutionMechanism();
-            }
-            """
-        )
 
     @Test
     fun `Test ListOfStringPolicyDefinition generates docs`() {
@@ -98,6 +37,8 @@ class ListOfStringPolicyAnnotationHandlerTest : DriverTest() {
                         import android.processor.devicepolicy.ListOfStringPolicyDefinition;
                         import android.processor.devicepolicy.ListResolutionMechanism;
                         import android.processor.devicepolicy.PolicyDefinition;
+                        import android.processor.devicepolicy.AllowedDpcTypes;
+                        import static android.processor.devicepolicy.AllowedDpcTypes.ALLOWED;
 
                         @Retention(RetentionPolicy.SOURCE)
                         public class TestPolicy {
@@ -113,7 +54,15 @@ class ListOfStringPolicyAnnotationHandlerTest : DriverTest() {
                                 base = @PolicyDefinition(
                                     allowedScopes = {SCOPE_USER},
                                     affectedResource = RESOURCE_DEVICE_WIDE,
-                                    requiredPermission = "android.permission.TEST"
+                                    requiredPermission = "android.permission.TEST",
+                                    allowedDpcTypes = @AllowedDpcTypes(
+                                        deviceOwner = ALLOWED,
+                                        managedProfileOwnerOfOrganizationOwnedDevice = ALLOWED,
+                                        managedProfileOwnerOfPersonalOwnedDevice = ALLOWED,
+                                        unaffiliatedFullUserProfileOwner = ALLOWED,
+                                        profileOwnerOnUser0 = ALLOWED,
+                                        affiliatedFullUserProfileOwner = ALLOWED
+                                    )
                                 ),
                                 emptyListAllowed = true,
                                 emptyStringAllowed = true,
@@ -149,6 +98,16 @@ class ListOfStringPolicyAnnotationHandlerTest : DriverTest() {
                          *   </li>
                          *   <li>Affected Resource: Device Wide</li>
                          *   <li>Required Permission: {@link android.Manifest.permission#TEST android.permission.TEST}</li>
+                         *   <li>Allowed DPC Types:
+                         *    <ul>
+                         *       <li>Device Owner</li>
+                         *       <li>Managed Profile Owner (Of Organization Owned Device)</li>
+                         *       <li>Managed Profile Owner (Of Personally Owned Device)</li>
+                         *       <li>Unaffiliated Full User Profile Owner</li>
+                         *       <li>Profile Owner on User 0</li>
+                         *       <li>Affiliated Full User Profile Owner</li>
+                         *     </ul>
+                         *   </li>
                          *   <li>Resolution Mechanism: custom</li>
                          *   <li>Empty list: Allowed</li>
                          *   <li>Empty string: Allowed</li>
@@ -176,6 +135,8 @@ class ListOfStringPolicyAnnotationHandlerTest : DriverTest() {
                         import android.processor.devicepolicy.ListOfStringPolicyDefinition;
                         import android.processor.devicepolicy.ListResolutionMechanism;
                         import android.processor.devicepolicy.PolicyDefinition;
+                        import android.processor.devicepolicy.AllowedDpcTypes;
+                        import static android.processor.devicepolicy.AllowedDpcTypes.ALLOWED;
                         public class TestPolicy {
                             private static final int SCOPE_USER = 1;
                             private static final int RESOURCE_DEVICE_WIDE = 1;
@@ -184,7 +145,15 @@ class ListOfStringPolicyAnnotationHandlerTest : DriverTest() {
                                 base = @PolicyDefinition(
                                     allowedScopes = {SCOPE_USER},
                                     affectedResource = RESOURCE_DEVICE_WIDE,
-                                    requiredPermission = "android.permission.TEST"
+                                    requiredPermission = "android.permission.TEST",
+                                    allowedDpcTypes = @AllowedDpcTypes(
+                                        deviceOwner = ALLOWED,
+                                        managedProfileOwnerOfOrganizationOwnedDevice = ALLOWED,
+                                        managedProfileOwnerOfPersonalOwnedDevice = ALLOWED,
+                                        unaffiliatedFullUserProfileOwner = ALLOWED,
+                                        profileOwnerOnUser0 = ALLOWED,
+                                        affiliatedFullUserProfileOwner = ALLOWED
+                                    )
                                 ),
                                 resolutionMechanism = @ListResolutionMechanism()
                             )
@@ -213,6 +182,16 @@ class ListOfStringPolicyAnnotationHandlerTest : DriverTest() {
                          *   </li>
                          *   <li>Affected Resource: Device Wide</li>
                          *   <li>Required Permission: {@link android.Manifest.permission#TEST android.permission.TEST}</li>
+                         *   <li>Allowed DPC Types:
+                         *    <ul>
+                         *       <li>Device Owner</li>
+                         *       <li>Managed Profile Owner (Of Organization Owned Device)</li>
+                         *       <li>Managed Profile Owner (Of Personally Owned Device)</li>
+                         *       <li>Unaffiliated Full User Profile Owner</li>
+                         *       <li>Profile Owner on User 0</li>
+                         *       <li>Affiliated Full User Profile Owner</li>
+                         *     </ul>
+                         *   </li>
                          *   <li>Empty list: Not allowed</li>
                          *   <li>Empty string: Not allowed</li>
                          *   <li>Unprintable characters: Not allowed</li>
@@ -225,7 +204,7 @@ class ListOfStringPolicyAnnotationHandlerTest : DriverTest() {
                 ),
             expectedIssues =
                 """
-                src/test/pkg/TestPolicy.java:17: error: ListResolutionMechanism must have either 'custom' or 'union' set to true. [InvalidDevicePolicyAnnotation]
+                src/test/pkg/TestPolicy.java:27: error: ListResolutionMechanism must have either 'custom' or 'union' set to true. [InvalidDevicePolicyAnnotation]
                 """
         )
     }

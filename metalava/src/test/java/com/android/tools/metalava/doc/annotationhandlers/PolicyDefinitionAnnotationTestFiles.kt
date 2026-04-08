@@ -1,0 +1,156 @@
+/*
+ * Copyright (C) 2026 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package com.android.tools.metalava.doc.annotationhandlers
+
+import com.android.tools.metalava.testing.java
+
+object PolicyDefinitionAnnotationTestFiles {
+
+    val ANDROID_MANIFEST_SOURCE =
+        java(
+            """
+            package android;
+
+            public final class Manifest {
+                public static final class permission {
+                    public static final String TEST = "android.permission.TEST";
+                    public static final String ENUM_TEST = "android.permission.ENUM_TEST";
+                    public static final String BOOLEAN_TEST = "android.permission.BOOLEAN_TEST";
+                    public static final String INTEGER_TEST = "android.permission.INTEGER_TEST";
+                    public static final String LONG_TEST = "android.permission.LONG_TEST";
+                    public static final String LIST_TEST = "android.permission.LIST_TEST";
+                }
+            }
+            """
+        )
+
+    val ENUM_POLICY_DEFINITION_SOURCE =
+        java(
+            """
+            package android.processor.devicepolicy;
+
+            import android.annotation.IntDef;
+            import java.lang.annotation.Retention;
+            import java.lang.annotation.RetentionPolicy;
+
+            public final class EnumPolicyValues {
+                public static final int ENUM_POLICY_VALUE_1 = 1;
+                public static final int ENUM_POLICY_VALUE_2 = 2;
+
+                /**
+                 * Possible values.
+                 *
+                 * @hide
+                 */
+                @Retention(RetentionPolicy.SOURCE)
+                @IntDef(
+                        prefix = {"ENUM_POLICY_"},
+                        value = {
+                            ENUM_POLICY_VALUE_1,
+                            ENUM_POLICY_VALUE_2,
+                    })
+                public @interface EnumPolicyValue {}
+            }
+
+            @Retention(RetentionPolicy.SOURCE)
+            public @interface EnumPolicyDefinition {
+                PolicyDefinition base();
+                Class<?> intDef();
+                EnumResolutionMechanism resolutionMechanism() default @EnumResolutionMechanism();
+                int defaultValue() default 0;
+            }
+            """
+        )
+
+    val POLICY_DEFINITION_SOURCE =
+        java(
+            """
+            package android.processor.devicepolicy;
+
+            import java.lang.annotation.Retention;
+            import java.lang.annotation.RetentionPolicy;
+
+            @Retention(RetentionPolicy.SOURCE)
+            public @interface PolicyDefinition {
+                int[] allowedScopes() default {};
+                int affectedResource() default 0;
+                String requiredPermission() default "";
+                String requiredCrossUserPermission() default "";
+                AllowedDpcTypes allowedDpcTypes();
+            }
+
+            @Retention(RetentionPolicy.SOURCE)
+            public @interface AllowedDpcTypes {
+                public static final int ALLOWED = 1;
+                public static final int DISALLOWED = 2;
+                public static final int SAME_AS_UNAFFILIATED = 3;
+
+                public int deviceOwner();
+                public int managedProfileOwnerOfOrganizationOwnedDevice();
+                public int managedProfileOwnerOfPersonalOwnedDevice();
+                public int unaffiliatedFullUserProfileOwner();
+                public int financedDeviceOwner() default DISALLOWED;
+                public int profileOwnerOnUser0() default DISALLOWED;
+                public int affiliatedFullUserProfileOwner() default SAME_AS_UNAFFILIATED;
+            }
+
+            @Retention(RetentionPolicy.SOURCE)
+            public @interface EnumResolutionMechanism {
+                boolean custom() default false;
+                int[] mostRestrictive() default {};
+                boolean notCoexistable() default false;
+            }
+
+            @Retention(RetentionPolicy.SOURCE)
+            public @interface IntegerResolutionMechanism {
+                boolean custom() default false;
+                boolean notCoexistable() default false;
+            }
+
+            @Retention(RetentionPolicy.SOURCE)
+            public @interface IntegerPolicyDefinition {
+                PolicyDefinition base();
+                int minValue() default Integer.MIN_VALUE;
+                int maxValue() default Integer.MAX_VALUE;
+                IntegerResolutionMechanism resolutionMechanism();
+            }
+
+            @Retention(RetentionPolicy.SOURCE)
+            public @interface ListResolutionMechanism {
+                boolean custom() default false;
+                boolean union() default false;
+            }
+
+            @Retention(RetentionPolicy.SOURCE)
+            public @interface ListOfStringPolicyDefinition {
+                PolicyDefinition base();
+                boolean emptyListAllowed() default false;
+                boolean emptyStringAllowed() default false;
+                boolean unprintableCharactersAllowed() default false;
+                ListResolutionMechanism resolutionMechanism();
+            }
+
+            @Retention(RetentionPolicy.SOURCE)
+            public @interface StringPolicyDefinition {
+                PolicyDefinition base();
+                boolean emptyStringAllowed() default false;
+                boolean unprintableCharactersAllowed() default false;
+                int maxLength() default Integer.MAX_VALUE;
+            }
+            """
+        )
+}
