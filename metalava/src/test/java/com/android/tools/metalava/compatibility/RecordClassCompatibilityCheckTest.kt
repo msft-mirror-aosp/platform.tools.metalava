@@ -100,8 +100,9 @@ class RecordClassCompatibilityCheckTest : DriverTest() {
     fun `Check compatibility record class change component order`() {
         check(
             expectedIssues =
-                // TODO(b/482390286): Should prevent change in the order of components.
                 """
+                    load-api.txt:4: error: Binary breaking change: Record component test.pkg.Point.y changed position of record component y from 1 to 0 [ChangedRecordComponent]
+                    load-api.txt:5: error: Binary breaking change: Record component test.pkg.Point.x changed position of record component x from 0 to 1 [ChangedRecordComponent]
                 """,
             checkCompatibilityApiReleased =
                 """
@@ -134,8 +135,8 @@ class RecordClassCompatibilityCheckTest : DriverTest() {
     fun `Check compatibility record class add component`() {
         check(
             expectedIssues =
-                // TODO(b/482390286): Should prevent adding a new component.
                 """
+                    load-api.txt:6: error: Binary breaking change: Class test.pkg.Point added record component z [AddedRecordComponent]
                 """,
             checkCompatibilityApiReleased =
                 """
@@ -175,6 +176,8 @@ class RecordClassCompatibilityCheckTest : DriverTest() {
         check(
             expectedIssues =
                 """
+                    load-api.txt:4: error: Binary breaking change: Record component test.pkg.Point.x changed type of record component x from int to long [ChangedRecordComponent]
+                    load-api.txt:5: error: Binary breaking change: Record component test.pkg.Point.y changed type of record component y from int to long [ChangedRecordComponent]
                     load-api.txt:8: error: Binary breaking change: Method test.pkg.Point.x has changed return type from int to long [ChangedType]
                     load-api.txt:9: error: Binary breaking change: Method test.pkg.Point.y has changed return type from int to long [ChangedType]
                 """,

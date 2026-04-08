@@ -37,6 +37,7 @@ import com.android.tools.metalava.model.MultipleTypeVisitor
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.PropertyItem
+import com.android.tools.metalava.model.RecordComponentItem
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.SourceLanguage
 import com.android.tools.metalava.model.StripJavaLangPrefix
@@ -569,6 +570,9 @@ class CompatibilityCheck(
                     // Perform some annotation specific comparisons.
                     compareAnnotations(old, new)
                 }
+                ClassKind.RECORD -> {
+                    compareRecordClass(old, new)
+                }
                 ClassKind.TYPEALIAS -> {
                     // Perform completely different comparisons for typealiases.
                     compareTypeAliasItems(old, new)
@@ -786,6 +790,67 @@ class CompatibilityCheck(
                 new,
                 "Added a subclass to a sealed ${if (new.isInterface()) "interface" else "class"} that can be exhaustively matched",
                 addedSubclasses.first().fileLocation,
+            )
+        }
+    }
+
+    /** Compare two [ClassKind.RECORD] classes, [old] and [new]. */
+    fun compareRecordClass(old: ClassItem, new: ClassItem) {
+        val oldComponents = old.recordComponents
+        val newComponents = new.recordComponents
+
+        val allNames = buildSet {
+            oldComponents.mapTo(this) { it.name }
+            newComponents.mapTo(this) { it.name }
+        }
+
+        for (name in allNames) {
+            val oldComponent = oldComponents[name]
+            val newComponent = newComponents[name]
+
+            if (oldComponent == null) {
+                // This should never fail as at least one of the classes must have a record
+                // component called `name` in order for it to be in allNames.
+                newComponent!!
+
+                // Added newComponent
+                report(
+                    Issues.ADDED_RECORD_COMPONENT,
+                    newComponent,
+                    "${new.describe(capitalize = true)} added record component $name"
+                )
+            } else if (newComponent == null) {
+                // Removed oldComponent
+                report(
+                    Issues.REMOVED_RECORD_COMPONENT,
+                    oldComponent,
+                    "${new.describe(capitalize = true)} removed record component $name"
+                )
+            } else {
+                // Compare components
+                compareRecordComponent(oldComponent, newComponent)
+            }
+        }
+    }
+
+    fun compareRecordComponent(old: RecordComponentItem, new: RecordComponentItem) {
+        val oldIndex = old.recordComponentIndex
+        val newIndex = new.recordComponentIndex
+        if (oldIndex != newIndex) {
+            report(
+                Issues.CHANGED_RECORD_COMPONENT,
+                new,
+                "${new.describe(capitalize = true)} changed position of record component ${old.name} from $oldIndex to $newIndex",
+            )
+        }
+
+        val oldType = old.type
+        val newType = new.type
+        if (oldType != newType) {
+            report(
+                Issues.CHANGED_RECORD_COMPONENT,
+                new,
+                "${new.describe(capitalize = true)} changed type of record component ${old.name} from ${oldType.toTypeString()} to ${newType.toTypeString()}",
             )
         }
     }

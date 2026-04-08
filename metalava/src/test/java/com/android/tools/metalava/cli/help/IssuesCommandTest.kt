@@ -48,6 +48,7 @@ Available Issues                             |  Category                        
   AddedMethod                                |  other_compatibility                  |   hidden
   AddedPackage                               |  other_compatibility                  |   hidden
   AddedProperty                              |  other_compatibility                  |   hidden
+  AddedRecordComponent                       |  binary_and_source_compatibility      |   error
   AddedReified                               |  binary_compatibility_only            |   error
   AddedSubclassToSealedClass                 |  source_compatibility_only            |   error
   AllUpper                                   |  api_lint                             |   error
@@ -71,6 +72,7 @@ Available Issues                             |  Category                        
   ChangedDefault                             |  binary_and_source_compatibility      |   error
   ChangedDeprecated                          |  source_compatibility_only            |   hidden
   ChangedNative                              |  other_compatibility                  |   hidden
+  ChangedRecordComponent                     |  binary_and_source_compatibility      |   error
   ChangedScope                               |  binary_and_source_compatibility      |   error
   ChangedStatic                              |  binary_and_source_compatibility      |   error
   ChangedSuperclass                          |  binary_and_source_compatibility      |   error
@@ -216,6 +218,7 @@ Available Issues                             |  Category                        
   RemovedMethod                              |  binary_and_source_compatibility      |   error
   RemovedPackage                             |  binary_and_source_compatibility      |   error
   RemovedProperty                            |  source_compatibility_only            |   error
+  RemovedRecordComponent                     |  binary_and_source_compatibility      |   error
   RemovedTypeAlias                           |  source_compatibility_only            |   error
   RequiresPermission                         |  documentation                        |   error
   ResourceFieldName                          |  api_lint                             |   error
