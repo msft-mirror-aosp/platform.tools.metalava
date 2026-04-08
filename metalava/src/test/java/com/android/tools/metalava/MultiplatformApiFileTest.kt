@@ -324,4 +324,57 @@ class MultiplatformApiFileTest : DriverTest() {
                 )
         )
     }
+
+    @Test
+    fun `Test callables that differ by nullability`() {
+        val commonSource =
+            kotlin(
+                "commonMain/src/test/pkg/Foo.kt",
+                """
+                package test.pkg
+                expect class Foo(s: String) {
+                    fun foo(s: String?): Unit
+                }
+                """
+            )
+        val nativeSource =
+            kotlin(
+                "nativeMain/src/test/pkg/Foo_native.kt",
+                """
+                package test.pkg
+                actual class Foo actual constructor(s: String) {
+                    constructor(s: String?) : this(s ?: "")
+                    actual fun foo(s: String?) = Unit
+                    fun foo(s: String) = Unit
+                }
+                """
+            )
+        check(
+            sourceFiles = arrayOf(commonSource, nativeSource),
+            projectDescription =
+                createProjectDescription(
+                    createCommonModuleDescription(arrayOf(commonSource)),
+                    createNativeModuleDescription(arrayOf(nativeSource)),
+                ),
+            enableMultiplatform = true,
+            skipSourceArgs = true, // Don't create a regular Codebase
+            multiplatformApi =
+                mapOf(
+                    "commonMain.txt" to
+                        """
+                        // Signature format: 5.0
+                        package test.pkg {
+                          public final class Foo extends kotlin.Any {
+                            ctor public Foo(kotlin.String s);
+                            method public void foo(kotlin.String? s);
+                          }
+                        }
+                        """,
+                    // TODO: the non-actual constructor and function should appear
+                    "nativeMain.txt" to
+                        """
+                        """,
+                )
+        )
+    }
 }
