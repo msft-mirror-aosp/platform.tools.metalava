@@ -565,7 +565,13 @@ class CommonMultiplatformCallableItemTest : BaseModelTest() {
             assertThat(stringParameter.containingCallable).isEqualTo(fooMethod)
             assertThat(stringParameter.parameterIndex).isEqualTo(0)
             stringParameter.modifiers
-                .transformValues { modifiers -> modifiers.annotations().map { it.qualifiedName } }
+                .transformValues { modifiers ->
+                    modifiers
+                        .annotations()
+                        // The text model adds nullness annotations based on nullability suffixes.
+                        .filter { !it.isNullnessAnnotation() }
+                        .map { it.qualifiedName }
+                }
                 .assertSourceSetValues(
                     "commonMain" to listOf("test.pkg.CommonAnnotation"),
                     "androidMain" to listOf("test.pkg.AndroidAnnotation"),
