@@ -67,8 +67,6 @@ interface RecordComponentItem : Item {
 
     override fun toStringForItem() = "record component ${containingClass().qualifiedName()}#$name"
 
-    override fun describe(capitalize: Boolean) = toString()
-
     override val effectivelyDeprecated: Boolean
         get() = originallyDeprecated || containingClass().effectivelyDeprecated
 
