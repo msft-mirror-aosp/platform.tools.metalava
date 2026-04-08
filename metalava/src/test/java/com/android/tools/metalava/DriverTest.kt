@@ -1327,13 +1327,18 @@ abstract class DriverTest :
                 )
             }
             // Check that there aren't additional API files which were not expected.
-            for (sourceSetApiFile in multiplatformApiDirectory.listFiles()) {
+            val multiplatformSignatureFiles = multiplatformApiDirectory.listFiles().toList()
+            for (sourceSetApiFile in multiplatformSignatureFiles) {
                 assertTrue(
                     "${sourceSetApiFile.path} was generated but was not expected",
                     sourceSetApiFile.name in multiplatformApi,
                 )
             }
-            // TODO(b/407735666): try parsing back the multiplatform API files to validate
+            // Parse back the multiplatform API to ensure there are no errors.
+            ApiFile.parseMultiplatformApi(
+                SignatureFile.fromFiles(multiplatformSignatureFiles),
+                Codebase.Config.NOOP
+            )
         }
     }
 
