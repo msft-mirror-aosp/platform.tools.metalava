@@ -51,7 +51,7 @@ import com.android.tools.metalava.model.source.doc.DocContentPredicates
 import com.android.tools.metalava.model.value.asString
 import com.android.tools.metalava.model.visitors.ApiPredicate
 import com.android.tools.metalava.model.visitors.ApiVisitor
-import com.android.tools.metalava.permission.getRequiresPermissionInfo
+import com.android.tools.metalava.permission.getRequiresPermissionProxy
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
 import java.io.File
@@ -534,11 +534,11 @@ class ApiAnalyzer(
         val annotation = method.modifiers.findAnnotation(ANDROIDX_REQUIRES_PERMISSION)
         var hasAnnotation = false
 
-        val requiresPermissionInfo = annotation?.getRequiresPermissionInfo(method)
-        if (requiresPermissionInfo != null) {
+        val requiresPermissionProxy = annotation?.getRequiresPermissionProxy(method)
+        if (requiresPermissionProxy != null) {
             hasAnnotation = true
-            val values = requiresPermissionInfo.permissionValues
-            val any = requiresPermissionInfo.any
+            val values = requiresPermissionProxy.permissionValues
+            val any = requiresPermissionProxy.any
 
             val system = ArrayList<String>()
             val nonSystem = ArrayList<String>()

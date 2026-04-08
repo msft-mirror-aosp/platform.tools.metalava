@@ -34,7 +34,7 @@ import com.android.tools.metalava.model.source.doc.DocContentPredicates
 import com.android.tools.metalava.model.value.asString
 import com.android.tools.metalava.model.visitors.ApiPredicate
 import com.android.tools.metalava.model.visitors.ApiVisitor
-import com.android.tools.metalava.permission.getRequiresPermissionInfo
+import com.android.tools.metalava.permission.getRequiresPermissionProxy
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
 import com.android.tools.metalava.reporter.Severity
@@ -130,10 +130,10 @@ class AndroidApiChecks(
         val documentation = callable.documentation ?: return
 
         val annotation = callable.modifiers.findAnnotation("androidx.annotation.RequiresPermission")
-        val requiresPermissionInfo = annotation?.getRequiresPermissionInfo(callable)
-        if (requiresPermissionInfo != null) {
-            val conditional = requiresPermissionInfo.conditional
-            val permissions = requiresPermissionInfo.permissionValues.mapNotNull { it.asString() }
+        val requiresPermissionProxy = annotation?.getRequiresPermissionProxy(callable)
+        if (requiresPermissionProxy != null) {
+            val conditional = requiresPermissionProxy.conditional
+            val permissions = requiresPermissionProxy.permissionValues.mapNotNull { it.asString() }
             for (item in permissions) {
                 val perm = item.substringAfterLast('.')
                 // Search for the permission name as a whole word.

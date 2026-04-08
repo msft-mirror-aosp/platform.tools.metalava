@@ -33,7 +33,7 @@ import com.android.tools.metalava.model.value.StringValue
  *
  * @see bindTo
  */
-class RequiresPermissionInfo(
+class RequiresPermissionProxy(
     value: ArrayElementValue?,
     allOf: List<ArrayElementValue>?,
     anyOf: List<ArrayElementValue>?,
@@ -71,24 +71,24 @@ class RequiresPermissionInfo(
 
     companion object {
         /**
-         * Get an instance of [RequiresPermissionInfo] from [annotationItem], or `null` if it
+         * Get an instance of [RequiresPermissionProxy] from [annotationItem], or `null` if it
          * provides no permissions.
          *
          * This must only be called on [ANDROIDX_REQUIRES_PERMISSION] annotations. It is the
          * caller's responsibility to ensure that.
          */
         internal fun from(annotationItem: AnnotationItem, item: Item) =
-            annotationItem.bindTo<RequiresPermissionInfo>(item)?.takeIf {
+            annotationItem.bindTo<RequiresPermissionProxy>(item)?.takeIf {
                 it.optionalPermissionValues != null
             }
     }
 }
 
 /**
- * Get an instance of [RequiresPermissionInfo] from [AnnotationItem], or `null` if it provides no
+ * Get an instance of [RequiresPermissionProxy] from [AnnotationItem], or `null` if it provides no
  * permissions.
  *
  * This must only be called on [ANDROIDX_REQUIRES_PERMISSION] annotations. It is the caller's
  * responsibility to ensure that.
  */
-fun AnnotationItem.getRequiresPermissionInfo(item: Item) = RequiresPermissionInfo.from(this, item)
+fun AnnotationItem.getRequiresPermissionProxy(item: Item) = RequiresPermissionProxy.from(this, item)

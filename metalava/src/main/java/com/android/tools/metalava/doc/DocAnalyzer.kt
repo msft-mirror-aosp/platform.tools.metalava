@@ -61,7 +61,7 @@ import com.android.tools.metalava.model.value.asInt
 import com.android.tools.metalava.model.value.asString
 import com.android.tools.metalava.model.visitors.ApiPredicate
 import com.android.tools.metalava.model.visitors.ApiVisitor
-import com.android.tools.metalava.permission.getRequiresPermissionInfo
+import com.android.tools.metalava.permission.getRequiresPermissionProxy
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
 import java.io.File
@@ -371,9 +371,9 @@ class DocAnalyzer(
                         return
                     }
 
-                    val requiresPermissionInfo =
-                        annotation.getRequiresPermissionInfo(item) ?: return
-                    val (values, any, conditional) = requiresPermissionInfo
+                    val requiresPermissionProxy =
+                        annotation.getRequiresPermissionProxy(item) ?: return
+                    val (values, any, conditional) = requiresPermissionProxy
                     if (values.isNotEmpty() && !conditional) {
                         // Look at macros_override.cs for the usage of these
                         // tags. In particular, search for def:dump_permission
