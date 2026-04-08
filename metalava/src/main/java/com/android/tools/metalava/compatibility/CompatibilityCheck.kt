@@ -527,7 +527,8 @@ class CompatibilityCheck(
             when (this) {
                 ClassKind.ANNOTATION_TYPE,
                 ClassKind.ENUM,
-                ClassKind.INTERFACE -> false
+                ClassKind.INTERFACE,
+                ClassKind.TYPEALIAS -> false
                 else -> true
             }
 
@@ -547,7 +548,6 @@ class CompatibilityCheck(
         // Check to see whether the class kind has been changed.
         if (oldClassKind != newClassKind) {
             // If the change is not allowed then report it.
-            // TODO(b/458733676): add error for converting from class to typealias or vice versa.
             if (!allowClassKindChange(oldClassKind, newClassKind)) {
                 report(
                     Issues.CHANGED_CLASS,

@@ -125,8 +125,8 @@ class TypeAliasCompatibilityTest : DriverTest() {
                       }
                     }
                 """,
-            // TODO(b/458733676): Should report a ChangedClass issue.
-            expectedIssues = "",
+            expectedIssues =
+                "load-api.txt:3: error: Binary breaking change: test.pkg.Foo changed from typealias to class [ChangedClass]",
         )
     }
 
@@ -148,9 +148,9 @@ class TypeAliasCompatibilityTest : DriverTest() {
                       public typealias Foo = String;
                     }
                 """,
-            // TODO(b/458733676): Should report a ChangedClass issue.
             expectedIssues =
                 """
+                    load-api.txt:3: error: Source breaking change: test.pkg.Foo changed from class to typealias [ChangedClass]
                     released-api.txt:3: error: Binary breaking change: class test.pkg.Foo has been removed from bytecode [RemovedFromBytecode]
                     released-api.txt:3: error: Source breaking change: class test.pkg.Foo can no longer be resolved from Java source [RemovedFromJava]
                 """,
