@@ -24,10 +24,8 @@ class RecordClassCompatibilityCheckTest : DriverTest() {
     fun `Check compatibility converting normal class to record`() {
         check(
             expectedIssues =
-                // TODO(b/482390286): Might make sense to report a "not suitable for conversion to
-                //  record" message to clarify what is happening.
                 """
-                    load-api.txt:3: error: Binary breaking change: Class test.pkg.NotSuitableForRecord added 'final' qualifier [AddedFinal]
+                    load-api.txt:3: error: Binary breaking change: test.pkg.NotSuitableForRecord changed from class to record class [ChangedClass]
                 """,
             checkCompatibilityApiReleased =
                 """
@@ -66,11 +64,9 @@ class RecordClassCompatibilityCheckTest : DriverTest() {
     fun `Check compatibility record class to normal class`() {
         check(
             expectedIssues =
-                // TODO(b/482390286): Might make sense to report a "cannot convert a record class
-                //  to a normal class" message to clarify what is happening.
                 """
-                    load-api.txt:3: error: Binary breaking change: Class test.pkg.RecordNoComponents superclass changed from java.lang.Record to java.lang.Object [ChangedSuperclass]
-                    load-api.txt:6: error: Binary breaking change: Class test.pkg.RecordOneComponent superclass changed from java.lang.Record to java.lang.Object [ChangedSuperclass]
+                    load-api.txt:3: error: Binary breaking change: test.pkg.RecordNoComponents changed from record class to class [ChangedClass]
+                    load-api.txt:6: error: Binary breaking change: test.pkg.RecordOneComponent changed from record class to class [ChangedClass]
                 """,
             checkCompatibilityApiReleased =
                 """

@@ -521,24 +521,26 @@ class CompatibilityCheck(
         }
     }
 
-    /** Return `true` for any [ClassKind] that can be changed to/from another [ClassKind]. */
-    private val ClassKind.canBeChanged
-        get() =
-            when (this) {
-                ClassKind.ANNOTATION_TYPE,
-                ClassKind.ENUM,
-                ClassKind.INTERFACE,
-                ClassKind.TYPEALIAS -> false
-                else -> true
-            }
-
     /**
-     * Check whether it is allowed to change [ClassItem.classKind] from [oldClassKind] to
+     * Check whether it is allowed to change [old]'s [ClassItem.classKind] from [oldClassKind] to
      * [newClassKind].
      */
-    private fun allowClassKindChange(oldClassKind: ClassKind, newClassKind: ClassKind) =
-        // It is allowed only if they can both be changed.
-        oldClassKind.canBeChanged && newClassKind.canBeChanged
+    private fun allowClassKindChange(
+        old: ClassItem,
+        oldClassKind: ClassKind,
+        newClassKind: ClassKind,
+    ) =
+        when {
+            oldClassKind == ClassKind.CLASS && newClassKind == ClassKind.RECORD -> {
+                // Changing from class -> record is allowed if the class was final and so could not
+                // be extended. There are a whole set of other restrictions on record classes, this
+                // relies on them being checked and enforced by the compiler. Any other incompatible
+                // changes that might need to be made to allow a class to be switched to a record,
+                // e.g. removing fields, will be checked for elsewhere.
+                old.modifiers.isFinal()
+            }
+            else -> false
+        }
 
     /** Compare [ClassItem]s to see if [new] is compatible with [old]. */
     override fun compareClassItems(old: ClassItem, new: ClassItem) {
@@ -548,7 +550,7 @@ class CompatibilityCheck(
         // Check to see whether the class kind has been changed.
         if (oldClassKind != newClassKind) {
             // If the change is not allowed then report it.
-            if (!allowClassKindChange(oldClassKind, newClassKind)) {
+            if (!allowClassKindChange(old, oldClassKind, newClassKind)) {
                 report(
                     Issues.CHANGED_CLASS,
                     new,
