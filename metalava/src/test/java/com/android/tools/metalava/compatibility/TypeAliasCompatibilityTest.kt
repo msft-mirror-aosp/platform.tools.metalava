@@ -106,4 +106,55 @@ class TypeAliasCompatibilityTest : DriverTest() {
                 "load-api.txt:3: error: Source breaking change: Attempted to change nullability of java.lang.String (from NONNULL to NULLABLE) in typealias test.pkg.Foo [InvalidNullConversion]"
         )
     }
+
+    @Test
+    fun `Changed type alias to class`() {
+        check(
+            checkCompatibilityApiReleased =
+                """
+                    // Signature format: 5.0
+                    package test.pkg {
+                      public typealias Foo = String;
+                    }
+                """,
+            signatureSource =
+                """
+                    // Signature format: 5.0
+                    package test.pkg {
+                      public class Foo {
+                      }
+                    }
+                """,
+            // TODO(b/458733676): Should report a ChangedClass issue.
+            expectedIssues = "",
+        )
+    }
+
+    @Test
+    fun `Changed class to type alias`() {
+        check(
+            checkCompatibilityApiReleased =
+                """
+                    // Signature format: 5.0
+                    package test.pkg {
+                      public class Foo {
+                      }
+                    }
+                """,
+            signatureSource =
+                """
+                    // Signature format: 5.0
+                    package test.pkg {
+                      public typealias Foo = String;
+                    }
+                """,
+            // TODO(b/458733676): Should report a ChangedClass issue and error messages are
+            //  misleading.
+            expectedIssues =
+                """
+                    released-api.txt:3: error: Binary breaking change: typealias test.pkg.Foo has been removed from bytecode [RemovedFromBytecode]
+                    released-api.txt:3: error: Source breaking change: typealias test.pkg.Foo can no longer be resolved from Java source [RemovedFromJava]
+                """,
+        )
+    }
 }
