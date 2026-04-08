@@ -552,7 +552,7 @@ class CompatibilityCheck(
                 report(
                     Issues.CHANGED_CLASS,
                     new,
-                    "${new.describe(capitalize = true)} changed class/interface declaration",
+                    "${new.qualifiedName()} changed from ${oldClassKind.description} to ${newClassKind.description}",
                     oldItem = old,
                 )
 

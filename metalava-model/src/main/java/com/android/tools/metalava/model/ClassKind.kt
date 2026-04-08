@@ -21,6 +21,7 @@ package com.android.tools.metalava.model
  *
  * Corresponds to similarly named values in [javax.lang.model.element.ElementKind].
  *
+ * @param description the description of this [ClassKind] that can be used in issue messages.
  * @param supportsInitializerBlock `true` if the class kind supports initializer blocks, e.g. `{
  *   field = 0; }` or `static { FIELD = 0; }`.
  * @param signatureKeyword the keyword to use in a signature file to differentiate by class kind.
@@ -43,6 +44,7 @@ package com.android.tools.metalava.model
  *   [ClassKind]s are not implicitly `static` so this defaults to `false`.
  */
 enum class ClassKind(
+    val description: String,
     val supportsInitializerBlock: Boolean,
     val signatureKeyword: String,
     val implicitSuperClassType: ClassTypeItem? = null,
@@ -57,6 +59,7 @@ enum class ClassKind(
 
     /** An interface. */
     INTERFACE(
+        description = "interface",
         supportsInitializerBlock = false,
         signatureKeyword = "interface",
         // Interfaces do not have a super class, explicit or otherwise.
@@ -69,6 +72,7 @@ enum class ClassKind(
 
     /** An enum class. */
     ENUM(
+        description = "enum class",
         supportsInitializerBlock = true,
         signatureKeyword = "enum",
         implicitSuperClassType = WellKnownTypes.JAVA_LANG_ENUM_NON_NULL_TYPE,
@@ -83,6 +87,7 @@ enum class ClassKind(
 
     /** An annotation class. */
     ANNOTATION_TYPE(
+        description = "annotation class",
         supportsInitializerBlock = false,
         signatureKeyword = "@interface",
         // Annotation types are interfaces and so do not have a super class, explicit or otherwise.
@@ -97,6 +102,7 @@ enum class ClassKind(
 
     /** A normal class. */
     CLASS(
+        description = "class",
         supportsInitializerBlock = true,
         signatureKeyword = "class",
         // Normal classes allow super classes to be explicitly provided.
@@ -107,6 +113,7 @@ enum class ClassKind(
 
     /** A java record class */
     RECORD(
+        description = "record class",
         supportsInitializerBlock = false,
         signatureKeyword = "record",
         implicitSuperClassType = WellKnownTypes.JAVA_LANG_RECORD_NON_NULL_TYPE,
@@ -119,6 +126,7 @@ enum class ClassKind(
 
     /** A typealias */
     TYPEALIAS(
+        description = "typealias",
         supportsInitializerBlock = false,
         signatureKeyword = "typealias",
         // Typealiases do not have super classes, explicit or otherwise.
