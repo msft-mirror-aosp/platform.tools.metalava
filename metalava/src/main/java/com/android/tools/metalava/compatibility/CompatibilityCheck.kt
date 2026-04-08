@@ -544,18 +544,10 @@ class CompatibilityCheck(
         val oldClassKind = old.classKind
         val newClassKind = new.classKind
 
-        // Perform different comparisons for typealiases.
-        // TODO(b/458733676): add error for converting from class to typealias or vice versa.
-        if (oldClassKind == newClassKind && newClassKind == ClassKind.TYPEALIAS) {
-            compareTypeAliasItems(old, new)
-            return
-        }
-
-        if (oldClassKind == newClassKind && newClassKind == ClassKind.ANNOTATION_TYPE) {
-            compareAnnotations(old, new)
-        }
-
+        // Check to see whether the class kind has been changed.
         if (oldClassKind != newClassKind) {
+            // If the change is not allowed then report it.
+            // TODO(b/458733676): add error for converting from class to typealias or vice versa.
             if (!allowClassKindChange(oldClassKind, newClassKind)) {
                 report(
                     Issues.CHANGED_CLASS,
@@ -563,9 +555,26 @@ class CompatibilityCheck(
                     "${new.describe(capitalize = true)} changed class/interface declaration",
                     oldItem = old,
                 )
-                // Avoid further warnings like "has changed abstract qualifier" which is implicit in
-                // this change
+
+                // Avoid further warnings like "has changed abstract qualifier" which is implicit
+                // in this change.
                 return
+            }
+        } else {
+            // The old and new are the same kind so perform any kind specific comparison.
+            when (oldClassKind) {
+                ClassKind.ANNOTATION_TYPE -> {
+                    // Perform some annotation specific comparisons.
+                    compareAnnotations(old, new)
+                }
+                ClassKind.TYPEALIAS -> {
+                    // Perform completely different comparisons for typealiases.
+                    compareTypeAliasItems(old, new)
+
+                    // Do not do any more checks of the classes.
+                    return
+                }
+                else -> {}
             }
         }
 
