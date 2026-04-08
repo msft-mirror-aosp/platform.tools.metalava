@@ -521,35 +521,56 @@ class CompatibilityCheck(
         }
     }
 
+    /** Return `true` for any [ClassKind] that can be changed to/from another [ClassKind]. */
+    private val ClassKind.canBeChanged
+        get() =
+            when (this) {
+                ClassKind.ANNOTATION_TYPE,
+                ClassKind.ENUM,
+                ClassKind.INTERFACE -> false
+                else -> true
+            }
+
+    /**
+     * Check whether it is allowed to change [ClassItem.classKind] from [oldClassKind] to
+     * [newClassKind].
+     */
+    private fun allowClassKindChange(oldClassKind: ClassKind, newClassKind: ClassKind) =
+        // It is allowed only if they can both be changed.
+        oldClassKind.canBeChanged && newClassKind.canBeChanged
+
+    /** Compare [ClassItem]s to see if [new] is compatible with [old]. */
     override fun compareClassItems(old: ClassItem, new: ClassItem) {
+        val oldClassKind = old.classKind
+        val newClassKind = new.classKind
+
         // Perform different comparisons for typealiases.
         // TODO(b/458733676): add error for converting from class to typealias or vice versa.
-        if (old.classKind == ClassKind.TYPEALIAS && new.classKind == ClassKind.TYPEALIAS) {
+        if (oldClassKind == newClassKind && newClassKind == ClassKind.TYPEALIAS) {
             compareTypeAliasItems(old, new)
             return
         }
 
-        if (old.isAnnotationType() && new.isAnnotationType()) {
+        if (oldClassKind == newClassKind && newClassKind == ClassKind.ANNOTATION_TYPE) {
             compareAnnotations(old, new)
+        }
+
+        if (oldClassKind != newClassKind) {
+            if (!allowClassKindChange(oldClassKind, newClassKind)) {
+                report(
+                    Issues.CHANGED_CLASS,
+                    new,
+                    "${new.describe(capitalize = true)} changed class/interface declaration",
+                    oldItem = old,
+                )
+                // Avoid further warnings like "has changed abstract qualifier" which is implicit in
+                // this change
+                return
+            }
         }
 
         val oldModifiers = old.modifiers
         val newModifiers = new.modifiers
-
-        if (
-            old.isInterface() != new.isInterface() ||
-                old.isEnum() != new.isEnum() ||
-                old.isAnnotationType() != new.isAnnotationType()
-        ) {
-            report(
-                Issues.CHANGED_CLASS,
-                new,
-                "${new.describe(capitalize = true)} changed class/interface declaration",
-                oldItem = old,
-            )
-            return // Avoid further warnings like "has changed abstract qualifier" which is implicit
-            // in this change
-        }
 
         val oldCodebase = old.codebase
         for (iface in old.interfaceTypes()) {
