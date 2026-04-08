@@ -16,9 +16,6 @@ com.android.tools.metalava.model.testsuite.multiplatform.CommonMultiplatformCode
 com.android.tools.metalava.model.testsuite.multiplatform.CommonMultiplatformTypeParameterItemTest
   Type parameter with different names per source set
 
-com.android.tools.metalava.model.testsuite.multiplatform.CommonMultiplatformTypeTest
-  Test usage of dynamic type for js source set
-
 com.android.tools.metalava.model.testsuite.typeitem.CommonParameterizedTypeVariableNullabilityTest
   Test type variable as type argument of inner class type[KOTLIN_STYLE_NULLS,non-nullable variable]
   Test type variable as type argument of outer class type[KOTLIN_STYLE_NULLS,non-nullable variable]

@@ -45,9 +45,6 @@ com.android.tools.metalava.model.testsuite.multiplatform.CommonMultiplatformCode
 com.android.tools.metalava.model.testsuite.multiplatform.CommonMultiplatformTypeParameterItemTest
   Type parameter with different names per source set[text]
 
-com.android.tools.metalava.model.testsuite.multiplatform.CommonMultiplatformTypeTest
-  Test usage of dynamic type for js source set[text]
-
 com.android.tools.metalava.model.testsuite.typeitem.CommonParameterizedInvalidTypeTest
   Test invalid source reference[turbine,genericStringInnerNumber - generic and inner both undefined]
   Test invalid source reference[turbine,genericStringInnerNumber - generic defined but inner undefined]
