@@ -1761,12 +1761,7 @@ class CompatibilityCheck(
             apiPredicateConfig: ApiPredicate.Config,
             showUnannotated: Boolean,
         ) {
-            val filter =
-                apiType
-                    .getReferenceFilter(apiPredicateConfig)
-                    .or(apiType.getEmitFilter(apiPredicateConfig))
-                    .or(ApiType.PUBLIC_API.getReferenceFilter(apiPredicateConfig))
-                    .or(ApiType.PUBLIC_API.getEmitFilter(apiPredicateConfig))
+            val filter = getFilter(apiType, apiPredicateConfig)
 
             val checker =
                 CompatibilityCheck(
@@ -1797,5 +1792,18 @@ class CompatibilityCheck(
                 cliError(message)
             }
         }
+
+        /**
+         * Returns a filter which includes the [ApiType.getReferenceFilter] and
+         * [ApiType.getEmitFilter] for both the [apiType] and [ApiType.PUBLIC_API] based on the
+         * [apiPredicateConfig]. This is used to filter which items are included in compatibility
+         * checks.
+         */
+        private fun getFilter(apiType: ApiType, apiPredicateConfig: ApiPredicate.Config) =
+            apiType
+                .getReferenceFilter(apiPredicateConfig)
+                .or(apiType.getEmitFilter(apiPredicateConfig))
+                .or(ApiType.PUBLIC_API.getReferenceFilter(apiPredicateConfig))
+                .or(ApiType.PUBLIC_API.getEmitFilter(apiPredicateConfig))
     }
 }
