@@ -76,6 +76,7 @@ import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.PrimitiveTypeItem.Primitive
 import com.android.tools.metalava.model.PropertyItem
+import com.android.tools.metalava.model.RecordComponentItem
 import com.android.tools.metalava.model.TargetLanguageSet
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeNullability
@@ -349,6 +350,30 @@ private constructor(
         // DO NOT ADD ANY MORE CHECKS TO THIS, ADD THEM TO [checkEveryType] INSTEAD.
     }
 
+    /** Check [component]. */
+    fun checkRecordComponent(component: RecordComponentItem) {
+        val type = component.type
+
+        // Perform common checks on the component type.
+        checkEveryType(type, component, TypeUseSite.RECORD_COMPONENT)
+
+        var foundArrayType = false
+        type.accept(
+            object : BaseTypeVisitor() {
+                override fun visitArrayType(arrayType: ArrayTypeItem) {
+                    foundArrayType = true
+                }
+            }
+        )
+        if (foundArrayType) {
+            report(
+                Issues.ARRAY_RECORD_COMPONENT,
+                component,
+                "${component.describe(capitalize = true)} type '${type.toTypeString()}' contains an array type; they do not work correctly with Record methods"
+            )
+        }
+    }
+
     // Enforce type parameter naming rules:
     // https://developer.android.com/kotlin/style-guide#type_variable_names
     fun <T> checkTypeParameterNames(item: T) where T : Item, T : TypeParameterListOwner {
@@ -440,14 +465,16 @@ private constructor(
         for (typeParameterItem in cls.typeParameterList) {
             checkEveryType(typeParameterItem.type(), cls, TypeUseSite.TYPE_PARAMETER)
         }
-        for (component in cls.recordComponents) {
-            checkEveryType(component.type, component, TypeUseSite.RECORD_COMPONENT)
-        }
         superClass?.let {
             cls.superClassType()?.let { checkEveryType(it, cls, TypeUseSite.SUPER_CLASS) }
         }
         for (interfaceType in interfaces) {
             checkEveryType(interfaceType, cls, TypeUseSite.INTERFACE)
+        }
+
+        // Check record components.
+        for (component in cls.recordComponents) {
+            checkRecordComponent(component)
         }
     }
 

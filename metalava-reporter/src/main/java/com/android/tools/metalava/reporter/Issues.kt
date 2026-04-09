@@ -121,6 +121,7 @@ object Issues {
     // Record related issues
     val USING_JAVA_LANG_RECORD by Issue(Severity.ERROR, Category.API_LINT)
     val HIDING_RECORD_COMPONENT by Issue(Severity.ERROR, Category.API_LINT)
+    val ARRAY_RECORD_COMPONENT by Issue(Severity.ERROR, Category.API_LINT)
     val ADDED_RECORD_COMPONENT by Issue(Severity.ERROR, Category.BINARY_AND_SOURCE_COMPATIBILITY)
     val REMOVED_RECORD_COMPONENT by Issue(Severity.ERROR, Category.BINARY_AND_SOURCE_COMPATIBILITY)
     val CHANGED_RECORD_COMPONENT by Issue(Severity.ERROR, Category.BINARY_AND_SOURCE_COMPATIBILITY)

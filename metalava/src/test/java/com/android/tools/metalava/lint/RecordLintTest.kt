@@ -240,9 +240,10 @@ class RecordLintTest : DriverTest() {
         check(
             format = FORMAT_V6_WITH_JAVA_STYLE,
             apiLint = "", // enabled
-            // TODO(b/458733676): Report a problem using arrays in record component types.
             expectedIssues =
                 """
+                    src/test/pkg/Test.java:4: error: Record component test.pkg.Test.a type 'int[]' contains an array type; they do not work correctly with Record methods [ArrayRecordComponent]
+                    src/test/pkg/Test.java:4: error: Record component test.pkg.Test.b type 'java.util.List<long[]>' contains an array type; they do not work correctly with Record methods [ArrayRecordComponent]
                 """,
             sourceFiles =
                 arrayOf(

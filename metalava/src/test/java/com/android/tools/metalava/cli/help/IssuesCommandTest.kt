@@ -54,6 +54,7 @@ Available Issues                             |  Category                        
   AllUpper                                   |  api_lint                             |   error
   AndroidUri                                 |  api_lint                             |   error
   AnnotationExtraction                       |  unknown                              |   error
+  ArrayRecordComponent                       |  api_lint                             |   error
   ArrayReturn                                |  api_lint                             |   warning
   AsyncSuffixFuture                          |  api_lint                             |   error
   AutoBoxing                                 |  api_lint                             |   error
