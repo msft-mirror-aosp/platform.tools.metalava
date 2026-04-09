@@ -88,16 +88,15 @@ class ComparisonVisitorTest : TemporaryFolderOwner, Assertions {
             )
         val old = MergedCodebase(listOf(ApiFile.parseApi(listOf(oldSignatureFile))))
         var methodType: String? = null
-        CodebaseComparator()
-            .compare(
-                object : ComparisonVisitor() {
-                    override fun addedMethodItem(new: MethodItem) {
-                        methodType = new.type().toSimpleTypeString()
-                    }
-                },
-                old,
-                new
-            )
+        CodebaseComparator.compare(
+            object : ComparisonVisitor() {
+                override fun addedMethodItem(new: MethodItem) {
+                    methodType = new.type().toSimpleTypeString()
+                }
+            },
+            old,
+            new
+        )
         assertEquals("pkg.TypeInFirst", methodType)
     }
 
@@ -134,24 +133,23 @@ class ComparisonVisitorTest : TemporaryFolderOwner, Assertions {
 
         // Compare the two.
         val differences = mutableListOf<String>()
-        CodebaseComparator()
-            .compare(
-                object : ComparisonVisitor() {
-                    override fun compareMethodItems(old: MethodItem, new: MethodItem) {
-                        differences += "$old was changed"
-                    }
+        CodebaseComparator.compare(
+            object : ComparisonVisitor() {
+                override fun compareMethodItems(old: MethodItem, new: MethodItem) {
+                    differences += "$old was changed"
+                }
 
-                    override fun addedMethodItem(new: MethodItem) {
-                        differences += "$new was added"
-                    }
+                override fun addedMethodItem(new: MethodItem) {
+                    differences += "$new was added"
+                }
 
-                    override fun removedMethodItem(old: MethodItem, from: ClassItem) {
-                        differences += "$old was removed"
-                    }
-                },
-                oldCodebase,
-                newCodebase
-            )
+                override fun removedMethodItem(old: MethodItem, from: ClassItem) {
+                    differences += "$old was removed"
+                }
+            },
+            oldCodebase,
+            newCodebase
+        )
         // TODO(b/347885819): The method should be treated as being added not changed.
         assertEquals("method test.pkg.Foo.foo() was changed", differences.joinToString("\n"))
     }

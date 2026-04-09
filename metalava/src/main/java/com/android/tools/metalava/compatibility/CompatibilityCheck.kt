@@ -1787,7 +1787,7 @@ class CompatibilityCheck(
                 }
             val newFullCodebase = MergedCodebase(listOf(newCodebase))
 
-            CodebaseComparator().compare(checker, oldFullCodebase, newFullCodebase, filter)
+            CodebaseComparator.compare(checker, oldFullCodebase, newFullCodebase, filter)
 
             val message =
                 "Found compatibility problems checking " +

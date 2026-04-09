@@ -189,7 +189,7 @@ class ConvertJarsToSignatureFiles(
                         }
                     }
                 }
-            CodebaseComparator().compare(visitor, oldCodebase, jarCodebase, null)
+            CodebaseComparator.compare(visitor, oldCodebase, jarCodebase, null)
         } catch (e: Exception) {
             throw IllegalStateException("Could not load existing signature file: ${e.message}", e)
         }
