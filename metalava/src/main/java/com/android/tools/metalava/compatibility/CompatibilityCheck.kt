@@ -1701,7 +1701,12 @@ class CompatibilityCheck(
         }
 
         val targetLanguages = item.targetLanguages
-        val existsInBytecode = targetLanguages.contains(TargetLanguage.BYTECODE)
+        val oldTargetLanguages = oldItem?.targetLanguages
+        // Check the old item first if it exists, because if an item switched from existing in
+        // bytecode to not existing in bytecode, any changes are binary breaking.
+        val existsInBytecode =
+            (oldTargetLanguages?.contains(TargetLanguage.BYTECODE))
+                ?: (TargetLanguage.BYTECODE in targetLanguages)
         // Add detail about the kind of compatibility issue this is, and skip the issue if it does
         // not apply to the given target languages.
         val newMessage =
@@ -1724,6 +1729,10 @@ class CompatibilityCheck(
                 }
                 Issues.Category.SOURCE_COMPATIBILITY_ONLY -> {
                     // The item can't be used from source, don't report source compatibility issues.
+                    // This is not based on the oldItem because if the old item could be used from
+                    // source but the new one cannot, the change in target languages is the primary
+                    // issue, any others don't make sense to report when the new item can't be used
+                    // from source anyway.
                     if (targetLanguages == TargetLanguageSet.BYTECODE_ONLY) return
                     "Source breaking change: $message"
                 }

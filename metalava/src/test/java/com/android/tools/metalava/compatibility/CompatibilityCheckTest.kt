@@ -2316,6 +2316,7 @@ class CompatibilityCheckTest : DriverTest() {
                 """
                 released-api.txt:4: error: Binary breaking change: method test.pkg.TestKt.add(T) has been removed from bytecode [RemovedFromBytecode]
                 released-api.txt:4: error: Source breaking change: method test.pkg.TestKt.add(T) can no longer be resolved from Java source [RemovedFromJava]
+                src/test/pkg/test.kt:5: error: Binary breaking change: Method test.pkg.TestKt.add made type variable T reified: incompatible change [AddedReified]
                 """,
             checkCompatibilityApiReleased =
                 """
