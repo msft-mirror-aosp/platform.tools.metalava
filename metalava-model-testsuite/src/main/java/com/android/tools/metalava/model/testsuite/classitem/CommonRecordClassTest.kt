@@ -154,7 +154,7 @@ class CommonRecordClassTest : BaseModelTest() {
             )
 
             assertEquals(
-                "record component test.pkg.Test#a",
+                "record component test.pkg.Test.a",
                 testClass.recordComponents["a"]!!.describe()
             )
         }
@@ -425,7 +425,7 @@ class CommonRecordClassTest : BaseModelTest() {
             assertEquals(
                 """
                     class test.pkg.Test
-                    record component test.pkg.Test#c
+                    record component test.pkg.Test.c
                         @test.pkg.RecordAnno
                         @test.pkg.MixedAnno
                         type: @test.pkg.TypeAnno @test.pkg.MixedAnno int

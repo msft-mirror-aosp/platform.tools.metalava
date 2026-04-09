@@ -65,7 +65,7 @@ interface RecordComponentItem : Item {
 
     override fun hashCodeForItem() = Objects.hash(name)
 
-    override fun toStringForItem() = "record component ${containingClass().qualifiedName()}#$name"
+    override fun toStringForItem() = "record component ${containingClass().qualifiedName()}.$name"
 
     override val effectivelyDeprecated: Boolean
         get() = originallyDeprecated || containingClass().effectivelyDeprecated

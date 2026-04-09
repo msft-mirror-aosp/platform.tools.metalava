@@ -37,7 +37,7 @@ class RecordLintTest : DriverTest() {
                 """
                     src/android/pkg/Test.java:$testOtherGetterLocation error: Return type of method android.pkg.Test.other() contains java.lang.Record, that can cause issues for desugared record classes, please use java.lang.Object instead [UsingJavaLangRecord]
                     src/android/pkg/Test.java:$testConstructorLocation error: Type of parameter other in android.pkg.Test(int a, Record other) contains java.lang.Record, that can cause issues for desugared record classes, please use java.lang.Object instead [UsingJavaLangRecord]
-                    src/android/pkg/Test.java:5: error: Record component of record component android.pkg.Test#other contains java.lang.Record, that can cause issues for desugared record classes, please use java.lang.Object instead [UsingJavaLangRecord]
+                    src/android/pkg/Test.java:5: error: Type of record component android.pkg.Test.other contains java.lang.Record, that can cause issues for desugared record classes, please use java.lang.Object instead [UsingJavaLangRecord]
                     src/android/pkg/UsingJavaLangRecord.java:5: error: Implemented interface of class android.pkg.UsingJavaLangRecord contains java.lang.Record, that can cause issues for desugared record classes, please use java.lang.Object instead [UsingJavaLangRecord]
                     src/android/pkg/UsingJavaLangRecord.java:5: error: Super class of class android.pkg.UsingJavaLangRecord contains java.lang.Record, that can cause issues for desugared record classes, please use java.lang.Object instead [UsingJavaLangRecord]
                     src/android/pkg/UsingJavaLangRecord.java:6: error: Type of field android.pkg.UsingJavaLangRecord.field contains java.lang.Record, that can cause issues for desugared record classes, please use java.lang.Object instead [UsingJavaLangRecord]
@@ -158,7 +158,7 @@ class RecordLintTest : DriverTest() {
             expectedIssues =
                 """
                     src/test/pkg/Test.java$componentAGetterLocation: error: Cannot hide record component getter method test.pkg.Test.a() as it is an indivisible part of a record class [HidingRecordComponent]
-                    src/test/pkg/Test.java:$componentCLocation: error: Cannot hide record component test.pkg.Test#c as record components are an indivisible part of a record class [HidingRecordComponent]
+                    src/test/pkg/Test.java:$componentCLocation: error: Cannot hide record component test.pkg.Test.c as record components are an indivisible part of a record class [HidingRecordComponent]
                     src/test/pkg/Test.java:16: error: Cannot hide canonical constructor test.pkg.Test(int,int,int) as it is an indivisible part of a record class [HidingRecordComponent]
                     src/test/pkg/Test.java:20: error: Cannot hide record component getter method test.pkg.Test.b() as it is an indivisible part of a record class [HidingRecordComponent]
                 """,
