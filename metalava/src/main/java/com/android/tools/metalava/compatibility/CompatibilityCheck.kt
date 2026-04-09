@@ -1700,9 +1700,8 @@ class CompatibilityCheck(
             return
         }
 
-        val targetLanguages =
-            (item as? SelectableItem)?.targetLanguages ?: (item.parent())?.targetLanguages
-        val existsInBytecode = targetLanguages?.contains(TargetLanguage.BYTECODE) != false
+        val targetLanguages = item.targetLanguages
+        val existsInBytecode = targetLanguages.contains(TargetLanguage.BYTECODE)
         // Add detail about the kind of compatibility issue this is, and skip the issue if it does
         // not apply to the given target languages.
         val newMessage =
