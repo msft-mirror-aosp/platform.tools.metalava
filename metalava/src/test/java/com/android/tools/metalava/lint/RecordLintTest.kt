@@ -234,4 +234,57 @@ class RecordLintTest : DriverTest() {
                 ),
         )
     }
+
+    @Test
+    fun `Test using arrays in record component types`() {
+        check(
+            format = FORMAT_V6_WITH_JAVA_STYLE,
+            apiLint = "", // enabled
+            // TODO(b/458733676): Report a problem using arrays in record component types.
+            expectedIssues =
+                """
+                """,
+            sourceFiles =
+                arrayOf(
+                    KnownSourceFiles.typeUseOnlyNonNullSource,
+                    java(
+                        """
+                            package test.pkg;
+                            import java.util.List;
+                            import type.use.only.NonNull;
+                            public record Test(int @NonNull [] a, @NonNull List<long @NonNull[]> b) {}
+                        """
+                    ),
+                ),
+            api =
+                """
+                    // Signature format: 6.0
+                    // - style=java
+                    package test.pkg {
+                      public record Test {
+                        record_component #0 @NonNull a: int[];
+                        record_component #1 @NonNull b: java.util.List<long[]>;
+                        ctor public Test(@NonNull int[], @NonNull java.util.List<long[]>);
+                        method @NonNull public int[] a();
+                        method @NonNull public java.util.List<long[]> b();
+                      }
+                    }
+                """,
+            stubFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            @SuppressWarnings({"unchecked", "deprecation", "all"})
+                            public record Test(@android.annotation.NonNull int[] a, @android.annotation.NonNull java.util.List<long[]> b) {
+                            @android.annotation.NonNull
+                            public int[] a() { throw new RuntimeException("Stub!"); }
+                            @android.annotation.NonNull
+                            public java.util.List<long[]> b() { throw new RuntimeException("Stub!"); }
+                            }
+                        """
+                    ),
+                ),
+        )
+    }
 }
