@@ -18,13 +18,207 @@ package com.android.tools.metalava.model.testsuite.classitem
 
 import com.android.tools.metalava.model.provider.InputFormat
 import com.android.tools.metalava.model.testing.SupportedInputFormats
+import com.android.tools.metalava.model.testing.classTypeItem
 import com.android.tools.metalava.model.testsuite.BaseModelTest
+import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
+import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 import org.junit.Test
 
 class CommonSealedClassTest : BaseModelTest() {
+    @Test
+    fun `sealed class - basic`() {
+        runCodebaseTest(
+            signature(
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public abstract sealed class SealedClass {
+                      }
+                      public static final class SealedClass.SubclassA extends test.pkg.SealedClass {
+                      }
+                      public static final class SealedClass.SubclassB extends test.pkg.SealedClass {
+                      }
+                    }
+                """
+            ),
+            java(
+                """
+                    package test.pkg;
+
+                    public sealed class SealedClass {
+                        private SealedClass() {}
+                        public static final class SubclassA extends SealedClass {
+                            private SubclassA() {}
+                        }
+                        public static final class SubclassB extends SealedClass {
+                            private SubclassB() {}
+                        }
+                    }
+               """
+            ),
+            kotlin(
+                """
+                    package test.pkg
+
+                    sealed class SealedClass private constructor() {
+                        class SubclassA private constructor() : SealedClass() {}
+                        class SubclassB private constructor() : SealedClass() {}
+                    }
+                """
+            ),
+        ) {
+            val testClass = codebase.assertClass("test.pkg.SealedClass")
+            assertTrue(testClass.modifiers.isSealed())
+        }
+    }
+
+    @SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.JAVA)
+    @Test
+    fun `sealed class - non-sealed - not kotlin`() {
+        runCodebaseTest(
+            signature(
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public abstract sealed class SealedClass {
+                      }
+                      public static final class SealedClass.SubclassA extends test.pkg.SealedClass {
+                      }
+                      public static non-sealed class SealedClass.SubclassB extends test.pkg.SealedClass {
+                      }
+                    }
+                """
+            ),
+            java(
+                """
+                    package test.pkg;
+
+                    public sealed class SealedClass {
+                        private SealedClass() {}
+                        public static final class SubclassA extends SealedClass {
+                            private SubclassA() {}
+                        }
+                        public static non-sealed class SubclassB extends SealedClass {
+                            private SubclassB() {}
+                        }
+                    }
+               """
+            ),
+        ) {
+            val testClass = codebase.assertClass("test.pkg.SealedClass")
+            assertTrue(testClass.modifiers.isSealed())
+
+            val subclassB = codebase.assertClass("test.pkg.SealedClass.SubclassB")
+            assertTrue(subclassB.modifiers.isNonSealed())
+        }
+    }
+
+    @SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.JAVA)
+    @Test
+    fun `sealed class - explicit permits - not kotlin`() {
+        runCodebaseTest(
+            inputSet(
+                signature(
+                    """
+                        // Signature format: 2.0
+                        package test.pkg {
+                          public abstract sealed class SealedClass permits test.pkg.SubclassB, test.pkg.SubclassA {
+                          }
+                          public static final class SubclassA extends test.pkg.SealedClass {
+                          }
+                          public static final class SubclassB extends test.pkg.SealedClass {
+                          }
+                        }
+                    """
+                ),
+            ),
+            inputSet(
+                java(
+                    """
+                        package test.pkg;
+
+                        public sealed class SealedClass permits SubclassB, SubclassA {
+                            private SealedClass() {}
+                        }
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
+
+                        public final class SubclassA extends SealedClass {
+                            private SubclassA() {}
+                        }
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
+
+                        public final class SubclassB extends SealedClass {
+                            private SubclassB() {}
+                        }
+                    """
+                ),
+            ),
+        ) {
+            val testClass = codebase.assertClass("test.pkg.SealedClass")
+
+            val permits = testClass.permitTypes
+            assertEquals(
+                listOf(classTypeItem("test.pkg.SubclassA"), classTypeItem("test.pkg.SubclassB")),
+                permits
+            )
+        }
+    }
+
+    @SupportedInputFormats(InputFormat.JAVA)
+    @Test
+    fun `sealed class - implicit permits - not kotlin`() {
+        runCodebaseTest(
+            inputSet(
+                java(
+                    """
+                        package test.pkg;
+
+                        public sealed class SealedClass {
+                            private SealedClass() {}
+                        }
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
+
+                        public final class SubclassA extends SealedClass {
+                            private SubclassA() {}
+                        }
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
+
+                        public final class SubclassB extends SealedClass {
+                            private SubclassB() {}
+                        }
+                    """
+                ),
+            ),
+        ) {
+            val testClass = codebase.assertClass("test.pkg.SealedClass")
+
+            val permits = testClass.permitTypes
+            assertEquals(
+                listOf(classTypeItem("test.pkg.SubclassA"), classTypeItem("test.pkg.SubclassB")),
+                permits
+            )
+        }
+    }
+
     /**
      * This test is to make sure that older signature files without any exhaustivity modifiers are
      * read as non-exhaustive.
