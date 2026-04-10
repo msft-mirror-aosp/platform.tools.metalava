@@ -223,7 +223,7 @@ class CommonSealedClassTest : BaseModelTest() {
      * This test is to make sure that older signature files without any exhaustivity modifiers are
      * read as non-exhaustive.
      */
-    @SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.KOTLIN)
+    @SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.JAVA, InputFormat.KOTLIN)
     @Test
     fun `modifiers show nonexhaustive when no exhaustivity modifier is present in signature`() {
         runCodebaseTest(
@@ -237,6 +237,24 @@ class CommonSealedClassTest : BaseModelTest() {
                           public sealed interface SealedInterface {
                           }
                         }
+                    """
+                ),
+            ),
+            inputSet(
+                java(
+                    """
+                        package test.pkg;
+
+                        public sealed class SealedClass {}
+                        final class PrivateChildClass extends SealedClass {}
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
+
+                        public sealed interface SealedInterface {}
+                        final class PrivateInterfaceImplementor implements SealedInterface {}
                     """
                 ),
             ),
@@ -261,7 +279,7 @@ class CommonSealedClassTest : BaseModelTest() {
         }
     }
 
-    @SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.KOTLIN)
+    @SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.JAVA, InputFormat.KOTLIN)
     @Test
     fun `modifiers show exhaustive when class or interface is marked as exhaustive in signature`() {
         runCodebaseTest(
@@ -275,6 +293,22 @@ class CommonSealedClassTest : BaseModelTest() {
                           public sealed exhaustive interface SealedInterface {
                           }
                         }
+                    """
+                ),
+            ),
+            inputSet(
+                java(
+                    """
+                        package test.pkg;
+
+                        public sealed class SealedClass {}
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
+
+                        public sealed interface SealedInterface {}
                     """
                 ),
             ),
@@ -297,7 +331,7 @@ class CommonSealedClassTest : BaseModelTest() {
         }
     }
 
-    @SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.KOTLIN)
+    @SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.JAVA, InputFormat.KOTLIN)
     @Test
     fun `modifiers show nonexhaustive when class or interface is marked as nonexhaustive in signature`() {
         runCodebaseTest(
@@ -311,6 +345,24 @@ class CommonSealedClassTest : BaseModelTest() {
                           public sealed nonexhaustive interface SealedInterface {
                           }
                         }
+                    """
+                ),
+            ),
+            inputSet(
+                java(
+                    """
+                        package test.pkg;
+
+                        public sealed class SealedClass {}
+                        final class PrivateChildClass extends SealedClass {}
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
+
+                        public sealed interface SealedInterface {}
+                        final class PrivateInterfaceImplementor implements SealedInterface {}
                     """
                 ),
             ),

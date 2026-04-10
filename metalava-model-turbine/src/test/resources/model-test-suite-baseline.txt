@@ -1,3 +1,6 @@
+com.android.tools.metalava.model.testsuite.classitem.CommonSealedClassTest
+  modifiers show exhaustive when class or interface is marked as exhaustive in signature
+
 com.android.tools.metalava.model.testsuite.fielditem.CommonFieldItemTest
   Test implicit nullability of constant field initialized from @NonNull method
 
