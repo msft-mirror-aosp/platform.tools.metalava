@@ -102,6 +102,11 @@ class CommonParameterizedAnnotationBindingTest : BaseModelTest() {
         val value: Int,
     )
 
+    /** Binding for [requiredLongAnnotation]. */
+    data class LongAnno(
+        val value: Long,
+    )
+
     /**
      * Binding for [requiredIntAnnotation].
      *
@@ -109,6 +114,15 @@ class CommonParameterizedAnnotationBindingTest : BaseModelTest() {
      */
     data class IntAnnoWithDefault(
         val value: Int = 9,
+    )
+
+    /**
+     * Binding for [requiredLongAnnotation].
+     *
+     * Used for testing that the parameter default will only be used as a last resort.
+     */
+    data class LongAnnoWithDefault(
+        val value: Long = 9L,
     )
 
     /** Binding for [requiredStringAnnotation]. */
@@ -164,6 +178,17 @@ class CommonParameterizedAnnotationBindingTest : BaseModelTest() {
                 """
             )
 
+        /** See [LongAnno]. */
+        private val requiredLongAnnotation =
+            java(
+                """
+                    package test.pkg;
+                    public @interface LongAnno {
+                        long value();
+                    }
+                """
+            )
+
         /** See [IntAnno]. */
         private val optionalIntAnnotation =
             java(
@@ -171,6 +196,17 @@ class CommonParameterizedAnnotationBindingTest : BaseModelTest() {
                     package test.pkg;
                     public @interface IntAnno {
                         int value() default 17;
+                    }
+                """
+            )
+
+        /** See [LongAnno]. */
+        private val optionalLongAnnotation =
+            java(
+                """
+                    package test.pkg;
+                    public @interface LongAnno {
+                        long value() default 17L;
                     }
                 """
             )
@@ -306,6 +342,12 @@ class CommonParameterizedAnnotationBindingTest : BaseModelTest() {
                     expectedBound = IntAnno(value = 12),
                 ),
                 testParams(
+                    name = "long",
+                    sourceFiles = listOf(requiredLongAnnotation),
+                    annotation = "@LongAnno(value = 12L)",
+                    expectedBound = LongAnno(value = 12L),
+                ),
+                testParams(
                     name = "String",
                     sourceFiles = listOf(requiredStringAnnotation),
                     annotation = """@StringAnno(value = "a")""",
@@ -321,11 +363,25 @@ class CommonParameterizedAnnotationBindingTest : BaseModelTest() {
                     expectedBound = IntAnno(value = 17),
                 ),
                 testParams(
+                    name = "long annotation with default",
+                    sourceFiles = listOf(optionalLongAnnotation),
+                    annotation = "@LongAnno()",
+                    // Uses the default from the annotation definition.
+                    expectedBound = LongAnno(value = 17L),
+                ),
+                testParams(
                     name = "int annotation and class with defaults",
                     sourceFiles = listOf(optionalIntAnnotation),
                     annotation = "@IntAnno()",
                     // Uses the default from the annotation definition.
                     expectedBound = IntAnnoWithDefault(value = 17),
+                ),
+                testParams(
+                    name = "long annotation and class with defaults",
+                    sourceFiles = listOf(optionalLongAnnotation),
+                    annotation = "@LongAnno()",
+                    // Uses the default from the annotation definition.
+                    expectedBound = LongAnnoWithDefault(value = 17L),
                 ),
 
                 // Missing attribute for required annotation tests.
@@ -338,6 +394,16 @@ class CommonParameterizedAnnotationBindingTest : BaseModelTest() {
                     expectedBound = IntAnnoWithDefault(),
                     expectedIssues =
                         "MAIN_SRC/src/test/pkg/Test.java:2: error: Required attribute 'value' is missing on @test.pkg.IntAnno [MissingRequiredAttribute]",
+                ),
+                testParams(
+                    name = "long class with default",
+                    sourceFiles = listOf(requiredLongAnnotation),
+                    // This is not strictly valid.
+                    annotation = "@LongAnno()",
+                    // Uses the default from the class definition.
+                    expectedBound = LongAnnoWithDefault(),
+                    expectedIssues =
+                        "MAIN_SRC/src/test/pkg/Test.java:2: error: Required attribute 'value' is missing on @test.pkg.LongAnno [MissingRequiredAttribute]",
                 ),
                 testParams(
                     name = "String with no value provided",

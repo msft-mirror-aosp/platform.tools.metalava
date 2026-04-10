@@ -28,6 +28,7 @@ import com.android.tools.metalava.model.value.ClassObjectValue
 import com.android.tools.metalava.model.value.Value
 import com.android.tools.metalava.model.value.asBoolean
 import com.android.tools.metalava.model.value.asInt
+import com.android.tools.metalava.model.value.asLong
 import com.android.tools.metalava.model.value.asString
 import com.android.tools.metalava.reporter.Issues
 import kotlin.reflect.KClass
@@ -358,6 +359,9 @@ internal class AnnotationBinding<T : Any>(
             // Converter from a [Value] to an [Int].
             registerValueConverter { value -> value.asInt() }
 
+            // Converter from a [Value] to a [Long].
+            registerValueConverter { value -> value.asLong() }
+
             // Converter from a [Value] to a [String].
             registerValueConverter { value -> value.asString() }
         }
@@ -432,6 +436,7 @@ internal class AnnotationBinding<T : Any>(
                 null -> null
                 Boolean::class -> false
                 Int::class -> 0
+                Long::class -> 0L
                 String::class -> ""
                 List::class -> emptyList<Any>()
                 else ->
