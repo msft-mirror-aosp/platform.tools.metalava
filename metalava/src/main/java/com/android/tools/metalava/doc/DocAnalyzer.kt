@@ -30,6 +30,7 @@ import com.android.tools.metalava.doc.annotationhandlers.EnumPolicyAnnotationHan
 import com.android.tools.metalava.doc.annotationhandlers.IntegerPolicyAnnotationHandler
 import com.android.tools.metalava.doc.annotationhandlers.ListOfStringPolicyAnnotationHandler
 import com.android.tools.metalava.doc.annotationhandlers.LongPolicyAnnotationHandler
+import com.android.tools.metalava.doc.annotationhandlers.PackagePolicyAnnotationHandler
 import com.android.tools.metalava.doc.annotationhandlers.StringPolicyAnnotationHandler
 import com.android.tools.metalava.model.ANDROIDX_ANNOTATION_PREFIX
 import com.android.tools.metalava.model.ANDROIDX_FLOAT_RANGE
@@ -251,6 +252,10 @@ class DocAnalyzer(
                                 .let { appendDocumentation(it, item, returnValue = false) }
                         "android.processor.devicepolicy.ListOfStringPolicyDefinition" ->
                             ListOfStringPolicyAnnotationHandler(codebase, reporter, filterReference)
+                                .processPolicyAnnotation(annotation, item)
+                                .let { appendDocumentation(it, item, returnValue = false) }
+                        "android.processor.devicepolicy.PackagePolicyDefinition" ->
+                            PackagePolicyAnnotationHandler(codebase, reporter, filterReference)
                                 .processPolicyAnnotation(annotation, item)
                                 .let { appendDocumentation(it, item, returnValue = false) }
                         "androidx.annotation.RequiresPermission" ->

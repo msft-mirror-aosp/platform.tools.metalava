@@ -165,6 +165,11 @@ object PolicyDefinitionAnnotationTestFiles {
                 boolean unprintableCharactersAllowed() default false;
                 int maxLength() default Integer.MAX_VALUE;
             }
+
+            @Retention(RetentionPolicy.SOURCE)
+            public @interface PackagePolicyDefinition {
+                PolicyDefinition base();
+            }
             """
         )
 }
