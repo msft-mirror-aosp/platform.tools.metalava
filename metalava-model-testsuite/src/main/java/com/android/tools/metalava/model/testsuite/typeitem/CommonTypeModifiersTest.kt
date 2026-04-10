@@ -17,7 +17,6 @@
 package com.android.tools.metalava.model.testsuite.typeitem
 
 import com.android.tools.metalava.model.ClassTypeItem
-import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.TypeModifiers
 import com.android.tools.metalava.model.TypeNullability.NONNULL
 import com.android.tools.metalava.model.TypeNullability.PLATFORM
@@ -1551,7 +1550,7 @@ class CommonTypeModifiersTest : BaseModelTest() {
     @Test
     fun `Test resetting nullability`() {
         // Mutating modifiers isn't supported for a text codebase due to type caching.
-        val javaSource =
+        runCodebaseTest(
             inputSet(
                 java(
                     """
@@ -1563,17 +1562,20 @@ class CommonTypeModifiersTest : BaseModelTest() {
                     """
                 ),
                 KnownSourceFiles.libcoreNullableSource
-            )
-        val kotlinSource =
-            kotlin(
-                """
-                    package test.pkg
-                    class Foo {
-                        fun foo(): String? {}
-                    }
-                """
-            )
-        val nullabilityTest = { codebase: Codebase, annotations: Boolean ->
+            ),
+            inputSet(
+                kotlin(
+                    """
+                        package test.pkg
+                        class Foo {
+                            fun foo(): String? {}
+                        }
+                    """
+                )
+            ),
+        ) {
+            val annotations = inputFormat != InputFormat.KOTLIN
+
             val stringType = codebase.assertClass("test.pkg.Foo").methods().single().returnType()
             // The type is originally nullable
             stringType.assertHasNullableNullability(annotations)
@@ -1594,9 +1596,6 @@ class CommonTypeModifiersTest : BaseModelTest() {
                 assertThat(nonNullStringType.annotationNames().single()).endsWith("Nullable")
             }
         }
-
-        runCodebaseTest(javaSource) { nullabilityTest(codebase, true) }
-        runCodebaseTest(kotlinSource) { nullabilityTest(codebase, false) }
     }
 
     @Test
