@@ -91,7 +91,6 @@ class ApiFileTest : DriverTest() {
                         private class PrivateSubclassOfSealedClass: ParentNonExhaustiveSealedClass()
                         private class PrivateSubclassOfSealedInterface: ParentNonExhaustiveSealedInterface
                         """
-                            .trimIndent()
                     ),
                     kotlin(
                         """
@@ -108,7 +107,6 @@ class ApiFileTest : DriverTest() {
                         public class PublicSubclassOfSealedClass : ParentNonExhaustiveSealedClass()
                         public class PublicSubclassOfSealedInterface : ParentNonExhaustiveSealedInterface
                         """
-                            .trimIndent()
                     )
                 ),
             api =
@@ -204,7 +202,6 @@ class ApiFileTest : DriverTest() {
                         public class PublicChildOfSealedChildInterface: SealedNonExhaustiveChildInterface
                         private class PrivateChildOfSealedChildInterface : SealedNonExhaustiveChildInterface
                         """
-                            .trimIndent()
                     )
                 ),
             api =
@@ -250,7 +247,6 @@ class ApiFileTest : DriverTest() {
                             private class InnerClassB : SealedParentInterface
                         }
                         """
-                            .trimIndent()
                     ),
                     kotlin(
                         """

@@ -136,7 +136,6 @@ class BinaryCompatibilityPackagesTest : DriverTest() {
                         private class Bar
                         class Foo
                     """
-                            .trimIndent()
                     )
                 ),
             format = FileFormat.V4,

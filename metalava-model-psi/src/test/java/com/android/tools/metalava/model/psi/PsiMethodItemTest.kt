@@ -313,7 +313,6 @@ class PsiMethodItemTest : BaseModelTest() {
                             public String toString() {}
                         }
                     """
-                        .trimIndent()
                 ),
                 java(
                     """

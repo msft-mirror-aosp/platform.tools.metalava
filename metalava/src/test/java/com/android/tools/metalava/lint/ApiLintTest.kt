@@ -2875,7 +2875,6 @@ src/android/pkg/Interface.kt:158: error: Parameter `default` has a default value
                             void doSomethingElse();
                         }
                     """
-                            .trimIndent()
                     ),
                     java(
                         """
@@ -2885,7 +2884,6 @@ src/android/pkg/Interface.kt:158: error: Parameter `default` has a default value
                             void doSomething();
                         }
                     """
-                            .trimIndent()
                     ),
                     kotlin(
                         """

@@ -38,7 +38,6 @@ class PsiAnnotationMixtureTest : BaseModelTest() {
                     public @A <T> T foo3() {}
                 }
             """
-                    .trimIndent()
             )
         val kotlinUsageSource =
             kotlin(
@@ -50,7 +49,6 @@ class PsiAnnotationMixtureTest : BaseModelTest() {
                     fun <T> foo3(): @A T {}
                 }
             """
-                    .trimIndent()
             )
         val javaAnnotationSource =
             java(
@@ -59,7 +57,6 @@ class PsiAnnotationMixtureTest : BaseModelTest() {
                 @java.lang.annotation.Target(java.lang.annotation.ElementType.TYPE_USE)
                 public @interface A {}
             """
-                    .trimIndent()
             )
         val kotlinAnnotationSource =
             kotlin(
@@ -68,7 +65,6 @@ class PsiAnnotationMixtureTest : BaseModelTest() {
                 @Target(AnnotationTarget.TYPE)
                 annotation class A
             """
-                    .trimIndent()
             )
     }
 

@@ -259,10 +259,7 @@ class ShowAnnotationTest : DriverTest() {
                     )
                 ),
             // Empty API: showUnannotated=false
-            api =
-                """
-            """
-                    .trimIndent(),
+            api = "",
             includeSystemApiAnnotations = SystemApiType.TEST,
         )
     }

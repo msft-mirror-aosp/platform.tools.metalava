@@ -35,7 +35,6 @@ class PsiTypeItemTest : BaseModelTest() {
                             public static String platformString = "hi";
                         }
                     """
-                        .trimIndent()
                 ),
                 kotlin(
                     """
@@ -45,7 +44,6 @@ class PsiTypeItemTest : BaseModelTest() {
                             fun foo() = Bar.platformString
                         }
                     """
-                        .trimIndent()
                 ),
             ),
         ) {
