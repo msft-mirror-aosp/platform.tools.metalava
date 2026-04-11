@@ -148,6 +148,9 @@ abstract class BaseModelTest() :
         /** The [InputFormat] from which [codebase] was created. */
         val inputFormat: InputFormat
 
+        /** The [InputSet] from which [codebase] was created. */
+        val inputSet: InputSet
+
         /** Replace any test run specific directories in [string] with a placeholder string. */
         fun removeTestSpecificDirectories(string: String): String
 
@@ -171,10 +174,12 @@ abstract class BaseModelTest() :
     inner class DefaultCodebaseContext(
         override val optionalCodebase: Codebase?,
         override val optionalMultiplatformCodebase: MultiplatformCodebase?,
-        override val inputFormat: InputFormat,
+        override val inputSet: InputSet,
         private val fileToSymbol: Map<File, String>,
         private val recordingReporter: RecordingReporter,
     ) : CodebaseContext {
+
+        override val inputFormat = inputSet.inputFormat
 
         override fun removeTestSpecificDirectories(string: String) =
             replaceFileWithSymbol(string, fileToSymbol)
@@ -300,7 +305,7 @@ abstract class BaseModelTest() :
                         DefaultCodebaseContext(
                             codebase,
                             multiplatformCodebase,
-                            inputFormat,
+                            inputSet,
                             buildMap {
                                 this[mainSourceDir.dir] = "MAIN_SRC"
                                 additionalSourceDir?.dir?.let { dir ->
