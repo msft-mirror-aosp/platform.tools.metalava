@@ -16,6 +16,8 @@
 
 package com.android.tools.metalava.model.testsuite.multiplatform
 
+import com.android.tools.metalava.model.provider.InputFormat
+import com.android.tools.metalava.model.testing.SupportedInputFormats
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.testing.createModuleDescription
 import com.android.tools.metalava.testing.createProjectDescription
@@ -24,6 +26,7 @@ import com.android.tools.metalava.testing.kotlin
 import com.google.common.truth.Truth.assertThat
 import org.junit.Test
 
+@SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.KOTLIN)
 class CommonMultiplatformTypeTest : BaseModelTest() {
     @Test
     fun `Test usage of dynamic type for js source set`() {

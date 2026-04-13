@@ -45,6 +45,7 @@ import org.junit.Test
 /** Common tests for implementations of [ClassItem]. */
 class CommonClassItemTest : BaseModelTest() {
 
+    @SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.JAVA)
     @Test
     fun `empty class`() {
         runCodebaseTest(
@@ -79,6 +80,7 @@ class CommonClassItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.JAVA)
     @Test
     fun `Find method with type parameterized by two types`() {
         runCodebaseTest(
@@ -118,6 +120,7 @@ class CommonClassItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `Find method by multiple erased types`() {
         runCodebaseTest(
@@ -755,6 +758,7 @@ class CommonClassItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.JAVA)
     @Test
     fun `Test class Object has no super class type`() {
         runCodebaseTest(
@@ -783,6 +787,7 @@ class CommonClassItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `Test deprecated class by javadoc tag`() {
         runCodebaseTest(
@@ -803,6 +808,7 @@ class CommonClassItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `Test class is not treated as deprecated by @deprecatedSince`() {
         runCodebaseTest(
@@ -823,6 +829,7 @@ class CommonClassItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `Test class is treated as deprecated if @deprecated comes after @deprecatedSince`() {
         runCodebaseTest(
@@ -911,6 +918,7 @@ class CommonClassItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.JAVA, InputFormat.KOTLIN)
     @Test
     fun `Test duplicate without type substitutions`() {
         runSourceCodebaseTest(
@@ -959,6 +967,7 @@ class CommonClassItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.JAVA, InputFormat.KOTLIN)
     @Test
     fun `Test duplicate with type substitutions`() {
         runSourceCodebaseTest(
@@ -1128,6 +1137,7 @@ class CommonClassItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `Test duplicate with type substitutions and not type use nullability annotations`() {
         // Test for behavior of MethodItem.duplicate(ClassItem) in Java when the type parameter is
@@ -1412,6 +1422,7 @@ class CommonClassItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.KOTLIN)
     @Test
     fun `Check pathological type parameter conflicting with primitive type`() {
         runCodebaseTest(
@@ -1513,6 +1524,7 @@ class CommonClassItemTest : BaseModelTest() {
         assertEquals(expectedOrigin, testClass.origin, message = "$name origin")
     }
 
+    @SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.JAVA)
     @Test
     fun `Test origin`() {
         runCodebaseTest(
@@ -1552,6 +1564,7 @@ class CommonClassItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `Test origin source path`() {
         runCodebaseTest(
@@ -1584,6 +1597,7 @@ class CommonClassItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `Test class on source path`() {
         runCodebaseTest(
@@ -1615,6 +1629,7 @@ class CommonClassItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `Test class excluded by package filter`() {
         runCodebaseTest(
@@ -1718,6 +1733,7 @@ class CommonClassItemTest : BaseModelTest() {
      * This test is to make sure that older signature files without any exhaustivity modifiers are
      * read as non-exhaustive.
      */
+    @SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.KOTLIN)
     @Test
     fun `modifiers show nonexhaustive when no exhaustivity modifier is present in signature`() {
         runCodebaseTest(
@@ -1751,6 +1767,7 @@ class CommonClassItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.KOTLIN)
     @Test
     fun `modifiers show exhaustive when class or interface is marked as exhaustive in signature`() {
         runCodebaseTest(
@@ -1782,6 +1799,7 @@ class CommonClassItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.KOTLIN)
     @Test
     fun `modifiers show nonexhaustive when class or interface is marked as nonexhaustive in signature`() {
         runCodebaseTest(
@@ -1813,6 +1831,7 @@ class CommonClassItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.KOTLIN)
     @Test
     fun `subclasses are populated correctly for sealed classes and interfaces, and indirect subclasses aren't tracked`() {
         runCodebaseTest(

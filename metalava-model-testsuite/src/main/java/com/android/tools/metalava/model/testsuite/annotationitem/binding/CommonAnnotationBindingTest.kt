@@ -19,6 +19,8 @@ package com.android.tools.metalava.model.testsuite.annotationitem.binding
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.annotation.binding.bindTo
+import com.android.tools.metalava.model.provider.InputFormat
+import com.android.tools.metalava.model.testing.SupportedInputFormats
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.testing.java
 import org.junit.Test
@@ -50,6 +52,7 @@ class CommonAnnotationBindingTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `Test empty bind`() {
         class Empty

@@ -23,6 +23,8 @@ import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.annotation.binding.bindTo
+import com.android.tools.metalava.model.provider.InputFormat
+import com.android.tools.metalava.model.testing.SupportedInputFormats
 import com.android.tools.metalava.model.testing.value.fieldReferenceValue
 import com.android.tools.metalava.model.testing.value.literalValue
 import com.android.tools.metalava.model.testsuite.BaseModelTest
@@ -37,6 +39,7 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.runners.Parameterized
 
+@SupportedInputFormats(InputFormat.JAVA)
 class CommonParameterizedAnnotationBindingTest : BaseModelTest() {
 
     @Parameterized.Parameter(0) internal lateinit var params: TestParams<*>

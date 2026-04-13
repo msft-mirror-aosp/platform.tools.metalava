@@ -94,6 +94,7 @@ class CommonValueTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `Test use field reference in an annotation on a package`() {
         runCodebaseTest(
@@ -126,6 +127,7 @@ class CommonValueTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `Test use field reference in a type annotation`() {
         runCodebaseTest(

@@ -30,6 +30,7 @@ import com.android.tools.metalava.model.TypeModifiers
 import com.android.tools.metalava.model.VariableTypeItem
 import com.android.tools.metalava.model.WildcardTypeItem
 import com.android.tools.metalava.model.provider.InputFormat
+import com.android.tools.metalava.model.testing.SupportedInputFormats
 import com.android.tools.metalava.model.testing.testTypeString
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.testing.KnownSourceFiles
@@ -118,6 +119,7 @@ class CommonTypeItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.JAVA)
     @Test
     fun `Test primitive array types`() {
         runCodebaseTest(
@@ -215,6 +217,7 @@ class CommonTypeItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.JAVA)
     @Test
     fun `Test multidimensional primitive array types`() {
         runCodebaseTest(
@@ -642,6 +645,7 @@ class CommonTypeItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.KOTLIN)
     @Test
     fun `Test property type variable types`() {
         runCodebaseTest(
@@ -957,6 +961,7 @@ class CommonTypeItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.JAVA)
     @Test
     fun `Test inner parameterized types without explicit outer type`() {
         runCodebaseTest(
@@ -1173,6 +1178,7 @@ class CommonTypeItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test Kotlin collection removeAll parameter type`() {
         runCodebaseTest(
@@ -1942,6 +1948,7 @@ class CommonTypeItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Non-last varargs param in deprecated method`() {
         runCodebaseTest(
@@ -2008,6 +2015,7 @@ class CommonTypeItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.SIGNATURE)
     @Test
     fun `Type equality including nullability`() {
         runCodebaseTest(

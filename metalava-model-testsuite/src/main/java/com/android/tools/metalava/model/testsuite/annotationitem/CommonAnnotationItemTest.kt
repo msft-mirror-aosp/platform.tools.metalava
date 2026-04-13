@@ -245,6 +245,7 @@ class CommonAnnotationItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.JAVA)
     @Test
     fun `annotation with annotation values`() {
         runCodebaseTest(
@@ -308,6 +309,7 @@ class CommonAnnotationItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.JAVA)
     @Test
     fun `annotation with boolean values`() {
         runCodebaseTest(
@@ -362,6 +364,7 @@ class CommonAnnotationItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.JAVA)
     @Test
     fun `annotation with char values`() {
         runCodebaseTest(
@@ -416,6 +419,7 @@ class CommonAnnotationItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.JAVA)
     @Test
     fun `annotation with class values`() {
         runCodebaseTest(
@@ -481,6 +485,7 @@ class CommonAnnotationItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.JAVA)
     @Test
     fun `annotation with number values`() {
         runCodebaseTest(
@@ -605,6 +610,7 @@ class CommonAnnotationItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.JAVA)
     @Test
     fun `annotation with string values`() {
         runCodebaseTest(
@@ -659,6 +665,7 @@ class CommonAnnotationItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.JAVA)
     @Test
     fun `annotation array values with single element`() {
         runCodebaseTest(
@@ -705,6 +712,7 @@ class CommonAnnotationItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.JAVA)
     @Test
     fun `annotation array values with single array element`() {
         runCodebaseTest(
@@ -751,6 +759,7 @@ class CommonAnnotationItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.JAVA)
     @Test
     fun `annotation with enum values`() {
         runCodebaseTest(
@@ -830,6 +839,7 @@ class CommonAnnotationItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.JAVA)
     @Test
     fun `annotation with constant literal value in int attribute`() {
         runCodebaseTest(
@@ -878,6 +888,7 @@ class CommonAnnotationItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.JAVA)
     @Test
     fun `annotation with constant literal value in int array attribute`() {
         runCodebaseTest(
@@ -1240,6 +1251,7 @@ class CommonAnnotationItemTest : BaseModelTest() {
         )
     }
 
+    @SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.JAVA)
     @Test
     fun `annotation with negative number values`() {
         runCodebaseTest(
@@ -1314,21 +1326,6 @@ class CommonAnnotationItemTest : BaseModelTest() {
     @Test
     fun `annotation with type cast values`() {
         runCodebaseTest(
-            signature(
-                """
-                    // Signature format: 2.0
-                    package test.pkg {
-                      @test.pkg.Test.Anno((int)5.6)
-                      public class Test {
-                        ctor public Test();
-                      }
-
-                      public @interface Test.Anno {
-                          method public int value();
-                      }
-                    }
-                """
-            ),
             java(
                 """
                     package test.pkg;
@@ -1356,6 +1353,7 @@ class CommonAnnotationItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.JAVA)
     @Test
     fun `annotation with infinity values`() {
         runCodebaseTest(
@@ -1439,6 +1437,7 @@ class CommonAnnotationItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.JAVA)
     @Test
     fun `annotation resolve`() {
         runCodebaseTest(
@@ -1545,6 +1544,7 @@ class CommonAnnotationItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `annotation targets - on source path`() {
         runCodebaseTest(
@@ -1638,6 +1638,7 @@ class CommonAnnotationItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `annotation repeated inside container`() {
         runCodebaseTest(
@@ -1866,6 +1867,7 @@ class CommonAnnotationItemTest : BaseModelTest() {
         assertEquals(expectedStatus.trimIndent(), result.trim())
     }
 
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `annotations of various uses on method`() {
         runCodebaseTest(
@@ -1957,6 +1959,7 @@ class CommonAnnotationItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `annotations of various uses and nullability on method`() {
         runCodebaseTest(
@@ -2033,6 +2036,7 @@ class CommonAnnotationItemTest : BaseModelTest() {
     /**
      * TODO(b/479907812): This should behave just like [`annotations of various uses on method`].
      */
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `annotations of various uses after generic method type arguments list`() {
         runCodebaseTest(
@@ -2128,6 +2132,7 @@ class CommonAnnotationItemTest : BaseModelTest() {
      * TODO(b/479907812): This should behave just like
      *   [`annotations of various uses and nullability on method`].
      */
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `annotations of various uses and nullability after generic method type arguments list`() {
         runCodebaseTest(

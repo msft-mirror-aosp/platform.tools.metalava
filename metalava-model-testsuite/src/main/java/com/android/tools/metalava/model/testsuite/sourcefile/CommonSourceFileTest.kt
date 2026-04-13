@@ -80,6 +80,7 @@ class CommonSourceFileTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.JAVA, InputFormat.KOTLIN)
     @Test
     fun `Test header comments`() {
         runSourceCodebaseTest(
@@ -170,6 +171,7 @@ class CommonSourceFileTest : BaseModelTest() {
     private fun dosFile(path: String, text: String) =
         TestFiles.file().to(path).withSource(text.trimIndent().replace("\n", "\r\n"))
 
+    @SupportedInputFormats(InputFormat.JAVA, InputFormat.KOTLIN)
     @Test
     fun `Test dos end-of-line in header comments`() {
         runSourceCodebaseTest(
@@ -213,6 +215,7 @@ class CommonSourceFileTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `test sourcefile classes`() {
         runSourceCodebaseTest(
@@ -236,6 +239,7 @@ class CommonSourceFileTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `Test codebase and containingPackage`() {
         runSourceCodebaseTest(

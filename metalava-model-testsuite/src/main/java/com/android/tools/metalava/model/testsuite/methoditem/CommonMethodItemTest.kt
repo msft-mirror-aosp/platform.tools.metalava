@@ -103,6 +103,7 @@ class CommonMethodItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.JAVA)
     @Test
     fun `MethodItem type`() {
         runCodebaseTest(
@@ -160,6 +161,7 @@ class CommonMethodItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.JAVA)
     @Test
     fun `MethodItem superMethods() on simple method`() {
         runCodebaseTest(
@@ -213,6 +215,7 @@ class CommonMethodItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.JAVA)
     @Test
     fun `Test equality of methods with type parameters`() {
         runCodebaseTest(
@@ -247,6 +250,7 @@ class CommonMethodItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.JAVA)
     @Test
     fun `Test throws method type parameter extends Throwable`() {
         runCodebaseTest(
@@ -282,6 +286,7 @@ class CommonMethodItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.JAVA)
     @Test
     fun `Test throws method type parameter does not extend Throwable`() {
         // This is an error but Metalava should try not to fail on an error.
@@ -319,6 +324,7 @@ class CommonMethodItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `Test throws method class does not exist`() {
         // This is an error but Metalava should try not to fail on an error.
@@ -345,6 +351,7 @@ class CommonMethodItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test throws type on kotlin only constructor`() {
         runCodebaseTest(
@@ -392,6 +399,7 @@ class CommonMethodItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `Test method default values`() {
         runSourceCodebaseTest(

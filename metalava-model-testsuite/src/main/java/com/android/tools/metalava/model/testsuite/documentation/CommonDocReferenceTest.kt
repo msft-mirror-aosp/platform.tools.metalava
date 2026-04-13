@@ -90,6 +90,7 @@ class CommonDocReferenceTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `Test link tag spread across multiple lines`() {
         runCodebaseTest(
@@ -126,6 +127,7 @@ class CommonDocReferenceTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `Test link tag inside @code`() {
         // This is not valid. The specification says the following at
@@ -155,6 +157,7 @@ class CommonDocReferenceTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `Test link tag with invalid reference starting with period`() {
         runCodebaseTest(
@@ -182,6 +185,7 @@ class CommonDocReferenceTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `Test link tag in package-info`() {
         runCodebaseTest(

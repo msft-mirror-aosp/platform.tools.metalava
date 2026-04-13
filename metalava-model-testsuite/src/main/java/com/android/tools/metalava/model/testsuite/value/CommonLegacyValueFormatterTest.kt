@@ -247,7 +247,14 @@ class CommonLegacyValueFormatterTest : BaseModelTest() {
                 else -> emptyList()
             }
 
-        val testFixture = TestFixture(additionalClassPath = additionalClassPath)
+        val testFixture =
+            TestFixture(
+                additionalClassPath = additionalClassPath,
+
+                // Disable the supported InputFormat check as this test is already parameterized and
+                // filtered by InputFormat.
+                checkSupportedInputFormats = false,
+            )
 
         val testFiles =
             when (inputFormat) {

@@ -245,7 +245,7 @@ abstract class BaseModelTest() :
          * Determined whether [SupportedInputFormatsRule.check] is called on
          * [BaseModelTest.supportedInputFormatsRule].
          */
-        val checkSupportedInputFormats: Boolean = false,
+        val checkSupportedInputFormats: Boolean = true,
     ) {
         /** The [RecordingReporter] used by the test. */
         val recordingReporter = RecordingReporter(excludedIssues)

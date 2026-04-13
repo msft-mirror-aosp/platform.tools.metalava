@@ -37,6 +37,7 @@ import kotlin.test.assertNull
 import org.junit.ClassRule
 import org.junit.Test
 
+@SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.JAVA)
 class CommonPackageItemTest : BaseModelTest() {
     companion object {
         /** Create a [TestFileCache] whose lifespan encompasses all the tests in this class. */
@@ -67,6 +68,7 @@ class CommonPackageItemTest : BaseModelTest() {
     }
 
     @RequiresCapabilities(Capability.HIDDEN_ITEMS)
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `Test @hide in package html`() {
         runSourceCodebaseTest(
@@ -97,6 +99,7 @@ class CommonPackageItemTest : BaseModelTest() {
     }
 
     @RequiresCapabilities(Capability.HIDDEN_ITEMS)
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `Test @hide in package info processed first`() {
         runSourceCodebaseTest(
@@ -124,6 +127,7 @@ class CommonPackageItemTest : BaseModelTest() {
     }
 
     @RequiresCapabilities(Capability.HIDDEN_ITEMS)
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `Test @hide in package info processed last`() {
         runSourceCodebaseTest(
@@ -577,6 +581,7 @@ class CommonPackageItemTest : BaseModelTest() {
     }
 
     @RequiresCapabilities(Capability.PACKAGE_HTML_FILES)
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `Test conflicting comments in package-info java and package html`() {
         runCodebaseTest(

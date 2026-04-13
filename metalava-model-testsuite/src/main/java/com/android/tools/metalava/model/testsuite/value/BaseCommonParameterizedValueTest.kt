@@ -320,8 +320,18 @@ abstract class BaseCommonParameterizedValueTest(
             // Cache the sources so that they can be reused.
             val sources = testClass.testFileSet.map { it.cacheIn(testFileCache) }
 
+            val testFixture =
+                TestFixture(
+                    // Disable the supported InputFormat check as this test is already parameterized
+                    // and filtered by InputFormat.
+                    checkSupportedInputFormats = false,
+                )
+
             // Run the test on the sources.
-            runSourceCodebaseTest(inputSet(sources.toList())) {
+            runSourceCodebaseTest(
+                inputSet(sources.toList()),
+                testFixture = testFixture,
+            ) {
                 runTestCase(testCase, legacyValueUseSite, test)
             }
         }
@@ -349,6 +359,10 @@ abstract class BaseCommonParameterizedValueTest(
                 testFixture =
                     TestFixture(
                         additionalClassPath = listOf(cachedJarFile.toFile()),
+
+                        // Disable the supported InputFormat check as this test is already
+                        // parameterized and filtered by InputFormat.
+                        checkSupportedInputFormats = false,
                     ),
             ) {
                 runTestCase(testCase, legacyValueUseSite, test)

@@ -19,12 +19,15 @@ package com.android.tools.metalava.model.testsuite
 import com.android.tools.metalava.model.FlaggedApiInheritance
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.ModifierListWriter
+import com.android.tools.metalava.model.provider.InputFormat
+import com.android.tools.metalava.model.testing.SupportedInputFormats
 import com.android.tools.metalava.testing.java
 import java.io.StringWriter
 import kotlin.test.assertEquals
 import org.junit.Test
 
 /** Common tests for implementations of [ModifierListWriter]. */
+@SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.JAVA)
 class CommonModifierListWriterTest : BaseModelTest() {
 
     private fun Item.writeKeywords(
@@ -234,6 +237,7 @@ class CommonModifierListWriterTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `Test abstract modifier on enum class method - not normalized`() {
         checkAbstractEnumMethod(
@@ -242,6 +246,7 @@ class CommonModifierListWriterTest : BaseModelTest() {
         )
     }
 
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `Test abstract modifier on enum class method - normalized`() {
         checkAbstractEnumMethod(
@@ -278,6 +283,7 @@ class CommonModifierListWriterTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `Test abstract modifier on annotation class method - not normalized`() {
         checkAbstractAnnotationMethod(
@@ -286,6 +292,7 @@ class CommonModifierListWriterTest : BaseModelTest() {
         )
     }
 
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `Test abstract modifier on annotation class method - normalized`() {
         checkAbstractAnnotationMethod(

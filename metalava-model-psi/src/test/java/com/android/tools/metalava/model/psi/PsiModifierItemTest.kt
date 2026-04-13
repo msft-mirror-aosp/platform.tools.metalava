@@ -18,6 +18,8 @@ package com.android.tools.metalava.model.psi
 
 import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.noOpAnnotationManager
+import com.android.tools.metalava.model.provider.InputFormat
+import com.android.tools.metalava.model.testing.SupportedInputFormats
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.testing.KnownSourceFiles.jetbrainsNullableTypeUseSource
 import com.android.tools.metalava.testing.java
@@ -29,6 +31,7 @@ import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class PsiModifierItemTest : BaseModelTest() {
+    @SupportedInputFormats(InputFormat.JAVA, InputFormat.KOTLIN)
     @Test
     fun `Test type-use nullability annotation used from Java and Kotlin source`() {
         val javaSource =
@@ -67,6 +70,7 @@ class PsiModifierItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Kotlin implicit internal visibility inheritance`() {
         runCodebaseTest(
@@ -93,6 +97,7 @@ class PsiModifierItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Kotlin class visibility modifiers`() {
         runCodebaseTest(
@@ -116,6 +121,7 @@ class PsiModifierItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Kotlin class abstract and final modifiers`() {
         runCodebaseTest(
@@ -170,6 +176,7 @@ class PsiModifierItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Kotlin class type modifiers`() {
         runCodebaseTest(
@@ -196,6 +203,7 @@ class PsiModifierItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Kotlin class static modifiers`() {
         runCodebaseTest(
@@ -223,6 +231,7 @@ class PsiModifierItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Kotlin vararg parameters`() {
         runCodebaseTest(

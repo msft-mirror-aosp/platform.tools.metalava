@@ -24,6 +24,8 @@ import com.android.tools.metalava.model.JAVA_LANG_STRING
 import com.android.tools.metalava.model.ModifierKeyword
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.TypeItem
+import com.android.tools.metalava.model.provider.InputFormat
+import com.android.tools.metalava.model.testing.SupportedInputFormats
 import com.android.tools.metalava.model.testing.classTypeItem
 import com.android.tools.metalava.model.testing.primitiveTypeForKind
 import com.android.tools.metalava.model.testing.testTypeString
@@ -34,6 +36,7 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 import org.junit.Test
 
+@SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.JAVA)
 class CommonRecordClassTest : BaseModelTest() {
 
     /** Info available for a record component. */
@@ -160,6 +163,7 @@ class CommonRecordClassTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `Test record class without explicit Object method overrides`() {
         runSourceCodebaseTest(
@@ -183,6 +187,7 @@ class CommonRecordClassTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `Test record class with explicit Object method overrides`() {
         runSourceCodebaseTest(
@@ -215,6 +220,7 @@ class CommonRecordClassTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `Test record with compact constructor and implicit constructor parameters`() {
         runSourceCodebaseTest(

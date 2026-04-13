@@ -17,6 +17,8 @@
 package com.android.tools.metalava.model.testsuite.multiplatform
 
 import com.android.tools.metalava.model.ClassOrigin
+import com.android.tools.metalava.model.provider.InputFormat
+import com.android.tools.metalava.model.testing.SupportedInputFormats
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.reporter.FileLocation
 import com.android.tools.metalava.testing.createAndroidModuleDescription
@@ -33,6 +35,7 @@ import com.android.tools.metalava.testing.kotlin
 import com.google.common.truth.Truth.assertThat
 import org.junit.Test
 
+@SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.KOTLIN)
 class CommonMultiplatformCodebaseTest : BaseModelTest() {
     @Test
     fun `Test multiplatform codebase with single source set`() {
@@ -359,6 +362,7 @@ class CommonMultiplatformCodebaseTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test resolving classes - source model`() {
         val commonSource =
@@ -420,6 +424,7 @@ class CommonMultiplatformCodebaseTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.SIGNATURE)
     @Test
     fun `Test resolving classes - text model`() {
         runMultiplatformCodebaseTest(
@@ -626,6 +631,7 @@ class CommonMultiplatformCodebaseTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test suppressed issues`() {
         val commonSource =
@@ -670,6 +676,7 @@ class CommonMultiplatformCodebaseTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test file locations`() {
         val commonSource =
@@ -728,6 +735,7 @@ class CommonMultiplatformCodebaseTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test that processing is limited to common and leaf source sets`() {
         val commonSource =

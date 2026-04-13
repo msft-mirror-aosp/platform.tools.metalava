@@ -20,6 +20,8 @@ import com.android.tools.lint.checks.infrastructure.TestFile
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.noOpAnnotationManager
+import com.android.tools.metalava.model.provider.InputFormat
+import com.android.tools.metalava.model.testing.SupportedInputFormats
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
@@ -115,21 +117,25 @@ class PsiAnnotationMixtureTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `Test java usage, java definition`() {
         runMixtureAnnotationTest(javaUsageSource, javaAnnotationSource)
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test java usage, kotlin definition`() {
         runMixtureAnnotationTest(javaUsageSource, kotlinAnnotationSource)
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test kotlin usage, java definition`() {
         runMixtureAnnotationTest(kotlinUsageSource, javaAnnotationSource)
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test kotlin usage, kotlin definition`() {
         runMixtureAnnotationTest(kotlinUsageSource, kotlinAnnotationSource)
