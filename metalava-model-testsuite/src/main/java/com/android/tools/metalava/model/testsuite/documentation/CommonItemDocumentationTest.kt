@@ -95,6 +95,8 @@ class CommonItemDocumentationTest : BaseModelTest() {
                     package test.pkg;
 
                     /// Inline comment
+                    // Line comment
+                    /* Block comment */
                     /**
                      * Doc
                      */
@@ -117,6 +119,8 @@ class CommonItemDocumentationTest : BaseModelTest() {
                     package test.pkg
 
                     /// Inline comment
+                    // Line comment
+                    /* Block comment */
                     /**
                      * Doc
                      */
@@ -157,6 +161,8 @@ class CommonItemDocumentationTest : BaseModelTest() {
                     /**
                      * Doc
                      */
+                    // Line comment
+                    /* Block comment */
                     /// Inline comment
                     public class Test {
                         /**
@@ -174,13 +180,10 @@ class CommonItemDocumentationTest : BaseModelTest() {
             ),
         ) {
             val testClass = codebase.assertClass("test.pkg.Test")
-            testClass.assertPrintedDocumentation(expectedOutput = "/** Doc */", message = "class")
+            testClass.assertPrintedDocumentation(expectedOutput = "", message = "class")
 
             val testMethod = testClass.methods().last()
-            testMethod.assertPrintedDocumentation(
-                expectedOutput = "/** Method Doc */",
-                message = "method"
-            )
+            testMethod.assertPrintedDocumentation(expectedOutput = "", message = "method")
         }
     }
 
@@ -195,6 +198,8 @@ class CommonItemDocumentationTest : BaseModelTest() {
                     /**
                      * Doc
                      */
+                    // Line comment
+                    /* Block comment */
                     /// Inline comment
                     class Test {
                         /**
