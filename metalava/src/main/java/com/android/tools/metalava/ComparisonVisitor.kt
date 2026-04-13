@@ -30,6 +30,7 @@ import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.TargetLanguage
+import com.android.tools.metalava.model.multiplatform.MultiplatformCodebase
 import com.android.tools.metalava.model.visitors.ApiFilters
 import com.android.tools.metalava.model.visitors.ApiVisitor
 
@@ -89,6 +90,10 @@ open class ComparisonVisitor {
     open fun removedFieldItem(old: FieldItem, from: ClassItem) {}
 
     open fun removedPropertyItem(old: PropertyItem, from: ClassItem) {}
+
+    open fun addedCodebase(new: Codebase) {}
+
+    open fun removedCodebase(old: Codebase) {}
 }
 
 /** Simple stack type built on top of an [ArrayList]. */
@@ -143,6 +148,41 @@ object CodebaseComparator {
         */
 
         compare(visitor, oldTree, newTree, null, null, filter)
+    }
+
+    /**
+     * Compares the [old] and [new] [MultiplatformCodebase].
+     *
+     * If a source set [Codebase] is only present in [old], dispatches to
+     * [ComparisonVisitor.removedCodebase] on [visitor].
+     *
+     * If a source set [Codebase] is only present in [new], dispatches to
+     * [ComparisonVisitor.addedCodebase] on [visitor].
+     *
+     * If a source set [Codebase] is present in both [old] and [new], uses [compare] to compare all
+     * elements of the [Codebase]s.
+     */
+    fun compareMultiplatform(
+        visitor: ComparisonVisitor,
+        old: MultiplatformCodebase,
+        new: MultiplatformCodebase,
+        filter: FilterPredicate? = null,
+    ) {
+        val allSourceSetNames = old.sourceSets + new.sourceSets
+        for (sourceSetName in allSourceSetNames) {
+            val oldSourceSet = old.sourceSetToCodebase[sourceSetName]
+            val newSourceSet = new.sourceSetToCodebase[sourceSetName]
+            when {
+                oldSourceSet == null ->
+                    visitor.addedCodebase(
+                        requireNotNull(newSourceSet) {
+                            "$sourceSetName does not exist in the old or new codebase"
+                        }
+                    )
+                newSourceSet == null -> visitor.removedCodebase(oldSourceSet)
+                else -> compare(visitor, oldSourceSet, newSourceSet, filter)
+            }
+        }
     }
 
     private fun compare(
