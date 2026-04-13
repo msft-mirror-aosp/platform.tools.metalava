@@ -21,8 +21,8 @@ import com.android.tools.lint.checks.infrastructure.TestFiles
 import com.android.tools.metalava.model.FilterPredicate
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.SourceFile
-import com.android.tools.metalava.model.provider.Capability
-import com.android.tools.metalava.model.testing.RequiresCapabilities
+import com.android.tools.metalava.model.provider.InputFormat
+import com.android.tools.metalava.model.testing.SupportedInputFormats
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
@@ -36,7 +36,7 @@ class CommonSourceFileTest : BaseModelTest() {
         override fun test(item: SelectableItem): Boolean = !item.isHiddenOrRemoved()
     }
 
-    @RequiresCapabilities(Capability.JAVA)
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `Test location of class file - java`() {
         runSourceCodebaseTest(
@@ -58,7 +58,7 @@ class CommonSourceFileTest : BaseModelTest() {
         }
     }
 
-    @RequiresCapabilities(Capability.KOTLIN)
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test location of class file - kotlin`() {
         runSourceCodebaseTest(

@@ -26,8 +26,8 @@ import com.android.tools.metalava.model.PrimitiveTypeItem.Primitive
 import com.android.tools.metalava.model.annotation.AnnotationFilter
 import com.android.tools.metalava.model.annotation.DefaultAnnotationManager
 import com.android.tools.metalava.model.noOpAnnotationManager
-import com.android.tools.metalava.model.provider.Capability
-import com.android.tools.metalava.model.testing.RequiresCapabilities
+import com.android.tools.metalava.model.provider.InputFormat
+import com.android.tools.metalava.model.testing.SupportedInputFormats
 import com.android.tools.metalava.model.testing.classTypeItem
 import com.android.tools.metalava.model.testing.testTypeString
 import com.android.tools.metalava.model.testing.value.annotationItem
@@ -108,7 +108,7 @@ class CommonAnnotationItemTest : BaseModelTest() {
         assertEquals(expectedLocations.trimIndent(), actualLocations)
     }
 
-    @RequiresCapabilities(Capability.JAVA)
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `annotation location - java`() {
         runCodebaseTest(
@@ -157,7 +157,7 @@ class CommonAnnotationItemTest : BaseModelTest() {
         }
     }
 
-    @RequiresCapabilities(Capability.KOTLIN)
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `annotation location - kotlin`() {
         runCodebaseTest(
@@ -1122,7 +1122,7 @@ class CommonAnnotationItemTest : BaseModelTest() {
         }
     }
 
-    @RequiresCapabilities(Capability.JAVA)
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `annotation with compound expression values`() {
         runCodebaseTest(
@@ -1210,7 +1210,7 @@ class CommonAnnotationItemTest : BaseModelTest() {
         }
     }
 
-    @RequiresCapabilities(Capability.KOTLIN)
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `annotation on @get and @setparam annotations - byte`() {
         checkGetVsSetParamAnnotation(
@@ -1220,7 +1220,7 @@ class CommonAnnotationItemTest : BaseModelTest() {
         )
     }
 
-    @RequiresCapabilities(Capability.KOTLIN)
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `annotation on @get and @setparam annotations - short`() {
         checkGetVsSetParamAnnotation(
@@ -1230,7 +1230,7 @@ class CommonAnnotationItemTest : BaseModelTest() {
         )
     }
 
-    @RequiresCapabilities(Capability.KOTLIN)
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `annotation on @get and @setparam annotations - long`() {
         checkGetVsSetParamAnnotation(
@@ -1310,7 +1310,7 @@ class CommonAnnotationItemTest : BaseModelTest() {
     }
 
     // Does not work with signature files as they do not support casts.
-    @RequiresCapabilities(Capability.JAVA)
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `annotation with type cast values`() {
         runCodebaseTest(
@@ -1402,7 +1402,7 @@ class CommonAnnotationItemTest : BaseModelTest() {
         }
     }
 
-    @RequiresCapabilities(Capability.KOTLIN)
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `annotation on @file`() {
         runCodebaseTest(
@@ -1578,7 +1578,7 @@ class CommonAnnotationItemTest : BaseModelTest() {
         }
     }
 
-    @RequiresCapabilities(Capability.KOTLIN)
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `annotation on internal`() {
         // Create a filter that will treat RestrictTo(Scope.LIBRARY) as a show annotation.

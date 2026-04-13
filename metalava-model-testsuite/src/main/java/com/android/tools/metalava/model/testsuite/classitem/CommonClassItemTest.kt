@@ -23,8 +23,8 @@ import com.android.tools.metalava.model.PackageFilter
 import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.VariableTypeItem
-import com.android.tools.metalava.model.provider.Capability
-import com.android.tools.metalava.model.testing.RequiresCapabilities
+import com.android.tools.metalava.model.provider.InputFormat
+import com.android.tools.metalava.model.testing.SupportedInputFormats
 import com.android.tools.metalava.model.testing.testTypeString
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.testing.KnownSourceFiles.notTypeUseNonNullSource
@@ -1186,7 +1186,7 @@ class CommonClassItemTest : BaseModelTest() {
         }
     }
 
-    @RequiresCapabilities(Capability.JAVA)
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `Test duplicated documentation is fully qualified in originating context`() {
         runSourceCodebaseTest(
@@ -1649,7 +1649,7 @@ class CommonClassItemTest : BaseModelTest() {
         }
     }
 
-    @RequiresCapabilities(Capability.JAVA)
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `Test class location - java`() {
         runCodebaseTest(
@@ -1671,7 +1671,7 @@ class CommonClassItemTest : BaseModelTest() {
         }
     }
 
-    @RequiresCapabilities(Capability.KOTLIN)
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test class location - kotlin`() {
         runCodebaseTest(
@@ -1692,7 +1692,7 @@ class CommonClassItemTest : BaseModelTest() {
         }
     }
 
-    @RequiresCapabilities(Capability.SIGNATURE)
+    @SupportedInputFormats(InputFormat.SIGNATURE)
     @Test
     fun `Test class location - signature`() {
         runCodebaseTest(

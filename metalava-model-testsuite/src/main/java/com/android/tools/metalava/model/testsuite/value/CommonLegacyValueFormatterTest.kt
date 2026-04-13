@@ -24,10 +24,9 @@ import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.PrimitiveTypeItem.Primitive
 import com.android.tools.metalava.model.junit4.ParameterFilter
-import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.provider.InputFormat
 import com.android.tools.metalava.model.testing.CodebaseCreatorConfig
-import com.android.tools.metalava.model.testing.RequiresCapabilities
+import com.android.tools.metalava.model.testing.SupportedInputFormats
 import com.android.tools.metalava.model.testing.value.annotationValue
 import com.android.tools.metalava.model.testing.value.arrayValue
 import com.android.tools.metalava.model.testing.value.fieldReferenceValue
@@ -347,7 +346,7 @@ class CommonLegacyValueFormatterTest : BaseModelTest() {
         }
     }
 
-    @RequiresCapabilities(Capability.JAVA)
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `Test kotlin specific settings`() {
         checkFormatting {
@@ -440,7 +439,7 @@ class CommonLegacyValueFormatterTest : BaseModelTest() {
     }
 
     // Does not work with signature files as they do not contain inaccessible fields.
-    @RequiresCapabilities(Capability.JAVA)
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `Test field - resolvable but inaccessible with no value - default`() {
         checkFormatting {
@@ -473,7 +472,7 @@ class CommonLegacyValueFormatterTest : BaseModelTest() {
     }
 
     // Does not work with signature files as they do not contain inaccessible fields.
-    @RequiresCapabilities(Capability.JAVA)
+    @SupportedInputFormats(InputFormat.JAVA)
     // Temporarily disable the test as it fails in snapshot because snapshot does not track
     // removed and/or hidden status.
     @Ignore
@@ -516,7 +515,7 @@ class CommonLegacyValueFormatterTest : BaseModelTest() {
     }
 
     // Does not work with signature files as they do not contain inaccessible fields.
-    @RequiresCapabilities(Capability.JAVA)
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `Test field - resolvable and inaccessible with no value - WHEN_HIDDEN_OR_REMOVED`() {
         checkFormatting {
@@ -548,7 +547,7 @@ class CommonLegacyValueFormatterTest : BaseModelTest() {
     }
 
     // Does not work with signature files as they do not contain inaccessible fields.
-    @RequiresCapabilities(Capability.JAVA)
+    @SupportedInputFormats(InputFormat.JAVA)
     // Temporarily disable the test as it fails in snapshot because snapshot does not track
     // removed and/or hidden status.
     @Ignore

@@ -18,8 +18,8 @@ package com.android.tools.metalava.model.testsuite.classitem
 
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.VisibilityLevel
-import com.android.tools.metalava.model.provider.Capability
-import com.android.tools.metalava.model.testing.RequiresCapabilities
+import com.android.tools.metalava.model.provider.InputFormat
+import com.android.tools.metalava.model.testing.SupportedInputFormats
 import com.android.tools.metalava.model.testing.testTypeString
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.testing.kotlin
@@ -35,7 +35,7 @@ import org.junit.Test
  * to track issues with the handling of the different forms of synthetic methods created as part of
  * a data class.
  */
-@RequiresCapabilities(Capability.KOTLIN)
+@SupportedInputFormats(InputFormat.KOTLIN)
 class CommonDataClassTest : BaseModelTest() {
     private val simpleDataClass =
         kotlin(
