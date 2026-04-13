@@ -25,10 +25,10 @@ plugins {
 }
 
 dependencies {
-    implementation(project(":metalava-model"))
     implementation(project(":metalava-model-source"))
-    implementation(project(":metalava-reporter"))
     implementation(libs.turbine) { exclude(group = "com.google.protobuf") }
+    // Needed as some Turbine classes use jspecify nullability annotations
+    implementation(libs.jspecify)
 
     // Pick up the SourceModelSuiteRunner service to run the `metalava-model-testsuite`.
     testImplementation(testFixtures(project(":metalava-model-source")))

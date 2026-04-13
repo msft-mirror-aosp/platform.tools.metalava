@@ -18,19 +18,19 @@ package com.android.tools.metalava.model.psi
 
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.PropertyItem
+import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.testing.kotlin
 import kotlin.test.Test
-import kotlin.test.assertContains
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
-class PsiPropertyItemTest : BasePsiTest() {
+class PsiPropertyItemTest : BaseModelTest() {
     @Test
     fun `primary constructor properties have constructor parameters`() {
-        testCodebase(kotlin("class Foo(val myVal: Int)")) { codebase ->
+        runCodebaseTest(kotlin("class Foo(val myVal: Int)")) {
             val myVal = codebase.assertClass("Foo").properties().single()
 
             assertNotNull(myVal.constructorParameter)
@@ -40,7 +40,7 @@ class PsiPropertyItemTest : BasePsiTest() {
 
     @Test
     fun `properties have getters`() {
-        testCodebase(
+        runCodebaseTest(
             kotlin(
                 """
                     class Foo {
@@ -49,7 +49,7 @@ class PsiPropertyItemTest : BasePsiTest() {
                     }
                 """
             )
-        ) { codebase ->
+        ) {
             val properties = codebase.assertClass("Foo").properties()
             val myVal = properties.single { it.name() == "myVal" }
             val myVar = properties.single { it.name() == "myVar" }
@@ -67,7 +67,7 @@ class PsiPropertyItemTest : BasePsiTest() {
 
     @Test
     fun `var properties have setters`() {
-        testCodebase(kotlin("class Foo { var myVar: Int = 0 }")) { codebase ->
+        runCodebaseTest(kotlin("class Foo { var myVar: Int = 0 }")) {
             val myVar = codebase.assertClass("Foo").properties().single()
 
             assertNotNull(myVar.setter)
@@ -78,7 +78,7 @@ class PsiPropertyItemTest : BasePsiTest() {
 
     @Test
     fun `setter visibility`() {
-        testCodebase(
+        runCodebaseTest(
             kotlin(
                 """
                     class Foo {
@@ -90,9 +90,10 @@ class PsiPropertyItemTest : BasePsiTest() {
 
                         var privateCustomSet: Int = 0
                             private set(value) { field = value + 1 }
+                    }
                 """
             )
-        ) { codebase ->
+        ) {
             val properties = codebase.assertClass("Foo").properties()
             val internalSet = properties.single { it.name() == "internalSet" }
             val privateSet = properties.single { it.name() == "privateSet" }
@@ -114,7 +115,7 @@ class PsiPropertyItemTest : BasePsiTest() {
 
     @Test
     fun `properties have backing fields`() {
-        testCodebase(
+        runCodebaseTest(
             kotlin(
                 """
                     class Foo(val withField: Int) {
@@ -123,7 +124,7 @@ class PsiPropertyItemTest : BasePsiTest() {
                     }
                 """
             )
-        ) { codebase ->
+        ) {
             val properties = codebase.assertClass("Foo").properties()
             val withField = properties.single { it.name() == "withField" }
             val withoutField = properties.single { it.name() == "withoutField" }
@@ -140,7 +141,7 @@ class PsiPropertyItemTest : BasePsiTest() {
     fun `annotation on properties`() {
         fun List<AnnotationItem>.exceptNullness() = filterNot { it.isNullnessAnnotation() }
 
-        testCodebase(
+        runCodebaseTest(
             kotlin(
                 """
                     annotation class ExperimentalFooApi
@@ -148,6 +149,7 @@ class PsiPropertyItemTest : BasePsiTest() {
 
                     class Foo {
                         @ExperimentalFooApi
+                        @field:ExperimentalFooApi
                         var withField: String = "42"
                             get() { return field }
                             set(value) { field = "v=" + value }
@@ -214,7 +216,7 @@ class PsiPropertyItemTest : BasePsiTest() {
                     }
                 """
             )
-        ) { codebase ->
+        ) {
             val properties = codebase.assertClass("Foo").properties()
             val withField = properties.single { it.name() == "withField" }
             val withoutField = properties.single { it.name() == "withoutField" }
@@ -273,8 +275,6 @@ class PsiPropertyItemTest : BasePsiTest() {
             checkSingleAnnotation(withoutFieldOnGetterAndNoUseSite)
             checkSingleAnnotation(withoutFieldOnGetterAndNoUseSiteSameArg, barApi)
             checkSingleAnnotation(withoutFieldOnProperty)
-            checkSingleAnnotation(withoutFieldOnPropertyAndNoUseSite)
-            checkSingleAnnotation(withoutFieldOnPropertyAndNoUseSiteSameArg, barApi)
 
             fun checkAnnotations(
                 propertyItem: PropertyItem,
@@ -286,6 +286,8 @@ class PsiPropertyItemTest : BasePsiTest() {
                 annotations.forEach { assertEquals(expectedAnnotationName, it.qualifiedName) }
             }
 
+            checkAnnotations(withoutFieldOnPropertyAndNoUseSite, 2, fooApi)
+            checkAnnotations(withoutFieldOnPropertyAndNoUseSiteSameArg, 2)
             checkAnnotations(withoutFieldOnGetterAndNoUseSiteDiffArg, 2)
             checkAnnotations(withoutFieldOnPropertyAndNoUseSiteDiffArg, 2)
             checkAnnotations(withoutFieldOnPropertyAndNoUseSiteDiffArgLists1, 2)
@@ -295,7 +297,7 @@ class PsiPropertyItemTest : BasePsiTest() {
 
     @Test
     fun `properties have documentation`() {
-        testCodebase(
+        runCodebaseTest(
             kotlin(
                 """
                     class Foo(/** parameter doc */ val parameter: Int) {
@@ -311,17 +313,17 @@ class PsiPropertyItemTest : BasePsiTest() {
                     }
                 """
             )
-        ) { codebase ->
+        ) {
             val properties = codebase.assertClass("Foo").properties()
             val parameter = properties.single { it.name() == "parameter" }
             val body = properties.single { it.name() == "body" }
             val accessors = properties.single { it.name() == "accessors" }
 
-            assertContains(parameter.documentation, "parameter doc")
-            assertContains(body.documentation, "body doc")
-            assertContains(accessors.documentation, "accessors property doc")
-            assertContains(accessors.getter?.documentation.orEmpty(), "getter doc")
-            assertContains(accessors.setter?.documentation.orEmpty(), "setter doc")
+            parameter.assertPrintedDocumentation(expectedOutput = "/** parameter doc */")
+            body.assertPrintedDocumentation(expectedOutput = "/** body doc */")
+            accessors.assertPrintedDocumentation(expectedOutput = "/** accessors property doc */")
+            accessors.getter?.assertPrintedDocumentation(expectedOutput = "/** getter doc */")
+            accessors.setter?.assertPrintedDocumentation(expectedOutput = "/** setter doc */")
         }
     }
 }

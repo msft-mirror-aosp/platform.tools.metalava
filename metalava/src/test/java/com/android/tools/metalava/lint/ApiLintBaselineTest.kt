@@ -16,13 +16,15 @@
 
 package com.android.tools.metalava.lint
 
-import com.android.tools.metalava.ARG_HIDE_PACKAGE
 import com.android.tools.metalava.DriverTest
-import com.android.tools.metalava.androidxNonNullSource
-import com.android.tools.metalava.androidxNullableSource
 import com.android.tools.metalava.cli.common.ARG_HIDE
+import com.android.tools.metalava.model.provider.Capability
+import com.android.tools.metalava.model.testing.RequiresCapabilities
+import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.restrictToSource
+import com.android.tools.metalava.testing.KnownSourceFiles
 import com.android.tools.metalava.testing.java
+import kotlin.arrayOf
 import org.junit.Test
 
 /** Test for [ApiLint] specifically with baseline arguments. */
@@ -31,12 +33,15 @@ class ApiLintBaselineTest : DriverTest() {
     fun `Test with global baseline`() {
         check(
             apiLint = "", // enabled
-            baseline =
-                """
-                // Baseline format: 1.0
-                Enum: android.pkg.MyEnum:
-                    Enums are discouraged in Android APIs
-            """,
+            baselineTestInfo =
+                BaselineTestInfo(
+                    inputContents =
+                        """
+                            // Baseline format: 1.0
+                            Enum: android.pkg.MyEnum:
+                                Enums are discouraged in Android APIs
+                        """,
+                ),
             sourceFiles =
                 arrayOf(
                     java(
@@ -56,12 +61,15 @@ class ApiLintBaselineTest : DriverTest() {
     fun `Test with api-lint specific baseline`() {
         check(
             apiLint = "", // enabled
-            baselineApiLint =
-                """
-                // Baseline format: 1.0
-                Enum: android.pkg.MyEnum:
-                    Enums are discouraged in Android APIs
-            """,
+            baselineApiLintTestInfo =
+                BaselineTestInfo(
+                    inputContents =
+                        """
+                            // Baseline format: 1.0
+                            Enum: android.pkg.MyEnum:
+                                Enums are discouraged in Android APIs
+                        """,
+                ),
             sourceFiles =
                 arrayOf(
                     java(
@@ -81,14 +89,16 @@ class ApiLintBaselineTest : DriverTest() {
     fun `Test with api-lint specific baseline with update`() {
         check(
             apiLint = "", // enabled
-            baselineApiLint = """
-                """,
-            updateBaselineApiLint =
-                """
-                // Baseline format: 1.0
-                Enum: android.pkg.MyEnum:
-                    Enums are discouraged in Android APIs
-                """,
+            baselineApiLintTestInfo =
+                BaselineTestInfo(
+                    inputContents = "",
+                    expectedOutputContents =
+                        """
+                            // Baseline format: 1.0
+                            Enum: android.pkg.MyEnum:
+                                Enums are discouraged in Android APIs
+                        """,
+                ),
             sourceFiles =
                 arrayOf(
                     java(
@@ -108,17 +118,19 @@ class ApiLintBaselineTest : DriverTest() {
     fun `Test with non-api-lint specific baseline`() {
         check(
             apiLint = "", // enabled
-            baselineCheckCompatibilityReleased =
-                """
-                // Baseline format: 1.0
-                Enum: android.pkg.MyEnum:
-                    Enums are discouraged in Android APIs
-            """,
+            baselineCheckCompatibilityReleasedTestInfo =
+                BaselineTestInfo(
+                    inputContents =
+                        """
+                            // Baseline format: 1.0
+                            Enum: android.pkg.MyEnum:
+                                Enums are discouraged in Android APIs
+                        """,
+                ),
             expectedIssues =
                 """
                 src/android/pkg/MyEnum.java:3: error: Enums are discouraged in Android APIs [Enum]
                 """,
-            expectedFail = DefaultLintErrorMessage,
             sourceFiles =
                 arrayOf(
                     java(
@@ -138,7 +150,7 @@ class ApiLintBaselineTest : DriverTest() {
     fun `Test api-lint error message`() {
         check(
             apiLint = "", // enabled
-            baselineApiLint = "",
+            baselineApiLintTestInfo = BaselineTestInfo(inputContents = ""),
             errorMessageApiLint = "*** api-lint failed ***",
             expectedIssues =
                 """
@@ -155,11 +167,13 @@ class ApiLintBaselineTest : DriverTest() {
                     """
                     )
                 ),
-            expectedFail = """
-                *** api-lint failed ***
-            """,
-            expectedOutput = """
-                *** api-lint failed ***
+            expectedFail =
+                """
+                    *** api-lint failed ***
+                """,
+            expectedOutput =
+                """
+                    *** api-lint failed ***
                 """
         )
     }
@@ -168,7 +182,7 @@ class ApiLintBaselineTest : DriverTest() {
     fun `Test no api-lint error message`() {
         check(
             apiLint = "", // enabled
-            baselineApiLint = "",
+            baselineApiLintTestInfo = BaselineTestInfo(inputContents = ""),
             expectedIssues =
                 """
                 src/android/pkg/MyClassImpl.java:3: error: Don't expose your implementation details: `MyClassImpl` ends with `Impl` [EndsWithImpl]
@@ -184,22 +198,25 @@ class ApiLintBaselineTest : DriverTest() {
                     """
                     )
                 ),
-            expectedFail = DefaultLintErrorMessage,
             expectedOutput = DefaultLintErrorMessage
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Check generic builders with synthesized setter`() {
         check(
             apiLint = "", // enabled
-            baselineApiLint = "",
-            updateBaselineApiLint =
-                """
-                // Baseline format: 1.0
-                MissingGetterMatchingBuilder: test.Foo.Builder#setField(int):
-                    test.Foo does not declare a `getField()` method matching method test.Foo.Builder.setField(int)
-                """,
+            baselineApiLintTestInfo =
+                BaselineTestInfo(
+                    inputContents = "",
+                    expectedOutputContents =
+                        """
+                            // Baseline format: 1.0
+                            MissingGetterMatchingBuilder: test.Foo.Builder#setField(int):
+                                test.Foo does not declare a `getField()` method matching method test.Foo.Builder.setField(int)
+                        """,
+                ),
             hideAnnotations =
                 arrayOf(
                     "androidx.annotation.RestrictTo",
@@ -207,14 +224,14 @@ class ApiLintBaselineTest : DriverTest() {
                 ),
             extraArguments =
                 arrayOf(
-                    ARG_HIDE_PACKAGE,
-                    "androidx",
                     ARG_HIDE,
                     "HiddenSuperclass",
                     ARG_HIDE,
                     "ProtectedMember",
                     ARG_HIDE,
-                    "GetterOnBuilder"
+                    "GetterOnBuilder",
+                    ARG_HIDE,
+                    Issues.INHERIT_CHANGES_SIGNATURE.name,
                 ),
             sourceFiles =
                 arrayOf(
@@ -227,12 +244,12 @@ class ApiLintBaselineTest : DriverTest() {
                     public class Base {
                         public static abstract class BaseBuilder<B extends BaseBuilder<B>> {
                             protected int field;
-                            
+
                             protected BaseBuilder() {}
-                            
+
                             @NonNull
                             protected abstract B getThis();
-                            
+
                             @NonNull
                             public B setField(int i) {
                                 this.field = i;
@@ -251,7 +268,7 @@ class ApiLintBaselineTest : DriverTest() {
                         private Foo(int i) {
                             this.field = i;
                         }
-                        
+
                         public static final class Builder extends BaseBuilder<Builder> {
                             public Builder() {}
 
@@ -268,9 +285,39 @@ class ApiLintBaselineTest : DriverTest() {
                     }
                     """
                     ),
-                    androidxNonNullSource,
-                    androidxNullableSource,
+                    KnownSourceFiles.androidxNonNullJavaSource,
+                    KnownSourceFiles.androidxNullableJavaSource,
                     restrictToSource,
+                ),
+        )
+    }
+
+    @Test
+    fun `Should report multiple type parameter issues for a particular element`() {
+        check(
+            apiLint = "", // enabled
+            baselineApiLintTestInfo =
+                BaselineTestInfo(
+                    inputContents = "",
+                    // This baseline should have errors for both "KeyType" and "ValueType"
+                    // as they both violate Google generic type parameter naming guidelines
+                    expectedOutputContents =
+                        """
+                            // Baseline format: 1.0
+                            TypeParameterName: test.AppSearchBatchResult:
+                                Invalid type parameter names "KeyType", "ValueType". Type parameter names must follow the Google naming guidelines specified here: https://developer.android.com/kotlin/style-guide#type_variable_names
+                        """,
+                ),
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                    package test;
+
+                    public final class AppSearchBatchResult<KeyType, ValueType> {
+                    }
+                    """
+                    )
                 ),
         )
     }

@@ -16,35 +16,65 @@
 
 package com.android.tools.metalava.compatibility
 
-import com.android.tools.metalava.ANDROID_SYSTEM_API
-import com.android.tools.metalava.ARG_HIDE_PACKAGE
+import com.android.tools.lint.checks.infrastructure.TestFiles.base64gzip
 import com.android.tools.metalava.ARG_SHOW_ANNOTATION
 import com.android.tools.metalava.ARG_SHOW_UNANNOTATED
 import com.android.tools.metalava.DriverTest
-import com.android.tools.metalava.androidxNonNullSource
+import com.android.tools.metalava.SystemApiType
 import com.android.tools.metalava.cli.common.ARG_ERROR_CATEGORY
 import com.android.tools.metalava.cli.common.ARG_HIDE
-import com.android.tools.metalava.model.text.ApiClassResolution
+import com.android.tools.metalava.model.ANDROID_SYSTEM_API
+import com.android.tools.metalava.model.provider.Capability
+import com.android.tools.metalava.model.testing.RequiresCapabilities
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.nonNullSource
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.restrictToSource
-import com.android.tools.metalava.supportParameterName
 import com.android.tools.metalava.suppressLintSource
 import com.android.tools.metalava.systemApiSource
 import com.android.tools.metalava.testApiSource
+import com.android.tools.metalava.testing.KnownSourceFiles
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
 import org.junit.Test
 
 class CompatibilityCheckTest : DriverTest() {
+
+    @Test
+    fun `Should not raise issue when experimental package is added`() {
+        check(
+            expectedIssues = "",
+            extraArguments = arrayOf(ARG_ERROR_CATEGORY, "Compatibility"),
+            checkCompatibilityApiReleased =
+                """
+                package test.sub.pkgA {
+                    public final class MyClass {
+                    }
+                }
+                """,
+            signatureSource =
+                """
+                package @SuppressCompatibility test.sub.pkgB {
+                    public final class MyClass2 {
+                    }
+                }
+                package test.sub.pkgA {
+                    public final class MyClass {
+                    }
+                }
+                """,
+            suppressCompatibilityMetaAnnotations =
+                arrayOf("androidx.annotation.SuppressCompatibility")
+        )
+    }
+
     @Test
     fun `Change between class and interface`() {
         check(
             expectedIssues =
                 """
-                load-api.txt:3: error: Class test.pkg.MyTest1 changed class/interface declaration [ChangedClass]
-                load-api.txt:5: error: Class test.pkg.MyTest2 changed class/interface declaration [ChangedClass]
+                load-api.txt:3: error: Binary breaking change: test.pkg.MyTest1 changed from class to interface [ChangedClass]
+                load-api.txt:5: error: Binary breaking change: test.pkg.MyTest2 changed from interface to class [ChangedClass]
                 """,
             checkCompatibilityApiReleased =
                 """
@@ -82,8 +112,8 @@ class CompatibilityCheckTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                load-api.txt:3: error: Class test.pkg.MyTest1 changed class/interface declaration [ChangedClass]
-                load-api.txt:5: error: Class test.pkg.MyTest2 changed class/interface declaration [ChangedClass]
+                load-api.txt:3: error: Binary breaking change: test.pkg.MyTest1 changed from class to interface [ChangedClass]
+                load-api.txt:5: error: Binary breaking change: test.pkg.MyTest2 changed from interface to class [ChangedClass]
                 """,
             checkCompatibilityApiReleased =
                 """
@@ -121,9 +151,9 @@ class CompatibilityCheckTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                released-api.txt:4: error: Removed method test.pkg.MyTest1.method(Float) [RemovedMethod]
-                released-api.txt:5: error: Removed field test.pkg.MyTest1.field [RemovedField]
-                released-api.txt:7: error: Removed class test.pkg.MyTest2 [RemovedClass]
+                released-api.txt:4: error: Binary breaking change: Removed method test.pkg.MyTest1.method(Float) [RemovedMethod]
+                released-api.txt:5: error: Binary breaking change: Removed field test.pkg.MyTest1.field [RemovedField]
+                released-api.txt:7: error: Binary breaking change: Removed class test.pkg.MyTest2 [RemovedClass]
                 """,
             checkCompatibilityApiReleased =
                 """
@@ -150,121 +180,62 @@ class CompatibilityCheckTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
-    fun `Flag invalid nullness changes`() {
+    fun `Incompatible changes should be allowed when previous version is marked as experimental`() {
+        // Making sure that removal of field, changing field type, removal of method,
+        // changing of method return type (all incompatible changes) do not generate errors
+        // when the previous class version is marked as experimental in the signature file
         check(
-            expectedIssues =
-                """
-                load-api.txt:6: error: Attempted to remove @Nullable annotation from method test.pkg.MyTest.convert3(Float) [InvalidNullConversion]
-                load-api.txt:6: error: Attempted to remove @Nullable annotation from parameter arg1 in test.pkg.MyTest.convert3(Float arg1) [InvalidNullConversion]
-                load-api.txt:7: error: Attempted to remove @NonNull annotation from method test.pkg.MyTest.convert4(Float) [InvalidNullConversion]
-                load-api.txt:7: error: Attempted to remove @NonNull annotation from parameter arg1 in test.pkg.MyTest.convert4(Float arg1) [InvalidNullConversion]
-                load-api.txt:8: error: Attempted to change parameter from @Nullable to @NonNull: incompatible change for parameter arg1 in test.pkg.MyTest.convert5(Float arg1) [InvalidNullConversion]
-                load-api.txt:9: error: Attempted to change method return from @NonNull to @Nullable: incompatible change for method test.pkg.MyTest.convert6(Float) [InvalidNullConversion]
-                """,
-            format = FileFormat.V2,
             checkCompatibilityApiReleased =
                 """
                 package test.pkg {
-                  public class MyTest {
-                    method public Double convert1(Float);
-                    method public Double convert2(Float);
-                    method @Nullable public Double convert3(@Nullable Float);
-                    method @NonNull public Double convert4(@NonNull Float);
-                    method @Nullable public Double convert5(@Nullable Float);
-                    method @NonNull public Double convert6(@NonNull Float);
-                    // booleans cannot reasonably be annotated with @Nullable/@NonNull but
-                    // the compiler accepts it and we had a few of these accidentally annotated
-                    // that way in API 28, such as Boolean.getBoolean. Make sure we don't flag
-                    // these as incompatible changes when they're dropped.
-                    method public void convert7(@NonNull boolean);
+                  @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME) public @interface ExperimentalFeature {
+                  }
+                  @SuppressCompatibility @test.pkg.ExperimentalFeature public final class MyOuterClass {
+                    ctor public MyOuterClass();
+                    method public void myFunToBeRemoved();
+                    method public void myFunWithChangedParameters(String a);
+                    method public String myFunWithChangedReturnType();
+                    method public void myFunWithNullabilityChanged(String a);
+                    property public static String MY_CONST_WITH_CHANGED_TYPE;
+                    property public static int MY_REMOVED_CONST;
+                    field public final String MY_CONST_WITH_CHANGED_TYPE;
+                    field public final int MY_REMOVED_CONST;
                   }
                 }
                 """,
-            // Changes: +nullness, -nullness, nullable->nonnull, nonnull->nullable
             signatureSource =
                 """
                 package test.pkg {
-                  public class MyTest {
-                    method @Nullable public Double convert1(@Nullable Float);
-                    method @NonNull public Double convert2(@NonNull Float);
-                    method public Double convert3(Float);
-                    method public Double convert4(Float);
-                    method @NonNull public Double convert5(@NonNull Float);
-                    method @Nullable public Double convert6(@Nullable Float);
-                    method public void convert7(boolean);
+                  @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME) public @interface ExperimentalFeature {
+                  }
+                  public final class MyOuterClass {
+                    ctor public MyOuterClass();
+                    method public void myFunWithChangedParameters(int a);
+                    method public int myFunWithChangedReturnType();
+                    method public void myFunWithNullabilityChanged(String a);
+                    property public static int MY_CONST_WITH_CHANGED_TYPE;
+                    field public final int MY_CONST_WITH_CHANGED_TYPE;
                   }
                 }
-                """
+                """,
+            suppressCompatibilityMetaAnnotations = arrayOf("kotlin.RequiresOptIn")
         )
     }
 
     @Test
-    fun `Kotlin Nullness`() {
+    fun `Switching method from public to private is seen as removal`() {
         check(
             expectedIssues =
-                """
-                src/test/pkg/Outer.kt:5: error: Attempted to change method return from @NonNull to @Nullable: incompatible change for method test.pkg.Outer.method2(String,String) [InvalidNullConversion]
-                src/test/pkg/Outer.kt:5: error: Attempted to change parameter from @Nullable to @NonNull: incompatible change for parameter string in test.pkg.Outer.method2(String string, String maybeString) [InvalidNullConversion]
-                src/test/pkg/Outer.kt:6: error: Attempted to change parameter from @Nullable to @NonNull: incompatible change for parameter string in test.pkg.Outer.method3(String maybeString, String string) [InvalidNullConversion]
-                src/test/pkg/Outer.kt:8: error: Attempted to change method return from @NonNull to @Nullable: incompatible change for method test.pkg.Outer.Inner.method2(String,String) [InvalidNullConversion]
-                src/test/pkg/Outer.kt:8: error: Attempted to change parameter from @Nullable to @NonNull: incompatible change for parameter string in test.pkg.Outer.Inner.method2(String string, String maybeString) [InvalidNullConversion]
-                src/test/pkg/Outer.kt:9: error: Attempted to change parameter from @Nullable to @NonNull: incompatible change for parameter string in test.pkg.Outer.Inner.method3(String maybeString, String string) [InvalidNullConversion]
-                """,
-            format = FileFormat.V2,
+                "released-api.txt:5: error: Binary breaking change: Removed method com.example.Foo.foo() [RemovedMethod]",
             checkCompatibilityApiReleased =
                 """
-                    // Signature format: 3.0
-                    package test.pkg {
-                      public final class Outer {
-                        ctor public Outer();
-                        method public final String? method1(String, String?);
-                        method public final String method2(String?, String);
-                        method public final String? method3(String, String?);
-                      }
-                      public static final class Outer.Inner {
-                        ctor public Outer.Inner();
-                        method public final String method2(String?, String);
-                        method public final String? method3(String, String?);
-                      }
-                    }
-                """,
-            sourceFiles =
-                arrayOf(
-                    kotlin(
-                        """
-                    package test.pkg
-
-                    class Outer {
-                        fun method1(string: String, maybeString: String?): String? = null
-                        fun method2(string: String, maybeString: String?): String? = null
-                        fun method3(maybeString: String?, string : String): String = ""
-                        class Inner {
-                            fun method2(string: String, maybeString: String?): String? = null
-                            fun method3(maybeString: String?, string : String): String = ""
-                        }
-                    }
-                    """
-                    )
-                )
-        )
-    }
-
-    @Test
-    fun `Java Parameter Name Change`() {
-        check(
-            expectedIssues =
-                """
-                src/test/pkg/JavaClass.java:6: error: Attempted to remove parameter name from parameter newName in test.pkg.JavaClass.method1 [ParameterNameChange]
-                src/test/pkg/JavaClass.java:7: error: Attempted to change parameter name from secondParameter to newName in method test.pkg.JavaClass.method2 [ParameterNameChange]
-                """,
-            checkCompatibilityApiReleased =
-                """
-                package test.pkg {
-                  public class JavaClass {
-                    ctor public JavaClass();
-                    method public String method1(String parameterName);
-                    method public String method2(String firstParameter, String secondParameter);
+                // Signature format: 5.0
+                package com.example {
+                  public class Foo {
+                    ctor public Foo();
+                    method public void foo();
                   }
                 }
                 """,
@@ -272,52 +243,22 @@ class CompatibilityCheckTest : DriverTest() {
                 arrayOf(
                     java(
                         """
-                    @Suppress("all")
-                    package test.pkg;
-                    import androidx.annotation.ParameterName;
-
-                    public class JavaClass {
-                        public String method1(String newName) { return null; }
-                        public String method2(@ParameterName("firstParameter") String s, @ParameterName("newName") String prevName) { return null; }
-                    }
-                    """
-                    ),
-                    supportParameterName
+                        package com.example;
+                        public class Foo {
+                          private void foo() {}
+                        }
+                        """
+                    )
                 ),
-            extraArguments = arrayOf(ARG_HIDE_PACKAGE, "androidx.annotation")
-        )
-    }
-
-    @Test
-    fun `Kotlin Parameter Name Change`() {
-        check(
-            expectedIssues =
+            api =
                 """
-                src/test/pkg/KotlinClass.kt:4: error: Attempted to change parameter name from prevName to newName in method test.pkg.KotlinClass.method1 [ParameterNameChange]
-                """,
-            format = FileFormat.V2,
-            checkCompatibilityApiReleased =
-                """
-                // Signature format: 3.0
-                package test.pkg {
-                  public final class KotlinClass {
-                    ctor public KotlinClass();
-                    method public final String? method1(String prevName);
+                // Signature format: 5.0
+                package com.example {
+                  public class Foo {
+                    ctor public Foo();
                   }
                 }
-                """,
-            sourceFiles =
-                arrayOf(
-                    kotlin(
-                        """
-                    package test.pkg
-
-                    class KotlinClass {
-                        fun method1(newName: String): String? = null
-                    }
-                    """
-                    )
-                )
+                """
         )
     }
 
@@ -328,7 +269,7 @@ class CompatibilityCheckTest : DriverTest() {
             format = FileFormat.V2,
             checkCompatibilityApiReleased =
                 """
-                // Signature format: 3.0
+                // Signature format: 4.0
                 package test.pkg {
                   public final class TestKt {
                     ctor public TestKt();
@@ -338,7 +279,7 @@ class CompatibilityCheckTest : DriverTest() {
                 """,
             signatureSource =
                 """
-                // Signature format: 3.0
+                // Signature format: 4.0
                 package test.pkg {
                   public final class TestKt {
                     ctor public TestKt();
@@ -349,15 +290,17 @@ class CompatibilityCheckTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Remove operator`() {
         check(
             expectedIssues =
                 """
-                src/test/pkg/Foo.kt:4: error: Cannot remove `operator` modifier from method test.pkg.Foo.plus(String): Incompatible change [OperatorRemoval]
+                src/test/pkg/Foo.kt:4: error: Source breaking change: Cannot remove `operator` modifier from method test.pkg.Foo.plus(String): Incompatible change [OperatorRemoval]
                 """,
             checkCompatibilityApiReleased =
                 """
+                // Signature format: 5.0
                 package test.pkg {
                   public final class Foo {
                     ctor public Foo();
@@ -380,15 +323,17 @@ class CompatibilityCheckTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Remove vararg`() {
         check(
             expectedIssues =
                 """
-                src/test/pkg/test.kt:3: error: Changing from varargs to array is an incompatible change: parameter x in test.pkg.TestKt.method2(int[] x) [VarargRemoval]
+                src/test/pkg/test.kt:3: error: Binary breaking change: Changing from varargs to array is an incompatible change: parameter x in test.pkg.TestKt.method2(int[] x) [VarargRemoval]
                 """,
             checkCompatibilityApiReleased =
                 """
+                // Signature format: 5.0
                 package test.pkg {
                   public final class TestKt {
                     method public static final void method1(int[] x);
@@ -410,6 +355,113 @@ class CompatibilityCheckTest : DriverTest() {
     }
 
     @Test
+    fun `Removed method from classpath`() {
+        check(
+            classpath =
+                arrayOf(
+                    /* The following source file, compiled, then ran
+                    assertEquals("", toBase64gzip(File("path/to/lib1.jar")))
+
+                        package test.pkg;
+
+                        public interface FacetProvider {
+                          Object getFacet(Class<?> facetClass);
+                        }
+                     */
+                    base64gzip(
+                        "libs/lib1.jar",
+                        "" +
+                            "H4sIAAAAAAAA/wvwZmYRYeDg4GDwKMgPZ0ACnAwsDL6uIY66nn5u+v9OMTAw" +
+                            "MwR4s3OApJigSgJwahYBYrhmX0c/TzfX4BA9X7fPvmdO+3jr6l3k9dbVOnfm" +
+                            "/OYggyvGD54W6Xn56nj6XixdxcI147XkC0nNjB/iqmrPl2hZPBcXfSKuOo1B" +
+                            "NPtT0cciRrAbRCZqCTgBbXBCcYMamhtkgLgktbhEvyA7Xd8tMTm1JKAovywz" +
+                            "JbVILzknsbjY+mv+dTs2NrZotrwyNjU3to2TrjwS+tv0pqR2+5EnVyY1LPqz" +
+                            "6cyUK0plbGJubI1rjmxy+TvnyJ6S2v9L1lx5IuTG1vflitAGJze2UF75lj3F" +
+                            "fkmFG7cu49/Fl+3Gdu7BmS97jky6tCjEjY2Xx9YsquzG1kLW59PFVJfvSn3G" +
+                            "8JVzoYUf/5I5vRMbJzbOZGSRaMxLTU1g/nSz0UaNjU+hW/jMIyawN6/4uhXN" +
+                            "BXriHdibjEwiDKiBDYsGUEyhApR4Q9eKHHoiKNpsccQasgmgUEZ2mAyKCQcJ" +
+                            "hHmANysbSB0zEB4H0isYQTwAofA0RIUCAAA="
+                    ),
+                    /* The following source file, compiled, then ran
+                    assertEquals("", toBase64gzip(File("path/to/lib2.jar")))
+
+                        package test.pkg;
+
+                        public interface FacetProviderAdapter {
+                          FacetProvider getFacetProvider(int type);
+                        }
+                     */
+                    base64gzip(
+                        "libs/lib2.jar",
+                        "" +
+                            "H4sIAAAAAAAA/wvwZmYRYeDg4GDwK8gPZ0ACnAwsDL6uIY66nn5u+v9OMTAw" +
+                            "MwR4s3OApJigSgJwahYBYrhmX0c/TzfX4BA9X7fPvmdO+3jr6l3k9dbVOnfm" +
+                            "/OYggyvGD54W6Xn56nj6XixdxcI147XkC0nNjB/iqmrPl2hZPBcXfSKuOo1B" +
+                            "NPtT0cciRrAbRCZqCTgBbXBCcYMamhuUgbgktbhEvyA7Xd8tMTm1JKAovywz" +
+                            "JbXIMSWxoCS1SC85J7G42Ppr/nU7Nja2aDa/MjY1N7abk648Evrb9KakdvuR" +
+                            "J1cmNSz6s+nMlCtKx6ccaZp0RamMTcyNrXHNkU0uf+cc2VNS+3/JmitPhBYE" +
+                            "VGVxdlW5sWXy+vvKv2mLNDYqYH0+XUx1+a7UZ0uMjDySNnvxp3BLKzMrMxsz" +
+                            "cxgw5aalJjBvlLjRqCLMzA72E+ufzUeagS7eDfYTI5MIA2rIwsIcFC2oACWS" +
+                            "0LUiB5UIijZbHFGEbAIoSJEdpoxiwkHiAjjAm5UNpJwZCM8B6amMIB4AmZLm" +
+                            "53kCAAA="
+                    ),
+                ),
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                          package test.pkg;
+
+                          public class FacetProviderAdapterImpl implements FacetProviderAdapter {
+                            private FacetProvider mProvider;
+                            @Override
+                            public FacetProvider getFacetProvider(int type) {
+                                return mProvider;
+                            }
+
+                            public static class FacetProviderImpl implements FacetProvider {
+                              private Object mItem;
+                              @Override
+                              public Object getFacet(Class<?> facetClass) {
+                                  return mItem;
+                              }
+                            }
+                          }
+                        """
+                    )
+                ),
+            format = FileFormat.V4,
+            checkCompatibilityApiReleased =
+                """
+                // Signature format: 4.0
+                package test.pkg {
+                  public interface FacetProvider {
+                    method public Object! getFacet(Class<?>!);
+                  }
+                  public interface FacetProviderAdapter {
+                    method public test.pkg.FacetProvider! getFacetProvider(int);
+                  }
+                  public class FacetProviderAdapterImpl implements test.pkg.FacetProviderAdapter {
+                    method public test.pkg.FacetProvider? getFacetProvider(int);
+                  }
+                  public class FacetProviderAdapterImpl.FacetProviderImpl implements test.pkg.FacetProvider {
+                    method public Object? getFacet(Class<? extends Object!>?);
+                  }
+                }
+                """,
+            expectedIssues =
+                """
+                released-api.txt:3: error: Binary breaking change: Removed class test.pkg.FacetProvider [RemovedInterface]
+                released-api.txt:6: error: Binary breaking change: Removed class test.pkg.FacetProviderAdapter [RemovedInterface]
+                src/test/pkg/FacetProviderAdapterImpl.java:6: error: Source breaking change: Attempted to remove nullability from test.pkg.FacetProvider (was NULLABLE) in method test.pkg.FacetProviderAdapterImpl.getFacetProvider(int) [InvalidNullConversion]
+                src/test/pkg/FacetProviderAdapterImpl.java:13: error: Source breaking change: Attempted to remove nullability from java.lang.Class<?> (was NULLABLE) in parameter facetClass in test.pkg.FacetProviderAdapterImpl.FacetProviderImpl.getFacet(Class<?> facetClass) [InvalidNullConversion]
+                src/test/pkg/FacetProviderAdapterImpl.java:13: error: Source breaking change: Attempted to remove nullability from java.lang.Object (was NULLABLE) in method test.pkg.FacetProviderAdapterImpl.FacetProviderImpl.getFacet(Class<?>) [InvalidNullConversion]
+            """
+        )
+    }
+
+    @RequiresCapabilities(Capability.KOTLIN)
+    @Test
     fun `Add final to class that can be extended`() {
         // Adding final on a class is incompatible.
         check(
@@ -417,15 +469,14 @@ class CompatibilityCheckTest : DriverTest() {
             extraArguments = arrayOf("--error", Issues.ADDED_FINAL_UNINSTANTIABLE.name),
             expectedIssues =
                 """
-                src/test/pkg/Java.java:2: error: Class test.pkg.Java added 'final' qualifier [AddedFinal]
-                src/test/pkg/Java.java:3: error: Constructor test.pkg.Java has added 'final' qualifier [AddedFinal]
-                src/test/pkg/Java.java:4: error: Method test.pkg.Java.method has added 'final' qualifier [AddedFinal]
-                src/test/pkg/Kotlin.kt:3: error: Class test.pkg.Kotlin added 'final' qualifier [AddedFinal]
-                src/test/pkg/Kotlin.kt:3: error: Constructor test.pkg.Kotlin has added 'final' qualifier [AddedFinal]
-                src/test/pkg/Kotlin.kt:4: error: Method test.pkg.Kotlin.method has added 'final' qualifier [AddedFinal]
+                src/test/pkg/Java.java:2: error: Binary breaking change: Class test.pkg.Java added 'final' qualifier [AddedFinal]
+                src/test/pkg/Java.java:4: error: Binary breaking change: Method test.pkg.Java.method has added 'final' qualifier [AddedFinal]
+                src/test/pkg/Kotlin.kt:3: error: Binary breaking change: Class test.pkg.Kotlin added 'final' qualifier [AddedFinal]
+                src/test/pkg/Kotlin.kt:4: error: Binary breaking change: Method test.pkg.Kotlin.method has added 'final' qualifier [AddedFinal]
                 """,
             checkCompatibilityApiReleased =
                 """
+                // Signature format: 5.0
                 package test.pkg {
                   public class Java {
                     ctor public Java();
@@ -461,6 +512,7 @@ class CompatibilityCheckTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Add final to class that cannot be extended`() {
         // Adding final on a class is incompatible unless the class could not be extended.
@@ -476,6 +528,7 @@ class CompatibilityCheckTest : DriverTest() {
                 """,
             checkCompatibilityApiReleased =
                 """
+                // Signature format: 5.0
                 package test.pkg {
                   public class Java {
                     method public void method(int);
@@ -510,6 +563,7 @@ class CompatibilityCheckTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Add final to method of class that can be extended`() {
         // Adding final on a method is incompatible.
@@ -518,11 +572,12 @@ class CompatibilityCheckTest : DriverTest() {
             extraArguments = arrayOf("--error", Issues.ADDED_FINAL_UNINSTANTIABLE.name),
             expectedIssues =
                 """
-                src/test/pkg/Java.java:4: error: Method test.pkg.Java.method has added 'final' qualifier [AddedFinal]
-                src/test/pkg/Kotlin.kt:4: error: Method test.pkg.Kotlin.method has added 'final' qualifier [AddedFinal]
+                src/test/pkg/Java.java:4: error: Binary breaking change: Method test.pkg.Java.method has added 'final' qualifier [AddedFinal]
+                src/test/pkg/Kotlin.kt:4: error: Binary breaking change: Method test.pkg.Kotlin.method has added 'final' qualifier [AddedFinal]
                 """,
             checkCompatibilityApiReleased =
                 """
+                // Signature format: 5.0
                 package test.pkg {
                   public class Java {
                     ctor public Java();
@@ -558,6 +613,7 @@ class CompatibilityCheckTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Add final to method of class that cannot be extended`() {
         // Adding final on a method is incompatible unless the containing class could not be
@@ -573,6 +629,7 @@ class CompatibilityCheckTest : DriverTest() {
                     .trimIndent(),
             checkCompatibilityApiReleased =
                 """
+                // Signature format: 5.0
                 package test.pkg {
                   public class Java {
                     method public void method(int);
@@ -640,7 +697,8 @@ class CompatibilityCheckTest : DriverTest() {
         // Make sure that we correctly compare effectively final (inherited from surrounding class)
         // between the signature file codebase and the real codebase
         check(
-            expectedIssues = """
+            expectedIssues =
+                """
                 """,
             checkCompatibilityApiReleased =
                 """
@@ -682,7 +740,8 @@ class CompatibilityCheckTest : DriverTest() {
         // abstract methods. We don't want to list these as having changed
         // their abstractness.
         check(
-            expectedIssues = """
+            expectedIssues =
+                """
                 """,
             checkCompatibilityApiReleased =
                 """
@@ -721,7 +780,8 @@ class CompatibilityCheckTest : DriverTest() {
     @Test
     fun `Implicit modifiers from inherited super classes`() {
         check(
-            expectedIssues = """
+            expectedIssues =
+                """
                 """,
             checkCompatibilityApiReleased =
                 """
@@ -774,7 +834,8 @@ class CompatibilityCheckTest : DriverTest() {
         // abstract methods. We don't want to list these as having changed
         // their abstractness.
         check(
-            expectedIssues = """
+            expectedIssues =
+                """
                 """,
             checkCompatibilityApiReleased =
                 """
@@ -841,15 +902,17 @@ class CompatibilityCheckTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Remove infix`() {
         check(
             expectedIssues =
                 """
-                src/test/pkg/Foo.kt:5: error: Cannot remove `infix` modifier from method test.pkg.Foo.add2(String): Incompatible change [InfixRemoval]
+                src/test/pkg/Foo.kt:5: error: Source breaking change: Cannot remove `infix` modifier from method test.pkg.Foo.add2(String): Incompatible change [InfixRemoval]
                 """,
             checkCompatibilityApiReleased =
                 """
+                // Signature format: 5.0
                 package test.pkg {
                   public final class Foo {
                     ctor public Foo();
@@ -876,12 +939,13 @@ class CompatibilityCheckTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Add seal`() {
         check(
             expectedIssues =
                 """
-                src/test/pkg/Foo.kt:2: error: Cannot add 'sealed' modifier to class test.pkg.Foo: Incompatible change [AddSealed]
+                src/test/pkg/Foo.kt:2: error: Source breaking change: Cannot add 'sealed' modifier to class test.pkg.Foo: Incompatible change [AddSealed]
                 """,
             checkCompatibilityApiReleased =
                 """
@@ -902,58 +966,19 @@ class CompatibilityCheckTest : DriverTest() {
         )
     }
 
-    @Test
-    fun `Remove default parameter`() {
-        check(
-            expectedIssues =
-                """
-                src/test/pkg/Foo.kt:3: error: Attempted to remove default value from parameter s1 in test.pkg.Foo [DefaultValueChange]
-                src/test/pkg/Foo.kt:7: error: Attempted to remove default value from parameter s1 in test.pkg.Foo.method4 [DefaultValueChange]
-
-                """,
-            checkCompatibilityApiReleased =
-                """
-                // Signature format: 3.0
-                package test.pkg {
-                  public final class Foo {
-                    ctor public Foo(String? s1 = null);
-                    method public final void method1(boolean b, String? s1);
-                    method public final void method2(boolean b, String? s1);
-                    method public final void method3(boolean b, String? s1 = "null");
-                    method public final void method4(boolean b, String? s1 = "null");
-                  }
-                }
-                """,
-            sourceFiles =
-                arrayOf(
-                    kotlin(
-                        """
-                    package test.pkg
-
-                    class Foo(s1: String?) {
-                        fun method1(b: Boolean, s1: String?) { }         // No change
-                        fun method2(b: Boolean, s1: String? = null) { }  // Adding: OK
-                        fun method3(b: Boolean, s1: String? = null) { }  // No change
-                        fun method4(b: Boolean, s1: String?) { }         // Removed
-                    }
-                    """
-                    )
-                )
-        )
-    }
-
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Remove optional parameter`() {
         check(
             expectedIssues =
                 """
-                src/test/pkg/Foo.kt:3: error: Attempted to remove default value from parameter s1 in test.pkg.Foo [DefaultValueChange]
-                src/test/pkg/Foo.kt:7: error: Attempted to remove default value from parameter s1 in test.pkg.Foo.method4 [DefaultValueChange]
+                src/test/pkg/Foo.kt:3: error: Source breaking change: Attempted to remove default value from parameter s1 in test.pkg.Foo(String s1) [DefaultValueChange]
+                src/test/pkg/Foo.kt:7: error: Source breaking change: Attempted to remove default value from parameter s1 in test.pkg.Foo.method4(boolean b, String s1) [DefaultValueChange]
                 """,
             format = FileFormat.V4,
             checkCompatibilityApiReleased =
                 """
-                // Signature format: 3.0
+                // Signature format: 4.0
                 package test.pkg {
                   public final class Foo {
                     ctor public Foo(optional String? s1);
@@ -985,7 +1010,8 @@ class CompatibilityCheckTest : DriverTest() {
     @Test
     fun `Removing method or field when still available via inheritance is OK`() {
         check(
-            expectedIssues = """
+            expectedIssues =
+                """
                 """,
             checkCompatibilityApiReleased =
                 """
@@ -1038,12 +1064,12 @@ class CompatibilityCheckTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                src/test/pkg/Parent.java:5: error: Field test.pkg.Parent.field2 has changed value from 2 to 42 [ChangedValue]
-                src/test/pkg/Parent.java:6: error: Field test.pkg.Parent.field3 has changed type from int to char [ChangedType]
-                src/test/pkg/Parent.java:7: error: Field test.pkg.Parent.field4 has added 'final' qualifier [AddedFinal]
-                src/test/pkg/Parent.java:8: error: Field test.pkg.Parent.field5 has changed 'static' qualifier [ChangedStatic]
+                src/test/pkg/Parent.java:5: error: Binary breaking change: Field test.pkg.Parent.field2 has changed value from 2 to 42 [ChangedValue]
+                src/test/pkg/Parent.java:6: error: Binary breaking change: Field test.pkg.Parent.field3 has changed type from int to char [ChangedType]
+                src/test/pkg/Parent.java:7: error: Binary breaking change: Field test.pkg.Parent.field4 has added 'final' qualifier [AddedFinal]
+                src/test/pkg/Parent.java:8: error: Binary breaking change: Field test.pkg.Parent.field5 has changed 'static' qualifier [ChangedStatic]
                 src/test/pkg/Parent.java:10: error: Field test.pkg.Parent.field7 has changed 'volatile' qualifier [ChangedVolatile]
-                src/test/pkg/Parent.java:20: error: Field test.pkg.Parent.field94 has changed value from 1 to 42 [ChangedValue]
+                src/test/pkg/Parent.java:20: error: Binary breaking change: Field test.pkg.Parent.field94 has changed value from 1 to 42 [ChangedValue]
                 """,
             checkCompatibilityApiReleased =
                 """
@@ -1053,7 +1079,7 @@ class CompatibilityCheckTest : DriverTest() {
                     field public static final int field1 = 1; // 0x1
                     field public static final int field2 = 2; // 0x2
                     field public int field3;
-                    field public int field4 = 4; // 0x4
+                    field public int field4;
                     field public int field5;
                     field public int field6;
                     field public int field7;
@@ -1084,18 +1110,17 @@ class CompatibilityCheckTest : DriverTest() {
                         /** @deprecated */ @Deprecated public int field9 = 8;  // ADDED DEPRECATED
                         @SuppressLint("ChangedValue")
                         public static final int field91 = 42;// CHANGED VALUE: Suppressed
-                        @SuppressLint("ChangedValue:Field test.pkg.Parent.field92 has changed value from 1 to 42")
+                        @SuppressLint("ChangedValue:Binary breaking change: Field test.pkg.Parent.field92 has changed value from 1 to 42")
                         public static final int field92 = 42;// CHANGED VALUE: Suppressed with same message
-                        @SuppressLint("ChangedValue: Field test.pkg.Parent.field93 has changed value from 1 to 42")
+                        @SuppressLint("ChangedValue:Binary breaking change: Field test.pkg.Parent.field93 has changed value from 1 to 42")
                         public static final int field93 = 42;// CHANGED VALUE: Suppressed with same message
-                        @SuppressLint("ChangedValue:Field test.pkg.Parent.field94 has changed value from 10 to 1")
+                        @SuppressLint("ChangedValue:Binary breaking change: Field test.pkg.Parent.field94 has changed value from 10 to 1")
                         public static final int field94 = 42;// CHANGED VALUE: Suppressed but with different message
                     }
                     """
                     ),
-                    suppressLintSource
+                    suppressLintSource,
                 ),
-            extraArguments = arrayOf(ARG_HIDE_PACKAGE, "android.annotation")
         )
     }
 
@@ -1104,15 +1129,15 @@ class CompatibilityCheckTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                src/test/pkg/ExportedProperty.java:15: error: Method test.pkg.ExportedProperty.category has changed value from "" to nothing [ChangedValue]
-                src/test/pkg/ExportedProperty.java:14: error: Method test.pkg.ExportedProperty.floating has changed value from 1.0f to 1.1f [ChangedValue]
-                src/test/pkg/ExportedProperty.java:13: error: Method test.pkg.ExportedProperty.prefix has changed value from "" to "hello" [ChangedValue]
+                src/test/pkg/ExportedProperty.java:13: error: Binary breaking change: Method test.pkg.ExportedProperty.prefix has changed value from "" to "hello" [ChangedValue]
+                src/test/pkg/ExportedProperty.java:14: error: Binary breaking change: Method test.pkg.ExportedProperty.floating has changed value from 1.0f to 1.1f [ChangedValue]
+                src/test/pkg/ExportedProperty.java:15: error: Binary breaking change: Method test.pkg.ExportedProperty.category has changed value from "" to nothing [ChangedValue]
                 """,
             checkCompatibilityApiReleased =
                 """
-                // Signature format: 3.0
+                // Signature format: 4.0
                 package test.pkg {
-                  public @interface ExportedProperty {
+                  @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME) public @interface ExportedProperty {
                     method public abstract boolean resolveId() default false;
                     method public abstract float floating() default 1.0f;
                     method public abstract String! prefix() default "";
@@ -1153,7 +1178,7 @@ class CompatibilityCheckTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                src/test/pkg/Parent.java:3: error: Class test.pkg.Parent changed class/interface declaration [ChangedClass]
+                src/test/pkg/Parent.java:3: error: Binary breaking change: test.pkg.Parent changed from class to interface [ChangedClass]
                 """,
             checkCompatibilityApiReleased =
                 """
@@ -1181,7 +1206,7 @@ class CompatibilityCheckTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                src/test/pkg/Parent.java:3: error: Class test.pkg.Parent no longer implements java.io.Closeable [RemovedInterface]
+                src/test/pkg/Parent.java:3: error: Binary breaking change: Class test.pkg.Parent no longer implements java.io.Closeable [RemovedInterface]
                 """,
             checkCompatibilityApiReleased =
                 """
@@ -1210,8 +1235,8 @@ class CompatibilityCheckTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                src/test/pkg/Parent.java:3: error: Class test.pkg.Parent changed 'abstract' qualifier [ChangedAbstract]
-                src/test/pkg/Parent.java:3: error: Class test.pkg.Parent changed 'static' qualifier [ChangedStatic]
+                src/test/pkg/Parent.java:3: error: Binary breaking change: Class test.pkg.Parent changed 'abstract' qualifier [ChangedAbstract]
+                src/test/pkg/Parent.java:3: error: Binary breaking change: Class test.pkg.Parent changed 'static' qualifier [ChangedStatic]
                 """,
             checkCompatibilityApiReleased =
                 """
@@ -1240,8 +1265,8 @@ class CompatibilityCheckTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                src/test/pkg/Class1.java:3: error: Class test.pkg.Class1 added 'final' qualifier [AddedFinal]
-                released-api.txt:4: error: Removed constructor test.pkg.Class1() [RemovedMethod]
+                released-api.txt:4: error: Binary breaking change: Removed constructor test.pkg.Class1() [RemovedMethod]
+                src/test/pkg/Class1.java:3: error: Binary breaking change: Class test.pkg.Class1 added 'final' qualifier [AddedFinal]
                 """,
             checkCompatibilityApiReleased =
                 """
@@ -1293,8 +1318,8 @@ class CompatibilityCheckTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                src/test/pkg/Class1.java:3: error: Class test.pkg.Class1 changed visibility from protected to public [ChangedScope]
-                src/test/pkg/Class2.java:3: error: Class test.pkg.Class2 changed visibility from public to protected [ChangedScope]
+                src/test/pkg/Class1.java:3: error: Binary breaking change: Class test.pkg.Class1 changed visibility from protected to public [ChangedScope]
+                src/test/pkg/Class2.java:3: error: Binary breaking change: Class test.pkg.Class2 changed visibility from public to protected [ChangedScope]
                 """,
             checkCompatibilityApiReleased =
                 """
@@ -1334,7 +1359,7 @@ class CompatibilityCheckTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                src/test/pkg/Class3.java:3: error: Class test.pkg.Class3 superclass changed from java.lang.Char to java.lang.Number [ChangedSuperclass]
+                src/test/pkg/Class3.java:3: error: Binary breaking change: Class test.pkg.Class3 superclass changed from java.lang.Char to java.lang.Number [ChangedSuperclass]
                 """,
             checkCompatibilityApiReleased =
                 """
@@ -1405,8 +1430,8 @@ class CompatibilityCheckTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                load-api.txt:3: error: Class test.pkg.Foo changed number of type parameters from 1 to 0 [ChangedType]
-            """,
+                load-api.txt:3: error: Binary breaking change: Class test.pkg.Foo changed number of type parameters from 1 to 0 [ChangedType]
+                """,
             checkCompatibilityApiReleased =
                 """
                 package test.pkg {
@@ -1429,8 +1454,8 @@ class CompatibilityCheckTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                load-api.txt:3: error: Class test.pkg.Foo changed number of type parameters from 1 to 2 [ChangedType]
-            """,
+                load-api.txt:3: error: Binary breaking change: Class test.pkg.Foo changed number of type parameters from 1 to 2 [ChangedType]
+                """,
             checkCompatibilityApiReleased =
                 """
                 package test.pkg {
@@ -1449,284 +1474,11 @@ class CompatibilityCheckTest : DriverTest() {
     }
 
     @Test
-    fun `Incompatible method change -- modifiers`() {
-        check(
-            expectedIssues =
-                """
-                src/test/pkg/MyClass.java:5: error: Method test.pkg.MyClass.myMethod2 has changed 'abstract' qualifier [ChangedAbstract]
-                src/test/pkg/MyClass.java:6: error: Method test.pkg.MyClass.myMethod3 has changed 'static' qualifier [ChangedStatic]
-                """,
-            checkCompatibilityApiReleased =
-                """
-                package test.pkg {
-                  public abstract class MyClass {
-                      method public void myMethod2();
-                      method public void myMethod3();
-                      method deprecated public void myMethod4();
-                  }
-                }
-                """,
-            sourceFiles =
-                arrayOf(
-                    java(
-                        """
-                    package test.pkg;
-
-                    public abstract class MyClass {
-                        private MyClass() {}
-                        public native abstract void myMethod2(); // Note that Errors.CHANGE_NATIVE is hidden by default
-                        public static void myMethod3() {}
-                        public void myMethod4() {}
-                    }
-                    """
-                    )
-                )
-        )
-    }
-
-    @Test
-    fun `Incompatible method change -- final`() {
-        check(
-            expectedIssues =
-                """
-                src/test/pkg/Outer.java:7: error: Method test.pkg.Outer.Class1.method1 has added 'final' qualifier [AddedFinal]
-                src/test/pkg/Outer.java:19: error: Method test.pkg.Outer.Class4.method4 has removed 'final' qualifier [RemovedFinalStrict]
-                """,
-            checkCompatibilityApiReleased =
-                """
-                package test.pkg {
-                  public abstract class Outer {
-                  }
-                  public class Outer.Class1 {
-                    ctor public Class1();
-                    method public void method1();
-                  }
-                  public final class Outer.Class2 {
-                    method public void method2();
-                  }
-                  public final class Outer.Class3 {
-                    method public void method3();
-                  }
-                  public class Outer.Class4 {
-                    method public final void method4();
-                  }
-                }
-                """,
-            sourceFiles =
-                arrayOf(
-                    java(
-                        """
-                    package test.pkg;
-
-                    public abstract class Outer {
-                        private Outer() {}
-                        public class Class1 {
-                            public Class1() {}
-                            public final void method1() { } // Added final
-                        }
-                        public final class Class2 {
-                            private Class2() {}
-                            public final void method2() { } // Added final but class is effectively final so no change
-                        }
-                        public final class Class3 {
-                            private Class3() {}
-                            public void method3() { } // Removed final but is still effectively final
-                        }
-                        public class Class4 {
-                            private Class4() {}
-                            public void method4() { } // Removed final
-                        }
-                    }
-                    """
-                    )
-                )
-        )
-    }
-
-    @Test
-    fun `Incompatible method change -- visibility`() {
-        check(
-            expectedIssues =
-                """
-                src/test/pkg/MyClass.java:6: error: Method test.pkg.MyClass.myMethod2 changed visibility from public to protected [ChangedScope]
-                """,
-            checkCompatibilityApiReleased =
-                """
-                package test.pkg {
-                  public abstract class MyClass {
-                      method protected void myMethod1();
-                      method public void myMethod2();
-                  }
-                }
-                """,
-            sourceFiles =
-                arrayOf(
-                    java(
-                        """
-                    package test.pkg;
-
-                    public abstract class MyClass {
-                        private MyClass() {}
-                        public void myMethod1() {}
-                        protected void myMethod2() {}
-                    }
-                    """
-                    )
-                )
-        )
-    }
-
-    @Test
-    fun `Incompatible method change -- throws list -- java`() {
-        check(
-            expectedIssues =
-                """
-                src/test/pkg/MyClass.java:7: error: Method test.pkg.MyClass.method1 added thrown exception java.io.IOException [ChangedThrows]
-                src/test/pkg/MyClass.java:8: error: Method test.pkg.MyClass.method2 no longer throws exception java.io.IOException [ChangedThrows]
-                src/test/pkg/MyClass.java:9: error: Method test.pkg.MyClass.method3 no longer throws exception java.io.IOException [ChangedThrows]
-                src/test/pkg/MyClass.java:9: error: Method test.pkg.MyClass.method3 no longer throws exception java.lang.NumberFormatException [ChangedThrows]
-                src/test/pkg/MyClass.java:9: error: Method test.pkg.MyClass.method3 added thrown exception java.lang.UnsupportedOperationException [ChangedThrows]
-                """,
-            checkCompatibilityApiReleased =
-                """
-                package test.pkg {
-                  public abstract class MyClass {
-                      method public void finalize() throws java.lang.Throwable;
-                      method public void method1();
-                      method public void method2() throws java.io.IOException;
-                      method public void method3() throws java.io.IOException, java.lang.NumberFormatException;
-                  }
-                }
-                """,
-            sourceFiles =
-                arrayOf(
-                    java(
-                        """
-                    package test.pkg;
-
-                    @SuppressWarnings("RedundantThrows")
-                    public abstract class MyClass {
-                        private MyClass() {}
-                        public void finalize() {}
-                        public void method1() throws java.io.IOException {}
-                        public void method2() {}
-                        public void method3() throws java.lang.UnsupportedOperationException {}
-                    }
-                    """
-                    )
-                )
-        )
-    }
-
-    @Test
-    fun `Incompatible method change -- throws list -- kt`() {
-        check(
-            expectedIssues =
-                """
-                src/test/pkg/MyClass.kt:4: error: Constructor test.pkg.MyClass added thrown exception test.pkg.MyException [ChangedThrows]
-                src/test/pkg/MyClass.kt:12: error: Method test.pkg.MyClass.getProperty1 added thrown exception test.pkg.MyException [ChangedThrows]
-                src/test/pkg/MyClass.kt:15: error: Method test.pkg.MyClass.getProperty2 added thrown exception test.pkg.MyException [ChangedThrows]
-                src/test/pkg/MyClass.kt:9: error: Method test.pkg.MyClass.method1 added thrown exception test.pkg.MyException [ChangedThrows]
-            """,
-            checkCompatibilityApiReleased =
-                """
-                package test.pkg {
-                  public final class MyClass {
-                    ctor public MyClass(int);
-                    method public final void method1();
-                    method public final String getProperty1();
-                    method public final String getProperty2();
-                  }
-                }
-            """,
-            sourceFiles =
-                arrayOf(
-                    kotlin(
-                        """
-                        package test.pkg
-
-                        class MyClass
-                        @Throws(MyException::class)
-                        constructor(
-                            val p: Int
-                        ) {
-                            @Throws(MyException::class)
-                            fun method1() {}
-
-                            @get:Throws(MyException::class)
-                            val property1 : String = "42"
-
-                            val property2 : String = "42"
-                                @Throws(MyException::class)
-                                get
-                        }
-
-                        class MyException : Exception()
-                    """
-                    )
-                )
-        )
-    }
-
-    @Test
-    fun `Incompatible method change -- return types`() {
-        check(
-            expectedIssues =
-                """
-                src/test/pkg/MyClass.java:5: error: Method test.pkg.MyClass.method1 has changed return type from float to int [ChangedType]
-                src/test/pkg/MyClass.java:6: error: Method test.pkg.MyClass.method2 has changed return type from java.util.List<Number> to java.util.List<java.lang.Integer> [ChangedType]
-                src/test/pkg/MyClass.java:7: error: Method test.pkg.MyClass.method3 has changed return type from java.util.List<Integer> to java.util.List<java.lang.Number> [ChangedType]
-                src/test/pkg/MyClass.java:8: error: Method test.pkg.MyClass.method4 has changed return type from java.lang.String to java.lang.String[] [ChangedType]
-                src/test/pkg/MyClass.java:9: error: Method test.pkg.MyClass.method5 has changed return type from java.lang.String[] to java.lang.String[][] [ChangedType]
-                src/test/pkg/MyClass.java:11: error: Method test.pkg.MyClass.method7 has changed return type from T (extends java.lang.Number) to java.lang.Number [ChangedType]
-                src/test/pkg/MyClass.java:13: error: Method test.pkg.MyClass.method9 has changed return type from X (extends java.lang.Throwable) to U (extends java.lang.Number) [ChangedType]
-                """,
-            checkCompatibilityApiReleased =
-                """
-                package test.pkg {
-                  public abstract class MyClass<T extends Number> {
-                      method public float method1();
-                      method public java.util.List<Number> method2();
-                      method public java.util.List<Integer> method3();
-                      method public String method4();
-                      method public String[] method5();
-                      method public <X extends java.lang.Throwable> T method6(java.util.function.Supplier<? extends X>);
-                      method public <X extends java.lang.Throwable> T method7(java.util.function.Supplier<? extends X>);
-                      method public <X extends java.lang.Throwable> Number method8(java.util.function.Supplier<? extends X>);
-                      method public <X extends java.lang.Throwable> X method9(java.util.function.Supplier<? extends X>);
-                  }
-                }
-                """,
-            sourceFiles =
-                arrayOf(
-                    java(
-                        """
-                    package test.pkg;
-
-                    public abstract class MyClass<U extends Number> { // Changing type variable name is fine/compatible
-                        private MyClass() {}
-                        public int method1() { return 0; }
-                        public java.util.List<Integer> method2() { return null; }
-                        public java.util.List<Number> method3() { return null; }
-                        public String[] method4() { return null; }
-                        public String[][] method5() { return null; }
-                        public <X extends java.lang.Throwable> U method6(java.util.function.Supplier<? extends X> arg) { return null; }
-                        public <X extends java.lang.Throwable> Number method7(java.util.function.Supplier<? extends X> arg) { return null; }
-                        public <X extends java.lang.Throwable> U method8(java.util.function.Supplier<? extends X> arg) { return null; }
-                        public <X extends java.lang.Throwable> U method9(java.util.function.Supplier<? extends X> arg) { return null; }
-                    }
-                    """
-                    )
-                )
-        )
-    }
-
-    @Test
     fun `Incompatible field change -- visibility and removing final`() {
         check(
             expectedIssues =
                 """
-                src/test/pkg/MyClass.java:6: error: Field test.pkg.MyClass.myField2 changed visibility from public to protected [ChangedScope]
+                src/test/pkg/MyClass.java:6: error: Binary breaking change: Field test.pkg.MyClass.myField2 changed visibility from public to protected [ChangedScope]
                 """,
             checkCompatibilityApiReleased =
                 """
@@ -1761,8 +1513,8 @@ class CompatibilityCheckTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                released-api.txt:3: error: Removed class test.pkg.MyOldClass [RemovedClass]
-                released-api.txt:6: error: Removed package test.pkg3 [RemovedPackage]
+                released-api.txt:3: error: Binary breaking change: Removed class test.pkg.MyOldClass [RemovedClass]
+                released-api.txt:6: error: Binary breaking change: Removed package test.pkg3 [RemovedPackage]
                 """,
             checkCompatibilityApiReleased =
                 """
@@ -1812,7 +1564,7 @@ class CompatibilityCheckTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                released-api.txt:4: error: Removed constructor test.pkg.MyClass() [RemovedMethod]
+                released-api.txt:4: error: Binary breaking change: Removed constructor test.pkg.MyClass() [RemovedMethod]
                 """,
             checkCompatibilityApiReleased =
                 """
@@ -1842,7 +1594,7 @@ class CompatibilityCheckTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                src/test/pkg/MyClass.java:8: error: Method test.pkg.MyClass.myMethod4 has changed return type from S (extends java.lang.Object) to S (extends java.lang.Float) [ChangedType]
+                src/test/pkg/MyClass.java:8: error: Binary breaking change: Method test.pkg.MyClass.myMethod4 has changed return type from S (extends java.lang.Object) to S (extends java.lang.Float) [ChangedType]
                 """,
             checkCompatibilityApiReleased =
                 """
@@ -1895,7 +1647,7 @@ class CompatibilityCheckTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                src/test/pkg/MyClass.java:5: error: Field test.pkg.MyClass.myField has changed type from String to java.lang.String [ChangedType]
+                src/test/pkg/MyClass.java:5: error: Binary breaking change: Field test.pkg.MyClass.myField has changed type from String to java.lang.String [ChangedType]
                 """,
             // If MyClass did not have a type parameter named String, myField would be parsed as
             // type java.lang.String
@@ -1923,17 +1675,18 @@ class CompatibilityCheckTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Test Kotlin extensions`() {
         check(
-            format = FileFormat.V2,
+            format = FileFormat.V4,
             expectedIssues = "",
             checkCompatibilityApiReleased =
                 """
-                // Signature format: 3.0
+                // Signature format: 4.0
                 package androidx.content {
                   public final class ContentValuesKt {
-                    method public static android.content.ContentValues contentValuesOf(kotlin.Pair<String,?>... pairs);
+                    method public static android.content.ContentValues contentValuesOf(kotlin.Pair<String,Object?>... pairs);
                   }
                 }
                 """,
@@ -1972,14 +1725,15 @@ class CompatibilityCheckTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Test Kotlin type bounds`() {
         check(
-            format = FileFormat.V2,
+            format = FileFormat.V4,
             expectedIssues = "",
             checkCompatibilityApiReleased =
                 """
-                // Signature format: 3.0
+                // Signature format: 4.0
                 package androidx.navigation {
                   public final class NavDestination {
                     ctor public NavDestination();
@@ -2014,7 +1768,8 @@ class CompatibilityCheckTest : DriverTest() {
     @Test
     fun `Test inherited methods`() {
         check(
-            expectedIssues = """
+            expectedIssues =
+                """
                 """,
             checkCompatibilityApiReleased =
                 """
@@ -2116,10 +1871,10 @@ class CompatibilityCheckTest : DriverTest() {
         // from the base API. When parsing these code bases we need to gracefully handle
         // references to inner classes.
         check(
-            includeSystemApiAnnotations = true,
+            includeSystemApiAnnotations = SystemApiType.PRIVILEGED_APPS,
             expectedIssues =
                 """
-                released-api.txt:5: error: Removed method test.pkg.Bar.Inner1.Inner2.removedMethod() [RemovedMethod]
+                released-api.txt:5: error: Binary breaking change: Removed method test.pkg.Bar.Inner1.Inner2.removedMethod() [RemovedMethod]
                 """,
             sourceFiles =
                 arrayOf(
@@ -2163,14 +1918,7 @@ class CompatibilityCheckTest : DriverTest() {
                     }
                     """
                     ),
-                    systemApiSource
-                ),
-            extraArguments =
-                arrayOf(
-                    ARG_SHOW_ANNOTATION,
-                    "android.annotation.SystemApi",
-                    ARG_HIDE_PACKAGE,
-                    "android.annotation",
+                    systemApiSource,
                 ),
             checkCompatibilityApiReleased =
                 """
@@ -2189,11 +1937,11 @@ class CompatibilityCheckTest : DriverTest() {
         // Incompatible changes to a released System API should be detected
         // In this case removing final and changing value of constant
         check(
-            includeSystemApiAnnotations = true,
+            includeSystemApiAnnotations = SystemApiType.TEST,
             expectedIssues =
                 """
                 src/android/rolecontrollerservice/RoleControllerService.java:8: error: Method android.rolecontrollerservice.RoleControllerService.sendNetworkScore has removed 'final' qualifier [RemovedFinalStrict]
-                src/android/rolecontrollerservice/RoleControllerService.java:9: error: Field android.rolecontrollerservice.RoleControllerService.APP_RETURN_UNWANTED has changed value from 1 to 0 [ChangedValue]
+                src/android/rolecontrollerservice/RoleControllerService.java:9: error: Binary breaking change: Field android.rolecontrollerservice.RoleControllerService.APP_RETURN_UNWANTED has changed value from 1 to 0 [ChangedValue]
                 """,
             sourceFiles =
                 arrayOf(
@@ -2211,14 +1959,7 @@ class CompatibilityCheckTest : DriverTest() {
                     }
                     """
                     ),
-                    systemApiSource
-                ),
-            extraArguments =
-                arrayOf(
-                    ARG_SHOW_ANNOTATION,
-                    "android.annotation.TestApi",
-                    ARG_HIDE_PACKAGE,
-                    "android.annotation",
+                    systemApiSource,
                 ),
             checkCompatibilityApiReleased =
                 """
@@ -2235,178 +1976,6 @@ class CompatibilityCheckTest : DriverTest() {
     }
 
     @Test
-    fun `Incompatible changes to released API signature codebase`() {
-        // Incompatible changes to a released System API should be detected
-        // in case of partial files
-        check(
-            expectedIssues =
-                """
-                released-api.txt:6: error: Removed method test.pkg.Foo.method2() [RemovedMethod]
-                """,
-            signatureSource =
-                """
-                // Signature format: 3.0
-                package test.pkg {
-                  public final class Foo {
-                    ctor public Foo();
-                    method public void method1();
-                  }
-                }
-                """,
-            checkCompatibilityApiReleased =
-                """
-                package test.pkg {
-                  public final class Foo {
-                    ctor public Foo();
-                    method public void method1();
-                    method public void method2();
-                    method public void method3();
-                  }
-                }
-                """,
-            checkCompatibilityBaseApi =
-                """
-                package test.pkg {
-                  public final class Foo {
-                    ctor public Foo();
-                    method public void method3();
-                  }
-                }
-                """,
-        )
-    }
-
-    @Test
-    fun `Partial text file which adds methods to show-annotation API`() {
-        // This happens in system and test files where we only include APIs that differ
-        // from the base IDE. When parsing these code bases we need to gracefully handle
-        // references to inner classes.
-        check(
-            includeSystemApiAnnotations = true,
-            expectedIssues =
-                """
-                released-api.txt:5: error: Removed method android.rolecontrollerservice.RoleControllerService.onClearRoleHolders() [RemovedMethod]
-                """,
-            sourceFiles =
-                arrayOf(
-                    java(
-                            """
-                    package android.rolecontrollerservice;
-
-                    public class Service {
-                    }
-                    """
-                        )
-                        .indented(),
-                    java(
-                        """
-                    package android.rolecontrollerservice;
-                    import android.annotation.SystemApi;
-
-                    /** @hide */
-                    @SystemApi
-                    public abstract class RoleControllerService extends Service {
-                        public abstract void onGrantDefaultRoles();
-                    }
-                    """
-                    ),
-                    systemApiSource
-                ),
-            extraArguments =
-                arrayOf(
-                    ARG_SHOW_ANNOTATION,
-                    "android.annotation.TestApi",
-                    ARG_HIDE_PACKAGE,
-                    "android.annotation",
-                ),
-            checkCompatibilityApiReleased =
-                """
-                package android.rolecontrollerservice {
-                  public abstract class RoleControllerService extends android.rolecontrollerservice.Service {
-                    ctor public RoleControllerService();
-                    method public abstract void onClearRoleHolders();
-                  }
-                }
-                """
-        )
-    }
-
-    @Test
-    fun `Partial text file where type previously did not exist`() {
-        check(
-            expectedIssues = """
-                """,
-            sourceFiles =
-                arrayOf(
-                    java(
-                            """
-                    package test.pkg;
-                    import android.annotation.SystemApi;
-
-                    /**
-                     * @hide
-                     */
-                    @SystemApi
-                    public class SampleException1 extends java.lang.Exception {
-                    }
-                    """
-                        )
-                        .indented(),
-                    java(
-                            """
-                    package test.pkg;
-                    import android.annotation.SystemApi;
-
-                    /**
-                     * @hide
-                     */
-                    @SystemApi
-                    public class SampleException2 extends java.lang.Throwable {
-                    }
-                    """
-                        )
-                        .indented(),
-                    java(
-                        """
-                    package test.pkg;
-                    import android.annotation.SystemApi;
-
-                    /**
-                     * @hide
-                     */
-                    @SystemApi
-                    public class Utils {
-                        public void method1() throws SampleException1 { }
-                        public void method2() throws SampleException2 { }
-                    }
-                    """
-                    ),
-                    systemApiSource
-                ),
-            extraArguments =
-                arrayOf(
-                    ARG_SHOW_ANNOTATION,
-                    "android.annotation.SystemApi",
-                    ARG_HIDE_PACKAGE,
-                    "android.annotation",
-                ),
-            checkCompatibilityApiReleased =
-                """
-                package test.pkg {
-                  public class Utils {
-                    ctor public Utils();
-                    // We don't define SampleException1 or SampleException in this file,
-                    // in this partial signature, so we don't need to validate that they
-                    // have not been changed
-                    method public void method1() throws test.pkg.SampleException1;
-                    method public void method2() throws test.pkg.SampleException2;
-                  }
-                }
-                """
-        )
-    }
-
-    @Test
     fun `Regression test for bug 120847535`() {
         // Regression test for
         // 120847535: check-api doesn't fail on method that is in current.txt, but marked @hide
@@ -2414,7 +1983,7 @@ class CompatibilityCheckTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                released-api.txt:7: error: Removed method test.view.ViewTreeObserver.registerFrameCommitCallback(Runnable) [RemovedMethod]
+                released-api.txt:7: error: Binary breaking change: Removed method test.view.ViewTreeObserver.registerFrameCommitCallback(Runnable) [RemovedMethod]
                 """,
             sourceFiles =
                 arrayOf(
@@ -2442,7 +2011,7 @@ class CompatibilityCheckTest : DriverTest() {
                     """
                         )
                         .indented(),
-                    testApiSource
+                    testApiSource,
                 ),
             api =
                 """
@@ -2454,11 +2023,6 @@ class CompatibilityCheckTest : DriverTest() {
                   }
                 }
             """,
-            extraArguments =
-                arrayOf(
-                    ARG_HIDE_PACKAGE,
-                    "android.annotation",
-                ),
             checkCompatibilityApiReleased =
                 """
                 package test.view {
@@ -2480,12 +2044,12 @@ class CompatibilityCheckTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                src/test/pkg/Class1.java:3: error: Class test.pkg.Class1 added 'final' qualifier [AddedFinal]
-                released-api.txt:4: error: Removed constructor test.pkg.Class1() [RemovedMethod]
-                src/test/pkg/MyClass.java:5: error: Method test.pkg.MyClass.myMethod2 has changed 'abstract' qualifier [ChangedAbstract]
-                src/test/pkg/MyClass.java:6: error: Method test.pkg.MyClass.myMethod3 has changed 'static' qualifier [ChangedStatic]
-                released-api.txt:15: error: Removed class test.pkg.MyOldClass [RemovedClass]
-                released-api.txt:18: error: Removed package test.pkg3 [RemovedPackage]
+                released-api.txt:4: error: Binary breaking change: Removed constructor test.pkg.Class1() [RemovedMethod]
+                released-api.txt:15: error: Binary breaking change: Removed class test.pkg.MyOldClass [RemovedClass]
+                released-api.txt:18: error: Binary breaking change: Removed package test.pkg3 [RemovedPackage]
+                src/test/pkg/Class1.java:3: error: Binary breaking change: Class test.pkg.Class1 added 'final' qualifier [AddedFinal]
+                src/test/pkg/MyClass.java:5: error: Binary breaking change: Method test.pkg.MyClass.myMethod2 has changed 'abstract' qualifier [ChangedAbstract]
+                src/test/pkg/MyClass.java:6: error: Binary breaking change: Method test.pkg.MyClass.myMethod3 has changed 'static' qualifier [ChangedStatic]
                 """,
             checkCompatibilityApiReleased =
                 """
@@ -2570,9 +2134,9 @@ class CompatibilityCheckTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                released-api.txt:7: error: Removed deprecated class test.pkg.DeprecatedClass [RemovedDeprecatedClass]
-                released-api.txt:4: error: Removed deprecated constructor test.pkg.SomeClass() [RemovedDeprecatedMethod]
-                released-api.txt:5: error: Removed deprecated method test.pkg.SomeClass.deprecatedMethod() [RemovedDeprecatedMethod]
+                released-api.txt:4: error: Binary breaking change: Removed deprecated constructor test.pkg.SomeClass() [RemovedDeprecatedMethod]
+                released-api.txt:5: error: Binary breaking change: Removed deprecated method test.pkg.SomeClass.deprecatedMethod() [RemovedDeprecatedMethod]
+                released-api.txt:7: error: Binary breaking change: Removed deprecated class test.pkg.DeprecatedClass [RemovedDeprecatedClass]
                 """,
             checkCompatibilityApiReleased =
                 """
@@ -2602,93 +2166,17 @@ class CompatibilityCheckTest : DriverTest() {
         )
     }
 
-    @Test
-    fun `Test check release with base api`() {
-        check(
-            expectedIssues = "",
-            checkCompatibilityApiReleased =
-                """
-                package test.pkg {
-                  public class SomeClass {
-                      method public static void publicMethodA();
-                      method public static void publicMethodB();
-                  }
-                }
-                """,
-            sourceFiles =
-                arrayOf(
-                    java(
-                        """
-                    package test.pkg;
-
-                    public class SomeClass {
-                      public static void publicMethodA();
-                    }
-                    """
-                    )
-                ),
-            checkCompatibilityBaseApi =
-                """
-                package test.pkg {
-                  public class SomeClass {
-                      method public static void publicMethodB();
-                  }
-                }
-            """
-        )
-    }
-
-    @Test
-    fun `Test check a class moving from the released api to the base api`() {
-        check(
-            checkCompatibilityApiReleased =
-                """
-                package test.pkg {
-                  public class SomeClass1 {
-                    method public void method1();
-                  }
-                  public class SomeClass2 {
-                    method public void oldMethod();
-                  }
-                }
-                """,
-            checkCompatibilityBaseApi =
-                """
-                package test.pkg {
-                  public class SomeClass2 {
-                    method public void newMethod();
-                  }
-                }
-            """,
-            sourceFiles =
-                arrayOf(
-                    java(
-                        """
-                    package test.pkg;
-
-                    public class SomeClass1 {
-                        public void method1();
-                    }
-                    """
-                    )
-                ),
-            expectedIssues =
-                """
-            released-api.txt:7: error: Removed method test.pkg.SomeClass2.oldMethod() [RemovedMethod]
-            """
-                    .trimIndent()
-        )
-    }
-
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Implicit nullness`() {
         check(
             checkCompatibilityApiReleased =
                 """
-                // Signature format: 2.0
+                // Signature format: 5.0
                 package androidx.annotation {
                   @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.CLASS) @java.lang.annotation.Target({java.lang.annotation.ElementType.ANNOTATION_TYPE, java.lang.annotation.ElementType.TYPE, java.lang.annotation.ElementType.METHOD, java.lang.annotation.ElementType.CONSTRUCTOR, java.lang.annotation.ElementType.FIELD, java.lang.annotation.ElementType.PACKAGE}) public @interface RestrictTo {
-                    method public abstract androidx.annotation.RestrictTo.Scope[] value();
+                    method @InaccessibleFromKotlin public abstract androidx.annotation.RestrictTo.Scope[] value();
+                    property public abstract androidx.annotation.RestrictTo.Scope[] value;
                   }
 
                   public enum RestrictTo.Scope {
@@ -2701,7 +2189,9 @@ class CompatibilityCheckTest : DriverTest() {
                   }
                 }
                 """,
-            sourceFiles = arrayOf(restrictToSource)
+            sourceFiles = arrayOf(restrictToSource),
+            // Override default to emit androidx.annotation classes.
+            skipEmitPackages = emptyList(),
         )
     }
 
@@ -2766,7 +2256,7 @@ class CompatibilityCheckTest : DriverTest() {
         check(
             checkCompatibilityApiReleased =
                 """
-                // Signature format: 3.0
+                // Signature format: 4.0
                 package androidx.collection {
                   public class MyMap<Key, Value> {
                     ctor public MyMap();
@@ -2818,96 +2308,25 @@ class CompatibilityCheckTest : DriverTest() {
         )
     }
 
-    @Test
-    fun `Compare signatures with Kotlin nullability from signature`() {
-        check(
-            expectedIssues =
-                """
-            load-api.txt:5: error: Attempted to remove @NonNull annotation from parameter str in test.pkg.Foo.method1(int p, Integer int2, int p1, String str, java.lang.String... args) [InvalidNullConversion]
-            load-api.txt:7: error: Attempted to change parameter from @Nullable to @NonNull: incompatible change for parameter str in test.pkg.Foo.method3(String str, int p, int int2) [InvalidNullConversion]
-            """
-                    .trimIndent(),
-            format = FileFormat.V3,
-            checkCompatibilityApiReleased =
-                """
-                // Signature format: 3.0
-                package test.pkg {
-                  public final class Foo {
-                    ctor public Foo();
-                    method public void method1(int p = 42, Integer? int2 = null, int p1 = 42, String str = "hello world", java.lang.String... args);
-                    method public void method2(int p, int int2 = (2 * int) * some.other.pkg.Constants.Misc.SIZE);
-                    method public void method3(String? str, int p, int int2 = double(int) + str.length);
-                    field public static final test.pkg.Foo.Companion! Companion;
-                  }
-                }
-                """,
-            signatureSource =
-                """
-                // Signature format: 3.0
-                package test.pkg {
-                  public final class Foo {
-                    ctor public Foo();
-                    method public void method1(int p = 42, Integer? int2 = null, int p1 = 42, String! str = "hello world", java.lang.String... args);
-                    method public void method2(int p, int int2 = (2 * int) * some.other.pkg.Constants.Misc.SIZE);
-                    method public void method3(String str, int p, int int2 = double(int) + str.length);
-                    field public static final test.pkg.Foo.Companion! Companion;
-                  }
-                }
-                """
-        )
-    }
-
-    @Test
-    fun `Compare signatures with Kotlin nullability from source`() {
-        check(
-            expectedIssues =
-                """
-            src/test/pkg/test.kt:4: error: Attempted to change parameter from @Nullable to @NonNull: incompatible change for parameter str1 in test.pkg.TestKt.fun1(String str1, String str2, java.util.List<java.lang.String> list) [InvalidNullConversion]
-            """
-                    .trimIndent(),
-            format = FileFormat.V3,
-            checkCompatibilityApiReleased =
-                """
-                // Signature format: 3.0
-                package test.pkg {
-                  public final class TestKt {
-                    method public static void fun1(String? str1, String str2, java.util.List<java.lang.String!> list);
-                  }
-                }
-                """,
-            sourceFiles =
-                arrayOf(
-                    kotlin(
-                        """
-                        package test.pkg
-                        import java.util.List
-
-                        fun fun1(str1: String, str2: String?, list: List<String?>) { }
-
-                    """
-                            .trimIndent()
-                    )
-                )
-        )
-    }
-
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Adding and removing reified`() {
         check(
             expectedIssues =
                 """
-                src/test/pkg/test.kt:5: error: Method test.pkg.TestKt.add made type variable T reified: incompatible change [AddedReified]
-                src/test/pkg/test.kt:8: error: Method test.pkg.TestKt.two made type variable S reified: incompatible change [AddedReified]
+                released-api.txt:4: error: Binary breaking change: method test.pkg.TestKt.add(T) has been removed from bytecode [RemovedFromBytecode]
+                released-api.txt:4: error: Source breaking change: method test.pkg.TestKt.add(T) can no longer be resolved from Java source [RemovedFromJava]
+                src/test/pkg/test.kt:5: error: Binary breaking change: Method test.pkg.TestKt.add made type variable T reified: incompatible change [AddedReified]
                 """,
             checkCompatibilityApiReleased =
                 """
-                // Signature format: 3.0
+                // Signature format: 4.0
                 package test.pkg {
                   public final class TestKt {
-                    method public static inline <T> void add(T! t);
-                    method public static inline <reified T> void remove(T! t);
-                    method public static inline <reified T> void unchanged(T! t);
-                    method public static inline <S, reified T> void two(S! s, T! t);
+                    method public static inline <T> void add(T t);
+                    method @KotlinOnly public static inline <reified T> void remove(T t);
+                    method @KotlinOnly public static inline <reified T> void unchanged(T t);
+                    method @KotlinOnly public static inline <S, reified T> void two(S s, T t);
                   }
                 }
                 """,
@@ -2933,7 +2352,8 @@ class CompatibilityCheckTest : DriverTest() {
     @Test
     fun `Empty prev api with @hide and --show-annotation`() {
         check(
-            checkCompatibilityApiReleased = """
+            checkCompatibilityApiReleased =
+                """
                 """,
             sourceFiles =
                 arrayOf(
@@ -2965,14 +2385,12 @@ class CompatibilityCheckTest : DriverTest() {
                     }
                     """
                     ),
-                    systemApiSource
+                    systemApiSource,
                 ),
             extraArguments =
                 arrayOf(
                     ARG_SHOW_ANNOTATION,
                     "android.annotation.SystemApi",
-                    ARG_HIDE_PACKAGE,
-                    "android.annotation",
                 ),
             expectedIssues = ""
         )
@@ -3000,9 +2418,9 @@ class CompatibilityCheckTest : DriverTest() {
                      */
                     @android.annotation.SystemApi
                     public class MmTelFeature {
-                        public static class Capabilities extends ParentCapabilities {
+                        public static class Capabilities extends Parent.ParentCapabilities {
                             @Override
-                            boolean isCapable(int argument) { return true; }
+                            public boolean isCapable(int argument) { return true; }
                         }
                     }
                     """
@@ -3022,14 +2440,12 @@ class CompatibilityCheckTest : DriverTest() {
                     }
                     """
                     ),
-                    systemApiSource
+                    systemApiSource,
                 ),
             extraArguments =
                 arrayOf(
                     ARG_SHOW_ANNOTATION,
                     "android.annotation.SystemApi",
-                    ARG_HIDE_PACKAGE,
-                    "android.annotation",
                 ),
             expectedIssues = ""
         )
@@ -3137,7 +2553,8 @@ class CompatibilityCheckTest : DriverTest() {
                     @libcore.util.Nullable public test.pkg.String getMessage() { throw new RuntimeException("Stub!"); }
                 }
             """,
-            expectedIssues = """
+            expectedIssues =
+                """
                 """
         )
     }
@@ -3179,7 +2596,8 @@ class CompatibilityCheckTest : DriverTest() {
                     """
                     )
                 ),
-            expectedIssues = """
+            expectedIssues =
+                """
                 """
         )
     }
@@ -3225,7 +2643,8 @@ class CompatibilityCheckTest : DriverTest() {
                     """
                     )
                 ),
-            expectedIssues = """
+            expectedIssues =
+                """
                 """
         )
     }
@@ -3256,7 +2675,7 @@ class CompatibilityCheckTest : DriverTest() {
 
                     public class LightsRequest {
                         public static final class Builder {
-                            void clearLight() { }
+                            public void clearLight() { }
                         }
                     }
                     """
@@ -3275,18 +2694,16 @@ class CompatibilityCheckTest : DriverTest() {
                     }
                     """
                     ),
-                    systemApiSource
+                    systemApiSource,
                 ),
             extraArguments =
                 arrayOf(
                     ARG_SHOW_ANNOTATION,
                     "android.annotation.SystemApi",
-                    ARG_HIDE_PACKAGE,
-                    "android.annotation",
                 ),
             expectedIssues =
                 """
-                released-api.txt:6: error: Removed method android.hardware.lights.LightsRequest.Builder.setLight() [RemovedMethod]
+                released-api.txt:6: error: Binary breaking change: Removed method android.hardware.lights.LightsRequest.Builder.setLight() [RemovedMethod]
                 """
         )
     }
@@ -3325,10 +2742,9 @@ class CompatibilityCheckTest : DriverTest() {
             showAnnotations = arrayOf(ANDROID_SYSTEM_API),
             expectedIssues =
                 """
-                src/android/foobar/Foo.java:8: error: Class android.foobar.Foo.Nested added 'final' qualifier [AddedFinal]
-                src/android/foobar/Foo.java:8: error: Constructor android.foobar.Foo.Nested has added 'final' qualifier [AddedFinal]
-                src/android/foobar/Foo.java:9: error: Method android.foobar.Foo.Nested.existing has changed return type from void to int [ChangedType]
-                src/android/foobar/Foo.java:9: error: Method android.foobar.Foo.Nested.existing has added 'final' qualifier [AddedFinal]
+                src/android/foobar/Foo.java:8: error: Binary breaking change: Class android.foobar.Foo.Nested added 'final' qualifier [AddedFinal]
+                src/android/foobar/Foo.java:9: error: Binary breaking change: Method android.foobar.Foo.Nested.existing has added 'final' qualifier [AddedFinal]
+                src/android/foobar/Foo.java:9: error: Binary breaking change: Method android.foobar.Foo.Nested.existing has changed return type from void to int [ChangedType]
                 """
         )
     }
@@ -3341,7 +2757,7 @@ class CompatibilityCheckTest : DriverTest() {
                 package android.content {
                   public class Context {
                     field public static final String BUGREPORT_SERVICE = "bugreport";
-                    method public File getPreloadsFileCache();
+                    method public java.io.File getPreloadsFileCache();
                   }
                 }
                 """,
@@ -3352,6 +2768,7 @@ class CompatibilityCheckTest : DriverTest() {
                     package android.content;
 
                     import android.annotation.SystemApi;
+                    import java.io.File;
 
                     public class Context {
                         public static final String BUGREPORT_SERVICE = "bugreport";
@@ -3364,16 +2781,15 @@ class CompatibilityCheckTest : DriverTest() {
                     }
                     """
                     ),
-                    systemApiSource
+                    systemApiSource,
                 ),
             extraArguments =
                 arrayOf(
                     ARG_SHOW_ANNOTATION,
                     "android.annotation.SystemApi",
-                    ARG_HIDE_PACKAGE,
-                    "android.annotation",
                 ),
-            expectedIssues = """
+            expectedIssues =
+                """
                 """
         )
     }
@@ -3408,7 +2824,7 @@ class CompatibilityCheckTest : DriverTest() {
             // saying that SomeInterface no longer implements wait()
             expectedIssues =
                 """
-                released-api.txt:2: error: Removed package java.lang [RemovedPackage]
+                released-api.txt:2: error: Binary breaking change: Removed package java.lang [RemovedPackage]
                 """
         )
     }
@@ -3441,13 +2857,14 @@ class CompatibilityCheckTest : DriverTest() {
                     java(
                         """
                     package test.pkg;
-
+                    import androidx.annotation.Nullable;
                     public class Parent {
                         public void sample(@Nullable String arg) {
                         }
                     }
                     """
-                    )
+                    ),
+                    KnownSourceFiles.androidxNullableJavaSource
                 ),
             // The correct behavior would be for this test to fail, because of the removal of
             // nullability annotations on the child class. However, when we generate signature
@@ -3585,7 +3002,8 @@ class CompatibilityCheckTest : DriverTest() {
     @Test
     fun `Ignore hidden references`() {
         check(
-            expectedIssues = """
+            expectedIssues =
+                """
                 """,
             checkCompatibilityApiReleased =
                 """
@@ -3637,7 +3055,7 @@ class CompatibilityCheckTest : DriverTest() {
             expectedIssues = "",
             checkCompatibilityApiReleased =
                 """
-                // Signature format: 3.0
+                // Signature format: 4.0
                 package com.android.location.provider {
                   public class LocationProviderBase1 {
                     ctor public LocationProviderBase1();
@@ -3700,7 +3118,7 @@ class CompatibilityCheckTest : DriverTest() {
             expectedIssues = "",
             checkCompatibilityApiReleased =
                 """
-                // Signature format: 3.0
+                // Signature format: 4.0
                 package androidx.coordinatorlayout.widget {
                   public class CoordinatorLayout {
                     ctor public CoordinatorLayout();
@@ -3726,9 +3144,8 @@ class CompatibilityCheckTest : DriverTest() {
                     }
                     """
                     ),
-                    androidxNonNullSource
+                    KnownSourceFiles.androidxNonNullJavaSource,
                 ),
-            extraArguments = arrayOf(ARG_HIDE_PACKAGE, "androidx.annotation")
         )
     }
 
@@ -3738,11 +3155,11 @@ class CompatibilityCheckTest : DriverTest() {
         check(
             expectedIssues =
                 """
-            load-api.txt:7: error: Method test.pkg.sample.SampleClass.convert1 has changed return type from Number (extends java.lang.Object) to java.lang.Number [ChangedType]
-            """,
+                load-api.txt:7: error: Binary breaking change: Method test.pkg.sample.SampleClass.convert1 has changed return type from Number (extends java.lang.Object) to java.lang.Number [ChangedType]
+                """,
             checkCompatibilityApiReleased =
                 """
-                // Signature format: 3.0
+                // Signature format: 4.0
                 package test.pkg.sample {
                   public abstract class SampleClass {
                     method public <Number> Number! convert(Number);
@@ -3752,7 +3169,7 @@ class CompatibilityCheckTest : DriverTest() {
                 """,
             signatureSource =
                 """
-                // Signature format: 3.0
+                // Signature format: 4.0
                 package test.pkg.sample {
                   public abstract class SampleClass {
                     // Here the generic type parameter applies to both the function argument and the function return type
@@ -3769,11 +3186,12 @@ class CompatibilityCheckTest : DriverTest() {
     fun `Check generic type argument when showUnannotated is explicitly enabled`() {
         // Regression test for 130567941
         check(
-            expectedIssues = """
+            expectedIssues =
+                """
             """,
             checkCompatibilityApiReleased =
                 """
-                // Signature format: 3.0
+                // Signature format: 4.0
                 package androidx.versionedparcelable {
                   public abstract class VersionedParcel {
                     method public <T> T![]! readArray();
@@ -3802,7 +3220,7 @@ class CompatibilityCheckTest : DriverTest() {
     @Test
     fun `Check using parameterized arrays as type parameters`() {
         check(
-            format = FileFormat.V3,
+            format = FileFormat.V4,
             sourceFiles =
                 arrayOf(
                     java(
@@ -3821,7 +3239,7 @@ class CompatibilityCheckTest : DriverTest() {
                 ),
             checkCompatibilityApiReleased =
                 """
-                // Signature format: 3.0
+                // Signature format: 4.0
                 package test.pkg {
                   public class SampleArray<D extends java.util.ArrayList> extends java.util.ArrayList<D[]> {
                     ctor public SampleArray();
@@ -3838,13 +3256,13 @@ class CompatibilityCheckTest : DriverTest() {
         check(
             expectedIssues =
                 """
-            src/androidx/room/Relation.java:5: error: Added method androidx.room.Relation.IHaveNoDefault() [AddedAbstractMethod]
-            """,
+                src/androidx/room/Relation.java:5: error: Binary breaking change: Added method androidx.room.Relation.IHaveNoDefault() [AddedAbstractMethod]
+                """,
             checkCompatibilityApiReleased =
                 """
-                // Signature format: 3.0
+                // Signature format: 4.0
                 package androidx.room {
-                  public @interface Relation {
+                  @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.CLASS) public @interface Relation {
                   }
                 }
                 """,
@@ -3869,9 +3287,9 @@ class CompatibilityCheckTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                load-api.txt:12: error: Class test.pkg.ParentClass.AnotherBadInnerClass changed 'static' qualifier [ChangedStatic]
-                load-api.txt:9: error: Class test.pkg.ParentClass.BadInnerClass changed 'static' qualifier [ChangedStatic]
-            """,
+                load-api.txt:9: error: Binary breaking change: Class test.pkg.ParentClass.BadInnerClass changed 'static' qualifier [ChangedStatic]
+                load-api.txt:12: error: Binary breaking change: Class test.pkg.ParentClass.AnotherBadInnerClass changed 'static' qualifier [ChangedStatic]
+                """,
             checkCompatibilityApiReleased =
                 """
                 package test.pkg {
@@ -3909,12 +3327,13 @@ class CompatibilityCheckTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Remove fun modifier from interface`() {
         check(
             expectedIssues =
                 """
-                src/test/pkg/FunctionalInterface.kt:3: error: Cannot remove 'fun' modifier from class test.pkg.FunctionalInterface: source incompatible change [FunRemoval]
+                src/test/pkg/FunctionalInterface.kt:3: error: Source breaking change: Cannot remove 'fun' modifier from class test.pkg.FunctionalInterface: source incompatible change [FunRemoval]
                 """,
             format = FileFormat.V4,
             checkCompatibilityApiReleased =
@@ -3946,7 +3365,7 @@ class CompatibilityCheckTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                load-api.txt:3: error: Cannot remove 'fun' modifier from class test.pkg.FunctionalInterface: source incompatible change [FunRemoval]
+                load-api.txt:3: error: Source breaking change: Cannot remove 'fun' modifier from class test.pkg.FunctionalInterface: source incompatible change [FunRemoval]
                 """,
             format = FileFormat.V4,
             checkCompatibilityApiReleased =
@@ -3980,8 +3399,8 @@ class CompatibilityCheckTest : DriverTest() {
                 """
                 // Signature format: 4.0
                 package androidx.annotation.experimental {
-                  public @interface UseExperimental {
-                    method public abstract Class<?> markerClass();
+                  @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.CLASS) public @interface UseExperimental {
+                    method public abstract Class<? extends java.lang.Object!> markerClass();
                   }
                 }
                 """,
@@ -3999,18 +3418,19 @@ class CompatibilityCheckTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `adding methods to interfaces`() {
         check(
             expectedIssues =
                 """
-                src/test/pkg/JavaInterface.java:4: error: Added method test.pkg.JavaInterface.noDefault() [AddedAbstractMethod]
-                src/test/pkg/KotlinInterface.kt:5: error: Added method test.pkg.KotlinInterface.hasDefault() [AddedAbstractMethod]
-                src/test/pkg/KotlinInterface.kt:4: error: Added method test.pkg.KotlinInterface.noDefault() [AddedAbstractMethod]
-            """,
+                src/test/pkg/JavaInterface.java:4: error: Binary breaking change: Added method test.pkg.JavaInterface.noDefault() [AddedAbstractMethod]
+                src/test/pkg/KotlinInterface.kt:4: error: Binary breaking change: Added method test.pkg.KotlinInterface.noDefault() [AddedAbstractMethod]
+                src/test/pkg/KotlinInterface.kt:5: error: Binary breaking change: Added method test.pkg.KotlinInterface.hasDefault() [AddedAbstractMethod]
+                """,
             checkCompatibilityApiReleased =
                 """
-                // Signature format: 3.0
+                // Signature format: 4.0
                 package test.pkg {
                   public interface JavaInterface {
                   }
@@ -4052,9 +3472,8 @@ class CompatibilityCheckTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                load-api.txt:3: error: Class test.pkg.Foo changed visibility from public to private [ChangedScope]
-            """
-                    .trimIndent(),
+                load-api.txt:3: error: Binary breaking change: Class test.pkg.Foo changed visibility from public to private [ChangedScope]
+                """,
             signatureSource =
                 """
                 package test.pkg {
@@ -4078,20 +3497,19 @@ class CompatibilityCheckTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                load-api.txt:12: error: Class test.pkg.AnnotationToClass changed class/interface declaration [ChangedClass]
-                load-api.txt:14: error: Class test.pkg.AnnotationToEnum changed class/interface declaration [ChangedClass]
-                load-api.txt:13: error: Class test.pkg.AnnotationToInterface changed class/interface declaration [ChangedClass]
-                load-api.txt:5: error: Class test.pkg.ClassToAnnotation changed class/interface declaration [ChangedClass]
-                load-api.txt:3: error: Class test.pkg.ClassToEnum changed class/interface declaration [ChangedClass]
-                load-api.txt:4: error: Class test.pkg.ClassToInterface changed class/interface declaration [ChangedClass]
-                load-api.txt:8: error: Class test.pkg.EnumToAnnotation changed class/interface declaration [ChangedClass]
-                load-api.txt:6: error: Class test.pkg.EnumToClass changed class/interface declaration [ChangedClass]
-                load-api.txt:7: error: Class test.pkg.EnumToInterface changed class/interface declaration [ChangedClass]
-                load-api.txt:11: error: Class test.pkg.InterfaceToAnnotation changed class/interface declaration [ChangedClass]
-                load-api.txt:9: error: Class test.pkg.InterfaceToClass changed class/interface declaration [ChangedClass]
-                load-api.txt:10: error: Class test.pkg.InterfaceToEnum changed class/interface declaration [ChangedClass]
-            """
-                    .trimIndent(),
+                load-api.txt:3: error: Binary breaking change: test.pkg.ClassToEnum changed from class to enum class [ChangedClass]
+                load-api.txt:4: error: Binary breaking change: test.pkg.ClassToInterface changed from class to interface [ChangedClass]
+                load-api.txt:5: error: Binary breaking change: test.pkg.ClassToAnnotation changed from class to annotation class [ChangedClass]
+                load-api.txt:6: error: Binary breaking change: test.pkg.EnumToClass changed from enum class to class [ChangedClass]
+                load-api.txt:7: error: Binary breaking change: test.pkg.EnumToInterface changed from enum class to interface [ChangedClass]
+                load-api.txt:8: error: Binary breaking change: test.pkg.EnumToAnnotation changed from enum class to annotation class [ChangedClass]
+                load-api.txt:9: error: Binary breaking change: test.pkg.InterfaceToClass changed from interface to class [ChangedClass]
+                load-api.txt:10: error: Binary breaking change: test.pkg.InterfaceToEnum changed from interface to enum class [ChangedClass]
+                load-api.txt:11: error: Binary breaking change: test.pkg.InterfaceToAnnotation changed from interface to annotation class [ChangedClass]
+                load-api.txt:12: error: Binary breaking change: test.pkg.AnnotationToClass changed from annotation class to class [ChangedClass]
+                load-api.txt:13: error: Binary breaking change: test.pkg.AnnotationToInterface changed from annotation class to interface [ChangedClass]
+                load-api.txt:14: error: Binary breaking change: test.pkg.AnnotationToEnum changed from annotation class to enum class [ChangedClass]
+                """,
             signatureSource =
                 """
                 package test.pkg {
@@ -4138,7 +3556,7 @@ class CompatibilityCheckTest : DriverTest() {
             signatureSource =
                 """
                 package test.pkg {
-                  class Foo {
+                  public class Foo {
                     field public int bar;
                     field protected int baz;
                     field protected int spam;
@@ -4148,7 +3566,7 @@ class CompatibilityCheckTest : DriverTest() {
             checkCompatibilityApiReleased =
                 """
                 package test.pkg {
-                  class Foo {
+                  public class Foo {
                     field protected int bar;
                     field private int baz;
                     field internal int spam;
@@ -4163,14 +3581,14 @@ class CompatibilityCheckTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                load-api.txt:4: error: Field test.pkg.Foo.bar changed visibility from public to protected [ChangedScope]
-                load-api.txt:5: error: Field test.pkg.Foo.baz changed visibility from protected to private [ChangedScope]
-                load-api.txt:6: error: Field test.pkg.Foo.spam changed visibility from protected to internal [ChangedScope]
-            """,
+                load-api.txt:4: error: Binary breaking change: Field test.pkg.Foo.bar changed visibility from public to protected [ChangedScope]
+                load-api.txt:5: error: Binary breaking change: Field test.pkg.Foo.baz changed visibility from protected to private [ChangedScope]
+                load-api.txt:6: error: Binary breaking change: Field test.pkg.Foo.spam changed visibility from protected to internal [ChangedScope]
+                """,
             signatureSource =
                 """
                 package test.pkg {
-                  class Foo {
+                  public class Foo {
                     field protected int bar;
                     field private int baz;
                     field internal int spam;
@@ -4180,7 +3598,7 @@ class CompatibilityCheckTest : DriverTest() {
             checkCompatibilityApiReleased =
                 """
                 package test.pkg {
-                  class Foo {
+                  public class Foo {
                     field public int bar;
                     field protected int baz;
                     field protected int spam;
@@ -4196,7 +3614,7 @@ class CompatibilityCheckTest : DriverTest() {
             signatureSource =
                 """
                 package test.pkg {
-                  class Foo {
+                  public class Foo {
                     method public void bar();
                     method protected void baz();
                     method protected void spam();
@@ -4207,7 +3625,7 @@ class CompatibilityCheckTest : DriverTest() {
             checkCompatibilityApiReleased =
                 """
                 package test.pkg {
-                  class Foo {
+                  public class Foo {
                     method protected void bar();
                     method private void baz();
                     method internal void spam();
@@ -4222,14 +3640,14 @@ class CompatibilityCheckTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                load-api.txt:4: error: Method test.pkg.Foo.bar changed visibility from public to protected [ChangedScope]
-                load-api.txt:5: error: Method test.pkg.Foo.baz changed visibility from protected to private [ChangedScope]
-                load-api.txt:6: error: Method test.pkg.Foo.spam changed visibility from protected to internal [ChangedScope]
-            """,
+                load-api.txt:4: error: Binary breaking change: Method test.pkg.Foo.bar changed visibility from public to protected [ChangedScope]
+                load-api.txt:5: error: Binary breaking change: Method test.pkg.Foo.baz changed visibility from protected to private [ChangedScope]
+                load-api.txt:6: error: Binary breaking change: Method test.pkg.Foo.spam changed visibility from protected to internal [ChangedScope]
+                """,
             signatureSource =
                 """
                 package test.pkg {
-                  class Foo {
+                  public class Foo {
                     method protected void bar();
                     method private void baz();
                     method internal void spam();
@@ -4240,7 +3658,7 @@ class CompatibilityCheckTest : DriverTest() {
             checkCompatibilityApiReleased =
                 """
                 package test.pkg {
-                  class Foo {
+                  public class Foo {
                     method public void bar();
                     method protected void baz();
                     method protected void spam();
@@ -4278,9 +3696,9 @@ class CompatibilityCheckTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                load-api.txt:3: error: Class test.pkg.Foo changed 'abstract' qualifier [ChangedAbstract]
-                load-api.txt:5: error: Method test.pkg.Foo.bar has changed 'abstract' qualifier [ChangedAbstract]
-            """,
+                load-api.txt:3: error: Binary breaking change: Class test.pkg.Foo changed 'abstract' qualifier [ChangedAbstract]
+                load-api.txt:5: error: Binary breaking change: Method test.pkg.Foo.bar has changed 'abstract' qualifier [ChangedAbstract]
+                """,
             signatureSource =
                 """
                 package test.pkg {
@@ -4331,21 +3749,21 @@ class CompatibilityCheckTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                load-api.txt:4: error: Method test.pkg.Foo.bar has changed 'default' qualifier [ChangedDefault]
-            """,
+                load-api.txt:4: error: Binary breaking change: Method test.pkg.Foo.bar has changed 'default' qualifier [ChangedDefault]
+                """,
             signatureSource =
                 """
                 package test.pkg {
-                  interface Foo {
-                    method abstract public void bar(Int);
+                  public interface Foo {
+                    method abstract public void bar(int);
                   }
                 }
             """,
             checkCompatibilityApiReleased =
                 """
                 package test.pkg {
-                  interface Foo {
-                    method default public void bar(Int);
+                  public interface Foo {
+                    method default public void bar(int);
                     }
                   }
               """
@@ -4359,7 +3777,7 @@ class CompatibilityCheckTest : DriverTest() {
                 """
                 package test.pkg {
                   sealed class Foo {
-                    method final public void bar(Int);
+                    method final public void bar(int);
                   }
                 }
             """,
@@ -4368,7 +3786,7 @@ class CompatibilityCheckTest : DriverTest() {
                 """
                 package test.pkg {
                   sealed class Foo {
-                    method public void bar(Int);
+                    method public void bar(int);
                   }
                 }
             """
@@ -4380,9 +3798,10 @@ class CompatibilityCheckTest : DriverTest() {
         check(
             checkCompatibilityApiReleased =
                 """
+                // Signature format: 5.0
                 package test.pkg {
                     public abstract class Foo<T extends test.pkg.Foo<T>> {
-                            method public static <T extends test.pkg.Foo<T>> T valueOf(Class<T>, String);
+                            method public static <T extends test.pkg.Foo<T>> T valueOf(Class<T!>, String);
                     }
                 }
             """,
@@ -4591,7 +4010,6 @@ class CompatibilityCheckTest : DriverTest() {
     fun `Conversion from AutoCloseable to Closeable is not API-breaking`() {
         // Closeable implements AutoCloseable
         check(
-            apiClassResolution = ApiClassResolution.API_CLASSPATH,
             expectedIssues = "",
             checkCompatibilityApiReleased =
                 """
@@ -4620,9 +4038,8 @@ class CompatibilityCheckTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                load-api.txt:3: error: Class test.pkg.Foo no longer implements java.io.Closeable [RemovedInterface]
-            """
-                    .trimIndent(),
+                load-api.txt:3: error: Binary breaking change: Class test.pkg.Foo no longer implements java.io.Closeable [RemovedInterface]
+                """,
             checkCompatibilityApiReleased =
                 """
                 // Signature format: 4.0
@@ -4647,7 +4064,6 @@ class CompatibilityCheckTest : DriverTest() {
     @Test
     fun `Conversion from MutableCollection to AbstractMutableCollection is not API-breaking`() {
         check(
-            apiClassResolution = ApiClassResolution.API_CLASSPATH,
             expectedIssues = "",
             checkCompatibilityApiReleased =
                 """
@@ -4655,19 +4071,19 @@ class CompatibilityCheckTest : DriverTest() {
                 package test.pkg {
                   public class MyCollection<E> implements java.util.Collection<E> {
                     ctor public MyCollection();
-                    method public boolean add(E! e);
-                    method public boolean addAll(java.util.Collection<? extends E> c);
+                    method public boolean add(E!);
+                    method public boolean addAll(java.util.Collection<? extends E>);
                     method public void clear();
-                    method public boolean contains(Object! o);
-                    method public boolean containsAll(java.util.Collection<?> c);
+                    method public boolean contains(Object!);
+                    method public boolean containsAll(java.util.Collection<?>);
                     method public boolean isEmpty();
                     method public java.util.Iterator<E> iterator();
-                    method public boolean remove(Object! o);
-                    method public boolean removeAll(java.util.Collection<?> c);
-                    method public boolean retainAll(java.util.Collection<?> c);
+                    method public boolean remove(Object!);
+                    method public boolean removeAll(java.util.Collection<?>);
+                    method public boolean retainAll(java.util.Collection<?>);
                     method public int size();
                     method public Object![] toArray();
-                    method public <T> T![] toArray(T[] a);
+                    method public <T> T![] toArray(T[]);
                   }
                 }
             """,
@@ -4688,33 +4104,32 @@ class CompatibilityCheckTest : DriverTest() {
     @Test
     fun `Expected API changes converting collections to Kotlin`() {
         check(
-            apiClassResolution = ApiClassResolution.API_CLASSPATH,
             // The parameter names are different between java.util.Collection and
             // kotlin.collections.Collection
             // Methods not defined in kotlin.collections.Collection appear abstract as they are not
             // listed in the API file
             expectedIssues =
                 """
-                error: Method test.pkg.MyCollection.add has changed 'abstract' qualifier [ChangedAbstract]
-                error: Attempted to change parameter name from e to p in method test.pkg.MyCollection.add [ParameterNameChange]
-                error: Method test.pkg.MyCollection.addAll has changed 'abstract' qualifier [ChangedAbstract]
-                error: Attempted to change parameter name from c to p in method test.pkg.MyCollection.addAll [ParameterNameChange]
-                error: Method test.pkg.MyCollection.clear has changed 'abstract' qualifier [ChangedAbstract]
-                load-api.txt:5: error: Attempted to change parameter name from o to element in method test.pkg.MyCollection.contains [ParameterNameChange]
-                load-api.txt:5: error: Attempted to change parameter name from o to element in method test.pkg.MyCollection.contains [ParameterNameChange]
-                load-api.txt:6: error: Attempted to change parameter name from c to elements in method test.pkg.MyCollection.containsAll [ParameterNameChange]
-                load-api.txt:6: error: Attempted to change parameter name from c to elements in method test.pkg.MyCollection.containsAll [ParameterNameChange]
-                error: Method test.pkg.MyCollection.remove has changed 'abstract' qualifier [ChangedAbstract]
-                error: Attempted to change parameter name from o to p in method test.pkg.MyCollection.remove [ParameterNameChange]
-                error: Method test.pkg.MyCollection.removeAll has changed 'abstract' qualifier [ChangedAbstract]
-                error: Attempted to change parameter name from c to p in method test.pkg.MyCollection.removeAll [ParameterNameChange]
-                error: Method test.pkg.MyCollection.retainAll has changed 'abstract' qualifier [ChangedAbstract]
-                error: Attempted to change parameter name from c to p in method test.pkg.MyCollection.retainAll [ParameterNameChange]
-                error: Method test.pkg.MyCollection.size has changed 'abstract' qualifier [ChangedAbstract]
-                error: Method test.pkg.MyCollection.toArray has changed 'abstract' qualifier [ChangedAbstract]
-                error: Method test.pkg.MyCollection.toArray has changed 'abstract' qualifier [ChangedAbstract]
-                error: Attempted to change parameter name from a to p in method test.pkg.MyCollection.toArray [ParameterNameChange]
-            """,
+                error: Binary breaking change: Method test.pkg.MyCollection.add has changed 'abstract' qualifier [ChangedAbstract]
+                error: Binary breaking change: Method test.pkg.MyCollection.addAll has changed 'abstract' qualifier [ChangedAbstract]
+                error: Binary breaking change: Method test.pkg.MyCollection.clear has changed 'abstract' qualifier [ChangedAbstract]
+                error: Binary breaking change: Method test.pkg.MyCollection.remove has changed 'abstract' qualifier [ChangedAbstract]
+                error: Binary breaking change: Method test.pkg.MyCollection.removeAll has changed 'abstract' qualifier [ChangedAbstract]
+                error: Binary breaking change: Method test.pkg.MyCollection.retainAll has changed 'abstract' qualifier [ChangedAbstract]
+                error: Binary breaking change: Method test.pkg.MyCollection.size has changed 'abstract' qualifier [ChangedAbstract]
+                error: Binary breaking change: Method test.pkg.MyCollection.toArray has changed 'abstract' qualifier [ChangedAbstract]
+                error: Binary breaking change: Method test.pkg.MyCollection.toArray has changed 'abstract' qualifier [ChangedAbstract]
+                error: Source breaking change: Attempted to remove parameter name from parameter p in test.pkg.MyCollection.add(E p) [ParameterNameChange]
+                error: Source breaking change: Attempted to remove parameter name from parameter p in test.pkg.MyCollection.addAll(java.util.Collection<? extends E> p) [ParameterNameChange]
+                error: Source breaking change: Attempted to remove parameter name from parameter p in test.pkg.MyCollection.remove(Object p) [ParameterNameChange]
+                error: Source breaking change: Attempted to remove parameter name from parameter p in test.pkg.MyCollection.removeAll(java.util.Collection<?> p) [ParameterNameChange]
+                error: Source breaking change: Attempted to remove parameter name from parameter p in test.pkg.MyCollection.retainAll(java.util.Collection<?> p) [ParameterNameChange]
+                error: Source breaking change: Attempted to remove parameter name from parameter p in test.pkg.MyCollection.toArray(T[] p) [ParameterNameChange]
+                load-api.txt:5: error: Source breaking change: Attempted to change parameter name from o to element in method test.pkg.MyCollection.contains [ParameterNameChange]
+                load-api.txt:5: error: Source breaking change: Attempted to change parameter name from o to element in method test.pkg.MyCollection.contains [ParameterNameChange]
+                load-api.txt:6: error: Source breaking change: Attempted to change parameter name from c to elements in method test.pkg.MyCollection.containsAll [ParameterNameChange]
+                load-api.txt:6: error: Source breaking change: Attempted to change parameter name from c to elements in method test.pkg.MyCollection.containsAll [ParameterNameChange]
+                """,
             checkCompatibilityApiReleased =
                 """
                 // Signature format: 4.0
@@ -4756,40 +4171,8 @@ class CompatibilityCheckTest : DriverTest() {
     }
 
     @Test
-    fun `Flag renaming a parameter from the classpath`() {
-        check(
-            apiClassResolution = ApiClassResolution.API_CLASSPATH,
-            expectedIssues =
-                """
-                error: Attempted to change parameter name from prefix to suffix in method test.pkg.MyString.endsWith [ParameterNameChange]
-                load-api.txt:4: error: Attempted to change parameter name from prefix to suffix in method test.pkg.MyString.startsWith [ParameterNameChange]
-            """
-                    .trimIndent(),
-            checkCompatibilityApiReleased =
-                """
-                // Signature format: 4.0
-                package test.pkg {
-                    public class MyString extends java.lang.String {
-                        method public boolean endsWith(String prefix);
-                    }
-                }
-            """,
-            signatureSource =
-                """
-                // Signature format: 4.0
-                package test.pkg {
-                    public class MyString extends java.lang.String {
-                        method public boolean startsWith(String suffix);
-                    }
-                }
-            """
-        )
-    }
-
-    @Test
     fun `No issues using the same classpath class twice`() {
         check(
-            apiClassResolution = ApiClassResolution.API_CLASSPATH,
             expectedIssues = "",
             checkCompatibilityApiReleased =
                 """
@@ -4891,7 +4274,7 @@ class CompatibilityCheckTest : DriverTest() {
     fun `Removing @JvmDefaultWithCompatibility is an incompatible change`() {
         check(
             expectedIssues =
-                "load-api.txt:3: error: Cannot remove @kotlin.jvm.JvmDefaultWithCompatibility annotation from class test.pkg.AnnotationRemoved: Incompatible change [RemovedJvmDefaultWithCompatibility]",
+                "load-api.txt:3: error: Binary breaking change: Cannot remove @kotlin.jvm.JvmDefaultWithCompatibility annotation from class test.pkg.AnnotationRemoved: Incompatible change [RemovedJvmDefaultWithCompatibility]",
             checkCompatibilityApiReleased =
                 """
                 // Signature format: 4.0
@@ -4919,11 +4302,12 @@ class CompatibilityCheckTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `@JvmDefaultWithCompatibility check works with source files`() {
         check(
             expectedIssues =
-                "src/test/pkg/AnnotationRemoved.kt:3: error: Cannot remove @kotlin.jvm.JvmDefaultWithCompatibility annotation from class test.pkg.AnnotationRemoved: Incompatible change [RemovedJvmDefaultWithCompatibility]",
+                "src/test/pkg/AnnotationRemoved.kt:3: error: Binary breaking change: Cannot remove @kotlin.jvm.JvmDefaultWithCompatibility annotation from class test.pkg.AnnotationRemoved: Incompatible change [RemovedJvmDefaultWithCompatibility]",
             checkCompatibilityApiReleased =
                 """
                 // Signature format: 4.0
@@ -4991,9 +4375,9 @@ class CompatibilityCheckTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                src/test/pkg/Foo.java:4: error: Method test.pkg.Foo.getAnnotation has changed return type from A (extends java.lang.annotation.Annotation) to A (extends java.lang.String) [ChangedType]
-                src/test/pkg/Foo.java:5: error: Method test.pkg.Foo.getAnnotationArray has changed return type from A (extends java.lang.annotation.Annotation)[] to A (extends java.lang.String)[] [ChangedType]
-            """,
+                src/test/pkg/Foo.java:4: error: Binary breaking change: Method test.pkg.Foo.getAnnotation has changed return type from A (extends java.lang.annotation.Annotation) to A (extends java.lang.String) [ChangedType]
+                src/test/pkg/Foo.java:5: error: Binary breaking change: Method test.pkg.Foo.getAnnotationArray has changed return type from A (extends java.lang.annotation.Annotation)[] to A (extends java.lang.String)[] [ChangedType]
+                """,
             checkCompatibilityApiReleased =
                 """
                 // Signature format: 2.0
@@ -5017,6 +4401,253 @@ class CompatibilityCheckTest : DriverTest() {
                     """
                     )
                 ),
+        )
+    }
+
+    @Test
+    fun `Check compatibility against overridden method with type variable substitution`() {
+        check(
+            // The remove method isn't listed in this file, but it exists on Properties with return
+            // type `java.lang.Object`.
+            checkCompatibilityApiReleased =
+                """
+                    package test.pkg {
+                      public class Properties extends test.pkg.Hashtable<java.lang.Object,java.lang.Object> {
+                      }
+
+                      public class Hashtable<K, V> {
+                        method public V remove(Object);
+                      }
+                    }
+                """,
+            signatureSource =
+                """
+                    package test.pkg {
+                      public class Properties extends test.pkg.Hashtable<java.lang.Object,java.lang.Object> {
+                        method public Object remove(Object);
+                      }
+
+                      public class Hashtable<K, V> extends java.util.Dictionary<K,V> implements java.lang.Cloneable java.util.Map<K,V> java.io.Serializable {
+                        method public V remove(Object);
+                      }
+                    }
+                """,
+        )
+    }
+
+    @RequiresCapabilities(Capability.KOTLIN)
+    @Test
+    fun `Test adding method with same name as method with type parameter`() {
+        check(
+            checkCompatibilityApiReleased =
+                """
+                    // Signature format: 5.0
+                    package test.pkg {
+                      public final class TestKt {
+                        method public static <T> T foo(T target);
+                      }
+                    }
+                """,
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
+                            package test.pkg
+                            fun <T> foo(target: T) = target
+                            fun foo(target: String) = target
+                        """
+                    )
+                ),
+        )
+    }
+
+    @Test
+    fun `Test that parent method with type parameter matches child override`() {
+        check(
+            checkCompatibilityApiReleased =
+                """
+                    // Signature format: 5.0
+                    package test.pkg {
+                      public final class Child extends test.pkg.Parent<java.lang.Integer> {
+                        method public void foo(Integer t);
+                      }
+                      public class Parent<T> {
+                        method public void foo(T! t);
+                      }
+                    }
+                """,
+            signatureSource =
+                """
+                    // Signature format: 5.0
+                    package test.pkg {
+                      public final class Child extends test.pkg.Parent<java.lang.Integer> {
+                      }
+                      public class Parent<T> {
+                        method public void foo(T! t);
+                      }
+                    }
+                """
+        )
+    }
+
+    @RequiresCapabilities(Capability.KOTLIN)
+    @Test
+    fun `Test removal of implicit no-args constructor is flagged`() {
+        check(
+            expectedIssues =
+                "released-api.txt:8: error: Binary breaking change: Removed constructor test.pkg.RemoveNoArgsCtor() [RemovedMethod]",
+            checkCompatibilityApiReleased =
+                """
+                    package test.pkg {
+                      public final class KeepNoArgsCtor {
+                        ctor public KeepNoArgsCtor();
+                        ctor public KeepNoArgsCtor(optional int one, optional int two);
+                      }
+                      public final class RemoveNoArgsCtor {
+                        ctor public RemoveNoArgsCtor();
+                        ctor public RemoveNoArgsCtor(optional int one, optional int two);
+                        ctor public RemoveNoArgsCtor(String str);
+                      }
+                    }
+                """,
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
+                            package test.pkg
+                            // The kotlin compiler generates a no-args constructor because all
+                            // parameters to the primary constructor have default values
+                            class KeepNoArgsCtor(one: Int = 1, two: Int = 2)
+                            class RemoveNoArgsCtor(str: String) {
+                                // This is a secondary constructor, so a no-args constructor isn't
+                                // generated even though all parameters have default values
+                                constructor(one: Int = 1, two: Int = 2): this("")
+                            }
+                        """
+                    )
+                ),
+            api =
+                """
+                    package test.pkg {
+                      public final class KeepNoArgsCtor {
+                        ctor public KeepNoArgsCtor();
+                        ctor public KeepNoArgsCtor(optional int one, optional int two);
+                      }
+                      public final class RemoveNoArgsCtor {
+                        ctor public RemoveNoArgsCtor(optional int one, optional int two);
+                        ctor public RemoveNoArgsCtor(String str);
+                      }
+                    }
+                """
+        )
+    }
+
+    @RequiresCapabilities(Capability.KOTLIN)
+    @Test
+    fun `Removal of default value when compatible overload exists`() {
+        // A default parameter value can be removed if there exists an overload which could replace
+        // all calls to the old function for kotlin clients.
+        check(
+            expectedIssues =
+                """
+                src/test/pkg/Foo.kt:7: error: Source breaking change: Attempted to remove default value from parameter p1 in test.pkg.Foo.noCompatibleOverloadNewParamNotOptional(int p0, boolean p1) [DefaultValueChange]
+                src/test/pkg/Foo.kt:10: error: Source breaking change: Attempted to remove default value from parameter p1 in test.pkg.Foo.noCompatibleOverloadNoDefaultOnOverload(int p0, boolean p1) [DefaultValueChange]
+                """,
+            checkCompatibilityApiReleased =
+                """
+                // Signature format: 5.0
+                package test.pkg {
+                  public final class Foo {
+                    ctor public Foo();
+                    method public void hasCompatibleOverload(int p0, optional boolean p1);
+                    method public void noCompatibleOverloadNewParamNotOptional(int p0, optional boolean p1);
+                    method public void noCompatibleOverloadNoDefaultOnOverload(int p0, optional boolean p1);
+                  }
+                }
+                """,
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
+                        package test.pkg
+                        class Foo {
+                            @Deprecated
+                            fun hasCompatibleOverload(p0: Int, p1: Boolean) = Unit
+                            fun hasCompatibleOverload(p0: Int, p1: Boolean = false, p2: String = "") = Unit
+                            @Deprecated
+                            fun noCompatibleOverloadNewParamNotOptional(p0: Int, p1: Boolean) = Unit
+                            fun noCompatibleOverloadNewParamNotOptional(p0: Int, p1: Boolean = false, p2: String) = Unit
+                            @Deprecated
+                            fun noCompatibleOverloadNoDefaultOnOverload(p0: Int, p1: Boolean) = Unit
+                            fun noCompatibleOverloadNoDefaultOnOverload(p0: Int, p1: Boolean, p2: String = "") = Unit
+                        }
+                        """
+                    )
+                ),
+            api =
+                """
+                // Signature format: 5.0
+                package test.pkg {
+                  public final class Foo {
+                    ctor public Foo();
+                    method @Deprecated public void hasCompatibleOverload(int p0, boolean p1);
+                    method public void hasCompatibleOverload(int p0, optional boolean p1, optional String p2);
+                    method @Deprecated public void noCompatibleOverloadNewParamNotOptional(int p0, boolean p1);
+                    method public void noCompatibleOverloadNewParamNotOptional(int p0, optional boolean p1, String p2);
+                    method @Deprecated public void noCompatibleOverloadNoDefaultOnOverload(int p0, boolean p1);
+                    method public void noCompatibleOverloadNoDefaultOnOverload(int p0, boolean p1, optional String p2);
+                  }
+                }
+                """
+        )
+    }
+
+    @RequiresCapabilities(Capability.KOTLIN)
+    @Test
+    fun `Changing interface implementation to use delegation is not breaking`() {
+        check(
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
+                        package test.pkg
+                        interface Base { fun foo(): Int }
+                        class BaseImpl : A {
+                            fun foo(): Int = 0
+                        }
+                        class Foo : Base by BaseImpl()
+                        """
+                    )
+                ),
+            checkCompatibilityApiReleased =
+                """
+                package test.pkg {
+                  public interface Base {
+                    method public int foo();
+                  }
+                  public final class Foo implements test.pkg.Base {
+                    ctor public Foo();
+                    method public int foo();
+                  }
+                }
+                """,
+            api =
+                """
+                // Signature format: 5.0
+                package test.pkg {
+                  public interface Base {
+                    method public int foo();
+                  }
+                  public final class BaseImpl {
+                    ctor public BaseImpl();
+                    method public int foo();
+                  }
+                  public final class Foo implements test.pkg.Base {
+                    ctor public Foo();
+                    method public int foo();
+                  }
+                }
+                """,
         )
     }
 

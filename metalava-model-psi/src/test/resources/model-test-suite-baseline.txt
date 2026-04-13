@@ -1,10 +1,13 @@
-com.android.tools.metalava.model.testsuite.typeitem.CommonTypeModifiersTest
-  Test inner parameterized types with annotations[psi,java]
+com.android.tools.metalava.model.testsuite.annotationitem.CommonAnnotationItemTest
+  unknown annotation class with default attribute - array value[kotlin]
+  unknown annotation class with default attribute - string value[kotlin]
+  unknown annotation class with named attribute - array value[kotlin]
+  unknown annotation class with named attribute - string value[kotlin]
 
-com.android.tools.metalava.model.testsuite.typeitem.CommonTypeParameterItemTest
-  Test typeBounds extends Comparable[psi,java]
-  Test typeBounds extends Comparable[psi,kotlin]
-  Test typeBounds multiple[psi,java]
-  Test typeBounds multiple[psi,kotlin]
-  Test typeBounds no extends[psi,java]
-  Test typeBounds no extends[psi,kotlin]
+com.android.tools.metalava.model.testsuite.value.CommonParameterizedFieldValueTest
+  testFieldValue[kotlin,source,null - intermediate non-constant expression]
+  testFieldValue[kotlin,source,unsigned int - expression]
+
+com.android.tools.metalava.model.testsuite.value.CommonParameterizedFieldWriteWithSemicolonValueTest
+  testLegacySource[kotlin,source,null - intermediate non-constant expression]
+  testLegacySource[kotlin,source,unsigned int - expression]

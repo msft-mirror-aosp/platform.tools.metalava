@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.cli.common
 
+import com.android.SdkConstants
 import com.github.ajalt.clikt.completion.CompletionCandidates
 import com.github.ajalt.clikt.core.GroupableOption
 import com.github.ajalt.clikt.core.ParameterHolder
@@ -31,7 +32,9 @@ import com.github.ajalt.clikt.parameters.options.OptionWithValues
 import com.github.ajalt.clikt.parameters.options.RawOption
 import com.github.ajalt.clikt.parameters.options.convert
 import com.github.ajalt.clikt.parameters.options.default
+import com.github.ajalt.clikt.parameters.options.multiple
 import com.github.ajalt.clikt.parameters.options.option
+import com.github.ajalt.clikt.parameters.options.split
 import com.github.ajalt.clikt.parameters.types.choice
 import java.io.File
 import kotlin.properties.ReadOnlyProperty
@@ -49,9 +52,24 @@ fun RawArgument.existingFile(): ProcessedArgument<File, File> {
     return fileConversion(::stringToExistingFile)
 }
 
+/** Convert the option to a [File] that represents an existing directory. */
+fun RawOption.existingDir(): NullableOption<File, File> {
+    return fileConversion(::stringToExistingDir)
+}
+
 /** Convert the argument to a [File] that represents an existing directory. */
 fun RawArgument.existingDir(): ProcessedArgument<File, File> {
     return fileConversion(::stringToExistingDir)
+}
+
+/** Convert the option to a [File] that represents an existing directory or a file. */
+fun RawOption.existingDirOrFile(): NullableOption<File, File> {
+    return fileConversion(::stringToExistingDirOrFile)
+}
+
+/** Convert the option to a [File] that represents an existing directory or a jar file. */
+fun RawOption.existingDirOrJar(): NullableOption<File, File> {
+    return fileConversion(::stringToExistingDirOrJar)
 }
 
 /** Convert the option to a [File] that represents a new file. */
@@ -72,6 +90,11 @@ fun RawArgument.newFile(): ProcessedArgument<File, File> {
 /** Convert the argument to a [File] that represents a new directory. */
 fun RawArgument.newDir(): ProcessedArgument<File, File> {
     return fileConversion(::stringToNewDir)
+}
+
+/** Convert the option to a [File] that represents a new or existing file. */
+fun RawOption.newOrExistingFile(): NullableOption<File, File> {
+    return fileConversion(::stringToNewOrExistingFile)
 }
 
 /** Convert the option to a [File] using the supplied conversion function.. */
@@ -100,7 +123,6 @@ fun RawArgument.fileConversion(conversion: (String) -> File): ProcessedArgument<
  * Converts a path to a [File] that represents the absolute path, with the following special
  * behavior:
  * - "~" will be expanded into the home directory path.
- * - If the given path starts with "@", it'll be converted into "@" + [file's absolute path]
  */
 internal fun fileForPathInner(path: String): File {
     // java.io.File doesn't automatically handle ~/ -> home directory expansion.
@@ -110,8 +132,6 @@ internal fun fileForPathInner(path: String): File {
     if (path.startsWith("~/")) {
         val home = System.getProperty("user.home") ?: return File(path)
         return File(home + path.substring(1))
-    } else if (path.startsWith("@")) {
-        return File("@" + File(path.substring(1)).absolutePath)
     }
 
     return File(path).absoluteFile
@@ -126,7 +146,36 @@ internal fun fileForPathInner(path: String): File {
 internal fun stringToExistingDir(value: String): File {
     val file = fileForPathInner(value)
     if (!file.isDirectory) {
-        throw MetalavaCliException("$file is not a directory")
+        cliError("$file is not a directory")
+    }
+    return file
+}
+
+/**
+ * Convert a string representing an existing directory or a file to a [File].
+ *
+ * This will fail if:
+ * * The file does not exist.
+ */
+internal fun stringToExistingDirOrFile(value: String): File {
+    val file = fileForPathInner(value)
+    if (!file.exists()) {
+        cliError("$file does not exist")
+    }
+    return file
+}
+
+/**
+ * Convert a string representing an existing directory or a jar file to a [File].
+ *
+ * This will fail if neither of the following is satisfied:
+ * * The file is not a regular directory.
+ * * The file is not a jar file.
+ */
+internal fun stringToExistingDirOrJar(value: String): File {
+    val file = fileForPathInner(value)
+    if (!file.isDirectory && !(file.path.endsWith(SdkConstants.DOT_JAR) && file.isFile)) {
+        cliError("$file is not a jar or directory")
     }
     return file
 }
@@ -154,7 +203,7 @@ internal fun stringToNewDir(value: String): File {
             output.mkdirs()
         }
     if (!ok) {
-        throw MetalavaCliException("Could not create $output")
+        cliError("Could not create $output")
     }
 
     return output
@@ -169,7 +218,7 @@ internal fun stringToNewDir(value: String): File {
 internal fun stringToExistingFile(value: String): File {
     val file = fileForPathInner(value)
     if (!file.isFile) {
-        throw MetalavaCliException("$file is not a file")
+        cliError("$file is not a file")
     }
     return file
 }
@@ -187,25 +236,61 @@ internal fun stringToNewFile(value: String): File {
 
     if (output.exists()) {
         if (output.isDirectory) {
-            throw MetalavaCliException("$output is a directory")
+            cliError("$output is a directory")
         }
         val deleted = output.delete()
         if (!deleted) {
-            throw MetalavaCliException("Could not delete previous version of $output")
+            cliError("Could not delete previous version of $output")
         }
     } else if (output.parentFile != null && !output.parentFile.exists()) {
         val ok = output.parentFile.mkdirs()
         if (!ok) {
-            throw MetalavaCliException("Could not create ${output.parentFile}")
+            cliError("Could not create ${output.parentFile}")
         }
     }
 
     return output
 }
 
+/**
+ * Convert a string representing a new or existing file to a [File].
+ *
+ * This will fail if:
+ * * the file is a directory.
+ * * the parent directory does not exist, and cannot be created.
+ */
+internal fun stringToNewOrExistingFile(value: String): File {
+    val file = fileForPathInner(value)
+    if (!file.exists()) {
+        val parentFile = file.parentFile
+        if (parentFile != null && !parentFile.isDirectory) {
+            val ok = parentFile.mkdirs()
+            if (!ok) {
+                cliError("Could not create $parentFile")
+            }
+        }
+    }
+    return file
+}
+
+/**
+ * Allows multiple options to be supplied, each of which is split into a list based on [delimiter]
+ * and then concatenates the resulting lists together into a single list.
+ */
+fun <EachT : Any, ValueT> NullableOption<EachT, ValueT>.splitMultiple(delimiter: String) =
+    // Split each option into a list separated by delimiter
+    split(delimiter)
+        // Allow multiple options to be specified producing a list of lists.
+        .multiple()
+        // Flatten the list of lists into a single list.
+        .map { it.flatten() }
+
 // Unicode Next Line (NEL) character which forces Clikt to insert a new line instead of just
 // collapsing the `\n` into adjacent spaces. Acts like an HTML <br/>.
 const val HARD_NEWLINE = "\u0085"
+
+// Two consecutive newline characters will result in a blank line in the Clikt formatted output.
+const val BLANK_LINE = "\n\n"
 
 /**
  * Create a property delegate for an enum.
@@ -248,32 +333,73 @@ internal fun <T : Enum<T>> ParameterHolder.nonInlineEnumOption(
     enumValues: Array<T>,
     help: String,
     enumValueHelpGetter: (T) -> String,
-    key: (T) -> String,
+    enumLabelGetter: (T) -> String,
     default: T
 ): OptionWithValues<T, T, T> {
-    // Filter out any enum values that do not provide any help.
-    val optionToValue = enumValues.filter { enumValueHelpGetter(it) != "" }.associateBy { key(it) }
+    val labelToEnumValue =
+        enumValues
+            // Filter out any enum values that do not provide any help.
+            .filter { enumValueHelpGetter(it) != "" }
+            // Convert to a map from label to enum value.
+            .associateBy { enumLabelGetter(it) }
 
     // Get the help representation of the default value.
-    val defaultForHelp = key(default)
+    val defaultForHelp = enumLabelGetter(default)
 
     val constructedHelp = buildString {
         append(help)
-        append(HARD_NEWLINE)
-        for (enumValue in optionToValue.values) {
-            val value = key(enumValue)
-            // This must match the pattern used in MetalavaHelpFormatter.styleEnumHelpTextIfNeeded
-            // which is used to deconstruct this.
-            append(constructStyleableChoiceOption(value))
-            append(" - ")
-            append(enumValueHelpGetter(enumValue))
-            append(HARD_NEWLINE)
-        }
+        appendDefinitionListHelp(
+            labelToEnumValue.entries.map { (label, enumValue) ->
+                label to enumValueHelpGetter(enumValue)
+            }
+        )
     }
 
     return option(names = names, help = constructedHelp)
-        .choice(optionToValue)
+        .choice(labelToEnumValue)
         .default(default, defaultForHelp = defaultForHelp)
+}
+
+/**
+ * Build definition list help.
+ *
+ * @param definitionList is a list of [Pair]s, where [Pair.first] is the term being defined and
+ *   [Pair.second] is the definition of that term.
+ * @param termPrefix the prefix to add before each term being defined, e.g. `* ` to represent a
+ *   bullet list.
+ */
+fun buildDefinitionListHelp(
+    definitionList: List<Pair<String, String>>,
+    termPrefix: String = "",
+): String {
+    return buildString { appendDefinitionListHelp(definitionList, termPrefix) }
+}
+
+/**
+ * Append help for what is effectively a definition list, e.g. `<dl>...</dl>` in HTML.
+ *
+ * Each entry in the list has a term that is being defined and the definition of that term. If the
+ * terminal supports it then the term will be in bold. The term and definition are separate by ` -
+ * `.
+ *
+ * @param definitionList is a list of [Pair]s, where [Pair.first] is the term being defined and
+ *   [Pair.second] is the definition of that term.
+ * @param termPrefix the prefix to add before each term being defined, e.g. `* ` to represent a
+ *   bullet list.
+ */
+private fun StringBuilder.appendDefinitionListHelp(
+    definitionList: List<Pair<String, String>>,
+    termPrefix: String = "",
+) {
+    append(BLANK_LINE)
+    for ((term, body) in definitionList) {
+        // This must match the pattern used in MetalavaHelpFormatter.styleEnumHelpTextIfNeeded
+        // which is used to deconstruct this.
+        append(constructStyleableChoiceOption(term, termPrefix))
+        append(" - ")
+        append(body)
+        append(BLANK_LINE)
+    }
 }
 
 /**
@@ -283,13 +409,32 @@ internal fun <T : Enum<T>> ParameterHolder.nonInlineEnumOption(
  * in the help text using [deconstructStyleableChoiceOption] and replaced with actual styling
  * sequences if needed.
  */
-private fun constructStyleableChoiceOption(value: String) = "$HARD_NEWLINE**$value**"
+private fun constructStyleableChoiceOption(value: String, prefix: String = "") =
+    "$BLANK_LINE$prefix**$value**"
 
 /**
  * A regular expression that will match choice options created using
  * [constructStyleableChoiceOption].
  */
-private val deconstructStyleableChoiceOption = """$HARD_NEWLINE\*\*([^*]+)\*\*""".toRegex()
+private val deconstructStyleableChoiceOption = """$BLANK_LINE(.*?)(\*\*([^*]+)\*\*)""".toRegex()
+
+/**
+ * The index of the group in [deconstructStyleableChoiceOption] that matches the prefix provided to
+ * [constructStyleableChoiceOption].
+ */
+private const val PREFIX_GROUP_INDEX = 1
+
+/**
+ * The index of the group in [deconstructStyleableChoiceOption] that must be replaced by
+ * [replaceChoiceOption].
+ */
+private const val REPLACEMENT_GROUP_INDEX = PREFIX_GROUP_INDEX + 1
+
+/**
+ * The index of the group in [deconstructStyleableChoiceOption] that contains the label that will be
+ * transformed by [replaceChoiceOption].
+ */
+private const val LABEL_GROUP_INDEX = REPLACEMENT_GROUP_INDEX + 1
 
 /**
  * Replace the choice option (i.e. the value passed to [constructStyleableChoiceOption]) with the
@@ -302,11 +447,20 @@ private fun MatchResult.replaceChoiceOption(
     builder: StringBuilder,
     transformer: (String) -> String
 ) {
-    val group = groups[1] ?: throw IllegalStateException("group 1 not found in $this")
-    val choiceOption = group.value
-    val replacementText = transformer(choiceOption)
-    // Replace the choice option and the surrounding style markers but not the leading NEL.
-    builder.replace(range.first + 1, range.last + 1, replacementText)
+    // Get the text for the label of the choice option.
+    val labelGroup =
+        groups[LABEL_GROUP_INDEX] ?: error("label group $LABEL_GROUP_INDEX not found in $this")
+    val label = labelGroup.value
+
+    // Transform the label.
+    val transformedLabel = transformer(label)
+
+    // Replace the label and the surrounding style markers but not the leading blank line or prefix
+    // with the transformed label.
+    val replacementGroup =
+        groups[REPLACEMENT_GROUP_INDEX]
+            ?: error("replacement group $REPLACEMENT_GROUP_INDEX not found in $this")
+    builder.replace(replacementGroup.range.first, replacementGroup.range.last + 1, transformedLabel)
 }
 
 /**
@@ -503,5 +657,45 @@ internal fun Option.decompose(): Sequence<Option> {
         val metavar = if (name.endsWith("-category")) "<name>" else "<id>"
         val help = lines[i]
         copy(names = setOf(name), metavar = metavar, help = help)
+    }
+}
+
+/**
+ * Clikt does not allow `:` in option names but Metalava uses that for creating structured option
+ * names, e.g. --part1:part2:part3.
+ *
+ * This method can be used to circumvent the built-in check and use a custom check that allows for
+ * structure option names. Call it at the end of the `option(...)....allowStructureOptionName()`
+ * call chain.
+ */
+fun <T> OptionWithValues<T, *, *>.allowStructuredOptionName(): OptionDelegate<T> {
+    return StructuredOptionName(this)
+}
+
+/** Allows the same format for option names as Clikt with the addition of the ':' character. */
+private fun checkStructuredOptionNames(names: Set<String>) {
+    val invalidName = names.find { !it.matches(Regex("""[\-@/+]{1,2}[\w\-_:]+""")) }
+    require(invalidName == null) { "Invalid option name \"$invalidName\"" }
+}
+
+/** Circumvents the usual Clikt name format check and substitutes its own name format check. */
+class StructuredOptionName<T>(private val delegate: OptionDelegate<T>) :
+    OptionDelegate<T> by delegate {
+
+    override fun provideDelegate(
+        thisRef: ParameterHolder,
+        prop: KProperty<*>
+    ): ReadOnlyProperty<ParameterHolder, T> {
+        // If no names are provided then delegate this to the built-in method to infer the option
+        // name as that name is guaranteed not to contain a ':'.
+        if (names.isEmpty()) {
+            return delegate.provideDelegate(thisRef, prop)
+        }
+        require(secondaryNames.isEmpty()) {
+            "Secondary option names are only allowed on flag options."
+        }
+        checkStructuredOptionNames(names)
+        thisRef.registerOption(delegate)
+        return this
     }
 }
