@@ -391,7 +391,12 @@ private constructor(
                     // When there is a common source set, each other signature file is parsed as an
                     // extension on common.
                     val commonSourceSet =
-                        apiFileForBaseSourceSet(commonSignatureFile, codebaseConfig).codebase
+                        apiFileForBaseSourceSet(
+                                commonSignatureFile,
+                                codebaseConfig,
+                                name = MultiplatformSignatureWriter.COMMON_SOURCE_SET_NAME
+                            )
+                            .codebase
                     signatureFiles.associateBy(
                         { signatureFile -> signatureFile.file.nameWithoutExtension },
                         { signatureFile ->
@@ -409,12 +414,11 @@ private constructor(
                     )
                 } else {
                     // When there is no common source set, each signature file is parsed separately.
-                    signatureFiles.associateBy(
-                        { signatureFile -> signatureFile.file.nameWithoutExtension },
-                        { signatureFile ->
-                            apiFileForBaseSourceSet(signatureFile, codebaseConfig).codebase
-                        }
-                    )
+                    signatureFiles.associate { signatureFile ->
+                        val name = signatureFile.file.nameWithoutExtension
+                        name to
+                            apiFileForBaseSourceSet(signatureFile, codebaseConfig, name).codebase
+                    }
                 }
             return MultiplatformCodebase(sourceSetToCodebase)
         }
@@ -423,12 +427,12 @@ private constructor(
         private fun apiFileForBaseSourceSet(
             signatureFile: SignatureFile,
             codebaseConfig: Codebase.Config,
+            name: String,
         ): ApiFile {
             val assembler =
                 TextCodebaseAssembler.createAssembler(
                     location = signatureFile.file,
-                    description =
-                        "Codebase for source set ${signatureFile.file.nameWithoutExtension}",
+                    description = "Codebase for source set $name",
                     codebaseConfig = codebaseConfig,
                     classPathResolver = null,
                 )
@@ -461,7 +465,13 @@ private constructor(
             baseSignatureFile: SignatureFile,
             codebaseConfig: Codebase.Config,
         ): ApiFile {
-            val parser = apiFileForBaseSourceSet(baseSignatureFile, codebaseConfig)
+            val parser =
+                apiFileForBaseSourceSet(
+                    baseSignatureFile,
+                    codebaseConfig,
+                    // Name the codebase based on the extension, not the common source set.
+                    name = extensionSignatureFile.file.nameWithoutExtension,
+                )
             parser.parseApiSingleFile(
                 appending = true,
                 path = extensionSignatureFile.file.toPath(),

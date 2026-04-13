@@ -134,6 +134,14 @@ class CommonMultiplatformCodebaseTest : BaseModelTest() {
                 )
         ) {
             multiplatformCodebase.assertSourceSets("commonMain", "androidMain", "nativeMain")
+
+            val codebases = multiplatformCodebase.sourceSetToCodebase
+            assertThat(codebases["commonMain"]!!.description)
+                .isEqualTo("Codebase for source set commonMain")
+            assertThat(codebases["androidMain"]!!.description)
+                .isEqualTo("Codebase for source set androidMain")
+            assertThat(codebases["nativeMain"]!!.description)
+                .isEqualTo("Codebase for source set nativeMain")
         }
     }
 
