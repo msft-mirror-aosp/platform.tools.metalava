@@ -50,6 +50,7 @@ Available Issues                             |  Category                        
   AddedProperty                              |  other_compatibility                  |   hidden
   AddedRecordComponent                       |  binary_and_source_compatibility      |   error
   AddedReified                               |  binary_compatibility_only            |   error
+  AddedSourceSet                             |  source_compatibility_only            |   info
   AddedSubclassToSealedClass                 |  source_compatibility_only            |   error
   AllUpper                                   |  api_lint                             |   error
   AndroidUri                                 |  api_lint                             |   error
@@ -220,6 +221,7 @@ Available Issues                             |  Category                        
   RemovedPackage                             |  binary_and_source_compatibility      |   error
   RemovedProperty                            |  source_compatibility_only            |   error
   RemovedRecordComponent                     |  binary_and_source_compatibility      |   error
+  RemovedSourceSet                           |  source_compatibility_only            |   error
   RemovedTypeAlias                           |  source_compatibility_only            |   error
   RequiresPermission                         |  documentation                        |   error
   ResourceFieldName                          |  api_lint                             |   error

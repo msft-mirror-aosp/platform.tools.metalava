@@ -192,4 +192,98 @@ class MultiplatformCompatibilityTest : DriverTest() {
                 "../multiplatform-compatibility-api/nativeMain.txt:4: error: Source breaking change: Removed constructor test.pkg.Native() [RemovedMethod]"
         )
     }
+
+    @Test
+    fun `Test removal of source set`() {
+        val commonApi =
+            signature(
+                "commonMain.txt",
+                """
+                // Signature format: 5.0
+                package test.pkg {
+                  public final class Common extends kotlin.Any {
+                    ctor public Common();
+                  }
+                }
+                """
+            )
+        val androidApi =
+            signature(
+                "androidMain.txt",
+                """
+                // Signature format: 5.0
+                package test.pkg {
+                  public final class Android extends kotlin.Any {
+                    ctor public Android();
+                  }
+                }
+                """
+            )
+        val nativeApi =
+            signature(
+                "nativeMain.txt",
+                """
+                // Signature format: 5.0
+                package test.pkg {
+                  public final class Native extends kotlin.Any {
+                    ctor public Native();
+                  }
+                }
+                """
+            )
+        check(
+            enableMultiplatform = true,
+            multiplatformSignatureSource = listOf(commonApi, androidApi),
+            multiplatformCompatibilityApi = listOf(commonApi, androidApi, nativeApi),
+            expectedIssues =
+                "../multiplatform-compatibility-api/commonMain.txt: error: Codebase for source set nativeMain has been removed [RemovedSourceSet]"
+        )
+    }
+
+    @Test
+    fun `Test addition of source set`() {
+        val commonApi =
+            signature(
+                "commonMain.txt",
+                """
+                // Signature format: 5.0
+                package test.pkg {
+                  public final class Common extends kotlin.Any {
+                    ctor public Common();
+                  }
+                }
+                """
+            )
+        val androidApi =
+            signature(
+                "androidMain.txt",
+                """
+                // Signature format: 5.0
+                package test.pkg {
+                  public final class Android extends kotlin.Any {
+                    ctor public Android();
+                  }
+                }
+                """
+            )
+        val nativeApi =
+            signature(
+                "nativeMain.txt",
+                """
+                // Signature format: 5.0
+                package test.pkg {
+                  public final class Native extends kotlin.Any {
+                    ctor public Native();
+                  }
+                }
+                """
+            )
+        check(
+            enableMultiplatform = true,
+            multiplatformSignatureSource = listOf(commonApi, androidApi, nativeApi),
+            multiplatformCompatibilityApi = listOf(commonApi, androidApi),
+            expectedIssues =
+                "multiplatform-signature-source/commonMain.txt: info: Codebase for source set nativeMain has been added [AddedSourceSet]"
+        )
+    }
 }

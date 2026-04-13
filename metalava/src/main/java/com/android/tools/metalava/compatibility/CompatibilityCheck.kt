@@ -1575,6 +1575,37 @@ class CompatibilityCheck(
         handleRemoved(Issues.REMOVED_PROPERTY, old)
     }
 
+    override fun removedCodebase(old: Codebase) {
+        reportSourceSetIssue(
+            old,
+            Issues.REMOVED_SOURCE_SET,
+            "${old.description} has been removed",
+        )
+    }
+
+    override fun addedCodebase(new: Codebase) {
+        reportSourceSetIssue(
+            new,
+            Issues.ADDED_SOURCE_SET,
+            "${new.description} has been added",
+        )
+    }
+
+    /** Reports an [issue] on the [sourceSet]. */
+    private fun reportSourceSetIssue(sourceSet: Codebase, issue: Issue, message: String) {
+        if (
+            reporter.report(
+                issue,
+                sourceSet.location,
+                message,
+            )
+        ) {
+            if (issueConfiguration.getSeverity(issue) == Severity.ERROR) {
+                foundProblems = true
+            }
+        }
+    }
+
     /**
      * There are cases where compatibility issues need to be raised even for items marked as
      * experimental. This happens when experimental items are modified, added, or removed and then

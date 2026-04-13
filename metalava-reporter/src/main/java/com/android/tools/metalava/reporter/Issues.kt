@@ -93,6 +93,10 @@ object Issues {
     val REMOVED_FROM_JAVA by Issue(Severity.ERROR, Category.SOURCE_COMPATIBILITY_ONLY)
     val REMOVED_FROM_KOTLIN by Issue(Severity.ERROR, Category.SOURCE_COMPATIBILITY_ONLY)
 
+    // Multiplatform-specific compatibility issues
+    val REMOVED_SOURCE_SET by Issue(Severity.ERROR, Category.SOURCE_COMPATIBILITY_ONLY)
+    val ADDED_SOURCE_SET by Issue(Severity.INFO, Category.SOURCE_COMPATIBILITY_ONLY)
+
     // Issues in javadoc generation
     val INVALID_JAVADOC by Issue(Severity.WARNING_ERROR_WHEN_NEW, Category.DOCUMENTATION)
     val INVALID_IF_TAG by Issue(Severity.ERROR, Category.DOCUMENTATION)
