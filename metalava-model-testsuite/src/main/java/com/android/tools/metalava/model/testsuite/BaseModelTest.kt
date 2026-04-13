@@ -305,7 +305,13 @@ abstract class BaseModelTest() :
         }
 
         // Run the input sets that match the current inputFormat.
-        for (inputSet in inputSets.filter { it.inputFormat == inputFormat }) {
+        val applicableInputSets = inputSets.filter { it.inputFormat == inputFormat }
+        if (applicableInputSets.isEmpty()) {
+            error(
+                "No input set provided for $inputFormat; please specify ${providedInputFormats.toSupportedInputFormats()}"
+            )
+        }
+        for (inputSet in applicableInputSets) {
             val mainSourceDir = sourceDir(inputSet)
             val projectDescriptionFile = projectDescription?.createFile(mainSourceDir.dir)
 
