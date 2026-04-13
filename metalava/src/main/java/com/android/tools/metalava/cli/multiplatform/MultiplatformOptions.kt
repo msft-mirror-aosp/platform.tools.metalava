@@ -28,6 +28,8 @@ const val ARG_MULTIPLATFORM_API_DIR = "--multiplatform-api-directory"
 
 const val ARG_MULTIPLATFORM_API_SOURCES = "--multiplatform-api-sources"
 
+const val ARG_MULTIPLATFORM_CHECK_COMPATIBILITY = "--multiplatform-compatibility-api"
+
 class MultiplatformOptions :
     OptionGroup(
         name = "Multiplatform API Options",
@@ -55,4 +57,17 @@ class MultiplatformOptions :
                         .trimIndent()
             )
             .newDir()
+
+    val checkReleasedApi by
+        option(
+                ARG_MULTIPLATFORM_CHECK_COMPATIBILITY,
+                help =
+                    """
+                    Check compatibility of the previously released multiplatform API. The provided
+                    file should be a directory containing multiplatform API signature files of the
+                    previously released API surface.
+                    """
+                        .trimIndent()
+            )
+            .existingDir()
 }

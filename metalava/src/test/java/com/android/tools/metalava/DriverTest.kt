@@ -53,6 +53,7 @@ import com.android.tools.metalava.cli.lint.ARG_ERROR_MESSAGE_API_LINT
 import com.android.tools.metalava.cli.lint.ARG_UPDATE_BASELINE_API_LINT
 import com.android.tools.metalava.cli.multiplatform.ARG_MULTIPLATFORM_API_DIR
 import com.android.tools.metalava.cli.multiplatform.ARG_MULTIPLATFORM_API_SOURCES
+import com.android.tools.metalava.cli.multiplatform.ARG_MULTIPLATFORM_CHECK_COMPATIBILITY
 import com.android.tools.metalava.cli.multiplatform.ARG_MULTIPLATFORM_ENABLED
 import com.android.tools.metalava.cli.signature.ARG_FORMAT
 import com.android.tools.metalava.model.ANDROIDX_ANNOTATION_PACKAGE
@@ -568,6 +569,8 @@ abstract class DriverTest :
          * [enableMultiplatform] is true) without creating a regular codebase.
          */
         skipSourceArgs: Boolean = false,
+        /** Signature files to parse into a MultiplatformCodebase for compatibility checks. */
+        multiplatformCompatibilityApi: List<TestFile>? = null,
         /**
          * Called on a [CheckerContext] after the analysis phase in the metalava main command.
          *
@@ -1068,6 +1071,23 @@ abstract class DriverTest :
                 emptyArray()
             }
 
+        // Run multiplatform compatibility checks if requested.
+        val multiplatformCompatibilityApiDirectory: File?
+        val multiplatformCompatibilityArgs =
+            if (multiplatformCompatibilityApi != null) {
+                multiplatformCompatibilityApiDirectory =
+                    getOrCreateFolder("multiplatform-compatibility-api")
+                for (file in multiplatformCompatibilityApi) {
+                    file.createFile(multiplatformCompatibilityApiDirectory)
+                }
+                arrayOf(
+                    ARG_MULTIPLATFORM_CHECK_COMPATIBILITY,
+                    multiplatformCompatibilityApiDirectory.path
+                )
+            } else {
+                emptyArray()
+            }
+
         // Run optional additional setup steps on the project directory
         projectSetup?.invoke(project)
 
@@ -1127,6 +1147,7 @@ abstract class DriverTest :
                 *multiplatformOptions,
                 *multiplatformApiArgs,
                 *multiplatformSignatureSourceOptions,
+                *multiplatformCompatibilityArgs,
                 // Must always be last as this can consume a following argument, breaking the test.
                 *apiLintArgs,
             ) +

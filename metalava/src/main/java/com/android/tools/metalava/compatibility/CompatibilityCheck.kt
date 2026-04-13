@@ -48,6 +48,7 @@ import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.TypeStringConfiguration
 import com.android.tools.metalava.model.VariableTypeItem
 import com.android.tools.metalava.model.findAnnotation
+import com.android.tools.metalava.model.multiplatform.MultiplatformCodebase
 import com.android.tools.metalava.model.value.Value
 import com.android.tools.metalava.model.visitors.ApiPredicate
 import com.android.tools.metalava.model.visitors.ApiType
@@ -1790,6 +1791,33 @@ class CompatibilityCheck(
 
             if (checker.foundProblems) {
                 cliError(message)
+            }
+        }
+
+        /** Performs compatibility checks comparing the [newCodebase] against the [oldCodebase]. */
+        fun checkMultiplatformCompatibility(
+            newCodebase: MultiplatformCodebase,
+            oldCodebase: MultiplatformCodebase,
+            apiType: ApiType,
+            reporter: Reporter,
+            issueConfiguration: IssueConfiguration,
+            apiCompatAnnotations: Set<String>,
+            apiPredicateConfig: ApiPredicate.Config,
+        ) {
+            val filter = getFilter(apiType, apiPredicateConfig)
+            val checker =
+                CompatibilityCheck(
+                    filter,
+                    reporter,
+                    issueConfiguration,
+                    apiCompatAnnotations,
+                    apiName = null,
+                )
+
+            CodebaseComparator.compareMultiplatform(checker, oldCodebase, newCodebase, filter)
+
+            if (checker.foundProblems) {
+                cliError("Found problems checking multiplatform codebase compatibility")
             }
         }
 

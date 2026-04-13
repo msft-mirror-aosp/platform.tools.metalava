@@ -651,6 +651,23 @@ class Driver(
                 }
             )
         }
+
+        // Perform compatibility checks if requested.
+        multiplatformOptions.checkReleasedApi?.let { checkReleasedApi ->
+            val releasedApi =
+                signatureFileLoader.loadMultiplatform(
+                    SignatureFile.fromFiles(checkReleasedApi.listFiles().toList())
+                )
+            CompatibilityCheck.checkMultiplatformCompatibility(
+                newCodebase = multiplatformCodebase,
+                oldCodebase = releasedApi,
+                apiType = ApiType.PUBLIC_API,
+                reporter = reporter,
+                issueConfiguration = issueReportingOptions.issueConfiguration,
+                compatibilityCheckOptions.apiCompatAnnotations,
+                apiPredicateConfig = apiPredicateConfig,
+            )
+        }
     }
 
     /** write api history to files specified by option flags (e.g. api-versions.xml) */
