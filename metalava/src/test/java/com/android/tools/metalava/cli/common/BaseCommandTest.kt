@@ -17,16 +17,12 @@
 package com.android.tools.metalava.cli.common
 
 import com.android.tools.lint.checks.infrastructure.TestFile
-import com.android.tools.metalava.OptionsDelegate
 import com.android.tools.metalava.ProgressTracker
-import com.android.tools.metalava.run
 import com.android.tools.metalava.testing.TemporaryFolderOwner
 import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.core.subcommands
 import java.io.File
-import org.junit.After
 import org.junit.Assert
-import org.junit.Before
 import org.junit.Rule
 import org.junit.rules.ErrorCollector
 import org.junit.rules.TemporaryFolder
@@ -53,16 +49,6 @@ abstract class BaseCommandTest<C : CliktCommand>(
 
     /** Provides access to temporary files. */
     @get:Rule override val temporaryFolder = TemporaryFolder()
-
-    @Before
-    fun ensureTestDoesNotAccessOptionsLeakedFromAnotherTest() {
-        OptionsDelegate.disallowAccess()
-    }
-
-    @After
-    fun ensureTestDoesNotLeakOptionsToAnotherTest() {
-        OptionsDelegate.disallowAccess()
-    }
 
     /**
      * Type safe builder for configuring and running a command related test.
@@ -129,6 +115,20 @@ class CommandTestConfig<C : CliktCommand>(private val test: BaseCommandTest<C>) 
      */
     operator fun MutableList<String>.plusAssign(args: Array<Any>) {
         args.mapTo(this) { it.toString() }
+    }
+
+    /** Add an option and a [TestFile]. */
+    @JvmName("plusAssignOptionAndTestFile") // Prevent JVM signature clash with below.
+    operator fun MutableList<String>.plusAssign(flagWithFile: Pair<String, TestFile>) {
+        this += flagWithFile.first
+        this += flagWithFile.second
+    }
+
+    /** Add an option and anything else. */
+    @JvmName("plusAssignOptionAndAnything") // Prevent JVM signature clash with above.
+    operator fun MutableList<String>.plusAssign(flagWithFile: Pair<String, Any>) {
+        this += flagWithFile.first
+        this += flagWithFile.second
     }
 
     /**
@@ -248,7 +248,9 @@ class CommandTestConfig<C : CliktCommand>(private val test: BaseCommandTest<C>) 
         val (executionEnvironment, stdout, stderr) = ExecutionEnvironment.forTest(stdin)
 
         // Runs the command
-        command = test.commandFactory(executionEnvironment)
+        if (!::command.isInitialized) {
+            command = test.commandFactory(executionEnvironment)
+        }
         exitCode = runCommand(executionEnvironment, command)
 
         // Add checks of the expected stderr and stdout at the head of the list of verifiers.

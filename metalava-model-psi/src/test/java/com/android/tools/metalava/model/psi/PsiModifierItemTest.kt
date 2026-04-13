@@ -39,7 +39,6 @@ class PsiModifierItemTest : BaseModelTest() {
                 public @org.jetbrains.annotations.Nullable String foo() {}
             }
         """
-                    .trimIndent()
             )
         val kotlinSource =
             kotlin(
@@ -49,7 +48,6 @@ class PsiModifierItemTest : BaseModelTest() {
                     fun foo(): String?
                 }
             """
-                    .trimIndent()
             )
 
         runCodebaseTest(

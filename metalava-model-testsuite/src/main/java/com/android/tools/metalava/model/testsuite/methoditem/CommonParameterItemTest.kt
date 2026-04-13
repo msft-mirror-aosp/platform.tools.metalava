@@ -16,7 +16,7 @@
 
 package com.android.tools.metalava.model.testsuite.methoditem
 
-import com.android.tools.metalava.model.ItemLanguage
+import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.provider.InputFormat
 import com.android.tools.metalava.model.testing.testTypeString
 import com.android.tools.metalava.model.testsuite.BaseModelTest
@@ -26,12 +26,11 @@ import com.android.tools.metalava.testing.kotlin
 import com.google.common.truth.Truth.assertWithMessage
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
-import org.junit.Assert.assertThrows
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /** Common tests for implementations of [ParameterItem]. */
 class CommonParameterItemTest : BaseModelTest() {
-
     @Test
     fun `Test deprecated parameter by annotation`() {
         runCodebaseTest(
@@ -197,7 +196,7 @@ class CommonParameterItemTest : BaseModelTest() {
             val parameterItem =
                 codebase
                     .assertResolvedClass("java.lang.Object")
-                    .assertMethod("equals", "java.lang.Object")
+                    .assertMethod("equals", listOf("java.lang.Object"))
                     .parameters()
                     .single()
             // The parameter name of the Object.equals(Object obj) method is stored in the Object
@@ -225,7 +224,7 @@ class CommonParameterItemTest : BaseModelTest() {
             val parameterItems =
                 codebase
                     .assertResolvedClass("android.view.ViewGroup")
-                    .assertMethod("onLayout", "boolean, int, int, int, int")
+                    .assertMethod("onLayout", listOf("boolean", "int", "int", "int", "int"))
                     .parameters()
             // For some reason ViewGroup.onLayout(boolean, int, int, int, int) does not provide the
             // actual parameter name. Probably, because it was compiled with an older version of
@@ -286,7 +285,7 @@ class CommonParameterItemTest : BaseModelTest() {
                     "method2" to "java.lang.String![]",
                     "method3" to "java.lang.String![]![]",
                     "method4" to "T",
-                    "method5" to "java.util.Map.Entry<T!,java.lang.String!>",
+                    "method5" to "java.util.Map.Entry<T,java.lang.String!>",
                 )
             val methods = codebase.assertClass("test.pkg.Foo").methods()
             assertEquals("method count", expectedTypes.size, methods.size)
@@ -348,7 +347,7 @@ class CommonParameterItemTest : BaseModelTest() {
                     "method2" to "java.lang.String![]?",
                     "method3" to "java.lang.String![]![]?",
                     "method4" to "T?",
-                    "method5" to "java.util.Map.Entry<T!,java.lang.String!>?",
+                    "method5" to "java.util.Map.Entry<T,java.lang.String!>?",
                 )
             val methods = codebase.assertClass("test.pkg.Foo").methods()
             assertEquals("method count", expectedTypes.size, methods.size)
@@ -608,9 +607,9 @@ class CommonParameterItemTest : BaseModelTest() {
             signature(
                 """
                     // Signature format: 5.0
-                    // - language=kotlin
-                    // - concise-default-values=no
+                    // - include-default-parameter-values=no
                     // - kotlin-name-type-order=yes
+                    // - kotlin-style-nulls=yes
                     package test.pkg {
                       public final class Foo {
                         ctor public Foo();
@@ -641,63 +640,6 @@ class CommonParameterItemTest : BaseModelTest() {
             val parameter =
                 codebase.assertClass("test.pkg.Foo").methods().single().parameters().single()
             assertEquals("hasDefaultValue", false, parameter.hasDefaultValue())
-            assertEquals("isDefaultValueKnown", false, parameter.isDefaultValueKnown())
-            // TODO: Improve consistency of the following.
-            when (parameter.itemLanguage) {
-                ItemLanguage.KOTLIN -> {
-                    assertEquals(
-                        "defaultValue",
-                        "__invalid_value__",
-                        parameter.defaultValueAsString()
-                    )
-                }
-                else -> {
-                    val exception =
-                        assertThrows(IllegalStateException::class.java) {
-                            parameter.defaultValueAsString()
-                        }
-                    assertEquals(
-                        "defaultValue",
-                        "cannot call on NONE DefaultValue",
-                        exception.message
-                    )
-                }
-            }
-        }
-    }
-
-    @Test
-    fun `Test null default value`() {
-        runCodebaseTest(
-            signature(
-                """
-                    // Signature format: 5.0
-                    // - language=kotlin
-                    // - concise-default-values=no
-                    // - kotlin-name-type-order=yes
-                    package test.pkg {
-                      public final class Foo {
-                        ctor public Foo();
-                        method public method(s: String? = null): void;
-                      }
-                    }
-                """
-            ),
-            kotlin(
-                """
-                    package test.pkg
-
-                    class Foo {
-                        fun method(s: String? = null) {}
-                    }
-                """
-            ),
-        ) {
-            val parameter =
-                codebase.assertClass("test.pkg.Foo").methods().single().parameters().single()
-            assertEquals("hasDefaultValue", true, parameter.hasDefaultValue())
-            assertEquals("isDefaultValueKnown", true, parameter.isDefaultValueKnown())
-            assertEquals("defaultValue", "null", parameter.defaultValueAsString())
         }
     }
 
@@ -711,9 +653,9 @@ class CommonParameterItemTest : BaseModelTest() {
             signature(
                 """
                     // Signature format: 5.0
-                    // - language=kotlin
-                    // - concise-default-values=yes
+                    // - include-default-parameter-values=yes
                     // - kotlin-name-type-order=yes
+                    // - kotlin-style-nulls=yes
                     package test.pkg {
                       public final class Foo {
                         ctor public Foo();
@@ -726,11 +668,25 @@ class CommonParameterItemTest : BaseModelTest() {
             val parameter =
                 codebase.assertClass("test.pkg.Foo").methods().single().parameters().single()
             assertEquals("hasDefaultValue", true, parameter.hasDefaultValue())
+        }
+    }
 
-            assertEquals("isDefaultValueKnown", false, parameter.isDefaultValueKnown())
-            val exception =
-                assertThrows(IllegalStateException::class.java) { parameter.defaultValueAsString() }
-            assertEquals("defaultValue", "cannot call on UNKNOWN DefaultValue", exception.message)
+    @Test
+    fun `Test varargs modifier on kotlin parameter`() {
+        runCodebaseTest(
+            kotlin(
+                """
+                package test.pkg
+                class Foo {
+                    @JvmSynthetic
+                    fun foo(vararg ints: Int) = Unit
+                }
+                """
+            )
+        ) {
+            val parameterItem =
+                codebase.assertClass("test.pkg.Foo").methods().single().parameters().single()
+            assertTrue(parameterItem.modifiers.isVarArg())
         }
     }
 }

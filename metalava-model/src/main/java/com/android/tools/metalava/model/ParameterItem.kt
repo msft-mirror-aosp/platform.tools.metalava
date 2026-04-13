@@ -16,12 +16,27 @@
 
 package com.android.tools.metalava.model
 
-import com.android.tools.metalava.model.item.DefaultValue
+import com.android.tools.metalava.model.doc.DocContent
+import com.android.tools.metalava.model.doc.DocContentOwner
 
 @MetalavaApi
-interface ParameterItem : ClassContentItem, Item {
+interface ParameterItem :
+    ClassContentItem, Item, PossiblyPropertyRelated, PossiblyRecordComponentRelated {
     /** The name of this field */
     fun name(): String
+
+    override fun describe(capitalize: Boolean) = buildString {
+        append(if (capitalize) "Parameter" else "parameter")
+        append(' ')
+        append(name())
+        append(" in ")
+        with(containingCallable()) {
+            appendCallableSignature(
+                includeParameterNames = true,
+                includeParameterTypes = true,
+            )
+        }
+    }
 
     /** The type of this field */
     @MetalavaApi override fun type(): TypeItem
@@ -56,42 +71,24 @@ interface ParameterItem : ClassContentItem, Item {
      * Java, it's supported via a special annotation, {@literal @DefaultValue("source"). This does
      * not necessarily imply that the default value is accessible, and we know the body of the
      * default value.
-     *
-     * @see isDefaultValueKnown
      */
     fun hasDefaultValue(): Boolean
-
-    /**
-     * Returns whether this parameter has an accessible default value that we plan to keep. This is
-     * a superset of [hasDefaultValue] - if we are not writing the default values to the signature
-     * file, then the default value might not be available, even though the parameter does have a
-     * default.
-     *
-     * @see hasDefaultValue
-     */
-    fun isDefaultValueKnown(): Boolean
-
-    /**
-     * Returns the default value.
-     *
-     * **This method should only be called if [isDefaultValueKnown] returned true!** (This is
-     * necessary since the null return value is a valid default value separate from no default value
-     * specified.)
-     *
-     * The default value is the source string literal representation of the value, e.g. strings
-     * would be surrounded by quotes, Booleans are the strings "true" or "false", and so on.
-     */
-    fun defaultValueAsString(): String?
-
-    /** The default value of this [ParameterItem]. */
-    val defaultValue: DefaultValue
 
     /** Whether this is a varargs parameter */
     fun isVarArgs(): Boolean = modifiers.isVarArg()
 
-    /** The property declared by this parameter; inverse of [PropertyItem.constructorParameter] */
-    val property: PropertyItem?
-        get() = null
+    /**
+     * The property declared by this parameter; inverse of [PropertyItem.constructorParameter].
+     *
+     * Overridden to provide more specific documentation.
+     */
+    override var property: PropertyItem?
+
+    override val isRecordComponentRelated: Boolean
+        get() = containingCallable().isRecordComponentRelated
+
+    override val recordComponentRelationship: String?
+        get() = if (isRecordComponentRelated) "canonical constructor" else null
 
     override fun parent(): CallableItem? = containingCallable()
 
@@ -106,26 +103,10 @@ interface ParameterItem : ClassContentItem, Item {
     }
 
     /**
-     * Returns whether this parameter is SAM convertible or a Kotlin lambda. If this parameter is
-     * the last parameter, it also means that it could be called in Kotlin using the trailing lambda
-     * syntax.
-     *
-     * Specifically this will attempt to handle the follow cases:
-     * - Java SAM interface = true
-     * - Kotlin SAM interface = false // Kotlin (non-fun) interfaces are not SAM convertible
-     * - Kotlin fun interface = true
-     * - Kotlin lambda = true
-     * - Any other type = false
-     */
-    fun isSamCompatibleOrKotlinLambda(): Boolean =
-        // TODO(b/354889186): Implement correctly
-        false
-
-    /**
      * Create a duplicate of this for [containingCallable].
      *
-     * The duplicate's [type] must have applied the [typeVariableMap] substitutions by using
-     * [TypeItem.convertType].
+     * The duplicate's [ParameterItem.type] is the result of applying [typeConverter] to this
+     * [ParameterItem]'s [type].
      *
      * This is called from within the constructor of the [containingCallable] so must only access
      * its `name` and its reference. In particularly it must not access its
@@ -133,8 +114,15 @@ interface ParameterItem : ClassContentItem, Item {
      */
     fun duplicate(
         containingCallable: CallableItem,
-        typeVariableMap: TypeParameterBindings,
+        typeConverter: TypeItemConverter,
+        newParameterIndex: Int = parameterIndex,
     ): ParameterItem
+
+    override val description: DocContent?
+        get() = containingCallable().documentation?.paramTagDescription(name())
+
+    override val descriptionOwner: DocContentOwner
+        get() = containingCallable().requiredDocumentation.paramTagDescriptionOwner(name())
 
     override fun equalsToItem(other: Any?): Boolean {
         if (this === other) return true
@@ -153,6 +141,9 @@ interface ParameterItem : ClassContentItem, Item {
     override fun containingClass(): ClassItem = containingCallable().containingClass()
 
     override fun containingPackage(): PackageItem? = containingCallable().containingPackage()
+
+    override val targetLanguages: Set<TargetLanguage>
+        get() = containingCallable().targetLanguages
 
     // TODO: modifier list
 }

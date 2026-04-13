@@ -33,6 +33,16 @@ open class BaseItemVisitor(
      * Defaults to `true` as that is the safest option which avoids inadvertently ignoring them.
      */
     protected val visitParameterItems: Boolean = true,
+
+    /**
+     * Determines whether this will visit [RecordComponentItem]s or not.
+     *
+     * If this is `true` then [RecordComponentItem]s will be visited, and passed to [visitItem],
+     * [visitParameter] and [afterVisitItem] in that order. Otherwise, they will not be visited.
+     *
+     * Defaults to `true` as that is the safest option which avoids inadvertently ignoring them.
+     */
+    private val visitRecordComponentItems: Boolean = false,
 ) : ItemVisitor {
     /** Calls [visitItem] before invoking [body] after which it calls [afterVisitItem]. */
     protected inline fun <T : Item> wrapBodyWithCallsToVisitMethodsForItem(
@@ -67,6 +77,12 @@ open class BaseItemVisitor(
         wrapBodyWithCallsToVisitMethodsForSelectableItem(cls) {
             visitClass(cls)
 
+            if (visitRecordComponentItems) {
+                for (component in cls.recordComponents) {
+                    component.accept(this)
+                }
+            }
+
             for (constructor in cls.constructors()) {
                 constructor.accept(this)
             }
@@ -79,22 +95,8 @@ open class BaseItemVisitor(
                 property.accept(this)
             }
 
-            if (cls.isEnum()) {
-                // In enums, visit the enum constants first, then the fields
-                for (field in cls.fields()) {
-                    if (field.isEnumConstant()) {
-                        field.accept(this)
-                    }
-                }
-                for (field in cls.fields()) {
-                    if (!field.isEnumConstant()) {
-                        field.accept(this)
-                    }
-                }
-            } else {
-                for (field in cls.fields()) {
-                    field.accept(this)
-                }
+            for (field in cls.fields()) {
+                field.accept(this)
             }
 
             if (preserveClassNesting) {
@@ -105,6 +107,10 @@ open class BaseItemVisitor(
 
             afterVisitClass(cls)
         }
+    }
+
+    override fun visit(component: RecordComponentItem) {
+        wrapBodyWithCallsToVisitMethodsForItem(component) { visitRecordComponentItem(component) }
     }
 
     override fun visit(field: FieldItem) {
@@ -178,10 +184,6 @@ open class BaseItemVisitor(
                 cls.accept(this)
             }
 
-            for (typeAlias in pkg.typeAliases()) {
-                typeAlias.accept(this)
-            }
-
             afterVisitPackage(pkg)
         }
     }
@@ -208,14 +210,6 @@ open class BaseItemVisitor(
         wrapBodyWithCallsToVisitMethodsForSelectableItem(property) { visitProperty(property) }
     }
 
-    override fun visit(typeAlias: TypeAliasItem) {
-        if (skip(typeAlias)) {
-            return
-        }
-
-        wrapBodyWithCallsToVisitMethodsForSelectableItem(typeAlias) { visitTypeAlias(typeAlias) }
-    }
-
     open fun skip(item: Item): Boolean = false
 
     /**
@@ -239,6 +233,9 @@ open class BaseItemVisitor(
 
     open fun visitClass(cls: ClassItem) {}
 
+    /** Visits a [RecordComponentItem]. */
+    open fun visitRecordComponentItem(component: RecordComponentItem) {}
+
     open fun visitCallable(callable: CallableItem) {}
 
     open fun visitConstructor(constructor: ConstructorItem) {}
@@ -251,8 +248,6 @@ open class BaseItemVisitor(
     open fun visitParameter(parameter: ParameterItem) {}
 
     open fun visitProperty(property: PropertyItem) {}
-
-    open fun visitTypeAlias(typeAlias: TypeAliasItem) {}
 
     /**
      * Visits any [SelectableItem], i.e. everything for which [afterVisitItem] is called except

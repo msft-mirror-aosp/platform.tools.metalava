@@ -16,14 +16,19 @@
 
 package com.android.tools.metalava.model
 
+import com.android.tools.metalava.model.value.LegacyValueFormatter
+import com.android.tools.metalava.model.value.StringValue
+import com.android.tools.metalava.model.value.Value
+
 @MetalavaApi
-interface MethodItem : CallableItem, InheritableItem {
+interface MethodItem : CallableItem, InheritableItem, PossiblyPropertyRelated {
     /**
      * The property this method is an accessor for; inverse of [PropertyItem.getter] and
      * [PropertyItem.setter]
+     *
+     * Overridden to provide more specific documentation.
      */
-    val property: PropertyItem?
-        get() = null
+    override var property: PropertyItem?
 
     override val effectivelyDeprecated: Boolean
         get() =
@@ -227,15 +232,45 @@ interface MethodItem : CallableItem, InheritableItem {
         }
     }
 
-    /** If annotation method, returns the default value as a source expression */
-    fun defaultValue(): String
+    /**
+     * If annotation method, returns the legacy default value as a source expression.
+     *
+     * This is called `legacy` because this an old, inconsistent representation of the default value
+     * that exposes implementation details. It will be replaced by a properly modelled value
+     * representation.
+     */
+    fun legacyDefaultValue() =
+        defaultValue?.let { value ->
+            LegacyValueFormatter.ATTRIBUTE_DEFAULT_FORMATTER.format(value, this)
+        } ?: ""
 
-    fun hasDefaultValue(): Boolean {
-        return defaultValue() != ""
-    }
+    /**
+     * The optional default value of the method.
+     *
+     * Replacement for [legacyDefaultValue].
+     *
+     * The [Value] will be suitable for use as an annotation attribute value as specified by JLS
+     * 9.6.1 (what this model calls "attributes", the JSL calls "elements"). That includes constant
+     * fields.
+     */
+    val defaultValue: Value?
 
-    /** Whether this method is a getter/setter for an underlying Kotlin property (val/var) */
-    fun isKotlinProperty(): Boolean = false
+    /**
+     * Whether this method is a getter/setter for an underlying Kotlin property (val/var).
+     *
+     * This should be the same as `property != null` but this may be called before [property] has
+     * been initialized.
+     */
+    val isKotlinProperty: Boolean
+
+    /** Whether this method is a getter for a [RecordComponentItem]. */
+    val isRecordComponentGetter: Boolean
+
+    override val isRecordComponentRelated: Boolean
+        get() = isRecordComponentGetter
+
+    override val recordComponentRelationship: String?
+        get() = if (isRecordComponentRelated) "record component getter" else null
 
     /**
      * Determines if the method is a method that needs to be overridden in any child classes that
@@ -293,7 +328,9 @@ interface MethodItem : CallableItem, InheritableItem {
                 val s = queue.removeFirst()
                 visitCountMap[s] = visitCountMap.getOrDefault(s, 0) + 1
                 queue.addAll(
-                    s.interfaceTypes().mapNotNull { interfaceType -> interfaceType.asClass() }
+                    s.interfaceTypes().mapNotNull { interfaceType ->
+                        interfaceType.resolveClass(codebase)
+                    }
                 )
             }
         }
@@ -360,5 +397,12 @@ interface MethodItem : CallableItem, InheritableItem {
             // See https://docs.oracle.com/javase/specs/jls/se8/html/jls-9.html#jls-9.4.1.3
             (containingClass().isInterface() &&
                 superMethods().count { it.modifiers.isAbstract() || it.modifiers.isDefault() } > 1)
+    }
+
+    /** If this method is annotated with [JvmName], returns the jvm name from the annotation. */
+    fun findJvmNameFromAnnotation(): String? {
+        val jvmNameAnnotation =
+            modifiers.annotations().firstOrNull { it.qualifiedName == JVM_NAME } ?: return null
+        return (jvmNameAnnotation.attributes.singleOrNull()?.value as? StringValue)?.underlyingValue
     }
 }

@@ -16,8 +16,8 @@
 
 package com.android.tools.metalava.model.testsuite
 
+import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.Codebase
-import com.android.tools.metalava.model.DefaultAnnotationItem
 import com.android.tools.metalava.model.JAVA_LANG_DEPRECATED
 import com.android.tools.metalava.model.ModifierList
 import com.android.tools.metalava.model.MutableModifierList
@@ -61,8 +61,7 @@ class CommonModifierListTest : BaseModelTest() {
     @Test
     fun `test equals() of empty modifiers`() {
         runWithCodebase {
-            val annotation =
-                DefaultAnnotationItem.create(codebase, JAVA_LANG_DEPRECATED, emptyList())!!
+            val annotation = AnnotationItem.createMarkerAnnotation(codebase, JAVA_LANG_DEPRECATED)!!
 
             // Create an empty set of modifiers
             val modifiers = createMutableModifiers(VisibilityLevel.PUBLIC)
@@ -102,7 +101,11 @@ class CommonModifierListTest : BaseModelTest() {
     fun `test toString()`() {
         runWithCodebase {
             val annotation =
-                DefaultAnnotationItem.create(codebase, FileLocation.UNKNOWN, JAVA_LANG_DEPRECATED) {
+                AnnotationItem.createAttributesLazily(
+                    codebase,
+                    FileLocation.UNKNOWN,
+                    JAVA_LANG_DEPRECATED
+                ) {
                     emptyList()
                 }!!
             val modifiers =
@@ -111,7 +114,7 @@ class CommonModifierListTest : BaseModelTest() {
                     annotations = listOf(annotation),
                 )
             assertEquals(
-                "ModifierList(flags = 0b100, annotations = [@java.lang.Deprecated])",
+                "ModifierList(flags = [public], annotations = [@java.lang.Deprecated])",
                 modifiers.toString()
             )
         }
@@ -127,5 +130,59 @@ class CommonModifierListTest : BaseModelTest() {
             createImmutableModifiers(VisibilityLevel.PRIVATE)
                 .equivalentTo(null, createImmutableModifiers(VisibilityLevel.PUBLIC))
         }
+    }
+
+    @Test
+    fun `test makeEquivalentTo for significant modifier`() {
+        fun runTest(base: Boolean, other: Boolean) {
+            val baseModifiers = createMutableModifiers(VisibilityLevel.PUBLIC)
+            baseModifiers.setFinal(base)
+            val otherModifiers = createMutableModifiers(VisibilityLevel.PUBLIC)
+            otherModifiers.setFinal(other)
+
+            baseModifiers.makeEquivalentTo(otherModifiers.toImmutable())
+            assertTrue(baseModifiers.equivalentTo(owner = null, otherModifiers))
+            // Final is significant to equivalence, so after makeEquivalentTo the value should be
+            // switched to the value from other.
+            assertEquals(baseModifiers.isFinal(), other)
+        }
+
+        runTest(base = true, other = true)
+        runTest(base = true, other = false)
+        runTest(base = false, other = true)
+        runTest(base = false, other = false)
+    }
+
+    @Test
+    fun `test makeEquivalentTo for insignificant modifier`() {
+        fun runTest(base: Boolean, other: Boolean) {
+            val baseModifiers = createMutableModifiers(VisibilityLevel.PUBLIC)
+            baseModifiers.setActual(base)
+            val otherModifiers = createMutableModifiers(VisibilityLevel.PUBLIC)
+            otherModifiers.setActual(other)
+
+            // Actual is not significant to equivalence, so after makeEquivalentTo the value should
+            // be unchanged from the original base.
+            baseModifiers.makeEquivalentTo(otherModifiers.toImmutable())
+            assertTrue(baseModifiers.equivalentTo(owner = null, otherModifiers))
+            assertEquals(baseModifiers.isActual(), base)
+        }
+
+        runTest(base = true, other = true)
+        runTest(base = true, other = false)
+        runTest(base = false, other = true)
+        runTest(base = false, other = false)
+    }
+
+    @Test
+    fun `test makeEquivalentTo for visibility`() {
+        val baseModifiers = createMutableModifiers(VisibilityLevel.PUBLIC)
+        val otherModifiers = createMutableModifiers(VisibilityLevel.PROTECTED)
+
+        baseModifiers.makeEquivalentTo(otherModifiers.toImmutable())
+        assertTrue(baseModifiers.equivalentTo(owner = null, otherModifiers))
+        // Visibility is significant to equivalence, so after makeEquivalentTo the value should be
+        // changed to the visibility from other.
+        assertEquals(baseModifiers.getVisibilityLevel(), VisibilityLevel.PROTECTED)
     }
 }

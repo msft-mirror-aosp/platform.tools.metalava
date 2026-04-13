@@ -16,6 +16,8 @@
 
 package com.android.tools.metalava.model
 
+import com.android.tools.metalava.model.annotation.AnnotationClass
+
 /** Provides support for managing annotations within Metalava. */
 interface AnnotationManager {
 
@@ -27,19 +29,15 @@ interface AnnotationManager {
      *
      * Annotations that should not be used internally are mapped to null.
      */
-    fun normalizeInputName(qualifiedName: String?): String?
+    fun normalizeInputName(qualifiedName: String): String?
 
     /**
      * Maps an annotation name to the name to be used in signatures/stubs/external annotation files.
-     * Annotations that should not be exported are mapped to null.
      */
     fun normalizeOutputName(
-        qualifiedName: String?,
+        qualifiedName: String,
         target: AnnotationTarget = AnnotationTarget.SIGNATURE_FILE
-    ): String?
-
-    /** Returns true if [annotationName] is the name of one of the show annotations. */
-    fun isShowAnnotationName(annotationName: String): Boolean = false
+    ): String
 
     /**
      * Checks to see if this has any show for stubs purposes annotations.
@@ -146,15 +144,14 @@ internal class NoOpAnnotationManager : BaseAnnotationManager() {
         return annotationItem.qualifiedName
     }
 
-    override fun computeAnnotationInfo(annotationItem: AnnotationItem): AnnotationInfo {
-        return NoOpAnnotationInfo(annotationItem.qualifiedName)
-    }
+    override fun computeAnnotationInfo(annotationItem: AnnotationItem) =
+        NoOpAnnotationInfo(annotationItem)
 
-    override fun normalizeInputName(qualifiedName: String?): String? {
+    override fun normalizeInputName(qualifiedName: String): String {
         return qualifiedName
     }
 
-    override fun normalizeOutputName(qualifiedName: String?, target: AnnotationTarget): String? {
+    override fun normalizeOutputName(qualifiedName: String, target: AnnotationTarget): String {
         return qualifiedName
     }
 
@@ -168,9 +165,11 @@ internal class NoOpAnnotationManager : BaseAnnotationManager() {
  * [qualifiedName]. Any other properties are set to the default, usually `false`.
  */
 internal class NoOpAnnotationInfo(
-    /** The fully qualified and normalized name of the annotation class. */
-    val qualifiedName: String,
+    /** The [AnnotationItem], needed for retrieving the [AnnotationClass]. */
+    private val annotationItem: AnnotationItem,
 ) : AnnotationInfo {
+    /** The fully qualified and normalized name of the annotation class. */
+    private val qualifiedName: String = annotationItem.qualifiedName
 
     override val targets
         get() = ANNOTATION_IN_ALL_STUBS
@@ -185,6 +184,14 @@ internal class NoOpAnnotationInfo(
 
     override val suppressCompatibility
         get() = qualifiedName == SUPPRESS_COMPATIBILITY_ANNOTATION_QUALIFIED
+
+    override val annotationClass: AnnotationClass?
+        get() = annotationItem.resolve()?.annotationClass
 }
 
-val noOpAnnotationManager: AnnotationManager = NoOpAnnotationManager()
+/**
+ * Get a [NoOpAnnotationManager], creates a new one on each call as it caches information specific
+ * to a [Codebase].
+ */
+val noOpAnnotationManager: AnnotationManager
+    get() = NoOpAnnotationManager()

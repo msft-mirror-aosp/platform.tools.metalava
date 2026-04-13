@@ -22,6 +22,8 @@ const val ANDROID_INT_DEF = "android.annotation.IntDef"
 const val ANDROID_LONG_DEF = "android.annotation.LongDef"
 const val ANDROID_STRING_DEF = "android.annotation.StringDef"
 
+const val ANDROID_HIDE = "android.annotation.Hide"
+
 const val ANDROID_SYSTEM_API = "android.annotation.SystemApi"
 const val ANDROID_TEST_API = "android.annotation.TestApi"
 const val ANDROID_FLAGGED_API = "android.annotation.FlaggedApi"
@@ -39,6 +41,11 @@ const val ANDROIDX_NULLABLE = "androidx.annotation.Nullable"
 const val RECENTLY_NULLABLE = "androidx.annotation.RecentlyNullable"
 const val RECENTLY_NONNULL = "androidx.annotation.RecentlyNonNull"
 
-const val ANDROID_DEPRECATED_FOR_SDK = "android.annotation.DeprecatedForSdk"
-
 const val ANDROIDX_REQUIRES_PERMISSION = "androidx.annotation.RequiresPermission"
+const val ANDROIDX_REQUIRES_PERMISSION_READ = "androidx.annotation.RequiresPermission.Read"
+const val ANDROIDX_REQUIRES_PERMISSION_WRITE = "androidx.annotation.RequiresPermission.Write"
+
+const val ANDROIDX_INT_RANGE = "androidx.annotation.IntRange"
+const val ANDROIDX_FLOAT_RANGE = "androidx.annotation.FloatRange"
+
+const val ANDROIDX_COMPOSABLE = "androidx.compose.runtime.Composable"

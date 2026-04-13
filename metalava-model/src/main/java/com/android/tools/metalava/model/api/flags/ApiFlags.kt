@@ -16,42 +16,18 @@
 
 package com.android.tools.metalava.model.api.flags
 
+import com.android.tools.metalava.model.ANDROID_FLAGGED_API
+import com.android.tools.metalava.model.ANNOTATION_ATTR_VALUE
 import com.android.tools.metalava.model.ANNOTATION_IN_ALL_STUBS
+import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.AnnotationTarget
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.NO_ANNOTATION_TARGETS
 import com.android.tools.metalava.model.Showability
+import com.android.tools.metalava.model.value.asString
 
-/**
- * The available set of configured [ApiFlag]s.
- *
- * @param byQualifiedName map from qualified flag name to [ApiFlag].
- */
-class ApiFlags(val byQualifiedName: Map<String, ApiFlag>) {
-    /**
-     * Get the [ApiFlag] by qualified name.
-     *
-     * If no such [ApiFlag] exists then return [ApiFlag.REVERT_FLAGGED_API].
-     */
-    operator fun get(qualifiedName: String) =
-        byQualifiedName[qualifiedName] ?: ApiFlag.REVERT_FLAGGED_API
-
-    override fun toString(): String {
-        return "ApiFlags(byQualifiedName=$byQualifiedName)"
-    }
-}
-
-/** A representation of an [ApiFlag] that is associated with an `@FlaggedApi` annotation. */
-class ApiFlag
-private constructor(
-    /**
-     * The qualified name of the flag.
-     *
-     * Provided for debug purposes only and cannot be relied upon to be the name of an actual flag,
-     * e.g. [REVERT_FLAGGED_API]'s [qualifiedName] is simply `<disabled>`.
-     */
-    val description: String,
-
+/** The action the api flag is accomplishing */
+enum class ApiFlagAction(
     /**
      * The [Showability] of any [Item]s annotated with an `@FlaggedApi` annotation that references
      * this [ApiFlag].
@@ -61,36 +37,100 @@ private constructor(
     /** Controls whether `@FlaggedApi` annotations for this [ApiFlag] are kept or discarded. */
     val annotationTargets: Set<AnnotationTarget>,
 ) {
+    /** Keep any associated [Item]s and their `@FlaggedApi` annotation. */
+    KEEP(
+        showability = Showability.NO_EFFECT,
+        annotationTargets = ANNOTATION_IN_ALL_STUBS,
+    ),
+
+    /**
+     * Keep any associated [Item]s but remove their `@FlaggedApi` annotation as this is being (or
+     * has been) finalized.
+     */
+    FINALIZE(
+        showability = Showability.NO_EFFECT,
+        annotationTargets = NO_ANNOTATION_TARGETS,
+    ),
+
+    /** Revert any associated [Item]s. */
+    REVERT(
+        showability = Showability.REVERT_UNSTABLE_API,
+        annotationTargets = NO_ANNOTATION_TARGETS,
+    )
+}
+
+/** The available set of configured [ApiFlag]s. */
+class ApiFlags(
+    flags: List<ApiFlag>,
+    private val unknownFlagAction: ApiFlagAction = ApiFlagAction.REVERT,
+) {
+    /** Map from qualified flag name to [ApiFlag]. */
+    private val byQualifiedName =
+        mutableMapOf<String, ApiFlag>().also { flags.associateByTo(it) { it.qualifiedName } }
+
+    /** All the [ApiFlag]s managed by this. */
+    val allFlags: Collection<ApiFlag>
+        get() = byQualifiedName.values
+
+    /**
+     * Get the [ApiFlag] by qualified name.
+     *
+     * If no such [ApiFlag] exists then return [ApiFlag] with [ApiFlagAction.REVERT].
+     */
+    operator fun get(qualifiedName: String) =
+        byQualifiedName.computeIfAbsent(qualifiedName) {
+            ApiFlag(it, unknownFlagAction, isExported = true, isKnown = false)
+        }
+
     override fun toString(): String {
-        return "ApiFlag(description='$description')"
-    }
-
-    companion object {
-        /** Revert any associated [Item]s. */
-        val REVERT_FLAGGED_API =
-            ApiFlag(
-                "<revert>",
-                showability = Showability.REVERT_UNSTABLE_API,
-                annotationTargets = NO_ANNOTATION_TARGETS
-            )
-
-        /** Keep any associated [Item]s and their `@FlaggedApi` annotation. */
-        val KEEP_FLAGGED_API =
-            ApiFlag(
-                "<keep>",
-                showability = Showability.NO_EFFECT,
-                annotationTargets = ANNOTATION_IN_ALL_STUBS,
-            )
-
-        /**
-         * Keep any associated [Item]s but remove their `@FlaggedApi` annotation as this is being
-         * (or has been) finalized.
-         */
-        val FINALIZE_FLAGGED_API =
-            ApiFlag(
-                "<finalize>",
-                showability = Showability.NO_EFFECT,
-                annotationTargets = NO_ANNOTATION_TARGETS,
-            )
+        return "ApiFlags(byQualifiedName=$byQualifiedName)"
     }
 }
+
+/** A representation of an [ApiFlag] that is associated with an `@FlaggedApi` annotation. */
+data class ApiFlag(
+    /** The qualified name of the flag. */
+    val qualifiedName: String,
+
+    /** The action that this flag will perform. */
+    val action: ApiFlagAction,
+
+    /** Whether the flag is exported */
+    val isExported: Boolean = true,
+
+    /** Whether the flag is known, i.e. was supplied in the configuration. */
+    val isKnown: Boolean = true,
+) {
+    /**
+     * The [Showability] of any [Item]s annotated with an `@FlaggedApi` annotation that references
+     * this [ApiFlag].
+     */
+    val showability
+        get() = action.showability
+
+    /** Controls whether `@FlaggedApi` annotations for this [ApiFlag] are kept or discarded. */
+    val annotationTargets
+        get() = action.annotationTargets
+}
+
+/**
+ * Get the optional flag name from this [AnnotationItem].
+ *
+ * Returns `null` if this is not [ANDROID_FLAGGED_API] and does not have a `value` attribute.
+ * Otherwise, it returns the value attribute as a [String].
+ *
+ * If the value exists but is not resolvable this returns the name of the field to preserve previous
+ * behavior.
+ */
+val AnnotationItem.optionalFlagName: String?
+    get() {
+        if (qualifiedName != ANDROID_FLAGGED_API) return null
+        val valueAttribute = findAttribute(ANNOTATION_ATTR_VALUE) ?: return null
+        return valueAttribute.value.let { value ->
+            // Use the literal string value, if possible. It will not be possible if the value is
+            // an unresolvable field reference.
+            value.asString()
+                // Fallback to using the string representation of the field reference.
+                ?: value.toValueString()
+        }
+    }

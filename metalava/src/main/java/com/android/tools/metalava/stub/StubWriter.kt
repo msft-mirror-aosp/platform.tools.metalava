@@ -16,7 +16,6 @@
 
 package com.android.tools.metalava.stub
 
-import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.DelegatedVisitor
@@ -26,8 +25,8 @@ import com.android.tools.metalava.model.ItemVisitor
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ModifierListWriter
 import com.android.tools.metalava.model.PackageItem
+import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.item.ResourceFile
-import com.android.tools.metalava.model.psi.trimDocIndent
 import com.android.tools.metalava.model.visitors.ApiFilters
 import com.android.tools.metalava.model.visitors.ApiPredicate
 import com.android.tools.metalava.model.visitors.ApiVisitor
@@ -45,7 +44,7 @@ import java.io.Writer
 internal class StubWriter(
     private val stubsDir: File,
     private val generateAnnotations: Boolean = false,
-    private val docStubs: Boolean,
+    private val isDocStubs: Boolean,
     private val reporter: Reporter,
     private val config: StubWriterConfig,
     private val stubConstructorManager: StubConstructorManager,
@@ -63,7 +62,7 @@ internal class StubWriter(
 
         writePackageInfo(pkg)
 
-        if (docStubs) {
+        if (isDocStubs) {
             pkg.overviewDocumentation?.let { writeDocOverview(pkg, it) }
         }
     }
@@ -95,7 +94,7 @@ internal class StubWriter(
         val annotations = pkg.modifiers.annotations()
         val writeAnnotations = annotations.isNotEmpty() && generateAnnotations
         val writeDocumentation =
-            config.includeDocumentationInStubs && pkg.documentation.isNotBlank()
+            config.includeDocumentationInStubs && pkg.documentation?.requiresSourceComment() == true
         if (writeAnnotations || writeDocumentation) {
             val sourceFile = File(getPackageDir(pkg), "package-info.java")
             val packageInfoWriter =
@@ -114,7 +113,7 @@ internal class StubWriter(
                 // modifiers.
                 ModifierListWriter.forStubs(
                         writer = packageInfoWriter,
-                        docStubs = docStubs,
+                        isDocStubs = isDocStubs,
                     )
                     .write(pkg)
             }
@@ -193,7 +192,7 @@ internal class StubWriter(
             val modifierListWriter =
                 ModifierListWriter.forStubs(
                     writer = textWriter,
-                    docStubs = docStubs,
+                    isDocStubs = isDocStubs,
                     runtimeAnnotationsOnly = !generateAnnotations,
                 )
 
@@ -206,7 +205,12 @@ internal class StubWriter(
                 )
 
             // Copyright statements from the original file?
-            cls.sourceFile()?.getHeaderComments()?.let { textWriter.println(it) }
+            cls.sourceFile()?.getHeaderComments()?.let { headerComment ->
+                val trimmed = headerComment.trim()
+                if (trimmed.isNotEmpty()) {
+                    textWriter.println(trimmed)
+                }
+            }
         }
         stubWriter?.visitClass(cls)
 
@@ -258,14 +262,14 @@ internal class StubWriter(
  */
 fun createFilteringVisitorForStubs(
     delegate: DelegatedVisitor,
-    docStubs: Boolean,
+    isDocStubs: Boolean,
     preFiltered: Boolean,
     apiPredicateConfig: ApiPredicate.Config,
     ignoreEmit: Boolean = false,
 ): ItemVisitor {
     val filterReference =
         ApiPredicate(
-            includeDocOnly = docStubs,
+            includeDocOnly = isDocStubs,
             config = apiPredicateConfig.copy(ignoreShown = true),
         )
     val filterEmit = MatchOverridingMethodPredicate(filterReference)
@@ -277,25 +281,19 @@ fun createFilteringVisitorForStubs(
     return FilteringApiVisitor(
         delegate = delegate,
         inlineInheritedFields = true,
-        // Sort methods in stubs based on their signature. The order of methods in stubs is
-        // irrelevant, e.g. it does not affect compilation or document generation. However, having a
-        // consistent order will prevent churn in the generated stubs caused by changes to Metalava
-        // itself or changes to the order of methods in the sources.
-        callableComparator = CallableItem.comparator,
         apiFilters = apiFilters,
         preFiltered = preFiltered,
         ignoreEmit = ignoreEmit,
     )
 }
 
-internal fun appendDocumentation(item: Item, writer: PrintWriter, config: StubWriterConfig) {
+internal fun appendDocumentation(
+    item: SelectableItem,
+    writer: PrintWriter,
+    config: StubWriterConfig
+) {
     if (config.includeDocumentationInStubs) {
         val documentation = item.documentation
-        val text = documentation.fullyQualifiedDocumentation()
-        if (text.isNotBlank()) {
-            val trimmed = trimDocIndent(text)
-            writer.println(trimmed)
-            writer.println()
-        }
+        documentation?.print(writer)
     }
 }
