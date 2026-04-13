@@ -110,7 +110,7 @@ class CommonAnnotationItemTest : BaseModelTest() {
 
     @RequiresCapabilities(Capability.JAVA)
     @Test
-    fun `annotation location (java)`() {
+    fun `annotation location - java`() {
         runCodebaseTest(
             inputSet(
                 lineBefore,
@@ -159,7 +159,7 @@ class CommonAnnotationItemTest : BaseModelTest() {
 
     @RequiresCapabilities(Capability.KOTLIN)
     @Test
-    fun `annotation location (kotlin)`() {
+    fun `annotation location - kotlin`() {
         runCodebaseTest(
             inputSet(
                 lineBefore,

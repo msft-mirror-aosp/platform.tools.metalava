@@ -1651,7 +1651,7 @@ class CommonClassItemTest : BaseModelTest() {
 
     @RequiresCapabilities(Capability.JAVA)
     @Test
-    fun `Test class location (java)`() {
+    fun `Test class location - java`() {
         runCodebaseTest(
             java(
                 """
@@ -1673,7 +1673,7 @@ class CommonClassItemTest : BaseModelTest() {
 
     @RequiresCapabilities(Capability.KOTLIN)
     @Test
-    fun `Test class location (kotlin)`() {
+    fun `Test class location - kotlin`() {
         runCodebaseTest(
             kotlin(
                 """
@@ -1694,7 +1694,7 @@ class CommonClassItemTest : BaseModelTest() {
 
     @RequiresCapabilities(Capability.SIGNATURE)
     @Test
-    fun `Test class location (signature)`() {
+    fun `Test class location - signature`() {
         runCodebaseTest(
             signature(
                 """

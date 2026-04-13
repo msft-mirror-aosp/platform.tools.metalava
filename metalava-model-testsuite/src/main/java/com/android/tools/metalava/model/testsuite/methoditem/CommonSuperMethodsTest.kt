@@ -528,7 +528,7 @@ class CommonSuperMethodsTest : BaseModelTest() {
     }
 
     @Test
-    fun `Test multiple super methods from parent interfaces (reverse)`() {
+    fun `Test multiple super methods from parent interfaces - reverse`() {
         runCodebaseTest(
             inputSet(
                 java(

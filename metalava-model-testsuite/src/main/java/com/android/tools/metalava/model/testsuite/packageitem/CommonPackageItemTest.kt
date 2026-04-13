@@ -228,7 +228,7 @@ class CommonPackageItemTest : BaseModelTest() {
 
     @RequiresCapabilities(Capability.SIGNATURE)
     @Test
-    fun `Test package location (signature)`() {
+    fun `Test package location - signature`() {
         runCodebaseTest(
             signature(
                 """
@@ -252,7 +252,7 @@ class CommonPackageItemTest : BaseModelTest() {
 
     @RequiresCapabilities(Capability.JAVA)
     @Test
-    fun `Test package location (package-info)`() {
+    fun `Test package location - package-info`() {
         runCodebaseTest(
             inputSet(
                 java(
@@ -341,7 +341,7 @@ class CommonPackageItemTest : BaseModelTest() {
 
     @RequiresCapabilities(Capability.JAVA)
     @Test
-    fun `Test package location (package-html)`() {
+    fun `Test package location - package-html`() {
         runCodebaseTest(
             inputSet(
                 java(
@@ -379,7 +379,7 @@ class CommonPackageItemTest : BaseModelTest() {
 
     @RequiresCapabilities(Capability.JAVA)
     @Test
-    fun `Test package documentation (package-html)`() {
+    fun `Test package documentation - package-html`() {
         runCodebaseTest(
             inputSet(
                 java(
@@ -410,7 +410,7 @@ class CommonPackageItemTest : BaseModelTest() {
 
     @RequiresCapabilities(Capability.JAVA)
     @Test
-    fun `Test invalid package (package-html)`() {
+    fun `Test invalid package - package-html`() {
         runCodebaseTest(
             inputSet(
                 java(
@@ -443,7 +443,7 @@ class CommonPackageItemTest : BaseModelTest() {
 
     @RequiresCapabilities(Capability.JAVA)
     @Test
-    fun `Test package documentation (overview-html)`() {
+    fun `Test package documentation - overview-html`() {
         runCodebaseTest(
             inputSet(
                 java(
