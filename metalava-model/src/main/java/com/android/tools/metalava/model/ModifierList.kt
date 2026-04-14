@@ -61,10 +61,10 @@ interface BaseModifierList {
     fun isDeprecated(): Boolean
 
     // Modifier in Kotlin, separate syntax (...) in Java but modeled as modifier here
-    fun isVarArg(): Boolean = false
+    fun isVarArg(): Boolean
 
     // Kotlin
-    fun isSealed(): Boolean = false
+    fun isSealed(): Boolean
 
     /**
      * A sealed class is exhaustive if all classes that inherit from it are publicly accessible, and
@@ -73,29 +73,29 @@ interface BaseModifierList {
      * can create breaking changes for clients, so we want to raise a compatibility issue if that is
      * detected. For more information see b/447143803
      */
-    fun isExhaustive(): Boolean = false
+    fun isExhaustive(): Boolean
 
-    fun isFunctional(): Boolean = false
+    fun isFunctional(): Boolean
 
-    fun isCompanion(): Boolean = false
+    fun isCompanion(): Boolean
 
-    fun isInfix(): Boolean = false
+    fun isInfix(): Boolean
 
-    fun isConst(): Boolean = false
+    fun isConst(): Boolean
 
-    fun isSuspend(): Boolean = false
+    fun isSuspend(): Boolean
 
-    fun isOperator(): Boolean = false
+    fun isOperator(): Boolean
 
-    fun isInline(): Boolean = false
+    fun isInline(): Boolean
 
-    fun isValue(): Boolean = false
+    fun isValue(): Boolean
 
-    fun isData(): Boolean = false
+    fun isData(): Boolean
 
-    fun isExpect(): Boolean = false
+    fun isExpect(): Boolean
 
-    fun isActual(): Boolean = false
+    fun isActual(): Boolean
 
     /**
      * Check whether this [ModifierList]'s modifiers are equivalent to the [other] [ModifierList]'s

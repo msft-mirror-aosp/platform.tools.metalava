@@ -69,13 +69,9 @@ internal sealed class DefaultBaseModifierList(
             }
     }
 
-    private fun isSet(mask: Int): Boolean {
-        return flags and mask != 0
-    }
+    private fun isSet(mask: Int) = flags and mask != 0
 
-    override fun annotations(): List<AnnotationItem> {
-        return annotations
-    }
+    override fun annotations() = annotations
 
     override fun getVisibilityLevel(): VisibilityLevel {
         val visibilityFlags = flags and VISIBILITY_MASK
@@ -91,117 +87,61 @@ internal sealed class DefaultBaseModifierList(
         return levels[visibilityFlags]
     }
 
-    override fun isPublic(): Boolean {
-        return getVisibilityLevel() == VisibilityLevel.PUBLIC
-    }
+    override fun isPublic() = getVisibilityLevel() == VisibilityLevel.PUBLIC
 
-    override fun isProtected(): Boolean {
-        return getVisibilityLevel() == VisibilityLevel.PROTECTED
-    }
+    override fun isProtected() = getVisibilityLevel() == VisibilityLevel.PROTECTED
 
-    override fun isInternal(): Boolean {
-        return getVisibilityLevel() == VisibilityLevel.INTERNAL
-    }
+    override fun isInternal() = getVisibilityLevel() == VisibilityLevel.INTERNAL
 
-    override fun isPrivate(): Boolean {
-        return getVisibilityLevel() == VisibilityLevel.PRIVATE
-    }
+    override fun isPrivate() = getVisibilityLevel() == VisibilityLevel.PRIVATE
 
-    override fun isPackagePrivate(): Boolean {
-        return getVisibilityLevel() == VisibilityLevel.PACKAGE_PRIVATE
-    }
+    override fun isPackagePrivate() = getVisibilityLevel() == VisibilityLevel.PACKAGE_PRIVATE
 
-    override fun isStatic(): Boolean {
-        return isSet(STATIC)
-    }
+    override fun isStatic() = isSet(STATIC)
 
-    override fun isAbstract(): Boolean {
-        return isSet(ABSTRACT)
-    }
+    override fun isAbstract() = isSet(ABSTRACT)
 
-    override fun isFinal(): Boolean {
-        return isSet(FINAL)
-    }
+    override fun isFinal() = isSet(FINAL)
 
-    override fun isNative(): Boolean {
-        return isSet(NATIVE)
-    }
+    override fun isNative() = isSet(NATIVE)
 
-    override fun isSynchronized(): Boolean {
-        return isSet(SYNCHRONIZED)
-    }
+    override fun isSynchronized() = isSet(SYNCHRONIZED)
 
-    override fun isStrictFp(): Boolean {
-        return isSet(STRICT_FP)
-    }
+    override fun isStrictFp() = isSet(STRICT_FP)
 
-    override fun isTransient(): Boolean {
-        return isSet(TRANSIENT)
-    }
+    override fun isTransient() = isSet(TRANSIENT)
 
-    override fun isVolatile(): Boolean {
-        return isSet(VOLATILE)
-    }
+    override fun isVolatile() = isSet(VOLATILE)
 
-    override fun isDefault(): Boolean {
-        return isSet(DEFAULT)
-    }
+    override fun isDefault() = isSet(DEFAULT)
 
-    override fun isDeprecated(): Boolean {
-        return isSet(DEPRECATED)
-    }
+    override fun isDeprecated() = isSet(DEPRECATED)
 
-    override fun isVarArg(): Boolean {
-        return isSet(VARARG)
-    }
+    override fun isVarArg() = isSet(VARARG)
 
-    override fun isSealed(): Boolean {
-        return isSet(SEALED)
-    }
+    override fun isSealed() = isSet(SEALED)
 
-    override fun isExhaustive(): Boolean {
-        return isSet(EXHAUSTIVE)
-    }
+    override fun isExhaustive() = isSet(EXHAUSTIVE)
 
-    override fun isFunctional(): Boolean {
-        return isSet(FUN)
-    }
+    override fun isFunctional() = isSet(FUN)
 
-    override fun isInfix(): Boolean {
-        return isSet(INFIX)
-    }
+    override fun isInfix() = isSet(INFIX)
 
-    override fun isConst(): Boolean {
-        return isSet(CONST)
-    }
+    override fun isConst() = isSet(CONST)
 
-    override fun isSuspend(): Boolean {
-        return isSet(SUSPEND)
-    }
+    override fun isSuspend() = isSet(SUSPEND)
 
-    override fun isCompanion(): Boolean {
-        return isSet(COMPANION)
-    }
+    override fun isCompanion() = isSet(COMPANION)
 
-    override fun isOperator(): Boolean {
-        return isSet(OPERATOR)
-    }
+    override fun isOperator() = isSet(OPERATOR)
 
-    override fun isInline(): Boolean {
-        return isSet(INLINE)
-    }
+    override fun isInline() = isSet(INLINE)
 
-    override fun isValue(): Boolean {
-        return isSet(VALUE)
-    }
+    override fun isValue() = isSet(VALUE)
 
-    override fun isData(): Boolean {
-        return isSet(DATA)
-    }
+    override fun isData() = isSet(DATA)
 
-    override fun isExpect(): Boolean {
-        return isSet(EXPECT)
-    }
+    override fun isExpect() = isSet(EXPECT)
 
     override fun isActual(): Boolean {
         return isSet(ACTUAL)
@@ -243,9 +183,7 @@ internal sealed class DefaultBaseModifierList(
      * Returns the flags for the modifiers from this list which are considered significant, as
      * defined by [EQUIVALENCE_MASK].
      */
-    internal fun significantFlags(): Int {
-        return flags and EQUIVALENCE_MASK
-    }
+    internal fun significantFlags(): Int = flags and EQUIVALENCE_MASK
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
@@ -263,9 +201,7 @@ internal sealed class DefaultBaseModifierList(
         return result
     }
 
-    override fun toString(): String {
-        return "ModifierList(flags = $keywordList, annotations = $annotations)"
-    }
+    override fun toString() = "ModifierList(flags = $keywordList, annotations = $annotations)"
 }
 
 interface ModifierFlags {
@@ -425,13 +361,9 @@ internal class DefaultMutableModifierList(
     annotations: List<AnnotationItem> = emptyList(),
 ) : DefaultBaseModifierList(flags, annotations), MutableModifierList {
 
-    override fun toMutable(): MutableModifierList {
-        return this
-    }
+    override fun toMutable(): MutableModifierList = this
 
-    override fun toImmutable(): ModifierList {
-        return DefaultModifierList.create(flags, annotations)
-    }
+    override fun toImmutable() = DefaultModifierList.create(flags, annotations)
 
     override fun setVisibilityLevel(level: VisibilityLevel) {
         flags = (flags and VISIBILITY_MASK.inv()) or level.visibilityFlagValue
@@ -557,13 +489,9 @@ private constructor(
     annotations: List<AnnotationItem>,
 ) : DefaultBaseModifierList(flags, annotations), ModifierList {
 
-    override fun toMutable(): MutableModifierList {
-        return DefaultMutableModifierList(flags, annotations)
-    }
+    override fun toMutable(): MutableModifierList = DefaultMutableModifierList(flags, annotations)
 
-    override fun toImmutable(): ModifierList {
-        return this
-    }
+    override fun toImmutable(): ModifierList = this
 
     override fun snapshot(targetCodebase: Codebase): ModifierList {
         if (annotations.isEmpty()) return this
@@ -625,9 +553,7 @@ fun MutableModifierList.addDefaultRetentionPolicyAnnotation(
 fun createImmutableModifiers(
     visibility: VisibilityLevel,
     annotations: List<AnnotationItem> = emptyList(),
-): ModifierList {
-    return DefaultModifierList.create(visibility.visibilityFlagValue, annotations)
-}
+): ModifierList = DefaultModifierList.create(visibility.visibilityFlagValue, annotations)
 
 /**
  * Create a [MutableModifierList] with the [visibility] level and an optional list of
@@ -636,9 +562,7 @@ fun createImmutableModifiers(
 fun createMutableModifiers(
     visibility: VisibilityLevel,
     annotations: List<AnnotationItem> = emptyList(),
-): MutableModifierList {
-    return DefaultMutableModifierList(visibility.visibilityFlagValue, annotations)
-}
+): MutableModifierList = DefaultMutableModifierList(visibility.visibilityFlagValue, annotations)
 
 /**
  * Create a [MutableModifierList] from a set of [flags] and an optional list of [AnnotationItem]s.
@@ -646,6 +570,4 @@ fun createMutableModifiers(
 fun createMutableModifiers(
     flags: Int,
     annotations: List<AnnotationItem> = emptyList(),
-): MutableModifierList {
-    return DefaultMutableModifierList(flags, annotations)
-}
+): MutableModifierList = DefaultMutableModifierList(flags, annotations)
