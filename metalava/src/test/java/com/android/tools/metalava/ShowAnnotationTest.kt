@@ -504,24 +504,21 @@ class ShowAnnotationTest : DriverTest() {
                         """
                     package androidx.room;
 
-                    import androidx.annotation.IntDef;
+                    import android.annotation.IntDef;
 
                     @IntDef(OnConflictStrategy.REPLACE)
                     public @interface OnConflictStrategy {
                         int REPLACE = 1;
                     }
                     """
-                    )
+                    ),
+                    intDefAnnotationSource,
                 ),
-            expectedIssues =
-                """
-                src/androidx/room/OnConflictStrategy.java:3: info: Unresolved import: `androidx.annotation.IntDef` [UnresolvedImport]
-                """,
             api =
                 """
                 // Signature format: 4.0
                 package androidx.room {
-                  @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.CLASS) public @interface OnConflictStrategy {
+                  @IntDef(androidx.room.OnConflictStrategy.REPLACE) @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.CLASS) public @interface OnConflictStrategy {
                     field public static final int REPLACE = 1; // 0x1
                   }
                 }
@@ -834,13 +831,13 @@ class ShowAnnotationTest : DriverTest() {
                     java(
                         """
                     package test.pkg;
-                    /** @hide */
+                    /** */
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class Class1 {
                     public Class1() { throw new RuntimeException("Stub!"); }
-                    /** @hide */
+                    /** */
                     public void member() { throw new RuntimeException("Stub!"); }
-                    /** @hide */
+                    /** */
                     public static final java.lang.String FIELD = "Class1.FIELD";
                     }
                     """
@@ -848,11 +845,11 @@ class ShowAnnotationTest : DriverTest() {
                     java(
                         """
                     package test.pkg;
-                    /** @hide */
+                    /** */
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class Class2 extends test.pkg.Class1 {
                     public Class2() { throw new RuntimeException("Stub!"); }
-                    /** @hide */
+                    /** */
                     public void member() { throw new RuntimeException("Stub!"); }
                     }
                     """
@@ -916,9 +913,9 @@ class ShowAnnotationTest : DriverTest() {
                   @SuppressWarnings({"unchecked", "deprecation", "all"})
                   public class Foo {
                   public Foo() { throw new RuntimeException("Stub!"); }
-                  /** @hide */
+                  /** */
                   public void method1() { throw new RuntimeException("Stub!"); }
-                  /** @hide */
+                  /** */
                   public void method2() { throw new RuntimeException("Stub!"); }
                   }
               """

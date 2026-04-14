@@ -23,7 +23,9 @@ import com.android.tools.metalava.reporter.FileLocation
 import java.io.PrintWriter
 
 /** A factory that will create an [ItemDocumentation] for a specific [SelectableItem]. */
-typealias ItemDocumentationFactory = (SelectableItem) -> ItemDocumentation
+fun interface ItemDocumentationFactory {
+    fun create(item: SelectableItem): ItemDocumentation?
+}
 
 /**
  * The documentation associated with an [Item].
@@ -31,8 +33,6 @@ typealias ItemDocumentationFactory = (SelectableItem) -> ItemDocumentation
  * This implements [CharSequence] to simplify migration.
  */
 interface ItemDocumentation {
-    val text: String
-
     /** The location of the start of the document comment. */
     val fileLocation: FileLocation
         get() = FileLocation.UNKNOWN
@@ -98,12 +98,8 @@ interface ItemDocumentation {
      * Get the description for the first block tag of [tagTypeName].
      *
      * Returns `null` if this has no underlying Javadoc comment, or no such block tag.
-     *
-     * @param forAppending if `true` then the returned [DocContent], if any, will be prepared for
-     *   appending into another [Item]'s documentation. That will involve removing leading
-     *   whitespaces and fully qualifying any `{@link}` and `{@linkplain}` references.
      */
-    fun blockTagDescription(tagTypeName: String, forAppending: Boolean = false): DocContent?
+    fun blockTagDescription(tagTypeName: String): DocContent?
 
     /**
      * Get the owner of the description for the first block tag of [tagTypeName].
@@ -148,17 +144,6 @@ interface ItemDocumentation {
      */
     fun requiresSourceComment(): Boolean
 
-    /**
-     * Returns the [text], but with fully qualified links (except for the same package, and when
-     * turning a relative reference into a fully qualified reference, use the javadoc syntax for
-     * continuing to display the relative text, e.g. instead of {@link java.util.List}, use {@link
-     * java.util.List List}.
-     */
-    fun fullyQualifiedDocumentation(): String = fullyQualifiedDocumentation(text)
-
-    /** Expands the given documentation comment in the current name context */
-    fun fullyQualifiedDocumentation(documentation: String): String = documentation
-
     /** Remove the `@deprecated` section, if any. */
     fun removeDeprecatedSection()
 
@@ -173,83 +158,21 @@ interface ItemDocumentation {
 
     companion object {
         /**
-         * A special [ItemDocumentation] that contains no documentation.
+         * A special [ItemDocumentationFactory] that returns `null`.
          *
          * Used where there is no documentation possible, e.g. text model, type parameters,
          * parameters.
          */
-        val NONE: ItemDocumentation = NoItemDocumentation()
-
-        /**
-         * A special [ItemDocumentationFactory] that returns [NONE] which contains no documentation.
-         *
-         * Used where there is no documentation possible, e.g. text model, type parameters,
-         * parameters.
-         */
-        val NONE_FACTORY: ItemDocumentationFactory = { NONE }
-    }
-
-    /** An [ItemDocumentation] that can never contain any text. */
-    private class NoItemDocumentation : ItemDocumentation {
-        override val text
-            get() = ""
-
-        override val isHidden
-            get() = false
-
-        override val isDocOnly
-            get() = false
-
-        override val isRemoved
-            get() = false
-
-        // This is ok to share as it is immutable.
-        override fun duplicate(item: SelectableItem) = this
-
-        // This is ok to use in a snapshot as it is immutable and model independent.
-        override fun snapshot(item: SelectableItem) = this
-
-        // No documentation never has any tag sections.
-        override fun hasBlockTagOfType(blockTagType: String) = false
-
-        private fun inaccessible(): Nothing =
-            error("cannot access documentation on an item that does not support documentation")
-
-        // No documentation has nothing to print.
-        override fun print(writer: PrintWriter) {}
-
-        override val mainDescription
-            get() = null
-
-        override val mainDescriptionOwner
-            get() = inaccessible()
-
-        /** Returns `null` as this is sometimes called. */
-        override fun blockTagDescription(tagTypeName: String, forAppending: Boolean) = null
-
-        override fun blockTagDescriptionOwner(tagTypeName: String) = inaccessible()
-
-        /** Returns `null` as this is sometimes called. */
-        override fun paramTagDescription(name: String) = null
-
-        override fun paramTagDescriptionOwner(name: String) = inaccessible()
-
-        /** Returns `false` as this is sometimes called. */
-        override fun check(predicate: DocContentPredicate) = false
-
-        /**
-         * Returns `false` as this is called for [PackageItem]s which do not have a
-         * `package-info.java` or `package.html`.
-         */
-        override fun requiresSourceComment() = false
-
-        override fun removeDeprecatedSection() {
-            // TODO(b/450228132): Temporarily allow this to be called as there is an issue where
-            //   default constructors of deprecated classes that are flagged call this even though
-            //   the constructor has no documentation.
-        }
-
-        override fun addUniqueBlockTagSectionWithSimpleText(tagTypeName: String, text: String) =
-            inaccessible()
+        val NONE_FACTORY: ItemDocumentationFactory = ItemDocumentationFactory { null }
     }
 }
+
+/** Return an [ItemDocumentationFactory] that will create a duplicate of this. */
+fun ItemDocumentation?.duplicatingFactory(): ItemDocumentationFactory =
+    this?.let { ItemDocumentationFactory { item -> it.duplicate(item) } }
+        ?: ItemDocumentation.NONE_FACTORY
+
+/** Return an [ItemDocumentationFactory] that will take a snapshot of this. */
+fun ItemDocumentation?.snapshottingFactory(): ItemDocumentationFactory =
+    this?.let { ItemDocumentationFactory { item: SelectableItem -> it.snapshot(item) } }
+        ?: ItemDocumentation.NONE_FACTORY

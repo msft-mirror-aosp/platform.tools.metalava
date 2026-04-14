@@ -17,8 +17,8 @@
 package com.android.tools.metalava
 
 import com.android.tools.lint.checks.infrastructure.TestFile
+import com.android.tools.metalava.cli.common.ARG_SKIP_READING_COMMENTS
 import com.android.tools.metalava.lint.DefaultLintErrorMessage
-import com.android.tools.metalava.model.psi.REPORT_UNRESOLVED_SYMBOLS
 import com.android.tools.metalava.model.source.utils.packageHtmlToJavadoc
 import com.android.tools.metalava.testing.KnownSourceFiles
 import com.android.tools.metalava.testing.java
@@ -154,19 +154,17 @@ class JavadocTest : DriverTest() {
             source =
                 """
                     package test.pkg1;
-                    import java.io.IOException;
-                    import test.pkg2.OtherClass;
                     /**
                      * Blah blah {@link test.pkg2.OtherClass OtherClass} blah blah.
                      *  Referencing <b>field</b> {@link test.pkg2.OtherClass#foo OtherClass.foo},
-                     *  and referencing method {@link test.pkg2.OtherClass#bar(int,boolean) OtherClass.bar(int, boolean)}.
+                     *  and referencing method {@link test.pkg2.OtherClass#bar(int,boolean) OtherClass.bar(int,boolean)}.
                      *  And relative method reference {@link #baz()}.
                      *  And relative field reference {@link #importance}.
                      *  Here's an already fully qualified reference: {@link test.pkg2.OtherClass}.
                      *  And here's one in the same package: {@link test.pkg1.LocalClass LocalClass}.
                      *
-                     * @see test.pkg2.OtherClass
-                     * @see test.pkg2.OtherClass#bar(int, boolean)
+                     * @see test.pkg2.OtherClass OtherClass
+                     * @see test.pkg2.OtherClass#bar(int,boolean) OtherClass.bar(int,boolean)
                      * @deprecated For some reason
                      */
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
@@ -199,10 +197,12 @@ class JavadocTest : DriverTest() {
             apiLint = "",
             expectedFail = DefaultLintErrorMessage,
             // These warnings prove that lint is enabled and will report MutableBareField and
-            // MissingNullability, issues that would be reported on test.hidden.Hidden if it was not
-            // hidden by the package-info.java.
+            // MissingNullability. The first two issues are reported because `test.hidden.Hidden`
+            // is not hidden by the `@hide` in `test/hidden/package-info.java`.
             warnings =
                 """
+                    src/test/hidden/Hidden.java:4: error: Missing nullability on field `bareMutableFieldMissingNullability` in class `class test.hidden.Hidden` [MissingNullability]
+                    src/test/hidden/Hidden.java:4: error: Bare field bareMutableFieldMissingNullability must be marked final, or moved behind accessors if mutable [MutableBareField]
                     src/test/pkg1/SomeClass.java:29: error: Bare field importance must be marked final, or moved behind accessors if mutable [MutableBareField]
                     src/test/pkg2/OtherClass.java:7: error: Missing nullability on field `foo` in class `class test.pkg2.OtherClass` [MissingNullability]
                     src/test/pkg2/OtherClass.java:7: error: Bare field foo must be marked final, or moved behind accessors if mutable [MutableBareField]
@@ -265,8 +265,8 @@ class JavadocTest : DriverTest() {
                     }
                     """
                     ),
-                    // Make sure that hiding a package by using `@hide` in the Javadoc of a
-                    // package-info.java file still works when allowReadingComments = false.
+                    // Make sure that using `@hide` in the package javadoc comment has no effect
+                    // when allowReadingComments = false.
                     java(
                         """
                             /** @hide */
@@ -363,19 +363,17 @@ class JavadocTest : DriverTest() {
             source =
                 """
                 package test.pkg1;
-                import java.io.IOException;
-                import test.pkg2.OtherClass;
                 /**
                  * Blah blah {@link test.pkg2.OtherClass OtherClass} blah blah.
                  *  Referencing <b>field</b> {@link test.pkg2.OtherClass#foo OtherClass.foo},
-                 *  and referencing method {@link test.pkg2.OtherClass#bar(int,boolean) OtherClass.bar(int, boolean)}.
+                 *  and referencing method {@link test.pkg2.OtherClass#bar(int,boolean) OtherClass.bar(int,boolean)}.
                  *  And relative method reference {@link #baz()}.
                  *  And relative field reference {@link #importance}.
                  *  Here's an already fully qualified reference: {@link test.pkg2.OtherClass}.
                  *  And here's one in the same package: {@link test.pkg1.LocalClass LocalClass}.
                  *
-                 * @see test.pkg2.OtherClass
-                 * @see test.pkg2.OtherClass#bar(int, boolean)
+                 * @see test.pkg2.OtherClass OtherClass
+                 * @see test.pkg2.OtherClass#bar(int,boolean) OtherClass.bar(int,boolean)
                  * @deprecated For some reason
                  */
                 @SuppressWarnings({"unchecked", "deprecation", "all"})
@@ -537,7 +535,6 @@ class JavadocTest : DriverTest() {
             source =
                 """
                 package android.accessibilityservice;
-                import android.view.accessibility.AccessibilityEvent;
                 /**
                  * <p>
                  * Window content may be retrieved with
@@ -610,7 +607,6 @@ class JavadocTest : DriverTest() {
             source =
                 """
                 package android.accessibilityservice;
-                import android.view.accessibility.AccessibilityEvent;
                 /**
                  * <p>
                  * Window content may be retrieved with
@@ -709,7 +705,6 @@ class JavadocTest : DriverTest() {
             source =
                 """
                 package android.content;
-                import android.os.OperationCanceledException;
                 @SuppressWarnings({"unchecked", "deprecation", "all"})
                 public abstract class AsyncTaskLoader<D> {
                 public AsyncTaskLoader() { throw new RuntimeException("Stub!"); }
@@ -869,7 +864,6 @@ class JavadocTest : DriverTest() {
             source =
                 """
                 package test.pkg1;
-                import test.pkg2.MyChild;
                 /**
                  * Reference to {@link test.pkg2.MyChild#CONSTANT1 MyChild.CONSTANT1},
                  * {@link test.pkg2.MyChild#CONSTANT2 MyChild.CONSTANT2}, and
@@ -945,12 +939,11 @@ class JavadocTest : DriverTest() {
             source =
                 """
                 package test.pkg1;
-                import test.pkg2.OtherClass2;
-                /** Reference to {@link test.pkg2.OtherClass1#myMethod(test.pkg2.OtherClass2,int name,test.pkg2.OtherClass2[]) OtherClass1.myMethod(OtherClass2, int name, OtherClass2[])}, */
+                /** Reference to {@link test.pkg2.OtherClass1#myMethod(test.pkg2.OtherClass2,int,test.pkg2.OtherClass2[]) OtherClass1.myMethod(OtherClass2,int,OtherClass2[])}, */
                 @SuppressWarnings({"unchecked", "deprecation", "all"})
                 public class Test<E extends test.pkg2.OtherClass2> {
                 public Test() { throw new RuntimeException("Stub!"); }
-                /** Reference to {@link test.pkg2.OtherClass1#myMethod(E,int,test.pkg2.OtherClass2[]) OtherClass1.myMethod(E, int, OtherClass2 [])}, */
+                /** Reference to {@link test.pkg2.OtherClass1#myMethod(test.pkg2.OtherClass2,int,test.pkg2.OtherClass2[]) OtherClass1.myMethod(E,int,OtherClass2[])}, */
                 public void test() { throw new RuntimeException("Stub!"); }
                 }
                 """
@@ -989,7 +982,6 @@ class JavadocTest : DriverTest() {
             source =
                 """
                 package test.pkg1;
-                import java.nio.ByteBuffer;
                 @SuppressWarnings({"unchecked", "deprecation", "all"})
                 public abstract class Test {
                 public Test() { throw new RuntimeException("Stub!"); }
@@ -1011,15 +1003,7 @@ class JavadocTest : DriverTest() {
         @Suppress("ConstantConditionIf")
         checkStubs(
             docStubs = true,
-            warnings =
-                if (REPORT_UNRESOLVED_SYMBOLS) {
-                    """
-                src/test/pkg1/Test.java:6: lint: Unresolved documentation reference: SomethingMissing [UnresolvedLink]
-                src/test/pkg1/Test.java:6: lint: Unresolved documentation reference: OtherMissing [UnresolvedLink]
-            """
-                } else {
-                    ""
-                },
+            warnings = "",
             sourceFiles =
                 arrayOf(
                     java(
@@ -1113,7 +1097,6 @@ class JavadocTest : DriverTest() {
                     java(
                         """
                     package android.view;
-                    import android.graphics.Insets;
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public final class WindowInsets {
                     public WindowInsets() { throw new RuntimeException("Stub!"); }
@@ -1196,11 +1179,10 @@ class JavadocTest : DriverTest() {
                     java(
                         """
                     package test.pkg;
-                    import test.pkg.bar.Bar;
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class Foo {
                     public Foo() { throw new RuntimeException("Stub!"); }
-                    /** @see test.pkg.bar.Bar */
+                    /** @see test.pkg.bar.Bar Bar */
                     public void bar() { throw new RuntimeException("Stub!"); }
                     }
                     """
@@ -1208,14 +1190,12 @@ class JavadocTest : DriverTest() {
                     java(
                         """
                     package test.pkg.bar;
-                    import test.pkg.Foo;
-                    import test.pkg.baz.Baz;
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class Bar {
                     public Bar() { throw new RuntimeException("Stub!"); }
-                    /** @see test.pkg.baz.Baz */
+                    /** @see test.pkg.baz.Baz Baz */
                     public void baz(test.pkg.baz.Baz baz) { throw new RuntimeException("Stub!"); }
-                    /** @see test.pkg.Foo */
+                    /** @see test.pkg.Foo Foo */
                     public void foo(test.pkg.Foo foo) { throw new RuntimeException("Stub!"); }
                     }
                     """
@@ -1267,12 +1247,13 @@ class JavadocTest : DriverTest() {
                         """
                     ),
                 ),
+            expectedFail = DefaultLintErrorMessage,
             expectedIssues =
                 """
-                    src/test/pkg/Foo.java:5: warning: Invalid @hide syntax, it is ignored as it must be a block tag (ErrorWhenNew) [InvalidHideDocTag]
-                    src/test/pkg/Foo.java:10: warning: Invalid @hide syntax, it is ignored as it must be a block tag (ErrorWhenNew) [InvalidHideDocTag]
-                    src/test/pkg/Foo.java:15: warning: Invalid @hide syntax, it is ignored as it must be a block tag (ErrorWhenNew) [InvalidHideDocTag]
-                    src/test/pkg/Foo.java:21: warning: Invalid @hide syntax, it is ignored as it must be a block tag (ErrorWhenNew) [InvalidHideDocTag]
+                    src/test/pkg/Foo.java:4: error: Documentation contains '@hide', `@removed` or '@doconly' that is not used as a block tag; that could cause unexpected behavior downstream. [InvalidBlockTagUse]
+                    src/test/pkg/Foo.java:9: error: Documentation contains '@hide', `@removed` or '@doconly' that is not used as a block tag; that could cause unexpected behavior downstream. [InvalidBlockTagUse]
+                    src/test/pkg/Foo.java:14: error: Documentation contains '@hide', `@removed` or '@doconly' that is not used as a block tag; that could cause unexpected behavior downstream. [InvalidBlockTagUse]
+                    src/test/pkg/Foo.java:19: error: Documentation contains '@hide', `@removed` or '@doconly' that is not used as a block tag; that could cause unexpected behavior downstream. [InvalidBlockTagUse]
                 """,
             api =
                 """
@@ -1332,9 +1313,10 @@ class JavadocTest : DriverTest() {
                     ),
                     KnownSourceFiles.nullableSource,
                 ),
+            expectedFail = DefaultLintErrorMessage,
             expectedIssues =
                 """
-                    src/test/pkg/Foo.java:6: warning: Invalid @hide syntax, it is ignored as it must be a block tag (ErrorWhenNew) [InvalidHideDocTag]
+                    src/test/pkg/Foo.java:6: error: Documentation contains '@hide', `@removed` or '@doconly' that is not used as a block tag; that could cause unexpected behavior downstream. [InvalidBlockTagUse]
                 """,
             docStubs = true,
             stubFiles =
@@ -1398,17 +1380,25 @@ class JavadocTest : DriverTest() {
                     expectedOutputContents =
                         """
                             // Baseline format: 1.0
-                            InvalidHideDocTag: test/pkg/Foo.java:
-                                Invalid @hide syntax, it is ignored as it must be a block tag
+                            InvalidBlockTagUse: test.pkg.Foo#bar():
+                                Documentation contains '@hide', `@removed` or '@doconly' that is not used as a block tag; that could cause unexpected behavior downstream.
+                            InvalidBlockTagUse: test.pkg.Foo#baz():
+                                Documentation contains '@hide', `@removed` or '@doconly' that is not used as a block tag; that could cause unexpected behavior downstream.
+                            InvalidBlockTagUse: test.pkg.Foo#quux():
+                                Documentation contains '@hide', `@removed` or '@doconly' that is not used as a block tag; that could cause unexpected behavior downstream.
+                            InvalidBlockTagUse: test.pkg.Foo#qux():
+                                Documentation contains '@hide', `@removed` or '@doconly' that is not used as a block tag; that could cause unexpected behavior downstream.
                         """,
                     silentUpdate = false,
                 ),
+            expectedFail =
+                "metalava wrote updated baseline to TESTROOT/update-baseline.txt\n$DefaultLintErrorMessage",
             expectedIssues =
                 """
-                    src/test/pkg/Foo.java:5: warning: Invalid @hide syntax, it is ignored as it must be a block tag (ErrorWhenNew) [InvalidHideDocTag]
-                    src/test/pkg/Foo.java:10: warning: Invalid @hide syntax, it is ignored as it must be a block tag (ErrorWhenNew) [InvalidHideDocTag]
-                    src/test/pkg/Foo.java:15: warning: Invalid @hide syntax, it is ignored as it must be a block tag (ErrorWhenNew) [InvalidHideDocTag]
-                    src/test/pkg/Foo.java:21: warning: Invalid @hide syntax, it is ignored as it must be a block tag (ErrorWhenNew) [InvalidHideDocTag]
+                    src/test/pkg/Foo.java:4: error: Documentation contains '@hide', `@removed` or '@doconly' that is not used as a block tag; that could cause unexpected behavior downstream. [InvalidBlockTagUse]
+                    src/test/pkg/Foo.java:9: error: Documentation contains '@hide', `@removed` or '@doconly' that is not used as a block tag; that could cause unexpected behavior downstream. [InvalidBlockTagUse]
+                    src/test/pkg/Foo.java:14: error: Documentation contains '@hide', `@removed` or '@doconly' that is not used as a block tag; that could cause unexpected behavior downstream. [InvalidBlockTagUse]
+                    src/test/pkg/Foo.java:19: error: Documentation contains '@hide', `@removed` or '@doconly' that is not used as a block tag; that could cause unexpected behavior downstream. [InvalidBlockTagUse]
                 """,
             api =
                 """

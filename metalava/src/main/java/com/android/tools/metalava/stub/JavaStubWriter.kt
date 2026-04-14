@@ -18,10 +18,10 @@ package com.android.tools.metalava.stub
 
 import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.ClassOrVariableTypeItem
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.DelegatedVisitor
-import com.android.tools.metalava.model.ExceptionTypeItem
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.JAVA_LANG_STRING
@@ -48,20 +48,6 @@ internal class JavaStubWriter(
             if (qualifiedName.isNotBlank()) {
                 writer.println("package $qualifiedName;")
             }
-            if (config.includeDocumentationInStubs) {
-                // All the classes referenced in the stubs are fully qualified, so no imports are
-                // needed. However, in some cases for javadoc, replacement with fully qualified name
-                // fails, and thus we need to include imports for the stubs to compile.
-                cls.sourceFile()?.getImports()?.let {
-                    for (item in it) {
-                        if (item.isMember) {
-                            writer.println("import static ${item.pattern};")
-                        } else {
-                            writer.println("import ${item.pattern};")
-                        }
-                    }
-                }
-            }
         }
 
         appendDocumentation(cls, writer, config)
@@ -71,13 +57,8 @@ internal class JavaStubWriter(
 
         appendModifiers(cls)
 
-        when {
-            cls.isAnnotationType() -> writer.print("@interface")
-            cls.isInterface() -> writer.print("interface")
-            cls.isEnum() -> writer.print("enum")
-            else -> writer.print("class")
-        }
-
+        val classKind = cls.classKind
+        writer.print(classKind.signatureKeyword)
         writer.print(" ")
         writer.print(cls.simpleName())
 
@@ -124,10 +105,10 @@ internal class JavaStubWriter(
     }
 
     private fun generateSuperClassDeclaration(cls: ClassItem) {
-        if (cls.isEnum() || cls.isAnnotationType() || cls.isInterface()) {
-            // No extends statement for enums and annotations; it's implied by the "enum" and
-            // "@interface" keywords. Normal interfaces do support an extends statement but it is
-            // generated in [generateInterfaceList].
+        val classKind = cls.classKind
+        if (!classKind.allowsExplicitSuperClass) {
+            // Normal interfaces do support an extends statement, but that is for super interfaces
+            // not a super class and so it is generated in [generateInterfaceList].
             return
         }
 
@@ -419,7 +400,8 @@ internal class JavaStubWriter(
         val throws = callable.throwsTypes()
         if (throws.isNotEmpty()) {
             writer.print(" throws ")
-            throws.sortedWith(ExceptionTypeItem.fullNameComparator).forEachIndexed { i, type ->
+            throws.sortedWith(ClassOrVariableTypeItem.fullNameComparator).forEachIndexed { i, type
+                ->
                 if (i > 0) {
                     writer.print(", ")
                 }
