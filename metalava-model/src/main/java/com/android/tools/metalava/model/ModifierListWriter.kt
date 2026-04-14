@@ -64,6 +64,12 @@ class ModifierListWriter(
          * class.
          */
         val javaRecordClasses: Boolean = false,
+
+        /**
+         * If `true` then `sealed`, `non-sealed`, `exhaustive` and `nonexhaustive` modifiers will be
+         * written out for java classes, otherwise they will not.
+         */
+        val javaSealedClasses: Boolean = false,
     )
 
     private val target = config.target

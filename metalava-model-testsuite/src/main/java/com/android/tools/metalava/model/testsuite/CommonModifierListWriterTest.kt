@@ -23,6 +23,7 @@ import com.android.tools.metalava.model.ModifierListWriter
 import com.android.tools.metalava.model.provider.InputFormat
 import com.android.tools.metalava.model.testing.SupportedInputFormats
 import com.android.tools.metalava.testing.java
+import com.android.tools.metalava.testing.kotlin
 import java.io.StringWriter
 import kotlin.test.assertEquals
 import org.junit.Test
@@ -376,5 +377,129 @@ class CommonModifierListWriterTest : BaseModelTest() {
             normalizeAbstract = true,
             expectedKeywords = "public",
         )
+    }
+
+    @SupportedInputFormats(InputFormat.JAVA)
+    @Test
+    fun `Test sealed modifier - java class - javaSealedClasses=false`() {
+        runCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+
+                    public interface Test {
+                    }
+                """
+            ),
+        ) {
+            val testClass = codebase.assertClass("test.pkg.Test")
+
+            // TODO(b/482391240): Remove this once sealed modifiers are extracted from Java source.
+            testClass.mutateModifiers { setSealed(true) }
+
+            // TODO(b/482391240): Should not write sealed classes for java code unless requested.
+            assertEquals("public sealed nonexhaustive", testClass.writeKeywords())
+        }
+    }
+
+    @SupportedInputFormats(InputFormat.JAVA)
+    @Test
+    fun `Test sealed modifier - java class - javaSealedClasses=true`() {
+        runCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+
+                    public interface Test {
+                    }
+                """
+            ),
+        ) {
+            val testClass = codebase.assertClass("test.pkg.Test")
+
+            // TODO(b/482391240): Remove this once sealed modifiers are extracted from Java source.
+            testClass.mutateModifiers { setSealed(true) }
+
+            assertEquals(
+                "public sealed nonexhaustive",
+                testClass.writeKeywords(
+                    defaultConfig.copy(
+                        javaSealedClasses = true,
+                    )
+                )
+            )
+        }
+    }
+
+    @SupportedInputFormats(InputFormat.JAVA)
+    @Test
+    fun `Test non-sealed modifier - java class - javaSealedClasses=false`() {
+        runCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+
+                    public interface Test {
+                    }
+                """
+            ),
+        ) {
+            val testClass = codebase.assertClass("test.pkg.Test")
+
+            // TODO(b/482391240): Remove this once sealed modifiers are extracted from Java source.
+            testClass.mutateModifiers { setNonSealed(true) }
+
+            assertEquals("public", testClass.writeKeywords())
+        }
+    }
+
+    @SupportedInputFormats(InputFormat.JAVA)
+    @Test
+    fun `Test non-sealed modifier - java class - javaSealedClasses=true`() {
+        runCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+
+                    public interface Test {
+                    }
+                """
+            ),
+        ) {
+            val testClass = codebase.assertClass("test.pkg.Test")
+
+            // TODO(b/482391240): Remove this once sealed modifiers are extracted from Java source.
+            testClass.mutateModifiers { setNonSealed(true) }
+
+            // TODO(b/482391240): Should include non-sealed.
+            assertEquals(
+                "public",
+                testClass.writeKeywords(
+                    defaultConfig.copy(
+                        javaSealedClasses = true,
+                    )
+                )
+            )
+        }
+    }
+
+    @SupportedInputFormats(InputFormat.KOTLIN)
+    @Test
+    fun `Test sealed modifier - kotlin class`() {
+        runCodebaseTest(
+            kotlin(
+                """
+                    package test.pkg
+
+                    sealed interface Test {
+                        private class InnerClass : Test
+                    }
+                """
+            ),
+        ) {
+            val testClass = codebase.assertClass("test.pkg.Test")
+
+            assertEquals("public sealed nonexhaustive", testClass.writeKeywords())
+        }
     }
 }
