@@ -32,6 +32,7 @@ import com.android.tools.metalava.model.ModifierFlags.Companion.INFIX
 import com.android.tools.metalava.model.ModifierFlags.Companion.INLINE
 import com.android.tools.metalava.model.ModifierFlags.Companion.INTERNAL
 import com.android.tools.metalava.model.ModifierFlags.Companion.NATIVE
+import com.android.tools.metalava.model.ModifierFlags.Companion.NON_SEALED
 import com.android.tools.metalava.model.ModifierFlags.Companion.OPERATOR
 import com.android.tools.metalava.model.ModifierFlags.Companion.PACKAGE_PRIVATE
 import com.android.tools.metalava.model.ModifierFlags.Companion.PRIVATE
@@ -120,6 +121,8 @@ internal sealed class DefaultBaseModifierList(
     override fun isVarArg() = isSet(VARARG)
 
     override fun isSealed() = isSet(SEALED)
+
+    override fun isNonSealed() = isSet(NON_SEALED)
 
     override fun isExhaustive() = isSet(EXHAUSTIVE)
 
@@ -272,6 +275,7 @@ interface ModifierFlags {
         const val EXPECT = 1 shl 24
         const val ACTUAL = 1 shl 25
         const val EXHAUSTIVE = 1 shl 26
+        const val NON_SEALED = 1 shl 27
 
         // Add new flags before this line and make sure to add a corresponding enum to
         // [ModifierKeyword].
@@ -407,6 +411,10 @@ internal class DefaultMutableModifierList(
 
     override fun setSealed(sealed: Boolean) {
         set(SEALED, sealed)
+    }
+
+    override fun setNonSealed(nonSealed: Boolean) {
+        set(NON_SEALED, nonSealed)
     }
 
     override fun setExhaustive(exhaustive: Boolean) {

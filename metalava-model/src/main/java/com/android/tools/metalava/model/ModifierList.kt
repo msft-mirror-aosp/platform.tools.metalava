@@ -63,8 +63,11 @@ interface BaseModifierList {
     // Modifier in Kotlin, separate syntax (...) in Java but modeled as modifier here
     fun isVarArg(): Boolean
 
-    // Kotlin
+    // Kotlin and Java
     fun isSealed(): Boolean
+
+    // Java only
+    fun isNonSealed(): Boolean
 
     /**
      * A sealed class is exhaustive if all classes that inherit from it are publicly accessible, and

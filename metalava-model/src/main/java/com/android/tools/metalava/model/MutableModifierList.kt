@@ -41,6 +41,8 @@ interface MutableModifierList : BaseModifierList {
 
     fun setSealed(sealed: Boolean)
 
+    fun setNonSealed(nonSealed: Boolean)
+
     fun setExhaustive(exhaustive: Boolean)
 
     fun setFunctional(functional: Boolean)
