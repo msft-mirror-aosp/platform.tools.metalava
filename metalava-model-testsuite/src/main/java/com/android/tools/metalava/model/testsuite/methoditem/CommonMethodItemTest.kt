@@ -19,6 +19,8 @@ package com.android.tools.metalava.model.testsuite.methoditem
 import com.android.tools.metalava.model.JAVA_LANG_THROWABLE
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PrimitiveTypeItem
+import com.android.tools.metalava.model.provider.InputFormat
+import com.android.tools.metalava.model.testing.SupportedInputFormats
 import com.android.tools.metalava.model.testing.classTypeItem
 import com.android.tools.metalava.model.testing.value.annotationValue
 import com.android.tools.metalava.model.testing.value.arrayValueFromAny
@@ -101,6 +103,7 @@ class CommonMethodItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.JAVA)
     @Test
     fun `MethodItem type`() {
         runCodebaseTest(
@@ -158,6 +161,7 @@ class CommonMethodItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.JAVA)
     @Test
     fun `MethodItem superMethods() on simple method`() {
         runCodebaseTest(
@@ -211,6 +215,7 @@ class CommonMethodItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.JAVA)
     @Test
     fun `Test equality of methods with type parameters`() {
         runCodebaseTest(
@@ -245,6 +250,7 @@ class CommonMethodItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.JAVA)
     @Test
     fun `Test throws method type parameter extends Throwable`() {
         runCodebaseTest(
@@ -276,10 +282,11 @@ class CommonMethodItemTest : BaseModelTest() {
             val typeParameterItem = methodItem.typeParameterList.single()
             val throwsType = methodItem.throwsTypes().single()
             throwsType.assertReferencesTypeParameter(typeParameterItem)
-            assertEquals(throwsType.erasedClass!!.qualifiedName(), JAVA_LANG_THROWABLE)
+            assertEquals(throwsType.asErasedClass(codebase)!!.qualifiedName(), JAVA_LANG_THROWABLE)
         }
     }
 
+    @SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.JAVA)
     @Test
     fun `Test throws method type parameter does not extend Throwable`() {
         // This is an error but Metalava should try not to fail on an error.
@@ -313,10 +320,11 @@ class CommonMethodItemTest : BaseModelTest() {
             val throwsType = methodItem.throwsTypes().single()
             throwsType.assertReferencesTypeParameter(typeParameterItem)
             // The type parameter does not extend a throwable type.
-            assertFalse(throwsType.erasedClass!!.extends(JAVA_LANG_THROWABLE))
+            assertFalse(throwsType.asErasedClass(codebase)!!.extends(JAVA_LANG_THROWABLE))
         }
     }
 
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `Test throws method class does not exist`() {
         // This is an error but Metalava should try not to fail on an error.
@@ -339,10 +347,11 @@ class CommonMethodItemTest : BaseModelTest() {
             val methodItem = codebase.assertClass("test.pkg.Test").methods().single()
             val throwsType = methodItem.throwsTypes().single()
             // Neither the class nor throwable class is available.
-            assertNull(throwsType.erasedClass)
+            assertNull(throwsType.asErasedClass(codebase))
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test throws type on kotlin only constructor`() {
         runCodebaseTest(
@@ -390,6 +399,7 @@ class CommonMethodItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `Test method default values`() {
         runSourceCodebaseTest(
@@ -454,6 +464,7 @@ class CommonMethodItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `JvmOverloads methods`() {
         val commonSource =
@@ -516,6 +527,7 @@ class CommonMethodItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `JvmOverloads with initial vararg parameter`() {
         val commonSource =

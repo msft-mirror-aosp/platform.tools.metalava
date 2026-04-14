@@ -31,21 +31,22 @@ import com.android.tools.metalava.model.ANDROIDX_NULLABLE
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
-import com.android.tools.metalava.model.CodebaseFragment
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.FilterPredicate
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.JAVA_LANG_DEPRECATED
+import com.android.tools.metalava.model.JavaConstants
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.SUPPORT_TYPE_USE_ANNOTATIONS
 import com.android.tools.metalava.model.annotation.DefaultAnnotationManager
 import com.android.tools.metalava.model.api.surface.ApiSurface
 import com.android.tools.metalava.model.api.surface.ApiSurfaces
+import com.android.tools.metalava.model.text.CustomizableProperty.Companion.ADD_ADDITIONAL_OVERRIDES
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.model.text.SignatureWriter
 import com.android.tools.metalava.model.text.SnapshotDeltaMaker
-import com.android.tools.metalava.model.text.createFilteringVisitorForSignatures
+import com.android.tools.metalava.model.text.createCodebaseFragmentForSignatureFile
 import com.android.tools.metalava.model.visitors.ApiPredicate
 import com.android.tools.metalava.model.visitors.ApiType
 import com.android.tools.metalava.model.visitors.ApiVisitor
@@ -194,21 +195,16 @@ class ConvertJarsToSignatureFiles(
         }
 
         val jarCodebaseFragment =
-            CodebaseFragment.create(
+            createCodebaseFragmentForSignatureFile(
                 jarCodebase,
-                { delegate ->
-                    createFilteringVisitorForSignatures(
-                        delegate = delegate,
-                        fileFormat = fileFormat,
-                        apiType = ApiType.PUBLIC_API,
-                        preFiltered = jarCodebase.preFiltered,
-                        showUnannotated = false,
-                        apiPredicateConfig =
-                            ApiPredicate.Config(
-                                addAdditionalOverrides = fileFormat.addAdditionalOverrides,
-                            ),
-                    )
-                }
+                fileFormat = fileFormat,
+                apiType = ApiType.PUBLIC_API,
+                preFiltered = jarCodebase.preFiltered,
+                showUnannotated = false,
+                apiPredicateConfig =
+                    ApiPredicate.Config(
+                        addAdditionalOverrides = fileFormat[ADD_ADDITIONAL_OVERRIDES],
+                    ),
             )
 
         val extendsInfo = surfaceInfo.extends
@@ -221,6 +217,8 @@ class ConvertJarsToSignatureFiles(
                 SnapshotDeltaMaker.createDelta(
                     base = extendedCodebase,
                     codebaseFragment = jarCodebaseFragment,
+                    checkMemberItemEquivalence = false,
+                    allowClassModifierChanges = false,
                 )
             }
 
@@ -245,7 +243,7 @@ class ConvertJarsToSignatureFiles(
                         val enumeration = jar.entries()
                         while (enumeration.hasMoreElements()) {
                             val entry = enumeration.nextElement()
-                            if (entry.name.endsWith(SdkConstants.DOT_CLASS)) {
+                            if (entry.name.endsWith(JavaConstants.DOT_CLASS)) {
                                 try {
                                     jar.getInputStream(entry).use { inputStream ->
                                         val bytes = inputStream.readBytes()
@@ -266,7 +264,7 @@ class ConvertJarsToSignatureFiles(
                 val listFiles = file.listFiles()
                 listFiles?.forEach { markDeprecated(codebase, it, it.path) }
             }
-            file.path.endsWith(SdkConstants.DOT_CLASS) -> {
+            file.path.endsWith(JavaConstants.DOT_CLASS) -> {
                 val bytes = file.readBytes()
                 markDeprecated(codebase, bytes, file.path)
             }

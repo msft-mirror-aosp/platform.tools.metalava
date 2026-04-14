@@ -25,6 +25,8 @@ import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeStringConfiguration
 import com.android.tools.metalava.model.isNullnessAnnotation
 import com.android.tools.metalava.model.noOpAnnotationManager
+import com.android.tools.metalava.model.provider.InputFormat
+import com.android.tools.metalava.model.testing.SupportedInputFormats
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.model.typeUseAnnotationFilter
 import com.android.tools.metalava.testing.KnownSourceFiles.intRangeTypeUseSource
@@ -38,6 +40,7 @@ import org.junit.runners.Parameterized.Parameter
 
 typealias MethodToTest = TypeItem.(TypeStringConfiguration) -> String
 
+@SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.JAVA)
 class CommonTypeStringTest : BaseModelTest() {
 
     data class TypeStringParameters(
@@ -231,16 +234,16 @@ class CommonTypeStringTest : BaseModelTest() {
         }
 
         /**
-         * [MethodToTest] that call [TypeItem.toCanonicalType].
+         * [MethodToTest] that call [TypeItem.toCanonicalTypeString].
          *
-         * [TypeItem.toCanonicalType] does not take a [TypeStringConfiguration] so this makes sure
-         * that a test just provides the default configuration to avoid confusion.
+         * [TypeItem.toCanonicalTypeString] does not take a [TypeStringConfiguration] so this makes
+         * sure that a test just provides the default configuration to avoid confusion.
          */
         private val TO_CANONICAL_TYPE: MethodToTest = { configuration ->
             require(configuration.isDefault) {
-                "toCanonicalType does not use configuration so expects the default but found $configuration"
+                "toCanonicalTypeString does not use configuration so expects the default but found $configuration"
             }
-            toCanonicalType()
+            toCanonicalTypeString()
         }
 
         @JvmStatic @Parameterized.Parameters fun testCases() = testCases
@@ -298,7 +301,7 @@ class CommonTypeStringTest : BaseModelTest() {
                 ) +
                 TypeStringParameters.forDefaultAndKotlinNulls(
                     name = "T",
-                    expectedKotlinNullsTypeString = "T!",
+                    expectedKotlinNullsTypeString = "T",
                     typeParameters = "<T>"
                 ) +
                 TypeStringParameters.fromConfigurations(

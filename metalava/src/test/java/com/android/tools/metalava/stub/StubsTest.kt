@@ -17,7 +17,6 @@
 package com.android.tools.metalava.stub
 
 import com.android.tools.metalava.ARG_EXCLUDE_DOCUMENTATION_FROM_STUBS
-import com.android.tools.metalava.cli.common.ARG_API_CLASS_RESOLUTION
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.testing.java
 import org.junit.Test
@@ -108,7 +107,6 @@ class StubsTest : AbstractStubsTest() {
                 static { field19 = 0; }
                 }
                 """,
-            checkTextStubEquivalence = true
         )
     }
 
@@ -179,7 +177,9 @@ class StubsTest : AbstractStubsTest() {
                 public static void method4() { throw new RuntimeException("Stub!"); }
                 }
                 }
-                """
+                """,
+            // Includes documentation so cannot match what is generated from signature file.
+            checkTextStubEquivalence = false,
         )
     }
 
@@ -212,7 +212,6 @@ class StubsTest : AbstractStubsTest() {
                 protected void finalize2() throws java.io.IOException, java.lang.IllegalArgumentException { throw new RuntimeException("Stub!"); }
                 }
                 """,
-            checkTextStubEquivalence = true
         )
     }
 
@@ -346,7 +345,6 @@ class StubsTest : AbstractStubsTest() {
                 """
                     )
                 ),
-            checkTextStubEquivalence = true
         )
     }
 
@@ -391,7 +389,8 @@ class StubsTest : AbstractStubsTest() {
                     public HeaderComments() { throw new RuntimeException("Stub!"); }
                     }
                     """,
-            filterBlankLinesFromStubFiles = false,
+            // Includes comments so cannot match what is generated from signature file.
+            checkTextStubEquivalence = false,
         )
     }
 
@@ -561,17 +560,17 @@ class StubsTest : AbstractStubsTest() {
                   public class Generics {
                     ctor public Generics();
                   }
-                  public class Generics.MyClass<X, Y extends java.lang.Number> extends test.pkg.Generics.PublicParent<X!,Y!> implements test.pkg.Generics.PublicInterface<X!,Y!> {
+                  public class Generics.MyClass<X, Y extends java.lang.Number> extends test.pkg.Generics.PublicParent<X,Y> implements test.pkg.Generics.PublicInterface<X,Y> {
                     ctor public Generics.MyClass();
-                    method public java.util.Map<X!,java.util.Map<Y!,java.lang.String!>!>! createMap(java.util.List<X!>!) throws java.io.IOException;
-                    method protected java.util.List<X!>! foo();
+                    method public java.util.Map<X,java.util.Map<Y,java.lang.String!>!>! createMap(java.util.List<X>!) throws java.io.IOException;
+                    method protected java.util.List<X>! foo();
                   }
                   public static interface Generics.PublicInterface<A, B> {
-                    method public java.util.Map<A!,java.util.Map<B!,java.lang.String!>!>! createMap(java.util.List<A!>!) throws java.io.IOException;
+                    method public java.util.Map<A,java.util.Map<B,java.lang.String!>!>! createMap(java.util.List<A>!) throws java.io.IOException;
                   }
                   public abstract class Generics.PublicParent<A, B extends java.lang.Number> {
                     ctor public Generics.PublicParent();
-                    method protected abstract java.util.List<A!>! foo();
+                    method protected abstract java.util.List<A>! foo();
                   }
                 }
             """,
@@ -707,7 +706,6 @@ class StubsTest : AbstractStubsTest() {
                     }
                     }
                     """,
-            checkTextStubEquivalence = true
         )
     }
 
@@ -785,7 +783,9 @@ class StubsTest : AbstractStubsTest() {
                     protected abstract void onLayout(boolean changed, int l, int t, int r, int b);
                     }
                     }
-                    """
+                    """,
+            // Includes an extra override that is not present in the signature file.
+            checkTextStubEquivalence = false,
         )
     }
 
@@ -949,7 +949,9 @@ class StubsTest : AbstractStubsTest() {
                 protected static void onCreate(java.util.List<java.lang.String> parameter1) { throw new RuntimeException("Stub!"); }
                 protected static final java.lang.String field = "a\nb\n\"test\"";
                 }
-                """
+                """,
+            // Includes documentation so cannot match what is generated from signature file.
+            checkTextStubEquivalence = false,
         )
     }
 
@@ -1240,11 +1242,6 @@ class StubsTest : AbstractStubsTest() {
                     """
                     ),
                 ),
-            extraArguments =
-                arrayOf(
-                    ARG_API_CLASS_RESOLUTION,
-                    "api:classpath",
-                ),
         )
     }
 
@@ -1287,11 +1284,6 @@ class StubsTest : AbstractStubsTest() {
                     }
                     """
                     ),
-                ),
-            extraArguments =
-                arrayOf(
-                    ARG_API_CLASS_RESOLUTION,
-                    "api:classpath",
                 ),
         )
     }

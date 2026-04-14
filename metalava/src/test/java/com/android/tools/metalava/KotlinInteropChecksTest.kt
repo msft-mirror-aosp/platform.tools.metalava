@@ -19,11 +19,9 @@ package com.android.tools.metalava
 import com.android.tools.lint.checks.infrastructure.TestFiles.base64gzip
 import com.android.tools.metalava.cli.common.ARG_ERROR
 import com.android.tools.metalava.cli.common.ARG_HIDE
-import com.android.tools.metalava.lint.DefaultLintErrorMessage
 import com.android.tools.metalava.model.provider.Capability
-import com.android.tools.metalava.model.testing.FilterAction.EXCLUDE
-import com.android.tools.metalava.model.testing.FilterByProvider
 import com.android.tools.metalava.model.testing.RequiresCapabilities
+import com.android.tools.metalava.testing.KnownSourceFiles
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
 import org.junit.Test
@@ -38,7 +36,6 @@ class KotlinInteropChecksTest : DriverTest() {
                     src/test/pkg/Test.java:6: error: Avoid method names that are Kotlin hard keywords ("fun"); see https://android.github.io/kotlin-guides/interop.html#no-hard-keywords [KotlinKeyword]
                     src/test/pkg/Test.java:9: error: Avoid field names that are Kotlin hard keywords ("object"); see https://android.github.io/kotlin-guides/interop.html#no-hard-keywords [KotlinKeyword]
                 """,
-            expectedFail = DefaultLintErrorMessage,
             sourceFiles =
                 arrayOf(
                     java(
@@ -55,7 +52,7 @@ class KotlinInteropChecksTest : DriverTest() {
                     }
                     """
                     ),
-                    androidxNonNullSource,
+                    KnownSourceFiles.androidxNonNullJavaSource,
                 )
         )
     }
@@ -132,8 +129,8 @@ class KotlinInteropChecksTest : DriverTest() {
                     fun ok(bar: () -> Int, foo: Int) { }
                 """
                     ),
-                    androidxNullableSource,
-                    androidxNonNullSource
+                    KnownSourceFiles.androidxNullableJavaSource,
+                    KnownSourceFiles.androidxNonNullJavaSource
                 )
         )
     }
@@ -200,6 +197,7 @@ class KotlinInteropChecksTest : DriverTest() {
             expectedIssues =
                 """
                 src/test/pkg/Bar.kt:12: warning: A Kotlin method with default parameter values should be annotated with @JvmOverloads for better Java interoperability; see https://android.github.io/kotlin-guides/interop.html#function-overloads-for-defaults [MissingJvmstatic]
+                src/test/pkg/Bar.kt:15: warning: A Kotlin method with default parameter values should be annotated with @JvmOverloads for better Java interoperability; see https://android.github.io/kotlin-guides/interop.html#function-overloads-for-defaults [MissingJvmstatic]
                 """,
             sourceFiles =
                 arrayOf(
@@ -216,9 +214,10 @@ class KotlinInteropChecksTest : DriverTest() {
                         fun ok2(int: Int) { }
                         fun ok3(int: Int, int2: Int) { }
                         @JvmOverloads fun ok4(int: Int = 0, int2: Int = 0) { }
-                        fun error(int: Int = 0, int2: Int = 0) { }
+                        fun error1(int: Int = 0, int2: Int = 0) { }
                         fun String.ok4(int: Int = 0, int2: Int = 0) { }
                         inline fun ok5(int: Int, int2: Int) { }
+                        fun error2(int: Int = 0) = Unit
                     }
                     """
                     )
@@ -260,7 +259,6 @@ class KotlinInteropChecksTest : DriverTest() {
                     src/test/pkg/Container.kt:4: error: Value classes should not be public in APIs targeting Java clients. [ValueClassDefinition]
                     src/test/pkg/PublicValueClass.kt:3: error: Value classes should not be public in APIs targeting Java clients. [ValueClassDefinition]
                 """,
-            expectedFail = DefaultLintErrorMessage,
             sourceFiles =
                 arrayOf(
                     kotlin(
@@ -495,7 +493,6 @@ class KotlinInteropChecksTest : DriverTest() {
     fun `Check JvmName for file facade classes`() {
         check(
             apiLint = "", // Enabled
-            expectedFail = DefaultLintErrorMessage,
             expectedIssues =
                 """
                 test/pkg/ErrorNeedsJvmName.kt:1: error: Use `@file:JvmName` to provide a name for this file facade class for Java callers [FacadeClassJvmName]
@@ -604,15 +601,11 @@ class KotlinInteropChecksTest : DriverTest() {
         )
     }
 
-    // K1 is disabled because which file is used for all the parameters in the multifile class is
-    // different between K1 and K2.
-    @FilterByProvider("psi", "k1", action = EXCLUDE)
     @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Test file location for error on parameter within multifile class`() {
         check(
             apiLint = "", // Enabled
-            expectedFail = DefaultLintErrorMessage,
             // TODO b(450539561): all [KotlinDefaultParameterOrder] issues have file location
             //  `test/pkg/Foo1.kt:4`, but two of them are from `test/pkg/Foo2.kt`.
             expectedIssues =
@@ -669,7 +662,6 @@ class KotlinInteropChecksTest : DriverTest() {
                 """
                 src/test/pkg/IntValue.kt:4: error: Method withoutJvmName returning value class type should use JvmName to be usable for Java clients [ValueClassUsageWithoutJvmName]
                 """,
-            expectedFail = DefaultLintErrorMessage,
             extraArguments =
                 arrayOf(
                     ARG_HIDE,
@@ -704,7 +696,6 @@ class KotlinInteropChecksTest : DriverTest() {
                 src/test/pkg/IntValue.kt:4: error: Method oneParamWithoutJvmName with parameter intValue of value class type should use JvmName to be usable for Java clients [ValueClassUsageWithoutJvmName]
                 src/test/pkg/IntValue.kt:7: error: Method manyParamsWithoutJvmName with parameter arg1 of value class type should use JvmName to be usable for Java clients [ValueClassUsageWithoutJvmName]
                 """,
-            expectedFail = DefaultLintErrorMessage,
             extraArguments =
                 arrayOf(
                     ARG_HIDE,
@@ -742,7 +733,6 @@ class KotlinInteropChecksTest : DriverTest() {
                 src/test/pkg/IntValue.kt:6: error: Property withoutJvmName with value class type should use `@get:JvmName` to have a usable getter for Java clients [ValueClassUsageWithoutJvmName]
                 src/test/pkg/IntValue.kt:6: error: Property withoutJvmName with value class type should use `@set:JvmName` to have a usable setter for Java clients [ValueClassUsageWithoutJvmName]
                 """,
-            expectedFail = DefaultLintErrorMessage,
             extraArguments =
                 arrayOf(
                     ARG_HIDE,
@@ -853,7 +843,6 @@ class KotlinInteropChecksTest : DriverTest() {
                 src/test/pkg/IntValue.kt:9: error: Property withoutJvmName with value class receiver type should use `@get:JvmName` to have a usable getter for Java clients [ValueClassUsageWithoutJvmName]
                 src/test/pkg/IntValue.kt:9: error: Property withoutJvmName with value class receiver type should use `@set:JvmName` to have a usable setter for Java clients [ValueClassUsageWithoutJvmName]
                 """,
-            expectedFail = DefaultLintErrorMessage,
             extraArguments =
                 arrayOf(
                     ARG_HIDE,
@@ -951,7 +940,6 @@ class KotlinInteropChecksTest : DriverTest() {
                 src/test/pkg/IntValue.kt:5: error: Constructor of class WithValueClass has parameter valueClassType of value class type which makes it unusable for Java clients [ValueClassUsageFromConstructor]
                 src/test/pkg/IntValue.kt:6: error: Constructor of class WithValueClassAndAdditional has parameter arg1 of value class type which makes it unusable for Java clients [ValueClassUsageFromConstructor]
                 """,
-            expectedFail = DefaultLintErrorMessage,
             extraArguments =
                 arrayOf(
                     ARG_HIDE,

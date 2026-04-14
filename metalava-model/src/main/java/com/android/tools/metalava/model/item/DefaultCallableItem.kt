@@ -29,7 +29,10 @@ import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.SourceLanguage
 import com.android.tools.metalava.model.TargetLanguage
 import com.android.tools.metalava.model.TypeItem
+import com.android.tools.metalava.model.TypeItemConverter
+import com.android.tools.metalava.model.TypeParameterBindings
 import com.android.tools.metalava.model.TypeParameterList
+import com.android.tools.metalava.model.scope.NameClassification
 import com.android.tools.metalava.model.scope.ReferencableNameScope
 import com.android.tools.metalava.reporter.FileLocation
 
@@ -43,7 +46,7 @@ import com.android.tools.metalava.reporter.FileLocation
  */
 typealias ParameterItemsFactory = (CallableItem) -> List<ParameterItem>
 
-abstract class DefaultCallableItem(
+internal sealed class DefaultCallableItem(
     codebase: Codebase,
     fileLocation: FileLocation,
     sourceLanguage: SourceLanguage,
@@ -111,8 +114,18 @@ abstract class DefaultCallableItem(
 
     override fun resolveReferencableItemBySimpleName(
         simpleName: String,
+        nameClassification: NameClassification,
         isFirstSimpleName: Boolean
     ) =
         // Check for type parameters.
-        typeParameterList.find { it.name() == simpleName }
+        nameClassification.findTypeParameter { typeParameterList.find { it.name() == simpleName } }
+
+    companion object {
+        /**
+         * Create a [TypeItemConverter] wrapper around this [TypeParameterBindings]. Use the
+         * identity function if the map is empty.
+         */
+        fun TypeParameterBindings.toTypeConverter(): TypeItemConverter =
+            if (isEmpty()) { type -> type } else { type -> type.convertType(this) }
+    }
 }

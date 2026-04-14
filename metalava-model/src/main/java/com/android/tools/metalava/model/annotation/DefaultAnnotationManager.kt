@@ -17,6 +17,8 @@
 package com.android.tools.metalava.model.annotation
 
 import com.android.tools.metalava.model.ANDROIDX_ANNOTATION_PREFIX
+import com.android.tools.metalava.model.ANDROIDX_FLOAT_RANGE
+import com.android.tools.metalava.model.ANDROIDX_INT_RANGE
 import com.android.tools.metalava.model.ANDROIDX_NONNULL
 import com.android.tools.metalava.model.ANDROIDX_NULLABLE
 import com.android.tools.metalava.model.ANDROID_ANNOTATION_PREFIX
@@ -68,6 +70,7 @@ import com.android.tools.metalava.model.isNullableAnnotation
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
 import com.android.tools.metalava.reporter.ThrowingReporter
+import kotlin.getValue
 
 /** The type of lambda that can construct a key from an [AnnotationItem] */
 typealias KeyFactory = (annotationItem: AnnotationItem) -> String
@@ -226,8 +229,8 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
             "android.annotation.HalfFloat" -> return "androidx.annotation.HalfFloat"
 
             // Ranges and sizes
-            "android.annotation.FloatRange" -> return "androidx.annotation.FloatRange"
-            "android.annotation.IntRange" -> return "androidx.annotation.IntRange"
+            "android.annotation.FloatRange" -> return ANDROIDX_FLOAT_RANGE
+            "android.annotation.IntRange" -> return ANDROIDX_INT_RANGE
             "android.annotation.Size" -> return "androidx.annotation.Size"
             "android.annotation.Px" -> return "androidx.annotation.Px"
             "android.annotation.Dimension" -> return "androidx.annotation.Dimension"
@@ -486,6 +489,13 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
             return NO_ANNOTATION_TARGETS
         }
 
+        if (qualifiedName.startsWith("android.processor.devicepolicy.")) {
+            // We don't want to export device policy definition annotations.
+            // Skip them from checking into the API signature, external
+            // annotations, stubs, etc.
+            return NO_ANNOTATION_TARGETS
+        }
+
         // @RecentlyNullable and @RecentlyNonNull are specially recognized annotations by the
         // Kotlin
         // compiler: they always go in the stubs.
@@ -713,6 +723,9 @@ private class LazyAnnotationInfo(
         return apiFlags[flagName]
     }
 
+    override val annotationClass
+        get() = annotationClassItem?.annotationClass
+
     companion object {
         /**
          * The annotation will cause the annotated item (and any enclosed items unless overridden by
@@ -757,7 +770,7 @@ private class LazyAnnotationInfo(
     }
 
     /** Resolve the [AnnotationItem] to a [ClassItem] lazily. */
-    private val annotationClass by lazy(LazyThreadSafetyMode.NONE, annotationItem::resolve)
+    private val annotationClassItem by lazy(LazyThreadSafetyMode.NONE, annotationItem::resolve)
 
     /** Flag to detect whether the [checkResolvedAnnotationClass] is in a cycle. */
     private var isCheckingResolvedAnnotationClass = false
@@ -779,7 +792,7 @@ private class LazyAnnotationInfo(
 
             // Try and resolve this to the class to see if it has been annotated with hide meta
             // annotations. If it could not be resolved then assume it has not been annotated.
-            val resolved = annotationClass ?: return false
+            val resolved = annotationClassItem ?: return false
 
             // Return the result of applying the test to the resolved class.
             return test(resolved)

@@ -16,17 +16,20 @@
 
 package com.android.tools.metalava.model.item
 
-import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.AnnotationManager
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
-import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.PackageItem
+import com.android.tools.metalava.model.SkeletonClassItem
+import com.android.tools.metalava.model.annotation.AnnotationDefaults
+import com.android.tools.metalava.model.annotation.binding.AnnotationBindingCache
+import com.android.tools.metalava.model.annotation.binding.AnnotationBindingFactory
 import com.android.tools.metalava.model.api.surface.ApiSurfaces
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
 import java.io.File
 import java.util.HashMap
+import kotlin.reflect.KClass
 
 private const val CLASS_ESTIMATE = 15000
 
@@ -83,7 +86,7 @@ open class DefaultCodebase(
      *
      * Classes are added via [registerClass] while initialising the codebase.
      */
-    private val allClassesByName = HashMap<String, DefaultClassItem>(CLASS_ESTIMATE)
+    private val allClassesByName = HashMap<String, SkeletonClassItem>(CLASS_ESTIMATE)
 
     /** Find a class created by this [Codebase]. */
     fun findClassInCodebase(className: String) = allClassesByName[className]
@@ -126,7 +129,7 @@ open class DefaultCodebase(
      * Register the class by name, return `true` if the class was registered and `false` if it was
      * not, i.e. because it is a duplicate.
      */
-    fun registerClass(classItem: DefaultClassItem): Boolean {
+    fun registerClass(classItem: SkeletonClassItem): Boolean {
         // Check for duplicates, ignore the class if it is a duplicate.
         val qualifiedName = classItem.qualifiedName()
         val existing = allClassesByName[qualifiedName]
@@ -178,10 +181,9 @@ open class DefaultCodebase(
         return assembler.createPackageFromUnderlyingModel(pkgName)
     }
 
-    override fun createAnnotation(
-        source: String,
-        context: Item?,
-    ): AnnotationItem? {
-        return AnnotationItem.createFromSource(this, source)
-    }
+    /** The cache of [AnnotationBindingFactory] instances. */
+    private val bindingFactoryCache = AnnotationBindingCache()
+
+    override fun <T : Any> bindingFactoryFor(kClass: KClass<T>, defaults: AnnotationDefaults?) =
+        bindingFactoryCache.bindingFactoryFor(kClass, defaults)
 }

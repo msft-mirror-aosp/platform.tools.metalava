@@ -16,7 +16,9 @@
 
 package com.android.tools.metalava.model.testsuite.methoditem
 
+import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.provider.InputFormat
+import com.android.tools.metalava.model.testing.SupportedInputFormats
 import com.android.tools.metalava.model.testing.testTypeString
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.testing.KnownSourceFiles
@@ -30,7 +32,6 @@ import org.junit.Test
 
 /** Common tests for implementations of [ParameterItem]. */
 class CommonParameterItemTest : BaseModelTest() {
-
     @Test
     fun `Test deprecated parameter by annotation`() {
         runCodebaseTest(
@@ -115,6 +116,7 @@ class CommonParameterItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.KOTLIN)
     @Test
     fun `Test publicName reports correct name when specified`() {
         runCodebaseTest(
@@ -149,6 +151,7 @@ class CommonParameterItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.JAVA)
     @Test
     fun `Test publicName reports correct name when not specified`() {
         runCodebaseTest(
@@ -179,6 +182,7 @@ class CommonParameterItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `Test publicName reports correct name when called on binary class - Object#equals`() {
         runCodebaseTest(
@@ -207,6 +211,7 @@ class CommonParameterItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `Test publicName reports correct name when called on binary class - ViewGroup#onLayout`() {
         runCodebaseTest(
@@ -240,6 +245,7 @@ class CommonParameterItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.JAVA)
     @Test
     fun `Test nullability of parameter annotated with @not-type-use-NonNull`() {
         runCodebaseTest(
@@ -285,7 +291,7 @@ class CommonParameterItemTest : BaseModelTest() {
                     "method2" to "java.lang.String![]",
                     "method3" to "java.lang.String![]![]",
                     "method4" to "T",
-                    "method5" to "java.util.Map.Entry<T!,java.lang.String!>",
+                    "method5" to "java.util.Map.Entry<T,java.lang.String!>",
                 )
             val methods = codebase.assertClass("test.pkg.Foo").methods()
             assertEquals("method count", expectedTypes.size, methods.size)
@@ -302,6 +308,7 @@ class CommonParameterItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.JAVA)
     @Test
     fun `Test nullability of parameter annotated with @not-type-use-Nullable`() {
         runCodebaseTest(
@@ -347,7 +354,7 @@ class CommonParameterItemTest : BaseModelTest() {
                     "method2" to "java.lang.String![]?",
                     "method3" to "java.lang.String![]![]?",
                     "method4" to "T?",
-                    "method5" to "java.util.Map.Entry<T!,java.lang.String!>?",
+                    "method5" to "java.util.Map.Entry<T,java.lang.String!>?",
                 )
             val methods = codebase.assertClass("test.pkg.Foo").methods()
             assertEquals("method count", expectedTypes.size, methods.size)
@@ -364,6 +371,7 @@ class CommonParameterItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.JAVA)
     @Test
     fun `Test nullability of non-Kotlin varargs`() {
         runCodebaseTest(
@@ -421,6 +429,7 @@ class CommonParameterItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.KOTLIN)
     @Test
     fun `Test nullability of Kotlin varargs last`() {
         runCodebaseTest(
@@ -472,6 +481,7 @@ class CommonParameterItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test nullability of Kotlin varargs not-last`() {
         runCodebaseTest(
@@ -509,6 +519,7 @@ class CommonParameterItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test nullability of Kotlin varargs last in inline reified fun`() {
         runCodebaseTest(
@@ -607,9 +618,9 @@ class CommonParameterItemTest : BaseModelTest() {
             signature(
                 """
                     // Signature format: 5.0
-                    // - language=kotlin
                     // - include-default-parameter-values=no
                     // - kotlin-name-type-order=yes
+                    // - kotlin-style-nulls=yes
                     package test.pkg {
                       public final class Foo {
                         ctor public Foo();
@@ -643,6 +654,7 @@ class CommonParameterItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.SIGNATURE)
     @Test
     fun `Test unknown default value`() {
         runCodebaseTest(
@@ -653,9 +665,9 @@ class CommonParameterItemTest : BaseModelTest() {
             signature(
                 """
                     // Signature format: 5.0
-                    // - language=kotlin
                     // - include-default-parameter-values=yes
                     // - kotlin-name-type-order=yes
+                    // - kotlin-style-nulls=yes
                     package test.pkg {
                       public final class Foo {
                         ctor public Foo();
@@ -671,6 +683,7 @@ class CommonParameterItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test varargs modifier on kotlin parameter`() {
         runCodebaseTest(

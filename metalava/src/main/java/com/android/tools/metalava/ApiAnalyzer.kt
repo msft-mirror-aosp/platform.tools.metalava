@@ -37,6 +37,7 @@ import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PackageList
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.PropertyItem
+import com.android.tools.metalava.model.RecordComponentItem
 import com.android.tools.metalava.model.SUPPRESS_COMPATIBILITY_ANNOTATION_QUALIFIED
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.TargetLanguageSet
@@ -50,7 +51,7 @@ import com.android.tools.metalava.model.source.doc.DocContentPredicates
 import com.android.tools.metalava.model.value.asString
 import com.android.tools.metalava.model.visitors.ApiPredicate
 import com.android.tools.metalava.model.visitors.ApiVisitor
-import com.android.tools.metalava.permission.getRequiresPermissionInfo
+import com.android.tools.metalava.permission.getRequiresPermissionProxy
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
 import java.io.File
@@ -264,12 +265,12 @@ class ApiAnalyzer(
         var interfaceTypeClasses: MutableList<ClassItem>? = null
         for (hiddenSuperClass in hiddenSuperClasses) {
             for (hiddenInterface in hiddenSuperClass.interfaceTypes()) {
-                val hiddenInterfaceClass = hiddenInterface.asClass()
+                val hiddenInterfaceClass = hiddenInterface.resolveClass(codebase)
                 if (filterReference.test(hiddenInterfaceClass ?: continue)) {
                     if (interfaceTypes == null) {
                         interfaceTypes = cls.interfaceTypes().toMutableList()
                         interfaceTypeClasses =
-                            interfaceTypes.mapNotNull { it.asClass() }.toMutableList()
+                            interfaceTypes.mapNotNull { it.resolveClass(codebase) }.toMutableList()
                         if (cls.isInterface()) {
                             cls.superClass()?.let { interfaceTypeClasses.add(it) }
                         }
@@ -306,7 +307,7 @@ class ApiAnalyzer(
         // Also generate stubs for any methods we would have inherited from abstract parents
         // All methods from super classes that (1) aren't overridden in this class already, and
         // (2) are overriding some method that is in a public interface accessible from this class.
-        val interfaces: Set<TypeItem> = cls.allInterfaceTypes(filterReference).toSet()
+        val interfaces = cls.allInterfaceTypes(filterReference).toSet()
 
         // Note that we can't just call method.superMethods() to and see whether any of their
         // containing classes are among our target APIs because it's possible that the super class
@@ -315,7 +316,7 @@ class ApiAnalyzer(
         // potential overrides.
         val inheritableMethods = MethodItemSet()
         for (interfaceType in interfaces) {
-            val interfaceClass = interfaceType.asClass() ?: continue
+            val interfaceClass = interfaceType.resolveClass(codebase) ?: continue
             for (method in interfaceClass.methods()) {
                 inheritableMethods.add(method)
             }
@@ -460,12 +461,9 @@ class ApiAnalyzer(
                     // a facade class needs to be emitted if it has any top-level fun/prop to emit
                     cls.members().none { member ->
                         // a member needs to be emitted if
-                        //  1) it doesn't have a hide annotation;
+                        //  1) it isn't hidden;
                         //  2) it is either public or has a show annotation;
-                        //  3) it is not `expect`
-                        !member.hasHideAnnotation() &&
-                            (member.isPublic || member.hasShowAnnotation()) &&
-                            !member.modifiers.isExpect()
+                        !member.hidden && (member.isPublic || member.hasShowAnnotation())
                     }
             ) {
                 cls.emit = false
@@ -508,9 +506,24 @@ class ApiAnalyzer(
                     preserveClassNesting = true,
                     // Only SelectableItems can have variantSelectors.
                     visitParameterItems = false,
+                    // RecordComponentItems need to be checked to see if they are hidden.
+                    visitRecordComponentItems = true,
                 ) {
                 override fun visitSelectableItem(item: SelectableItem) {
                     item.variantSelectors.inheritInto()
+                }
+
+                override fun visitRecordComponentItem(component: RecordComponentItem) {
+                    val codebase = component.codebase
+                    val hasHideAnnotations =
+                        codebase.annotationManager.hasHideAnnotations(component.modifiers)
+                    if (hasHideAnnotations) {
+                        codebase.reporter.report(
+                            Issues.HIDING_RECORD_COMPONENT,
+                            component,
+                            "Cannot hide ${component.describe()} as record components are an indivisible part of a record class"
+                        )
+                    }
                 }
             }
 
@@ -521,11 +534,11 @@ class ApiAnalyzer(
         val annotation = method.modifiers.findAnnotation(ANDROIDX_REQUIRES_PERMISSION)
         var hasAnnotation = false
 
-        val requiresPermissionInfo = annotation?.getRequiresPermissionInfo()
-        if (requiresPermissionInfo != null) {
+        val requiresPermissionProxy = annotation?.getRequiresPermissionProxy(method)
+        if (requiresPermissionProxy != null) {
             hasAnnotation = true
-            val values = requiresPermissionInfo.permissionValues
-            val any = requiresPermissionInfo.any
+            val values = requiresPermissionProxy.permissionValues
+            val any = requiresPermissionProxy.any
 
             val system = ArrayList<String>()
             val nonSystem = ArrayList<String>()
@@ -716,7 +729,7 @@ class ApiAnalyzer(
                     type.accept(
                         object : BaseTypeVisitor() {
                             override fun visitClassType(classType: ClassTypeItem) {
-                                val cls = classType.asClass() ?: return
+                                val cls = classType.resolveClass(codebase) ?: return
                                 if (
                                     !filterReference.test(cls) &&
                                         cls.origin != ClassOrigin.CLASS_PATH
@@ -807,7 +820,7 @@ class ApiAnalyzer(
                     }
 
                     for (t in cl.interfaceTypes()) {
-                        if (t.asClass()?.effectivelyDeprecated == true) {
+                        if (t.resolveClass(codebase)?.effectivelyDeprecated == true) {
                             reporter.report(
                                 Issues.EXTENDS_DEPRECATED,
                                 cl,
@@ -946,7 +959,7 @@ class ApiAnalyzer(
             }
             for (thrown in callable.throwsTypes()) {
                 if (thrown is VariableTypeItem) continue
-                val classItem = thrown.erasedClass ?: continue
+                val classItem = thrown.asErasedClass(codebase) ?: continue
                 cantStripThis(classItem, filter, notStrippable, callable, "as exception")
             }
             cantStripThis(callable.returnType(), callable, filter, notStrippable, "in return type")
@@ -976,7 +989,7 @@ class ApiAnalyzer(
         type.accept(
             object : BaseTypeVisitor() {
                 override fun visitClassType(classType: ClassTypeItem) {
-                    val asClass = classType.asClass() ?: return
+                    val asClass = classType.resolveClass(codebase) ?: return
                     cantStripThis(asClass, filter, notStrippable, context, usage)
                 }
             }
@@ -996,7 +1009,7 @@ class ApiAnalyzer(
             type.accept(
                 object : BaseTypeVisitor() {
                     override fun visitClassType(classType: ClassTypeItem) {
-                        if (classType.asClass()?.effectivelyDeprecated == true) {
+                        if (classType.resolveClass(codebase)?.effectivelyDeprecated == true) {
                             reporter.report(
                                 Issues.REFERENCES_DEPRECATED,
                                 containingMethod,
@@ -1049,7 +1062,7 @@ class ApiAnalyzer(
         ti.accept(
             object : BaseTypeVisitor() {
                 override fun visitClassType(classType: ClassTypeItem) {
-                    val asClass = classType.asClass() ?: return
+                    val asClass = classType.resolveClass(codebase) ?: return
                     if (asClass.isHiddenOrRemoved()) {
                         hiddenClasses.add(asClass)
                     }

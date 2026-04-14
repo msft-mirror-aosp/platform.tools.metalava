@@ -16,11 +16,17 @@
 
 package com.android.tools.metalava.cli.multiplatform
 
+import com.android.tools.metalava.cli.common.existingDir
+import com.android.tools.metalava.cli.common.newDir
 import com.github.ajalt.clikt.parameters.groups.OptionGroup
 import com.github.ajalt.clikt.parameters.options.flag
 import com.github.ajalt.clikt.parameters.options.option
 
 const val ARG_MULTIPLATFORM_ENABLED = "--multiplatform-enabled"
+
+const val ARG_MULTIPLATFORM_API_DIR = "--multiplatform-api-directory"
+
+const val ARG_MULTIPLATFORM_API_SOURCES = "--multiplatform-api-sources"
 
 class MultiplatformOptions :
     OptionGroup(
@@ -31,4 +37,22 @@ class MultiplatformOptions :
     val enabled: Boolean by
         option(ARG_MULTIPLATFORM_ENABLED, help = "Flag to enable Multiplatform API operation.")
             .flag()
+
+    val sourceApiDirectory by
+        option(
+                ARG_MULTIPLATFORM_API_SOURCES,
+                help = "Directory containing multiplatform API signature files to parse as source."
+            )
+            .existingDir()
+
+    val apiDirectory by
+        option(
+                ARG_MULTIPLATFORM_API_DIR,
+                help =
+                    """
+                    Directory to put multiplatform API signature files.
+                    """
+                        .trimIndent()
+            )
+            .newDir()
 }
