@@ -35,6 +35,7 @@ import com.android.tools.metalava.model.ModifierFlags.Companion.INFIX
 import com.android.tools.metalava.model.ModifierFlags.Companion.INLINE
 import com.android.tools.metalava.model.ModifierFlags.Companion.INTERNAL
 import com.android.tools.metalava.model.ModifierFlags.Companion.NATIVE
+import com.android.tools.metalava.model.ModifierFlags.Companion.NON_SEALED
 import com.android.tools.metalava.model.ModifierFlags.Companion.OPERATOR
 import com.android.tools.metalava.model.ModifierFlags.Companion.PACKAGE_PRIVATE
 import com.android.tools.metalava.model.ModifierFlags.Companion.PRIVATE
@@ -309,6 +310,12 @@ internal object PsiModifierItem {
         }
         if (modifierList.hasModifierProperty(PsiModifier.DEFAULT)) {
             flags = flags or DEFAULT
+        }
+        if (modifierList.hasModifierProperty(PsiModifier.SEALED)) {
+            flags = flags or SEALED
+        }
+        if (modifierList.hasModifierProperty(PsiModifier.NON_SEALED)) {
+            flags = flags or NON_SEALED
         }
         return flags
     }

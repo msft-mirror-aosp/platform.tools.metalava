@@ -32,6 +32,7 @@ import com.android.tools.metalava.model.ModifierFlags.Companion.ABSTRACT
 import com.android.tools.metalava.model.ModifierFlags.Companion.DEFAULT
 import com.android.tools.metalava.model.ModifierFlags.Companion.FINAL
 import com.android.tools.metalava.model.ModifierFlags.Companion.NATIVE
+import com.android.tools.metalava.model.ModifierFlags.Companion.NON_SEALED
 import com.android.tools.metalava.model.ModifierFlags.Companion.PRIVATE
 import com.android.tools.metalava.model.ModifierFlags.Companion.PROTECTED
 import com.android.tools.metalava.model.ModifierFlags.Companion.PUBLIC
@@ -286,6 +287,9 @@ internal class TurbineClassBuilder(
         }
         if (flag and TurbineFlag.ACC_SEALED != 0) {
             result = result or SEALED
+        }
+        if (flag and TurbineFlag.ACC_NON_SEALED != 0) {
+            result = result or NON_SEALED
         }
         if (flag and TurbineFlag.ACC_VARARGS != 0) {
             result = result or VARARG

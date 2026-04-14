@@ -20,6 +20,8 @@ import com.android.tools.metalava.model.ModifierFlags.Companion.ABSTRACT
 import com.android.tools.metalava.model.ModifierFlags.Companion.DEFAULT
 import com.android.tools.metalava.model.ModifierFlags.Companion.FINAL
 import com.android.tools.metalava.model.ModifierFlags.Companion.NATIVE
+import com.android.tools.metalava.model.ModifierFlags.Companion.NON_SEALED
+import com.android.tools.metalava.model.ModifierFlags.Companion.SEALED
 import com.android.tools.metalava.model.ModifierFlags.Companion.STATIC
 import com.android.tools.metalava.model.ModifierFlags.Companion.SYNCHRONIZED
 import com.android.tools.metalava.model.ModifierFlags.Companion.TRANSIENT
@@ -42,6 +44,8 @@ enum class ItemKind(
             flagBits(
                 ABSTRACT,
                 FINAL,
+                NON_SEALED,
+                SEALED,
                 STATIC,
             ),
     ),
