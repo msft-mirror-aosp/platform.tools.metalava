@@ -1064,9 +1064,9 @@ class SignatureInputOutputTest : Assertions {
         val api =
             """
                 package test.pkg {
-                  public sealed non-exhaustive class Base implements test.pkg.Super {
+                  public sealed non-exhaustive class Base implements test.pkg.Super permits test.pkg.SubclassA test.pkg.SubclassB {
                   }
-                  public class SubclassA extends test.pkg.Base {
+                  public non-sealed class SubclassA extends test.pkg.Base {
                   }
                   public final class SubclassB extends test.pkg.Base {
                   }

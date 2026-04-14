@@ -82,6 +82,9 @@ class SignatureWriter(
     /** See [JAVA_RECORD_CLASSES]. */
     private val javaRecordClasses = fileFormat[JAVA_RECORD_CLASSES]
 
+    /** See [JAVA_SEALED_CLASSES]. */
+    private val javaSealedClasses = fileFormat[JAVA_SEALED_CLASSES]
+
     /** See [KOTLIN_NAME_TYPE_ORDER]. */
     private val kotlinNameTypeOrder = fileFormat[KOTLIN_NAME_TYPE_ORDER]
 
@@ -103,7 +106,7 @@ class SignatureWriter(
                     normalizeAbstract = fileFormat[NORMALIZE_ABSTRACT_MODIFIER],
                     flaggedApiInheritance = fileFormat[FLAGGED_API_INHERITANCE],
                     javaRecordClasses = javaRecordClasses,
-                    javaSealedClasses = fileFormat[JAVA_SEALED_CLASSES],
+                    javaSealedClasses = javaSealedClasses,
                 ),
         )
 
@@ -262,6 +265,8 @@ class SignatureWriter(
             writeTypeParameterList(cls.typeParameterList, addSpace = false)
             writeSuperClassStatement(cls)
             writeInterfaceList(cls)
+            writePermitsList(cls)
+
             propagateSuppressAnnotationsToSubclasses(cls)
 
             write(" {\n")
@@ -383,6 +388,18 @@ class SignatureWriter(
         write(label)
 
         orderedInterfaces.forEach { typeItem -> writeExtendsOrImplementsType(typeItem) }
+    }
+
+    private fun writePermitsList(cls: ClassItem) {
+        if (!javaSealedClasses) return
+        val permitTypes = cls.permitTypes
+        if (permitTypes.isEmpty()) return
+
+        write(" permits")
+        permitTypes.forEach { typeItem ->
+            write(" ")
+            writeType(typeItem)
+        }
     }
 
     /** [TypeStringConfiguration] for use when writing types in [writeTypeParameterList]. */

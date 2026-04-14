@@ -865,7 +865,7 @@ private constructor(
         if ("implements" == token || "extends" == token) {
             token = tokenizer.requireToken()
             while (true) {
-                if ("{" == token) {
+                if (token == "{" || token == "permits") {
                     break
                 } else if ("," != token) {
                     val interfaceTypeString = parseSuperTypeString(tokenizer)
@@ -876,6 +876,23 @@ private constructor(
                     token = tokenizer.requireToken()
                 }
             }
+        }
+
+        val permitTypes = mutableListOf<ClassTypeItem>()
+
+        if (token == "permits") {
+            token = tokenizer.requireToken()
+            while (true) {
+                if ("{" == token) {
+                    break
+                } else {
+                    val typeString = parseSuperTypeString(tokenizer)
+                    val permitsType = typeItemFactory.getHierarchicalClassType(typeString)
+                    permitTypes.add(permitsType)
+                    token = tokenizer.current
+                }
+            }
+            permitTypes.sortWith(TypeItem.qualifiedComparator)
         }
 
         if ("{" != token) {
@@ -939,6 +956,7 @@ private constructor(
                 origin = ClassOrigin.COMMAND_LINE,
                 superClassType = superClassType,
                 interfaceTypes = interfaceTypes.toList(),
+                permitTypes = permitTypes,
                 targetLanguages = targetLanguages,
                 // Classes with the placeholder name for top level declarations in a
                 // MultiplatformCodebase are definitely facade classes. There isn't enough
@@ -1770,6 +1788,9 @@ private constructor(
                     // exhaustivity will be adjusted accordingly in the following match
                     // statements.
                     modifiers.setExhaustive(false)
+                }
+                "non-sealed" -> {
+                    modifiers.setNonSealed(true)
                 }
                 "exhaustive" -> {
                     modifiers.setExhaustive(true)

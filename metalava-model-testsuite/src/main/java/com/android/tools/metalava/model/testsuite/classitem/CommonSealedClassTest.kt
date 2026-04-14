@@ -125,7 +125,7 @@ class CommonSealedClassTest : BaseModelTest() {
                     """
                         // Signature format: 2.0
                         package test.pkg {
-                          public abstract sealed class SealedClass permits test.pkg.SubclassB, test.pkg.SubclassA {
+                          public abstract sealed class SealedClass permits test.pkg.SubclassB test.pkg.SubclassA {
                           }
                           public static final class SubclassA extends test.pkg.SealedClass {
                           }
