@@ -470,9 +470,8 @@ class CommonModifierListWriterTest : BaseModelTest() {
             // TODO(b/482391240): Remove this once sealed modifiers are extracted from Java source.
             testClass.mutateModifiers { setNonSealed(true) }
 
-            // TODO(b/482391240): Should include non-sealed.
             assertEquals(
-                "public",
+                "public non-sealed",
                 testClass.writeKeywords(
                     defaultConfig.copy(
                         javaSealedClasses = true,

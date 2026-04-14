@@ -181,6 +181,10 @@ class ModifierListWriter(
                     writer.write("nonexhaustive ")
                 }
             }
+
+            if (list.isNonSealed()) {
+                writer.write("non-sealed ")
+            }
         }
 
         if (list.isSuspend()) {
