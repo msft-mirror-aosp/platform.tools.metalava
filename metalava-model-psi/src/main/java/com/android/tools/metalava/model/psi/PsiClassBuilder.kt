@@ -168,6 +168,12 @@ internal class PsiClassBuilder(
         val (superClassType, interfaceTypes) =
             computeSuperTypes(psiClass, classKind, classTypeItemFactory)
 
+        // The sorted permits list.
+        val permitTypes =
+            psiClass.permitsListTypes
+                .map { classTypeItemFactory.getHierarchicalClassType(PsiTypeInfo(it, psiClass)) }
+                .sortedWith(TypeItem.totalComparator)
+
         // Get the SourceFile, using the one from the containing class if this is nested.
         val sourceFile =
             if (containingClassItem != null) {
@@ -192,6 +198,7 @@ internal class PsiClassBuilder(
                 origin = origin,
                 superClassType = superClassType,
                 interfaceTypes = interfaceTypes,
+                permitTypes = permitTypes,
                 isFileFacade = psiClass.isFileFacade(),
                 optionalAliasedType = null,
                 isMultiFileClass = psiClass.isMultiFileClass(),

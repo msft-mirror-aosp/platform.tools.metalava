@@ -178,6 +178,16 @@ internal class TurbineClassBuilder(
         val interfaceTypes =
             typeBoundClass.interfaceTypes().map { classTypeItemFactory.getInterfaceType(it) }
 
+        // The sorted permits list.
+        val permitTypes =
+            typeBoundClass
+                .permits()
+                .map {
+                    val type = Type.ClassTy.asNonParametricClassTy(it)
+                    classTypeItemFactory.getHierarchicalClassType(type)
+                }
+                .sortedWith(TypeItem.totalComparator)
+
         val classItem =
             itemFactory.createClassItem(
                 fileLocation = fileLocation,
@@ -192,6 +202,7 @@ internal class TurbineClassBuilder(
                 origin = origin,
                 superClassType = superClassType,
                 interfaceTypes = interfaceTypes,
+                permitTypes = permitTypes,
                 recordComponentItemsFactory =
                     if (classKind == ClassKind.RECORD)
                         { classItem ->

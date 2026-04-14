@@ -1,7 +1,3 @@
-com.android.tools.metalava.model.testsuite.classitem.CommonSealedClassTest
-  sealed class - explicit permits - not kotlin
-  sealed class - implicit permits - not kotlin
-
 com.android.tools.metalava.model.testsuite.fielditem.CommonFieldItemTest
   Test implicit nullability of constant field initialized from @NonNull method
 
