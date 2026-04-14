@@ -80,6 +80,7 @@ class ModifierListWriter(
     private val normalizeAbstract = config.normalizeAbstract
     private val flaggedApiInheritance = config.flaggedApiInheritance
     private val javaRecordClasses: Boolean = config.javaRecordClasses
+    private val javaSealedClasses = config.javaSealedClasses
 
     companion object {
         /**
@@ -164,13 +165,21 @@ class ModifierListWriter(
             writer.write("final ")
         }
 
-        if (list.isSealed()) {
-            writer.write("sealed ")
+        // Only write sealed keywords if they do not come from java or java sealed classes are
+        // specifically supported. When [item] is read from a signature file it will be set to
+        // [SourceLanguage.UNKNOWN] whether it was originally from Kotlin or Java. This check
+        // ensures that reading a [Codebase] from a signature file, and then writing it out (as is
+        // done by many of the signature related commands) does not drop the sealed keywords.
+        val allowSealedKeywords = item.sourceLanguage != SourceLanguage.JAVA || javaSealedClasses
+        if (allowSealedKeywords) {
+            if (list.isSealed()) {
+                writer.write("sealed ")
 
-            if (list.isExhaustive()) {
-                writer.write("exhaustive ")
-            } else {
-                writer.write("nonexhaustive ")
+                if (list.isExhaustive()) {
+                    writer.write("exhaustive ")
+                } else {
+                    writer.write("nonexhaustive ")
+                }
             }
         }
 
