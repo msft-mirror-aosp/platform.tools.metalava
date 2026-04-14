@@ -36,6 +36,10 @@ interface BaseModifierList {
 
     fun isPrivate(): Boolean
 
+    fun isPackagePrivate(): Boolean
+
+    fun isPublicOrProtected() = isPublic() || isProtected()
+
     @MetalavaApi fun isStatic(): Boolean
 
     fun isAbstract(): Boolean
@@ -92,10 +96,6 @@ interface BaseModifierList {
     fun isExpect(): Boolean = false
 
     fun isActual(): Boolean = false
-
-    fun isPackagePrivate() = !(isPublic() || isProtected() || isPrivate())
-
-    fun isPublicOrProtected() = isPublic() || isProtected()
 
     /**
      * Check whether this [ModifierList]'s modifiers are equivalent to the [other] [ModifierList]'s

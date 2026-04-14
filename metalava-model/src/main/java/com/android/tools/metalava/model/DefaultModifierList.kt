@@ -107,6 +107,10 @@ internal sealed class DefaultBaseModifierList(
         return getVisibilityLevel() == VisibilityLevel.PRIVATE
     }
 
+    override fun isPackagePrivate(): Boolean {
+        return getVisibilityLevel() == VisibilityLevel.PACKAGE_PRIVATE
+    }
+
     override fun isStatic(): Boolean {
         return isSet(STATIC)
     }
@@ -201,10 +205,6 @@ internal sealed class DefaultBaseModifierList(
 
     override fun isActual(): Boolean {
         return isSet(ACTUAL)
-    }
-
-    override fun isPackagePrivate(): Boolean {
-        return flags and VISIBILITY_MASK == PACKAGE_PRIVATE
     }
 
     override fun equivalentTo(owner: Item?, other: BaseModifierList): Boolean {
