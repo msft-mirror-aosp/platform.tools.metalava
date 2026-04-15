@@ -183,7 +183,7 @@ internal object PsiModifierItem {
 
         // Merge in kotlin flags
         if (ktModifierList != null) {
-            flags = flags or kotlinFlags { token -> ktModifierList.hasModifier(token) }
+            flags = flags or kotlinFlags(sourcePsi) { token -> ktModifierList.hasModifier(token) }
         }
         return flags
     }
@@ -308,7 +308,10 @@ internal object PsiModifierItem {
     }
 
     /** Computes Kotlin-specific flags. */
-    private fun kotlinFlags(hasModifier: (KtModifierKeywordToken) -> Boolean): Int {
+    private fun kotlinFlags(
+        sourcePsi: PsiElement?,
+        hasModifier: (KtModifierKeywordToken) -> Boolean
+    ): Int {
         var flags = 0
         if (hasModifier(KtTokens.VARARG_KEYWORD)) {
             flags = flags or VARARG
@@ -340,7 +343,10 @@ internal object PsiModifierItem {
         if (hasModifier(KtTokens.FUN_KEYWORD)) {
             flags = flags or FUN
         }
-        if (hasModifier(KtTokens.DATA_KEYWORD)) {
+        // A data object is just a regular object with special toString/equals/hashCode
+        // implementations, unlike data classes which have many more generated members. This makes
+        // the data modifier not important for API tracking of object declarations.
+        if (hasModifier(KtTokens.DATA_KEYWORD) && sourcePsi !is KtObjectDeclaration) {
             flags = flags or DATA
         }
         if (hasModifier(KtTokens.EXPECT_KEYWORD)) {

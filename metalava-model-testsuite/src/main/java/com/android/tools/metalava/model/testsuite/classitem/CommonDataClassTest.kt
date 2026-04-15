@@ -399,4 +399,28 @@ class CommonDataClassTest : BaseModelTest() {
             assertThat(manualCopy.parameters().single().hasDefaultValue()).isFalse()
         }
     }
+
+    @Test
+    fun `Test data modifier for data class and data object`() {
+        runCodebaseTest(
+            kotlin(
+                """
+                package test.pkg
+                data class DataClass(val i: Int)
+                data object DataObject {
+                    val i: Int = 0
+                }
+                """
+            )
+        ) {
+            val dataClass = codebase.assertClass("test.pkg.DataClass")
+            assertThat(dataClass.modifiers.isData()).isTrue()
+
+            val dataObject = codebase.assertClass("test.pkg.DataObject")
+            // Data object does not have the "data" modifier included because all "data" does for an
+            // object is provide toString/equals/hashCode implementations, so it isn't important for
+            // the API surface.
+            assertThat(dataObject.modifiers.isData()).isFalse()
+        }
+    }
 }
