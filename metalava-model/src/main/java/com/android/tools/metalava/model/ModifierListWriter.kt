@@ -73,6 +73,7 @@ class ModifierListWriter(
     private val normalizeFinal = config.normalizeFinal
     private val normalizeAbstract = config.normalizeAbstract
     private val flaggedApiInheritance = config.flaggedApiInheritance
+    private val javaRecordClasses: Boolean = config.javaRecordClasses
 
     companion object {
         /**
@@ -117,7 +118,10 @@ class ModifierListWriter(
         //   https://kotlinlang.org/docs/reference/coding-conventions.html#modifiers
 
         val classItem = item as? ClassItem
-        val classKind = classItem?.classKind
+        val classKind =
+            classItem?.classKind?.let { kind ->
+                if (kind == ClassKind.RECORD && !javaRecordClasses) ClassKind.CLASS else kind
+            }
         val methodItem = item as? MethodItem
 
         val list = item.modifiers

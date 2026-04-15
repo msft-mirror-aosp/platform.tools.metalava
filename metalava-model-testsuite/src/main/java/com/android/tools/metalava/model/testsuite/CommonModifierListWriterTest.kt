@@ -242,8 +242,7 @@ class CommonModifierListWriterTest : BaseModelTest() {
         ) {
             val testClass = codebase.assertClass("test.pkg.Test")
 
-            // TODO(b/458733676): Should include `final`.
-            assertEquals("public", testClass.writeKeywords())
+            assertEquals("public final", testClass.writeKeywords())
         }
     }
 

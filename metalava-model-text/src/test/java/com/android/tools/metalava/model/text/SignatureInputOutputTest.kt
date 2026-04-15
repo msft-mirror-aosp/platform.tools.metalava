@@ -1029,7 +1029,7 @@ class SignatureInputOutputTest : Assertions {
             expectedOutput =
                 """
                     package test.pkg {
-                      public class Test {
+                      public final class Test {
                         ctor public Test(int, String);
                         method public int a();
                         method public String b();

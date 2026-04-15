@@ -61,6 +61,7 @@ internal class StubWriter(
             else SDK_STUBS_MODIFIER_LIST_WRITER_CONFIG
         return modifierListWriterConfig.copy(
             runtimeAnnotationsOnly = !generateAnnotations,
+            javaRecordClasses = config.javaRecordClasses,
         )
     }
 

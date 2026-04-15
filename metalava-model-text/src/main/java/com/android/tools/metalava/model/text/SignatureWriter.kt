@@ -101,6 +101,7 @@ class SignatureWriter(
                     normalizeFinal = fileFormat[NORMALIZE_FINAL_MODIFIER],
                     normalizeAbstract = fileFormat[NORMALIZE_ABSTRACT_MODIFIER],
                     flaggedApiInheritance = fileFormat[FLAGGED_API_INHERITANCE],
+                    javaRecordClasses = javaRecordClasses,
                 ),
         )
 
