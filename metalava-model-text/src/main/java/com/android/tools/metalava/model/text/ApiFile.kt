@@ -390,48 +390,39 @@ private constructor(
                 if (commonSignatureFile != null) {
                     // When there is a common source set, each other signature file is parsed as an
                     // extension on common.
-                    val commonSourceSet =
-                        apiFileForBaseSourceSet(
-                                commonSignatureFile,
-                                codebaseConfig,
-                                name = MultiplatformSignatureWriter.COMMON_SOURCE_SET_NAME
-                            )
-                            .codebase
-                    signatureFiles.associateBy(
-                        { signatureFile -> signatureFile.file.nameWithoutExtension },
-                        { signatureFile ->
-                            if (signatureFile == commonSignatureFile) {
-                                commonSourceSet
-                            } else {
-                                apiFileForExtensionSourceSet(
-                                        extensionSignatureFile = signatureFile,
-                                        baseSignatureFile = commonSignatureFile,
-                                        codebaseConfig,
-                                    )
-                                    .codebase
-                            }
+                    val commonNameToSourceSet = parseSourceSet(codebaseConfig, commonSignatureFile)
+                    signatureFiles.associate { signatureFile ->
+                        if (signatureFile == commonSignatureFile) {
+                            commonNameToSourceSet
+                        } else {
+                            parseSourceSet(codebaseConfig, signatureFile, commonSignatureFile)
                         }
-                    )
+                    }
                 } else {
                     // When there is no common source set, each signature file is parsed separately.
                     signatureFiles.associate { signatureFile ->
-                        val name = signatureFile.file.nameWithoutExtension
-                        name to
-                            apiFileForBaseSourceSet(signatureFile, codebaseConfig, name).codebase
+                        parseSourceSet(codebaseConfig, signatureFile)
                     }
                 }
             return MultiplatformCodebase(sourceSetToCodebase)
         }
 
-        /** Parses a [signatureFile] as a single source set of a [MultiplatformCodebase]. */
-        private fun apiFileForBaseSourceSet(
-            signatureFile: SignatureFile,
+        /**
+         * Parses the [sourceSetSignatureFile], returning a pair of the name of the source set to
+         * the [Codebase] for the source set.
+         *
+         * If [baseSignatureFile] is not null, it is parsed first with [sourceSetSignatureFile]
+         * treated as an extension.
+         */
+        private fun parseSourceSet(
             codebaseConfig: Codebase.Config,
-            name: String,
-        ): ApiFile {
+            sourceSetSignatureFile: SignatureFile,
+            baseSignatureFile: SignatureFile? = null,
+        ): Pair<String, Codebase> {
+            val name = sourceSetSignatureFile.file.nameWithoutExtension
             val parser =
                 ApiFile(
-                    codebaseLocation = signatureFile.file,
+                    codebaseLocation = sourceSetSignatureFile.file,
                     codebaseDescription = "Codebase for source set $name",
                     codebaseConfig = codebaseConfig,
                     classPathResolver = null,
@@ -439,43 +430,9 @@ private constructor(
                     allowClassModifierChanges = true,
                     defaultTargetLanguageSet = TargetLanguageSet.KOTLIN_ONLY,
                 )
-            parser.parseApiSingleFile(
-                appending = false,
-                path = signatureFile.file.toPath(),
-                apiText = signatureFile.readContents(),
-                apiVariant = signatureFile.apiVariantFor(codebaseConfig.apiSurfaces)
-            )
-            parser.performAnyDeferredMerges()
-            return parser
-        }
-
-        /**
-         * Parses the [extensionSignatureFile] as a delta on [baseSignatureFile] to represent one
-         * source set of a [MultiplatformCodebase].
-         *
-         * The [baseSignatureFile] will be parsed each time this function is called to avoid
-         * conflicts between the state of each source set [Codebase].
-         */
-        private fun apiFileForExtensionSourceSet(
-            extensionSignatureFile: SignatureFile,
-            baseSignatureFile: SignatureFile,
-            codebaseConfig: Codebase.Config,
-        ): ApiFile {
-            val parser =
-                apiFileForBaseSourceSet(
-                    baseSignatureFile,
-                    codebaseConfig,
-                    // Name the codebase based on the extension, not the common source set.
-                    name = extensionSignatureFile.file.nameWithoutExtension,
-                )
-            parser.parseApiSingleFile(
-                appending = true,
-                path = extensionSignatureFile.file.toPath(),
-                apiText = extensionSignatureFile.readContents(),
-                apiVariant = extensionSignatureFile.apiVariantFor(codebaseConfig.apiSurfaces)
-            )
-            parser.performAnyDeferredMerges()
-            return parser
+            // Parse the base file first if it exists.
+            parser.parseMultipleFiles(listOfNotNull(baseSignatureFile) + sourceSetSignatureFile)
+            return name to parser.codebase
         }
 
         /**
