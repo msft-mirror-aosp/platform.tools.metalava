@@ -243,8 +243,12 @@ open class BaseModelProviderRunner<C : FilterableCodebaseCreator, I : Any>(
                 // Create a predicate from any annotations on the methods.
                 val predicate =
                     createCreatorPredicate(sequenceOf(frameworkMethod.method))
-                        // Filter based on the supported input formats.
-                        .and { it.inputFormat in frameworkMethod.supportedInputFormats() }
+                        // If an inputFormat is available in [CodebaseCreatorConfig] then filter
+                        // based on the supported input formats.
+                        .and {
+                            it.inputFormat == null ||
+                                it.inputFormat in frameworkMethod.supportedInputFormats()
+                        }
 
                 // Apply the predicate to the [CodebaseCreatorConfig] that would be used for this
                 // method.
