@@ -364,22 +364,7 @@ private constructor(
                     formatForLegacyFiles = formatForLegacyFiles,
                     allowClassModifierChanges = allowClassModifierChanges
                 )
-            val apiSurfaces = codebaseConfig.apiSurfaces
-            var first = true
-            for (signatureFile in signatureFiles) {
-                val file = signatureFile.file
-                val apiText = signatureFile.readContents()
-                val apiVariant = signatureFile.apiVariantFor(apiSurfaces)
-                parser.parseApiSingleFile(
-                    appending = !first,
-                    path = file.toPath(),
-                    apiText = apiText,
-                    apiVariant = apiVariant,
-                )
-                first = false
-            }
-
-            parser.performAnyDeferredMerges()
+            parser.parseMultipleFiles(signatureFiles)
 
             apiStatsConsumer(parser.stats)
             return parser.codebase
@@ -617,6 +602,29 @@ private constructor(
         // This is safe because unlike `emit` which is Boolean the `selectedApiVariants` property is
         // a set of ApiVariants and this just adds an ApiVariant.
         markSelectedApiVariant()
+    }
+
+    /**
+     * Parses all the [signatureFiles], treating the first file as the base API and all other files
+     * as extensions.
+     */
+    private fun parseMultipleFiles(signatureFiles: List<SignatureFile>) {
+        val apiSurfaces = codebase.config.apiSurfaces
+        var first = true
+        for (signatureFile in signatureFiles) {
+            val file = signatureFile.file
+            val apiText = signatureFile.readContents()
+            val apiVariant = signatureFile.apiVariantFor(apiSurfaces)
+            parseApiSingleFile(
+                appending = !first,
+                path = file.toPath(),
+                apiText = apiText,
+                apiVariant = apiVariant,
+            )
+            first = false
+        }
+
+        performAnyDeferredMerges()
     }
 
     private fun parseApiSingleFile(
