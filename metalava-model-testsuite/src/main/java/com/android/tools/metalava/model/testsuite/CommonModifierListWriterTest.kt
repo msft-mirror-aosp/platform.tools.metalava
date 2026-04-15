@@ -219,6 +219,68 @@ class CommonModifierListWriterTest : BaseModelTest() {
         }
     }
 
+    @Test
+    fun `modifiers record class - javaRecordClasses=false`() {
+        runCodebaseTest(
+            signature(
+                """
+                    // Signature format: 6.0
+                    // - style=java
+                    package test.pkg {
+                      public record Test {
+                      }
+                    }
+                """
+            ),
+            java(
+                """
+                    package test.pkg;
+                    public record Test() {
+                    }
+                """
+            ),
+        ) {
+            val testClass = codebase.assertClass("test.pkg.Test")
+
+            // TODO(b/458733676): Should include `final`.
+            assertEquals("public", testClass.writeKeywords())
+        }
+    }
+
+    @Test
+    fun `modifiers record class - javaRecordClasses=true`() {
+        runCodebaseTest(
+            signature(
+                """
+                    // Signature format: 6.0
+                    // - style=java
+                    package test.pkg {
+                      public record Test {
+                      }
+                    }
+                """
+            ),
+            java(
+                """
+                    package test.pkg;
+                    public record Test() {
+                    }
+                """
+            ),
+        ) {
+            val testClass = codebase.assertClass("test.pkg.Test")
+
+            assertEquals(
+                "public",
+                testClass.writeKeywords(
+                    defaultConfig.copy(
+                        javaRecordClasses = true,
+                    )
+                )
+            )
+        }
+    }
+
     /** Check handling of enum method with `abstract` keyword. */
     private fun checkAbstractEnumMethod(normalizeAbstract: Boolean, expectedKeywords: String) {
         runCodebaseTest(

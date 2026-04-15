@@ -56,6 +56,14 @@ class ModifierListWriter(
 
         /** Determines whether `@FlaggedApi` annotations are inherited and if so how. */
         val flaggedApiInheritance: FlaggedApiInheritance = FlaggedApiInheritance.NONE,
+
+        /**
+         * If `true` then a [ClassKind.RECORD] class will be represented as a `record` class and the
+         * `final` modifier will not be written out as `record` classes are implicitly `final`.
+         * Otherwise, a [ClassKind.RECORD] class will be written out as an explicitly `final` normal
+         * class.
+         */
+        val javaRecordClasses: Boolean = false,
     )
 
     private val target = config.target
