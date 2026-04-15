@@ -236,7 +236,7 @@ class MultiplatformCompatibilityTest : DriverTest() {
             multiplatformSignatureSource = listOf(commonApi, androidApi),
             multiplatformCompatibilityApi = listOf(commonApi, androidApi, nativeApi),
             expectedIssues =
-                "../multiplatform-compatibility-api/commonMain.txt: error: Codebase for source set nativeMain has been removed [RemovedSourceSet]"
+                "../multiplatform-compatibility-api/nativeMain.txt: error: Codebase for source set nativeMain has been removed [RemovedSourceSet]"
         )
     }
 
@@ -283,7 +283,7 @@ class MultiplatformCompatibilityTest : DriverTest() {
             multiplatformSignatureSource = listOf(commonApi, androidApi, nativeApi),
             multiplatformCompatibilityApi = listOf(commonApi, androidApi),
             expectedIssues =
-                "multiplatform-signature-source/commonMain.txt: info: Codebase for source set nativeMain has been added [AddedSourceSet]"
+                "multiplatform-signature-source/nativeMain.txt: info: Codebase for source set nativeMain has been added [AddedSourceSet]"
         )
     }
 }
