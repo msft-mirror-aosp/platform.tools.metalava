@@ -206,12 +206,26 @@ sealed class SignatureFile {
 @MetalavaApi
 class ApiFile
 private constructor(
-    private val assembler: TextCodebaseAssembler,
+    /** Location to use for the created [Codebase]. */
+    codebaseLocation: File,
+    /** Description to use for the created [Codebase]. */
+    codebaseDescription: String,
+    /** [Codebase.Config] to use for the created [Codebase]. */
+    codebaseConfig: Codebase.Config,
+    /** [ClassPathResolver] to use for the created [Codebase]. */
+    classPathResolver: ClassPathResolver?,
     private val formatForLegacyFiles: FileFormat?,
     private val allowClassModifierChanges: Boolean,
     /** The [TargetLanguageSet] to use if an item does not have one specified. */
     private val defaultTargetLanguageSet: Set<TargetLanguage> = TargetLanguageSet.ALL,
 ) {
+    private val assembler =
+        TextCodebaseAssembler.createAssembler(
+            codebaseLocation,
+            codebaseDescription,
+            codebaseConfig,
+            classPathResolver
+        )
 
     private val codebase = assembler.codebase
 
@@ -341,14 +355,15 @@ private constructor(
                             append(classPathResolver)
                         }
                     }
-            val assembler =
-                TextCodebaseAssembler.createAssembler(
-                    location = signatureFiles[0].file,
-                    description = actualDescription,
+            val parser =
+                ApiFile(
+                    codebaseLocation = signatureFiles[0].file,
+                    codebaseDescription = actualDescription,
                     codebaseConfig = codebaseConfig,
                     classPathResolver = classPathResolver,
+                    formatForLegacyFiles = formatForLegacyFiles,
+                    allowClassModifierChanges = allowClassModifierChanges
                 )
-            val parser = ApiFile(assembler, formatForLegacyFiles, allowClassModifierChanges)
             val apiSurfaces = codebaseConfig.apiSurfaces
             var first = true
             for (signatureFile in signatureFiles) {
@@ -367,7 +382,7 @@ private constructor(
             parser.performAnyDeferredMerges()
 
             apiStatsConsumer(parser.stats)
-            return assembler.codebase
+            return parser.codebase
         }
 
         /**
@@ -429,16 +444,12 @@ private constructor(
             codebaseConfig: Codebase.Config,
             name: String,
         ): ApiFile {
-            val assembler =
-                TextCodebaseAssembler.createAssembler(
-                    location = signatureFile.file,
-                    description = "Codebase for source set $name",
-                    codebaseConfig = codebaseConfig,
-                    classPathResolver = null,
-                )
             val parser =
                 ApiFile(
-                    assembler = assembler,
+                    codebaseLocation = signatureFile.file,
+                    codebaseDescription = "Codebase for source set $name",
+                    codebaseConfig = codebaseConfig,
+                    classPathResolver = null,
                     formatForLegacyFiles = null,
                     allowClassModifierChanges = true,
                     defaultTargetLanguageSet = TargetLanguageSet.KOTLIN_ONLY,
