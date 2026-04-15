@@ -16,7 +16,9 @@
 
 package com.android.tools.metalava.model.text
 
+import com.android.tools.metalava.model.AnnotationFormatter
 import com.android.tools.metalava.model.AnnotationItem
+import com.android.tools.metalava.model.AnnotationTarget
 import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassKind
@@ -91,12 +93,15 @@ class SignatureWriter(
     private val stripJavaLangPrefixLegacy = stripJavaLangPrefix == StripJavaLangPrefix.LEGACY
 
     private val modifierListWriter =
-        ModifierListWriter.forSignature(
+        ModifierListWriter(
             writer = writer,
-            skipNullnessAnnotations = fileFormat[KOTLIN_STYLE_NULLS],
-            normalizeFinal = fileFormat[NORMALIZE_FINAL_MODIFIER],
-            normalizeAbstract = fileFormat[NORMALIZE_ABSTRACT_MODIFIER],
-            flaggedApiInheritance = fileFormat[FLAGGED_API_INHERITANCE],
+            config =
+                SIGNATURE_FILE_MODIFIER_LIST_WRITER_CONFIG.copy(
+                    skipNullnessAnnotations = fileFormat[KOTLIN_STYLE_NULLS],
+                    normalizeFinal = fileFormat[NORMALIZE_FINAL_MODIFIER],
+                    normalizeAbstract = fileFormat[NORMALIZE_ABSTRACT_MODIFIER],
+                    flaggedApiInheritance = fileFormat[FLAGGED_API_INHERITANCE],
+                ),
         )
 
     internal fun write(text: String) {
@@ -469,6 +474,18 @@ class SignatureWriter(
                 if (!stripJavaLangPrefixLegacy) writeType(type) else write(type.toTypeString())
             }
         }
+    }
+
+    companion object {
+        /** [ModifierListWriter.Config] suitable for use when writing signature files. */
+        private val SIGNATURE_FILE_MODIFIER_LIST_WRITER_CONFIG =
+            ModifierListWriter.Config(
+                target = AnnotationTarget.SIGNATURE_FILE,
+                annotationFormatter =
+                    AnnotationFormatter.legacyAnnotationFormatter(AnnotationTarget.SIGNATURE_FILE),
+                runtimeAnnotationsOnly = false,
+                skipNullnessAnnotations = false,
+            )
     }
 }
 

@@ -67,61 +67,6 @@ class ModifierListWriter(
     private val flaggedApiInheritance = config.flaggedApiInheritance
 
     companion object {
-        fun forSignature(
-            writer: Writer,
-            skipNullnessAnnotations: Boolean,
-            normalizeFinal: Boolean,
-            normalizeAbstract: Boolean,
-            flaggedApiInheritance: FlaggedApiInheritance,
-        ): ModifierListWriter {
-            val target = AnnotationTarget.SIGNATURE_FILE
-            return ModifierListWriter(
-                writer = writer,
-                config =
-                    Config(
-                        target = target,
-                        annotationFormatter = AnnotationFormatter.legacyAnnotationFormatter(target),
-                        runtimeAnnotationsOnly = false,
-                        skipNullnessAnnotations = skipNullnessAnnotations,
-                        normalizeFinal = normalizeFinal,
-                        normalizeAbstract = normalizeAbstract,
-                        flaggedApiInheritance = flaggedApiInheritance,
-                    ),
-            )
-        }
-
-        fun forNormalizing(writer: Writer): ModifierListWriter {
-            return ModifierListWriter(
-                writer = writer,
-                config =
-                    Config(
-                        target = AnnotationTarget.SIGNATURE_FILE,
-                        annotationFormatter = AnnotationFormatter.normalizingFormatter(),
-                        runtimeAnnotationsOnly = false,
-                        skipNullnessAnnotations = true,
-                    ),
-            )
-        }
-
-        fun forStubs(
-            writer: Writer,
-            isDocStubs: Boolean,
-            runtimeAnnotationsOnly: Boolean = false,
-        ): ModifierListWriter {
-            val target =
-                if (isDocStubs) AnnotationTarget.DOC_STUBS_FILE else AnnotationTarget.SDK_STUBS_FILE
-            return ModifierListWriter(
-                writer = writer,
-                config =
-                    Config(
-                        target = target,
-                        annotationFormatter = AnnotationFormatter.stubFormatter(target),
-                        runtimeAnnotationsOnly = runtimeAnnotationsOnly,
-                        skipNullnessAnnotations = false,
-                    ),
-            )
-        }
-
         /**
          * Checks whether the method requires a body to be generated in the stubs.
          * * Methods that are annotations are implicitly `abstract` but the body is provided by the

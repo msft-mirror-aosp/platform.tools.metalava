@@ -16,6 +16,8 @@
 
 package com.android.tools.metalava.stub
 
+import com.android.tools.metalava.model.AnnotationFormatter
+import com.android.tools.metalava.model.AnnotationTarget
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.DelegatedVisitor
@@ -49,6 +51,18 @@ internal class StubWriter(
     private val config: StubWriterConfig,
     private val stubConstructorManager: StubConstructorManager,
 ) : DelegatedVisitor {
+    /** Configuration for a [ModifierListWriter] instance. */
+    private val modifierListWriterConfig = modifierListWriterConfig()
+
+    /** Get the [ModifierListWriter.Config] suitable for this [StubWriter]. */
+    private fun modifierListWriterConfig(): ModifierListWriter.Config {
+        val modifierListWriterConfig =
+            if (isDocStubs) DOC_STUBS_MODIFIER_LIST_WRITER_CONFIG
+            else SDK_STUBS_MODIFIER_LIST_WRITER_CONFIG
+        return modifierListWriterConfig.copy(
+            runtimeAnnotationsOnly = !generateAnnotations,
+        )
+    }
 
     /**
      * Stubs need to preserve class nesting when visiting otherwise nested classes will not be
@@ -111,9 +125,9 @@ internal class StubWriter(
                 // Write the modifier list even though the package info does not actually have
                 // modifiers as that will write the annotations which it does have and ignore the
                 // modifiers.
-                ModifierListWriter.forStubs(
+                ModifierListWriter(
                         writer = packageInfoWriter,
-                        isDocStubs = isDocStubs,
+                        config = modifierListWriterConfig,
                     )
                     .write(pkg)
             }
@@ -190,10 +204,9 @@ internal class StubWriter(
                 }
 
             val modifierListWriter =
-                ModifierListWriter.forStubs(
+                ModifierListWriter(
                     writer = textWriter,
-                    isDocStubs = isDocStubs,
-                    runtimeAnnotationsOnly = !generateAnnotations,
+                    config = modifierListWriterConfig,
                 )
 
             stubWriter =
@@ -252,6 +265,25 @@ internal class StubWriter(
 
     override fun visitField(field: FieldItem) {
         stubWriter?.visitField(field)
+    }
+
+    companion object {
+        /** [ModifierListWriter.Config] common to all [AnnotationTarget.DOC_STUBS_FILE]s. */
+        private val DOC_STUBS_MODIFIER_LIST_WRITER_CONFIG =
+            targetSpecificModifierListWriterConfig(AnnotationTarget.DOC_STUBS_FILE)
+
+        /** [ModifierListWriter.Config] common to all [AnnotationTarget.SDK_STUBS_FILE]s. */
+        private val SDK_STUBS_MODIFIER_LIST_WRITER_CONFIG =
+            targetSpecificModifierListWriterConfig(AnnotationTarget.SDK_STUBS_FILE)
+
+        /** Get a [ModifierListWriter.Config] suitable for [target] stubs. */
+        private fun targetSpecificModifierListWriterConfig(target: AnnotationTarget) =
+            ModifierListWriter.Config(
+                target = target,
+                annotationFormatter = AnnotationFormatter.stubFormatter(target),
+                runtimeAnnotationsOnly = false,
+                skipNullnessAnnotations = false,
+            )
     }
 }
 
