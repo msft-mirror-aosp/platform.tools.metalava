@@ -1726,121 +1726,97 @@ private constructor(
      */
     private fun parseKeywordModifiers(tokenizer: Tokenizer, modifiers: MutableModifierList) {
         var token = tokenizer.current
-        processModifiers@ while (true) {
-            token =
-                when (token) {
-                    "public" -> {
-                        modifiers.setVisibilityLevel(VisibilityLevel.PUBLIC)
-                        tokenizer.requireToken()
-                    }
-                    "protected" -> {
-                        modifiers.setVisibilityLevel(VisibilityLevel.PROTECTED)
-                        tokenizer.requireToken()
-                    }
-                    "private" -> {
-                        modifiers.setVisibilityLevel(VisibilityLevel.PRIVATE)
-                        tokenizer.requireToken()
-                    }
-                    "internal" -> {
-                        modifiers.setVisibilityLevel(VisibilityLevel.INTERNAL)
-                        tokenizer.requireToken()
-                    }
-                    "static" -> {
-                        modifiers.setStatic(true)
-                        tokenizer.requireToken()
-                    }
-                    "final" -> {
-                        modifiers.setFinal(true)
-                        tokenizer.requireToken()
-                    }
-                    "deprecated" -> {
-                        modifiers.setDeprecated(true)
-                        tokenizer.requireToken()
-                    }
-                    "abstract" -> {
-                        modifiers.setAbstract(true)
-                        tokenizer.requireToken()
-                    }
-                    "transient" -> {
-                        modifiers.setTransient(true)
-                        tokenizer.requireToken()
-                    }
-                    "volatile" -> {
-                        modifiers.setVolatile(true)
-                        tokenizer.requireToken()
-                    }
-                    "sealed" -> {
-                        modifiers.setSealed(true)
-                        // When reading in a sealed class, for backwards compatibility we want
-                        // to label it as non-exhaustive (for more details on what this means,
-                        // see b/447143803) in case the signature file doesn't have one of
-                        // "exhaustive" or "nonexhaustive" after the "sealed" modifier. This
-                        // allows compatibility checks to not raise unnecessary errors for
-                        // sealed classes without an exhaustivity modifier. If the class is indeed
-                        // labeled with an exhaustivity modifier in the signature file, the class's
-                        // exhaustivity will be adjusted accordingly in the following match
-                        // statements.
-                        modifiers.setExhaustive(false)
-                        tokenizer.requireToken()
-                    }
-                    "exhaustive" -> {
-                        modifiers.setExhaustive(true)
-                        tokenizer.requireToken()
-                    }
-                    "nonexhaustive" -> {
-                        modifiers.setExhaustive(false)
-                        tokenizer.requireToken()
-                    }
-                    "default" -> {
-                        modifiers.setDefault(true)
-                        tokenizer.requireToken()
-                    }
-                    "synchronized" -> {
-                        modifiers.setSynchronized(true)
-                        tokenizer.requireToken()
-                    }
-                    "native" -> {
-                        modifiers.setNative(true)
-                        tokenizer.requireToken()
-                    }
-                    "strictfp" -> {
-                        modifiers.setStrictFp(true)
-                        tokenizer.requireToken()
-                    }
-                    "infix" -> {
-                        modifiers.setInfix(true)
-                        tokenizer.requireToken()
-                    }
-                    "operator" -> {
-                        modifiers.setOperator(true)
-                        tokenizer.requireToken()
-                    }
-                    "inline" -> {
-                        modifiers.setInline(true)
-                        tokenizer.requireToken()
-                    }
-                    "value" -> {
-                        modifiers.setValue(true)
-                        tokenizer.requireToken()
-                    }
-                    "suspend" -> {
-                        modifiers.setSuspend(true)
-                        tokenizer.requireToken()
-                    }
-                    "vararg" -> {
-                        modifiers.setVarArg(true)
-                        tokenizer.requireToken()
-                    }
-                    "fun" -> {
-                        modifiers.setFunctional(true)
-                        tokenizer.requireToken()
-                    }
-                    "data" -> {
-                        modifiers.setData(true)
-                        tokenizer.requireToken()
-                    }
-                    else -> break@processModifiers
+        while (true) {
+            when (token) {
+                "public" -> {
+                    modifiers.setVisibilityLevel(VisibilityLevel.PUBLIC)
                 }
+                "protected" -> {
+                    modifiers.setVisibilityLevel(VisibilityLevel.PROTECTED)
+                }
+                "private" -> {
+                    modifiers.setVisibilityLevel(VisibilityLevel.PRIVATE)
+                }
+                "internal" -> {
+                    modifiers.setVisibilityLevel(VisibilityLevel.INTERNAL)
+                }
+                "static" -> {
+                    modifiers.setStatic(true)
+                }
+                "final" -> {
+                    modifiers.setFinal(true)
+                }
+                "deprecated" -> {
+                    modifiers.setDeprecated(true)
+                }
+                "abstract" -> {
+                    modifiers.setAbstract(true)
+                }
+                "transient" -> {
+                    modifiers.setTransient(true)
+                }
+                "volatile" -> {
+                    modifiers.setVolatile(true)
+                }
+                "sealed" -> {
+                    modifiers.setSealed(true)
+                    // When reading in a sealed class, for backwards compatibility we want
+                    // to label it as non-exhaustive (for more details on what this means,
+                    // see b/447143803) in case the signature file doesn't have one of
+                    // "exhaustive" or "nonexhaustive" after the "sealed" modifier. This
+                    // allows compatibility checks to not raise unnecessary errors for
+                    // sealed classes without an exhaustivity modifier. If the class is indeed
+                    // labeled with an exhaustivity modifier in the signature file, the class's
+                    // exhaustivity will be adjusted accordingly in the following match
+                    // statements.
+                    modifiers.setExhaustive(false)
+                }
+                "exhaustive" -> {
+                    modifiers.setExhaustive(true)
+                }
+                "nonexhaustive" -> {
+                    modifiers.setExhaustive(false)
+                }
+                "default" -> {
+                    modifiers.setDefault(true)
+                }
+                "synchronized" -> {
+                    modifiers.setSynchronized(true)
+                }
+                "native" -> {
+                    modifiers.setNative(true)
+                }
+                "strictfp" -> {
+                    modifiers.setStrictFp(true)
+                }
+                "infix" -> {
+                    modifiers.setInfix(true)
+                }
+                "operator" -> {
+                    modifiers.setOperator(true)
+                }
+                "inline" -> {
+                    modifiers.setInline(true)
+                }
+                "value" -> {
+                    modifiers.setValue(true)
+                }
+                "suspend" -> {
+                    modifiers.setSuspend(true)
+                }
+                "vararg" -> {
+                    modifiers.setVarArg(true)
+                }
+                "fun" -> {
+                    modifiers.setFunctional(true)
+                }
+                "data" -> {
+                    modifiers.setData(true)
+                }
+                else -> break
+            }
+
+            token = tokenizer.requireToken()
         }
     }
 
