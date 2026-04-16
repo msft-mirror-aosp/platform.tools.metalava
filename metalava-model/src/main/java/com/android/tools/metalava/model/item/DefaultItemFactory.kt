@@ -105,6 +105,7 @@ class DefaultItemFactory(
         origin: ClassOrigin,
         superClassType: ClassTypeItem?,
         interfaceTypes: List<ClassTypeItem>,
+        permitTypes: List<ClassTypeItem> = emptyList(),
         optionalAliasedType: TypeItem? = null,
         isFileFacade: Boolean = false,
         isMultiFileClass: Boolean = false,
@@ -127,6 +128,7 @@ class DefaultItemFactory(
             origin,
             superClassType,
             interfaceTypes,
+            permitTypes,
             isFileFacade = isFileFacade,
             optionalAliasedType = optionalAliasedType,
             isMultiFileClass = isMultiFileClass,
@@ -350,6 +352,8 @@ class DefaultItemFactory(
             // normal classes.
             superClassType = null,
             interfaceTypes = emptyList(),
+            // Typealiases don't have a permits list since they cannot be sealed classes.
+            permitTypes = emptyList(),
             isFileFacade = false,
             optionalAliasedType = aliasedType,
         )

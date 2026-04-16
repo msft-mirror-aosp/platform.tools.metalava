@@ -63,6 +63,7 @@ internal class DefaultClassItem(
     origin: ClassOrigin,
     private var superClassType: ClassTypeItem?,
     private var interfaceTypes: List<ClassTypeItem>,
+    override val permitTypes: List<ClassTypeItem>,
     override val isFileFacade: Boolean,
     /**
      * If [classKind] is [ClassKind.TYPEALIAS], the [optionalAliasedType] must be specified.
