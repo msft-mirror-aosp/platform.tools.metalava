@@ -1774,6 +1774,7 @@ private constructor(
                 "exhaustive" -> {
                     modifiers.setExhaustive(true)
                 }
+                "non-exhaustive",
                 "nonexhaustive" -> {
                     modifiers.setExhaustive(false)
                 }

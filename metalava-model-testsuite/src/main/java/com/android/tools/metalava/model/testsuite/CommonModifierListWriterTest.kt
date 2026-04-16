@@ -441,7 +441,7 @@ class CommonModifierListWriterTest : BaseModelTest() {
         checkJavaSealedKeywords(
             className = "test.pkg.Sealed",
             config = javaSealedClassesEnabledConfig,
-            expectedKeywords = "public sealed nonexhaustive",
+            expectedKeywords = "public sealed non-exhaustive",
         )
     }
 

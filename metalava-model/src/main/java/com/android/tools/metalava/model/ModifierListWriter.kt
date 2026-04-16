@@ -177,6 +177,8 @@ class ModifierListWriter(
 
                 if (list.isExhaustive()) {
                     writer.write("exhaustive ")
+                } else if (javaSealedClasses) {
+                    writer.write("non-exhaustive ")
                 } else {
                     writer.write("nonexhaustive ")
                 }

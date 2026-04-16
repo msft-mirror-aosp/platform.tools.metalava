@@ -1060,6 +1060,27 @@ class SignatureInputOutputTest : Assertions {
     }
 
     @Test
+    fun `Test sealed classes, java-sealed-classes=yes`() {
+        val api =
+            """
+                package test.pkg {
+                  public sealed non-exhaustive class Base implements test.pkg.Super {
+                  }
+                  public class SubclassA extends test.pkg.Base {
+                  }
+                  public final class SubclassB extends test.pkg.Base {
+                  }
+                  public interface Super {
+                  }
+                }
+            """
+        runInputOutputTest(
+            api,
+            FORMAT_V6_WITH_JAVA_SEALED_CLASSES,
+        )
+    }
+
+    @Test
     fun `Test not writing target languages`() {
         runInputOutputTest(
             writeTargetLanguages = false,
