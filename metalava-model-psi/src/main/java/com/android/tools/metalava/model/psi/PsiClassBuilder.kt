@@ -150,7 +150,7 @@ internal class PsiClassBuilder(
 
         val modifiers =
             createModifiers(
-                ModifierContext.forItemKind(ItemKind.CLASS),
+                ModifierContext.forClassKind(classKind),
                 psiClass,
             )
 

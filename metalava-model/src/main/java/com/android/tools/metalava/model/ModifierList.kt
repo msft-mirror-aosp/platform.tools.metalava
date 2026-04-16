@@ -224,6 +224,7 @@ interface ModifierList : BaseModifierList {
 class ModifierContext
 private constructor(
     private val itemKind: ItemKind,
+    private val classKind: ClassKind?,
 ) {
     /**
      * Normalize [flags] to make them suitable for this [ModifierContext].
@@ -234,7 +235,7 @@ private constructor(
      */
     fun normalizeFlags(flags: Int, sourceLanguage: SourceLanguage): Int {
         // Remove any flags that are not appropriate for itemKind.
-        val normalizedFlags =
+        var normalizedFlags =
             when (sourceLanguage) {
                 SourceLanguage.JAVA -> {
                     flags and itemKind.javaModifierMask
@@ -244,15 +245,27 @@ private constructor(
                 }
             }
 
+        // Apply any ClassKind specific restrictions if appropriate.
+        if (itemKind == ItemKind.CLASS && classKind != null) {
+            normalizedFlags = normalizedFlags and classKind.javaModifierMask
+        }
+
         return normalizedFlags
     }
 
     companion object {
         /** List of [ModifierContext]s indexed by [ItemKind.ordinal]. */
         private val modifierContextForItemKind =
-            ItemKind.entries.map { itemKind -> ModifierContext(itemKind) }
+            ItemKind.entries.map { ModifierContext(it, classKind = null) }
+
+        /** List of [ModifierContext]s indexed by [ClassKind.ordinal]. */
+        private val modifierContextForClassKind =
+            ClassKind.entries.map { ModifierContext(ItemKind.CLASS, it) }
 
         /** Get a [ModifierContext] instance for [itemKind]. */
         fun forItemKind(itemKind: ItemKind) = modifierContextForItemKind[itemKind.ordinal]
+
+        /** Get a [ModifierContext] instance for [classKind]. */
+        fun forClassKind(classKind: ClassKind) = modifierContextForClassKind[classKind.ordinal]
     }
 }

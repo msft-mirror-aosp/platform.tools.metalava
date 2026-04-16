@@ -94,5 +94,5 @@ enum class ItemKind(
  *
  * Used instead of just using `b1 or b2 or b3 ...` as it provides more consistent formatting.
  */
-private fun flagBits(vararg bits: Int) =
+internal fun flagBits(vararg bits: Int) =
     if (bits.isEmpty()) VISIBILITY_MASK else bits.reduce { b1, b2 -> b1 or b2 } or VISIBILITY_MASK

@@ -16,6 +16,9 @@
 
 package com.android.tools.metalava.model
 
+import com.android.tools.metalava.model.ModifierFlags.Companion.FINAL
+import com.android.tools.metalava.model.ModifierFlags.Companion.STATIC
+
 /**
  * The kind of class.
  *
@@ -42,6 +45,8 @@ package com.android.tools.metalava.model
  *   [ClassKind]s are not implicitly `final` so this defaults to `false`.
  * @param implicitlyStatic indicates whether this [ClassKind] is implicitly `static` or not. Most
  *   [ClassKind]s are not implicitly `static` so this defaults to `false`.
+ * @param javaModifierMask the modifier flags that are allowed on this [ClassKind]. Defaults to
+ *   `0.inv()`, i.e. allowing all flags.
  */
 enum class ClassKind(
     val description: String,
@@ -55,8 +60,8 @@ enum class ClassKind(
     val implicitlyAbstract: Boolean = false,
     val implicitlyFinal: Boolean = false,
     val implicitlyStatic: Boolean = false,
+    internal val javaModifierMask: Int = 0.inv(),
 ) {
-
     /** An interface. */
     INTERFACE(
         description = "interface",
@@ -83,6 +88,8 @@ enum class ClassKind(
         implicitlyFinal = true,
         // Enum classes are implicitly static, even when they are nested within another class.
         implicitlyStatic = true,
+        // Enum classes support final and static which are both implicitly true.
+        javaModifierMask = flagBits(FINAL, STATIC),
     ),
 
     /** An annotation class. */

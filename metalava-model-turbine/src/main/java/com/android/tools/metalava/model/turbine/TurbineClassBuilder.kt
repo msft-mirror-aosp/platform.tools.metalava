@@ -141,9 +141,10 @@ internal class TurbineClassBuilder(
 
         // Create class
         val qualifiedName = classSymbol.qualifiedName
+        val classKind = getClassKind(typeBoundClass.kind())
         val modifierItem =
             createModifiers(
-                ModifierContext.forItemKind(ItemKind.CLASS),
+                ModifierContext.forClassKind(classKind),
                 typeBoundClass.access(),
                 typeBoundClass.annotations(),
             )
@@ -153,7 +154,6 @@ internal class TurbineClassBuilder(
                 enclosingClassTypeItemFactory,
                 "class $qualifiedName",
             )
-        val classKind = getClassKind(typeBoundClass.kind())
 
         modifierItem.setSynchronized(false) // A class can not be synchronized in java
 
