@@ -21,18 +21,52 @@ import java.io.Writer
 class ModifierListWriter
 private constructor(
     private val writer: Writer,
-    /**
-     * Can be one of [AnnotationTarget.SIGNATURE_FILE], [AnnotationTarget.SDK_STUBS_FILE] or
-     * [AnnotationTarget.DOC_STUBS_FILE].
-     */
-    private val target: AnnotationTarget,
-    private val annotationFormatter: AnnotationFormatter,
-    private val runtimeAnnotationsOnly: Boolean,
-    private val skipNullnessAnnotations: Boolean,
-    private val normalizeFinal: Boolean = true,
-    private val normalizeAbstract: Boolean = true,
-    private val flaggedApiInheritance: FlaggedApiInheritance = FlaggedApiInheritance.NONE,
+    config: Config,
 ) {
+    data class Config(
+        /**
+         * Can be one of [AnnotationTarget.SIGNATURE_FILE], [AnnotationTarget.SDK_STUBS_FILE] or
+         * [AnnotationTarget.DOC_STUBS_FILE].
+         */
+        val target: AnnotationTarget,
+
+        /** The [AnnotationFormatter] that is used for formatting any [AnnotationItem]s. */
+        val annotationFormatter: AnnotationFormatter,
+
+        /**
+         * If `true` then only annotations with [AnnotationRetention.RUNTIME] will be written out,
+         * otherwise the retention is ignored.
+         */
+        val runtimeAnnotationsOnly: Boolean,
+
+        /** If `true` then nullness annotations will not be written out, otherwise they will. */
+        val skipNullnessAnnotations: Boolean,
+
+        /**
+         * If `true` then the `final` modifier on a method in a `final` class will not be written
+         * out, otherwise it will.
+         */
+        val normalizeFinal: Boolean = true,
+
+        /**
+         * If `true` then any unnecessary `abstract` modifiers, e.g. on an annotation or enum class
+         * will not be written out, otherwise `abstract` modifier will always be written out except
+         * on interface methods.
+         */
+        val normalizeAbstract: Boolean = true,
+
+        /** Determines whether `@FlaggedApi` annotations are inherited and if so how. */
+        val flaggedApiInheritance: FlaggedApiInheritance = FlaggedApiInheritance.NONE,
+    )
+
+    private val target = config.target
+    private val annotationFormatter = config.annotationFormatter
+    private val runtimeAnnotationsOnly = config.runtimeAnnotationsOnly
+    private val skipNullnessAnnotations = config.skipNullnessAnnotations
+    private val normalizeFinal = config.normalizeFinal
+    private val normalizeAbstract = config.normalizeAbstract
+    private val flaggedApiInheritance = config.flaggedApiInheritance
+
     companion object {
         fun forSignature(
             writer: Writer,
@@ -44,23 +78,29 @@ private constructor(
             val target = AnnotationTarget.SIGNATURE_FILE
             return ModifierListWriter(
                 writer = writer,
-                target = target,
-                annotationFormatter = AnnotationFormatter.legacyAnnotationFormatter(target),
-                runtimeAnnotationsOnly = false,
-                skipNullnessAnnotations = skipNullnessAnnotations,
-                normalizeFinal = normalizeFinal,
-                normalizeAbstract = normalizeAbstract,
-                flaggedApiInheritance = flaggedApiInheritance,
+                config =
+                    Config(
+                        target = target,
+                        annotationFormatter = AnnotationFormatter.legacyAnnotationFormatter(target),
+                        runtimeAnnotationsOnly = false,
+                        skipNullnessAnnotations = skipNullnessAnnotations,
+                        normalizeFinal = normalizeFinal,
+                        normalizeAbstract = normalizeAbstract,
+                        flaggedApiInheritance = flaggedApiInheritance,
+                    ),
             )
         }
 
         fun forNormalizing(writer: Writer): ModifierListWriter {
             return ModifierListWriter(
                 writer = writer,
-                target = AnnotationTarget.SIGNATURE_FILE,
-                annotationFormatter = AnnotationFormatter.normalizingFormatter(),
-                runtimeAnnotationsOnly = false,
-                skipNullnessAnnotations = true,
+                config =
+                    Config(
+                        target = AnnotationTarget.SIGNATURE_FILE,
+                        annotationFormatter = AnnotationFormatter.normalizingFormatter(),
+                        runtimeAnnotationsOnly = false,
+                        skipNullnessAnnotations = true,
+                    ),
             )
         }
 
@@ -73,10 +113,13 @@ private constructor(
                 if (isDocStubs) AnnotationTarget.DOC_STUBS_FILE else AnnotationTarget.SDK_STUBS_FILE
             return ModifierListWriter(
                 writer = writer,
-                target = target,
-                annotationFormatter = AnnotationFormatter.stubFormatter(target),
-                runtimeAnnotationsOnly = runtimeAnnotationsOnly,
-                skipNullnessAnnotations = false,
+                config =
+                    Config(
+                        target = target,
+                        annotationFormatter = AnnotationFormatter.stubFormatter(target),
+                        runtimeAnnotationsOnly = runtimeAnnotationsOnly,
+                        skipNullnessAnnotations = false,
+                    ),
             )
         }
 
