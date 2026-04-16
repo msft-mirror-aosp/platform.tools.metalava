@@ -18,8 +18,7 @@ package com.android.tools.metalava.model
 
 import java.io.Writer
 
-class ModifierListWriter
-private constructor(
+class ModifierListWriter(
     private val writer: Writer,
     config: Config,
 ) {

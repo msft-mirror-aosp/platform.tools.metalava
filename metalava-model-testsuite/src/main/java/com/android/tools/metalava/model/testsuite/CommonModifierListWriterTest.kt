@@ -16,7 +16,8 @@
 
 package com.android.tools.metalava.model.testsuite
 
-import com.android.tools.metalava.model.FlaggedApiInheritance
+import com.android.tools.metalava.model.AnnotationFormatter
+import com.android.tools.metalava.model.AnnotationTarget
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.ModifierListWriter
 import com.android.tools.metalava.model.provider.InputFormat
@@ -30,18 +31,22 @@ import org.junit.Test
 @SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.JAVA)
 class CommonModifierListWriterTest : BaseModelTest() {
 
-    private fun Item.writeKeywords(
-        normalizeFinal: Boolean = false,
-        normalizeAbstract: Boolean = false,
-    ): String {
+    private val defaultConfig =
+        ModifierListWriter.Config(
+            target = AnnotationTarget.SIGNATURE_FILE,
+            annotationFormatter = AnnotationFormatter.normalizingFormatter(),
+            runtimeAnnotationsOnly = false,
+            skipNullnessAnnotations = true,
+            normalizeFinal = false,
+            normalizeAbstract = false,
+        )
+
+    private fun Item.writeKeywords(config: ModifierListWriter.Config = defaultConfig): String {
         val stringWriter = StringWriter()
         val writer =
-            ModifierListWriter.forSignature(
-                stringWriter,
-                skipNullnessAnnotations = true,
-                normalizeFinal = normalizeFinal,
-                normalizeAbstract = normalizeAbstract,
-                flaggedApiInheritance = FlaggedApiInheritance.NONE,
+            ModifierListWriter(
+                writer = stringWriter,
+                config = config,
             )
         writer.writeKeywords(this)
         return stringWriter.toString().trimEnd()
@@ -171,7 +176,14 @@ class CommonModifierListWriterTest : BaseModelTest() {
             val testClass = codebase.assertClass("test.pkg.Test")
             val methodItem = testClass.methods().single()
 
-            assertEquals("public", methodItem.writeKeywords(normalizeFinal = true))
+            assertEquals(
+                "public",
+                methodItem.writeKeywords(
+                    defaultConfig.copy(
+                        normalizeFinal = true,
+                    )
+                )
+            )
         }
     }
 
@@ -231,7 +243,9 @@ class CommonModifierListWriterTest : BaseModelTest() {
             assertEquals(
                 expectedKeywords,
                 methodItem.writeKeywords(
-                    normalizeAbstract = normalizeAbstract,
+                    defaultConfig.copy(
+                        normalizeAbstract = normalizeAbstract,
+                    )
                 )
             )
         }
@@ -277,7 +291,9 @@ class CommonModifierListWriterTest : BaseModelTest() {
             assertEquals(
                 expectedKeywords,
                 methodItem.writeKeywords(
-                    normalizeAbstract = normalizeAbstract,
+                    defaultConfig.copy(
+                        normalizeAbstract = normalizeAbstract,
+                    )
                 )
             )
         }
