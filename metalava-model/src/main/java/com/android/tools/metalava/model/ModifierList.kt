@@ -215,3 +215,44 @@ interface ModifierList : BaseModifierList {
      */
     fun snapshot(targetCodebase: Codebase): ModifierList
 }
+
+/**
+ * Context within which modifiers will be processed.
+ *
+ * This ensures consistent creation of [ModifierList] instances across the different [ItemKind]s.
+ */
+class ModifierContext
+private constructor(
+    private val itemKind: ItemKind,
+) {
+    /**
+     * Normalize [flags] to make them suitable for this [ModifierContext].
+     *
+     * Where [flags] is a bit set containing values from [ModifierFlags].
+     *
+     * This ensures consistent handling of [flags] across the different [ItemKind]s.
+     */
+    fun normalizeFlags(flags: Int, sourceLanguage: SourceLanguage): Int {
+        // Remove any flags that are not appropriate for itemKind.
+        val normalizedFlags =
+            when (sourceLanguage) {
+                SourceLanguage.JAVA -> {
+                    itemKind.normalizeJavaFlags(flags)
+                }
+                else -> {
+                    flags
+                }
+            }
+
+        return normalizedFlags
+    }
+
+    companion object {
+        /** List of [ModifierContext]s indexed by [ItemKind.ordinal]. */
+        private val modifierContextForItemKind =
+            ItemKind.entries.map { itemKind -> ModifierContext(itemKind) }
+
+        /** Get a [ModifierContext] instance for [itemKind]. */
+        fun forItemKind(itemKind: ItemKind) = modifierContextForItemKind[itemKind.ordinal]
+    }
+}

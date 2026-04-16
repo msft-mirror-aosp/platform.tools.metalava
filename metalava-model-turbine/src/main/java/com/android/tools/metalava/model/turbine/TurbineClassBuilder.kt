@@ -26,6 +26,7 @@ import com.android.tools.metalava.model.ClassOrigin
 import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.ItemDocumentationFactory
 import com.android.tools.metalava.model.ItemKind
+import com.android.tools.metalava.model.ModifierContext
 import com.android.tools.metalava.model.ModifierFlags
 import com.android.tools.metalava.model.ModifierFlags.Companion.ABSTRACT
 import com.android.tools.metalava.model.ModifierFlags.Companion.DEFAULT
@@ -46,6 +47,7 @@ import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.SkeletonClassItem
 import com.android.tools.metalava.model.SkeletonTypeParameterItem
+import com.android.tools.metalava.model.SourceLanguage
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.VisibilityLevel
@@ -141,7 +143,7 @@ internal class TurbineClassBuilder(
         val qualifiedName = classSymbol.qualifiedName
         val modifierItem =
             createModifiers(
-                ItemKind.CLASS,
+                ModifierContext.forItemKind(ItemKind.CLASS),
                 typeBoundClass.access(),
                 typeBoundClass.annotations(),
             )
@@ -219,11 +221,13 @@ internal class TurbineClassBuilder(
         return classItem
     }
 
-    /** Create modifiers for [itemKind] from the set of access flags [flag] and [annoInfos]. */
+    /**
+     * Create modifiers for [modifierContext] from the set of access flags [flag] and [annoInfos].
+     */
     private fun createModifiers(
-        itemKind: ItemKind,
+        modifierContext: ModifierContext,
         flag: Int,
-        annoInfos: List<AnnoInfo>
+        annoInfos: List<AnnoInfo>,
     ): MutableModifierList {
         val annotations = annotationFactory.createAnnotations(annoInfos, fieldResolver)
         val modifierItem =
@@ -235,7 +239,10 @@ internal class TurbineClassBuilder(
                     )
                 }
                 else -> {
-                    createMutableModifiers(computeFlag(itemKind, flag), annotations)
+                    createMutableModifiers(
+                        modifierContext.normalizeFlags(computeFlag(flag), SourceLanguage.JAVA),
+                        annotations,
+                    )
                 }
             }
         modifierItem.setDeprecated(isDeprecated(annotations))
@@ -243,10 +250,9 @@ internal class TurbineClassBuilder(
     }
 
     /**
-     * Given flag value corresponding to Turbine modifiers compute the equivalent [ModifierFlags]
-     * suitable for [itemKind].
+     * Given flag value corresponding to Turbine modifiers compute the equivalent [ModifierFlags].
      */
-    private fun computeFlag(itemKind: ItemKind, flag: Int): Int {
+    private fun computeFlag(flag: Int): Int {
         // If no visibility flag is provided, result remains 0, implying a 'package-private' default
         // state.
         var result = 0
@@ -296,14 +302,6 @@ internal class TurbineClassBuilder(
             result = result or PROTECTED
         }
 
-        // Remove any flags that are not appropriate for itemKind. This is needed as there are some
-        // overlaps between the TurbineFlag settings. e.g. TurbineFlag.ACC_TRANSIENT and
-        // TurbineFlag.ACC_VARARGS have the same value so they will always cause
-        // ModifierFlags.TRANSIENT and ModifierFlags.VARARG to be added. This removes them. The
-        // alternative is to check before adding the ModifierFlags whether it is appropriate for
-        // the itemKind but this seems more efficient and simpler.
-        result = itemKind.normalizeJavaFlags(result)
-
         return result
     }
 
@@ -348,7 +346,12 @@ internal class TurbineClassBuilder(
      * the same [TypeParameterList] can be resolved.
      */
     private fun createTypeParameter(sym: TyVarSymbol, param: TyVarInfo): SkeletonTypeParameterItem {
-        val modifiers = createModifiers(ItemKind.TYPE_PARAMETER, 0, param.annotations())
+        val modifiers =
+            createModifiers(
+                ModifierContext.forItemKind(ItemKind.TYPE_PARAMETER),
+                0,
+                param.annotations(),
+            )
         val typeParamItem =
             itemFactory.createTypeParameterItem(
                 modifiers,
@@ -413,7 +416,7 @@ internal class TurbineClassBuilder(
             val decl = field.decl()
             val fieldModifierItem =
                 createModifiers(
-                    ItemKind.FIELD,
+                    ModifierContext.forItemKind(ItemKind.FIELD),
                     flags,
                     field.annotations(),
                 )
@@ -499,7 +502,7 @@ internal class TurbineClassBuilder(
 
             val methodModifierItem =
                 createModifiers(
-                    ItemKind.METHOD,
+                    ModifierContext.forItemKind(ItemKind.METHOD),
                     method.access(),
                     method.annotations(),
                 )
@@ -586,7 +589,11 @@ internal class TurbineClassBuilder(
             for (parameter in parameters) {
                 if (ignoreSynthetic && parameter.synthetic()) continue
                 val parameterModifierItem =
-                    createModifiers(ItemKind.PARAMETER, parameter.access(), parameter.annotations())
+                    createModifiers(
+                            ModifierContext.forItemKind(ItemKind.PARAMETER),
+                            parameter.access(),
+                            parameter.annotations(),
+                        )
                         .toImmutable()
                 val type =
                     typeItemFactory.getMethodParameterType(
@@ -636,7 +643,7 @@ internal class TurbineClassBuilder(
             val decl: MethDecl? = constructor.decl()
             val constructorModifierItem =
                 createModifiers(
-                    ItemKind.CONSTRUCTOR,
+                    ModifierContext.forItemKind(ItemKind.CONSTRUCTOR),
                     constructor.access(),
                     constructor.annotations(),
                 )
@@ -703,9 +710,9 @@ internal class TurbineClassBuilder(
         components.mapIndexed { index, componentInfo ->
             val modifiers =
                 createModifiers(
-                    ItemKind.RECORD_COMPONENT,
+                    ModifierContext.forItemKind(ItemKind.RECORD_COMPONENT),
                     componentInfo.access(),
-                    componentInfo.annotations()
+                    componentInfo.annotations(),
                 )
             modifiers.setVisibilityLevel(VisibilityLevel.PUBLIC)
 
