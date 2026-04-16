@@ -80,6 +80,9 @@ enum class ItemKind(
     PROPERTY(
         javaFlags = flagBits(),
     ),
+    RECORD_COMPONENT(
+        javaFlags = flagBits(),
+    ),
     TYPE_PARAMETER(
         javaFlags = flagBits(),
     ),

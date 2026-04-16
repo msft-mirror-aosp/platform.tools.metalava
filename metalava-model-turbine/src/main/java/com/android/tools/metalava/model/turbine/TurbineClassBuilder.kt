@@ -703,7 +703,7 @@ internal class TurbineClassBuilder(
         components.mapIndexed { index, componentInfo ->
             val modifiers =
                 createModifiers(
-                    ItemKind.PROPERTY,
+                    ItemKind.RECORD_COMPONENT,
                     componentInfo.access(),
                     componentInfo.annotations()
                 )
