@@ -106,12 +106,7 @@ internal class KaTypeItemFactory(
     }
 
     // Override to ensure primitives are boxed.
-    override fun getSuperClassType(underlyingType: KaType): ClassTypeItem {
-        return underlyingType.toTypeItem(mustBoxPrimitives = true) as ClassTypeItem
-    }
-
-    // Override to ensure primitives are boxed.
-    override fun getInterfaceType(underlyingType: KaType): ClassTypeItem {
+    override fun getHierarchicalClassType(underlyingType: KaType): ClassTypeItem {
         return underlyingType.toTypeItem(mustBoxPrimitives = true) as ClassTypeItem
     }
 
