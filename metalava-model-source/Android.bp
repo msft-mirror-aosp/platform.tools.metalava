@@ -48,6 +48,6 @@ java_library_host {
         "metalava-reporter",
     ],
     static_libs: [
-        "metalava-tools-antlr4-runtime",
+        "prebuilts-metalava-antlr4-runtime",
     ],
 }
