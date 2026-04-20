@@ -50,7 +50,6 @@ import com.android.tools.metalava.model.ModifierFlags.Companion.VARARG
 import com.android.tools.metalava.model.ModifierFlags.Companion.VOLATILE
 import com.android.tools.metalava.model.MutableModifierList
 import com.android.tools.metalava.model.RecordComponentItem
-import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.createMutableModifiers
 import com.android.tools.metalava.model.hasAnnotation
 import com.android.tools.metalava.model.isNullnessAnnotation
@@ -487,15 +486,15 @@ internal object PsiModifierItem {
         element: PsiModifierListOwner,
         annotated: UAnnotated
     ): MutableModifierList {
-        val modifierList =
-            element.modifierList ?: return createMutableModifiers(VisibilityLevel.PACKAGE_PRIVATE)
+        val flags =
+            element.modifierList?.let { modifierList -> computeFlag(element, modifierList) }
+                ?: PACKAGE_PRIVATE
+
         val uAnnotations = annotated.uAnnotations.toMutableList()
         val psiAnnotations =
-            modifierList.annotations.takeIf { it.isNotEmpty() }
+            element.annotations.takeIf { it.isNotEmpty() }
                 ?: (annotated.javaPsi as? PsiModifierListOwner)?.annotations
                 ?: PsiAnnotation.EMPTY_ARRAY
-
-        val flags = computeFlag(element, modifierList)
 
         // The below code remedies a problem where companion objects as fields don't have
         // annotations in signature files (b/401235591). This code takes the annotations
