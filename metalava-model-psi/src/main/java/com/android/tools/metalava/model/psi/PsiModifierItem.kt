@@ -523,7 +523,7 @@ internal object PsiModifierItem {
 
         // Only use the psi annotations when there are no uAnnotations present (either ones added or
         // originally present in UAST).
-        return if (uAnnotations.isEmpty() && annotated.uAnnotations.isEmpty()) {
+        return if (uAnnotations.isEmpty()) {
             if (psiAnnotations.isNotEmpty()) {
                 val annotations =
                     psiAnnotations.mapNotNull { PsiAnnotationItem.create(codebase, it) }
