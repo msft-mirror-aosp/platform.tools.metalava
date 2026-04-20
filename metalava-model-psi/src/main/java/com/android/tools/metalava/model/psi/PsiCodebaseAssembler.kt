@@ -23,8 +23,10 @@ import com.android.tools.metalava.model.ApiVariantSelectors
 import com.android.tools.metalava.model.ArrayTypeItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassOrigin
+import com.android.tools.metalava.model.ItemKind
 import com.android.tools.metalava.model.JAVA_PACKAGE_INFO
 import com.android.tools.metalava.model.MethodItem
+import com.android.tools.metalava.model.ModifierContext
 import com.android.tools.metalava.model.PackageFilter
 import com.android.tools.metalava.model.SkeletonClassItem
 import com.android.tools.metalava.model.SourceLanguage
@@ -117,7 +119,13 @@ internal class PsiCodebaseAssembler(
         }
 
         val psiPackage = findPsiPackage(packageName) ?: return null
-        val annotations = PsiModifierItem.create(psiCodebase, psiPackage).annotations()
+        val annotations =
+            PsiModifierItem.create(
+                    ModifierContext.forItemKind(ItemKind.PACKAGE),
+                    psiCodebase,
+                    psiPackage,
+                )
+                .annotations()
 
         // Try and find a package-info.java file for the package in the project files.
         val psiJavaFile =

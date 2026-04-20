@@ -21,6 +21,7 @@ import com.android.tools.metalava.model.BaseModifierList
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.JAVA_LANG_ANNOTATION_TARGET
 import com.android.tools.metalava.model.JAVA_LANG_TYPE_USE_TARGET
+import com.android.tools.metalava.model.ModifierContext
 import com.android.tools.metalava.model.ModifierFlags.Companion.ABSTRACT
 import com.android.tools.metalava.model.ModifierFlags.Companion.ACTUAL
 import com.android.tools.metalava.model.ModifierFlags.Companion.COMPANION
@@ -97,12 +98,15 @@ import org.jetbrains.uast.toUElement
 
 internal object PsiModifierItem {
     fun create(
+        modifierContext: ModifierContext,
         codebase: PsiBasedCodebase,
         element: PsiModifierListOwner,
     ): MutableModifierList {
         val flags =
-            element.modifierList?.let { modifierList -> computeFlag(element, modifierList) }
-                ?: PACKAGE_PRIVATE
+            element.modifierList?.let { modifierList ->
+                val computedFlags = computeFlag(element, modifierList)
+                modifierContext.normalizeFlags(computedFlags, element.sourceLanguage)
+            } ?: PACKAGE_PRIVATE
 
         val modifiers =
             if (element is UAnnotated) {
