@@ -100,11 +100,15 @@ internal object PsiModifierItem {
         codebase: PsiBasedCodebase,
         element: PsiModifierListOwner,
     ): MutableModifierList {
+        val flags =
+            element.modifierList?.let { modifierList -> computeFlag(element, modifierList) }
+                ?: PACKAGE_PRIVATE
+
         val modifiers =
             if (element is UAnnotated) {
-                createFromUAnnotated(codebase, element, element)
+                createFromUAnnotated(codebase, flags, element)
             } else {
-                createFromPsiElement(codebase, element)
+                createFromPsiElement(codebase, flags, element)
             }
         // Set exhaustivity as true until proven otherwise either by an inaccessible subclass
         // or by a "nonexhaustive" keyword when parsing signature files.
@@ -457,12 +461,9 @@ internal object PsiModifierItem {
 
     private fun createFromPsiElement(
         codebase: PsiBasedCodebase,
+        flags: Int,
         element: PsiModifierListOwner
     ): MutableModifierList {
-        val flags =
-            element.modifierList?.let { modifierList -> computeFlag(element, modifierList) }
-                ?: PACKAGE_PRIVATE
-
         val psiAnnotations = element.annotations
         return if (psiAnnotations.isEmpty()) {
             createMutableModifiers(flags)
@@ -483,13 +484,9 @@ internal object PsiModifierItem {
 
     private fun createFromUAnnotated(
         codebase: PsiBasedCodebase,
-        element: PsiModifierListOwner,
+        flags: Int,
         annotated: UAnnotated
     ): MutableModifierList {
-        val flags =
-            element.modifierList?.let { modifierList -> computeFlag(element, modifierList) }
-                ?: PACKAGE_PRIVATE
-
         val uAnnotations = annotated.uAnnotations.toMutableList()
         val psiAnnotations =
             (annotated.javaPsi as? PsiModifierListOwner)?.annotations ?: PsiAnnotation.EMPTY_ARRAY
