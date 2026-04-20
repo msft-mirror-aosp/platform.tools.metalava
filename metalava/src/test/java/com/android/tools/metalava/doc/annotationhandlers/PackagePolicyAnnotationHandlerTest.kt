@@ -57,9 +57,8 @@ class PackagePolicyAnnotationHandlerTest : DriverTest() {
                                         deviceOwner = ALLOWED,
                                         managedProfileOwnerOfOrganizationOwnedDevice = ALLOWED,
                                         managedProfileOwnerOfPersonalOwnedDevice = ALLOWED,
-                                        unaffiliatedFullUserProfileOwner = ALLOWED,
                                         profileOwnerOnUser0 = ALLOWED,
-                                        affiliatedFullUserProfileOwner = ALLOWED
+                                        fullUserProfileOwner = ALLOWED
                                     )
                                 )
                             )

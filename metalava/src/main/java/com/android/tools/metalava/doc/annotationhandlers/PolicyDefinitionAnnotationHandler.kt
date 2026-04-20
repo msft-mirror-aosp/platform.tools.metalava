@@ -42,35 +42,43 @@ class PolicyDefinitionAnnotationHandler(
 
 enum class AllowedDpcType(
     val description: String,
-    val getter: AllowedDpcTypesProxy.() -> Int,
+    val isAllowed: AllowedDpcTypesProxy.() -> Boolean,
 ) {
     DEVICE_OWNER(
         description = "Device Owner",
-        getter = AllowedDpcTypesProxy::deviceOwner,
+        isAllowed = { deviceOwner == AllowedDpcTypesProxy.DPC_ANNOTATION_ALLOWED },
     ),
     MANAGED_PROFILE_OWNER_OF_ORGANIZATION_OWNED_DEVICE(
         description = "Managed Profile Owner (Of Organization Owned Device)",
-        getter = AllowedDpcTypesProxy::managedProfileOwnerOfOrganizationOwnedDevice,
+        isAllowed = {
+            managedProfileOwnerOfOrganizationOwnedDevice ==
+                AllowedDpcTypesProxy.DPC_ANNOTATION_ALLOWED
+        },
     ),
     MANAGED_PROFILE_OWNER_OF_PERSONAL_OWNED_DEVICE(
         description = "Managed Profile Owner (Of Personally Owned Device)",
-        getter = AllowedDpcTypesProxy::managedProfileOwnerOfPersonalOwnedDevice,
+        isAllowed = {
+            managedProfileOwnerOfPersonalOwnedDevice == AllowedDpcTypesProxy.DPC_ANNOTATION_ALLOWED
+        },
     ),
     UNAFFILIATED_FULL_USER_PROFILE_OWNER(
         description = "Unaffiliated Full User Profile Owner",
-        getter = AllowedDpcTypesProxy::unaffiliatedFullUserProfileOwner,
+        isAllowed = { fullUserProfileOwner == AllowedDpcTypesProxy.DPC_ANNOTATION_ALLOWED },
     ),
     FINANCED_DEVICE_OWNER(
         description = "Financed Device Owner",
-        getter = AllowedDpcTypesProxy::financedDeviceOwner,
+        isAllowed = { financedDeviceOwner == AllowedDpcTypesProxy.DPC_ANNOTATION_ALLOWED },
     ),
     PROFILE_OWNER_ON_USER_0(
         description = "Profile Owner on User 0",
-        getter = AllowedDpcTypesProxy::profileOwnerOnUser0,
+        isAllowed = { profileOwnerOnUser0 == AllowedDpcTypesProxy.DPC_ANNOTATION_ALLOWED },
     ),
     AFFILIATED_FULL_USER_PROFILE_OWNER(
         description = "Affiliated Full User Profile Owner",
-        getter = AllowedDpcTypesProxy::affiliatedFullUserProfileOwner,
+        isAllowed = {
+            fullUserProfileOwner == AllowedDpcTypesProxy.DPC_ANNOTATION_ALLOWED ||
+                fullUserProfileOwner == AllowedDpcTypesProxy.DPC_ANNOTATION_ALLOWED_WHEN_AFFILIATED
+        },
     ),
 }
 
@@ -78,15 +86,14 @@ class AllowedDpcTypesProxy(
     val deviceOwner: Int,
     val managedProfileOwnerOfOrganizationOwnedDevice: Int,
     val managedProfileOwnerOfPersonalOwnedDevice: Int,
-    val unaffiliatedFullUserProfileOwner: Int,
+    val fullUserProfileOwner: Int,
     val financedDeviceOwner: Int,
     val profileOwnerOnUser0: Int,
-    val affiliatedFullUserProfileOwner: Int,
 ) {
     fun generateDocs(): String {
         val dpcTypes =
             AllowedDpcType.entries.mapNotNull {
-                if (it.getter(this) == DPC_ANNOTATION_ALLOWED) {
+                if (it.isAllowed(this)) {
                     it.description
                 } else {
                     null
@@ -103,7 +110,9 @@ class AllowedDpcTypesProxy(
     }
 
     companion object {
-        private const val DPC_ANNOTATION_ALLOWED = 1
+        const val DPC_ANNOTATION_ALLOWED = 1
+        const val DPC_ANNOTATION_DISALLOWED = 2
+        const val DPC_ANNOTATION_ALLOWED_WHEN_AFFILIATED = 3
     }
 }
 

@@ -97,15 +97,14 @@ object PolicyDefinitionAnnotationTestFiles {
             public @interface AllowedDpcTypes {
                 public static final int ALLOWED = 1;
                 public static final int DISALLOWED = 2;
-                public static final int SAME_AS_UNAFFILIATED = 3;
+                public static final int ALLOWED_WHEN_AFFILIATED = 3;
 
                 public int deviceOwner();
                 public int managedProfileOwnerOfOrganizationOwnedDevice();
                 public int managedProfileOwnerOfPersonalOwnedDevice();
-                public int unaffiliatedFullUserProfileOwner();
+                public int fullUserProfileOwner();
                 public int financedDeviceOwner() default DISALLOWED;
                 public int profileOwnerOnUser0() default DISALLOWED;
-                public int affiliatedFullUserProfileOwner() default SAME_AS_UNAFFILIATED;
             }
 
             @Retention(RetentionPolicy.SOURCE)

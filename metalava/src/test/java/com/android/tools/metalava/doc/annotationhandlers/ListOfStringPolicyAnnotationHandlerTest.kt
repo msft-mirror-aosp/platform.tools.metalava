@@ -59,9 +59,8 @@ class ListOfStringPolicyAnnotationHandlerTest : DriverTest() {
                                         deviceOwner = ALLOWED,
                                         managedProfileOwnerOfOrganizationOwnedDevice = ALLOWED,
                                         managedProfileOwnerOfPersonalOwnedDevice = ALLOWED,
-                                        unaffiliatedFullUserProfileOwner = ALLOWED,
                                         profileOwnerOnUser0 = ALLOWED,
-                                        affiliatedFullUserProfileOwner = ALLOWED
+                                        fullUserProfileOwner = ALLOWED
                                     )
                                 ),
                                 emptyListAllowed = true,
@@ -150,9 +149,8 @@ class ListOfStringPolicyAnnotationHandlerTest : DriverTest() {
                                         deviceOwner = ALLOWED,
                                         managedProfileOwnerOfOrganizationOwnedDevice = ALLOWED,
                                         managedProfileOwnerOfPersonalOwnedDevice = ALLOWED,
-                                        unaffiliatedFullUserProfileOwner = ALLOWED,
                                         profileOwnerOnUser0 = ALLOWED,
-                                        affiliatedFullUserProfileOwner = ALLOWED
+                                        fullUserProfileOwner = ALLOWED
                                     )
                                 ),
                                 resolutionMechanism = @ListResolutionMechanism()
@@ -204,7 +202,7 @@ class ListOfStringPolicyAnnotationHandlerTest : DriverTest() {
                 ),
             expectedIssues =
                 """
-                src/test/pkg/TestPolicy.java:27: error: ListResolutionMechanism must have either 'custom' or 'union' set to true. [InvalidDevicePolicyAnnotation]
+                src/test/pkg/TestPolicy.java:26: error: ListResolutionMechanism must have either 'custom' or 'union' set to true. [InvalidDevicePolicyAnnotation]
                 """
         )
     }

@@ -61,9 +61,8 @@ class EnumPolicyAnnotationHandlerTest : DriverTest() {
                                         deviceOwner = ALLOWED,
                                         managedProfileOwnerOfOrganizationOwnedDevice = ALLOWED,
                                         managedProfileOwnerOfPersonalOwnedDevice = DISALLOWED,
-                                        unaffiliatedFullUserProfileOwner = ALLOWED,
                                         profileOwnerOnUser0 = DISALLOWED,
-                                        affiliatedFullUserProfileOwner = ALLOWED
+                                        fullUserProfileOwner = ALLOWED
                                     )
                                 ),
                                 intDef = EnumPolicyValue.class,
@@ -152,9 +151,8 @@ class EnumPolicyAnnotationHandlerTest : DriverTest() {
                                         deviceOwner = ALLOWED,
                                         managedProfileOwnerOfOrganizationOwnedDevice = ALLOWED,
                                         managedProfileOwnerOfPersonalOwnedDevice = ALLOWED,
-                                        unaffiliatedFullUserProfileOwner = ALLOWED,
                                         profileOwnerOnUser0 = ALLOWED,
-                                        affiliatedFullUserProfileOwner = ALLOWED
+                                        fullUserProfileOwner = ALLOWED
                                     )
                                 ),
                                 intDef = EnumPolicyValue.class,
@@ -171,8 +169,8 @@ class EnumPolicyAnnotationHandlerTest : DriverTest() {
             expectedFail = DefaultLintErrorMessage,
             expectedIssues =
                 """
-                    src/test/pkg/TestPolicy.java:32: error: Cannot find permission field for android.permission.DOES_NOT_EXIST required by field TestPolicy.POLICY_FIELD (may be hidden or removed) [InvalidDevicePolicyAnnotation]
-                    src/test/pkg/TestPolicy.java:32: error: Missing required field 'resolutionMechanism' inside field TestPolicy.POLICY_FIELD [InvalidDevicePolicyAnnotation]
+                    src/test/pkg/TestPolicy.java:31: error: Cannot find permission field for android.permission.DOES_NOT_EXIST required by field TestPolicy.POLICY_FIELD (may be hidden or removed) [InvalidDevicePolicyAnnotation]
+                    src/test/pkg/TestPolicy.java:31: error: Missing required field 'resolutionMechanism' inside field TestPolicy.POLICY_FIELD [InvalidDevicePolicyAnnotation]
                 """,
             stubFiles =
                 arrayOf(
