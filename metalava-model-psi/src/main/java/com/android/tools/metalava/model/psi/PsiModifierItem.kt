@@ -76,7 +76,6 @@ import org.jetbrains.annotations.Nullable
 import org.jetbrains.kotlin.analysis.api.analyze
 import org.jetbrains.kotlin.analysis.api.symbols.KaSymbolVisibility
 import org.jetbrains.kotlin.asJava.elements.KtLightElement
-import org.jetbrains.kotlin.lexer.KtModifierKeywordToken
 import org.jetbrains.kotlin.lexer.KtTokens
 import org.jetbrains.kotlin.psi.KtAnnotated
 import org.jetbrains.kotlin.psi.KtDeclaration
@@ -183,7 +182,7 @@ internal object PsiModifierItem {
 
         // Merge in kotlin flags
         if (ktModifierList != null) {
-            flags = flags or kotlinFlags(sourcePsi) { token -> ktModifierList.hasModifier(token) }
+            flags = flags or ktModifierList.kotlinFlags(sourcePsi)
         }
         return flags
     }
@@ -308,9 +307,8 @@ internal object PsiModifierItem {
     }
 
     /** Computes Kotlin-specific flags. */
-    private fun kotlinFlags(
+    private fun KtModifierList.kotlinFlags(
         sourcePsi: PsiElement?,
-        hasModifier: (KtModifierKeywordToken) -> Boolean
     ): Int {
         var flags = 0
         if (hasModifier(KtTokens.VARARG_KEYWORD)) {
