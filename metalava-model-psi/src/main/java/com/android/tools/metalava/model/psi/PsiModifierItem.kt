@@ -497,8 +497,8 @@ internal object PsiModifierItem {
         // The below code remedies a problem where companion objects as fields don't have
         // annotations in signature files (b/401235591). This code takes the annotations
         // from the companion class and applies them to the field.
-        if (element is UField) {
-            val companionObjectClass = (element.sourcePsi.toUElement())
+        if (annotated is UField) {
+            val companionObjectClass = (annotated.sourcePsi.toUElement())
 
             // The following checks if the field is indeed a companion object. Companion objects
             // are the only case where there is a field that has sourcePsi being a UClass, and
@@ -535,7 +535,7 @@ internal object PsiModifierItem {
                 createMutableModifiers(flags)
             }
         } else {
-            val isPrimitiveVariable = element is UVariable && element.type is PsiPrimitiveType
+            val isPrimitiveVariable = annotated is UVariable && annotated.type is PsiPrimitiveType
 
             val annotations =
                 uAnnotations
@@ -565,7 +565,7 @@ internal object PsiModifierItem {
             // if there are no retention annotations defined for this annotation class, we should
             // add one so that it can be explicitly written in signature files
             if (
-                (element as? UClass)?.isAnnotationType == true &&
+                (annotated as? UClass)?.isAnnotationType == true &&
                     annotations.none { it.isRetention() }
             ) {
                 psiAnnotations
