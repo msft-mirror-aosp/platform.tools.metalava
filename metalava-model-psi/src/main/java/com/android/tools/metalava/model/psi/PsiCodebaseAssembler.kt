@@ -25,7 +25,6 @@ import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassOrigin
 import com.android.tools.metalava.model.JAVA_PACKAGE_INFO
 import com.android.tools.metalava.model.MethodItem
-import com.android.tools.metalava.model.MutableModifierList
 import com.android.tools.metalava.model.PackageFilter
 import com.android.tools.metalava.model.SkeletonClassItem
 import com.android.tools.metalava.model.SourceLanguage
@@ -94,21 +93,6 @@ internal class PsiCodebaseAssembler(
     /** Provides an interface for using the Kotlin analysis API. */
     private var kaCodebaseAssembler: KaCodebaseAssembler? = null
 
-    /**
-     * Map from qualified class name to the heavyweight [PsiClass] implementations corresponding to
-     * a source class.
-     *
-     * Psi can represent classes with a number of different implementations of [PsiClass] that have
-     * different capabilities and provide different, and inconsistent, information. This keeps track
-     * of the heavyweight [PsiClass] implementations for source classes which do not contribute
-     * directly to an API surface (and so do not have a [ClassItem] created in the initialization of
-     * the [PsiBasedCodebase]) but which may contribute indirectly, e.g. through inherited methods.
-     * If a [ClassItem] needs to be created during processing, e.g. because it is a super type, then
-     * the [PsiClass] corresponding to it will be removed from this map (if it exists) and used. If
-     * it does not exist then it will be looked up using [JavaPsiFacade].
-     */
-    private val deferredHeavyweightPsiClasses = mutableMapOf<String, PsiClass>()
-
     /** If [PsiSourceParser.mergeFromJar] is used, this is the environment used to load the jar. */
     var mergedJarEnvironment: UastEnvironment? = null
 
@@ -163,37 +147,10 @@ internal class PsiCodebaseAssembler(
     override fun createClassFromUnderlyingModel(qualifiedName: String) =
         findOrCreateClass(qualifiedName)
 
-    /**
-     * Create a possible API class, i.e. a class that has a possibility of being part of an API
-     * surface.
-     *
-     * This will ignore any class that is inaccessible as it cannot be part of the API. A
-     * [ClassItem] may be created for it later if needed, e.g. if it is a super class of an
-     * accessible class.
-     */
-    private fun createPossibleApiClass(psiClass: PsiClass): ClassItem? {
-        if (psiClass.containingClass != null) error("$psiClass is not a top level class")
-
-        // Ignore inaccessible classes.
-        val modifiers = PsiModifierItem.create(psiCodebase, psiClass)
-        if (!modifiers.hasApiVisibilityOrShowAnnotation) {
-            deferredHeavyweightPsiClasses[psiClass.qualifiedName!!] = psiClass
-            return null
-        }
-
-        return createTopLevelClassAndContents(
-            psiClass,
-            // Sources always come from the command line.
-            ClassOrigin.COMMAND_LINE,
-            modifiers
-        )
-    }
-
     /** Create a top level class, their inner classes and all the other members. */
     private fun createTopLevelClassAndContents(
         psiClass: PsiClass,
         origin: ClassOrigin,
-        modifiers: MutableModifierList = PsiModifierItem.create(psiCodebase, psiClass),
     ): SkeletonClassItem {
         if (psiClass.containingClass != null) error("$psiClass is not a top level class")
         return createClass(
@@ -201,7 +158,6 @@ internal class PsiCodebaseAssembler(
             null,
             globalTypeItemFactory,
             origin,
-            modifiers = modifiers,
         )
     }
 
@@ -210,7 +166,6 @@ internal class PsiCodebaseAssembler(
         containingClassItem: ClassItem?,
         enclosingClassTypeItemFactory: PsiTypeItemFactory,
         origin: ClassOrigin,
-        modifiers: MutableModifierList = PsiModifierItem.create(psiCodebase, psiClass),
     ): SkeletonClassItem {
         val builder =
             PsiClassBuilder(
@@ -221,7 +176,6 @@ internal class PsiCodebaseAssembler(
         return builder.createClass(
             containingClassItem,
             enclosingClassTypeItemFactory,
-            modifiers,
         )
     }
 
@@ -231,19 +185,10 @@ internal class PsiCodebaseAssembler(
             return it
         }
 
-        return findPsiClass(qualifiedName)?.let {
-            // Remove it, if it was a heavyweight PsiClass.
-            deferredHeavyweightPsiClasses.remove(qualifiedName)
-            findOrCreateClass(it)
-        }
+        return findPsiClass(qualifiedName)?.let { findOrCreateClass(it) }
     }
 
     internal fun findPsiClass(qualifiedName: String): PsiClass? {
-        // Return a heavyweight PsiClass, if available.
-        deferredHeavyweightPsiClasses[qualifiedName]?.let {
-            return it
-        }
-
         // The following cannot find a class whose name does not correspond to the file name, e.g.
         // in Java a class that is a second top level class.
         val finder = JavaPsiFacade.getInstance(project)
@@ -646,7 +591,12 @@ internal class PsiCodebaseAssembler(
             if (!apiPackages.matches(packageName)) return
         }
 
-        val classItem = createPossibleApiClass(psiClass) ?: return
+        val classItem =
+            createTopLevelClassAndContents(
+                psiClass,
+                // Sources always come from the command line.
+                ClassOrigin.COMMAND_LINE,
+            )
         codebase.addTopLevelClassFromSource(classItem)
     }
 

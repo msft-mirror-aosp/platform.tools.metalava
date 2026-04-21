@@ -114,13 +114,10 @@ internal class PsiClassBuilder(
      *   belong, if any.
      * @param enclosingClassTypeItemFactory the [PsiTypeItemFactory] that is used to create
      *   [TypeItem]s and tracks the in scope type parameters.
-     * @param modifiers the [MutableModifierList] for [psiClass]. May be created outside to filter
-     *   classes that do not need creating. Passed in to avoid the work to recreate them.
      */
     internal fun createClass(
         containingClassItem: ClassItem?,
         enclosingClassTypeItemFactory: PsiTypeItemFactory,
-        modifiers: MutableModifierList = createModifiers(this@PsiClassBuilder.psiClass),
     ): SkeletonClassItem {
         val packageName = psiClass.packageName
 
@@ -148,6 +145,9 @@ internal class PsiClassBuilder(
         val qualifiedName = psiClass.classQualifiedName
         val classKind = getClassKind(psiClass)
         val isKotlin = psiClass.isKotlin()
+
+        val modifiers = createModifiers(psiClass)
+
         if (classKind == ClassKind.ANNOTATION_TYPE && !hasExplicitRetention(modifiers, isKotlin)) {
             modifiers.addDefaultRetentionPolicyAnnotation(codebase, isKotlin)
         }

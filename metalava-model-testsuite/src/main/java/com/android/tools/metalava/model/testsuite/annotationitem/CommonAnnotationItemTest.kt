@@ -27,6 +27,7 @@ import com.android.tools.metalava.model.annotation.AnnotationFilter
 import com.android.tools.metalava.model.annotation.DefaultAnnotationManager
 import com.android.tools.metalava.model.noOpAnnotationManager
 import com.android.tools.metalava.model.provider.InputFormat
+import com.android.tools.metalava.model.source.hasApiVisibilityOrShowAnnotation
 import com.android.tools.metalava.model.testing.SupportedInputFormats
 import com.android.tools.metalava.model.testing.classTypeItem
 import com.android.tools.metalava.model.testing.testTypeString
@@ -47,8 +48,10 @@ import com.android.tools.metalava.testing.KnownSourceFiles
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertSame
+import kotlin.test.assertTrue
 import kotlin.test.fail
 import org.junit.Test
 
@@ -1629,12 +1632,20 @@ class CommonAnnotationItemTest : BaseModelTest() {
                     }
                 ),
         ) {
-            // This should be defined.
-            codebase.assertClass("test.pkg.Foo")
-            // This should not be defined.
-            codebase.assertResolvedClass("test.pkg.Bar")
-            // This should not be defined.
-            codebase.assertResolvedClass("test.pkg.Baz")
+            // This should be defined and accessible.
+            codebase.assertClass("test.pkg.Foo").also { testClass ->
+                assertTrue(testClass.modifiers.hasApiVisibilityOrShowAnnotation, message = "Foo")
+            }
+
+            // This should be defined but not accessible.
+            codebase.assertClass("test.pkg.Bar").also { testClass ->
+                assertFalse(testClass.modifiers.hasApiVisibilityOrShowAnnotation, message = "Bar")
+            }
+
+            // This should be defined but not accessible.
+            codebase.assertClass("test.pkg.Baz").also { testClass ->
+                assertFalse(testClass.modifiers.hasApiVisibilityOrShowAnnotation, message = "Baz")
+            }
         }
     }
 
