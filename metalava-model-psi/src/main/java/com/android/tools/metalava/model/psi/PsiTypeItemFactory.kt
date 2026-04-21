@@ -437,7 +437,25 @@ internal class PsiTypeItemFactory(
         psiType: PsiClassType,
         kotlinType: KotlinTypeInfo?,
     ): List<TypeArgumentTypeItem> {
-        return psiType.parameters.toList().mapIndexed { i, param ->
+        // Get the type arguments of PsiClassType as List<PsiType>.
+        val psiTypeArguments =
+            psiType.parameters.toList().takeIf { it.isNotEmpty() }
+                ?: let {
+                    // Workaround for b/505052012: If a lambda type uses the type Nothing as a
+                    // return type then hasNothingInNonContravariantPosition(...) in
+                    // FirJvmTypeMapper returns true. That causes it to get converted into a raw
+                    // PsiClassType without any tupe arguments.
+                    if (kotlinType is KotlinTypeInfo.LambdaType) {
+                        // Convert each individual type argument into a PsiType and use that
+                        // instead.
+                        kotlinType.overrideTypeArguments.map { it.asPsiType() }
+                    } else {
+                        // The type has no type arguments so just return an empty list.
+                        return emptyList()
+                    }
+                }
+
+        return psiTypeArguments.mapIndexed { i, param ->
             val forTypeArgument = kotlinType?.forTypeArgument(i)
             createTypeItem(param, forTypeArgument) as TypeArgumentTypeItem
         }
