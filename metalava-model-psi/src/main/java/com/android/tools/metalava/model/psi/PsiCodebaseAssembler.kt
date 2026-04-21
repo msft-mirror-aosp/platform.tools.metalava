@@ -355,12 +355,8 @@ internal class PsiCodebaseAssembler(
             initializeClassFromSources(psiClass, multiFileClasses, apiPackages)
         }
 
-        // Determining sealed class exhaustivity is done here because it requires looking at
-        // classes that are private and won't be turned into ClassItems, and these classes are
-        // only all available here during codebase assembly. Doing this at a later stage (for
-        // example in ApiAnalyzer) wouldn't be possible because non-visible classes are no longer
-        // accessible from there.
-        determineIfInaccessibleClassesMakeSuperClassesNonExhaustive(psiClasses)
+        // Determine sealed class exhaustivity.
+        determineIfInaccessibleClassesMakeSuperClassesNonExhaustive()
 
         // Copy type use only nullness annotations to items.
         copyTypeUseOnlyNullnessAnnotationsToItems()
@@ -374,61 +370,59 @@ internal class PsiCodebaseAssembler(
         kaCodebaseAssembler?.assemble()
     }
 
-    // Instances of sealed classes can be matched using `when` statements. If all the subclasses
-    // of a sealed class are available to API consumers, then new subclasses can't be added
-    // to the sealed class because doing so would be a breaking change (clients' `when`
-    // statements would no longer be exhaustive). In this case, we label the sealed class as
-    // exhaustive. If there is an inaccessible class that extends a sealed class, however, then
-    // the sealed class is not exhaustive. For more details, see b/447143803
-    private fun determineIfInaccessibleClassesMakeSuperClassesNonExhaustive(
-        psiClasses: List<PsiClass>
-    ) {
-        psiClasses.forEach { psiClass -> sealedClassExhaustivityHelper(psiClass, false) }
+    /**
+     * Determine if sealed classes make super classes non-exhaustive.
+     *
+     * Instances of sealed classes can be matched using `when` statements. If all the subclasses of
+     * a sealed class are available to API consumers, then new subclasses can't be added to the
+     * sealed class because doing so would be a breaking change (clients' `when` statements would no
+     * longer be exhaustive). In this case, we label the sealed class as exhaustive. If there is an
+     * inaccessible class that extends a sealed class, however, then the sealed class is not
+     * exhaustive. For more details, see b/447143803
+     */
+    private fun determineIfInaccessibleClassesMakeSuperClassesNonExhaustive() {
+        val allClasses = codebase.getTopLevelClassesFromSource()
+        allClasses.forEach { classItem -> sealedClassExhaustivityHelper(classItem, false) }
     }
 
     /**
-     * Recursively traverses the inner classes of [psiClass] to determine if any sealed super
+     * Recursively traverses the inner classes of [classItem] to determine if any sealed super
      * classes should be marked as non-exhaustive.
      *
      * A sealed class is considered non-exhaustive if it has at least one inaccessible subclass.
      *
-     * @param psiClass The current [PsiClass] being checked.
-     * @param parentWasNotVisible True if any containing class of [psiClass] was not visible.
+     * @param classItem The current [ClassItem] being checked.
+     * @param parentWasNotVisible True if any containing class of [classItem] was not visible.
      */
     private fun sealedClassExhaustivityHelper(
-        psiClass: PsiClass,
+        classItem: ClassItem,
         parentWasNotVisible: Boolean,
     ) {
-        val qualifiedName = psiClass.qualifiedName
-        if (qualifiedName != null) {
+        // If a ClassItem already exists for this psiClass, use its modifiers. Otherwise, create
+        // new ones.
+        val modifiers = classItem.modifiers
+        val curClassNotVisible =
+            modifiers.annotations().any { it.showability.hide() } ||
+                !modifiers.hasApiVisibilityOrShowAnnotation
 
-            // If a ClassItem already exists for this psiClass, use its modifiers. Otherwise, create
-            // new ones.
-            val modifiers =
-                psiCodebase.findClass(psiClass)?.modifiers
-                    ?: PsiModifierItem.create(psiCodebase, psiClass)
-            val curClassNotVisible =
-                modifiers.annotations().any { it.showability.hide() } ||
-                    !modifiers.hasApiVisibilityOrShowAnnotation
-
-            if (curClassNotVisible || parentWasNotVisible) {
-                val superClassName = psiClass.superClass?.qualifiedName
-                if (superClassName != null) {
-                    codebase.findClass(superClassName)?.mutateModifiers { setExhaustive(false) }
+        if (curClassNotVisible || parentWasNotVisible) {
+            val superClassName = classItem.superClassType()?.qualifiedName
+            if (superClassName != null) {
+                codebase.findClass(superClassName)?.mutateModifiers { setExhaustive(false) }
+            }
+            classItem
+                .interfaceTypes()
+                .map { it.qualifiedName }
+                .forEach { name ->
+                    codebase.findClass(name)?.mutateModifiers { setExhaustive(false) }
                 }
-                psiClass.interfaces
-                    .mapNotNull { it?.qualifiedName }
-                    .forEach { name ->
-                        codebase.findClass(name)?.mutateModifiers { setExhaustive(false) }
-                    }
-            }
+        }
 
-            psiClass.innerClasses.forEach { innerClass ->
-                sealedClassExhaustivityHelper(
-                    innerClass,
-                    parentWasNotVisible || curClassNotVisible,
-                )
-            }
+        classItem.nestedClasses().forEach { nestedClass ->
+            sealedClassExhaustivityHelper(
+                nestedClass,
+                parentWasNotVisible || curClassNotVisible,
+            )
         }
     }
 
