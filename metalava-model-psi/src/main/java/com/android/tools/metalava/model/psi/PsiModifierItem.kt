@@ -492,9 +492,7 @@ internal object PsiModifierItem {
 
         val uAnnotations = annotated.uAnnotations.toMutableList()
         val psiAnnotations =
-            element.annotations.takeIf { it.isNotEmpty() }
-                ?: (annotated.javaPsi as? PsiModifierListOwner)?.annotations
-                ?: PsiAnnotation.EMPTY_ARRAY
+            (annotated.javaPsi as? PsiModifierListOwner)?.annotations ?: PsiAnnotation.EMPTY_ARRAY
 
         // The below code remedies a problem where companion objects as fields don't have
         // annotations in signature files (b/401235591). This code takes the annotations
