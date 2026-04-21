@@ -237,7 +237,7 @@ private constructor(
         val normalizedFlags =
             when (sourceLanguage) {
                 SourceLanguage.JAVA -> {
-                    itemKind.normalizeJavaFlags(flags)
+                    flags and itemKind.javaModifierMask
                 }
                 else -> {
                     flags
