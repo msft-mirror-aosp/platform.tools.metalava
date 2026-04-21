@@ -16,10 +16,12 @@
 
 package com.android.tools.metalava.model.source
 
+import com.android.tools.metalava.model.AnnotationContext
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.AnnotationUse
 import com.android.tools.metalava.model.AnnotationUse.TYPE_ONLY
 import com.android.tools.metalava.model.BaseItemVisitor
+import com.android.tools.metalava.model.BaseModifierList
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.Item
@@ -27,6 +29,7 @@ import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.ItemDocumentationFactory
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.SourceFile
+import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.item.CodebaseAssembler
 import com.android.tools.metalava.model.item.DefaultCodebaseAssembler
 import com.android.tools.metalava.model.item.PackageInfo
@@ -289,3 +292,21 @@ data class SourcePackageInfo(
             commentFactory ?: defaultCommentFactory,
         )
 }
+
+/**
+ * Check if the [BaseModifierList] is accessible.
+ *
+ * Note: If this is called during codebase creation and the caller supports
+ * [VisibilityLevel.INTERNAL] then they must also implement
+ * [AnnotationContext.defaultsForAnnotationClass] without resolving classes in the codebase being
+ * constructed. Otherwise, there will be a race condition between resolving the annotation class and
+ * defining the class that could lead to duplicate class creation or other similar issues.
+ */
+val BaseModifierList.hasApiVisibilityOrShowAnnotation
+    get() =
+        when (getVisibilityLevel()) {
+            VisibilityLevel.PUBLIC,
+            VisibilityLevel.PROTECTED -> true
+            VisibilityLevel.INTERNAL -> annotations().any { it.showability.show() }
+            else -> false
+        }

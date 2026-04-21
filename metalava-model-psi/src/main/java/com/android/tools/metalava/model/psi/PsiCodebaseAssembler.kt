@@ -21,7 +21,6 @@ import com.android.tools.lint.annotations.Extractor
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ApiVariantSelectors
 import com.android.tools.metalava.model.ArrayTypeItem
-import com.android.tools.metalava.model.BaseModifierList
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassOrigin
 import com.android.tools.metalava.model.JAVA_PACKAGE_INFO
@@ -32,7 +31,6 @@ import com.android.tools.metalava.model.SkeletonClassItem
 import com.android.tools.metalava.model.SourceLanguage
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterScope
-import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.item.DefaultCodebase
 import com.android.tools.metalava.model.item.DefaultItemFactory
 import com.android.tools.metalava.model.mapIfNotSameNotNull
@@ -40,6 +38,7 @@ import com.android.tools.metalava.model.psi.kotlin.KaCodebaseAssembler
 import com.android.tools.metalava.model.source.SourceCodebaseAssembler
 import com.android.tools.metalava.model.source.SourcePackageInfo
 import com.android.tools.metalava.model.source.SourceSet
+import com.android.tools.metalava.model.source.hasApiVisibilityOrShowAnnotation
 import com.android.tools.metalava.reporter.Issues
 import com.intellij.openapi.project.Project
 import com.intellij.psi.JavaPsiFacade
@@ -56,8 +55,6 @@ import com.intellij.psi.PsiPackage
 import com.intellij.psi.PsiTypeParameter
 import com.intellij.psi.javadoc.PsiDocComment
 import com.intellij.psi.search.GlobalSearchScope
-import kotlin.collections.forEach
-import kotlin.collections.set
 import org.jetbrains.kotlin.asJava.classes.KtLightClassForFacade
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.psi.KtFile
@@ -165,16 +162,6 @@ internal class PsiCodebaseAssembler(
 
     override fun createClassFromUnderlyingModel(qualifiedName: String) =
         findOrCreateClass(qualifiedName)
-
-    /** Check if the [BaseModifierList] is accsssible. */
-    private val BaseModifierList.hasApiVisibilityOrShowAnnotation
-        get() =
-            when (getVisibilityLevel()) {
-                VisibilityLevel.PUBLIC,
-                VisibilityLevel.PROTECTED -> true
-                VisibilityLevel.INTERNAL -> annotations().any { it.showability.show() }
-                else -> false
-            }
 
     /**
      * Create a possible API class, i.e. a class that has a possibility of being part of an API
