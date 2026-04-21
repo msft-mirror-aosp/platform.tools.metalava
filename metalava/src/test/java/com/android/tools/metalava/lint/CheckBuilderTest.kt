@@ -243,7 +243,6 @@ class CheckBuilderTest : DriverTest() {
                         }
                     }
                         """
-                            .trimIndent()
                     ),
                     java(
                         """
@@ -259,7 +258,6 @@ class CheckBuilderTest : DriverTest() {
                         public class Base {}
                     }
                         """
-                            .trimIndent()
                     ),
                     java(
                         """
@@ -274,7 +272,6 @@ class CheckBuilderTest : DriverTest() {
                         }
                     }
                         """
-                            .trimIndent()
                     ),
                     java(
                         """
@@ -289,7 +286,6 @@ class CheckBuilderTest : DriverTest() {
                         }
                     }
                         """
-                            .trimIndent()
                     ),
                     KnownSourceFiles.androidxNonNullJavaSource,
                     KnownSourceFiles.androidxNullableJavaSource

@@ -497,8 +497,8 @@ class PropertyCompatibilityTest : DriverTest() {
                 """,
             expectedIssues =
                 """
-                load-api.txt:4: error: Source breaking change: property test.pkg.Foo#changeToProtected changed visibility from PUBLIC to PROTECTED [ChangedScope]
-                load-api.txt:5: error: Source breaking change: property test.pkg.Foo#changeToPublic changed visibility from PROTECTED to PUBLIC [ChangedScope]
+                load-api.txt:4: error: Source breaking change: Property test.pkg.Foo#changeToProtected changed visibility from PUBLIC to PROTECTED [ChangedScope]
+                load-api.txt:5: error: Source breaking change: Property test.pkg.Foo#changeToPublic changed visibility from PROTECTED to PUBLIC [ChangedScope]
                 """,
         )
     }
@@ -528,7 +528,7 @@ class PropertyCompatibilityTest : DriverTest() {
                 }
                 """,
             expectedIssues =
-                "load-api.txt:4: error: Source breaking change: property test.pkg.Foo#changeToFinal has added 'final' qualifier [AddedFinal]",
+                "load-api.txt:4: error: Source breaking change: Property test.pkg.Foo#changeToFinal has added 'final' qualifier [AddedFinal]",
         )
     }
 
@@ -558,8 +558,8 @@ class PropertyCompatibilityTest : DriverTest() {
                 """,
             expectedIssues =
                 """
-                load-api.txt:4: error: Source breaking change: property test.pkg.Foo#changeToAbstract has changed 'abstract' qualifier [ChangedAbstract]
-                load-api.txt:5: error: Source breaking change: property test.pkg.Foo#changeToFinal has added 'final' qualifier [AddedFinal]
+                load-api.txt:4: error: Source breaking change: Property test.pkg.Foo#changeToAbstract has changed 'abstract' qualifier [ChangedAbstract]
+                load-api.txt:5: error: Source breaking change: Property test.pkg.Foo#changeToFinal has added 'final' qualifier [AddedFinal]
                 """,
         )
     }
@@ -589,7 +589,7 @@ class PropertyCompatibilityTest : DriverTest() {
                 }
                 """,
             expectedIssues =
-                "load-api.txt:4: error: Source breaking change: property test.pkg.Foo#changeToAbstract has changed 'default' qualifier [ChangedDefault]",
+                "load-api.txt:4: error: Source breaking change: Property test.pkg.Foo#changeToAbstract has changed 'default' qualifier [ChangedDefault]",
         )
     }
 
@@ -619,8 +619,8 @@ class PropertyCompatibilityTest : DriverTest() {
                 """,
             expectedIssues =
                 """
-                load-api.txt:4: error: Source breaking change: property test.pkg.Foo#changeToDeprecated has changed deprecation state false --> true [ChangedDeprecated]
-                load-api.txt:5: error: Source breaking change: property test.pkg.Foo#changeToNotDeprecated has changed deprecation state true --> false [ChangedDeprecated]
+                load-api.txt:4: error: Source breaking change: Property test.pkg.Foo#changeToDeprecated has changed deprecation state false --> true [ChangedDeprecated]
+                load-api.txt:5: error: Source breaking change: Property test.pkg.Foo#changeToNotDeprecated has changed deprecation state true --> false [ChangedDeprecated]
                 """,
         )
     }

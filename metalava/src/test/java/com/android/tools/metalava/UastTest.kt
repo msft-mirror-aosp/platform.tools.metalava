@@ -1417,8 +1417,8 @@ class UastTest : DriverTest() {
                     method @BytecodeOnly @Deprecated public void setPOld_deprecatedOnSetter_myAnnoOnGetter(int);
                     method @BytecodeOnly @Deprecated @test.pkg.MyAnnotation public void setPOld_deprecatedOnSetter_myAnnoOnSetter(int);
                     property @Deprecated public abstract int pOld_deprecatedOnGetter;
-                    property @Deprecated public abstract int pOld_deprecatedOnGetter_myAnnoOnBoth;
-                    property @Deprecated public abstract int pOld_deprecatedOnGetter_myAnnoOnGetter;
+                    property @Deprecated @test.pkg.MyAnnotation public abstract int pOld_deprecatedOnGetter_myAnnoOnBoth;
+                    property @Deprecated @test.pkg.MyAnnotation public abstract int pOld_deprecatedOnGetter_myAnnoOnGetter;
                     property @Deprecated public abstract int pOld_deprecatedOnGetter_myAnnoOnSetter;
                     property public abstract int pOld_deprecatedOnSetter;
                     property @test.pkg.MyAnnotation public abstract int pOld_deprecatedOnSetter_myAnnoOnBoth;

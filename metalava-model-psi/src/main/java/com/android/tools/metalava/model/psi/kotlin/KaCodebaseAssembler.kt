@@ -63,6 +63,8 @@ import com.android.tools.metalava.model.value.ClassObjectValue
 import com.android.tools.metalava.reporter.FileLocation
 import com.intellij.psi.JavaPsiFacade
 import com.intellij.psi.PsiClass
+import com.intellij.psi.PsiFileSystemItem
+import com.intellij.psi.PsiJavaFile
 import java.io.File
 import org.jetbrains.kotlin.analysis.api.KaExperimentalApi
 import org.jetbrains.kotlin.analysis.api.KaSession
@@ -167,6 +169,10 @@ internal class KaCodebaseAssembler(
             location: File,
             config: Codebase.Config,
         ): MultiplatformCodebase {
+            // Aggregate the packages defined in all modules, because when analyzing one module both
+            // the packages in the module and the packages in the modules it depends on are needed.
+            @OptIn(KaExperimentalApi::class)
+            val allPackages = packageNames(modules.flatMap { it.psiRoots }).toList()
             val commonModules = modules.filter { it.directDependsOnDependencies.isEmpty() }
             val leafModules =
                 modules.filter { potentialEdgeModule ->
@@ -188,11 +194,35 @@ internal class KaCodebaseAssembler(
                                     assembler = assembler,
                                 )
                             }
-                        processor.assemble()
+                        processor.assemble(allPackages)
                         processor.codebase
                     }
                 ),
             )
+        }
+
+        /** Returns the names of all the packages represented by the files in [items]. */
+        private fun packageNames(items: List<PsiFileSystemItem>): Set<FqName> {
+            return buildSet {
+                fun process(item: PsiFileSystemItem) {
+                    // Add the package declaration from a java or kotlin files.
+                    when (item) {
+                        is KtFile -> add(item.packageFqName)
+                        is PsiJavaFile -> add(FqName(item.packageName))
+                    }
+                    // If this is a directory, check recursively for java/kotlin files.
+                    if (item.isDirectory) {
+                        item.processChildren {
+                            process(it)
+                            // Continue processing.
+                            return@processChildren true
+                        }
+                    }
+                }
+                for (item in items) {
+                    process(item)
+                }
+            }
         }
     }
 }
@@ -295,16 +325,6 @@ private constructor(
         }
     }
 
-    @OptIn(KaExperimentalApi::class)
-    private fun KaSession.allPackages(): Sequence<KaPackageSymbol> {
-        fun childPackages(packageSymbol: KaPackageSymbol): Sequence<KaPackageSymbol> {
-            return sequenceOf(packageSymbol) +
-                packageSymbol.packageScope.getPackageSymbols().flatMap { childPackages(it) }
-        }
-
-        return childPackages(rootPackageSymbol)
-    }
-
     /** Analyze all packages from [allPackageNames] to add type aliases to the codebase. */
     fun createTypeAliases(allPackageNames: List<FqName>) {
         analyze(kaModule) {
@@ -324,14 +344,10 @@ private constructor(
     /**
      * Analyze the [KaModule] to add items to the codebase for this [kaModule] (except type aliases,
      * which are added by [createTypeAliases]).
-     *
-     * If [packageNames] is provided, specifically processes those packages, otherwise processes all
-     * packages in the module (which includes packages from the classpath).
      */
-    fun assemble(packageNames: List<FqName>? = null) {
+    fun assemble(packageNames: List<FqName>) {
         analyze(kaModule) {
-            val packages =
-                packageNames?.mapNotNull { findPackage(it) }?.asSequence() ?: allPackages()
+            val packages = packageNames.mapNotNull { findPackage(it) }
             for (packageSymbol in packages) {
                 processPackage(packageSymbol)
             }
@@ -410,7 +426,18 @@ private constructor(
         // Skip classes loaded from the classpath.
         if (!processIfClasspath && classifierSymbol.origin == KaSymbolOrigin.LIBRARY) return null
         // Skip private classes since these aren't part of the API surface
-        if (!processIfClasspath && classifierSymbol.visibility == KaSymbolVisibility.PRIVATE)
+        if (
+            classifierSymbol.visibility == KaSymbolVisibility.PRIVATE &&
+                // Do process a private class if adding from the classpath, since a private class
+                // may have been specifically requested.
+                !processIfClasspath &&
+                // Process a private class when creating a multiplatform codebase (this is true when
+                // addingToPsiCodebase is false) if the class is nested. The reason for doing this
+                // is that if not all nested classes are created, there can be issues later if a
+                // private nested class does need to be created later at the same time the other
+                // nested classes are being processed.
+                (addingToPsiCodebase || containingClass == null)
+        )
             return null
 
         // Find the class in the codebase.

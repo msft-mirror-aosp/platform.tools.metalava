@@ -43,7 +43,7 @@ internal class DefaultPropertyItem(
     documentationFactory: ItemDocumentationFactory,
     variantSelectorsFactory: ApiVariantSelectorsFactory,
     modifiers: BaseModifierList,
-    name: String,
+    val name: String,
     containingClass: ClassItem,
     private var type: TypeItem,
     override val getter: MethodItem?,

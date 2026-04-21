@@ -32,6 +32,7 @@ import com.android.tools.metalava.model.JVM_NAME
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.MutableModifierList
 import com.android.tools.metalava.model.ParameterItem
+import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.SkeletonClassItem
 import com.android.tools.metalava.model.SkeletonTypeParameterItem
 import com.android.tools.metalava.model.SourceLanguage
@@ -62,6 +63,7 @@ import com.intellij.psi.PsiField
 import com.intellij.psi.PsiMethod
 import com.intellij.psi.PsiModifierListOwner
 import com.intellij.psi.PsiParameter
+import com.intellij.psi.PsiRecordComponent
 import com.intellij.psi.PsiReference
 import com.intellij.psi.PsiType
 import com.intellij.psi.PsiTypeParameter
@@ -187,7 +189,23 @@ internal class PsiClassBuilder(
                 isFileFacade = psiClass.isFileFacade(),
                 optionalAliasedType = null,
                 isMultiFileClass = psiClass.isMultiFileClass(),
+                recordComponentItemsFactory =
+                    if (classKind == ClassKind.RECORD)
+                        { classItem ->
+                            createRecordComponents(
+                                classItem,
+                                psiClass.recordComponents,
+                                classTypeItemFactory
+                            )
+                        }
+                    else {
+                        null
+                    },
             )
+
+        if (classKind == ClassKind.RECORD) {
+            createRecordComponents(classItem, psiClass.recordComponents, classTypeItemFactory)
+        }
 
         // Add methods, constructors, fields.
         addMembersToClassItem(
@@ -214,6 +232,33 @@ internal class PsiClassBuilder(
         }
         return classItem
     }
+
+    /**
+     * Create the [PropertyItem]s used to model record components.
+     *
+     * Must be called before creating any other members of [classItem].
+     */
+    private fun createRecordComponents(
+        classItem: ClassItem,
+        components: Array<PsiRecordComponent>,
+        classTypeItemFactory: PsiTypeItemFactory
+    ) =
+        components.mapIndexed { index, component ->
+            val modifiers = createModifiers(component)
+            modifiers.setVisibilityLevel(VisibilityLevel.PUBLIC)
+            modifiers.setFinal(false)
+
+            val type = classTypeItemFactory.getGeneralType(PsiTypeInfo(component.type, component))
+
+            itemFactory.createRecordComponentItem(
+                fileLocation = PsiFileLocation.fromPsiElement(component),
+                modifiers = modifiers,
+                name = component.name,
+                containingClass = classItem,
+                type = type,
+                recordComponentIndex = index,
+            )
+        }
 
     /** Create [MutableModifierList] for [psiModifierListOwner] in [psiCodebase]. */
     private fun createModifiers(psiModifierListOwner: PsiModifierListOwner) =
@@ -343,8 +388,9 @@ internal class PsiClassBuilder(
         }
         if (psiFields.isNotEmpty()) {
             for (psiField in psiFields) {
-                val fieldItem = createField(classItem, psiField, classTypeItemFactory)
-                classItem.addField(fieldItem)
+                createField(classItem, psiField, classTypeItemFactory)?.let { fieldItem ->
+                    classItem.addField(fieldItem)
+                }
             }
         }
     }
@@ -466,9 +512,17 @@ internal class PsiClassBuilder(
         containingClass: ClassItem,
         psiField: PsiField,
         enclosingClassTypeItemFactory: PsiTypeItemFactory,
-    ): FieldItem {
+    ): FieldItem? {
         val name = psiField.name
         val modifiers = createModifiers(psiField)
+
+        // Ignore private member fields in records.
+        if (
+            containingClass.classKind == ClassKind.RECORD &&
+                modifiers.isPrivate() &&
+                !modifiers.isStatic()
+        )
+            return null
 
         val isEnumConstant = psiField is PsiEnumConstant
 

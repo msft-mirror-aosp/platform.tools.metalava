@@ -52,9 +52,6 @@ interface MethodItem : CallableItem, InheritableItem, PossiblyPropertyRelated {
     /** Returns the super methods that this method is overriding */
     fun superMethods(): List<MethodItem>
 
-    /** Override to specialize return type. */
-    override fun createOverload(parameters: List<ParameterItem>): MethodItem
-
     override fun findCorrespondingItemIn(
         codebase: Codebase,
         superMethods: Boolean,
@@ -265,6 +262,15 @@ interface MethodItem : CallableItem, InheritableItem, PossiblyPropertyRelated {
      * been initialized.
      */
     val isKotlinProperty: Boolean
+
+    /** Whether this method is a getter for a [RecordComponentItem]. */
+    val isRecordComponentGetter: Boolean
+
+    override val isRecordComponentRelated: Boolean
+        get() = isRecordComponentGetter
+
+    override val recordComponentRelationship: String?
+        get() = if (isRecordComponentRelated) "record component getter" else null
 
     /**
      * Determines if the method is a method that needs to be overridden in any child classes that

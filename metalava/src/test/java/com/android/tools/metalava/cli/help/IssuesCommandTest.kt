@@ -48,11 +48,14 @@ Available Issues                             |  Category                        
   AddedMethod                                |  other_compatibility                  |   hidden
   AddedPackage                               |  other_compatibility                  |   hidden
   AddedProperty                              |  other_compatibility                  |   hidden
+  AddedRecordComponent                       |  binary_and_source_compatibility      |   error
   AddedReified                               |  binary_compatibility_only            |   error
+  AddedSourceSet                             |  source_compatibility_only            |   info
   AddedSubclassToSealedClass                 |  source_compatibility_only            |   error
   AllUpper                                   |  api_lint                             |   error
   AndroidUri                                 |  api_lint                             |   error
   AnnotationExtraction                       |  unknown                              |   error
+  ArrayRecordComponent                       |  api_lint                             |   error
   ArrayReturn                                |  api_lint                             |   warning
   AsyncSuffixFuture                          |  api_lint                             |   error
   AutoBoxing                                 |  api_lint                             |   error
@@ -71,6 +74,7 @@ Available Issues                             |  Category                        
   ChangedDefault                             |  binary_and_source_compatibility      |   error
   ChangedDeprecated                          |  source_compatibility_only            |   hidden
   ChangedNative                              |  other_compatibility                  |   hidden
+  ChangedRecordComponent                     |  binary_and_source_compatibility      |   error
   ChangedScope                               |  binary_and_source_compatibility      |   error
   ChangedStatic                              |  binary_and_source_compatibility      |   error
   ChangedSuperclass                          |  binary_and_source_compatibility      |   error
@@ -113,6 +117,7 @@ Available Issues                             |  Category                        
   HiddenSuperclass                           |  documentation                        |   warning
   HiddenTypeParameter                        |  documentation                        |   warning
   HiddenTypedefConstant                      |  unknown                              |   error
+  HidingRecordComponent                      |  api_lint                             |   error
   IgnoringSymlink                            |  unknown                              |   info
   InconsistentMergeAnnotation                |  api_lint                             |   warning_error_when_new
   InfixRemoval                               |  source_compatibility_only            |   error
@@ -124,7 +129,9 @@ Available Issues                             |  Category                        
   InternalClasses                            |  api_lint                             |   error
   InternalError                              |  unknown                              |   error
   InternalField                              |  api_lint                             |   error
+  InvalidAnnotationBinding                   |  api_lint                             |   error
   InvalidBlockTagUse                         |  documentation                        |   error
+  InvalidDevicePolicyAnnotation              |  documentation                        |   error
   InvalidDocThrowsType                       |  documentation                        |   error
   InvalidFeatureEnforcement                  |  documentation                        |   error
   InvalidIfTag                               |  documentation                        |   error
@@ -162,12 +169,12 @@ Available Issues                             |  Category                        
   MissingBuildMethod                         |  api_lint                             |   warning
   MissingColumn                              |  documentation                        |   warning
   MissingEnvironmentsValue                   |  api_lint                             |   error
-  MissingFromValue                           |  api_lint                             |   error
   MissingGetterMatchingBuilder               |  api_lint                             |   warning
   MissingInnerNullability                    |  api_lint                             |   hidden
   MissingJvmstatic                           |  api_lint                             |   warning
   MissingNullability                         |  api_lint                             |   error
   MissingPermission                          |  documentation                        |   error
+  MissingRequiredAttribute                   |  api_lint                             |   error
   MultipleThreadAnnotations                  |  documentation                        |   error
   MutableBareField                           |  api_lint                             |   error
   NoByteOrShort                              |  api_lint                             |   warning
@@ -213,6 +220,8 @@ Available Issues                             |  Category                        
   RemovedMethod                              |  binary_and_source_compatibility      |   error
   RemovedPackage                             |  binary_and_source_compatibility      |   error
   RemovedProperty                            |  source_compatibility_only            |   error
+  RemovedRecordComponent                     |  binary_and_source_compatibility      |   error
+  RemovedSourceSet                           |  source_compatibility_only            |   error
   RemovedTypeAlias                           |  source_compatibility_only            |   error
   RequiresPermission                         |  documentation                        |   error
   ResourceFieldName                          |  api_lint                             |   error
@@ -254,6 +263,7 @@ Available Issues                             |  Category                        
   UseParcelFileDescriptor                    |  api_lint                             |   error
   UserHandle                                 |  api_lint                             |   warning
   UserHandleName                             |  api_lint                             |   warning
+  UsingJavaLangRecord                        |  api_lint                             |   error
   ValueClassDefinition                       |  api_lint                             |   error
   ValueClassUsageFromConstructor             |  api_lint                             |   hidden
   ValueClassUsageWithoutJvmName              |  api_lint                             |   hidden
