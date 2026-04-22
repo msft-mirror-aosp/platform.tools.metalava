@@ -22,6 +22,7 @@ import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.MergedCodebase
 import com.android.tools.metalava.model.MethodItem
+import com.android.tools.metalava.model.multiplatform.MultiplatformCodebase
 import com.android.tools.metalava.model.text.ApiFile
 import com.android.tools.metalava.model.text.SignatureFile
 import com.android.tools.metalava.testing.TemporaryFolderOwner
@@ -44,7 +45,9 @@ class ComparisonVisitorTest : TemporaryFolderOwner, Assertions {
                         // Signature format: 2.0
                         package pkg {
                             public class Outer.Inner {
-                                method public TypeInFirst foobar();
+                                method public pkg.TypeInFirst foobar();
+                            }
+                            public class TypeInFirst {
                             }
                         }
                     """
@@ -57,7 +60,9 @@ class ComparisonVisitorTest : TemporaryFolderOwner, Assertions {
                             public class Outer {
                             }
                             public class Outer.Inner {
-                                method public TypeInSecond foobar();
+                                method public pkg.TypeInSecond foobar();
+                            }
+                            public class TypeInSecond {
                             }
                         }
                     """
@@ -84,24 +89,23 @@ class ComparisonVisitorTest : TemporaryFolderOwner, Assertions {
             )
         val old = MergedCodebase(listOf(ApiFile.parseApi(listOf(oldSignatureFile))))
         var methodType: String? = null
-        CodebaseComparator()
-            .compare(
-                object : ComparisonVisitor() {
-                    override fun addedMethodItem(new: MethodItem) {
-                        methodType = new.type().toSimpleType()
-                    }
-                },
-                old,
-                new
-            )
-        assertEquals("TypeInFirst", methodType)
+        CodebaseComparator.compare(
+            object : ComparisonVisitor() {
+                override fun addedMethodItem(new: MethodItem) {
+                    methodType = new.type().toSimpleTypeString()
+                }
+            },
+            old,
+            new
+        )
+        assertEquals("pkg.TypeInFirst", methodType)
     }
 
     @Test
     fun `Test make sure that method with emit=false is ignored during comparison`() {
 
         fun TestFile.readCodebase(): Codebase {
-            val signatureFiles = SignatureFile.fromFiles(createFile(temporaryFolder.root))
+            val signatureFiles = SignatureFile.fromFiles(toFile())
             return ApiFile.parseApi(signatureFiles, Codebase.Config.NOOP)
         }
 
@@ -130,25 +134,123 @@ class ComparisonVisitorTest : TemporaryFolderOwner, Assertions {
 
         // Compare the two.
         val differences = mutableListOf<String>()
-        CodebaseComparator()
-            .compare(
-                object : ComparisonVisitor() {
-                    override fun compareMethodItems(old: MethodItem, new: MethodItem) {
-                        differences += "$old was changed"
-                    }
+        CodebaseComparator.compare(
+            object : ComparisonVisitor() {
+                override fun compareMethodItems(old: MethodItem, new: MethodItem) {
+                    differences += "$old was changed"
+                }
 
-                    override fun addedMethodItem(new: MethodItem) {
-                        differences += "$new was added"
-                    }
+                override fun addedMethodItem(new: MethodItem) {
+                    differences += "$new was added"
+                }
 
-                    override fun removedMethodItem(old: MethodItem, from: ClassItem) {
-                        differences += "$old was removed"
-                    }
-                },
-                oldCodebase,
-                newCodebase
-            )
+                override fun removedMethodItem(old: MethodItem, from: ClassItem) {
+                    differences += "$old was removed"
+                }
+            },
+            oldCodebase,
+            newCodebase
+        )
         // TODO(b/347885819): The method should be treated as being added not changed.
         assertEquals("method test.pkg.Foo.foo() was changed", differences.joinToString("\n"))
+    }
+
+    @Test
+    fun `Comparing multiplatform codebases`() {
+        fun parseMultiplatform(vararg files: TestFile): MultiplatformCodebase {
+            val signatureFiles = SignatureFile.fromFiles(files.map { it.toFile() })
+            return ApiFile.parseMultiplatformApi(signatureFiles, Codebase.Config.NOOP)
+        }
+
+        val oldCodebase =
+            parseMultiplatform(
+                signature(
+                    "commonMain.txt",
+                    """
+                    // Signature format: 5.0
+                    package test.pkg {
+                      public class Common {
+                        method public void changed();
+                        method public void removed();
+                      }
+                    }
+                    """
+                ),
+                signature(
+                    "androidMain.txt",
+                    """
+                    // Signature format: 5.0
+                    package test.pkg {
+                      public class Android {
+                      }
+                    }
+                    """
+                ),
+            )
+
+        val newCodebase =
+            parseMultiplatform(
+                signature(
+                    "commonMain.txt",
+                    """
+                    // Signature format: 5.0
+                    package test.pkg {
+                      public class Common {
+                        method public void added();
+                        method @test.pkg.Anno public void changed();
+                      }
+                    }
+                    """
+                ),
+                signature(
+                    "nativeMain.txt",
+                    """
+                    // Signature format: 5.0
+                    package test.pkg {
+                      public class Native {
+                      }
+                    }
+                    """
+                )
+            )
+
+        var differences = mutableListOf<String>()
+        CodebaseComparator.compareMultiplatform(
+            object : ComparisonVisitor() {
+                override fun addedCodebase(new: Codebase) {
+                    differences += "$new was added"
+                }
+
+                override fun removedCodebase(old: Codebase) {
+                    differences += "$old was removed"
+                }
+
+                override fun compareMethodItems(old: MethodItem, new: MethodItem) {
+                    differences += "$old was changed"
+                }
+
+                override fun addedMethodItem(new: MethodItem) {
+                    differences += "$new was added"
+                }
+
+                override fun removedMethodItem(old: MethodItem, from: ClassItem) {
+                    differences += "$old was removed"
+                }
+            },
+            old = oldCodebase,
+            new = newCodebase,
+        )
+
+        assertEquals(
+            """
+            Codebase for source set androidMain was removed
+            Codebase for source set nativeMain was added
+            method test.pkg.Common.added() was added
+            method test.pkg.Common.changed() was changed
+            method test.pkg.Common.removed() was removed
+            """
+                .trimIndent(),
+            differences.sorted().joinToString("\n")
+        )
     }
 }

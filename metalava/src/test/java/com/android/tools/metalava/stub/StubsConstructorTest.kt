@@ -163,7 +163,6 @@ class StubsConstructorTest : AbstractStubsTest() {
                     }
                     }
                     """,
-            checkTextStubEquivalence = true
         )
     }
 
@@ -171,7 +170,6 @@ class StubsConstructorTest : AbstractStubsTest() {
     fun `Arguments to super constructors with showAnnotations`() {
         // When overriding constructors we have to supply arguments
         checkStubs(
-            showAnnotations = arrayOf("android.annotation.SystemApi"),
             sourceFiles =
                 arrayOf(
                     java(
@@ -931,7 +929,7 @@ class StubsConstructorTest : AbstractStubsTest() {
     @Test
     fun `File facade constructor`() {
         check(
-            format = FileFormat.V2,
+            format = FileFormat.V4,
             sourceFiles =
                 arrayOf(
                     kotlin(
@@ -945,11 +943,10 @@ class StubsConstructorTest : AbstractStubsTest() {
                 ),
             api =
                 """
-                    // Signature format: 2.0
                     package test.pkg {
                       public final class ConstantsKt {
-                        property public static final String CONSTANT;
-                        field @NonNull public static final String CONSTANT = "CONSTANT";
+                        property public static String CONSTANT;
+                        field public static final String CONSTANT = "CONSTANT";
                       }
                     }
                 """,

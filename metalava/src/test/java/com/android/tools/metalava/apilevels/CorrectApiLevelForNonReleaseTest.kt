@@ -17,8 +17,7 @@
 package com.android.tools.metalava.apilevels
 
 import com.android.tools.metalava.ARG_ANDROID_JAR_PATTERN
-import com.android.tools.metalava.ARG_CURRENT_CODENAME
-import com.android.tools.metalava.ARG_CURRENT_VERSION
+import com.android.tools.metalava.ARG_API_VERSION_FOR_SOURCES
 import com.android.tools.metalava.ARG_GENERATE_API_LEVELS
 import com.android.tools.metalava.doc.getApiLookup
 import com.android.tools.metalava.testing.java
@@ -29,19 +28,15 @@ import org.junit.Test
 class CorrectApiLevelForNonReleaseTest : ApiGeneratorIntegrationTestBase() {
 
     @Test
-    fun `Correct API Level for non-release`() {
+    fun `Correct API Level for non-release using current version arg`() {
         check(
             extraArguments =
                 arrayOf(
                     ARG_GENERATE_API_LEVELS,
                     outputPath,
                     ARG_ANDROID_JAR_PATTERN,
-                    "${oldSdkJars.path}/android-%/android.jar",
-                    ARG_ANDROID_JAR_PATTERN,
                     androidPublicJarsPattern,
-                    ARG_CURRENT_CODENAME,
-                    "ZZZ", // not just Z, but very ZZZ
-                    ARG_CURRENT_VERSION,
+                    ARG_API_VERSION_FOR_SOURCES,
                     MAGIC_VERSION_STR // not real api level
                 ),
             sourceFiles =
@@ -57,9 +52,44 @@ class CorrectApiLevelForNonReleaseTest : ApiGeneratorIntegrationTestBase() {
         )
 
         assertTrue(output.isFile)
-        // Metalava should understand that a codename means "current api + 1"
-        val nextVersion = MAGIC_VERSION_INT + 1
+
+        val nextVersion = 57
         val xml = output.readText(Charsets.UTF_8)
+        assertTrue(xml.contains("<class name=\"android/pkg/MyTest\" since=\"$nextVersion\""))
+        val apiLookup = getApiLookup(output, temporaryFolder.newFolder())
+        @Suppress("DEPRECATION")
+        assertEquals(nextVersion, apiLookup.getClassVersion("android.pkg.MyTest"))
+    }
+
+    @Test
+    fun `Correct API Level for non-release using api version for sources arg`() {
+        val nextVersion = MAGIC_VERSION_INT + 1
+        check(
+            extraArguments =
+                arrayOf(
+                    ARG_GENERATE_API_LEVELS,
+                    outputPath,
+                    ARG_ANDROID_JAR_PATTERN,
+                    androidPublicJarsPattern,
+                    ARG_API_VERSION_FOR_SOURCES,
+                    nextVersion.toString()
+                ),
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                        package android.pkg;
+                        public class MyTest {
+                        }
+                        """
+                    )
+                )
+        )
+
+        assertTrue(output.isFile)
+        val xml = output.readText(Charsets.UTF_8)
+        // Sources will always be included with the api level of --api-for-sources when
+        // --api-for-sources is set with a valid value
         assertTrue(xml.contains("<class name=\"android/pkg/MyTest\" since=\"$nextVersion\""))
         val apiLookup = getApiLookup(output, temporaryFolder.newFolder())
         @Suppress("DEPRECATION")

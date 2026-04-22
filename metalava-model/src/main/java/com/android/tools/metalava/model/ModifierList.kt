@@ -17,6 +17,13 @@
 package com.android.tools.metalava.model
 
 interface BaseModifierList {
+    /**
+     * List of [ModifierList]s contained within this.
+     *
+     * Created on demand, useful for testing.
+     */
+    val keywordList: List<ModifierKeyword>
+
     fun annotations(): List<AnnotationItem>
 
     fun getVisibilityLevel(): VisibilityLevel
@@ -25,7 +32,13 @@ interface BaseModifierList {
 
     fun isProtected(): Boolean
 
+    fun isInternal(): Boolean
+
     fun isPrivate(): Boolean
+
+    fun isPackagePrivate(): Boolean
+
+    fun isPublicOrProtected() = isPublic() || isProtected()
 
     @MetalavaApi fun isStatic(): Boolean
 
@@ -48,36 +61,44 @@ interface BaseModifierList {
     fun isDeprecated(): Boolean
 
     // Modifier in Kotlin, separate syntax (...) in Java but modeled as modifier here
-    fun isVarArg(): Boolean = false
+    fun isVarArg(): Boolean
 
-    // Kotlin
-    fun isSealed(): Boolean = false
+    // Kotlin and Java
+    fun isSealed(): Boolean
 
-    fun isFunctional(): Boolean = false
+    // Java only
+    fun isNonSealed(): Boolean
 
-    fun isCompanion(): Boolean = false
+    /**
+     * A sealed class is exhaustive if all classes that inherit from it are publicly accessible, and
+     * a client can do an exhaustive match on an instance of that sealed class without the need for
+     * an else branch. This is being tracked because adding a new subclass to an exhaustive class
+     * can create breaking changes for clients, so we want to raise a compatibility issue if that is
+     * detected. For more information see b/447143803
+     */
+    fun isExhaustive(): Boolean
 
-    fun isInfix(): Boolean = false
+    fun isFunctional(): Boolean
 
-    fun isConst(): Boolean = false
+    fun isCompanion(): Boolean
 
-    fun isSuspend(): Boolean = false
+    fun isInfix(): Boolean
 
-    fun isOperator(): Boolean = false
+    fun isConst(): Boolean
 
-    fun isInline(): Boolean = false
+    fun isSuspend(): Boolean
 
-    fun isValue(): Boolean = false
+    fun isOperator(): Boolean
 
-    fun isData(): Boolean = false
+    fun isInline(): Boolean
 
-    fun isExpect(): Boolean = false
+    fun isValue(): Boolean
 
-    fun isActual(): Boolean = false
+    fun isData(): Boolean
 
-    fun isPackagePrivate() = !(isPublic() || isProtected() || isPrivate())
+    fun isExpect(): Boolean
 
-    fun isPublicOrProtected() = isPublic() || isProtected()
+    fun isActual(): Boolean
 
     /**
      * Check whether this [ModifierList]'s modifiers are equivalent to the [other] [ModifierList]'s

@@ -21,53 +21,40 @@ import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.CallableBody
 import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.ClassTypeItem
+import com.android.tools.metalava.model.value.FieldReferenceValue
 import com.android.tools.metalava.reporter.FileLocation
 import com.android.tools.metalava.reporter.Issues
 import com.intellij.psi.JavaRecursiveElementVisitor
 import com.intellij.psi.PsiClassObjectAccessExpression
 import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiField
+import com.intellij.psi.PsiMethod
 import com.intellij.psi.PsiModifier
 import com.intellij.psi.PsiReferenceExpression
 import com.intellij.psi.PsiReturnStatement
 import com.intellij.psi.PsiSynchronizedStatement
 import com.intellij.psi.PsiThisExpression
-import org.jetbrains.uast.UAnnotation
+import com.intellij.psi.PsiType
 import org.jetbrains.uast.UCallExpression
 import org.jetbrains.uast.UClassLiteralExpression
 import org.jetbrains.uast.UElement
 import org.jetbrains.uast.UMethod
 import org.jetbrains.uast.UQualifiedReferenceExpression
-import org.jetbrains.uast.USimpleNameReferenceExpression
 import org.jetbrains.uast.UThisExpression
 import org.jetbrains.uast.UThrowExpression
 import org.jetbrains.uast.UTryExpression
 import org.jetbrains.uast.UastErrorType
 import org.jetbrains.uast.getParentOfType
-import org.jetbrains.uast.toUElement
 import org.jetbrains.uast.visitor.AbstractUastVisitor
 
-internal class PsiCallableBody(private val callable: PsiCallableItem) : CallableBody {
-
-    /**
-     * Access [codebase] on demand as [callable] is not properly initialized during initialization
-     * of this class.
-     */
-    private val codebase
-        get() = callable.codebase
-
-    /**
-     * Access [psiMethod] on demand as [callable] is not properly initialized during initialization
-     * of this class.
-     */
-    private val psiMethod
-        get() = callable.psiMethod
-
-    override fun duplicate(callableItem: CallableItem): CallableBody {
-        // It is ok to cast here as `duplicate` will always be called with a `callableItem` from the
-        // same type of `Codebase` as this is.
-        return PsiCallableBody(callableItem as PsiCallableItem)
-    }
+internal class PsiCallableBody(
+    private val psiCodebase: PsiBasedCodebase,
+    private val callable: CallableItem,
+    private val psiMethod: PsiMethod,
+) : CallableBody {
+    override fun duplicate(callableItem: CallableItem) =
+        PsiCallableBody(psiCodebase, callableItem, psiMethod)
 
     // Cannot create a copy of this as callableItem cannot be cast to PsiCallableItem. There is no
     // easy way to capture the state of this sufficiently well to implement the necessary behavior
@@ -90,8 +77,8 @@ internal class PsiCallableBody(private val callable: PsiCallableItem) : Callable
                     val type = node.thrownExpression.getExpressionType()
                     // TODO: after KTIJ-31242, go back to null check only
                     if (type != null && type != UastErrorType) {
-                        val typeItemFactory = codebase.globalTypeItemFactory.from(callable)
-                        val exceptionClass = typeItemFactory.getType(type).asClass()
+                        val exceptionClass =
+                            thrownExceptionClassForPsiType(type)?.resolveClass(callable.codebase)
                         if (exceptionClass != null && !isCaught(exceptionClass, node)) {
                             exceptions.add(exceptionClass)
                         }
@@ -107,8 +94,7 @@ internal class PsiCallableBody(private val callable: PsiCallableItem) : Callable
                                 UTryExpression::class.java,
                                 true,
                                 UMethod::class.java
-                            )
-                                ?: return false
+                            ) ?: return false
 
                         for (catchClause in tryExpression.catchClauses) {
                             for (type in catchClause.types) {
@@ -126,6 +112,16 @@ internal class PsiCallableBody(private val callable: PsiCallableItem) : Callable
         )
 
         return exceptions
+    }
+
+    /**
+     * Get the exception [ClassTypeItem] for the thrown exception [type].
+     *
+     * It must return a [ClassTypeItem] as only concrete exception classes can be thrown.
+     */
+    private fun thrownExceptionClassForPsiType(type: PsiType): ClassTypeItem? {
+        val typeItemFactory = psiCodebase.globalTypeItemFactory.from(callable)
+        return typeItemFactory.getType(type) as? ClassTypeItem
     }
 
     override fun findVisiblySynchronizedLocations(): List<FileLocation> {
@@ -185,7 +181,6 @@ internal class PsiCallableBody(private val callable: PsiCallableItem) : Callable
         typeDefAnnotation: AnnotationItem,
         typeDefClass: ClassItem,
     ) {
-        val uAnnotation = typeDefAnnotation.uAnnotation ?: return
         val body = psiMethod.body ?: return
 
         body.accept(
@@ -210,12 +205,12 @@ internal class PsiCallableBody(private val callable: PsiCallableItem) : Callable
                             val names =
                                 constants
                                     ?: run {
-                                        constants = computeValidConstantNames(uAnnotation)
+                                        constants = computeValidConstantNames(typeDefAnnotation)
                                         constants!!
                                     }
                             if (names.isNotEmpty() && !names.contains(name)) {
                                 val expected = names.joinToString { it }
-                                codebase.reporter.report(
+                                psiCodebase.reporter.report(
                                     Issues.RETURNING_UNEXPECTED_CONSTANT,
                                     value as PsiElement,
                                     "Returning unexpected constant $name; is @${typeDefClass.simpleName()} missing this constant? Expected one of $expected"
@@ -228,25 +223,8 @@ internal class PsiCallableBody(private val callable: PsiCallableItem) : Callable
         )
     }
 
-    private fun computeValidConstantNames(annotation: UAnnotation): List<String> {
-        val constants = annotation.findAttributeValue(ANNOTATION_ATTR_VALUE) ?: return emptyList()
-        if (constants is UCallExpression) {
-            return constants.valueArguments
-                .mapNotNull { (it as? USimpleNameReferenceExpression)?.identifier }
-                .toList()
-        }
-
-        return emptyList()
+    private fun computeValidConstantNames(annotation: AnnotationItem): List<String> {
+        val constants = annotation.findAttribute(ANNOTATION_ATTR_VALUE)?.value ?: return emptyList()
+        return constants.asFlatList().mapNotNull { (it as? FieldReferenceValue)?.fieldName }
     }
 }
-
-/** Public for use only in ExtractAnnotations */
-val AnnotationItem.uAnnotation: UAnnotation?
-    get() =
-        when (this) {
-            is UAnnotationItem -> uAnnotation
-            is PsiAnnotationItem ->
-                // Imported annotation
-                psiAnnotation.toUElement(UAnnotation::class.java)
-            else -> null
-        }

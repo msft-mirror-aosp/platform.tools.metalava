@@ -17,11 +17,9 @@
 package com.android.tools.metalava.apilevels
 
 import com.android.tools.metalava.ARG_ANDROID_JAR_PATTERN
-import com.android.tools.metalava.ARG_CURRENT_CODENAME
-import com.android.tools.metalava.ARG_CURRENT_VERSION
+import com.android.tools.metalava.ARG_API_VERSION_FOR_SOURCES
 import com.android.tools.metalava.ARG_GENERATE_API_LEVELS
 import com.android.tools.metalava.ARG_SDK_INFO_FILE
-import com.android.tools.metalava.ARG_SDK_JAR_ROOT
 import com.android.tools.metalava.doc.getApiLookup
 import com.android.tools.metalava.testing.java
 import org.junit.Assert.assertEquals
@@ -42,17 +40,13 @@ class ExtractPublicApiLevelsTest : ApiGeneratorIntegrationTestBase() {
                     ARG_GENERATE_API_LEVELS,
                     outputPath,
                     ARG_ANDROID_JAR_PATTERN,
-                    "${oldSdkJars.path}/android-%/android.jar",
-                    ARG_ANDROID_JAR_PATTERN,
                     androidPublicJarsPattern,
-                    ARG_SDK_JAR_ROOT,
-                    extensionSdkJars.path,
+                    ARG_ANDROID_JAR_PATTERN,
+                    "${extensionSdkJars.path}/{version:extension}/public/{module}.jar",
                     ARG_SDK_INFO_FILE,
                     createSdkExtensionInfoFile().path,
-                    ARG_CURRENT_CODENAME,
-                    "Z",
-                    ARG_CURRENT_VERSION,
-                    currentVersion.toString() // not real api level of Z
+                    ARG_API_VERSION_FOR_SOURCES,
+                    currentVersion.toString()
                 ),
             sourceFiles =
                 arrayOf(
@@ -68,14 +62,9 @@ class ExtractPublicApiLevelsTest : ApiGeneratorIntegrationTestBase() {
 
         assertTrue(output.isFile)
 
-        val xml =
-            output
-                .readText(Charsets.UTF_8)
-                // As this only provides a single MyTest class in the current codebase which is of
-                // version 36, the api-versions.xml generator will assume that all the other classes
-                // it has seen have been removed. That is not true so remove those attributes.
-                .replace(" removed=\"36\"", "")
-        val nextVersion = currentVersion + 1
+        val xml = output.readText(Charsets.UTF_8)
+
+        val nextVersion = 35
         assertTrue(xml.contains("<class name=\"android/Manifest\$permission\" since=\"1\">"))
         assertTrue(
             xml.contains(

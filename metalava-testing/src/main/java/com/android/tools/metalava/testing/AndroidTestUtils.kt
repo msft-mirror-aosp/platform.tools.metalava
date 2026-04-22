@@ -18,12 +18,18 @@ package com.android.tools.metalava.testing
 
 import java.io.File
 
-private const val API_LEVEL = 31
+/**
+ * The default API level used in tests.
+ *
+ * Set to 34 as that was the first version in which the `java.lang.Record` class was added.
+ */
+private const val API_LEVEL = 34
 
 private fun getAndroidJarFromEnv(apiLevel: Int): File {
     val sdkRoot =
         System.getenv("ANDROID_SDK_ROOT")
-            ?: System.getenv("ANDROID_HOME") ?: error("Expected ANDROID_SDK_ROOT to be set")
+            ?: System.getenv("ANDROID_HOME")
+            ?: error("Expected ANDROID_SDK_ROOT to be set")
     val jar = File(sdkRoot, "platforms/android-$apiLevel/android.jar")
     if (!jar.exists()) {
         error("Missing ${jar.absolutePath} file in the SDK")

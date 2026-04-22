@@ -16,7 +16,7 @@
 
 package com.android.tools.metalava
 
-import com.android.tools.metalava.cli.common.MetalavaCliException
+import com.android.tools.metalava.cli.common.cliError
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ArrayTypeItem
 import com.android.tools.metalava.model.CallableItem
@@ -28,6 +28,7 @@ import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.SUPPORT_TYPE_USE_ANNOTATIONS
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.VariableTypeItem
+import com.android.tools.metalava.model.visitors.ApiPredicate
 import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
@@ -41,6 +42,15 @@ class NullabilityAnnotationsValidator(
     private val reporter: Reporter,
     private val nullabilityErrorsFatal: Boolean,
     private val nullabilityWarningsTxt: File?,
+    private val apiPredicateConfig: ApiPredicate.Config,
+
+    /**
+     * An optional [File] containing a list of top level classes whose contents should be checked by
+     * this.
+     *
+     * The file contains one top-level class per line, and lines starting with # are skipped.
+     */
+    private val topLevelClassListFile: File?,
 ) {
 
     private enum class ErrorType {
@@ -88,7 +98,7 @@ class NullabilityAnnotationsValidator(
         for (topLevelClassName in topLevelClassNames) {
             val topLevelClass =
                 codebase.findClass(topLevelClassName)
-                    ?: throw MetalavaCliException(
+                    ?: cliError(
                         "Trying to validate nullability annotations for class $topLevelClassName which could not be found in main codebase"
                     )
             // Visit methods to check their return type, and parameters to check them. Don't visit
@@ -97,7 +107,7 @@ class NullabilityAnnotationsValidator(
             topLevelClass.accept(
                 object :
                     ApiVisitor(
-                        apiPredicateConfig = @Suppress("DEPRECATION") options.apiPredicateConfig,
+                        apiPredicateConfig = apiPredicateConfig,
                     ) {
 
                     override fun visitMethod(method: MethodItem) {
@@ -118,14 +128,14 @@ class NullabilityAnnotationsValidator(
     }
 
     /**
-     * As [validateAll], reading the list of class names from [topLevelClassesList]. The file names
-     * one top-level class per line, and lines starting with # are skipped. Does nothing if
-     * [topLevelClassesList] is null.
+     * As [validateAll], reading the list of class names from [topLevelClassListFile].
+     *
+     * Does nothing if [topLevelClassListFile] is null.
      */
-    fun validateAllFrom(codebase: Codebase, topLevelClassesList: File?) {
-        if (topLevelClassesList != null) {
+    fun validateExplicitlySpecifiedClasses(codebase: Codebase) {
+        if (topLevelClassListFile != null) {
             val classes =
-                topLevelClassesList
+                topLevelClassListFile
                     .readLines()
                     .filterNot { it.isBlank() }
                     .map { it.trim() }
@@ -136,7 +146,7 @@ class NullabilityAnnotationsValidator(
 
     private fun checkItem(callable: CallableItem, label: String, type: TypeItem?, item: Item) {
         if (type == null) {
-            throw MetalavaCliException("Missing type on $callable item $label")
+            cliError("Missing type on $callable item $label")
         }
         val annotations = item.modifiers.annotations()
         val nullabilityAnnotations = annotations.filter(this::isAnyNullabilityAnnotation)

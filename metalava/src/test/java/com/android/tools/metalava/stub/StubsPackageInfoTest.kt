@@ -17,7 +17,6 @@
 package com.android.tools.metalava.stub
 
 import com.android.tools.metalava.ARG_PASS_THROUGH_ANNOTATION
-import com.android.tools.metalava.androidxNullableSource
 import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.testing.RequiresCapabilities
 import com.android.tools.metalava.model.text.FileFormat
@@ -50,9 +49,7 @@ class StubsPackageInfoTest : AbstractStubsTest() {
                     }
                     """
                     ),
-                    androidxNullableSource,
-                    // Hide androidx.annotation classes.
-                    KnownSourceFiles.androidxAnnotationHide,
+                    KnownSourceFiles.androidxNullableJavaSource,
                 ),
             warnings = "",
             api =
@@ -162,7 +159,7 @@ class StubsPackageInfoTest : AbstractStubsTest() {
                     """
                     )
                 ),
-            docStubs = true
+            docStubs = true,
         )
     }
 
@@ -183,8 +180,6 @@ class StubsPackageInfoTest : AbstractStubsTest() {
                         .indented(),
                     java("""package test.pkg; public abstract class Class1 { }"""),
                     restrictToSource,
-                    // Hide androidx.annotation classes.
-                    KnownSourceFiles.androidxAnnotationHide,
                 ),
             api =
                 """
@@ -196,18 +191,20 @@ class StubsPackageInfoTest : AbstractStubsTest() {
                 """,
             stubFiles =
                 arrayOf(
-                    java("""
-                    package test.pkg;
-                    """),
                     java(
                         """
-                    package test.pkg;
-                    @SuppressWarnings({"unchecked", "deprecation", "all"})
-                    public abstract class Class1 {
-                    public Class1() { throw new RuntimeException("Stub!"); }
-                    }
-                    """
-                    )
+                            package test.pkg;
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+                            @SuppressWarnings({"unchecked", "deprecation", "all"})
+                            public abstract class Class1 {
+                            public Class1() { throw new RuntimeException("Stub!"); }
+                            }
+                        """
+                    ),
                 ),
         )
     }
@@ -259,6 +256,8 @@ class StubsPackageInfoTest : AbstractStubsTest() {
                  */
                 package test.pkg;
                 """,
+            // Includes documentation so cannot match what is generated from signature file.
+            checkTextStubEquivalence = false,
         )
     }
 }

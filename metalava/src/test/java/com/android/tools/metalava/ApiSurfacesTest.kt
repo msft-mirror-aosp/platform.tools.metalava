@@ -55,21 +55,11 @@ class ApiSurfacesTest : DriverTest() {
                 ),
             extraArguments = arguments,
             postAnalysisChecker = {
-                val apiSurfaces = options.apiSurfaces
+                val apiSurfaces = codebase!!.config.apiSurfaces
                 val context = ApiSurfacesContext(apiSurfaces)
                 context.checker()
             },
         )
-    }
-
-    private fun ApiSurfaces.assertBaseWasNotCreated() {
-        assertNull(base, message = "base")
-        assertNull(main.extends, message = "main.extends")
-    }
-
-    private fun ApiSurfaces.assertBaseWasCreated() {
-        assertNotNull(base, message = "base")
-        assertSame(base, main.extends, message = "main.extends")
     }
 
     @Test
@@ -128,4 +118,37 @@ class ApiSurfacesTest : DriverTest() {
             apiSurfaces.assertBaseWasCreated()
         }
     }
+
+    @Test
+    fun `Test no show annotations with signature sources`() {
+        check(
+            signatureSource =
+                """
+                    package test.pkg {
+                        public class Foo {
+                            ctor public Foo();
+                        }
+                    }
+                """,
+            configFiles = arrayOf(KnownConfigFiles.configPublicAndSystemSurfaces),
+            extraArguments =
+                arrayOf(
+                    ARG_API_SURFACE,
+                    "system",
+                ),
+        ) {
+            val apiSurfaces = codebase!!.config.apiSurfaces
+            apiSurfaces.assertBaseWasCreated()
+        }
+    }
+}
+
+fun ApiSurfaces.assertBaseWasNotCreated() {
+    assertNull(base, message = "base")
+    assertNull(main.extends, message = "main.extends")
+}
+
+fun ApiSurfaces.assertBaseWasCreated() {
+    assertNotNull(base, message = "base")
+    assertSame(base, main.extends, message = "main.extends")
 }

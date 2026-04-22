@@ -20,7 +20,6 @@ import com.android.tools.lint.checks.infrastructure.TestFiles.source
 import com.android.tools.metalava.cli.common.ARG_ERROR
 import com.android.tools.metalava.cli.common.ARG_HIDE
 import com.android.tools.metalava.cli.lint.ARG_API_LINT
-import com.android.tools.metalava.lint.DefaultLintErrorMessage
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.testing.KnownSourceFiles
 import com.android.tools.metalava.testing.java
@@ -75,7 +74,6 @@ class BaselineTest : DriverTest() {
                 """
                 src/test/pkg/Foo.java:9: error: Class test.pkg.Hidden2 is hidden but was referenced (in return type) from public method test.pkg.Foo.getHidden2() [ReferencesHidden]
             """,
-            expectedFail = DefaultLintErrorMessage,
             sourceFiles =
                 arrayOf(
                     java(
@@ -179,9 +177,8 @@ class BaselineTest : DriverTest() {
         // When using show annotations we should only reference errors that are present in the delta
         check(
             format = FileFormat.V2,
-            includeSystemApiAnnotations = true,
-            extraArguments =
-                arrayOf(ARG_SHOW_ANNOTATION, "android.annotation.TestApi", ARG_API_LINT),
+            includeSystemApiAnnotations = SystemApiType.TEST,
+            extraArguments = arrayOf(ARG_API_LINT),
             baselineTestInfo =
                 BaselineTestInfo(
                     inputContents = "",
@@ -240,9 +237,7 @@ class BaselineTest : DriverTest() {
                     """
                     ),
                     testApiSource,
-                    androidxNullableSource,
-                    // Hide android.annotation classes.
-                    KnownSourceFiles.androidAnnotationHide,
+                    KnownSourceFiles.androidxNullableJavaSource,
                 ),
             api =
                 """

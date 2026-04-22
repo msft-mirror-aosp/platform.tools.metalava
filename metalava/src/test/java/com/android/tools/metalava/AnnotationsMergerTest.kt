@@ -20,7 +20,6 @@ import com.android.tools.metalava.cli.common.ARG_WARNING
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.testing.KnownSourceFiles
-import com.android.tools.metalava.testing.KnownSourceFiles.androidxAnnotationHide
 import com.android.tools.metalava.testing.java
 import org.junit.Test
 
@@ -37,9 +36,8 @@ class AnnotationsMergerTest : DriverTest() {
             format = FileFormat.V2,
             sourceFiles =
                 arrayOf(
-                    androidxAnnotationHide,
-                    androidxNullableSource,
-                    androidxNonNullSource,
+                    KnownSourceFiles.androidxNullableJavaSource,
+                    KnownSourceFiles.androidxNonNullJavaSource,
                     java(
                         """
                             package test.pkg;
@@ -88,9 +86,8 @@ class AnnotationsMergerTest : DriverTest() {
             format = FileFormat.V2,
             sourceFiles =
                 arrayOf(
-                    androidxAnnotationHide,
-                    androidxNullableSource,
-                    androidxNonNullSource,
+                    KnownSourceFiles.androidxNullableJavaSource,
+                    KnownSourceFiles.androidxNonNullJavaSource,
                     java(
                         """
                             package test.pkg;
@@ -137,7 +134,6 @@ class AnnotationsMergerTest : DriverTest() {
     fun `Signature files contain annotations`() {
         check(
             format = FileFormat.V2,
-            includeSystemApiAnnotations = false,
             sourceFiles =
                 arrayOf(
                     java(
@@ -158,12 +154,8 @@ class AnnotationsMergerTest : DriverTest() {
                     ),
                     uiThreadSource,
                     intRangeAnnotationSource,
-                    androidxNonNullSource,
-                    androidxNullableSource,
-                    // Hide android.annotation classes.
-                    KnownSourceFiles.androidAnnotationHide,
-                    // Hide androidx.annotation classes.
-                    KnownSourceFiles.androidxAnnotationHide,
+                    KnownSourceFiles.androidxNonNullJavaSource,
+                    KnownSourceFiles.androidxNullableJavaSource,
                 ),
             api =
                 """
@@ -258,7 +250,7 @@ class AnnotationsMergerTest : DriverTest() {
                 ),
             mergeSignatureAnnotations =
                 """
-                // Signature format: 3.0
+                // Signature format: 4.0
                 package test.pkg {
                   public interface Appendable {
                     method public test.pkg.Appendable append(java.lang.CharSequence?);
@@ -305,8 +297,6 @@ class AnnotationsMergerTest : DriverTest() {
                     ),
                     libcoreNonNullSource,
                     libcoreNullableSource,
-                    // Hide libcore.util classes.
-                    KnownSourceFiles.libcodeUtilHide,
                 ),
             mergeJavaStubAnnotations =
                 """
@@ -345,7 +335,7 @@ class AnnotationsMergerTest : DriverTest() {
     fun `Merge qualifier annotations from Java stub files onto stubs that are not in the API signature file`() {
         check(
             format = FileFormat.V2,
-            includeSystemApiAnnotations = true,
+            includeSystemApiAnnotations = SystemApiType.TEST,
             sourceFiles =
                 arrayOf(
                     java(
@@ -397,7 +387,7 @@ class AnnotationsMergerTest : DriverTest() {
                     java(
                         """
                     package test.pkg;
-                    /** @hide */
+                    /** */
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public interface ForTesting {
                     public void foo();
@@ -435,8 +425,6 @@ class AnnotationsMergerTest : DriverTest() {
                     ),
                     libcoreNonNullSource,
                     libcoreNullableSource,
-                    // Hide libcore.util classes.
-                    KnownSourceFiles.libcodeUtilHide,
                 ),
             mergeJavaStubAnnotations =
                 """
@@ -481,8 +469,6 @@ class AnnotationsMergerTest : DriverTest() {
                     ),
                     libcoreNonNullSource,
                     libcoreNullableSource,
-                    // Hide libcore.util classes.
-                    KnownSourceFiles.libcodeUtilHide,
                 ),
             mergeJavaStubAnnotations =
                 """
@@ -947,7 +933,7 @@ class AnnotationsMergerTest : DriverTest() {
                     }
                     """
                     ),
-                    androidxNonNullSource,
+                    KnownSourceFiles.androidxNonNullJavaSource,
                 ),
             mergeXmlAnnotations =
                 """<?xml version="1.0" encoding="UTF-8"?>
