@@ -39,7 +39,6 @@ import com.android.tools.metalava.model.psi.kotlin.KaCodebaseAssembler
 import com.android.tools.metalava.model.source.SourceCodebaseAssembler
 import com.android.tools.metalava.model.source.SourcePackageInfo
 import com.android.tools.metalava.model.source.SourceSet
-import com.android.tools.metalava.model.source.hasApiVisibilityOrShowAnnotation
 import com.android.tools.metalava.reporter.Issues
 import com.intellij.openapi.project.Project
 import com.intellij.psi.JavaPsiFacade
@@ -363,9 +362,6 @@ internal class PsiCodebaseAssembler(
             initializeClassFromSources(psiClass, multiFileClasses, apiPackages)
         }
 
-        // Determine sealed class exhaustivity.
-        determineIfInaccessibleClassesMakeSuperClassesNonExhaustive()
-
         // Copy type use only nullness annotations to items.
         copyTypeUseOnlyNullnessAnnotationsToItems()
 
@@ -376,62 +372,6 @@ internal class PsiCodebaseAssembler(
 
         // Add kotlin-only APIs.
         kaCodebaseAssembler?.assemble()
-    }
-
-    /**
-     * Determine if sealed classes make super classes non-exhaustive.
-     *
-     * Instances of sealed classes can be matched using `when` statements. If all the subclasses of
-     * a sealed class are available to API consumers, then new subclasses can't be added to the
-     * sealed class because doing so would be a breaking change (clients' `when` statements would no
-     * longer be exhaustive). In this case, we label the sealed class as exhaustive. If there is an
-     * inaccessible class that extends a sealed class, however, then the sealed class is not
-     * exhaustive. For more details, see b/447143803
-     */
-    private fun determineIfInaccessibleClassesMakeSuperClassesNonExhaustive() {
-        val allClasses = codebase.getTopLevelClassesFromSource()
-        allClasses.forEach { classItem -> sealedClassExhaustivityHelper(classItem, false) }
-    }
-
-    /**
-     * Recursively traverses the inner classes of [classItem] to determine if any sealed super
-     * classes should be marked as non-exhaustive.
-     *
-     * A sealed class is considered non-exhaustive if it has at least one inaccessible subclass.
-     *
-     * @param classItem The current [ClassItem] being checked.
-     * @param parentWasNotVisible True if any containing class of [classItem] was not visible.
-     */
-    private fun sealedClassExhaustivityHelper(
-        classItem: ClassItem,
-        parentWasNotVisible: Boolean,
-    ) {
-        // If a ClassItem already exists for this psiClass, use its modifiers. Otherwise, create
-        // new ones.
-        val modifiers = classItem.modifiers
-        val curClassNotVisible =
-            modifiers.annotations().any { it.showability.hide() } ||
-                !modifiers.hasApiVisibilityOrShowAnnotation
-
-        if (curClassNotVisible || parentWasNotVisible) {
-            val superClassName = classItem.superClassType()?.qualifiedName
-            if (superClassName != null) {
-                codebase.findClass(superClassName)?.mutateModifiers { setExhaustive(false) }
-            }
-            classItem
-                .interfaceTypes()
-                .map { it.qualifiedName }
-                .forEach { name ->
-                    codebase.findClass(name)?.mutateModifiers { setExhaustive(false) }
-                }
-        }
-
-        classItem.nestedClasses().forEach { nestedClass ->
-            sealedClassExhaustivityHelper(
-                nestedClass,
-                parentWasNotVisible || curClassNotVisible,
-            )
-        }
     }
 
     /**
