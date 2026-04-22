@@ -35,6 +35,8 @@ import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.PropertyItem
+import com.android.tools.metalava.model.RecordComponentItem
+import com.android.tools.metalava.model.RecordComponentItemsFactory
 import com.android.tools.metalava.model.SkeletonClassItem
 import com.android.tools.metalava.model.SkeletonTypeParameterItem
 import com.android.tools.metalava.model.SourceFile
@@ -103,9 +105,11 @@ class DefaultItemFactory(
         origin: ClassOrigin,
         superClassType: ClassTypeItem?,
         interfaceTypes: List<ClassTypeItem>,
+        permitTypes: List<ClassTypeItem> = emptyList(),
         optionalAliasedType: TypeItem? = null,
         isFileFacade: Boolean = false,
         isMultiFileClass: Boolean = false,
+        recordComponentItemsFactory: RecordComponentItemsFactory? = null,
     ): SkeletonClassItem =
         DefaultClassItem(
             codebase,
@@ -124,9 +128,11 @@ class DefaultItemFactory(
             origin,
             superClassType,
             interfaceTypes,
+            permitTypes,
             isFileFacade = isFileFacade,
             optionalAliasedType = optionalAliasedType,
             isMultiFileClass = isMultiFileClass,
+            recordComponentItemsFactory = recordComponentItemsFactory ?: { emptyList() },
         )
 
     /** Create a [ConstructorItem]. */
@@ -292,6 +298,27 @@ class DefaultItemFactory(
             setterVisibility,
         )
 
+    /** Create a [PropertyItem] for use as a record component. */
+    fun createRecordComponentItem(
+        fileLocation: FileLocation,
+        sourceLanguage: SourceLanguage = defaultSourceLanguage,
+        modifiers: BaseModifierList,
+        name: String,
+        containingClass: ClassItem,
+        type: TypeItem,
+        recordComponentIndex: Int,
+    ): RecordComponentItem =
+        DefaultRecordComponentItem(
+            codebase,
+            fileLocation,
+            sourceLanguage,
+            modifiers,
+            name,
+            containingClass,
+            type,
+            recordComponentIndex,
+        )
+
     /** Create a [ClassItem] which is a typealias. */
     fun createTypeAliasItem(
         fileLocation: FileLocation,
@@ -325,6 +352,8 @@ class DefaultItemFactory(
             // normal classes.
             superClassType = null,
             interfaceTypes = emptyList(),
+            // Typealiases don't have a permits list since they cannot be sealed classes.
+            permitTypes = emptyList(),
             isFileFacade = false,
             optionalAliasedType = aliasedType,
         )

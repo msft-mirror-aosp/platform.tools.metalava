@@ -19,7 +19,9 @@ package com.android.tools.metalava.model.testsuite.packageitem
 import com.android.tools.lint.checks.infrastructure.TestFiles.source
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.provider.Capability
+import com.android.tools.metalava.model.provider.InputFormat
 import com.android.tools.metalava.model.testing.RequiresCapabilities
+import com.android.tools.metalava.model.testing.SupportedInputFormats
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.testing.KnownSourceFiles
 import com.android.tools.metalava.testing.TestFileCache
@@ -35,6 +37,7 @@ import kotlin.test.assertNull
 import org.junit.ClassRule
 import org.junit.Test
 
+@SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.JAVA)
 class CommonPackageItemTest : BaseModelTest() {
     companion object {
         /** Create a [TestFileCache] whose lifespan encompasses all the tests in this class. */
@@ -65,6 +68,7 @@ class CommonPackageItemTest : BaseModelTest() {
     }
 
     @RequiresCapabilities(Capability.HIDDEN_ITEMS)
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `Test @hide in package html`() {
         runSourceCodebaseTest(
@@ -95,6 +99,7 @@ class CommonPackageItemTest : BaseModelTest() {
     }
 
     @RequiresCapabilities(Capability.HIDDEN_ITEMS)
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `Test @hide in package info processed first`() {
         runSourceCodebaseTest(
@@ -122,6 +127,7 @@ class CommonPackageItemTest : BaseModelTest() {
     }
 
     @RequiresCapabilities(Capability.HIDDEN_ITEMS)
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `Test @hide in package info processed last`() {
         runSourceCodebaseTest(
@@ -148,7 +154,7 @@ class CommonPackageItemTest : BaseModelTest() {
         }
     }
 
-    @RequiresCapabilities(Capability.JAVA)
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `Test nullability annotation in package info`() {
         runSourceCodebaseTest(
@@ -226,9 +232,9 @@ class CommonPackageItemTest : BaseModelTest() {
         }
     }
 
-    @RequiresCapabilities(Capability.SIGNATURE)
+    @SupportedInputFormats(InputFormat.SIGNATURE)
     @Test
-    fun `Test package location (signature)`() {
+    fun `Test package location - signature`() {
         runCodebaseTest(
             signature(
                 """
@@ -250,9 +256,9 @@ class CommonPackageItemTest : BaseModelTest() {
         }
     }
 
-    @RequiresCapabilities(Capability.JAVA)
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
-    fun `Test package location (package-info)`() {
+    fun `Test package location - package-info`() {
         runCodebaseTest(
             inputSet(
                 java(
@@ -285,7 +291,7 @@ class CommonPackageItemTest : BaseModelTest() {
         }
     }
 
-    @RequiresCapabilities(Capability.JAVA)
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `Test package documentation (package-info) without header comment`() {
         runCodebaseTest(
@@ -311,7 +317,7 @@ class CommonPackageItemTest : BaseModelTest() {
         }
     }
 
-    @RequiresCapabilities(Capability.JAVA)
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `Test package documentation (package-info) with header comment`() {
         runCodebaseTest(
@@ -339,9 +345,9 @@ class CommonPackageItemTest : BaseModelTest() {
         }
     }
 
-    @RequiresCapabilities(Capability.JAVA)
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
-    fun `Test package location (package-html)`() {
+    fun `Test package location - package-html`() {
         runCodebaseTest(
             inputSet(
                 java(
@@ -377,9 +383,9 @@ class CommonPackageItemTest : BaseModelTest() {
         }
     }
 
-    @RequiresCapabilities(Capability.JAVA)
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
-    fun `Test package documentation (package-html)`() {
+    fun `Test package documentation - package-html`() {
         runCodebaseTest(
             inputSet(
                 java(
@@ -408,9 +414,9 @@ class CommonPackageItemTest : BaseModelTest() {
         }
     }
 
-    @RequiresCapabilities(Capability.JAVA)
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
-    fun `Test invalid package (package-html)`() {
+    fun `Test invalid package - package-html`() {
         runCodebaseTest(
             inputSet(
                 java(
@@ -441,9 +447,9 @@ class CommonPackageItemTest : BaseModelTest() {
         }
     }
 
-    @RequiresCapabilities(Capability.JAVA)
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
-    fun `Test package documentation (overview-html)`() {
+    fun `Test package documentation - overview-html`() {
         runCodebaseTest(
             inputSet(
                 java(
@@ -482,7 +488,7 @@ class CommonPackageItemTest : BaseModelTest() {
         }
     }
 
-    @RequiresCapabilities(Capability.JAVA)
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `Test mismatching between package and directory`() {
         runCodebaseTest(
@@ -511,7 +517,7 @@ class CommonPackageItemTest : BaseModelTest() {
         }
     }
 
-    @RequiresCapabilities(Capability.JAVA)
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `Test documentation on empty packages`() {
         runCodebaseTest(
@@ -575,6 +581,7 @@ class CommonPackageItemTest : BaseModelTest() {
     }
 
     @RequiresCapabilities(Capability.PACKAGE_HTML_FILES)
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `Test conflicting comments in package-info java and package html`() {
         runCodebaseTest(
@@ -614,7 +621,7 @@ class CommonPackageItemTest : BaseModelTest() {
         }
     }
 
-    @RequiresCapabilities(Capability.JAVA)
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `Test overlapping source path dirs`() {
         // Tests what happens when the source path contains overlapping source roots.

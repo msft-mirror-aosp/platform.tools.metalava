@@ -227,7 +227,12 @@ abstract class SourceCodebaseAssembler : DefaultCodebaseAssembler() {
      */
     fun copyTypeUseOnlyNullnessAnnotationsToItems() {
         codebase.accept(
-            object : BaseItemVisitor() {
+            object :
+                BaseItemVisitor(
+                    // TODO(b/482390286): Remove once record components handles type use annotations
+                    //  correctly.
+                    visitRecordComponentItems = true,
+                ) {
                 override fun visitItem(item: Item) {
                     if (item is ClassItem || item is PackageItem) return
                     val type = item.type() ?: return

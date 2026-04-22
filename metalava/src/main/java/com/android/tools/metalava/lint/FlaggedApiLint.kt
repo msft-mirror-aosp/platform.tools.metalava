@@ -17,6 +17,8 @@
 package com.android.tools.metalava.lint
 
 import com.android.tools.metalava.model.ANDROID_FLAGGED_API
+import com.android.tools.metalava.model.AnnotationFormatter
+import com.android.tools.metalava.model.AnnotationTarget
 import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
@@ -133,7 +135,7 @@ class FlaggedApiLint(
 
     private fun checkFlaggedApiLiteral(item: Item) {
         if (item.codebase.preFiltered) {
-            // Flag constants aren't ever API, so prefiltered codebases would always only contain
+            // Flag constants aren't ever API, so prefitered codebases would always only contain
             // literals.
             return
         }
@@ -293,7 +295,11 @@ class FlaggedApiLint(
      */
     private fun normalizeModifiers(item: Item): String {
         return StringWriter().use { writer ->
-            val modifierListWriter = ModifierListWriter.forNormalizing(writer)
+            val modifierListWriter =
+                ModifierListWriter(
+                    writer = writer,
+                    config = NORMALIZING_MODIFIER_LIST_WRITER_CONFIG,
+                )
             modifierListWriter.write(item)
             val normalizedModifiers = writer.toString().trim()
             normalizedModifiers
@@ -301,6 +307,15 @@ class FlaggedApiLint(
     }
 
     companion object {
+        /** [ModifierListWriter.Config] suitable for use when normalizing modifiers. */
+        private val NORMALIZING_MODIFIER_LIST_WRITER_CONFIG =
+            ModifierListWriter.Config(
+                target = AnnotationTarget.SIGNATURE_FILE,
+                annotationFormatter = AnnotationFormatter.normalizingFormatter(),
+                runtimeAnnotationsOnly = false,
+                skipNullnessAnnotations = true,
+            )
+
         /**
          * Heuristically converts the given string [literal] into a reference to the equivalent
          * `aconfig`-generated `Flags.java` field.

@@ -20,6 +20,7 @@ import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.provider.InputFormat
+import com.android.tools.metalava.model.testing.SupportedInputFormats
 import com.android.tools.metalava.model.testsuite.memberitem.CommonCopyMemberItemTest
 import com.android.tools.metalava.testing.java
 import kotlin.test.assertEquals
@@ -34,6 +35,7 @@ import org.junit.runners.Parameterized
  * These methods do very similar jobs, i.e. take a [MethodItem] from one [ClassItem], create a copy
  * of it in some way, and then add it to another [ClassItem].
  */
+@SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.JAVA)
 class CommonCopyMethodItemTest : CommonCopyMemberItemTest<MethodItem>() {
 
     enum class CopyMethod(

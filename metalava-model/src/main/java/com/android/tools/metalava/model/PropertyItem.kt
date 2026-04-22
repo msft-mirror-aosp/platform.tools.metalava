@@ -34,8 +34,6 @@ interface PropertyItem : MemberItem, TypeParameterListOwner, InheritableItem {
      */
     val constructorParameter: ParameterItem?
 
-    override fun describe(capitalize: Boolean) = toString()
-
     /** The type of this property */
     override fun type(): TypeItem
 
@@ -91,7 +89,7 @@ interface PropertyItem : MemberItem, TypeParameterListOwner, InheritableItem {
         return Objects.hash(name(), receiver)
     }
 
-    override fun toStringForItem(): String =
+    override fun toStringForItem() =
         "property ${containingClass().qualifiedName()}#${receiverString()}${name()}"
 
     // Inherit deprecation from the getter
@@ -105,9 +103,8 @@ interface PropertyItem : MemberItem, TypeParameterListOwner, InheritableItem {
                 }
 
     companion object {
-        val comparator: java.util.Comparator<PropertyItem> = Comparator { a, b ->
-            a.name().compareTo(b.name())
-        }
+        /** Orders [PropertyItem]s by their [PropertyItem.name]. */
+        val comparator: Comparator<PropertyItem> = Comparator.comparing { it.name() }
 
         /** Returns whether the two types should be considered equal property receivers. */
         fun equalReceivers(receiver1: TypeItem?, receiver2: TypeItem?): Boolean {
