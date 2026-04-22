@@ -15,7 +15,6 @@ com.android.tools.metalava.model.testsuite.annotationitem.CommonAnnotationItemTe
   unknown annotation class with named attribute - string value[psi,kotlin]
 
 com.android.tools.metalava.model.testsuite.classitem.CommonSealedClassTest
-  modifiers show exhaustive when class or interface is marked as exhaustive in signature[turbine]
   sealed class - explicit permits - not kotlin[text]
   sealed class - implicit permits - not kotlin[psi,java]
   sealed class - non-sealed - not kotlin[text]

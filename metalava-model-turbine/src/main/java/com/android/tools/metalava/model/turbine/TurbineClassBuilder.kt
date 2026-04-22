@@ -258,6 +258,12 @@ internal class TurbineClassBuilder(
                 }
             }
         modifiers.setDeprecated(isDeprecated(annotations))
+
+        // Set exhaustivity as true until proven otherwise either by an inaccessible subclass.
+        if (modifiers.isSealed()) {
+            modifiers.setExhaustive(true)
+        }
+
         return modifiers
     }
 
