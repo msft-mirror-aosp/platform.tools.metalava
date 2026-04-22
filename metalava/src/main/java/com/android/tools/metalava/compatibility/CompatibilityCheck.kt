@@ -37,6 +37,7 @@ import com.android.tools.metalava.model.MultipleTypeVisitor
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.PropertyItem
+import com.android.tools.metalava.model.RecordComponentItem
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.SourceLanguage
 import com.android.tools.metalava.model.StripJavaLangPrefix
@@ -47,6 +48,7 @@ import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.TypeStringConfiguration
 import com.android.tools.metalava.model.VariableTypeItem
 import com.android.tools.metalava.model.findAnnotation
+import com.android.tools.metalava.model.multiplatform.MultiplatformCodebase
 import com.android.tools.metalava.model.value.Value
 import com.android.tools.metalava.model.visitors.ApiPredicate
 import com.android.tools.metalava.model.visitors.ApiType
@@ -278,7 +280,7 @@ class CompatibilityCheck(
                     report(
                         Issues.REMOVED_FROM_BYTECODE,
                         old,
-                        "${new.describe()} has been removed from bytecode",
+                        "${old.describe()} has been removed from bytecode",
                     )
                 }
                 TargetLanguage.KOTLIN -> {
@@ -293,7 +295,7 @@ class CompatibilityCheck(
                     report(
                         Issues.REMOVED_FROM_KOTLIN,
                         old,
-                        "${new.describe()} can no longer be resolved from Kotlin source",
+                        "${old.describe()} can no longer be resolved from Kotlin source",
                     )
                 }
                 TargetLanguage.JAVA -> {
@@ -311,7 +313,7 @@ class CompatibilityCheck(
                     report(
                         Issues.REMOVED_FROM_JAVA,
                         old,
-                        "${new.describe()} can no longer be resolved from Java source",
+                        "${old.describe()} can no longer be resolved from Java source",
                     )
                 }
             }
@@ -521,35 +523,70 @@ class CompatibilityCheck(
         }
     }
 
-    override fun compareClassItems(old: ClassItem, new: ClassItem) {
-        // Perform different comparisons for typealiases.
-        // TODO(b/458733676): add error for converting from class to typealias or vice versa.
-        if (old.classKind == ClassKind.TYPEALIAS && new.classKind == ClassKind.TYPEALIAS) {
-            compareTypeAliasItems(old, new)
-            return
+    /**
+     * Check whether it is allowed to change [old]'s [ClassItem.classKind] from [oldClassKind] to
+     * [newClassKind].
+     */
+    private fun allowClassKindChange(
+        old: ClassItem,
+        oldClassKind: ClassKind,
+        newClassKind: ClassKind,
+    ) =
+        when {
+            oldClassKind == ClassKind.CLASS && newClassKind == ClassKind.RECORD -> {
+                // Changing from class -> record is allowed if the class was final and so could not
+                // be extended. There are a whole set of other restrictions on record classes, this
+                // relies on them being checked and enforced by the compiler. Any other incompatible
+                // changes that might need to be made to allow a class to be switched to a record,
+                // e.g. removing fields, will be checked for elsewhere.
+                old.modifiers.isFinal()
+            }
+            else -> false
         }
 
-        if (old.isAnnotationType() && new.isAnnotationType()) {
-            compareAnnotations(old, new)
+    /** Compare [ClassItem]s to see if [new] is compatible with [old]. */
+    override fun compareClassItems(old: ClassItem, new: ClassItem) {
+        val oldClassKind = old.classKind
+        val newClassKind = new.classKind
+
+        // Check to see whether the class kind has been changed.
+        if (oldClassKind != newClassKind) {
+            // If the change is not allowed then report it.
+            if (!allowClassKindChange(old, oldClassKind, newClassKind)) {
+                report(
+                    Issues.CHANGED_CLASS,
+                    new,
+                    "${new.qualifiedName()} changed from ${oldClassKind.description} to ${newClassKind.description}",
+                    oldItem = old,
+                )
+
+                // Avoid further warnings like "has changed abstract qualifier" which is implicit
+                // in this change.
+                return
+            }
+        } else {
+            // The old and new are the same kind so perform any kind specific comparison.
+            when (oldClassKind) {
+                ClassKind.ANNOTATION_TYPE -> {
+                    // Perform some annotation specific comparisons.
+                    compareAnnotations(old, new)
+                }
+                ClassKind.RECORD -> {
+                    compareRecordClass(old, new)
+                }
+                ClassKind.TYPEALIAS -> {
+                    // Perform completely different comparisons for typealiases.
+                    compareTypeAliasItems(old, new)
+
+                    // Do not do any more checks of the classes.
+                    return
+                }
+                else -> {}
+            }
         }
 
         val oldModifiers = old.modifiers
         val newModifiers = new.modifiers
-
-        if (
-            old.isInterface() != new.isInterface() ||
-                old.isEnum() != new.isEnum() ||
-                old.isAnnotationType() != new.isAnnotationType()
-        ) {
-            report(
-                Issues.CHANGED_CLASS,
-                new,
-                "${new.describe(capitalize = true)} changed class/interface declaration",
-                oldItem = old,
-            )
-            return // Avoid further warnings like "has changed abstract qualifier" which is implicit
-            // in this change
-        }
 
         val oldCodebase = old.codebase
         for (iface in old.interfaceTypes()) {
@@ -754,6 +791,67 @@ class CompatibilityCheck(
                 new,
                 "Added a subclass to a sealed ${if (new.isInterface()) "interface" else "class"} that can be exhaustively matched",
                 addedSubclasses.first().fileLocation,
+            )
+        }
+    }
+
+    /** Compare two [ClassKind.RECORD] classes, [old] and [new]. */
+    fun compareRecordClass(old: ClassItem, new: ClassItem) {
+        val oldComponents = old.recordComponents
+        val newComponents = new.recordComponents
+
+        val allNames = buildSet {
+            oldComponents.mapTo(this) { it.name }
+            newComponents.mapTo(this) { it.name }
+        }
+
+        for (name in allNames) {
+            val oldComponent = oldComponents[name]
+            val newComponent = newComponents[name]
+
+            if (oldComponent == null) {
+                // This should never fail as at least one of the classes must have a record
+                // component called `name` in order for it to be in allNames.
+                newComponent!!
+
+                // Added newComponent
+                report(
+                    Issues.ADDED_RECORD_COMPONENT,
+                    newComponent,
+                    "${new.describe(capitalize = true)} added record component $name"
+                )
+            } else if (newComponent == null) {
+                // Removed oldComponent
+                report(
+                    Issues.REMOVED_RECORD_COMPONENT,
+                    oldComponent,
+                    "${new.describe(capitalize = true)} removed record component $name"
+                )
+            } else {
+                // Compare components
+                compareRecordComponent(oldComponent, newComponent)
+            }
+        }
+    }
+
+    fun compareRecordComponent(old: RecordComponentItem, new: RecordComponentItem) {
+        val oldIndex = old.recordComponentIndex
+        val newIndex = new.recordComponentIndex
+        if (oldIndex != newIndex) {
+            report(
+                Issues.CHANGED_RECORD_COMPONENT,
+                new,
+                "${new.describe(capitalize = true)} changed position of record component ${old.name} from $oldIndex to $newIndex",
+            )
+        }
+
+        val oldType = old.type
+        val newType = new.type
+        if (oldType != newType) {
+            report(
+                Issues.CHANGED_RECORD_COMPONENT,
+                new,
+                "${new.describe(capitalize = true)} changed type of record component ${old.name} from ${oldType.toTypeString()} to ${newType.toTypeString()}",
             )
         }
     }
@@ -1477,6 +1575,37 @@ class CompatibilityCheck(
         handleRemoved(Issues.REMOVED_PROPERTY, old)
     }
 
+    override fun removedCodebase(old: Codebase) {
+        reportSourceSetIssue(
+            old,
+            Issues.REMOVED_SOURCE_SET,
+            "${old.description} has been removed",
+        )
+    }
+
+    override fun addedCodebase(new: Codebase) {
+        reportSourceSetIssue(
+            new,
+            Issues.ADDED_SOURCE_SET,
+            "${new.description} has been added",
+        )
+    }
+
+    /** Reports an [issue] on the [sourceSet]. */
+    private fun reportSourceSetIssue(sourceSet: Codebase, issue: Issue, message: String) {
+        if (
+            reporter.report(
+                issue,
+                sourceSet.location,
+                message,
+            )
+        ) {
+            if (issueConfiguration.getSeverity(issue) == Severity.ERROR) {
+                foundProblems = true
+            }
+        }
+    }
+
     /**
      * There are cases where compatibility issues need to be raised even for items marked as
      * experimental. This happens when experimental items are modified, added, or removed and then
@@ -1603,9 +1732,13 @@ class CompatibilityCheck(
             return
         }
 
-        val targetLanguages =
-            (item as? SelectableItem)?.targetLanguages ?: (item.parent())?.targetLanguages
-        val existsInBytecode = targetLanguages?.contains(TargetLanguage.BYTECODE) != false
+        val targetLanguages = item.targetLanguages
+        val oldTargetLanguages = oldItem?.targetLanguages
+        // Check the old item first if it exists, because if an item switched from existing in
+        // bytecode to not existing in bytecode, any changes are binary breaking.
+        val existsInBytecode =
+            (oldTargetLanguages?.contains(TargetLanguage.BYTECODE))
+                ?: (TargetLanguage.BYTECODE in targetLanguages)
         // Add detail about the kind of compatibility issue this is, and skip the issue if it does
         // not apply to the given target languages.
         val newMessage =
@@ -1628,6 +1761,10 @@ class CompatibilityCheck(
                 }
                 Issues.Category.SOURCE_COMPATIBILITY_ONLY -> {
                     // The item can't be used from source, don't report source compatibility issues.
+                    // This is not based on the oldItem because if the old item could be used from
+                    // source but the new one cannot, the change in target languages is the primary
+                    // issue, any others don't make sense to report when the new item can't be used
+                    // from source anyway.
                     if (targetLanguages == TargetLanguageSet.BYTECODE_ONLY) return
                     "Source breaking change: $message"
                 }
@@ -1656,12 +1793,7 @@ class CompatibilityCheck(
             apiPredicateConfig: ApiPredicate.Config,
             showUnannotated: Boolean,
         ) {
-            val filter =
-                apiType
-                    .getReferenceFilter(apiPredicateConfig)
-                    .or(apiType.getEmitFilter(apiPredicateConfig))
-                    .or(ApiType.PUBLIC_API.getReferenceFilter(apiPredicateConfig))
-                    .or(ApiType.PUBLIC_API.getEmitFilter(apiPredicateConfig))
+            val filter = getFilter(apiType, apiPredicateConfig)
 
             val checker =
                 CompatibilityCheck(
@@ -1682,7 +1814,7 @@ class CompatibilityCheck(
                 }
             val newFullCodebase = MergedCodebase(listOf(newCodebase))
 
-            CodebaseComparator().compare(checker, oldFullCodebase, newFullCodebase, filter)
+            CodebaseComparator.compare(checker, oldFullCodebase, newFullCodebase, filter)
 
             val message =
                 "Found compatibility problems checking " +
@@ -1692,5 +1824,45 @@ class CompatibilityCheck(
                 cliError(message)
             }
         }
+
+        /** Performs compatibility checks comparing the [newCodebase] against the [oldCodebase]. */
+        fun checkMultiplatformCompatibility(
+            newCodebase: MultiplatformCodebase,
+            oldCodebase: MultiplatformCodebase,
+            apiType: ApiType,
+            reporter: Reporter,
+            issueConfiguration: IssueConfiguration,
+            apiCompatAnnotations: Set<String>,
+            apiPredicateConfig: ApiPredicate.Config,
+        ) {
+            val filter = getFilter(apiType, apiPredicateConfig)
+            val checker =
+                CompatibilityCheck(
+                    filter,
+                    reporter,
+                    issueConfiguration,
+                    apiCompatAnnotations,
+                    apiName = null,
+                )
+
+            CodebaseComparator.compareMultiplatform(checker, oldCodebase, newCodebase, filter)
+
+            if (checker.foundProblems) {
+                cliError("Found problems checking multiplatform codebase compatibility")
+            }
+        }
+
+        /**
+         * Returns a filter which includes the [ApiType.getReferenceFilter] and
+         * [ApiType.getEmitFilter] for both the [apiType] and [ApiType.PUBLIC_API] based on the
+         * [apiPredicateConfig]. This is used to filter which items are included in compatibility
+         * checks.
+         */
+        private fun getFilter(apiType: ApiType, apiPredicateConfig: ApiPredicate.Config) =
+            apiType
+                .getReferenceFilter(apiPredicateConfig)
+                .or(apiType.getEmitFilter(apiPredicateConfig))
+                .or(ApiType.PUBLIC_API.getReferenceFilter(apiPredicateConfig))
+                .or(ApiType.PUBLIC_API.getEmitFilter(apiPredicateConfig))
     }
 }

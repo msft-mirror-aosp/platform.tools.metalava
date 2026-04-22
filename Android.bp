@@ -20,7 +20,7 @@ java_binary_host {
     name: "metalava-antlr4-tool",
     manifest: "antlr/MANIFEST.MF",
     static_libs: [
-        "metalava-tools-antlr4-tool",
+        "prebuilts-metalava-antlr4-tool",
     ],
 }
 

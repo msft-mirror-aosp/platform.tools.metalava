@@ -20,7 +20,8 @@ import com.android.tools.metalava.model.doc.DocContent
 import com.android.tools.metalava.model.doc.DocContentOwner
 
 @MetalavaApi
-interface ParameterItem : ClassContentItem, Item, PossiblyPropertyRelated {
+interface ParameterItem :
+    ClassContentItem, Item, PossiblyPropertyRelated, PossiblyRecordComponentRelated {
     /** The name of this field */
     fun name(): String
 
@@ -82,6 +83,12 @@ interface ParameterItem : ClassContentItem, Item, PossiblyPropertyRelated {
      * Overridden to provide more specific documentation.
      */
     override var property: PropertyItem?
+
+    override val isRecordComponentRelated: Boolean
+        get() = containingCallable().isRecordComponentRelated
+
+    override val recordComponentRelationship: String?
+        get() = if (isRecordComponentRelated) "canonical constructor" else null
 
     override fun parent(): CallableItem? = containingCallable()
 

@@ -310,7 +310,7 @@ class AnnotationsMerger(
                 }
             }
 
-        CodebaseComparator().compare(visitor, externalCodebase, codebase)
+        CodebaseComparator.compare(visitor, externalCodebase, codebase)
     }
 
     private fun mergeInclusionAnnotationsFromCodebase(externalCodebase: Codebase) {
