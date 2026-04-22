@@ -88,7 +88,6 @@ class ExperimentalApiFileTest : DriverTest() {
                         @RequiresOptIn
                         class MyExperimentalClass {}
                         """
-                            .trimIndent()
                     ),
                 ),
             api =
@@ -130,7 +129,6 @@ class ExperimentalApiFileTest : DriverTest() {
                         @RequiresOptIn
                         class MyExperimentalClass {}
                         """
-                            .trimIndent()
                     ),
                 ),
             api =
@@ -170,7 +168,6 @@ class ExperimentalApiFileTest : DriverTest() {
 
                         class MyNonExperimentalClass {}
                         """
-                            .trimIndent()
                     ),
                 ),
             api =

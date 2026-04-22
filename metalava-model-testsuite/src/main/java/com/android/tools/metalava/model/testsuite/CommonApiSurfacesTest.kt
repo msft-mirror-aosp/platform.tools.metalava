@@ -18,6 +18,8 @@ package com.android.tools.metalava.model.testsuite
 
 import com.android.tools.metalava.model.api.surface.ApiSurfaces
 import com.android.tools.metalava.model.api.surface.ApiVariantType
+import com.android.tools.metalava.model.provider.InputFormat
+import com.android.tools.metalava.model.testing.SupportedInputFormats
 import com.android.tools.metalava.testing.java
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
@@ -27,7 +29,7 @@ import org.junit.Test
 
 @Suppress("JavadocDeclaration")
 class CommonApiSurfacesTest : BaseModelTest() {
-
+    @SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.JAVA)
     @Test
     fun `Test Codebase apiSurfaces default`() {
         runCodebaseTest(
@@ -58,6 +60,7 @@ class CommonApiSurfacesTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.JAVA)
     @Test
     fun `Test Codebase apiSurfaces with base`() {
         val fixtureApiSurfaces = ApiSurfaces.create(needsBase = true)
@@ -93,6 +96,7 @@ class CommonApiSurfacesTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.JAVA)
     @Test
     fun `Test mutating selectedApiVariants`() {
         runCodebaseTest(

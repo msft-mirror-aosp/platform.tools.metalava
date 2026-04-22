@@ -162,6 +162,9 @@ interface ClassItem :
     /** Any interfaces implemented by this class */
     @MetalavaApi fun interfaceTypes(): List<ClassTypeItem>
 
+    /** The list of subclasses/subinterfaces permitted to extend this class. */
+    val permitTypes: List<ClassTypeItem>
+
     /**
      * All classes and interfaces implemented (by this class and its super classes and the
      * interfaces themselves)
@@ -186,9 +189,13 @@ interface ClassItem :
     /** The fields in this class */
     @MetalavaApi fun fields(): List<FieldItem>
 
-    /** The members in this class: constructors, methods, fields/enum constants */
+    /** The members in this class: constructors, methods, fields/enum constants, properties */
     fun members(): Sequence<MemberItem> {
-        return fields().asSequence().plus(constructors().asSequence()).plus(methods().asSequence())
+        return fields()
+            .asSequence()
+            .plus(constructors().asSequence())
+            .plus(methods().asSequence())
+            .plus(properties().asSequence())
     }
 
     val classKind: ClassKind
@@ -216,6 +223,18 @@ interface ClassItem :
      * [JvmMultifileClass]. This can only be true when [isFileFacade] is true.
      */
     val isMultiFileClass: Boolean
+
+    /**
+     * The [RecordComponents] for this [ClassItem].
+     *
+     * A record class with no components and a non-record class will both have an empty
+     * [RecordComponents] instance. If it is necessary to differentiate between them then the caller
+     * must check whether [classKind] is [ClassKind.RECORD], or not.
+     *
+     * This is initialized on demand and must only be accessed after the [RecordComponentItem]s from
+     * which it is constructed have been added to the class.
+     */
+    val recordComponents: RecordComponents
 
     override fun describe(capitalize: Boolean): String {
         val descriptor =
@@ -757,6 +776,9 @@ interface ClassItem :
      * `{T->Y}`.
      */
     fun mapTypeVariables(target: ClassItem): TypeParameterBindings {
+        // Optimize trying to map variables from a class to its self.
+        if (this === target) return emptyMap()
+
         // Gather the supertypes to check for [target]. It is only possible for [target] to be found
         // in the class hierarchy through this class's interfaces if [target] is an interface.
         val candidates =

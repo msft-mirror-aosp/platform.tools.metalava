@@ -18,6 +18,8 @@ package com.android.tools.metalava.model.psi
 
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.PropertyItem
+import com.android.tools.metalava.model.provider.InputFormat
+import com.android.tools.metalava.model.testing.SupportedInputFormats
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.testing.kotlin
 import kotlin.test.Test
@@ -27,6 +29,7 @@ import kotlin.test.assertNull
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
+@SupportedInputFormats(InputFormat.KOTLIN)
 class PsiPropertyItemTest : BaseModelTest() {
     @Test
     fun `primary constructor properties have constructor parameters`() {

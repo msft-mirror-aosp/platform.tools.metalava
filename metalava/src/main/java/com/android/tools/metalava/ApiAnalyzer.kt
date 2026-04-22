@@ -37,6 +37,7 @@ import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PackageList
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.PropertyItem
+import com.android.tools.metalava.model.RecordComponentItem
 import com.android.tools.metalava.model.SUPPRESS_COMPATIBILITY_ANNOTATION_QUALIFIED
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.TargetLanguageSet
@@ -50,7 +51,7 @@ import com.android.tools.metalava.model.source.doc.DocContentPredicates
 import com.android.tools.metalava.model.value.asString
 import com.android.tools.metalava.model.visitors.ApiPredicate
 import com.android.tools.metalava.model.visitors.ApiVisitor
-import com.android.tools.metalava.permission.getRequiresPermissionInfo
+import com.android.tools.metalava.permission.getRequiresPermissionProxy
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
 import java.io.File
@@ -460,12 +461,9 @@ class ApiAnalyzer(
                     // a facade class needs to be emitted if it has any top-level fun/prop to emit
                     cls.members().none { member ->
                         // a member needs to be emitted if
-                        //  1) it doesn't have a hide annotation;
+                        //  1) it isn't hidden;
                         //  2) it is either public or has a show annotation;
-                        //  3) it is not `expect`
-                        !member.hasHideAnnotation() &&
-                            (member.isPublic || member.hasShowAnnotation()) &&
-                            !member.modifiers.isExpect()
+                        !member.hidden && (member.isPublic || member.hasShowAnnotation())
                     }
             ) {
                 cls.emit = false
@@ -508,9 +506,24 @@ class ApiAnalyzer(
                     preserveClassNesting = true,
                     // Only SelectableItems can have variantSelectors.
                     visitParameterItems = false,
+                    // RecordComponentItems need to be checked to see if they are hidden.
+                    visitRecordComponentItems = true,
                 ) {
                 override fun visitSelectableItem(item: SelectableItem) {
                     item.variantSelectors.inheritInto()
+                }
+
+                override fun visitRecordComponentItem(component: RecordComponentItem) {
+                    val codebase = component.codebase
+                    val hasHideAnnotations =
+                        codebase.annotationManager.hasHideAnnotations(component.modifiers)
+                    if (hasHideAnnotations) {
+                        codebase.reporter.report(
+                            Issues.HIDING_RECORD_COMPONENT,
+                            component,
+                            "Cannot hide ${component.describe()} as record components are an indivisible part of a record class"
+                        )
+                    }
                 }
             }
 
@@ -521,11 +534,11 @@ class ApiAnalyzer(
         val annotation = method.modifiers.findAnnotation(ANDROIDX_REQUIRES_PERMISSION)
         var hasAnnotation = false
 
-        val requiresPermissionInfo = annotation?.getRequiresPermissionInfo()
-        if (requiresPermissionInfo != null) {
+        val requiresPermissionProxy = annotation?.getRequiresPermissionProxy(method)
+        if (requiresPermissionProxy != null) {
             hasAnnotation = true
-            val values = requiresPermissionInfo.permissionValues
-            val any = requiresPermissionInfo.any
+            val values = requiresPermissionProxy.permissionValues
+            val any = requiresPermissionProxy.any
 
             val system = ArrayList<String>()
             val nonSystem = ArrayList<String>()
