@@ -143,7 +143,7 @@ internal class TurbineClassBuilder(
         // Create class
         val qualifiedName = classSymbol.qualifiedName
         val classKind = getClassKind(typeBoundClass.kind())
-        val modifierItem =
+        val modifiers =
             createModifiers(
                 ModifierContext.forClassKind(classKind),
                 typeBoundClass.access(),
@@ -156,11 +156,11 @@ internal class TurbineClassBuilder(
                 "class $qualifiedName",
             )
 
-        modifierItem.setSynchronized(false) // A class can not be synchronized in java
+        modifiers.setSynchronized(false) // A class can not be synchronized in java
 
         if (classKind == ClassKind.ANNOTATION_TYPE) {
-            if (!modifierItem.hasAnnotation(AnnotationItem::isRetention)) {
-                modifierItem.addDefaultRetentionPolicyAnnotation(codebase, isKotlin = false)
+            if (!modifiers.hasAnnotation(AnnotationItem::isRetention)) {
+                modifiers.addDefaultRetentionPolicyAnnotation(codebase, isKotlin = false)
             }
         }
 
@@ -191,7 +191,7 @@ internal class TurbineClassBuilder(
         val classItem =
             itemFactory.createClassItem(
                 fileLocation = fileLocation,
-                modifiers = modifierItem,
+                modifiers = modifiers,
                 documentationFactory = itemDocumentationFactoryForDecl(sourceFile, decl),
                 source = sourceFile,
                 classKind = classKind,
@@ -242,7 +242,7 @@ internal class TurbineClassBuilder(
         annoInfos: List<AnnoInfo>,
     ): MutableModifierList {
         val annotations = annotationFactory.createAnnotations(annoInfos, fieldResolver)
-        val modifierItem =
+        val modifiers =
             when (flag) {
                 0 -> { // No Modifier. Default modifier is PACKAGE_PRIVATE in such case
                     createMutableModifiers(
@@ -257,8 +257,8 @@ internal class TurbineClassBuilder(
                     )
                 }
             }
-        modifierItem.setDeprecated(isDeprecated(annotations))
-        return modifierItem
+        modifiers.setDeprecated(isDeprecated(annotations))
+        return modifiers
     }
 
     /**
@@ -429,7 +429,7 @@ internal class TurbineClassBuilder(
         for (field in fields) {
             val flags = field.access()
             val decl = field.decl()
-            val fieldModifierItem =
+            val fieldmodifiers =
                 createModifiers(
                     ModifierContext.forItemKind(ItemKind.FIELD),
                     flags,
@@ -439,8 +439,8 @@ internal class TurbineClassBuilder(
             // Ignore private member fields in records.
             if (
                 ignorePrivateMemberFields &&
-                    fieldModifierItem.isPrivate() &&
-                    !fieldModifierItem.isStatic()
+                    fieldmodifiers.isPrivate() &&
+                    !fieldmodifiers.isStatic()
             )
                 continue
 
@@ -448,9 +448,9 @@ internal class TurbineClassBuilder(
             val type =
                 typeItemFactory.getFieldType(
                     underlyingType = field.type(),
-                    itemAnnotations = fieldModifierItem.annotations(),
+                    itemAnnotations = fieldmodifiers.annotations(),
                     isEnumConstant = isEnumConstant,
-                    isFinal = fieldModifierItem.isFinal(),
+                    isFinal = fieldmodifiers.isFinal(),
                     isInitialValueNonNull = {
                         // The initial value is non-null if the value is a literal which is not
                         // null.
@@ -462,7 +462,7 @@ internal class TurbineClassBuilder(
                 field.value()?.let { const ->
                     // In Java fields have to be static and final in order for them to have a
                     // constant value
-                    if (!fieldModifierItem.isStatic() || !fieldModifierItem.isFinal()) {
+                    if (!fieldmodifiers.isStatic() || !fieldmodifiers.isFinal()) {
                         return@let null
                     }
                     val expr = field.decl()?.init()?.getOrNull()
@@ -473,7 +473,7 @@ internal class TurbineClassBuilder(
             val fieldItem =
                 itemFactory.createFieldItem(
                     fileLocation = TurbineFileLocation.forTree(classItem, decl),
-                    modifiers = fieldModifierItem,
+                    modifiers = fieldmodifiers,
                     documentationFactory = itemDocumentationFactoryForDecl(classItem, decl),
                     name = field.name(),
                     containingClass = classItem,
@@ -515,7 +515,7 @@ internal class TurbineClassBuilder(
                 continue
             }
 
-            val methodModifierItem =
+            val methodmodifiers =
                 createModifiers(
                     ModifierContext.forItemKind(ItemKind.METHOD),
                     method.access(),
@@ -523,8 +523,8 @@ internal class TurbineClassBuilder(
                 )
 
             // Final modifier is superfluous on a method in a final class.
-            if (methodModifierItem.isFinal() && classItem.modifiers.isFinal()) {
-                methodModifierItem.setFinal(false)
+            if (methodmodifiers.isFinal() && classItem.modifiers.isFinal()) {
+                methodmodifiers.setFinal(false)
             }
 
             val name = method.name()
@@ -542,11 +542,11 @@ internal class TurbineClassBuilder(
 
             val parameters = method.parameters()
             val fingerprint = MethodFingerprint(name, parameters.size)
-            val isAnnotationElement = classItem.isAnnotationType() && !methodModifierItem.isStatic()
+            val isAnnotationElement = classItem.isAnnotationType() && !methodmodifiers.isStatic()
             val returnType =
                 methodTypeItemFactory.getMethodReturnType(
                     underlyingReturnType = method.returnType(),
-                    itemAnnotations = methodModifierItem.annotations(),
+                    itemAnnotations = methodmodifiers.annotations(),
                     fingerprint = fingerprint,
                     isAnnotationElement = isAnnotationElement,
                 )
@@ -559,7 +559,7 @@ internal class TurbineClassBuilder(
             val methodItem =
                 itemFactory.createMethodItem(
                     fileLocation = TurbineFileLocation.forTree(classItem, decl),
-                    modifiers = methodModifierItem,
+                    modifiers = methodmodifiers,
                     documentationFactory = itemDocumentationFactoryForDecl(classItem, decl),
                     name = name,
                     containingClass = classItem,
@@ -603,7 +603,7 @@ internal class TurbineClassBuilder(
             var parameterIndex = 0
             for (parameter in parameters) {
                 if (ignoreSynthetic && parameter.synthetic()) continue
-                val parameterModifierItem =
+                val parametermodifiers =
                     createModifiers(
                             ModifierContext.forItemKind(ItemKind.PARAMETER),
                             parameter.access(),
@@ -613,10 +613,10 @@ internal class TurbineClassBuilder(
                 val type =
                     typeItemFactory.getMethodParameterType(
                         underlyingParameterType = parameter.type(),
-                        itemAnnotations = parameterModifierItem.annotations(),
+                        itemAnnotations = parametermodifiers.annotations(),
                         fingerprint = fingerprint,
                         parameterIndex = parameterIndex,
-                        isVarArg = parameterModifierItem.isVarArg(),
+                        isVarArg = parametermodifiers.isVarArg(),
                     )
                 // Get the [Tree.VarDecl] corresponding to the [ParamInfo], if available.
                 // [parameterDecls] will be null for a binary class. It will be empty for a
@@ -631,7 +631,7 @@ internal class TurbineClassBuilder(
                 val parameterItem =
                     itemFactory.createParameterItem(
                         fileLocation = fileLocation,
-                        modifiers = parameterModifierItem,
+                        modifiers = parametermodifiers,
                         name = parameter.name(),
                         publicName = null,
                         containingCallable = containingCallable,
@@ -656,7 +656,7 @@ internal class TurbineClassBuilder(
             if (constructor.sym().name() != "<init>") continue
 
             val decl: MethDecl? = constructor.decl()
-            val constructorModifierItem =
+            val constructormodifiers =
                 createModifiers(
                     ModifierContext.forItemKind(ItemKind.CONSTRUCTOR),
                     constructor.access(),
@@ -674,7 +674,7 @@ internal class TurbineClassBuilder(
             val constructorItem =
                 itemFactory.createConstructorItem(
                     fileLocation = TurbineFileLocation.forTree(classItem, decl),
-                    modifiers = constructorModifierItem,
+                    modifiers = constructormodifiers,
                     documentationFactory = itemDocumentationFactoryForDecl(classItem, decl),
                     // Turbine's Binder gives return type of constructors as void but the
                     // model expects it to the type of object being created. So, use the
