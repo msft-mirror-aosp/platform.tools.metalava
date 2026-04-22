@@ -50,6 +50,7 @@ Signature Format Output:
                                              * `add-additional-overrides`
                                              * `flagged-api-inheritance`
                                              * `java-record-classes`
+                                             * `java-sealed-classes`
                                              * `normalize-abstract-modifier`
                                              * `normalize-final-modifier`
                                              * `overloaded-method-order`

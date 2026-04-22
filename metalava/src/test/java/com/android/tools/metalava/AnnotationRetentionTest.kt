@@ -24,8 +24,6 @@ import com.android.tools.metalava.testing.kotlin
 import org.junit.Test
 
 class AnnotationRetentionTest : DriverTest() {
-
-    @RequiresCapabilities(Capability.JAVA)
     @Test
     fun `Annotation retention - java`() {
         // For annotations where the java.lang.annotation classes themselves are not

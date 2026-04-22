@@ -20,6 +20,7 @@ import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.FilterPredicate
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.ParameterItem
+import com.android.tools.metalava.model.RecordComponentItem
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.reporter.FileLocation
 import com.android.tools.metalava.reporter.Issues
@@ -77,6 +78,7 @@ class FilteringReporter(
                 when (item) {
                     is ParameterItem -> item.containingCallable()
                     is SelectableItem -> item
+                    is RecordComponentItem -> item.containingClass()
                     else -> error("Unknown item $item")
                 }
 

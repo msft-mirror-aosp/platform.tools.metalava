@@ -20,7 +20,7 @@ import java.util.Objects
 
 /** Common to [MethodItem] and [ConstructorItem]. */
 @MetalavaApi
-interface CallableItem : MemberItem, TypeParameterListOwner {
+interface CallableItem : MemberItem, TypeParameterListOwner, PossiblyRecordComponentRelated {
 
     /** Whether this callable is a constructor or a method. */
     @MetalavaApi fun isConstructor(): Boolean
@@ -146,17 +146,6 @@ interface CallableItem : MemberItem, TypeParameterListOwner {
         return throwsTypes
     }
 
-    /**
-     * Create an overload of this [CallableItem] with a copy of [parameters].
-     *
-     * The returned [CallableItem] will have its own parameters that are a copy of [parameters] with
-     * one exception. If [parameters] contains a varargs parameter which is last and its type is an
-     * [ArrayTypeItem] whose [ArrayTypeItem.isVarargs] is `false` then this will replace that type
-     * with an identical one except that [ArrayTypeItem.isVarargs] will be `true`. That ensures
-     * correct behavior for Kotlin varargs.
-     */
-    fun createOverload(parameters: List<ParameterItem>): CallableItem
-
     /** Override to specialize return type. */
     override fun findCorrespondingItemIn(
         codebase: Codebase,
@@ -208,7 +197,7 @@ interface CallableItem : MemberItem, TypeParameterListOwner {
         for (i in parameters1.indices) {
             val parameter1 = parameters1[i]
             val parameter2 = parameters2[i]
-            if (parameter1.type() != parameter2.type()) {
+            if (!equalParameterTypes(parameter1.type(), parameter2.type())) {
                 return false
             }
         }
@@ -267,7 +256,7 @@ interface CallableItem : MemberItem, TypeParameterListOwner {
         for (i in parameters1.indices) {
             val parameter1Type = parameters1[i].type()
             val parameter2Type = parameters2[i].type()
-            if (parameter1Type == parameter2Type) continue
+            if (equalParameterTypes(parameter1Type, parameter2Type)) continue
             // If these have the same erased type, they're considered equal for bytecode. If this
             // is a Kotlin-only callable, don't accept any equivalent-erased types as equal, but
             // allow for the case that one version has wildcards that the other doesn't (common
@@ -282,9 +271,22 @@ interface CallableItem : MemberItem, TypeParameterListOwner {
 
             val convertedType =
                 parameter1Type.convertType(other.containingClass(), containingClass())
-            if (convertedType != parameter2Type) return false
+            if (!equalParameterTypes(convertedType, parameter2Type)) return false
         }
         return true
+    }
+
+    /**
+     * Checks if the parameter types should be considered equal: if this is a Kotlin-only callable,
+     * the nullability of the parameter types matters as it is possible to have signatures in
+     * non-JVM Kotlin code that differ only by nullability.
+     */
+    private fun equalParameterTypes(parameterType1: TypeItem, parameterType2: TypeItem): Boolean {
+        return when (targetLanguages) {
+            TargetLanguageSet.KOTLIN_ONLY ->
+                parameterType1.equalToType(parameterType2, includeNullability = true)
+            else -> parameterType1 == parameterType2
+        }
     }
 
     /**

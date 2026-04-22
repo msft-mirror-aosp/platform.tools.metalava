@@ -32,6 +32,8 @@ import com.android.tools.metalava.model.provider.InputFormat
 import com.android.tools.metalava.model.source.DEFAULT_JAVA_LANGUAGE_LEVEL
 import com.android.tools.metalava.model.testing.CodebaseCreatorConfig
 import com.android.tools.metalava.model.testing.CodebaseCreatorConfigAware
+import com.android.tools.metalava.model.testing.SupportedInputFormats
+import com.android.tools.metalava.model.testing.inheritedSupportedInputFormats
 import com.android.tools.metalava.model.testing.testTypeString
 import com.android.tools.metalava.reporter.Issues.Issue
 import com.android.tools.metalava.reporter.RecordingReporter
@@ -41,9 +43,12 @@ import javax.annotation.CheckReturnValue
 import kotlin.test.assertEquals
 import org.junit.Rule
 import org.junit.rules.TemporaryFolder
+import org.junit.rules.TestRule
+import org.junit.runner.Description
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 import org.junit.runners.Parameterized.Parameter
+import org.junit.runners.model.Statement
 
 /**
  * Base class for tests that verify the behavior of model implementations.
@@ -106,6 +111,12 @@ abstract class BaseModelTest() :
     @get:Rule override val temporaryFolder = TemporaryFolder()
 
     /**
+     * A rule that checks to make sure that the [SupportedInputFormats] annotation that applies to a
+     * test method matches the set of [InputSet]s used by that test method.
+     */
+    @get:Rule val supportedInputFormatsRule = SupportedInputFormatsRule()
+
+    /**
      * Context within which the main body of tests that check the state of the [Codebase] or
      * [MultiplatformCodebase] will run.
      */
@@ -148,6 +159,9 @@ abstract class BaseModelTest() :
         /** The [InputFormat] from which [codebase] was created. */
         val inputFormat: InputFormat
 
+        /** The [InputSet] from which [codebase] was created. */
+        val inputSet: InputSet
+
         /** Replace any test run specific directories in [string] with a placeholder string. */
         fun removeTestSpecificDirectories(string: String): String
 
@@ -171,10 +185,12 @@ abstract class BaseModelTest() :
     inner class DefaultCodebaseContext(
         override val optionalCodebase: Codebase?,
         override val optionalMultiplatformCodebase: MultiplatformCodebase?,
-        override val inputFormat: InputFormat,
+        override val inputSet: InputSet,
         private val fileToSymbol: Map<File, String>,
         private val recordingReporter: RecordingReporter,
     ) : CodebaseContext {
+
+        override val inputFormat = inputSet.inputFormat
 
         override fun removeTestSpecificDirectories(string: String) =
             replaceFileWithSymbol(string, fileToSymbol)
@@ -224,6 +240,12 @@ abstract class BaseModelTest() :
 
         /** The set of [Issue] to exclude from the [recordingReporter]. */
         val excludedIssues: Set<Issue> = emptySet(),
+
+        /**
+         * Determined whether [SupportedInputFormatsRule.check] is called on
+         * [BaseModelTest.supportedInputFormatsRule].
+         */
+        val checkSupportedInputFormats: Boolean = true,
     ) {
         /** The [RecordingReporter] used by the test. */
         val recordingReporter = RecordingReporter(excludedIssues)
@@ -275,8 +297,21 @@ abstract class BaseModelTest() :
             },
         test: CodebaseContext.() -> Unit,
     ) {
+        // Check to make sure that the provided input set formats match the ones specified in the
+        // SupportedInputFormats annotation.
+        val providedInputFormats = inputSets.map { it.inputFormat }.toSet()
+        if (testFixture.checkSupportedInputFormats) {
+            supportedInputFormatsRule.check(providedInputFormats)
+        }
+
         // Run the input sets that match the current inputFormat.
-        for (inputSet in inputSets.filter { it.inputFormat == inputFormat }) {
+        val applicableInputSets = inputSets.filter { it.inputFormat == inputFormat }
+        if (applicableInputSets.isEmpty()) {
+            error(
+                "No input set provided for $inputFormat; please specify ${providedInputFormats.toSupportedInputFormats()}"
+            )
+        }
+        for (inputSet in applicableInputSets) {
             val mainSourceDir = sourceDir(inputSet)
             val projectDescriptionFile = projectDescription?.createFile(mainSourceDir.dir)
 
@@ -300,7 +335,7 @@ abstract class BaseModelTest() :
                         DefaultCodebaseContext(
                             codebase,
                             multiplatformCodebase,
-                            inputFormat,
+                            inputSet,
                             buildMap {
                                 this[mainSourceDir.dir] = "MAIN_SRC"
                                 additionalSourceDir?.dir?.let { dir ->
@@ -556,4 +591,63 @@ interface InputSetFactory {
 
         return InputSet(inputFormat, testFiles.toList(), sourcePathFiles)
     }
+}
+
+/**
+ * A rule that checks to make sure that the [SupportedInputFormats] annotation that applies to a
+ * test method matches the set of [InputSet]s used by that test method.
+ */
+class SupportedInputFormatsRule : TestRule {
+    private lateinit var expectedInputFormats: Set<InputFormat>
+
+    override fun apply(
+        base: Statement,
+        description: Description,
+    ) =
+        object : Statement() {
+            override fun evaluate() {
+                // Initialize the set of expected InputFormats from the description.
+                expectedInputFormats = description.expectedInputFormats()
+                try {
+                    base.evaluate()
+                } finally {
+                    // Reset it to empty.
+                    expectedInputFormats = emptySet()
+                }
+            }
+        }
+
+    /** Get the set of [InputFormat]s that are expected */
+    private fun Description.expectedInputFormats(): Set<InputFormat> {
+        getAnnotation(SupportedInputFormats::class.java)?.formats?.toSet()?.let {
+            return it
+        }
+        return testClass.inheritedSupportedInputFormats()
+    }
+
+    /**
+     * Check that the [providedInputFormats] matched [expectedInputFormats], failing if they do not.
+     *
+     * This will only be called when [BaseModelTest.TestFixture.checkSupportedInputFormats] is
+     * `true`.
+     */
+    fun check(providedInputFormats: Set<InputFormat>) {
+        if (providedInputFormats != expectedInputFormats) {
+            error(
+                "Mismatching @ProvidesInputFormats and inputSet; please specify ${providedInputFormats.toSupportedInputFormats()}"
+            )
+        }
+    }
+}
+
+/**
+ * Create a [String] representation of the [SupportedInputFormats] annotation to specify this set of
+ * [InputFormat]s.
+ */
+private fun Set<InputFormat>.toSupportedInputFormats() = buildString {
+    append("@SupportedInputFormats(")
+    InputFormat.entries
+        .filter { it in this@toSupportedInputFormats }
+        .joinTo(this) { "InputFormat.$it" }
+    append(")")
 }

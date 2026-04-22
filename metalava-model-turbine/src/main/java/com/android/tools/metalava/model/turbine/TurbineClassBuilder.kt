@@ -43,6 +43,7 @@ import com.android.tools.metalava.model.ModifierFlags.Companion.VARARG
 import com.android.tools.metalava.model.ModifierFlags.Companion.VOLATILE
 import com.android.tools.metalava.model.MutableModifierList
 import com.android.tools.metalava.model.ParameterItem
+import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.SkeletonClassItem
 import com.android.tools.metalava.model.SkeletonTypeParameterItem
 import com.android.tools.metalava.model.TypeItem
@@ -188,6 +189,18 @@ internal class TurbineClassBuilder(
                 origin = origin,
                 superClassType = superClassType,
                 interfaceTypes = interfaceTypes,
+                recordComponentItemsFactory =
+                    if (classKind == ClassKind.RECORD)
+                        { classItem ->
+                            createRecordComponents(
+                                classItem,
+                                typeBoundClass.components(),
+                                classTypeItemFactory
+                            )
+                        }
+                    else {
+                        null
+                    },
             )
 
         // Create fields
@@ -394,6 +407,7 @@ internal class TurbineClassBuilder(
         fields: ImmutableList<FieldInfo>,
         typeItemFactory: TurbineTypeItemFactory,
     ) {
+        val ignorePrivateMemberFields = classItem.classKind == ClassKind.RECORD
         for (field in fields) {
             val flags = field.access()
             val decl = field.decl()
@@ -403,6 +417,15 @@ internal class TurbineClassBuilder(
                     flags,
                     field.annotations(),
                 )
+
+            // Ignore private member fields in records.
+            if (
+                ignorePrivateMemberFields &&
+                    fieldModifierItem.isPrivate() &&
+                    !fieldModifierItem.isStatic()
+            )
+                continue
+
             val isEnumConstant = (flags and TurbineFlag.ACC_ENUM) != 0
             val type =
                 typeItemFactory.getFieldType(
@@ -666,6 +689,37 @@ internal class TurbineClassBuilder(
             // element-by-element comparison to see if the signature matches, and that should match
             // overrides even if they specify their elements in different orders.
             .sortedWith(ClassOrVariableTypeItem.fullNameComparator)
+
+    /**
+     * Create the [PropertyItem]s used to model record components.
+     *
+     * Must be called before creating any other members of [classItem].
+     */
+    private fun createRecordComponents(
+        classItem: ClassItem,
+        components: List<TypeBoundClass.RecordComponentInfo>,
+        classTypeItemFactory: TurbineTypeItemFactory,
+    ) =
+        components.mapIndexed { index, componentInfo ->
+            val modifiers =
+                createModifiers(
+                    ItemKind.RECORD_COMPONENT,
+                    componentInfo.access(),
+                    componentInfo.annotations()
+                )
+            modifiers.setVisibilityLevel(VisibilityLevel.PUBLIC)
+
+            val type = classTypeItemFactory.getGeneralType(componentInfo.type())
+
+            itemFactory.createRecordComponentItem(
+                fileLocation = classItem.fileLocation,
+                modifiers = modifiers,
+                name = componentInfo.name(),
+                containingClass = classItem,
+                type = type,
+                recordComponentIndex = index,
+            )
+        }
 
     /** Get an [ItemDocumentationFactory] for [decl] in [classItem]. */
     private fun itemDocumentationFactoryForDecl(classItem: ClassItem, decl: Tree?) =
