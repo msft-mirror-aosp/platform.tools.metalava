@@ -22,6 +22,8 @@ import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.VariableTypeItem
 import com.android.tools.metalava.model.noOpAnnotationManager
+import com.android.tools.metalava.model.provider.InputFormat
+import com.android.tools.metalava.model.testing.SupportedInputFormats
 import com.android.tools.metalava.model.testing.classTypeItem
 import com.android.tools.metalava.model.testing.value.annotationItem
 import com.android.tools.metalava.model.testing.value.arrayValue
@@ -44,6 +46,7 @@ import org.junit.Test
  * previous test so that a developer would start by running the first test, making it pass,
  * submitting the changes and then moving on to the next test.
  */
+@SupportedInputFormats(InputFormat.JAVA)
 class BootstrapSourceModelProviderTest : BaseModelTest() {
 
     @Test

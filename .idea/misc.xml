@@ -19,7 +19,7 @@
     <option name="myOrdered" value="true" />
     <option name="myNullables">
       <value>
-        <list size="18">
+        <list size="19">
           <item index="0" class="java.lang.String" itemvalue="org.jetbrains.annotations.Nullable" />
           <item index="1" class="java.lang.String" itemvalue="javax.annotation.Nullable" />
           <item index="2" class="java.lang.String" itemvalue="javax.annotation.CheckForNull" />
@@ -38,12 +38,13 @@
           <item index="15" class="java.lang.String" itemvalue="org.jspecify.annotations.Nullable" />
           <item index="16" class="java.lang.String" itemvalue="android.annotation.Nullable" />
           <item index="17" class="java.lang.String" itemvalue="jakarta.annotation.Nullable" />
+          <item index="18" class="java.lang.String" itemvalue="org.springframework.lang.Nullable" />
         </list>
       </value>
     </option>
     <option name="myNotNulls">
       <value>
-        <list size="18">
+        <list size="19">
           <item index="0" class="java.lang.String" itemvalue="org.jetbrains.annotations.NotNull" />
           <item index="1" class="java.lang.String" itemvalue="javax.annotation.Nonnull" />
           <item index="2" class="java.lang.String" itemvalue="javax.validation.constraints.NotNull" />
@@ -62,6 +63,7 @@
           <item index="15" class="java.lang.String" itemvalue="org.jspecify.annotations.NonNull" />
           <item index="16" class="java.lang.String" itemvalue="android.annotation.NonNull" />
           <item index="17" class="java.lang.String" itemvalue="jakarta.annotation.Nonnull" />
+          <item index="18" class="java.lang.String" itemvalue="org.springframework.lang.NonNull" />
         </list>
       </value>
     </option>

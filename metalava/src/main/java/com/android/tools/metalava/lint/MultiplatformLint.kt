@@ -18,6 +18,7 @@ package com.android.tools.metalava.lint
 
 import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.ClassOrigin
+import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.multiplatform.BaseMultiplatformItemVisitor
 import com.android.tools.metalava.model.multiplatform.MultiplatformClassItem
 import com.android.tools.metalava.model.multiplatform.MultiplatformCodebase
@@ -193,6 +194,11 @@ class MultiplatformLint(val reporter: Reporter) : BaseMultiplatformItemVisitor()
                 .filter { (_, modifiers) -> !modifiers.isExpect() && !modifiers.isActual() }
                 .keys
         if (nonExpectActual.isNotEmpty()) {
+            // Skip this check on private items since they can be treated as a per-source-set
+            // implementation detail.
+            val visibility = item.modifiers.values.map { it.getVisibilityLevel() }.toSet()
+            if (visibility.singleOrNull() == VisibilityLevel.PRIVATE) return
+
             // Find all files where this item is defined. Only report an issue if there is more than
             // one location (a non expect/actual item defined in common will appear in all source
             // sets, but will have the same common location for all those instances).
