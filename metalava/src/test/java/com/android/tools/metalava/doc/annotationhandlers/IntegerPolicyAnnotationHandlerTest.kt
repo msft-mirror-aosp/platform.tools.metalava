@@ -39,22 +39,23 @@ class IntegerPolicyAnnotationHandlerTest : DriverTest() {
                         import android.processor.devicepolicy.PolicyDefinition;
                         import android.processor.devicepolicy.AllowedDpcTypes;
                         import static android.processor.devicepolicy.AllowedDpcTypes.ALLOWED;
+                        import static android.Manifest.permission.TEST;
+                        import static android.Manifest.permission.MANAGE_DEVICE_POLICY_ACROSS_USERS;
 
                         @Retention(RetentionPolicy.SOURCE)
                         public class TestPolicy {
                             private static final int SCOPE_USER = 1;
+                            private static final int SCOPE_DEVICE = 2;
                             private static final int RESOURCE_DEVICE_WIDE = 1;
-                            private static final int DEFAULT_VALUE = 1;
                           /**
-                           * A test policy for integer policy definition.
-                           *
-                           * Some other human handwritten comments.
+                           * A test policy for integer policy definition with multiple scopes.
                            */
                             @IntegerPolicyDefinition(
                                 base = @PolicyDefinition(
-                                    allowedScopes = {SCOPE_USER},
+                                    allowedScopes = {SCOPE_USER, SCOPE_DEVICE},
                                     affectedResource = RESOURCE_DEVICE_WIDE,
-                                    requiredPermission = "android.permission.TEST",
+                                    requiredPermission = TEST,
+                                    requiredCrossUserPermission = MANAGE_DEVICE_POLICY_ACROSS_USERS,
                                     allowedDpcTypes = @AllowedDpcTypes(
                                         deviceOwner = ALLOWED,
                                         managedProfileOwnerOfOrganizationOwnedDevice = ALLOWED,
@@ -83,19 +84,33 @@ class IntegerPolicyAnnotationHandlerTest : DriverTest() {
                         public class TestPolicy {
                         public TestPolicy() { throw new RuntimeException("Stub!"); }
                         /**
-                         * A test policy for integer policy definition.
-                         *
-                         * Some other human handwritten comments.
+                         * A test policy for integer policy definition with multiple scopes.
                          * <br>
                          * <p>Policy Type: Integer</p>
                          * <ul>
                          *   <li>Allowed Scopes:
                          *    <ul>
-                         *       <li>User</li>
+                         *       <li>User. Settable by:
+                         *         <ul>
+                         *           <li>Device Owner</li>
+                         *           <li>Managed Profile Owner (Of Organization Owned Device)</li>
+                         *           <li>Managed Profile Owner (Of Personally Owned Device)</li>
+                         *           <li>Unaffiliated Full User Profile Owner</li>
+                         *           <li>Profile Owner on User 0</li>
+                         *           <li>Affiliated Full User Profile Owner</li>
+                         *         </ul>
+                         *       </li>
+                         *       <li>Device. Settable by:
+                         *         <ul>
+                         *           <li>Device Owner</li>
+                         *           <li>Managed Profile Owner (Of Organization Owned Device)</li>
+                         *         </ul>
+                         *       </li>
                          *     </ul>
                          *   </li>
                          *   <li>Affected Resource: Device Wide</li>
                          *   <li>Required Permission: {@link android.Manifest.permission#TEST android.permission.TEST}</li>
+                         *   <li>Required Cross User Permission: {@link android.Manifest.permission#MANAGE_DEVICE_POLICY_ACROSS_USERS android.permission.MANAGE_DEVICE_POLICY_ACROSS_USERS}</li>
                          *   <li>Allowed DPC Types:
                          *    <ul>
                          *       <li>Device Owner</li>
