@@ -186,7 +186,7 @@ internal class TurbineClassBuilder(
                     val type = Type.ClassTy.asNonParametricClassTy(it)
                     classTypeItemFactory.getHierarchicalClassType(type)
                 }
-                .sortedWith(TypeItem.totalComparator)
+                .sortedWith(TypeItem.qualifiedComparator)
 
         val classItem =
             itemFactory.createClassItem(

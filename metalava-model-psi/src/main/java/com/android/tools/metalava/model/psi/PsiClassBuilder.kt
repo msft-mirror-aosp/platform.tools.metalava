@@ -172,7 +172,7 @@ internal class PsiClassBuilder(
         val permitTypes =
             psiClass.permitsListTypes
                 .map { classTypeItemFactory.getHierarchicalClassType(PsiTypeInfo(it, psiClass)) }
-                .sortedWith(TypeItem.totalComparator)
+                .sortedWith(TypeItem.qualifiedComparator)
 
         // Get the SourceFile, using the one from the containing class if this is nested.
         val sourceFile =
