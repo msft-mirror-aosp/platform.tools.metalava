@@ -32,15 +32,24 @@ import org.junit.Test
 @SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.JAVA)
 class CommonModifierListWriterTest : BaseModelTest() {
 
-    private val defaultConfig =
-        ModifierListWriter.Config(
-            target = AnnotationTarget.SIGNATURE_FILE,
-            annotationFormatter = AnnotationFormatter.normalizingFormatter(),
-            runtimeAnnotationsOnly = false,
-            skipNullnessAnnotations = true,
-            normalizeFinal = false,
-            normalizeAbstract = false,
-        )
+    companion object {
+        private val defaultConfig =
+            ModifierListWriter.Config(
+                target = AnnotationTarget.SIGNATURE_FILE,
+                annotationFormatter = AnnotationFormatter.normalizingFormatter(),
+                runtimeAnnotationsOnly = false,
+                skipNullnessAnnotations = true,
+                normalizeFinal = false,
+                normalizeAbstract = false,
+            )
+
+        private val javaSealedClassesDisabledConfig = defaultConfig
+
+        private val javaSealedClassesEnabledConfig =
+            defaultConfig.copy(
+                javaSealedClasses = true,
+            )
+    }
 
     private fun Item.writeKeywords(config: ModifierListWriter.Config = defaultConfig): String {
         val stringWriter = StringWriter()
@@ -379,106 +388,81 @@ class CommonModifierListWriterTest : BaseModelTest() {
         )
     }
 
+    private fun checkJavaSealedKeywords(
+        className: String,
+        config: ModifierListWriter.Config,
+        expectedKeywords: String,
+    ) {
+        runCodebaseTest(
+            inputSet(
+                java(
+                    """
+                        package test.pkg;
+
+                        public sealed interface Sealed {
+                        }
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
+
+                        public non-sealed interface Subclass extends Sealed {}
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
+
+                        non-sealed interface PackagePrivate extends Sealed {}
+                    """
+                ),
+            ),
+        ) {
+            val testClass = codebase.assertClass(className)
+
+            assertEquals(expectedKeywords, testClass.writeKeywords(config))
+        }
+    }
+
     @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `Test sealed modifier - java class - javaSealedClasses=false`() {
-        runCodebaseTest(
-            java(
-                """
-                    package test.pkg;
-
-                    public interface Test {
-                    }
-                """
-            ),
-        ) {
-            val testClass = codebase.assertClass("test.pkg.Test")
-
-            // TODO(b/482391240): Remove this once sealed modifiers are extracted from Java source.
-            testClass.mutateModifiers { setSealed(true) }
-
-            assertEquals("public", testClass.writeKeywords())
-        }
+        checkJavaSealedKeywords(
+            className = "test.pkg.Sealed",
+            config = javaSealedClassesDisabledConfig,
+            expectedKeywords = "public",
+        )
     }
 
     @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `Test sealed modifier - java class - javaSealedClasses=true`() {
-        runCodebaseTest(
-            java(
-                """
-                    package test.pkg;
-
-                    public interface Test {
-                    }
-                """
-            ),
-        ) {
-            val testClass = codebase.assertClass("test.pkg.Test")
-
-            // TODO(b/482391240): Remove this once sealed modifiers are extracted from Java source.
-            testClass.mutateModifiers { setSealed(true) }
-
-            assertEquals(
-                "public sealed nonexhaustive",
-                testClass.writeKeywords(
-                    defaultConfig.copy(
-                        javaSealedClasses = true,
-                    )
-                )
-            )
-        }
+        checkJavaSealedKeywords(
+            className = "test.pkg.Sealed",
+            config = javaSealedClassesEnabledConfig,
+            expectedKeywords = "public sealed nonexhaustive",
+        )
     }
 
     @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `Test non-sealed modifier - java class - javaSealedClasses=false`() {
-        runCodebaseTest(
-            java(
-                """
-                    package test.pkg;
-
-                    public interface Test {
-                    }
-                """
-            ),
-        ) {
-            val testClass = codebase.assertClass("test.pkg.Test")
-
-            // TODO(b/482391240): Remove this once sealed modifiers are extracted from Java source.
-            testClass.mutateModifiers { setNonSealed(true) }
-
-            assertEquals("public", testClass.writeKeywords())
-        }
+        checkJavaSealedKeywords(
+            className = "test.pkg.Subclass",
+            config = javaSealedClassesDisabledConfig,
+            expectedKeywords = "public",
+        )
     }
 
     @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `Test non-sealed modifier - java class - javaSealedClasses=true`() {
-        runCodebaseTest(
-            java(
-                """
-                    package test.pkg;
-
-                    public interface Test {
-                    }
-                """
-            ),
-        ) {
-            val testClass = codebase.assertClass("test.pkg.Test")
-
-            // TODO(b/482391240): Remove this once sealed modifiers are extracted from Java source.
-            testClass.mutateModifiers { setNonSealed(true) }
-
-            assertEquals(
-                "public non-sealed",
-                testClass.writeKeywords(
-                    defaultConfig.copy(
-                        javaSealedClasses = true,
-                    )
-                )
-            )
-        }
+        checkJavaSealedKeywords(
+            className = "test.pkg.Subclass",
+            config = javaSealedClassesEnabledConfig,
+            expectedKeywords = "public non-sealed",
+        )
     }
 
     @SupportedInputFormats(InputFormat.KOTLIN)
