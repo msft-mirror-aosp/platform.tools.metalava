@@ -380,7 +380,7 @@ class CommonClassItemTest : BaseModelTest() {
                       }
                       public interface C {
                       }
-                      public interface Foo extends test.pkg.A, test.pkg.B, test.pkg.C {
+                      public interface Foo extends test.pkg.A test.pkg.B test.pkg.C {
                       }
                     }
                 """
@@ -525,7 +525,7 @@ class CommonClassItemTest : BaseModelTest() {
                       }
                       public interface C {
                       }
-                      public class Foo implements test.pkg.A, test.pkg.B, test.pkg.C {
+                      public class Foo implements test.pkg.A test.pkg.B test.pkg.C {
                       }
                     }
                 """
@@ -587,7 +587,7 @@ class CommonClassItemTest : BaseModelTest() {
                       }
                       public interface C {
                       }
-                      public class Foo extends test.pkg.Bar implements test.pkg.A, test.pkg.B, test.pkg.C {
+                      public class Foo extends test.pkg.Bar implements test.pkg.A test.pkg.B test.pkg.C {
                       }
                     }
                 """
