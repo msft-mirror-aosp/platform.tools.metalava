@@ -28,6 +28,7 @@ import com.android.tools.metalava.cli.common.ExecutionEnvironment
 import com.android.tools.metalava.containsNullWord
 import com.android.tools.metalava.doc.annotationhandlers.EnumPolicyAnnotationHandler
 import com.android.tools.metalava.doc.annotationhandlers.IntegerPolicyAnnotationHandler
+import com.android.tools.metalava.doc.annotationhandlers.ListOfPackagePolicyAnnotationHandler
 import com.android.tools.metalava.doc.annotationhandlers.ListOfStringPolicyAnnotationHandler
 import com.android.tools.metalava.doc.annotationhandlers.LongPolicyAnnotationHandler
 import com.android.tools.metalava.doc.annotationhandlers.PackagePolicyAnnotationHandler
@@ -252,6 +253,14 @@ class DocAnalyzer(
                                 .let { appendDocumentation(it, item, returnValue = false) }
                         "android.processor.devicepolicy.ListOfStringPolicyDefinition" ->
                             ListOfStringPolicyAnnotationHandler(codebase, reporter, filterReference)
+                                .processPolicyAnnotation(annotation, item)
+                                .let { appendDocumentation(it, item, returnValue = false) }
+                        "android.processor.devicepolicy.ListOfPackagePolicyDefinition" ->
+                            ListOfPackagePolicyAnnotationHandler(
+                                    codebase,
+                                    reporter,
+                                    filterReference
+                                )
                                 .processPolicyAnnotation(annotation, item)
                                 .let { appendDocumentation(it, item, returnValue = false) }
                         "android.processor.devicepolicy.PackagePolicyDefinition" ->

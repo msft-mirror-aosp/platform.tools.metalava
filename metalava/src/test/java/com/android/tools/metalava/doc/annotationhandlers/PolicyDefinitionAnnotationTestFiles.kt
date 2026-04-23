@@ -169,6 +169,14 @@ object PolicyDefinitionAnnotationTestFiles {
             public @interface PackagePolicyDefinition {
                 PolicyDefinition base();
             }
+
+            @Retention(RetentionPolicy.SOURCE)
+            public @interface ListOfPackagePolicyDefinition {
+                PolicyDefinition base();
+                boolean emptyListAllowed() default false;
+                ListResolutionMechanism resolutionMechanism();
+                int maxListLength() default Integer.MAX_VALUE;
+            }
             """
         )
 }
