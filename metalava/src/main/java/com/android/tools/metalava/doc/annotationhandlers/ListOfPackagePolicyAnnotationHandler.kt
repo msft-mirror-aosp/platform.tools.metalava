@@ -21,7 +21,6 @@ import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.annotation.binding.bindTo
-import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
 import java.util.function.Predicate
 
@@ -41,36 +40,20 @@ class ListOfPackagePolicyAnnotationHandler(
     }
 }
 
-class ListResolutionMechanismProxy(
-    val custom: Boolean = false,
-    val union: Boolean = false,
-)
-
-class ListOfPackagePolicyDefinitionProxy(
-    private val item: Item,
+data class ListOfPackagePolicyDefinitionProxy(
     val base: PolicyDefinitionProxy,
-    val emptyListAllowed: Boolean = false,
     val resolutionMechanism: ListResolutionMechanismProxy,
-    val maxListLength: Int = Int.MAX_VALUE,
+    val emptyListAllowed: Boolean,
+    val maxListLength: Int,
 ) {
-    private val codebase = item.codebase
-    private val reporter = codebase.reporter
 
     fun generateDocs() = buildString {
         append("\n<p>Policy Type: List of Package</p>\n <ul>\n")
         append(base.generateDocs())
 
-        // TODO(b/492421367): Enrich the doc for resolution mechanism.
-        if (resolutionMechanism.custom) {
-            append("   <li>Resolution Mechanism: custom</li>\n")
-        } else if (resolutionMechanism.union) {
-            append("   <li>Resolution Mechanism: union</li>\n")
-        } else {
-            reporter.report(
-                Issues.INVALID_DEVICE_POLICY_ANNOTATION,
-                item,
-                "ListResolutionMechanism must have either 'custom' or 'union' set to true."
-            )
+        val resMechDocs = resolutionMechanism.generateDocs(base.item)
+        if (resMechDocs.isNotEmpty()) {
+            append("   <li>Resolution Mechanism: $resMechDocs</li>\n")
         }
 
         append("   <li>Empty list: ${if (emptyListAllowed) "Allowed" else "Not allowed"}</li>\n")

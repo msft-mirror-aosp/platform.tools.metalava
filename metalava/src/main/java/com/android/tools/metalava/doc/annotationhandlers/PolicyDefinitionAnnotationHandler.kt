@@ -124,7 +124,7 @@ class AllowedDpcTypesProxy(
  */
 class PolicyDefinitionProxy(
     /** The item on which this was annotated. */
-    private val item: Item,
+    val item: Item,
     private val allowedScopes: List<Int>,
     private val affectedResource: Int,
     private val requiredPermission: String?,

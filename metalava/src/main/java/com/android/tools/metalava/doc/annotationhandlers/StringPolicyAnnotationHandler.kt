@@ -20,6 +20,7 @@ import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.SelectableItem
+import com.android.tools.metalava.model.annotation.binding.bindTo
 import com.android.tools.metalava.reporter.Reporter
 import java.util.function.Predicate
 
@@ -29,40 +30,38 @@ class StringPolicyAnnotationHandler(
     reporter: Reporter,
     filterReference: Predicate<SelectableItem>
 ) : BaseDevicePolicyAnnotationHandler(codebase, reporter, filterReference) {
-    private val policyHandler =
-        PolicyDefinitionAnnotationHandler(codebase, reporter, filterReference)
 
-    /**
-     * Processes the [StringPolicyDefinition] annotation and returns the documentation for the
-     * policy.
-     */
+    /** Processes the [StringPolicyDefinitionProxy] and returns the documentation for the policy. */
     override fun processPolicyAnnotation(annotation: AnnotationItem, item: Item): String {
-        val emptyStringAllowed = annotation.getBooleanAttribute("emptyStringAllowed") ?: false
+        val proxy = annotation.bindTo<StringPolicyDefinitionProxy>(item)
+        return proxy?.generateDocs() ?: ""
+    }
+}
 
-        val unprintableCharactersAllowed =
-            annotation.getBooleanAttribute("unprintableCharactersAllowed") ?: false
-        val maxLength = annotation.getIntAttribute("maxLength") ?: Integer.MAX_VALUE
-
-        val basePolicyDefinition =
-            annotation.getPolicyDefinitionAttribute("base").elseReportMissing(item, "base")
-        val baseDocs =
-            basePolicyDefinition?.let {
-                policyHandler.processPolicyAnnotation(basePolicyDefinition, item)
-            } ?: ""
-
-        return buildString {
-            append("\n<p>Policy Type: String</p>\n <ul>\n")
-            append(baseDocs)
-            append(
-                "   <li>Empty string: ${if (emptyStringAllowed) "Allowed" else "Not allowed"}</li>\n"
-            )
-            append(
-                "   <li>Unprintable characters: ${if (unprintableCharactersAllowed) "Allowed" else "Not allowed"}</li>\n"
-            )
-            append(
-                "   <li>Max Length: ${if (maxLength == Integer.MAX_VALUE) "No limit" else maxLength}</li>\n"
-            )
-            append(" </ul>\n")
-        }
+/**
+ * Proxy class bound to an instance of the `android.processor.devicepolicy.StringPolicyDefinition`
+ * annotation class.
+ *
+ * @see bindTo
+ */
+data class StringPolicyDefinitionProxy(
+    val base: PolicyDefinitionProxy,
+    val emptyStringAllowed: Boolean,
+    val unprintableCharactersAllowed: Boolean,
+    val maxLength: Int,
+) {
+    fun generateDocs() = buildString {
+        append("\n<p>Policy Type: String</p>\n <ul>\n")
+        append(base.generateDocs())
+        append(
+            "   <li>Empty string: ${if (emptyStringAllowed) "Allowed" else "Not allowed"}</li>\n"
+        )
+        append(
+            "   <li>Unprintable characters: ${if (unprintableCharactersAllowed) "Allowed" else "Not allowed"}</li>\n"
+        )
+        append(
+            "   <li>Max Length: ${if (maxLength == Integer.MAX_VALUE) "No limit" else maxLength}</li>\n"
+        )
+        append(" </ul>\n")
     }
 }
