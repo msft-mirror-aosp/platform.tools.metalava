@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model.psi.kotlin
 
+import androidx.tracing.Tracer
 import com.android.tools.metalava.model.ANDROIDX_COMPOSABLE
 import com.android.tools.metalava.model.AnnotationAttribute
 import com.android.tools.metalava.model.AnnotationItem
@@ -55,6 +56,8 @@ import com.android.tools.metalava.model.psi.PsiBasedCodebase
 import com.android.tools.metalava.model.psi.PsiFileLocation
 import com.android.tools.metalava.model.psi.createItemDocumentation
 import com.android.tools.metalava.model.psi.isKotlin
+import com.android.tools.metalava.model.psi.kotlin.KaCodebaseAssembler.Companion.assembleMultiplatform
+import com.android.tools.metalava.model.psi.trace
 import com.android.tools.metalava.model.source.toItemDocumentationFactory
 import com.android.tools.metalava.model.type.MethodFingerprint
 import com.android.tools.metalava.model.type.TypeParameterListAndFactory
@@ -168,6 +171,7 @@ internal class KaCodebaseAssembler(
             modules: List<KaSourceModule>,
             location: File,
             config: Codebase.Config,
+            tracer: Tracer,
         ): MultiplatformCodebase {
             // Aggregate the packages defined in all modules, because when analyzing one module both
             // the packages in the module and the packages in the modules it depends on are needed.
@@ -194,7 +198,7 @@ internal class KaCodebaseAssembler(
                                     assembler = assembler,
                                 )
                             }
-                        processor.assemble(allPackages)
+                        tracer.trace("processor.assemble") { processor.assemble(allPackages) }
                         processor.codebase
                     }
                 ),

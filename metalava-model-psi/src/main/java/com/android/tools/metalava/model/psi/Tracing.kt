@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2023 The Android Open Source Project
+ * Copyright (C) 2026 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,18 +14,15 @@
  * limitations under the License.
  */
 
-plugins {
-    `java-library`
-    id("org.jetbrains.kotlin.jvm")
-    id("metalava-build-plugin")
-}
+package com.android.tools.metalava.model.psi
 
-dependencies {
-    api(libs.tracing)
-    implementation(libs.tracingWire)
-    implementation(libs.androidLintTests)
-    implementation(libs.junit4)
-    implementation(libs.androidToolsExternalKotlinCompiler)
+import androidx.tracing.EventMetadata
+import androidx.tracing.Tracer
 
-    testImplementation(libs.kotlinTest)
+internal inline fun <T> Tracer.trace(
+    name: String,
+    crossinline metadataBlock: EventMetadata.() -> Unit = {},
+    crossinline block: () -> T,
+): T {
+    return trace(category = "main", name = name, metadataBlock = metadataBlock, block = block)
 }

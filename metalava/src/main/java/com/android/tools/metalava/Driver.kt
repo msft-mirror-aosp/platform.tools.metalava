@@ -15,6 +15,7 @@
  */
 package com.android.tools.metalava
 
+import androidx.tracing.Tracer
 import com.android.SdkConstants.DOT_JAR
 import com.android.SdkConstants.DOT_TXT
 import com.android.tools.metalava.apilevels.ApiGenerator
@@ -91,6 +92,7 @@ const val PROGRAM_NAME = "metalava"
 class Driver(
     private val executionEnvironment: ExecutionEnvironment,
     private val progressTracker: ProgressTracker,
+    private val tracer: Tracer,
     private val environmentManager: EnvironmentManager,
     private val reporter: Reporter,
     private val verbosity: Verbosity,
@@ -145,13 +147,16 @@ class Driver(
 
             progressTracker.progress("$PROGRAM_NAME started\n")
 
+            val traceDriver = createTraceDriver(earlyOptions.traceFile)
             // Actual work begins here.
-            val command =
-                createMetalavaCommand(
-                    executionEnvironment,
-                    progressTracker,
-                )
-            val exitCode = command.process(args)
+            val exitCode =
+                traceDriver.use {
+                    val command =
+                        it.tracer.trace("createMetalavaCommand") {
+                            createMetalavaCommand(executionEnvironment, progressTracker, it.tracer)
+                        }
+                    it.tracer.trace("command.process") { command.process(args) }
+                }
 
             stdout.flush()
             stderr.flush()
@@ -163,13 +168,15 @@ class Driver(
 
         private fun createMetalavaCommand(
             executionEnvironment: ExecutionEnvironment,
-            progressTracker: ProgressTracker
+            progressTracker: ProgressTracker,
+            tracer: Tracer,
         ): MetalavaCommand {
             val command =
                 MetalavaCommand(
                     executionEnvironment = executionEnvironment,
                     progressTracker = progressTracker,
                     defaultCommandName = "main",
+                    tracer = tracer,
                 )
             command.subcommands(
                 MainCommand(command.commonOptions, executionEnvironment),
@@ -235,6 +242,7 @@ class Driver(
             val modelOptions = sourceOptions.modelOptions
             environmentManager.createSourceParser(
                 codebaseConfig = codebaseConfig,
+                tracer = tracer,
                 javaLanguageLevel = sourceOptions.javaLanguageLevelAsString,
                 kotlinLanguageLevel = sourceOptions.kotlinLanguageLevelAsString,
                 modelOptions = modelOptions,
@@ -294,10 +302,13 @@ class Driver(
     internal fun processFlags() {
         val stopwatch = Stopwatch.createStarted()
 
-        val codebase = createCodebaseFromOptions()
+        val codebase = tracer.trace("createCodebaseFromOptions") { createCodebaseFromOptions() }
 
         // Create a multiplatform codebase if requested.
-        val multiplatformCodebase = createOptionalMultiplatformCodebase()
+        val multiplatformCodebase =
+            tracer.trace("createOptionalMultiplatformCodebase") {
+                createOptionalMultiplatformCodebase()
+            }
 
         // If provided by a test, run some additional checks on the internal state of this.
         executionEnvironment.testEnvironment?.let { testEnvironment ->
@@ -312,10 +323,16 @@ class Driver(
         )
 
         // Run operations on the regular codebase, if it exists.
-        codebase?.let { runCodebaseChecks(stopwatch, codebase) }
+        codebase?.let {
+            tracer.trace("runCodebaseChecks") { runCodebaseChecks(stopwatch, codebase) }
+        }
 
         // Run additional operations on the multiplatform codebase, if it exists.
-        multiplatformCodebase?.let { runMultiplatformCodebaseChecks(multiplatformCodebase) }
+        multiplatformCodebase?.let {
+            tracer.trace("runMultiplatformCodebaseChecks") {
+                runMultiplatformCodebaseChecks(multiplatformCodebase)
+            }
+        }
     }
 
     private fun runCodebaseChecks(stopwatch: Stopwatch, codebase: Codebase) {
@@ -506,6 +523,7 @@ class Driver(
     private fun createCodebaseFromOptions(): Codebase? {
         val sources = sourceOptions.sourceFiles
         if (sources.isNotEmpty() && sources[0].path.endsWith(DOT_TXT)) {
+
             // Make sure all the source files have .txt extensions.
             sources
                 .firstOrNull { !it.path.endsWith(DOT_TXT) }
@@ -514,14 +532,16 @@ class Driver(
                         "Inconsistent input file types: The first file is of $DOT_TXT, but detected different extension in ${it.path}"
                     )
                 }
-            return signatureFileLoader.load(
-                SignatureFile.fromFiles(sources),
-                classPathResolver,
-            )
+            return tracer.trace("signatureFileLoader.load") {
+                signatureFileLoader.load(
+                    SignatureFile.fromFiles(sources),
+                    classPathResolver,
+                )
+            }
         } else if (sources.size == 1 && sources[0].path.endsWith(DOT_JAR)) {
-            return loadFromJarFile(sources[0])
+            return tracer.trace("loadFromJarFile") { loadFromJarFile(sources[0]) }
         } else if (sources.isNotEmpty() || sourceOptions.sourcePath.isNotEmpty()) {
-            return loadFromSources()
+            return tracer.trace("loadFromSources") { loadFromSources() }
         }
 
         return null
@@ -811,15 +831,17 @@ class Driver(
         progressTracker.progress("Processing sources: ")
 
         val sourceSet =
-            if (sourceOptions.sourceFiles.isEmpty()) {
-                if (verbosity.verbose) {
-                    executionEnvironment.stdout.println(
-                        "No source files specified: recursively including all sources found in the source path (${sourceOptions.sourcePath.joinToString()}})"
-                    )
+            tracer.trace("createSourceSet") {
+                if (sourceOptions.sourceFiles.isEmpty()) {
+                    if (verbosity.verbose) {
+                        executionEnvironment.stdout.println(
+                            "No source files specified: recursively including all sources found in the source path (${sourceOptions.sourcePath.joinToString()}})"
+                        )
+                    }
+                    SourceSet.createFromSourcePath(reporter, sourceOptions.sourcePath)
+                } else {
+                    SourceSet(sourceOptions.sourceFiles, sourceOptions.sourcePath)
                 }
-                SourceSet.createFromSourcePath(reporter, sourceOptions.sourcePath)
-            } else {
-                SourceSet(sourceOptions.sourceFiles, sourceOptions.sourcePath)
             }
 
         progressTracker.progress("Reading Codebase: ")
@@ -834,27 +856,36 @@ class Driver(
                 compiledSourceJar = sourceOptions.compiledSourceJar,
             )
 
-        val codebase = sourceParser.parseSources(inputs) ?: return null
+        val codebase =
+            tracer.trace("parseSources") { sourceParser.parseSources(inputs) } ?: return null
 
         progressTracker.progress("Analyzing API: ")
 
         val analyzer = ApiAnalyzer(sourceParser, codebase, reporter, apiAnalyzerConfig)
-        analyzer.mergeExternalInclusionAnnotations()
+        tracer.trace("analyzer.mergeExternalInclusionAnnotations") {
+            analyzer.mergeExternalInclusionAnnotations()
+        }
 
-        analyzer.computeApi()
+        tracer.trace("analyzer.computeApi") { analyzer.computeApi() }
 
         val apiPredicateConfigIgnoreShown = apiPredicateConfig.copy(ignoreShown = true)
         val apiEmitAndReference = ApiPredicate(config = apiPredicateConfigIgnoreShown)
 
-        analyzer.handleFileFacadeClassesAndExperimentalPackages(apiEmitAndReference)
+        tracer.trace("analyzer.handleFileFacadeClassesAndExperimentalPackages") {
+            analyzer.handleFileFacadeClassesAndExperimentalPackages(apiEmitAndReference)
+        }
 
         // Copy methods from soon-to-be-hidden parents into descendant classes, when necessary. Do
         // this before merging annotations or performing checks on the API to ensure that these
         // methods can have annotations added and are checked properly.
         progressTracker.progress("Insert missing stubs methods: ")
-        analyzer.generateInheritedStubs(apiEmitAndReference, apiEmitAndReference)
+        tracer.trace("analyzer.generateInheritedStubs") {
+            analyzer.generateInheritedStubs(apiEmitAndReference, apiEmitAndReference)
+        }
 
-        analyzer.mergeExternalQualifierAnnotations()
+        tracer.trace("analyzer.mergeExternalQualifierAnnotations") {
+            analyzer.mergeExternalQualifierAnnotations()
+        }
 
         nullabilityValidationOptions.validatorForSources?.let { validator ->
             // Validate any explicitly specified classes.
@@ -868,7 +899,7 @@ class Driver(
         // Prevent the codebase from being mutated.
         codebase.freezeClasses()
 
-        analyzer.handleStripping()
+        tracer.trace("analyzer.handleStripping") { analyzer.handleStripping() }
 
         // General API documentation checks for Android APIs.
         // They are pointless if Javadoc comments are not being read.
@@ -877,20 +908,22 @@ class Driver(
         }
 
         runApiChecksFromOptions(codebase) { codebase, previouslyReleasedCodebase ->
-            ApiLint.check(
-                codebase,
-                previouslyReleasedCodebase,
-                reporter,
-                apiPredicateConfig,
-                ApiLint.Config(
-                    manifest = miscellaneousOptions.manifest,
-                    allowedAcronyms = apiLintOptions.allowedAcronyms,
-                ),
-            )
+            tracer.trace("ApiLint.check") {
+                ApiLint.check(
+                    codebase,
+                    previouslyReleasedCodebase,
+                    reporter,
+                    apiPredicateConfig,
+                    ApiLint.Config(
+                        manifest = miscellaneousOptions.manifest,
+                        allowedAcronyms = apiLintOptions.allowedAcronyms,
+                    ),
+                )
+            }
         }
 
         progressTracker.progress("Performing misc API checks: ")
-        analyzer.performChecks()
+        tracer.trace("analyzer.performChecks") { analyzer.performChecks() }
 
         return codebase
     }
