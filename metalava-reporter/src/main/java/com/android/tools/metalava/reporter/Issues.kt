@@ -298,6 +298,7 @@ object Issues {
     val FACADE_CLASS_JVM_NAME by Issue(Severity.HIDDEN, Category.API_LINT)
     val VALUE_CLASS_USAGE_WITHOUT_JVM_NAME by Issue(Severity.HIDDEN, Category.API_LINT)
     val VALUE_CLASS_USAGE_FROM_CONSTRUCTOR by Issue(Severity.HIDDEN, Category.API_LINT)
+    val TYPEALIAS_DEFINITION by Issue(Severity.ERROR, Category.API_LINT)
 
     val KMP_DEPRECATION_MISMATCH by Issue(Severity.ERROR, Category.API_LINT)
     val KMP_VISIBILITY_MISMATCH by Issue(Severity.ERROR, Category.API_LINT)

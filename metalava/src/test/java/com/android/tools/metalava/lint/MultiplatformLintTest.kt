@@ -472,6 +472,7 @@ class MultiplatformLintTest : DriverTest() {
                     )
                 ),
             expectedIssues = null,
+            extraArguments = arrayOf(ARG_HIDE, "TypealiasDefinition"),
         )
     }
 
