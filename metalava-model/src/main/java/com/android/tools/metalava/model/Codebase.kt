@@ -179,12 +179,23 @@ interface Codebase : ClassPathResolver, AnnotationContext {
             item: Item?,
             inherit: Boolean = true,
         ): Item? {
-            return oldCodebase?.let {
-                item?.findCorrespondingItemIn(
-                    oldCodebase,
-                    superMethods = inherit,
-                    duplicate = inherit,
-                )
+            val oldItem =
+                oldCodebase?.let {
+                    item?.findCorrespondingItemIn(
+                        oldCodebase,
+                        superMethods = inherit,
+                        duplicate = inherit,
+                    )
+                }
+            // If this is an expect in the old codebase and an actual in the new one, do not treat
+            // it as previously released because the actual definition may have a different
+            // signature from the expect with a different set of issues to report.
+            return if (
+                oldItem?.modifiers?.isExpect() == true && item?.modifiers?.isActual() == true
+            ) {
+                null
+            } else {
+                oldItem
             }
         }
 
