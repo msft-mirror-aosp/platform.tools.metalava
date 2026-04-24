@@ -16,10 +16,8 @@
 
 package com.android.tools.metalava.model.source
 
-import com.android.tools.metalava.model.AnnotationContext
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.AnnotationUse
-import com.android.tools.metalava.model.AnnotationUse.TYPE_ONLY
 import com.android.tools.metalava.model.BaseItemVisitor
 import com.android.tools.metalava.model.BaseModifierList
 import com.android.tools.metalava.model.ClassItem
@@ -27,6 +25,7 @@ import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.ItemDocumentationFactory
+import com.android.tools.metalava.model.KOTLIN_PUBLISHED_API
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.SourceFile
 import com.android.tools.metalava.model.VisibilityLevel
@@ -294,19 +293,17 @@ data class SourcePackageInfo(
 }
 
 /**
- * Check if the [BaseModifierList] is accessible.
+ * Check if the [BaseModifierList] is accessible as part of an API.
  *
- * Note: If this is called during codebase creation and the caller supports
- * [VisibilityLevel.INTERNAL] then they must also implement
- * [AnnotationContext.defaultsForAnnotationClass] without resolving classes in the codebase being
- * constructed. Otherwise, there will be a race condition between resolving the annotation class and
- * defining the class that could lead to duplicate class creation or other similar issues.
+ * If this has [VisibilityLevel.INTERNAL] then it is only accessible if it is annotated with the
+ * [PublishedApi] annotation.
  */
-val BaseModifierList.hasApiVisibilityOrShowAnnotation
+val BaseModifierList.hasApiVisibility
     get() =
         when (getVisibilityLevel()) {
             VisibilityLevel.PUBLIC,
             VisibilityLevel.PROTECTED -> true
-            VisibilityLevel.INTERNAL -> annotations().any { it.showability.show() }
+            VisibilityLevel.INTERNAL ->
+                annotations().any { it.qualifiedName == KOTLIN_PUBLISHED_API }
             else -> false
         }
