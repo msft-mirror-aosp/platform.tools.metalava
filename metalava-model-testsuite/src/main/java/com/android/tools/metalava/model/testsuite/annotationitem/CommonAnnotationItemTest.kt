@@ -27,7 +27,7 @@ import com.android.tools.metalava.model.annotation.AnnotationFilter
 import com.android.tools.metalava.model.annotation.DefaultAnnotationManager
 import com.android.tools.metalava.model.noOpAnnotationManager
 import com.android.tools.metalava.model.provider.InputFormat
-import com.android.tools.metalava.model.source.hasApiVisibilityOrShowAnnotation
+import com.android.tools.metalava.model.source.hasApiVisibility
 import com.android.tools.metalava.model.testing.SupportedInputFormats
 import com.android.tools.metalava.model.testing.classTypeItem
 import com.android.tools.metalava.model.testing.testTypeString
@@ -1601,18 +1601,18 @@ class CommonAnnotationItemTest : BaseModelTest() {
                         import androidx.annotation.RestrictTo
 
                         // Defined during codebase construction as it is accessible because while it
-                        // is internal it is annotated with a show annotation.
-                        @RestrictTo(RestrictTo.Scope.LIBRARY)
+                        // is internal it is annotated with PublishedApi.
+                        @PublishedApi
                         internal class Foo
 
                         // Not defined during codebase construction as it is inaccessible because it
-                        // is internal and while it has an annotation it is not a show annotation as
-                        // the scope is incorrect.
+                        // is internal and while it has a show annotation it is not annotated with
+                        // PublishedApi.
                         @RestrictTo(RestrictTo.Scope.LIBRARY_GROUP)
                         internal class Bar
 
                         // Not defined during codebase construction as it is inaccessible because it
-                        // is internal.
+                        // is internal and is not annotated with PublishedApi.
                         internal class Baz
                     """
                 ),
@@ -1634,17 +1634,17 @@ class CommonAnnotationItemTest : BaseModelTest() {
         ) {
             // This should be defined and accessible.
             codebase.assertClass("test.pkg.Foo").also { testClass ->
-                assertTrue(testClass.modifiers.hasApiVisibilityOrShowAnnotation, message = "Foo")
+                assertTrue(testClass.modifiers.hasApiVisibility, message = "Foo")
             }
 
             // This should be defined but not accessible.
             codebase.assertClass("test.pkg.Bar").also { testClass ->
-                assertFalse(testClass.modifiers.hasApiVisibilityOrShowAnnotation, message = "Bar")
+                assertFalse(testClass.modifiers.hasApiVisibility, message = "Bar")
             }
 
             // This should be defined but not accessible.
             codebase.assertClass("test.pkg.Baz").also { testClass ->
-                assertFalse(testClass.modifiers.hasApiVisibilityOrShowAnnotation, message = "Baz")
+                assertFalse(testClass.modifiers.hasApiVisibility, message = "Baz")
             }
         }
     }

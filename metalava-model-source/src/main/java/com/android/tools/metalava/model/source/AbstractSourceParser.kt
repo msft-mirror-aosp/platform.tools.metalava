@@ -194,8 +194,7 @@ abstract class AbstractSourceParser(protected val reporter: Reporter) : SourcePa
         // new ones.
         val modifiers = classItem.modifiers
         val curClassNotVisible =
-            modifiers.annotations().any { it.showability.hide() } ||
-                !modifiers.hasApiVisibilityOrShowAnnotation
+            modifiers.annotations().any { it.showability.hide() } || !modifiers.hasApiVisibility
 
         if (curClassNotVisible || parentWasNotVisible) {
             val superClassName = classItem.superClassType()?.qualifiedName
