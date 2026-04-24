@@ -56,6 +56,7 @@ import com.android.tools.metalava.model.ArrayTypeItem
 import com.android.tools.metalava.model.BaseTypeVisitor
 import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.ClassOrVariableTypeItem
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.Codebase
@@ -183,6 +184,7 @@ import com.android.tools.metalava.reporter.Issues.STATIC_FINAL_BUILDER
 import com.android.tools.metalava.reporter.Issues.STATIC_UTILS
 import com.android.tools.metalava.reporter.Issues.STREAM_FILES
 import com.android.tools.metalava.reporter.Issues.TOP_LEVEL_BUILDER
+import com.android.tools.metalava.reporter.Issues.TYPEALIAS_DEFINITION
 import com.android.tools.metalava.reporter.Issues.TYPE_PARAMETER_NAME
 import com.android.tools.metalava.reporter.Issues.UNIQUE_KOTLIN_OPERATOR
 import com.android.tools.metalava.reporter.Issues.USER_HANDLE
@@ -460,6 +462,7 @@ private constructor(
         checkTypedef(cls)
         checkAccessorNullabilityMatches(methods)
         checkDataClass(cls)
+        checkTypealias(cls)
 
         // Check class types.
         for (typeParameterItem in cls.typeParameterList) {
@@ -3418,6 +3421,12 @@ private constructor(
                 "Exposing data classes as public API is discouraged because they are " +
                     "difficult to update while maintaining binary compatibility."
             )
+        }
+    }
+
+    private fun checkTypealias(cls: ClassItem) {
+        if (cls.classKind == ClassKind.TYPEALIAS) {
+            report(TYPEALIAS_DEFINITION, cls, "Exposing typealiases as public API is discouraged.")
         }
     }
 

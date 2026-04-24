@@ -249,6 +249,7 @@ Available Issues                             |  Category                        
   TopLevelBuilder                            |  api_lint                             |   warning
   TypeParameterName                          |  api_lint                             |   warning_error_when_new
   TypeParseError                             |  unknown                              |   error
+  TypealiasDefinition                        |  api_lint                             |   error
   UnavailableSymbol                          |  documentation                        |   warning
   UnclosedInlineTag                          |  documentation                        |   error
   UnexportedFlaggedApi                       |  api_lint                             |   warning_error_when_new
