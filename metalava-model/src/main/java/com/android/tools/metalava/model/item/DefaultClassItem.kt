@@ -147,13 +147,20 @@ internal class DefaultClassItem(
         }
         if (!::sealedClassSubclasses.isInitialized) {
             sealedClassSubclasses =
-                containingPackage
-                    .allClasses()
-                    .filter { cls ->
-                        cls.superClassType()?.qualifiedName == qualifiedName ||
-                            cls.interfaceTypes().any { it.qualifiedName == qualifiedName }
-                    }
-                    .toList()
+                if (modifiers.isSealed()) {
+                    // Use the permitTypes list for actual sealed classes.
+                    permitTypes.mapNotNull { codebase.findClass(it.qualifiedName) }
+                } else {
+                    // For classes that are only effectively sealed find subclasses in their
+                    // containing package.
+                    containingPackage
+                        .allClasses()
+                        .filter { cls ->
+                            cls.superClassType()?.qualifiedName == qualifiedName ||
+                                cls.interfaceTypes().any { it.qualifiedName == qualifiedName }
+                        }
+                        .toList()
+                }
         }
         return sealedClassSubclasses
     }
