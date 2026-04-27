@@ -21,6 +21,123 @@ import com.android.tools.metalava.testing.java
 import org.junit.Test
 
 class StubsSealedClassTest : AbstractStubsTest() {
+
+    companion object {
+        /** A switch over an exhaustive `Sealed` class that needs no default. */
+        private val switchNoDefault =
+            java(
+                """
+                    package other;
+
+                    import test.pkg.*;
+
+                    public class Other {
+                        public int method(Sealed sealed) {
+                            return switch(sealed) {
+                                case SubclassA a -> 0;
+                                case SubclassB b -> 1;
+                                // No default case needed as Sealed is an exhaustive, sealed class,
+                                // i.e. all of its subclasses are part of its API surface.
+                            };
+                        }
+                    }
+                """
+            )
+
+        /**
+         * A switch over a non-exhaustive `Sealed` class that should have a default but does not yet
+         * need one.
+         */
+        // TODO(b/482391240): This should have a default case as Sealed is a non-exhaustive,
+        //  sealed/ class, i.e. not all of its subclasses are part of its API surface.
+        private val switchWithDefault =
+            java(
+                """
+                    package other;
+
+                    import test.pkg.*;
+
+                    public class Other {
+                        public int method(Sealed sealed) {
+                            return switch(sealed) {
+                                case SubclassA a -> 0;
+                                case SubclassB b -> 1;
+                            };
+                        }
+                    }
+                """
+            )
+
+        /**
+         * A switch over a concrete `Sealed` class that needs a `case Sealed s` that will match all
+         * subclasses of `Sealed` not matched by one of the preceding cases. This works whether
+         * `Sealed` is exhaustive or not.
+         */
+        val switchWithSealed =
+            java(
+                """
+                    package other;
+
+                    import test.pkg.*;
+
+                    public class Other {
+                        public int method(Sealed sealed) {
+                            return switch(sealed) {
+                                case SubclassA a -> 0;
+                                case SubclassB b -> 1;
+                                case Sealed s -> 2;
+                            };
+                        }
+                    }
+                """
+            )
+    }
+
+    /**
+     * Get [CompilationCheck]s for an exhaustive `abstract sealed` class.
+     *
+     * Only needs one as there is an exhaustive class does not need a default case.
+     */
+    private fun compilationChecksForExhaustiveAbstractSealedClass() =
+        listOf(
+            CompilationCheck(
+                label = "pass",
+                additionalFiles = listOf(switchNoDefault),
+            )
+        )
+
+    /**
+     * Get [CompilationCheck]s for a non-exhaustive `abstract sealed` class.
+     *
+     * Has two, one without a default that should fail and one with a default that should pass.
+     */
+    private fun compilationChecksForNonExhaustiveAbstractSealedClass() =
+        listOf(
+            CompilationCheck(
+                label = "fail",
+                additionalFiles = listOf(switchNoDefault),
+            ),
+            CompilationCheck(
+                label = "pass",
+                additionalFiles = listOf(switchWithDefault),
+            )
+        )
+
+    /**
+     * Get [CompilationCheck]s for a concrete `sealed` class.
+     *
+     * Only needs one as it requires a `case Sealed s` and so does not need a default case.
+     *
+     * This works for both exhaustive and non-exhaustive cases.
+     */
+    private fun compilationChecksForConcreteSealedClass() =
+        listOf(
+            CompilationCheck(
+                label = "pass",
+                additionalFiles = listOf(switchWithSealed),
+            )
+        )
+
     @Test
     fun `Test exhaustive abstract sealed class with java-sealed-classes=yes`() {
         checkStubs(
@@ -99,6 +216,7 @@ class StubsSealedClassTest : AbstractStubsTest() {
                         """
                     ),
                 ),
+            compilationChecks = compilationChecksForExhaustiveAbstractSealedClass(),
         )
     }
 
@@ -188,6 +306,7 @@ class StubsSealedClassTest : AbstractStubsTest() {
                         """
                     ),
                 ),
+            compilationChecks = compilationChecksForNonExhaustiveAbstractSealedClass(),
         )
     }
 
@@ -270,6 +389,7 @@ class StubsSealedClassTest : AbstractStubsTest() {
                         """
                     ),
                 ),
+            compilationChecks = compilationChecksForConcreteSealedClass(),
         )
     }
 
@@ -360,6 +480,7 @@ class StubsSealedClassTest : AbstractStubsTest() {
                         """
                     ),
                 ),
+            compilationChecks = compilationChecksForConcreteSealedClass(),
         )
     }
 
@@ -435,6 +556,7 @@ class StubsSealedClassTest : AbstractStubsTest() {
                         """
                     ),
                 ),
+            compilationChecks = compilationChecksForExhaustiveAbstractSealedClass(),
         )
     }
 
@@ -518,6 +640,7 @@ class StubsSealedClassTest : AbstractStubsTest() {
                         """
                     ),
                 ),
+            compilationChecks = compilationChecksForNonExhaustiveAbstractSealedClass(),
         )
     }
 

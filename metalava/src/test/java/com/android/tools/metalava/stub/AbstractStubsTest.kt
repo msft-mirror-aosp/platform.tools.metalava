@@ -105,6 +105,7 @@ abstract class AbstractStubsTest : DriverTest() {
             stubFiles = stubFilesArr,
             expectedIssues = warnings,
             checkCompilation = checkCompilation,
+            compilationChecks = compilationChecks,
             api = api,
             extraArguments = extraArguments,
             docStubs = docStubs,
@@ -123,6 +124,7 @@ abstract class AbstractStubsTest : DriverTest() {
                 // files.
                 ignoreParameterNamesInStubFiles = true,
                 checkCompilation = checkCompilation,
+                compilationChecks = compilationChecks,
                 extraArguments = arrayOf(*extraArguments),
                 skipEmitPackages = skipEmitPackages,
                 format = format
