@@ -146,14 +146,13 @@ class StubsSealedClassTest : AbstractStubsTest() {
                 ),
             // TODO(b/482391240): Remove when issues are fixed.
             checkTextStubEquivalence = false,
-            // TODO(b/482391240): Remove test.pkg.SubclassPrivate from the permits list.
             api =
                 """
                     // Signature format: 6.0
                     // - style=java
                     // - java-sealed-classes=yes
                     package test.pkg {
-                      public abstract sealed non-exhaustive class Sealed permits test.pkg.SubclassA test.pkg.SubclassB test.pkg.SubclassPrivate {
+                      public abstract sealed non-exhaustive class Sealed permits test.pkg.SubclassA test.pkg.SubclassB {
                       }
                       public final class SubclassA extends test.pkg.Sealed {
                         ctor public SubclassA();
@@ -245,7 +244,7 @@ class StubsSealedClassTest : AbstractStubsTest() {
                     // - style=java
                     // - java-sealed-classes=yes
                     package test.pkg {
-                      public sealed non-exhaustive class Sealed permits test.pkg.SubclassA test.pkg.SubclassB test.pkg.SubclassPrivate {
+                      public sealed non-exhaustive class Sealed permits test.pkg.SubclassA test.pkg.SubclassB {
                         ctor public Sealed(int);
                       }
                       public final class SubclassA extends test.pkg.Sealed {
@@ -407,14 +406,13 @@ class StubsSealedClassTest : AbstractStubsTest() {
                 ),
             // TODO(b/482391240): Remove when issues are fixed.
             checkTextStubEquivalence = false,
-            // TODO(b/482391240): Remove test.pkg.SubclassPrivate from the permits list.
             api =
                 """
                     // Signature format: 6.0
                     // - style=java
                     // - java-sealed-classes=yes
                     package test.pkg {
-                      public sealed non-exhaustive interface Sealed permits test.pkg.SubclassA test.pkg.SubclassB test.pkg.SubclassPrivate {
+                      public sealed non-exhaustive interface Sealed permits test.pkg.SubclassA test.pkg.SubclassB {
                       }
                       public non-sealed interface SubclassA extends test.pkg.Sealed {
                       }
