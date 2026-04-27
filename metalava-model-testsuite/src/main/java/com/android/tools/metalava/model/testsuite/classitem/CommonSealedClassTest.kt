@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model.testsuite.classitem
 
+import com.android.tools.metalava.model.SkeletonClassItem
 import com.android.tools.metalava.model.provider.InputFormat
 import com.android.tools.metalava.model.testing.SupportedInputFormats
 import com.android.tools.metalava.model.testing.classTypeItem
@@ -25,6 +26,7 @@ import com.android.tools.metalava.testing.kotlin
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
+import org.junit.Assert.assertThrows
 import org.junit.Test
 
 class CommonSealedClassTest : BaseModelTest() {
@@ -113,6 +115,64 @@ class CommonSealedClassTest : BaseModelTest() {
 
             val subclassB = codebase.assertClass("test.pkg.SealedClass.SubclassB")
             assertTrue(subclassB.modifiers.isNonSealed())
+        }
+    }
+
+    @SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.JAVA, InputFormat.KOTLIN)
+    @Test
+    fun `Test update permits`() {
+        runCodebaseTest(
+            signature(
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public class Test {
+                      }
+                    }
+                """
+            ),
+            java(
+                """
+                    package test.pkg;
+
+                    public class Test {
+                        private Test() {}
+                    }
+                """
+            ),
+            kotlin(
+                """
+                    package test.pkg
+
+                    class Test
+                """
+            ),
+        ) {
+            val testClass = codebase.assertClass("test.pkg.Test")
+
+            // Make sure that it is empty to begin with.
+            assertEquals(emptyList(), testClass.permitTypes, message = "before setting")
+
+            // Set it to a non-empty list and make sure it works.
+            val skeletonClassItem = testClass as SkeletonClassItem
+            skeletonClassItem.permitTypes = listOf(classTypeItem("test.pkg.Subclass"))
+            assertEquals(
+                listOf(classTypeItem("test.pkg.Subclass")),
+                testClass.permitTypes,
+                message = "after setting"
+            )
+
+            // Freeze the class and make sure permit types cannot be set.
+            skeletonClassItem.freeze()
+            val exception =
+                assertThrows(IllegalStateException::class.java) {
+                    skeletonClassItem.permitTypes = emptyList()
+                }
+            assertEquals(
+                "Cannot modify frozen class test.pkg.Test",
+                exception.message,
+                message = "exception message"
+            )
         }
     }
 

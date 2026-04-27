@@ -63,7 +63,7 @@ internal class DefaultClassItem(
     origin: ClassOrigin,
     private var superClassType: ClassTypeItem?,
     private var interfaceTypes: List<ClassTypeItem>,
-    override val permitTypes: List<ClassTypeItem>,
+    permitTypes: List<ClassTypeItem>,
     override val isFileFacade: Boolean,
     /**
      * If [classKind] is [ClassKind.TYPEALIAS], the [optionalAliasedType] must be specified.
@@ -90,6 +90,12 @@ internal class DefaultClassItem(
     private val fullName: String
 
     override var origin: ClassOrigin = origin
+        set(value) {
+            ensureNotFrozen()
+            field = value
+        }
+
+    override var permitTypes: List<ClassTypeItem> = permitTypes
         set(value) {
             ensureNotFrozen()
             field = value
