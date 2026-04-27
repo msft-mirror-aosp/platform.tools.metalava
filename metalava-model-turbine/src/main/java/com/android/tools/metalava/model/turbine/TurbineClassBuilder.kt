@@ -657,17 +657,25 @@ internal class TurbineClassBuilder(
         methods: List<MethodInfo>,
         enclosingClassTypeItemFactory: TurbineTypeItemFactory,
     ) {
+        // An abstract sealed class cannot be instantiated directly so treat its constructors as if
+        // they were private.
+        val treatConstructorsAsPrivate =
+            classItem.modifiers.let { modifiers -> modifiers.isSealed() && modifiers.isAbstract() }
+
         for (constructor in methods) {
             // Skip real methods.
             if (constructor.sym().name() != "<init>") continue
 
             val decl: MethDecl? = constructor.decl()
-            val constructormodifiers =
+            val modifiers =
                 createModifiers(
                     ModifierContext.forItemKind(ItemKind.CONSTRUCTOR),
                     constructor.access(),
                     constructor.annotations(),
                 )
+            if (treatConstructorsAsPrivate) {
+                modifiers.setVisibilityLevel(VisibilityLevel.PRIVATE)
+            }
             val (typeParams, constructorTypeItemFactory) =
                 createTypeParameters(
                     constructor.tyParams(),
@@ -680,7 +688,7 @@ internal class TurbineClassBuilder(
             val constructorItem =
                 itemFactory.createConstructorItem(
                     fileLocation = TurbineFileLocation.forTree(classItem, decl),
-                    modifiers = constructormodifiers,
+                    modifiers = modifiers,
                     documentationFactory = itemDocumentationFactoryForDecl(classItem, decl),
                     // Turbine's Binder gives return type of constructors as void but the
                     // model expects it to the type of object being created. So, use the
