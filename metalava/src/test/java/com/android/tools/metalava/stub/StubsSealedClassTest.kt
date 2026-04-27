@@ -53,8 +53,6 @@ class StubsSealedClassTest : AbstractStubsTest() {
                         """
                     ),
                 ),
-            // TODO(b/482391240): Remove when issues are fixed.
-            checkTextStubEquivalence = false,
             api =
                 """
                     // Signature format: 6.0
@@ -77,7 +75,7 @@ class StubsSealedClassTest : AbstractStubsTest() {
                         """
                             package test.pkg;
                             @SuppressWarnings({"unchecked", "deprecation", "all"})
-                            public abstract class Sealed {
+                            public abstract sealed class Sealed permits test.pkg.SubclassA, test.pkg.SubclassB {
                             Sealed() { throw new RuntimeException("Stub!"); }
                             }
                         """
@@ -95,7 +93,7 @@ class StubsSealedClassTest : AbstractStubsTest() {
                         """
                             package test.pkg;
                             @SuppressWarnings({"unchecked", "deprecation", "all"})
-                            public class SubclassB extends test.pkg.Sealed {
+                            public non-sealed class SubclassB extends test.pkg.Sealed {
                             public SubclassB() { throw new RuntimeException("Stub!"); }
                             }
                         """
@@ -144,8 +142,6 @@ class StubsSealedClassTest : AbstractStubsTest() {
                         """
                     ),
                 ),
-            // TODO(b/482391240): Remove when issues are fixed.
-            checkTextStubEquivalence = false,
             api =
                 """
                     // Signature format: 6.0
@@ -168,7 +164,7 @@ class StubsSealedClassTest : AbstractStubsTest() {
                         """
                             package test.pkg;
                             @SuppressWarnings({"unchecked", "deprecation", "all"})
-                            public abstract class Sealed {
+                            public abstract sealed class Sealed permits test.pkg.SubclassA, test.pkg.SubclassB {
                             Sealed() { throw new RuntimeException("Stub!"); }
                             }
                         """
@@ -186,7 +182,7 @@ class StubsSealedClassTest : AbstractStubsTest() {
                         """
                             package test.pkg;
                             @SuppressWarnings({"unchecked", "deprecation", "all"})
-                            public class SubclassB extends test.pkg.Sealed {
+                            public non-sealed class SubclassB extends test.pkg.Sealed {
                             public SubclassB() { throw new RuntimeException("Stub!"); }
                             }
                         """
@@ -261,7 +257,7 @@ class StubsSealedClassTest : AbstractStubsTest() {
                         """
                             package test.pkg;
                             @SuppressWarnings({"unchecked", "deprecation", "all"})
-                            public class Sealed {
+                            public sealed class Sealed permits test.pkg.SubclassA, test.pkg.SubclassB {
                             public Sealed(int a) { throw new RuntimeException("Stub!"); }
                             }
                         """
@@ -279,7 +275,7 @@ class StubsSealedClassTest : AbstractStubsTest() {
                         """
                             package test.pkg;
                             @SuppressWarnings({"unchecked", "deprecation", "all"})
-                            public class SubclassB extends test.pkg.Sealed {
+                            public non-sealed class SubclassB extends test.pkg.Sealed {
                             public SubclassB() { super(0); throw new RuntimeException("Stub!"); }
                             }
                         """
@@ -319,8 +315,6 @@ class StubsSealedClassTest : AbstractStubsTest() {
                         """
                     ),
                 ),
-            // TODO(b/482391240): Remove when issues are fixed.
-            checkTextStubEquivalence = false,
             api =
                 """
                     // Signature format: 6.0
@@ -341,7 +335,7 @@ class StubsSealedClassTest : AbstractStubsTest() {
                         """
                             package test.pkg;
                             @SuppressWarnings({"unchecked", "deprecation", "all"})
-                            public interface Sealed {
+                            public sealed interface Sealed permits test.pkg.SubclassA, test.pkg.SubclassB {
                             }
                         """
                     ),
@@ -349,7 +343,7 @@ class StubsSealedClassTest : AbstractStubsTest() {
                         """
                             package test.pkg;
                             @SuppressWarnings({"unchecked", "deprecation", "all"})
-                            public interface SubclassA extends test.pkg.Sealed {
+                            public non-sealed interface SubclassA extends test.pkg.Sealed {
                             }
                         """
                     ),
@@ -357,7 +351,7 @@ class StubsSealedClassTest : AbstractStubsTest() {
                         """
                             package test.pkg;
                             @SuppressWarnings({"unchecked", "deprecation", "all"})
-                            public interface SubclassB extends test.pkg.Sealed {
+                            public non-sealed interface SubclassB extends test.pkg.Sealed {
                             }
                         """
                     ),
@@ -404,8 +398,6 @@ class StubsSealedClassTest : AbstractStubsTest() {
                         """
                     ),
                 ),
-            // TODO(b/482391240): Remove when issues are fixed.
-            checkTextStubEquivalence = false,
             api =
                 """
                     // Signature format: 6.0
@@ -426,7 +418,7 @@ class StubsSealedClassTest : AbstractStubsTest() {
                         """
                             package test.pkg;
                             @SuppressWarnings({"unchecked", "deprecation", "all"})
-                            public interface Sealed {
+                            public sealed interface Sealed permits test.pkg.SubclassA, test.pkg.SubclassB {
                             }
                         """
                     ),
@@ -434,7 +426,7 @@ class StubsSealedClassTest : AbstractStubsTest() {
                         """
                             package test.pkg;
                             @SuppressWarnings({"unchecked", "deprecation", "all"})
-                            public interface SubclassB extends test.pkg.Sealed {
+                            public non-sealed interface SubclassB extends test.pkg.Sealed {
                             }
                         """
                     ),
@@ -442,7 +434,7 @@ class StubsSealedClassTest : AbstractStubsTest() {
                         """
                             package test.pkg;
                             @SuppressWarnings({"unchecked", "deprecation", "all"})
-                            public interface SubclassA extends test.pkg.Sealed {
+                            public non-sealed interface SubclassA extends test.pkg.Sealed {
                             }
                         """
                     ),

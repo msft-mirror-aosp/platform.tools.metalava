@@ -185,12 +185,15 @@ class ModifierListWriter(
             if (list.isSealed()) {
                 writer.write("sealed ")
 
-                if (list.isExhaustive()) {
-                    writer.write("exhaustive ")
-                } else if (javaSealedClasses) {
-                    writer.write("non-exhaustive ")
-                } else {
-                    writer.write("nonexhaustive ")
+                // Only write exhaustive to signature files.
+                if (target == AnnotationTarget.SIGNATURE_FILE) {
+                    if (list.isExhaustive()) {
+                        writer.write("exhaustive ")
+                    } else if (javaSealedClasses) {
+                        writer.write("non-exhaustive ")
+                    } else {
+                        writer.write("nonexhaustive ")
+                    }
                 }
             }
 

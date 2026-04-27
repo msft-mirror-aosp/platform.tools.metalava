@@ -63,6 +63,7 @@ import com.android.tools.metalava.model.source.SourceParser
 import com.android.tools.metalava.model.source.SourceSet
 import com.android.tools.metalava.model.text.CustomizableProperty.Companion.ADD_ADDITIONAL_OVERRIDES
 import com.android.tools.metalava.model.text.CustomizableProperty.Companion.JAVA_RECORD_CLASSES
+import com.android.tools.metalava.model.text.CustomizableProperty.Companion.JAVA_SEALED_CLASSES
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.model.text.MultiplatformSignatureWriter
 import com.android.tools.metalava.model.text.SignatureFile
@@ -391,6 +392,7 @@ class Driver(
         val generatorConfig =
             stubGenerationOptions.generatorConfig(
                 javaRecordClasses = signatureFormatOptions.fileFormat[JAVA_RECORD_CLASSES],
+                javaSealedClasses = signatureFormatOptions.fileFormat[JAVA_SEALED_CLASSES],
             )
         StubGenerator(
                 generatorConfig,

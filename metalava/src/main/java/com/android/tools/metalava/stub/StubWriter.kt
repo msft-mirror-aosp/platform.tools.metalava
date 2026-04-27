@@ -62,6 +62,7 @@ internal class StubWriter(
         return modifierListWriterConfig.copy(
             runtimeAnnotationsOnly = !generateAnnotations,
             javaRecordClasses = config.javaRecordClasses,
+            javaSealedClasses = config.javaSealedClasses,
         )
     }
 
