@@ -235,10 +235,25 @@ class CommonSealedClassTest : BaseModelTest() {
         }
     }
 
-    @SupportedInputFormats(InputFormat.JAVA)
+    @SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.JAVA, InputFormat.KOTLIN)
     @Test
-    fun `sealed class - implicit permits - not kotlin`() {
+    fun `sealed class - implicit permits`() {
         runCodebaseTest(
+            inputSet(
+                signature(
+                    """
+                        // Signature format: 2.0
+                        package test.pkg {
+                          public sealed class SealedClass {
+                          }
+                          public static final class SubclassA extends test.pkg.SealedClass {
+                          }
+                          public static final class SubclassB extends test.pkg.SealedClass {
+                          }
+                        }
+                    """
+                ),
+            ),
             inputSet(
                 java(
                     """
@@ -265,6 +280,17 @@ class CommonSealedClassTest : BaseModelTest() {
                         public final class SubclassB extends SealedClass {
                             private SubclassB() {}
                         }
+                    """
+                ),
+            ),
+            inputSet(
+                kotlin(
+                    """
+                        package test.pkg
+
+                        sealed class SealedClass private constructor()
+                        class SubclassA private constructor(): SealedClass
+                        class SubclassB private constructor(): SealedClass
                     """
                 ),
             ),

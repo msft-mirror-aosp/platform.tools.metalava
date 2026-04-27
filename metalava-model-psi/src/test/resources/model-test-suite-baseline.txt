@@ -5,7 +5,8 @@ com.android.tools.metalava.model.testsuite.annotationitem.CommonAnnotationItemTe
   unknown annotation class with named attribute - string value[kotlin]
 
 com.android.tools.metalava.model.testsuite.classitem.CommonSealedClassTest
-  sealed class - implicit permits - not kotlin[java]
+  sealed class - implicit permits[java]
+  sealed class - implicit permits[kotlin]
 
 com.android.tools.metalava.model.testsuite.value.CommonParameterizedFieldValueTest
   testFieldValue[kotlin,source,null - intermediate non-constant expression]
