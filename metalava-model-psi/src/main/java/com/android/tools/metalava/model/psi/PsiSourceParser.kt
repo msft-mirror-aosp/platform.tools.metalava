@@ -22,6 +22,7 @@ import com.android.tools.lint.UastEnvironment
 import com.android.tools.lint.computeMetadata
 import com.android.tools.lint.detector.api.Project
 import com.android.tools.metalava.model.Codebase
+import com.android.tools.metalava.model.item.SealedClassImplicitPermitTypesUpdater
 import com.android.tools.metalava.model.multiplatform.MultiplatformCodebase
 import com.android.tools.metalava.model.psi.kotlin.KaCodebaseAssembler
 import com.android.tools.metalava.model.psi.kotlin.KotlinBytecodeApis
@@ -123,6 +124,9 @@ internal class PsiSourceParser(
         inputs.compiledSourceJar?.let { compiledSourceJar ->
             tracer.trace("mergeFromJar") { mergeFromJar(codebase, compiledSourceJar) }
         }
+
+        // Update implicit permit types in any sealed class that does not have one provided.
+        SealedClassImplicitPermitTypesUpdater.updateImplicitPermitTypes(codebase)
 
         return codebase
     }

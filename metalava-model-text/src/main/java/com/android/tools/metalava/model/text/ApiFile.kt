@@ -58,6 +58,7 @@ import com.android.tools.metalava.model.createImmutableModifiers
 import com.android.tools.metalava.model.createMutableModifiers
 import com.android.tools.metalava.model.item.DefaultCodebase
 import com.android.tools.metalava.model.item.PackageInfo
+import com.android.tools.metalava.model.item.SealedClassImplicitPermitTypesUpdater
 import com.android.tools.metalava.model.multiplatform.MultiplatformCodebase
 import com.android.tools.metalava.model.parser.FileLocationTracker
 import com.android.tools.metalava.model.parser.TokenPurpose
@@ -366,8 +367,13 @@ private constructor(
                 )
             parser.parseMultipleFiles(signatureFiles)
 
+            val codebase = parser.codebase
+
+            // Update implicit permit types in any sealed class that does not have one provided.
+            SealedClassImplicitPermitTypesUpdater.updateImplicitPermitTypes(codebase)
+
             apiStatsConsumer(parser.stats)
-            return parser.codebase
+            return codebase
         }
 
         /**
