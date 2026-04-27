@@ -207,7 +207,7 @@ class ListOfPackagePolicyAnnotationHandlerTest : DriverTest() {
                          *     </ul>
                          *   </li>
                          *   <li>Empty list: Not allowed</li>
-                         *   <li>Max list length: No limit</li>
+                         *   <li>Max list length: 10000</li>
                          * </ul>
                          */
                         public static final java.lang.String POLICY_FIELD = "";

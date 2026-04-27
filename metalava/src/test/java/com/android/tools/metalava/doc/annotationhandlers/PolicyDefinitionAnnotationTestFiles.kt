@@ -158,6 +158,7 @@ object PolicyDefinitionAnnotationTestFiles {
                 boolean pureWhitespaceAllowed() default false;
                 boolean unstrippedStringAllowed() default false;
                 ListResolutionMechanism resolutionMechanism();
+                int maxListLength() default 10000;
             }
 
             @Retention(RetentionPolicy.SOURCE)
@@ -180,7 +181,7 @@ object PolicyDefinitionAnnotationTestFiles {
                 PolicyDefinition base();
                 boolean emptyListAllowed() default false;
                 ListResolutionMechanism resolutionMechanism();
-                int maxListLength() default Integer.MAX_VALUE;
+                int maxListLength() default 10000;
             }
             """
         )

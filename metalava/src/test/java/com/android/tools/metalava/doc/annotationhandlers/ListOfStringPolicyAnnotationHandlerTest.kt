@@ -69,6 +69,7 @@ class ListOfStringPolicyAnnotationHandlerTest : DriverTest() {
                                 unprintableCharactersAllowed = true,
                                 pureWhitespaceAllowed = true,
                                 unstrippedStringAllowed = true,
+                                maxListLength = 5,
                                 resolutionMechanism = @ListResolutionMechanism(custom = true)
                             )
                             public static final String POLICY_FIELD = "";
@@ -126,6 +127,7 @@ class ListOfStringPolicyAnnotationHandlerTest : DriverTest() {
                          *   <li>Unprintable characters: Allowed</li>
                          *   <li>Pure whitespace: Allowed</li>
                          *   <li>Unstripped string: Allowed</li>
+                         *   <li>Max list length: 5</li>
                          * </ul>
                          */
                         public static final java.lang.String POLICY_FIELD = "";
@@ -169,6 +171,7 @@ class ListOfStringPolicyAnnotationHandlerTest : DriverTest() {
                                         fullUserProfileOwner = ALLOWED
                                     )
                                 ),
+                                maxListLength = Integer.MAX_VALUE,
                                 resolutionMechanism = @ListResolutionMechanism()
                             )
                             public static final String POLICY_FIELD = "";
@@ -221,6 +224,7 @@ class ListOfStringPolicyAnnotationHandlerTest : DriverTest() {
                          *   <li>Unprintable characters: Not allowed</li>
                          *   <li>Pure whitespace: Not allowed</li>
                          *   <li>Unstripped string: Not allowed</li>
+                         *   <li>Max list length: No limit</li>
                          * </ul>
                          */
                         public static final java.lang.String POLICY_FIELD = "";
@@ -230,7 +234,7 @@ class ListOfStringPolicyAnnotationHandlerTest : DriverTest() {
                 ),
             expectedIssues =
                 """
-                src/test/pkg/TestPolicy.java:27: error: ListResolutionMechanism must have either 'custom' or 'union' set to true. [InvalidDevicePolicyAnnotation]
+                src/test/pkg/TestPolicy.java:28: error: ListResolutionMechanism must have either 'custom' or 'union' set to true. [InvalidDevicePolicyAnnotation]
                 """
         )
     }
