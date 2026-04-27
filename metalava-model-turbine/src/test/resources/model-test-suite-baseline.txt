@@ -1,3 +1,7 @@
+com.android.tools.metalava.model.testsuite.classitem.CommonSealedClassTest
+  sealed abstract class - explicit protected constructor
+  sealed abstract class - explicit public constructor
+
 com.android.tools.metalava.model.testsuite.fielditem.CommonFieldItemTest
   Test implicit nullability of constant field initialized from @NonNull method
 

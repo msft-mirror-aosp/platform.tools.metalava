@@ -17,6 +17,7 @@
 package com.android.tools.metalava.model.testsuite.classitem
 
 import com.android.tools.metalava.model.SkeletonClassItem
+import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.provider.InputFormat
 import com.android.tools.metalava.model.testing.SupportedInputFormats
 import com.android.tools.metalava.model.testing.classTypeItem
@@ -468,6 +469,179 @@ class CommonSealedClassTest : BaseModelTest() {
         ) {
             val testClass = codebase.assertClass("test.pkg.SealedClass")
             assertFalse(testClass.modifiers.isExhaustive())
+        }
+    }
+
+    @SupportedInputFormats(InputFormat.JAVA)
+    @Test
+    fun `sealed concrete class - explicit public constructor`() {
+        runCodebaseTest(
+            inputSet(
+                java(
+                    """
+                        package test.pkg;
+
+                        public sealed class SealedClass {
+                            public SealedClass(int i) {}
+                        }
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
+
+                        public final class SubclassA extends SealedClass {
+                            private SubclassA() {super(1);}
+                        }
+                    """
+                ),
+            ),
+            // This does not run in Kotlin as there is no way to have a sealed concrete class in
+            // Kotlin as Kotlin treats all sealed classes as abstract.
+        ) {
+            val testClass = codebase.assertClass("test.pkg.SealedClass")
+
+            testClass.assertConstructor(listOf("int")).also { constructor ->
+                assertEquals(
+                    VisibilityLevel.PUBLIC,
+                    constructor.modifiers.getVisibilityLevel(),
+                )
+            }
+        }
+    }
+
+    @SupportedInputFormats(InputFormat.JAVA)
+    @Test
+    fun `sealed concrete class - explicit protected constructor`() {
+        runCodebaseTest(
+            inputSet(
+                java(
+                    """
+                        package test.pkg;
+
+                        public sealed class SealedClass {
+                            protected SealedClass(int i) {}
+                        }
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
+
+                        public final class SubclassA extends SealedClass {
+                            private SubclassA() {super(1);}
+                        }
+                    """
+                ),
+            ),
+            // This does not run in Kotlin as there is no way to have a sealed concrete class in
+            // Kotlin as Kotlin treats all sealed classes as abstract.
+        ) {
+            val testClass = codebase.assertClass("test.pkg.SealedClass")
+
+            // In Kotlin a sealed class is always abstract which means it cannot be instantiated
+            // directly so the visibility of the constructor is irrelevant. They are treated as
+            // being PRIVATE preventing them from being tracked in the signature file.
+            val expectedVisibility =
+                if (inputFormat == InputFormat.KOTLIN) VisibilityLevel.PRIVATE
+                else VisibilityLevel.PROTECTED
+
+            testClass.assertConstructor(listOf("int")).also { constructor ->
+                assertEquals(
+                    expectedVisibility,
+                    constructor.modifiers.getVisibilityLevel(),
+                )
+            }
+        }
+    }
+
+    @SupportedInputFormats(InputFormat.JAVA, InputFormat.KOTLIN)
+    @Test
+    fun `sealed abstract class - explicit public constructor`() {
+        runCodebaseTest(
+            inputSet(
+                java(
+                    """
+                        package test.pkg;
+
+                        public abstract sealed class SealedClass {
+                            public SealedClass(int i) {}
+                        }
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
+
+                        public final class SubclassA extends SealedClass {
+                            private SubclassA() {super(1);}
+                        }
+                    """
+                ),
+            ),
+            inputSet(
+                kotlin(
+                    """
+                        package test.pkg
+                        sealed class SealedClass(a: Int)
+                        class SubclassA : SealedClass(1)
+                    """
+                ),
+            ),
+        ) {
+            val testClass = codebase.assertClass("test.pkg.SealedClass")
+
+            testClass.assertConstructor(listOf("int")).also { constructor ->
+                assertEquals(
+                    VisibilityLevel.PRIVATE,
+                    constructor.modifiers.getVisibilityLevel(),
+                )
+            }
+        }
+    }
+
+    @SupportedInputFormats(InputFormat.JAVA, InputFormat.KOTLIN)
+    @Test
+    fun `sealed abstract class - explicit protected constructor`() {
+        runCodebaseTest(
+            inputSet(
+                java(
+                    """
+                        package test.pkg;
+
+                        public abstract sealed class SealedClass {
+                            protected SealedClass(int i) {}
+                        }
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
+
+                        public final class SubclassA extends SealedClass {
+                            private SubclassA() {super(1);}
+                        }
+                    """
+                ),
+            ),
+            inputSet(
+                kotlin(
+                    """
+                        package test.pkg
+                        sealed class SealedClass protected constructor(a: Int)
+                        class SubclassA : SealedClass(1)
+                    """
+                ),
+            ),
+        ) {
+            val testClass = codebase.assertClass("test.pkg.SealedClass")
+
+            testClass.assertConstructor(listOf("int")).also { constructor ->
+                assertEquals(
+                    VisibilityLevel.PRIVATE,
+                    constructor.modifiers.getVisibilityLevel(),
+                )
+            }
         }
     }
 }
