@@ -406,7 +406,13 @@ abstract class DriverTest :
         expectedIssues: String? = "",
         /** Expected [Severity.ERROR] issues to be generated when analyzing these sources */
         errorSeverityExpectedIssues: String? = null,
+
+        /**
+         * If `true` then stubs will be generated and then compiled to make sure that they are valid
+         * java.
+         */
         checkCompilation: Boolean = false,
+
         /** Annotations to merge in (in .xml format) */
         @Language("XML") mergeXmlAnnotations: String? = null,
         /** Annotations to merge in (in .txt/.signature format) */
@@ -916,7 +922,7 @@ abstract class DriverTest :
 
         var stubsDir: File? = null
         val stubsArgs =
-            if (stubFiles.isNotEmpty() || stubPaths != null) {
+            if (stubFiles.isNotEmpty() || stubPaths != null || checkCompilation) {
                 stubsDir = getOrCreateFolder("stubs")
                 if (docStubs) {
                     arrayOf(ARG_DOC_STUBS, stubsDir.path)
@@ -1349,7 +1355,10 @@ abstract class DriverTest :
             }
         }
 
-        if (checkCompilation && stubsDir != null) {
+        if (checkCompilation) {
+            stubsDir
+                ?: error("internal error: stubsDir must be non-null when checkCompilation=true")
+
             val generated =
                 SourceSet.createFromSourcePath(ThrowingReporter.INSTANCE, listOf(stubsDir)).sources
 
