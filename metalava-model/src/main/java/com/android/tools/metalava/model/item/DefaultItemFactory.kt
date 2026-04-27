@@ -100,7 +100,7 @@ class DefaultItemFactory(
         classKind: ClassKind,
         containingClass: ClassItem?,
         containingPackage: PackageItem,
-        qualifiedName: String = "",
+        qualifiedName: String,
         typeParameterList: TypeParameterList,
         origin: ClassOrigin,
         superClassType: ClassTypeItem?,
