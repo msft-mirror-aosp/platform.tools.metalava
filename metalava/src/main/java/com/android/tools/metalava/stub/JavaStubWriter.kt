@@ -42,6 +42,7 @@ internal class JavaStubWriter(
     private val modifierListWriter: ModifierListWriter,
     private val config: StubWriterConfig,
     private val stubConstructorManager: StubConstructorManager,
+    private val inaccessibleSealedSubclassManager: InaccessibleSealedSubclassManager,
 ) : DelegatedVisitor {
 
     /**
@@ -132,7 +133,17 @@ internal class JavaStubWriter(
     }
 
     override fun afterVisitClass(cls: ClassItem) {
+        // Write any inaccessible sealed subclasses that will be contained within [cls] before
+        // closing the class body.
+        inaccessibleSealedSubclassManager.writeSubclasses(writer, containingClass = cls)
+
         writer.println("}")
+
+        // If this is the top level class then write out any top level inaccessible sealed
+        // subclasses that cannot be nested in [cls].
+        if (cls.containingClass() == null) {
+            inaccessibleSealedSubclassManager.writeSubclasses(writer, containingClass = null)
+        }
     }
 
     private fun appendModifiers(item: Item) {
@@ -186,7 +197,20 @@ internal class JavaStubWriter(
             return
         }
 
-        val permitTypes = cls.permitTypes
+        val permitTypes =
+            cls.permitTypes.let { list ->
+                // If the class is non-exhaustive then add an inaccessible subclass that will ensure
+                // that the stub version of the class is also non-exhaustive.
+                if (!modifiers.isExhaustive()) {
+                    val subclassType =
+                        inaccessibleSealedSubclassManager.addSubclass(sealedClassItem = cls)
+
+                    list + subclassType
+                } else {
+                    list
+                }
+            }
+
         if (permitTypes.isEmpty()) {
             // No permits list is available so using `permits` would result in invalid sources.
             return

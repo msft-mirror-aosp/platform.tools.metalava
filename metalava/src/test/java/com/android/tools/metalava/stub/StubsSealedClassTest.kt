@@ -48,8 +48,6 @@ class StubsSealedClassTest : AbstractStubsTest() {
          * A switch over a non-exhaustive `Sealed` class that should have a default but does not yet
          * need one.
          */
-        // TODO(b/482391240): This should have a default case as Sealed is a non-exhaustive,
-        //  sealed/ class, i.e. not all of its subclasses are part of its API surface.
         private val switchWithDefault =
             java(
                 """
@@ -62,6 +60,7 @@ class StubsSealedClassTest : AbstractStubsTest() {
                             return switch(sealed) {
                                 case SubclassA a -> 0;
                                 case SubclassB b -> 1;
+                                default -> 2;
                             };
                         }
                     }
@@ -116,6 +115,13 @@ class StubsSealedClassTest : AbstractStubsTest() {
             CompilationCheck(
                 label = "fail",
                 additionalFiles = listOf(switchNoDefault),
+                expectedFailure =
+                    """
+                        ADDITIONAL/src/other/Other.java:7: error: the switch expression does not cover all possible input values
+                                return switch(sealed) {
+                                       ^
+                        1 error
+                    """,
             ),
             CompilationCheck(
                 label = "pass",
@@ -282,8 +288,11 @@ class StubsSealedClassTest : AbstractStubsTest() {
                         """
                             package test.pkg;
                             @SuppressWarnings({"unchecked", "deprecation", "all"})
-                            public abstract sealed class Sealed permits test.pkg.SubclassA, test.pkg.SubclassB {
+                            public abstract sealed class Sealed permits test.pkg.SubclassA, test.pkg.SubclassB, test.pkg.Sealed._Private_ {
                             Sealed() { throw new RuntimeException("Stub!"); }
+                            static abstract non-sealed class _Private_ extends test.pkg.Sealed {
+                            private _Private_() { throw new RuntimeException("Stub!"); }
+                            }
                             }
                         """
                     ),
@@ -456,8 +465,11 @@ class StubsSealedClassTest : AbstractStubsTest() {
                         """
                             package test.pkg;
                             @SuppressWarnings({"unchecked", "deprecation", "all"})
-                            public sealed class Sealed permits test.pkg.SubclassA, test.pkg.SubclassB {
+                            public sealed class Sealed permits test.pkg.SubclassA, test.pkg.SubclassB, test.pkg.Sealed._Private_ {
                             public Sealed(int a) { throw new RuntimeException("Stub!"); }
+                            static abstract non-sealed class _Private_ extends test.pkg.Sealed {
+                            private _Private_() { super(0); throw new RuntimeException("Stub!"); }
+                            }
                             }
                         """
                     ),
@@ -619,7 +631,11 @@ class StubsSealedClassTest : AbstractStubsTest() {
                         """
                             package test.pkg;
                             @SuppressWarnings({"unchecked", "deprecation", "all"})
-                            public sealed interface Sealed permits test.pkg.SubclassA, test.pkg.SubclassB {
+                            public sealed interface Sealed permits test.pkg.SubclassA, test.pkg.SubclassB, test.pkg.Sealed__Private_ {
+                            }
+                            @SuppressWarnings({"unchecked", "deprecation", "all"})
+                            abstract non-sealed class Sealed__Private_ implements test.pkg.Sealed {
+                            private Sealed__Private_() { throw new RuntimeException("Stub!"); }
                             }
                         """
                     ),
@@ -689,10 +705,13 @@ class StubsSealedClassTest : AbstractStubsTest() {
                             @SuppressWarnings({"unchecked", "deprecation", "all"})
                             public class Outer {
                             Outer() { throw new RuntimeException("Stub!"); }
-                            protected static sealed interface Sealed permits test.pkg.Outer.Sealed.Subclass {
+                            protected static sealed interface Sealed permits test.pkg.Outer.Sealed.Subclass, test.pkg.Outer.Sealed__Private_ {
                             public static final class Subclass implements test.pkg.Outer.Sealed {
                             public Subclass() { throw new RuntimeException("Stub!"); }
                             }
+                            }
+                            private static abstract non-sealed class Sealed__Private_ implements test.pkg.Outer.Sealed {
+                            private Sealed__Private_() { throw new RuntimeException("Stub!"); }
                             }
                             }
                         """
@@ -743,11 +762,15 @@ class StubsSealedClassTest : AbstractStubsTest() {
                             package test.pkg;
                             @SuppressWarnings({"unchecked", "deprecation", "all"})
                             public interface Outer {
-                            public static sealed interface Sealed permits test.pkg.Outer.Sealed.Subclass {
+                            public static sealed interface Sealed permits test.pkg.Outer.Sealed.Subclass, test.pkg.Outer_Sealed__Private_ {
                             public static final class Subclass implements test.pkg.Outer.Sealed {
                             public Subclass() { throw new RuntimeException("Stub!"); }
                             }
                             }
+                            }
+                            @SuppressWarnings({"unchecked", "deprecation", "all"})
+                            abstract non-sealed class Outer_Sealed__Private_ implements test.pkg.Outer.Sealed {
+                            private Outer_Sealed__Private_() { throw new RuntimeException("Stub!"); }
                             }
                         """
                     ),
