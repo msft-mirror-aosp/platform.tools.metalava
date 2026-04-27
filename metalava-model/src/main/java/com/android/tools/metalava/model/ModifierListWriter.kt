@@ -82,6 +82,16 @@ class ModifierListWriter(
     private val javaRecordClasses: Boolean = config.javaRecordClasses
     private val javaSealedClasses = config.javaSealedClasses
 
+    /**
+     * Whether the `abstract` modifier should only be disallowed on interface methods.
+     *
+     * Signature files only disallow `abstract` on interfaces when not normalizing abstract. All
+     * other files disallow `abstract` on methods iff it is disallowed on the method's containing
+     * class.
+     */
+    private val onlyDisallowAbstractOnInterfaceMethods =
+        target == AnnotationTarget.SIGNATURE_FILE && !normalizeAbstract
+
     companion object {
         /**
          * Checks whether the method requires a body to be generated in the stubs.
@@ -253,15 +263,12 @@ class ModifierListWriter(
      */
     private fun MethodItem.allowAbstract(): Boolean {
         val containingClassKind = containingClass().classKind
-        return when {
-            target == AnnotationTarget.SIGNATURE_FILE && !normalizeAbstract ->
-                // Signature files only disallow `abstract` on interfaces when not normalizing
-                // abstract.
-                containingClassKind != ClassKind.INTERFACE
-            else ->
-                // All other files disallow `abstract` on methods iff it is disallowed on the
-                // method's containing class.
-                containingClassKind.allowAbstract
+        return if (onlyDisallowAbstractOnInterfaceMethods) {
+            containingClassKind != ClassKind.INTERFACE
+        } else {
+            // Otherwise, disallow it on the methods iff it is disallowed on the method's containing
+            // class.
+            containingClassKind.allowAbstract
         }
     }
 
