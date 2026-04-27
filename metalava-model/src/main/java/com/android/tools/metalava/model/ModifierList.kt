@@ -172,6 +172,14 @@ interface BaseModifierList {
     }
 
     /**
+     * Determines whether a class/interface with these modifiers could be a subtype of a sealed java
+     * type.
+     *
+     * Returns `true` if any of [isFinal], [isSealed] or [isNonSealed] return true.
+     */
+    fun mayBeSubtypeOfJavaSealedType(): Boolean
+
+    /**
      * Get a [MutableModifierList] from this.
      *
      * This will return the object on which it is called if that is already mutable, otherwise it

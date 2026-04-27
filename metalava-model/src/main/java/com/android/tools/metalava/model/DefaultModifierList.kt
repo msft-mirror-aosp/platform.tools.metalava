@@ -182,6 +182,8 @@ internal sealed class DefaultBaseModifierList(
         return false
     }
 
+    override fun mayBeSubtypeOfJavaSealedType() = flags and ModifierFlags.SEALED_SUBTYPE_MASK != 0
+
     /**
      * Returns the flags for the modifiers from this list which are considered significant, as
      * defined by [EQUIVALENCE_MASK].
@@ -300,6 +302,12 @@ interface ModifierFlags {
                 SUSPEND or
                 COMPANION or
                 INLINE
+
+        /**
+         * The set of flags that if set indicate that a class could be a subtype of a `sealed`
+         * class.
+         */
+        internal const val SEALED_SUBTYPE_MASK = FINAL or SEALED or NON_SEALED
     }
 }
 
