@@ -82,6 +82,7 @@ import com.android.tools.metalava.model.text.prepareSignatureFileForTest
 import com.android.tools.metalava.reporter.ReporterEnvironment
 import com.android.tools.metalava.reporter.Severity
 import com.android.tools.metalava.reporter.ThrowingReporter
+import com.android.tools.metalava.testing.JavacCompilationError
 import com.android.tools.metalava.testing.JavacHelper
 import com.android.tools.metalava.testing.KnownJarFiles
 import com.android.tools.metalava.testing.KnownSourceFiles
@@ -1359,14 +1360,10 @@ abstract class DriverTest :
             stubsDir
                 ?: error("internal error: stubsDir must be non-null when checkCompilation=true")
 
-            val generated =
-                SourceSet.createFromSourcePath(ThrowingReporter.INSTANCE, listOf(stubsDir)).sources
-
-            // Compile the stubs, throwing an exception if it fails.
-            JavacHelper.compile(
-                outputDirectory = project,
-                sources = generated,
-                classPath = listOf(KnownJarFiles.stubAnnotationsJar),
+            val compilationCheck = CompilationCheck(label = "default")
+            compilationCheck.compileStubs(
+                project,
+                stubsDir,
             )
         }
 
@@ -1610,6 +1607,54 @@ abstract class DriverTest :
         /** Check to see whether this [String] contains an issue of error severity. */
         private fun String?.containsErrorIssue() =
             this != null && contains(containsErrorSeverityIssueRegex)
+    }
+
+    /**
+     * Encapsulates information needed to check the compilation of the stubs.
+     *
+     * @param label the label for this check, used when reporting failures.
+     * @param expectedFailure the expected failure output.
+     */
+    inner class CompilationCheck(
+        private val label: String,
+        private val expectedFailure: String = "",
+    ) {
+        /** Compile the stubs, verifying that it matches [expectedFailure]. */
+        internal fun compileStubs(
+            projectDir: File,
+            stubsDir: File,
+        ) {
+            // Create a source path for the stubsDir.
+            val sourcePath = listOf(stubsDir)
+
+            // Get the sources to compile by scanning the sourcePath.
+            val generated =
+                SourceSet.createFromSourcePath(ThrowingReporter.INSTANCE, sourcePath).sources
+
+            // Compile the stubs, throwing an exception if it fails.
+            try {
+                JavacHelper.compile(
+                    outputDirectory = projectDir,
+                    sources = generated,
+                    classPath = listOf(KnownJarFiles.stubAnnotationsJar),
+                )
+
+                // If it was expected to fail but did not then fail.
+                if (expectedFailure != "") {
+                    fail("Expected failure: $expectedFailure")
+                }
+            } catch (e: JavacCompilationError) {
+                // Process the output to remove any test specific paths.
+                val output =
+                    replaceFileWithSymbol(
+                        e.output.trim(),
+                        mapOf(
+                            stubsDir to "STUBS",
+                        ),
+                    )
+                assertEquals("$label compilation failure", expectedFailure.trimIndent(), output)
+            }
+        }
     }
 }
 
