@@ -231,9 +231,6 @@ class StubsSealedClassTest : AbstractStubsTest() {
                         """
                     ),
                 ),
-            // TODO(b/482391240): Remove when issues are fixed.
-            checkTextStubEquivalence = false,
-            // TODO(b/482391240): Remove test.pkg.SubclassPrivate from the permits list.
             api =
                 """
                     // Signature format: 6.0
