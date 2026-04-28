@@ -192,7 +192,89 @@ class StubsSealedClassTest : AbstractStubsTest() {
     }
 
     @Test
-    fun `Test non-exhaustive sealed class with java-sealed-classes=yes`() {
+    fun `Test exhaustive concrete sealed class with java-sealed-classes=yes`() {
+        checkStubs(
+            format = FORMAT_V6_WITH_JAVA_SEALED_CLASSES,
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+
+                            public sealed class Sealed {
+                                public Sealed(int a) {}
+                            }
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+
+                            public final class SubclassA extends Sealed {
+                            }
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+
+                            public non-sealed class SubclassB extends Sealed {
+                            }
+                        """
+                    ),
+                ),
+            api =
+                """
+                    // Signature format: 6.0
+                    // - style=java
+                    // - java-sealed-classes=yes
+                    package test.pkg {
+                      public sealed exhaustive class Sealed permits test.pkg.SubclassA test.pkg.SubclassB {
+                        ctor public Sealed(int);
+                      }
+                      public final class SubclassA extends test.pkg.Sealed {
+                        ctor public SubclassA();
+                      }
+                      public non-sealed class SubclassB extends test.pkg.Sealed {
+                        ctor public SubclassB();
+                      }
+                    }
+                """,
+            stubFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            @SuppressWarnings({"unchecked", "deprecation", "all"})
+                            public sealed class Sealed permits test.pkg.SubclassA, test.pkg.SubclassB {
+                            public Sealed(int a) { throw new RuntimeException("Stub!"); }
+                            }
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+                            @SuppressWarnings({"unchecked", "deprecation", "all"})
+                            public final class SubclassA extends test.pkg.Sealed {
+                            public SubclassA() { super(0); throw new RuntimeException("Stub!"); }
+                            }
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+                            @SuppressWarnings({"unchecked", "deprecation", "all"})
+                            public non-sealed class SubclassB extends test.pkg.Sealed {
+                            public SubclassB() { super(0); throw new RuntimeException("Stub!"); }
+                            }
+                        """
+                    ),
+                ),
+        )
+    }
+
+    @Test
+    fun `Test non-exhaustive concrete sealed class with java-sealed-classes=yes`() {
         checkStubs(
             format = FORMAT_V6_WITH_JAVA_SEALED_CLASSES,
             sourceFiles =
