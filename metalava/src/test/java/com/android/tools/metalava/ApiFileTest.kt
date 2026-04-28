@@ -21,13 +21,18 @@ package com.android.tools.metalava
 import com.android.tools.lint.checks.infrastructure.TestFiles.base64gzip
 import com.android.tools.metalava.cli.common.ARG_ERROR
 import com.android.tools.metalava.cli.common.ARG_HIDE
-import com.android.tools.metalava.lint.DefaultLintErrorMessage
+import com.android.tools.metalava.cli.common.ARG_KOTLIN_SOURCE
 import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.testing.RequiresCapabilities
+import com.android.tools.metalava.model.text.CustomizableProperty.Companion.INCLUDE_TYPE_USE_ANNOTATIONS
+import com.android.tools.metalava.model.text.CustomizableProperty.Companion.KOTLIN_NAME_TYPE_ORDER
+import com.android.tools.metalava.model.text.CustomizableProperty.Companion.OVERLOADED_METHOD_ORDER
+import com.android.tools.metalava.model.text.CustomizableProperty.Companion.SORT_WHOLE_EXTENDS_LIST
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.model.text.FileFormat.OverloadedMethodOrder
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.testing.KnownJarFiles
+import com.android.tools.metalava.testing.KnownSourceFiles
 import com.android.tools.metalava.testing.createAndroidModuleDescription
 import com.android.tools.metalava.testing.createCommonModuleDescription
 import com.android.tools.metalava.testing.createProjectDescription
@@ -74,7 +79,7 @@ class ApiFileTest : DriverTest() {
 
     @RequiresCapabilities(Capability.KOTLIN)
     @Test
-    fun `Check that Metalava does not propagate annotations to object declarations`() {
+    fun `Correctly mark sealed class and interface as nonexhaustive even when private subclass is declared before sealed parent class`() {
         check(
             format = FileFormat.V4,
             sourceFiles =
@@ -83,48 +88,48 @@ class ApiFileTest : DriverTest() {
                         """
                         package test.pkg
 
-                        annotation class ExperimentalFeature
-
-                        @ExperimentalFeature
-                        object MyObject {
-                            @ExperimentalFeature
-                            val a: Int = 1
-
-                            @ExperimentalFeature
-                            fun myFun() {}
-                        }
-
-                        class MyOuterClass {
-                            const val b: MyObject = MyObject()
-                        }
+                        private class PrivateSubclassOfSealedClass: ParentNonExhaustiveSealedClass()
+                        private class PrivateSubclassOfSealedInterface: ParentNonExhaustiveSealedInterface
                         """
                     ),
+                    kotlin(
+                        """
+                        package test.pkg
+
+                        public sealed class ParentNonExhaustiveSealedClass
+                        public sealed interface ParentNonExhaustiveSealedInterface
+                        """
+                    ),
+                    kotlin(
+                        """
+                        package test.pkg
+
+                        public class PublicSubclassOfSealedClass : ParentNonExhaustiveSealedClass()
+                        public class PublicSubclassOfSealedInterface : ParentNonExhaustiveSealedInterface
+                        """
+                    )
                 ),
             api =
                 """
                 package test.pkg {
-                  @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME) public @interface ExperimentalFeature {
+                  public abstract sealed nonexhaustive class ParentNonExhaustiveSealedClass {
                   }
-                  @SuppressCompatibility @test.pkg.ExperimentalFeature public final class MyObject {
-                    method @InaccessibleFromKotlin @SuppressCompatibility @test.pkg.ExperimentalFeature public int getA();
-                    method @SuppressCompatibility @test.pkg.ExperimentalFeature public void myFun();
-                    property @SuppressCompatibility @test.pkg.ExperimentalFeature public int a;
-                    field public static final test.pkg.MyObject INSTANCE;
+                  public sealed nonexhaustive interface ParentNonExhaustiveSealedInterface {
                   }
-                  public final class MyOuterClass {
-                    ctor public MyOuterClass();
-                    property public static test.pkg.MyObject b;
-                    field public final test.pkg.MyObject b;
+                  public final class PublicSubclassOfSealedClass extends test.pkg.ParentNonExhaustiveSealedClass {
+                    ctor public PublicSubclassOfSealedClass();
+                  }
+                  public final class PublicSubclassOfSealedInterface implements test.pkg.ParentNonExhaustiveSealedInterface {
+                    ctor public PublicSubclassOfSealedInterface();
                   }
                 }
-                    """,
-            suppressCompatibilityMetaAnnotations = arrayOf("test.pkg.ExperimentalFeature")
+                """
         )
     }
 
     @RequiresCapabilities(Capability.KOTLIN)
     @Test
-    fun `Check that Metalava propagates desired annotation companion object as field`() {
+    fun `Mark a sealed class and interface as exhaustive if no non-accessible classes inherit from it - basic case`() {
         check(
             format = FileFormat.V4,
             sourceFiles =
@@ -133,45 +138,43 @@ class ApiFileTest : DriverTest() {
                         """
                         package test.pkg
 
-                        annotation class ExperimentalFeature
+                        public sealed class ExhaustiveSealedClass
+                        public class PublicSealedClassChild1 : ExhaustiveSealedClass()
+                        public class PublicSealedClassChild2 : ExhaustiveSealedClass()
 
-                        class MyOuterClass {
-                            @ExperimentalFeature
-                            const val a: Int = 0
-
-                            @ExperimentalFeature
-                            companion object {
-                                @ExperimentalFeature
-                                const val b: Int = 0
-                            }
-                        }
+                        public sealed interface ExhaustiveSealedInterface
+                        public class PublicSealedInterfaceImplementor1 : ExhaustiveSealedInterface
+                        public class PublicSealedInterfaceImplementor2 : ExhaustiveSealedInterface
                         """
-                    ),
+                    )
                 ),
             api =
                 """
                 package test.pkg {
-                  @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME) public @interface ExperimentalFeature {
+                  public abstract sealed exhaustive class ExhaustiveSealedClass {
                   }
-                  public final class MyOuterClass {
-                    ctor public MyOuterClass();
-                    property @SuppressCompatibility @test.pkg.ExperimentalFeature public static int a;
-                    field @SuppressCompatibility @test.pkg.ExperimentalFeature public static final test.pkg.MyOuterClass.Companion Companion;
-                    field @SuppressCompatibility @test.pkg.ExperimentalFeature public final int a = 0; // 0x0
-                    field @SuppressCompatibility @test.pkg.ExperimentalFeature public static final int b = 0; // 0x0
+                  public sealed exhaustive interface ExhaustiveSealedInterface {
                   }
-                  @SuppressCompatibility @test.pkg.ExperimentalFeature public static final class MyOuterClass.Companion {
-                    property @SuppressCompatibility @test.pkg.ExperimentalFeature public static int b;
+                  public final class PublicSealedClassChild1 extends test.pkg.ExhaustiveSealedClass {
+                    ctor public PublicSealedClassChild1();
+                  }
+                  public final class PublicSealedClassChild2 extends test.pkg.ExhaustiveSealedClass {
+                    ctor public PublicSealedClassChild2();
+                  }
+                  public final class PublicSealedInterfaceImplementor1 implements test.pkg.ExhaustiveSealedInterface {
+                    ctor public PublicSealedInterfaceImplementor1();
+                  }
+                  public final class PublicSealedInterfaceImplementor2 implements test.pkg.ExhaustiveSealedInterface {
+                    ctor public PublicSealedInterfaceImplementor2();
                   }
                 }
-                    """,
-            suppressCompatibilityMetaAnnotations = arrayOf("test.pkg.ExperimentalFeature")
+                """
         )
     }
 
     @RequiresCapabilities(Capability.KOTLIN)
     @Test
-    fun `Check that Metalava does not propagate annotation to inner class as field`() {
+    fun `Mark a sealed class and interface as exhaustive even if sealed subclass is nonexhaustive`() {
         check(
             format = FileFormat.V4,
             sourceFiles =
@@ -180,65 +183,58 @@ class ApiFileTest : DriverTest() {
                         """
                         package test.pkg
 
-                        annotation class ExperimentalFeature
+                        public sealed class SealedExhaustiveParentClass
+                        public class PublicChildOfSealedParentClass : SealedExhaustiveParentClass()
 
-                        class MyClassField {}
-
-                        class MyOuterClass {
-                            @ExperimentalFeature
-                            const val a: Int = 0
-
-                            @ExperimentalFeature
-                            class MyInnerClass { }
-
-                            const val c: MyInnerClass = null
-
-                            @ExperimentalFeature
-                            const val myField: MyClassField = null
-
-                            @ExperimentalFeature
-                            companion object MyCompObjectWithNonDefaultName {
-                                @ExperimentalFeature
-                                const val b: Int = 0
-                            }
-                        }
+                        public sealed interface SealedExhaustiveParentInterface
+                        public class PublicChildOfSealedParentInterface : SealedExhaustiveParentInterface
                         """
                     ),
+                    kotlin(
+                        """
+                        package test.pkg
+
+                        public sealed class SealedNonExhaustiveChildClass : SealedExhaustiveParentClass()
+                        public class PublicChildOfSealedChildClass: SealedNonExhaustiveChildClass()
+                        private class PrivateChildOfSealedChildClass : SealedNonExhaustiveChildClass()
+
+                        public sealed interface SealedNonExhaustiveChildInterface : SealedExhaustiveParentInterface
+                        public class PublicChildOfSealedChildInterface: SealedNonExhaustiveChildInterface
+                        private class PrivateChildOfSealedChildInterface : SealedNonExhaustiveChildInterface
+                        """
+                    )
                 ),
             api =
                 """
                 package test.pkg {
-                  @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME) public @interface ExperimentalFeature {
+                  public final class PublicChildOfSealedChildClass extends test.pkg.SealedNonExhaustiveChildClass {
+                    ctor public PublicChildOfSealedChildClass();
                   }
-                  public final class MyClassField {
-                    ctor public MyClassField();
+                  public final class PublicChildOfSealedChildInterface implements test.pkg.SealedNonExhaustiveChildInterface {
+                    ctor public PublicChildOfSealedChildInterface();
                   }
-                  public final class MyOuterClass {
-                    ctor public MyOuterClass();
-                    property @SuppressCompatibility @test.pkg.ExperimentalFeature public static int a;
-                    property public static test.pkg.MyOuterClass.MyInnerClass c;
-                    property @SuppressCompatibility @test.pkg.ExperimentalFeature public static test.pkg.MyClassField myField;
-                    field @SuppressCompatibility @test.pkg.ExperimentalFeature public static final test.pkg.MyOuterClass.MyCompObjectWithNonDefaultName MyCompObjectWithNonDefaultName;
-                    field @SuppressCompatibility @test.pkg.ExperimentalFeature public final int a = 0; // 0x0
-                    field @SuppressCompatibility @test.pkg.ExperimentalFeature public static final int b = 0; // 0x0
-                    field public final test.pkg.MyOuterClass.MyInnerClass c;
-                    field @SuppressCompatibility @test.pkg.ExperimentalFeature public final test.pkg.MyClassField myField;
+                  public final class PublicChildOfSealedParentClass extends test.pkg.SealedExhaustiveParentClass {
+                    ctor public PublicChildOfSealedParentClass();
                   }
-                  @SuppressCompatibility @test.pkg.ExperimentalFeature public static final class MyOuterClass.MyCompObjectWithNonDefaultName {
-                    property @SuppressCompatibility @test.pkg.ExperimentalFeature public static int b;
+                  public final class PublicChildOfSealedParentInterface implements test.pkg.SealedExhaustiveParentInterface {
+                    ctor public PublicChildOfSealedParentInterface();
                   }
-                  @SuppressCompatibility @test.pkg.ExperimentalFeature public static final class MyOuterClass.MyInnerClass {
-                    ctor public MyOuterClass.MyInnerClass();
+                  public abstract sealed exhaustive class SealedExhaustiveParentClass {
+                  }
+                  public sealed exhaustive interface SealedExhaustiveParentInterface {
+                  }
+                  public abstract sealed nonexhaustive class SealedNonExhaustiveChildClass extends test.pkg.SealedExhaustiveParentClass {
+                  }
+                  public sealed nonexhaustive interface SealedNonExhaustiveChildInterface extends test.pkg.SealedExhaustiveParentInterface {
                   }
                 }
-                    """,
-            suppressCompatibilityMetaAnnotations = arrayOf("test.pkg.ExperimentalFeature")
+                """
         )
     }
 
     @RequiresCapabilities(Capability.KOTLIN)
     @Test
-    fun `Check for no unintended behavior when having class as member inside of companion object`() {
+    fun `Mark a sealed class and interface as nonexhaustive if a private subclass inherits from it`() {
         check(
             format = FileFormat.V4,
             sourceFiles =
@@ -246,356 +242,33 @@ class ApiFileTest : DriverTest() {
                     kotlin(
                         """
                         package test.pkg
-
-                        annotation class ExperimentalFeature
-
-                        class MyClassField {}
-
-                        class MyOuterClass {
-
-                            @ExperimentalFeature
-                            companion object MyCompObjectWithNonDefaultName {
-                                @ExperimentalFeature
-                                const val myClassFieldA: MyClassField
-                                const val myClassFieldB: MyClassField
-                            }
+                        class AnOuterClass {
+                            private class InnerClassA : SealedParentClass()
+                            private class InnerClassB : SealedParentInterface
                         }
                         """
                     ),
-                ),
-            api =
-                """
-                package test.pkg {
-                  @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME) public @interface ExperimentalFeature {
-                  }
-                  public final class MyClassField {
-                    ctor public MyClassField();
-                  }
-                  public final class MyOuterClass {
-                    ctor public MyOuterClass();
-                    field @SuppressCompatibility @test.pkg.ExperimentalFeature public static final test.pkg.MyOuterClass.MyCompObjectWithNonDefaultName MyCompObjectWithNonDefaultName;
-                    field @SuppressCompatibility @test.pkg.ExperimentalFeature public static final test.pkg.MyClassField myClassFieldA;
-                    field public static final test.pkg.MyClassField myClassFieldB;
-                  }
-                  @SuppressCompatibility @test.pkg.ExperimentalFeature public static final class MyOuterClass.MyCompObjectWithNonDefaultName {
-                    property @SuppressCompatibility @test.pkg.ExperimentalFeature public static test.pkg.MyClassField myClassFieldA;
-                    property public static test.pkg.MyClassField myClassFieldB;
-                  }
-                }
-                    """,
-            suppressCompatibilityMetaAnnotations = arrayOf("test.pkg.ExperimentalFeature")
-        )
-    }
-
-    @RequiresCapabilities(Capability.KOTLIN)
-    @Test
-    fun `Check that Metalava propagates desired annotation to inner classes`() {
-        check(
-            format = FileFormat.V4,
-            sourceFiles =
-                arrayOf(
                     kotlin(
                         """
                         package test.pkg
 
-                        @RequiresOptIn(level = RequiresOptIn.Level.ERROR)
-                        @Retention(AnnotationRetention.BINARY)
-                        annotation class ExperimentalFeature
-
-                        @ExperimentalFeature
-                        class MyOuterClass {
-                            class MyNestedClassA { }
-                            class MyNestedClassB { }
-                        }
+                        public sealed class SealedParentClass
+                        public sealed interface SealedParentInterface
                         """
-                    ),
+                    )
                 ),
             api =
                 """
                 package test.pkg {
-                  @kotlin.RequiresOptIn(level=kotlin.RequiresOptIn.Level.ERROR) @kotlin.annotation.Retention(kotlin.annotation.AnnotationRetention.BINARY) public @interface ExperimentalFeature {
+                  public final class AnOuterClass {
+                    ctor public AnOuterClass();
                   }
-                  @SuppressCompatibility @test.pkg.ExperimentalFeature public final class MyOuterClass {
-                    ctor public MyOuterClass();
+                  public abstract sealed nonexhaustive class SealedParentClass {
                   }
-                  @SuppressCompatibility @test.pkg.ExperimentalFeature public static final class MyOuterClass.MyNestedClassA {
-                    ctor public MyOuterClass.MyNestedClassA();
-                  }
-                  @SuppressCompatibility @test.pkg.ExperimentalFeature public static final class MyOuterClass.MyNestedClassB {
-                    ctor public MyOuterClass.MyNestedClassB();
+                  public sealed nonexhaustive interface SealedParentInterface {
                   }
                 }
-                    """,
-            suppressCompatibilityMetaAnnotations = arrayOf("test.pkg.ExperimentalFeature")
-        )
-    }
-
-    @RequiresCapabilities(Capability.KOTLIN)
-    @Test
-    fun `Check that Metalava propagates desired annotation to enums`() {
-        check(
-            format = FileFormat.V4,
-            sourceFiles =
-                arrayOf(
-                    kotlin(
-                        """
-                        package test.pkg
-
-                        annotation class ExperimentalFeature
-
-                        @ExperimentalFeature
-                        class MyOuterClass {
-                            enum class Day {
-                                MONDAY,
-                                TUESDAY,
-                                WEDNESDAY,
-                                THURSDAY,
-                                FRIDAY,
-                                SATURDAY,
-                                SUNDAY
-                            }
-                        }
-                        """
-                    ),
-                ),
-            api =
                 """
-                package test.pkg {
-                  @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME) public @interface ExperimentalFeature {
-                  }
-                  @SuppressCompatibility @test.pkg.ExperimentalFeature public final class MyOuterClass {
-                    ctor public MyOuterClass();
-                  }
-                  @SuppressCompatibility @test.pkg.ExperimentalFeature public enum MyOuterClass.Day {
-                    enum_constant public static final test.pkg.MyOuterClass.Day FRIDAY;
-                    enum_constant public static final test.pkg.MyOuterClass.Day MONDAY;
-                    enum_constant public static final test.pkg.MyOuterClass.Day SATURDAY;
-                    enum_constant public static final test.pkg.MyOuterClass.Day SUNDAY;
-                    enum_constant public static final test.pkg.MyOuterClass.Day THURSDAY;
-                    enum_constant public static final test.pkg.MyOuterClass.Day TUESDAY;
-                    enum_constant public static final test.pkg.MyOuterClass.Day WEDNESDAY;
-                  }
-                }
-                    """,
-            suppressCompatibilityMetaAnnotations = arrayOf("test.pkg.ExperimentalFeature")
-        )
-    }
-
-    @RequiresCapabilities(Capability.KOTLIN)
-    @Test
-    fun `Check that Metalava propagates desired annotation to interfaces`() {
-        check(
-            format = FileFormat.V4,
-            sourceFiles =
-                arrayOf(
-                    kotlin(
-                        """
-                        package test.pkg
-
-                        annotation class ExperimentalFeature
-
-                        @ExperimentalFeature
-                        class MyOuterClass {
-                            interface MyInterface {}
-                        }
-                        """
-                    ),
-                ),
-            api =
-                """
-                package test.pkg {
-                  @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME) public @interface ExperimentalFeature {
-                  }
-                  @SuppressCompatibility @test.pkg.ExperimentalFeature public final class MyOuterClass {
-                    ctor public MyOuterClass();
-                  }
-                  @SuppressCompatibility @test.pkg.ExperimentalFeature public static interface MyOuterClass.MyInterface {
-                  }
-                }
-                    """,
-            suppressCompatibilityMetaAnnotations = arrayOf("test.pkg.ExperimentalFeature")
-        )
-    }
-
-    @RequiresCapabilities(Capability.KOTLIN)
-    @Test
-    fun `Check that Metalava does not propagate undesired annotations to inner classes`() {
-        check(
-            format = FileFormat.V4,
-            sourceFiles =
-                arrayOf(
-                    kotlin(
-                        """
-                        package test.pkg
-
-                        annotation class ExperimentalFeature
-                        annotation class MySampleAnnotation
-
-                        @MySampleAnnotation
-                        class MyOuterClass {
-                            class MyNestedClassA { }
-                            class MyNestedClassB { }
-                        }
-                        """
-                    ),
-                ),
-            api =
-                """
-                package test.pkg {
-                  @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME) public @interface ExperimentalFeature {
-                  }
-                  @test.pkg.MySampleAnnotation public final class MyOuterClass {
-                    ctor public MyOuterClass();
-                  }
-                  public static final class MyOuterClass.MyNestedClassA {
-                    ctor public MyOuterClass.MyNestedClassA();
-                  }
-                  public static final class MyOuterClass.MyNestedClassB {
-                    ctor public MyOuterClass.MyNestedClassB();
-                  }
-                  @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME) public @interface MySampleAnnotation {
-                  }
-                }
-                    """,
-            suppressCompatibilityMetaAnnotations = arrayOf("test.pkg.ExperimentalFeature")
-        )
-    }
-
-    @RequiresCapabilities(Capability.KOTLIN)
-    @Test
-    fun `Check that Metalava propagates multiple desired annotations to inner classes`() {
-        check(
-            format = FileFormat.V4,
-            sourceFiles =
-                arrayOf(
-                    kotlin(
-                        """
-                        package test.pkg
-
-                        annotation class ExperimentalFeature
-                        annotation class MyAnnotation
-
-                        @ExperimentalFeature
-                        @MyAnnotation
-                        class MyOuterClass {
-                            class MyNestedClassA { }
-                            class MyNestedClassB { }
-                        }
-                        """
-                    ),
-                ),
-            api =
-                """
-                package test.pkg {
-                  @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME) public @interface ExperimentalFeature {
-                  }
-                  @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME) public @interface MyAnnotation {
-                  }
-                  @SuppressCompatibility @test.pkg.ExperimentalFeature @test.pkg.MyAnnotation public final class MyOuterClass {
-                    ctor public MyOuterClass();
-                  }
-                  @SuppressCompatibility @test.pkg.ExperimentalFeature @test.pkg.MyAnnotation public static final class MyOuterClass.MyNestedClassA {
-                    ctor public MyOuterClass.MyNestedClassA();
-                  }
-                  @SuppressCompatibility @test.pkg.ExperimentalFeature @test.pkg.MyAnnotation public static final class MyOuterClass.MyNestedClassB {
-                    ctor public MyOuterClass.MyNestedClassB();
-                  }
-                }
-                    """,
-            suppressCompatibilityMetaAnnotations =
-                arrayOf("test.pkg.ExperimentalFeature", "test.pkg.MyAnnotation")
-        )
-    }
-
-    @RequiresCapabilities(Capability.KOTLIN)
-    @Test
-    fun `Check that Metalava does not propagate duplicate annotations`() {
-        check(
-            format = FileFormat.V4,
-            sourceFiles =
-                arrayOf(
-                    kotlin(
-                        """
-                        package test.pkg
-
-                        annotation class ExperimentalFeature
-
-                        @ExperimentalFeature
-                        class MyOuterClass {
-                            @ExperimentalFeature
-                            class MyNestedClassA { }
-                            class MyNestedClassB { }
-                        }
-                        """
-                    ),
-                ),
-            api =
-                """
-                package test.pkg {
-                  @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME) public @interface ExperimentalFeature {
-                  }
-                  @SuppressCompatibility @test.pkg.ExperimentalFeature public final class MyOuterClass {
-                    ctor public MyOuterClass();
-                  }
-                  @SuppressCompatibility @test.pkg.ExperimentalFeature public static final class MyOuterClass.MyNestedClassA {
-                    ctor public MyOuterClass.MyNestedClassA();
-                  }
-                  @SuppressCompatibility @test.pkg.ExperimentalFeature public static final class MyOuterClass.MyNestedClassB {
-                    ctor public MyOuterClass.MyNestedClassB();
-                  }
-                }
-                    """,
-            suppressCompatibilityMetaAnnotations = arrayOf("test.pkg.ExperimentalFeature")
-        )
-    }
-
-    @RequiresCapabilities(Capability.KOTLIN)
-    @Test
-    fun `Check that Metalava does not propagate annotations to decorators`() {
-        // TODO: this test should probably be modified or deleted once
-        //   passing down annotation classes is handled: b/292090022
-        check(
-            format = FileFormat.V4,
-            sourceFiles =
-                arrayOf(
-                    kotlin(
-                        """
-                        package test.pkg
-
-                        annotation class ExperimentalFeature
-
-                        @ExperimentalFeature
-                        class ClassA {
-
-                            annotation class MyInnerAnnotation
-
-                            @MyInnerAnnotation fun myMethodA() {}
-                        }
-
-                        class ClassB {
-                            @ClassA.MyInnerAnnotation fun myMethodB() {}
-                        }
-                        """
-                    ),
-                ),
-            api =
-                """
-                package test.pkg {
-                  @SuppressCompatibility @test.pkg.ExperimentalFeature public final class ClassA {
-                    ctor public ClassA();
-                    method @test.pkg.ClassA.MyInnerAnnotation public void myMethodA();
-                  }
-                  @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME) public static @interface ClassA.MyInnerAnnotation {
-                  }
-                  public final class ClassB {
-                    ctor public ClassB();
-                    method @test.pkg.ClassA.MyInnerAnnotation public void myMethodB();
-                  }
-                  @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME) public @interface ExperimentalFeature {
-                  }
-                }
-                    """,
-            suppressCompatibilityMetaAnnotations = arrayOf("test.pkg.ExperimentalFeature")
         )
     }
 
@@ -812,7 +485,7 @@ class ApiFileTest : DriverTest() {
                 package test.pkg {
                   public class Context {
                     ctor public Context();
-                    method public final <T> T! getSystemService(Class<T!>!);
+                    method public final <T> T getSystemService(Class<T>!);
                   }
                   public final class TestKt {
                     method @KotlinOnly public static inline <reified T> T! systemService1(test.pkg.Context);
@@ -1261,14 +934,14 @@ class ApiFileTest : DriverTest() {
                     }
                     """
                     ),
-                    androidxNonNullSource,
-                    androidxNullableSource,
+                    KnownSourceFiles.androidxNonNullJavaSource,
+                    KnownSourceFiles.androidxNullableJavaSource,
                 ),
             api =
                 """
                 // Signature format: 4.0
                 package androidx.collection {
-                  public class ArrayMap<K, V> extends java.util.HashMap<K!,V!> implements java.util.Map<K!,V!> {
+                  public class ArrayMap<K, V> extends java.util.HashMap<K,V> implements java.util.Map<K,V> {
                     ctor public ArrayMap();
                   }
                   public final class ArrayMapKt {
@@ -1276,7 +949,7 @@ class ApiFileTest : DriverTest() {
                     method public static <K, V> androidx.collection.ArrayMap<K,V> arrayMapOf(kotlin.Pair<? extends K,? extends V>... pairs);
                     method public static <K, V> androidx.collection.ArrayMap<K,V>? arrayMapOfNullable(kotlin.Pair<? extends K,? extends V>?... pairs);
                   }
-                  public class ArraySet<E> extends java.util.HashSet<E!> implements java.util.Set<E!> {
+                  public class ArraySet<E> extends java.util.HashSet<E> implements java.util.Set<E> {
                     ctor public ArraySet();
                   }
                   public final class ArraySetKt {
@@ -1532,8 +1205,8 @@ class ApiFileTest : DriverTest() {
                     inline operator fun <F, S> PlatformJavaPair<F, S>.component1() = first
                     """
                     ),
-                    androidxNonNullSource,
-                    androidxNullableSource,
+                    KnownSourceFiles.androidxNonNullJavaSource,
+                    KnownSourceFiles.androidxNullableJavaSource,
                 ),
             api =
                 """
@@ -1564,9 +1237,9 @@ class ApiFileTest : DriverTest() {
                     property public S? second;
                   }
                   public class PlatformJavaPair<F, S> {
-                    ctor public PlatformJavaPair(F!, S!);
-                    field public final F! first;
-                    field public final S! second;
+                    ctor public PlatformJavaPair(F, S);
+                    field public final F first;
+                    field public final S second;
                   }
                   public final class TestKt {
                     method public static inline operator <F, S> F! component1(androidx.util.PlatformJavaPair<F,S>);
@@ -1687,8 +1360,8 @@ class ApiFileTest : DriverTest() {
                     """
                         )
                         .indented(),
-                    androidxNonNullSource,
-                    androidxNullableSource,
+                    KnownSourceFiles.androidxNonNullJavaSource,
+                    KnownSourceFiles.androidxNullableJavaSource,
                 ),
             api =
                 """
@@ -2023,7 +1696,7 @@ class ApiFileTest : DriverTest() {
                   }
                   @SuppressCompatibility @kotlin.RequiresOptIn @kotlin.annotation.Retention(kotlin.annotation.AnnotationRetention.BINARY) public @interface ExperimentalBar {
                   }
-                  public final class ExperimentalBarKt {
+                  @SuppressCompatibility public final class ExperimentalBarKt {
                     method @InaccessibleFromKotlin @SuppressCompatibility @test.pkg.ExperimentalBar public static test.pkg.FancyBar? getExperimentalPropertyWithCustomGetterAndSetter();
                     method @InaccessibleFromKotlin @SuppressCompatibility @test.pkg.ExperimentalBar public static test.pkg.FancyBar? getExperimentalPropertyWithExplicitAnnotationsOnGetterAndSetter();
                     method @InaccessibleFromKotlin @SuppressCompatibility @test.pkg.ExperimentalBar public static test.pkg.FancyBar getExperimentalPropertyWithGetter();
@@ -2373,7 +2046,6 @@ class ApiFileTest : DriverTest() {
                 """
                 src/test/pkg/PublicSuper.java:3: error: isContiguous cannot be hidden and abstract when PublicSuper has a visible constructor, in case a third-party attempts to subclass it. [HiddenAbstractMethod]
             """,
-            expectedFail = DefaultLintErrorMessage,
             sourceFiles =
                 arrayOf(
                     java(
@@ -2413,7 +2085,7 @@ class ApiFileTest : DriverTest() {
             api =
                 """
                 package test.pkg {
-                  public class MyStringBuilder<A, B> extends test.pkg.PublicSuper<A!,B!> {
+                  public class MyStringBuilder<A, B> extends test.pkg.PublicSuper<A,B> {
                     ctor public MyStringBuilder();
                     method public void setLength(int);
                   }
@@ -2567,7 +2239,6 @@ class ApiFileTest : DriverTest() {
                 src/test/pkg/Foo.java:10: error: Class test.pkg.Foo.Inner2: @Deprecated annotation (present) and @deprecated doc tag (not present) do not match [DeprecationMismatch]
                 src/test/pkg/Foo.java:11: error: Class test.pkg.Foo.Inner3: @Deprecated annotation (present) and @deprecated doc tag (not present) do not match [DeprecationMismatch]
                 """,
-            expectedFail = DefaultLintErrorMessage,
             api =
                 """
                     package test.pkg {
@@ -3026,13 +2697,13 @@ class ApiFileTest : DriverTest() {
                 arrayOf(
                     java(
                         """
-                    package test.pkg;
-                    public class MyClass {
-                        public <T> MyClass(Class<T> klass) { }
-                        public <U> void method1(Function<U> func) { }
-                    }
-                    """
-                    )
+                            package test.pkg;
+                            public class MyClass {
+                                public <T> MyClass(Class<T> klass) { }
+                                public <U> void method1(java.util.function.Consumer<U> func) { }
+                            }
+                        """
+                    ),
                 ),
             expectedIssues = "",
             api =
@@ -3040,10 +2711,10 @@ class ApiFileTest : DriverTest() {
                     package test.pkg {
                       public class MyClass {
                         ctor public <T> MyClass(Class<T>);
-                        method public <U> void method1(Function<U>);
+                        method public <U> void method1(java.util.function.Consumer<U>);
                       }
                     }
-            """
+                """,
         )
     }
 
@@ -3753,7 +3424,7 @@ class ApiFileTest : DriverTest() {
     @Test
     fun `Test whether partial or total ordering -  sort-whole-extends-list=yes`() {
         check(
-            format = FileFormat.V2.copy(specifiedSortWholeExtendsList = true),
+            format = FileFormat.V2.buildCopy { this[SORT_WHOLE_EXTENDS_LIST] = true },
             checkCompilation = true,
             sourceFiles =
                 arrayOf(
@@ -3880,7 +3551,7 @@ class ApiFileTest : DriverTest() {
     fun `Extend from multiple interfaces - sort-whole-extends-list=yes`() {
         // Real-world example: XmlResourceParser
         check(
-            format = FileFormat.V2.copy(specifiedSortWholeExtendsList = true),
+            format = FileFormat.V2.buildCopy { this[SORT_WHOLE_EXTENDS_LIST] = true },
             checkCompilation = true,
             sourceFiles =
                 arrayOf(
@@ -4168,7 +3839,6 @@ class ApiFileTest : DriverTest() {
             src/test/pkg/MyClass.java:3: error: Parameter references deprecated type test.pkg.DeprecatedClass in test.pkg.MyClass.method1(): this method should also be deprecated [ReferencesDeprecated]
             src/test/pkg/MyClass.java:4: error: Return type references deprecated type test.pkg.DeprecatedInterface in test.pkg.MyClass.method2(): this method should also be deprecated [ReferencesDeprecated]
             """,
-            expectedFail = DefaultLintErrorMessage,
             sourceFiles =
                 arrayOf(
                     java(
@@ -4432,7 +4102,7 @@ class ApiFileTest : DriverTest() {
                     }
                     """
                     ),
-                    androidxNonNullSource,
+                    KnownSourceFiles.androidxNonNullJavaSource,
                 ),
             expectedIssues = "",
             api =
@@ -4510,8 +4180,8 @@ class ApiFileTest : DriverTest() {
         val expected =
             """
             package Test.pkg {
-              public class IpcDataCache<Query, Result> extends android.app.PropertyInvalidatedCache<Query!,Result!> {
-                ctor public IpcDataCache(int, String, String, String, android.os.IpcDataCache.QueryHandler<Query!,Result!>);
+              public class IpcDataCache<Query, Result> extends android.app.PropertyInvalidatedCache<Query,Result> {
+                ctor public IpcDataCache(int, String, String, String, android.os.IpcDataCache.QueryHandler<Query,Result>);
                 method public void disableForCurrentProcess();
                 method public static void disableForCurrentProcess(String);
                 method public void invalidateCache();
@@ -4570,9 +4240,9 @@ class ApiFileTest : DriverTest() {
             signatureSources = arrayOf(source1, source2),
             api = expected,
             format =
-                FileFormat.V2.copy(
-                    specifiedOverloadedMethodOrder = OverloadedMethodOrder.SOURCE,
-                ),
+                FileFormat.V2.buildCopy {
+                    this[OVERLOADED_METHOD_ORDER] = FileFormat.OverloadedMethodOrder.SOURCE
+                },
         )
     }
 
@@ -4712,14 +4382,14 @@ class ApiFileTest : DriverTest() {
             api =
                 """
                 // Signature format: 4.0
-                package test.pkg {
+                package @SuppressCompatibility test.pkg {
                   @SuppressCompatibility @test.pkg.ExternalExperimentalAnnotation public final class ClassUsingExternalExperimentalApi {
                     ctor public ClassUsingExternalExperimentalApi();
                   }
                   @SuppressCompatibility @test.pkg.InLibraryExperimentalAnnotation public final class ClassUsingInLibraryExperimentalApi {
                     ctor public ClassUsingInLibraryExperimentalApi();
                   }
-                  @SuppressCompatibility @kotlin.RequiresOptIn public @interface InLibraryExperimentalAnnotation {
+                  @SuppressCompatibility @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME) @kotlin.RequiresOptIn public @interface InLibraryExperimentalAnnotation {
                   }
                 }
                 """,
@@ -4788,14 +4458,14 @@ class ApiFileTest : DriverTest() {
             api =
                 """
                 // Signature format: 4.0
-                package test.pkg {
+                package @SuppressCompatibility test.pkg {
                   @SuppressCompatibility @test.pkg.ExternalExperimentalAnnotation public final class ClassUsingExternalExperimentalApi {
                     ctor public ClassUsingExternalExperimentalApi();
                   }
                   @SuppressCompatibility @test.pkg.InLibraryExperimentalAnnotation public final class ClassUsingInLibraryExperimentalApi {
                     ctor public ClassUsingInLibraryExperimentalApi();
                   }
-                  @SuppressCompatibility @kotlin.RequiresOptIn public @interface InLibraryExperimentalAnnotation {
+                  @SuppressCompatibility @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME) @kotlin.RequiresOptIn public @interface InLibraryExperimentalAnnotation {
                   }
                 }
             """,
@@ -4946,7 +4616,7 @@ class ApiFileTest : DriverTest() {
                 """
                 // Signature format: 4.0
                 package test.pkg {
-                  public abstract sealed class MyClass {
+                  public abstract sealed exhaustive class MyClass {
                     method @InaccessibleFromKotlin public final int getFirstConstructorProperty();
                     method @InaccessibleFromKotlin public final String getNonConstructorProperty();
                     method @InaccessibleFromKotlin public final boolean getSecondConstructorProperty();
@@ -5099,8 +4769,8 @@ class ApiFileTest : DriverTest() {
                     }
                     """
                     ),
-                    androidxNullableSource,
-                    androidxNonNullSource,
+                    KnownSourceFiles.androidxNullableJavaSource,
+                    KnownSourceFiles.androidxNonNullJavaSource,
                 ),
             api =
                 """
@@ -5251,14 +4921,6 @@ class ApiFileTest : DriverTest() {
     @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Value class`() {
-        // With K1, the value class functions which can't be used from Java source are not properly
-        // marked as kotlin only, because K1 psi does not handle value classes differently.
-        val doSomethingTargetLanguages =
-            if (isK2) {
-                "@KotlinOnly "
-            } else {
-                ""
-            }
         check(
             format = FileFormat.V4,
             sourceFiles =
@@ -5354,7 +5016,7 @@ class ApiFileTest : DriverTest() {
                     method @BytecodeOnly public int compareTo-fPRv1QM(float);
                     method @BytecodeOnly public static int compareTo-fPRv1QM(float, float);
                     method @BytecodeOnly public static float constructor-impl(float);
-                    method ${doSomethingTargetLanguages}public void doSomething();
+                    method @KotlinOnly public void doSomething();
                     method @BytecodeOnly public static void doSomething-impl(float);
                     method @BytecodeOnly public static int getSomeBits-impl(float);
                     method @InaccessibleFromKotlin public float getValue();
@@ -5471,13 +5133,10 @@ class ApiFileTest : DriverTest() {
     @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Kotlin expect-actual with JvmOverloads constructors`() {
-        check(
-            format = FileFormat.V4,
-            sourceFiles =
-                arrayOf(
-                    kotlin(
-                        "src/commonMain/test/pkg/Expect.kt",
-                        """
+        val commonSource =
+            kotlin(
+                "src/commonMain/test/pkg/Expect.kt",
+                """
                         package test.pkg
 
                         expect class AllOptionalJvmOverloads @JvmOverloads constructor(
@@ -5498,10 +5157,11 @@ class ApiFileTest : DriverTest() {
                             private val bar: Int = 0
                         )
                     """
-                    ),
-                    kotlin(
-                        "src/jvmMain/test/pkg/Actual.kt",
-                        """
+            )
+        val androidSource =
+            kotlin(
+                "src/androidMain/test/pkg/Actual.kt",
+                """
                         package test.pkg
 
                         actual class AllOptionalJvmOverloads @JvmOverloads actual constructor(
@@ -5522,7 +5182,14 @@ class ApiFileTest : DriverTest() {
                             private val bar: Int = 0
                         )
                     """
-                    )
+            )
+        check(
+            format = FileFormat.V4,
+            sourceFiles = arrayOf(commonSource, androidSource),
+            projectDescription =
+                createProjectDescription(
+                    createCommonModuleDescription(arrayOf(commonSource)),
+                    createAndroidModuleDescription(arrayOf(androidSource)),
                 ),
             api =
                 """
@@ -6209,7 +5876,7 @@ class ApiFileTest : DriverTest() {
             api =
                 """
                 package test.pkg {
-                  @Deprecated public sealed interface LazyInfo {
+                  @Deprecated public sealed exhaustive interface LazyInfo {
                     method @InaccessibleFromKotlin @Deprecated public int getIndex();
                     method @InaccessibleFromKotlin @Deprecated public int getKey();
                     property @Deprecated public abstract int index;
@@ -6245,14 +5912,14 @@ class ApiFileTest : DriverTest() {
             api =
                 """
                 package test.pkg {
-                  @kotlin.annotation.Repeatable public @interface RequiresExtension {
+                  @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME) @kotlin.annotation.Repeatable public @interface RequiresExtension {
                     ctor @KotlinOnly public RequiresExtension(@IntRange(from=1L) int extension, @IntRange(from=1L) int version);
                     method @InaccessibleFromKotlin public abstract int extension();
                     method @InaccessibleFromKotlin public abstract int version();
                     property public abstract int extension;
                     property public abstract int version;
                   }
-                  @kotlin.annotation.Repeatable public static @interface RequiresExtension.Container {
+                  @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME) @kotlin.annotation.Repeatable public static @interface RequiresExtension.Container {
                     method public abstract test.pkg.RequiresExtension[] value();
                   }
                 }
@@ -6822,7 +6489,10 @@ class ApiFileTest : DriverTest() {
                     )
                 ),
             format =
-                FileFormat.V5.copy(kotlinNameTypeOrder = true, includeTypeUseAnnotations = true),
+                FileFormat.V5.buildCopy {
+                    this[INCLUDE_TYPE_USE_ANNOTATIONS] = true
+                    this[KOTLIN_NAME_TYPE_ORDER] = true
+                },
             api =
                 """
                     package test.pkg {
@@ -6925,7 +6595,7 @@ class ApiFileTest : DriverTest() {
                     method @InaccessibleFromKotlin public S getCurrentState();
                     property public S currentState;
                   }
-                  public abstract sealed class TransitionState<S> {
+                  public abstract sealed exhaustive class TransitionState<S> {
                     method @InaccessibleFromKotlin public abstract S getCurrentState();
                     property public abstract S currentState;
                   }
@@ -6964,7 +6634,7 @@ class ApiFileTest : DriverTest() {
                         ctor public Foo();
                         method public java.util.List<java.lang.String?>! foo(Number?, Number!);
                       }
-                      @kotlin.annotation.Target(allowedTargets=kotlin.annotation.AnnotationTarget.TYPE) public @interface NullableType {
+                      @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME) @kotlin.annotation.Target(allowedTargets=kotlin.annotation.AnnotationTarget.TYPE) public @interface NullableType {
                       }
                     }
                 """
@@ -7059,7 +6729,6 @@ class ApiFileTest : DriverTest() {
     @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Test primary constructor with defaults and secondary constructor with JvmOverloads`() {
-        // TODO(b/436557035): there should only be one copy of the constructor, annotated @B
         check(
             sourceFiles =
                 arrayOf(
@@ -7086,13 +6755,42 @@ class ApiFileTest : DriverTest() {
                   }
                   public final class Foo {
                     ctor @test.pkg.B public Foo();
-                    ctor @test.pkg.A public Foo();
                     ctor @test.pkg.A public Foo(optional int i);
                     ctor @test.pkg.B public Foo(optional String s);
                     ctor @test.pkg.B public Foo(optional String s, optional int i);
                   }
                 }
                 """
+        )
+    }
+
+    @RequiresCapabilities(Capability.KOTLIN)
+    @Test
+    fun `Test typealiases from classpath are not listed`() {
+        check(
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        // The kotlin package is used here to make it so built-in kotlin typealiases
+                        // are also processed.
+                        """
+                        package kotlin
+                        """,
+                    ),
+                    kotlin(
+                        """
+                        package test.pkg
+                        typealias Foo = String
+                        """
+                    ),
+                ),
+            api =
+                """
+                // Signature format: 5.0
+                package test.pkg {
+                  public typealias Foo = String;
+                }
+                """,
         )
     }
 }

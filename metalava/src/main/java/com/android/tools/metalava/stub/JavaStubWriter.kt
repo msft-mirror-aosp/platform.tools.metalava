@@ -18,10 +18,11 @@ package com.android.tools.metalava.stub
 
 import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.ClassKind
+import com.android.tools.metalava.model.ClassOrVariableTypeItem
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.DelegatedVisitor
-import com.android.tools.metalava.model.ExceptionTypeItem
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.JAVA_LANG_STRING
@@ -29,6 +30,7 @@ import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ModifierListWriter
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.PrimitiveTypeItem.Primitive
+import com.android.tools.metalava.model.RecordComponents
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterBindings
 import com.android.tools.metalava.model.TypeParameterList
@@ -42,25 +44,17 @@ internal class JavaStubWriter(
     private val stubConstructorManager: StubConstructorManager,
 ) : DelegatedVisitor {
 
+    /**
+     * If true then include Java record class related information in the generated stubs. Otherwise,
+     * treat record classes as normal classes as much as possible.
+     */
+    private val javaRecordClasses = config.javaRecordClasses
+
     override fun visitClass(cls: ClassItem) {
         if (cls.isTopLevelClass()) {
             val qualifiedName = cls.containingPackage().qualifiedName()
             if (qualifiedName.isNotBlank()) {
                 writer.println("package $qualifiedName;")
-            }
-            if (config.includeDocumentationInStubs) {
-                // All the classes referenced in the stubs are fully qualified, so no imports are
-                // needed. However, in some cases for javadoc, replacement with fully qualified name
-                // fails, and thus we need to include imports for the stubs to compile.
-                cls.sourceFile()?.getImports()?.let {
-                    for (item in it) {
-                        if (item.isMember) {
-                            writer.println("import static ${item.pattern};")
-                        } else {
-                            writer.println("import ${item.pattern};")
-                        }
-                    }
-                }
             }
         }
 
@@ -71,19 +65,27 @@ internal class JavaStubWriter(
 
         appendModifiers(cls)
 
-        when {
-            cls.isAnnotationType() -> writer.print("@interface")
-            cls.isInterface() -> writer.print("interface")
-            cls.isEnum() -> writer.print("enum")
-            else -> writer.print("class")
-        }
-
+        val classKind =
+            when (val kind = cls.classKind) {
+                // Only use RECORD if java-record-classes=true
+                ClassKind.RECORD -> if (javaRecordClasses) kind else ClassKind.CLASS
+                else -> kind
+            }
+        writer.print(classKind.signatureKeyword)
         writer.print(" ")
         writer.print(cls.simpleName())
 
         generateTypeParameterList(typeList = cls.typeParameterList, addSpace = false)
+
+        // Record class is special as it declares components after the class name and type
+        // declarations and before interfaces.
+        if (classKind == ClassKind.RECORD) {
+            generateRecordComponents(cls.recordComponents)
+        }
+
         generateSuperClassDeclaration(cls)
         generateInterfaceList(cls)
+
         writer.println(" {")
 
         // Enum constants must be written out first.
@@ -124,10 +126,10 @@ internal class JavaStubWriter(
     }
 
     private fun generateSuperClassDeclaration(cls: ClassItem) {
-        if (cls.isEnum() || cls.isAnnotationType() || cls.isInterface()) {
-            // No extends statement for enums and annotations; it's implied by the "enum" and
-            // "@interface" keywords. Normal interfaces do support an extends statement but it is
-            // generated in [generateInterfaceList].
+        val classKind = cls.classKind
+        if (!classKind.allowsExplicitSuperClass) {
+            // Normal interfaces do support an extends statement, but that is for super interfaces
+            // not a super class and so it is generated in [generateInterfaceList].
             return
         }
 
@@ -169,7 +171,26 @@ internal class JavaStubWriter(
         }
     }
 
+    private fun generateRecordComponents(recordComponents: RecordComponents) {
+        writer.write("(")
+        for ((index, component) in recordComponents.withIndex()) {
+            if (index > 0) writer.print(", ")
+            modifierListWriter.writeAnnotations(component)
+            writer.print(component.type.toTypeString())
+            writer.print(' ')
+            val name = component.name
+            writer.print(name)
+        }
+        writer.write(")")
+    }
+
     override fun visitConstructor(constructor: ConstructorItem) {
+        val isRecordConstructor =
+            javaRecordClasses && constructor.containingClass().classKind == ClassKind.RECORD
+        if (isRecordConstructor && constructor.isPrimary) {
+            return
+        }
+
         appendDocumentation(constructor, writer, config)
         appendModifiers(constructor)
         generateTypeParameterList(typeList = constructor.typeParameterList, addSpace = true)
@@ -180,41 +201,64 @@ internal class JavaStubWriter(
 
         writer.print(" { ")
 
-        writeConstructorBody(constructor)
+        if (isRecordConstructor) {
+            val canonicalConstructor =
+                constructor.containingClass().constructors().find { it.isPrimary }!!
+            writeConstructorDelegate(constructor, canonicalConstructor)
+        } else {
+            writeConstructorDelegationToSuperIfNeeded(constructor)
+        }
+
+        writeThrowStub()
+
         writer.println(" }")
     }
 
-    private fun writeConstructorBody(constructor: ConstructorItem) {
+    /** Writes the appropriate delegation to a super constructor, if needed. */
+    private fun writeConstructorDelegationToSuperIfNeeded(constructor: ConstructorItem) {
         val optionalSuperConstructor =
             stubConstructorManager.optionalSuperConstructor(constructor.containingClass())
         optionalSuperConstructor?.let { superConstructor ->
             val parameters = superConstructor.parameters()
             if (parameters.isNotEmpty()) {
-                writer.print("super(")
-
-                // Get the types to which this class binds the super class's type parameters, if
-                // any.
-                val typeParameterBindings =
-                    constructor
-                        .containingClass()
-                        .mapTypeVariables(superConstructor.containingClass())
-
-                for ((index, parameter) in parameters.withIndex()) {
-                    if (index > 0) {
-                        writer.write(", ")
-                    }
-                    // Always make sure to add appropriate casts to the parameters in the super call
-                    // as without the casts the compiler will fail if there is more than one
-                    // constructor that could match.
-                    val defaultValueWithCast =
-                        defaultValueWithCastForType(parameter.type(), typeParameterBindings)
-                    writer.write(defaultValueWithCast)
-                }
-                writer.print("); ")
+                writeConstructorDelegate(constructor, superConstructor)
             }
         }
+    }
 
-        writeThrowStub()
+    /** Write the code to delegate from [delegatingConstructor] to [delegateConstructor]. */
+    private fun writeConstructorDelegate(
+        delegatingConstructor: ConstructorItem,
+        delegateConstructor: ConstructorItem
+    ) {
+        val delegateReference =
+            if (delegatingConstructor.containingClass() == delegateConstructor.containingClass()) {
+                "this"
+            } else {
+                "super"
+            }
+        writer.print(delegateReference)
+        writer.print("(")
+
+        // Get the types to which this class binds the super class's type parameters, if any.
+        val typeParameterBindings =
+            delegatingConstructor
+                .containingClass()
+                .mapTypeVariables(delegateConstructor.containingClass())
+
+        val parameters = delegateConstructor.parameters()
+        for ((index, parameter) in parameters.withIndex()) {
+            if (index > 0) {
+                writer.write(", ")
+            }
+            // Always make sure to add appropriate casts to the parameters in the super call
+            // as without the casts the compiler will fail if there is more than one
+            // constructor that could match.
+            val defaultValueWithCast =
+                defaultValueWithCastForType(parameter.type(), typeParameterBindings)
+            writer.write(defaultValueWithCast)
+        }
+        writer.print("); ")
     }
 
     /**
@@ -419,7 +463,8 @@ internal class JavaStubWriter(
         val throws = callable.throwsTypes()
         if (throws.isNotEmpty()) {
             writer.print(" throws ")
-            throws.sortedWith(ExceptionTypeItem.fullNameComparator).forEachIndexed { i, type ->
+            throws.sortedWith(ClassOrVariableTypeItem.fullNameComparator).forEachIndexed { i, type
+                ->
                 if (i > 0) {
                     writer.print(", ")
                 }

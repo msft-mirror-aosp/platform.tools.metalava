@@ -18,6 +18,8 @@ package com.android.tools.metalava.model.testsuite
 
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.api.surface.ApiSurfaces
+import com.android.tools.metalava.model.provider.InputFormat
+import com.android.tools.metalava.model.testing.SupportedInputFormats
 import com.android.tools.metalava.model.testing.surfaces.SelectedApiVariantsTestData
 import com.android.tools.metalava.model.testing.surfaces.selectedApiVariantsTestData
 import org.junit.Test
@@ -35,6 +37,7 @@ class CommonParameterizedSelectedApiVariantsTest : BaseModelTest() {
         @JvmStatic @Parameterized.Parameters fun params() = selectedApiVariantsTestData
     }
 
+    @SupportedInputFormats(InputFormat.SIGNATURE)
     @Test
     fun `Test selectedApiVariants`() {
         val testFixture =

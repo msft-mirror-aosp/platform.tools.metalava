@@ -18,7 +18,6 @@ package com.android.tools.metalava
 
 import com.android.SdkConstants.DOT_TXT
 import com.android.tools.lint.LintCliClient
-import com.android.tools.lint.UastEnvironment
 import com.android.tools.lint.checks.ApiLookup
 import com.android.tools.lint.checks.infrastructure.ClassName
 import com.android.tools.lint.checks.infrastructure.TestFile
@@ -26,12 +25,17 @@ import com.android.tools.lint.checks.infrastructure.TestFiles.java
 import com.android.tools.lint.checks.infrastructure.TestFiles.kotlin
 import com.android.tools.lint.checks.infrastructure.stripComments
 import com.android.tools.lint.client.api.LintClient
+import com.android.tools.metalava.cli.common.ARG_CLASS_PATH
 import com.android.tools.metalava.cli.common.ARG_COMPILED_SOURCES
 import com.android.tools.metalava.cli.common.ARG_HIDE
+import com.android.tools.metalava.cli.common.ARG_MERGE_INCLUSION_ANNOTATIONS
+import com.android.tools.metalava.cli.common.ARG_MERGE_QUALIFIER_ANNOTATIONS
 import com.android.tools.metalava.cli.common.ARG_NO_COLOR
+import com.android.tools.metalava.cli.common.ARG_PROJECT
 import com.android.tools.metalava.cli.common.ARG_QUIET
 import com.android.tools.metalava.cli.common.ARG_REPEAT_ERRORS_MAX
 import com.android.tools.metalava.cli.common.ARG_SOURCE_PATH
+import com.android.tools.metalava.cli.common.ARG_TRACE_FILE
 import com.android.tools.metalava.cli.common.ARG_VERBOSE
 import com.android.tools.metalava.cli.common.CheckerContext
 import com.android.tools.metalava.cli.common.CheckerFunction
@@ -48,28 +52,36 @@ import com.android.tools.metalava.cli.lint.ARG_API_LINT_PREVIOUS_API
 import com.android.tools.metalava.cli.lint.ARG_BASELINE_API_LINT
 import com.android.tools.metalava.cli.lint.ARG_ERROR_MESSAGE_API_LINT
 import com.android.tools.metalava.cli.lint.ARG_UPDATE_BASELINE_API_LINT
+import com.android.tools.metalava.cli.multiplatform.ARG_MULTIPLATFORM_API_DIR
+import com.android.tools.metalava.cli.multiplatform.ARG_MULTIPLATFORM_API_SOURCES
+import com.android.tools.metalava.cli.multiplatform.ARG_MULTIPLATFORM_CHECK_COMPATIBILITY
+import com.android.tools.metalava.cli.multiplatform.ARG_MULTIPLATFORM_ENABLED
 import com.android.tools.metalava.cli.signature.ARG_FORMAT
 import com.android.tools.metalava.model.ANDROIDX_ANNOTATION_PACKAGE
 import com.android.tools.metalava.model.ANDROID_ANNOTATION_PACKAGE
 import com.android.tools.metalava.model.ANDROID_SYSTEM_API
 import com.android.tools.metalava.model.ANDROID_TEST_API
 import com.android.tools.metalava.model.Assertions
+import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.StripJavaLangPrefix
 import com.android.tools.metalava.model.provider.Capability
-import com.android.tools.metalava.model.psi.PsiModelOptions
 import com.android.tools.metalava.model.source.SourceModelProvider
 import com.android.tools.metalava.model.source.SourceSet
 import com.android.tools.metalava.model.source.utils.DOT_KT
 import com.android.tools.metalava.model.testing.CodebaseCreatorConfig
 import com.android.tools.metalava.model.testing.CodebaseCreatorConfigAware
-import com.android.tools.metalava.model.text.ApiClassResolution
 import com.android.tools.metalava.model.text.ApiFile
+import com.android.tools.metalava.model.text.CustomizableProperty.Companion.INCLUDE_TYPE_USE_ANNOTATIONS
+import com.android.tools.metalava.model.text.CustomizableProperty.Companion.KOTLIN_NAME_TYPE_ORDER
+import com.android.tools.metalava.model.text.CustomizableProperty.Companion.KOTLIN_STYLE_NULLS
+import com.android.tools.metalava.model.text.CustomizableProperty.Companion.STRIP_JAVA_LANG_PREFIX
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.model.text.SignatureFile
 import com.android.tools.metalava.model.text.assertSignatureFilesMatch
 import com.android.tools.metalava.model.text.prepareSignatureFileForTest
 import com.android.tools.metalava.reporter.ReporterEnvironment
 import com.android.tools.metalava.reporter.Severity
+import com.android.tools.metalava.reporter.ThrowingReporter
 import com.android.tools.metalava.testing.JavacHelper
 import com.android.tools.metalava.testing.KnownJarFiles
 import com.android.tools.metalava.testing.KnownSourceFiles
@@ -86,6 +98,8 @@ import java.io.PrintStream
 import java.io.PrintWriter
 import java.io.StringWriter
 import java.net.URI
+import java.nio.file.Files
+import junit.framework.ComparisonFailure
 import kotlin.text.Charsets.UTF_8
 import org.intellij.lang.annotations.Language
 import org.junit.Assert.assertEquals
@@ -108,15 +122,6 @@ abstract class DriverTest :
     /** The [CodebaseCreatorConfig] under which this test will be run. */
     final override lateinit var codebaseCreatorConfig: CodebaseCreatorConfig<SourceModelProvider>
 
-    /**
-     * The setting of [PsiModelOptions.useK2Uast]. Is computed lazily as it depends on
-     * [codebaseCreatorConfig] which is set after object initialization.
-     */
-    protected val isK2 by
-        lazy(LazyThreadSafetyMode.NONE) {
-            codebaseCreatorConfig.modelOptions[PsiModelOptions.useK2Uast]
-        }
-
     @Before
     fun setup() {
         Disposer.setDebugMode(true)
@@ -131,12 +136,24 @@ abstract class DriverTest :
         return File(temporaryFolder.root.path, "public-api.txt")
     }
 
+    /**
+     * Run the Metalava main command.
+     *
+     * This provides for three separate ways to handle the failure message:
+     * 1. Not expected to fail. In this case `expectedToFail = false` and `expectedFailureMessage =
+     *    null`.
+     * 2. Expected to fail but do not care about the message as that is not what is being tested. In
+     *    this case `expectedToFail = true` and `expectedFailureMessage = null`.
+     * 3. Expected to fail with specific message. In this case `expectedToFail = true` and
+     *    `expectedFailureMessage = "...expected message..."`.
+     */
     private fun runDriver(
         // The SameParameterValue check reports that this is passed the same value because the first
         // value that is passed is always the same but this is a varargs parameter so other values
         // that are passed matter, and they are not the same.
         args: Array<String>,
-        expectedFail: String,
+        expectedToFail: Boolean,
+        expectedFailureMessage: String?,
         reporterEnvironment: ReporterEnvironment,
         testEnvironment: TestEnvironment,
     ): String {
@@ -163,49 +180,36 @@ abstract class DriverTest :
                     reporterEnvironment = reporterEnvironment,
                     testEnvironment = testEnvironment,
                 )
-            val exitCode = run(executionEnvironment, args)
+            val exitCode = Driver.run(executionEnvironment, args)
             if (exitCode == 0) {
-                assertTrue(
-                    "Test expected to fail but didn't. Expected failure: $expectedFail",
-                    expectedFail.isEmpty()
-                )
+                if (expectedToFail) {
+                    val message =
+                        expectedFailureMessage?.let {
+                            "expected to fail with following message but did not:\n${expectedFailureMessage.prependIndent("    ")}"
+                        } ?: "expected to fail but did not"
+                    errorCollector.addError(AssertionError(message))
+                }
             } else {
-                val actualFail = cleanupString(sw.toString(), null)
-                if (
-                    cleanupString(expectedFail, null).replace(".", "").trim() !=
-                        actualFail.replace(".", "").trim()
-                ) {
-                    val reportedCompatError =
-                        actualFail.startsWith(
-                            "Aborting: Found compatibility problems checking the "
-                        )
+                val actualFailureMessage = cleanupString(sw.toString(), null).trim()
+                if (expectedToFail) {
                     if (
-                        expectedFail == "Aborting: Found compatibility problems" &&
-                            reportedCompatError
+                        expectedFailureMessage != null &&
+                            expectedFailureMessage != actualFailureMessage
                     ) {
-                        // Special case for compat checks; we don't want to force each one of them
-                        // to pass in the right string (which may vary based on whether writing out
-                        // the signature was passed at the same time
-                        // ignore
-                    } else {
-                        if (reportedCompatError) {
-                            // if a compatibility error was unexpectedly reported, then mark that as
-                            // an error but keep going, so we can see the actual compatibility error
-                            if (expectedFail.trimIndent() != actualFail) {
-                                addError(
-                                    "ComparisonFailure: expected failure $expectedFail, actual $actualFail"
-                                )
-                            }
-                        } else {
-                            // no compatibility error; check for other errors now, and
-                            // if one is found, fail right away
-                            assertEquals(
-                                "expectedFail does not match actual failures",
-                                expectedFail.trimIndent(),
-                                actualFail
+                        // If the failure was unexpected then report an error but carry on so that
+                        // other checks can be performed.
+                        val failure =
+                            ComparisonFailure(
+                                "expectedFailure mismatch",
+                                expectedFailureMessage,
+                                actualFailureMessage,
                             )
-                        }
+                        errorCollector.addError(failure)
                     }
+                } else {
+                    val message =
+                        "did not expect it to fail but it failed with the following message:\n${actualFailureMessage.prependIndent("    ")}"
+                    errorCollector.addError(AssertionError(message))
                 }
             }
 
@@ -223,8 +227,10 @@ abstract class DriverTest :
                 fail("Printed newlines with nothing else")
             }
 
+            /* TODO(b/477826713): Temporarily disable this while the problem is fixed.
             UastEnvironment.checkApplicationEnvironmentDisposed()
             Disposer.assertIsEmpty(true)
+             */
 
             return printedOutput
         } finally {
@@ -364,7 +370,6 @@ abstract class DriverTest :
         } ?: BaselineCheck("", emptyArray(), null, "")
     }
 
-    @Suppress("DEPRECATION")
     protected fun check(
         configFiles: Array<TestFile> = emptyArray(),
         /** Any jars to add to the class path */
@@ -373,19 +378,15 @@ abstract class DriverTest :
         @Language("TEXT") api: String? = null,
         /** The removed API (corresponds to --removed-api) */
         removedApi: String? = null,
-        /** The subtract api signature content (corresponds to --subtract-api) */
-        @Language("TEXT") subtractApi: String? = null,
         /** Expected stubs (corresponds to --stubs) */
         stubFiles: Array<TestFile> = emptyArray(),
+        /**
+         * Whether to ignore parameter names when comparing stub files. Should only be true when
+         * generating stubs from signature files.
+         */
+        ignoreParameterNamesInStubFiles: Boolean = false,
         /** Expected paths of stub files created */
         stubPaths: Array<String>? = null,
-        /**
-         * Controls whether blank lines are filtered from stub files before comparing against the
-         * expected content.
-         *
-         * Defaults to `true`.
-         */
-        filterBlankLinesFromStubFiles: Boolean = false,
         /**
          * Whether the stubs should be written as documentation stubs instead of plain stubs.
          * Decides whether the stubs include @doconly elements, uses rewritten/migration
@@ -393,8 +394,15 @@ abstract class DriverTest :
          */
         docStubs: Boolean = false,
         /** Signature file format */
-        format: FileFormat = FileFormat.LATEST,
-        /** All expected issues to be generated when analyzing these sources */
+        format: FileFormat = FileFormat.V5,
+        /**
+         * All expected issues to be generated when analyzing these sources.
+         *
+         * If this contains an issue of severity error then this will expect the command to fail but
+         * will not check the actual failure message unless a non-empty [expectedFail] is provided.
+         *
+         * @see expectedFail
+         */
         expectedIssues: String? = "",
         /** Expected [Severity.ERROR] issues to be generated when analyzing these sources */
         errorSeverityExpectedIssues: String? = null,
@@ -409,7 +417,6 @@ abstract class DriverTest :
         mergeInclusionAnnotations: Array<TestFile> = emptyArray(),
         /** Optional API signature files content to load **instead** of Java/Kotlin source files */
         @Language("TEXT") signatureSources: Array<String> = emptyArray(),
-        apiClassResolution: ApiClassResolution = ApiClassResolution.API,
         /**
          * An optional API signature file content to load **instead** of Java/Kotlin source files.
          * This is added to [signatureSources]. This argument exists for backward compatibility.
@@ -463,7 +470,17 @@ abstract class DriverTest :
         extraArguments: Array<out String> = emptyArray(),
         /** Expected output (stdout and stderr combined). If null, don't check. */
         expectedOutput: String? = null,
-        /** Expected fail message and state, if any */
+        /**
+         * Expected fail message and state, if any.
+         *
+         * If this is set to a non-empty string then this will expect the command to fail with that
+         * exact message (after [cleanupString] is called on it).
+         *
+         * This only needs to be set by tests that actually care about the failure message that is
+         * output. Otherwise, leaving this unset will not check the failure message.
+         *
+         * @see expectedIssues
+         */
         expectedFail: String? = null,
         /** Optional manifest to load and associate with the codebase */
         @Language("XML") manifest: String? = null,
@@ -539,6 +556,25 @@ abstract class DriverTest :
         compiledSourceJar: TestFile? = null,
         /** [ARG_REPEAT_ERRORS_MAX] */
         repeatErrorsMax: Int = 0,
+        /** Whether to create a multiplatform codebase. Only supported with psi. */
+        enableMultiplatform: Boolean = false,
+        /**
+         * A map from expected multiplatform API file name to contents. There should be one for each
+         * source set with an expected signature file.
+         */
+        multiplatformApi: Map<String, String> = emptyMap(),
+        /** Signature files to parse as source into a MultiplatformCodebase. */
+        multiplatformSignatureSource: List<TestFile> = emptyList(),
+        /**
+         * If true, this does not include arguments specifying source files (from [sourceFiles]) in
+         * the command run by Driver. This allows creating a multiplatform codebase (when
+         * [enableMultiplatform] is true) without creating a regular codebase.
+         */
+        skipSourceArgs: Boolean = false,
+        /** Signature files to parse into a MultiplatformCodebase for compatibility checks. */
+        multiplatformCompatibilityApi: List<TestFile>? = null,
+        /** Whether tracing should be enabled */
+        enableTracing: Boolean = false,
         /**
          * Called on a [CheckerContext] after the analysis phase in the metalava main command.
          *
@@ -590,15 +626,12 @@ abstract class DriverTest :
                 newBasename = "removed-released-api.txt",
             )
 
-        val actualExpectedFail =
-            when {
-                expectedFail != null -> expectedFail
-                (releasedApiCheck.required() || releasedRemovedApiCheck.required()) &&
-                    expectedIssues?.contains(": error:") == true -> {
-                    "Aborting: Found compatibility problems"
-                }
-                else -> ""
-            }
+        // This is expected to fail if the expectedIssues contains an error issue or expectedFail
+        // is not null and not empty.
+        val expectedToFail = expectedIssues.containsErrorIssue() || !expectedFail.isNullOrEmpty()
+
+        // Get the expected failure message.
+        val expectedFailureMessage = expectedFail?.trimIndent()
 
         // Unit test which checks that a signature file is as expected
         val androidJar = getAndroidJar()
@@ -632,9 +665,6 @@ abstract class DriverTest :
                     "the test"
             )
         }
-
-        val apiClassResolutionArgs =
-            arrayOf(ARG_API_CLASS_RESOLUTION, apiClassResolution.optionValue)
 
         val sourceList =
             if (signatureSources.isNotEmpty() || signatureSource != null) {
@@ -884,16 +914,6 @@ abstract class DriverTest :
         val apiFile: File = getOrCreateFile("public-api.txt")
         val apiArgs = arrayOf(ARG_API, apiFile.path)
 
-        val subtractApiFile: File?
-        val subtractApiArgs =
-            if (subtractApi != null) {
-                subtractApiFile = temporaryFolder.newFile("subtract-api.txt")
-                subtractApiFile.writeSignatureText(subtractApi)
-                arrayOf(ARG_SUBTRACT_API, subtractApiFile.path)
-            } else {
-                emptyArray()
-            }
-
         var stubsDir: File? = null
         val stubsArgs =
             if (stubFiles.isNotEmpty() || stubPaths != null) {
@@ -1020,33 +1040,93 @@ abstract class DriverTest :
                 emptyArray()
             }
 
+        val multiplatformOptions =
+            if (enableMultiplatform) {
+                if (Capability.MULTIPLATFORM !in codebaseCreatorConfig.creator.capabilities) {
+                    error(
+                        "Provider ${codebaseCreatorConfig.providerName} does not support KMP; please add `@RequiresCapabilities(Capability.MULTIPLATFORM)` to the test"
+                    )
+                }
+                arrayOf(ARG_MULTIPLATFORM_ENABLED)
+            } else {
+                emptyArray()
+            }
+
+        val multiplatformSignatureSourceOptions =
+            if (multiplatformSignatureSource.isNotEmpty()) {
+                // Create each multiplatform signature file in a new subdirectory.
+                val multiplatformSignatureSourceDirectory =
+                    File(project, "multiplatform-signature-source")
+                for (file in multiplatformSignatureSource) {
+                    file.createFile(multiplatformSignatureSourceDirectory)
+                }
+                arrayOf(ARG_MULTIPLATFORM_API_SOURCES, multiplatformSignatureSourceDirectory.path)
+            } else {
+                emptyArray()
+            }
+
+        // Generate multiplatform API files if specified.
+        var multiplatformApiDirectory: File? = null
+        val multiplatformApiArgs =
+            if (multiplatformApi.isNotEmpty()) {
+                multiplatformApiDirectory = getOrCreateFolder("multiplatform-api")
+                arrayOf(ARG_MULTIPLATFORM_API_DIR, multiplatformApiDirectory.path)
+            } else {
+                emptyArray()
+            }
+
+        // Run multiplatform compatibility checks if requested.
+        val multiplatformCompatibilityApiDirectory: File?
+        val multiplatformCompatibilityArgs =
+            if (multiplatformCompatibilityApi != null) {
+                multiplatformCompatibilityApiDirectory =
+                    getOrCreateFolder("multiplatform-compatibility-api")
+                for (file in multiplatformCompatibilityApi) {
+                    file.createFile(multiplatformCompatibilityApiDirectory)
+                }
+                arrayOf(
+                    ARG_MULTIPLATFORM_CHECK_COMPATIBILITY,
+                    multiplatformCompatibilityApiDirectory.path
+                )
+            } else {
+                emptyArray()
+            }
+
+        val traceFile: File?
+        val tracingArguments =
+            if (enableTracing) {
+                traceFile = File(project, "trace.perfetto-trace")
+                arrayOf(ARG_TRACE_FILE, traceFile.path)
+            } else {
+                traceFile = null
+                emptyArray()
+            }
+
         // Run optional additional setup steps on the project directory
         projectSetup?.invoke(project)
 
-        // Make sure that the options is initialized. Just in case access was disallowed by another
-        // test.
-        options = Options()
+        val sourceArgs =
+            if (skipSourceArgs) {
+                emptyArray()
+            } else {
+                arrayOf(
+                    ARG_SOURCE_PATH,
+                    sourcePath,
+                    *sourceList,
+                )
+            }
 
         val args =
             arrayOf(
                 ARG_NO_COLOR,
 
-                // Tell metalava where to store temp folder: place them under the
-                // test root folder such that we clean up the output strings referencing
-                // paths to the temp folder
-                "--temp-folder",
-                getOrCreateFolder("temp").path,
-
                 // Annotation generation temporarily turned off by default while integrating with
                 // SDK builds; tests need these
                 ARG_INCLUDE_ANNOTATIONS,
-                ARG_SOURCE_PATH,
-                sourcePath,
-                *sourceList,
+                *sourceArgs,
                 *configFileArgs,
                 *removedArgs,
                 *apiArgs,
-                *subtractApiArgs,
                 *stubsArgs,
                 *quiet,
                 *mergeAnnotationsArgs,
@@ -1074,11 +1154,15 @@ abstract class DriverTest :
                 *validateNullabilityArgs,
                 *validateNullabilityFromListArgs,
                 format.outputFlags(),
-                *apiClassResolutionArgs,
                 *extraArguments,
                 *errorMessageApiLintArgs,
                 *errorMessageCheckCompatibilityReleasedArgs,
                 *repeatErrorsMaxArgs,
+                *multiplatformOptions,
+                *multiplatformApiArgs,
+                *multiplatformSignatureSourceOptions,
+                *multiplatformCompatibilityArgs,
+                *tracingArguments,
                 // Must always be last as this can consume a following argument, breaking the test.
                 *apiLintArgs,
             ) +
@@ -1113,7 +1197,8 @@ abstract class DriverTest :
         val actualOutput =
             runDriver(
                 args = args,
-                expectedFail = actualExpectedFail,
+                expectedToFail = expectedToFail,
+                expectedFailureMessage = expectedFailureMessage,
                 reporterEnvironment = reporterEnvironment,
                 testEnvironment = testEnvironment,
             )
@@ -1148,7 +1233,7 @@ abstract class DriverTest :
             )
             assertSignatureFilesMatch(api, apiFile.readText(), expectedFormat = format)
             // Make sure we can read back the files we write
-            ApiFile.parseApi(SignatureFile.fromFiles(apiFile), options.codebaseConfig)
+            ApiFile.parseApi(SignatureFile.fromFiles(apiFile), Codebase.Config.NOOP)
         }
 
         baselineCheck.apply()
@@ -1166,7 +1251,7 @@ abstract class DriverTest :
                 expectedFormat = format
             )
             // Make sure we can read back the files we write
-            ApiFile.parseApi(SignatureFile.fromFiles(removedApiFile), options.codebaseConfig)
+            ApiFile.parseApi(SignatureFile.fromFiles(removedApiFile), Codebase.Config.NOOP)
         }
 
         if (proguard != null && proguardFile != null) {
@@ -1251,19 +1336,22 @@ abstract class DriverTest :
                             "Found these files: \n${stubsCreated!!.prependIndent("  ")}"
                     )
                 }
-                val actualContents =
-                    if (filterBlankLinesFromStubFiles) readFileFilterBlankLines(actual)
-                    else readFile(actual)
+                val actualContents = readFile(actual)
                 val stubSource = if (sourceFiles.isEmpty()) "text" else "source"
                 val message =
                     "Generated from-$stubSource stub contents does not match expected contents"
-                assertEquals(message, expected.contents, actualContents)
+                compareStubFileContent(
+                    message,
+                    expected.contents,
+                    actualContents,
+                    ignoreParameterNamesInStubFiles
+                )
             }
         }
 
         if (checkCompilation && stubsDir != null) {
             val generated =
-                SourceSet.createFromSourcePath(options.reporter, listOf(stubsDir)).sources
+                SourceSet.createFromSourcePath(ThrowingReporter.INSTANCE, listOf(stubsDir)).sources
 
             // Compile the stubs, throwing an exception if it fails.
             JavacHelper.compile(
@@ -1271,6 +1359,44 @@ abstract class DriverTest :
                 sources = generated,
                 classPath = listOf(KnownJarFiles.stubAnnotationsJar),
             )
+        }
+
+        // Validate multiplatform API files exist and have the expected contents.
+        if (multiplatformApiDirectory != null) {
+            assertTrue(
+                "${multiplatformApiDirectory.path} does not exist even though $ARG_MULTIPLATFORM_API_DIR was used",
+                multiplatformApiDirectory.exists(),
+            )
+            for ((sourceSet, expectedApi) in multiplatformApi) {
+                val sourceSetApiFile = File(multiplatformApiDirectory, sourceSet)
+                assertTrue(
+                    "${sourceSetApiFile.path} does not exist but was expected",
+                    sourceSetApiFile.exists(),
+                )
+                assertSignatureFilesMatch(
+                    expectedApi,
+                    sourceSetApiFile.readText(),
+                    expectedFormat = format
+                )
+            }
+            // Check that there aren't additional API files which were not expected.
+            val multiplatformSignatureFiles = multiplatformApiDirectory.listFiles().toList()
+            for (sourceSetApiFile in multiplatformSignatureFiles) {
+                assertTrue(
+                    "${sourceSetApiFile.path} was generated but was not expected",
+                    sourceSetApiFile.name in multiplatformApi,
+                )
+            }
+            // Parse back the multiplatform API to ensure there are no errors.
+            ApiFile.parseMultiplatformApi(
+                SignatureFile.fromFiles(multiplatformSignatureFiles),
+                Codebase.Config.NOOP
+            )
+        }
+
+        if (traceFile != null) {
+            assertTrue("Trace file exists", traceFile.exists())
+            assertTrue("Trace file is not empty", Files.size(traceFile.toPath()) > 0)
         }
     }
 
@@ -1435,6 +1561,46 @@ abstract class DriverTest :
                 if (!file.isFile) return file
             } while (true)
         }
+
+        /**
+         * Compare stubs contents, checking that [expected] and [actual] match, reporting [message]
+         * if they do not.
+         *
+         * How they match depends on [ignoreParameterNamesInStubFiles]. If that is `false` they have
+         * to be character for character identical. If it is `true` then [removeParameterNames] is
+         * applied to both beforehand to remove parameter names.
+         */
+        private fun compareStubFileContent(
+            message: String,
+            expected: String,
+            actual: String,
+            ignoreParameterNamesInStubFiles: Boolean,
+        ) {
+            if (ignoreParameterNamesInStubFiles) {
+                val expectedWithout = expected.removeParameterNames()
+                val actualWithout = actual.removeParameterNames()
+                assertEquals("$message (without parameter names)", expectedWithout, actualWithout)
+            } else {
+                assertEquals(message, expected, actual)
+            }
+        }
+
+        /**
+         * Remove parameter names from stub file.
+         *
+         * This is not 100% accurate, it assumes that parameter names are preceded by a ` `, start
+         * with a lower case letter, contain alphanumerics only and is immediately followed by a `,`
+         * or `)`. However, given the strict formatting of stub files that should be sufficient.
+         */
+        private fun String.removeParameterNames() =
+            replace(Regex(""" [a-z][a-zA-Z0-9_]*([,)])"""), "$1")
+
+        /** Regex for finding an issue of severity error. */
+        private val containsErrorSeverityIssueRegex = Regex("""\berror: """)
+
+        /** Check to see whether this [String] contains an issue of error severity. */
+        private fun String?.containsErrorIssue() =
+            this != null && contains(containsErrorSeverityIssueRegex)
     }
 }
 
@@ -1607,11 +1773,13 @@ private fun restrictedForEnvironmentClass(packageName: String): TestFile =
             """
             package $packageName;
             import java.lang.annotation.*;
+            import android.annotation.StringDef;
             import static java.lang.annotation.ElementType.*;
             import static java.lang.annotation.RetentionPolicy;
             /** @hide */
-            @Retention(RetentionPolicy.RUNTIME)
             @Target({TYPE})
+            @Retention(RetentionPolicy.RUNTIME)
+            @Repeatable(RestrictedForEnvironment.Container.class)
             public @interface RestrictedForEnvironment {
               @Environment String[] environments();
               int from();
@@ -1649,38 +1817,6 @@ val broadcastBehaviorSource: TestFile =
         boolean registeredOnly() default false;
         boolean includeBackground() default false;
         boolean protectedBroadcast() default false;
-    }
-    """
-        )
-        .indented()
-
-val androidxNonNullSource: TestFile =
-    java(
-            """
-    package androidx.annotation;
-    import java.lang.annotation.*;
-    import static java.lang.annotation.ElementType.*;
-    import static java.lang.annotation.RetentionPolicy.SOURCE;
-    @SuppressWarnings("WeakerAccess")
-    @Retention(SOURCE)
-    @Target({METHOD, PARAMETER, FIELD, LOCAL_VARIABLE, TYPE_USE, ANNOTATION_TYPE, PACKAGE})
-    public @interface NonNull {
-    }
-    """
-        )
-        .indented()
-
-val androidxNullableSource: TestFile =
-    java(
-            """
-    package androidx.annotation;
-    import java.lang.annotation.*;
-    import static java.lang.annotation.ElementType.*;
-    import static java.lang.annotation.RetentionPolicy.SOURCE;
-    @SuppressWarnings("WeakerAccess")
-    @Retention(SOURCE)
-    @Target({METHOD, PARAMETER, FIELD, LOCAL_VARIABLE, TYPE_USE, ANNOTATION_TYPE, PACKAGE})
-    public @interface Nullable {
     }
     """
         )
@@ -1913,18 +2049,22 @@ val DEFAULT_SKIP_EMIT_PACKAGES =
         ANDROIDX_ANNOTATION_PACKAGE,
         // Ditto for libcore.util.
         "libcore.util",
+        // Ditto for test only nullability annotations.
+        "mixed.use",
+        "not.type.use",
+        "type.use.only",
     )
 
 /**
  * A special [FileFormat] used by tests that want to output type use annotations to signature files.
  */
 val TYPE_USE_FORMAT =
-    FileFormat.V5.copy(
-        kotlinNameTypeOrder = true,
-        includeTypeUseAnnotations = true,
-        kotlinStyleNulls = false,
-        specifiedStripJavaLangPrefix = StripJavaLangPrefix.ALWAYS,
-    )
+    FileFormat.V5.buildCopy {
+        this[INCLUDE_TYPE_USE_ANNOTATIONS] = true
+        this[KOTLIN_NAME_TYPE_ORDER] = true
+        this[KOTLIN_STYLE_NULLS] = false
+        this[STRIP_JAVA_LANG_PREFIX] = StripJavaLangPrefix.ALWAYS
+    }
 
 /**
  * Enumeration of the different types of system APIs used in Android.

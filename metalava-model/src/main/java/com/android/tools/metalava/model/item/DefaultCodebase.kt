@@ -16,17 +16,20 @@
 
 package com.android.tools.metalava.model.item
 
-import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.AnnotationManager
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
-import com.android.tools.metalava.model.Item
-import com.android.tools.metalava.model.TypeAliasItem
+import com.android.tools.metalava.model.PackageItem
+import com.android.tools.metalava.model.SkeletonClassItem
+import com.android.tools.metalava.model.annotation.AnnotationDefaults
+import com.android.tools.metalava.model.annotation.binding.AnnotationBindingCache
+import com.android.tools.metalava.model.annotation.binding.AnnotationBindingFactory
 import com.android.tools.metalava.model.api.surface.ApiSurfaces
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
 import java.io.File
 import java.util.HashMap
+import kotlin.reflect.KClass
 
 private const val CLASS_ESTIMATE = 15000
 
@@ -67,8 +70,8 @@ open class DefaultCodebase(
 
     override val reporter: Reporter = config.reporter
 
-    /** Tracks [DefaultPackageItem] use in this [Codebase]. */
-    val packageTracker = PackageTracker(assembler::createPackageItem)
+    /** Tracks [PackageItem] use in this [Codebase]. */
+    val packageTracker = PackageTracker(assembler)
 
     final override fun getPackages() = packageTracker.getPackages()
 
@@ -76,17 +79,14 @@ open class DefaultCodebase(
 
     final override fun findPackage(pkgName: String) = packageTracker.findPackage(pkgName)
 
-    fun findOrCreatePackage(
-        packageName: String,
-        packageDocs: PackageDocs = PackageDocs.EMPTY,
-    ) = packageTracker.findOrCreatePackage(packageName, packageDocs)
+    fun findOrCreatePackage(packageName: String) = packageTracker.findOrCreatePackage(packageName)
 
     /**
      * Map from fully qualified name to [DefaultClassItem] for every class created by this.
      *
      * Classes are added via [registerClass] while initialising the codebase.
      */
-    private val allClassesByName = HashMap<String, DefaultClassItem>(CLASS_ESTIMATE)
+    private val allClassesByName = HashMap<String, SkeletonClassItem>(CLASS_ESTIMATE)
 
     /** Find a class created by this [Codebase]. */
     fun findClassInCodebase(className: String) = allClassesByName[className]
@@ -111,24 +111,6 @@ open class DefaultCodebase(
         }
     }
 
-    /** Tracks all known type aliases in the codebase by qualified name. */
-    private val allTypeAliasesByName = HashMap<String, DefaultTypeAliasItem>()
-
-    override fun findTypeAlias(typeAliasName: String): TypeAliasItem? {
-        return allTypeAliasesByName[typeAliasName]
-    }
-
-    /**
-     * Adds the [typeAlias] to the [Codebase], throwing an error if there is already a type alias
-     * with the same qualified name.
-     */
-    internal fun addTypeAlias(typeAlias: DefaultTypeAliasItem) {
-        if (typeAlias.qualifiedName in allTypeAliasesByName) {
-            error("Duplicate typealias ${typeAlias.qualifiedName}")
-        }
-        allTypeAliasesByName[typeAlias.qualifiedName] = typeAlias
-    }
-
     /**
      * Look for classes in this [Codebase].
      *
@@ -147,7 +129,7 @@ open class DefaultCodebase(
      * Register the class by name, return `true` if the class was registered and `false` if it was
      * not, i.e. because it is a duplicate.
      */
-    fun registerClass(classItem: DefaultClassItem): Boolean {
+    fun registerClass(classItem: SkeletonClassItem): Boolean {
         // Check for duplicates, ignore the class if it is a duplicate.
         val qualifiedName = classItem.qualifiedName()
         val existing = allClassesByName[qualifiedName]
@@ -192,10 +174,16 @@ open class DefaultCodebase(
         return created
     }
 
-    override fun createAnnotation(
-        source: String,
-        context: Item?,
-    ): AnnotationItem? {
-        return AnnotationItem.createFromSource(this, source)
+    final override fun resolvePackage(pkgName: String): PackageItem? {
+        findPackage(pkgName)?.let {
+            return it
+        }
+        return assembler.createPackageFromUnderlyingModel(pkgName)
     }
+
+    /** The cache of [AnnotationBindingFactory] instances. */
+    private val bindingFactoryCache = AnnotationBindingCache()
+
+    override fun <T : Any> bindingFactoryFor(kClass: KClass<T>, defaults: AnnotationDefaults?) =
+        bindingFactoryCache.bindingFactoryFor(kClass, defaults)
 }
