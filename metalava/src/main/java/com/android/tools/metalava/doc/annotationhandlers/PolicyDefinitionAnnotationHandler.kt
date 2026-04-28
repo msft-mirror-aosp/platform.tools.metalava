@@ -116,6 +116,23 @@ class AllowedDpcTypesProxy(
     }
 }
 
+class AllowedRolesProxy(
+    val deviceController: Int,
+) {
+    fun generateDocs(): String {
+        if (deviceController == ROLE_ANNOTATION_ALLOWED) {
+            // TODO(b/477491703): add code link to "android.app.role.DEVICE_CONTROLLER"
+            return "   <li>This policy can be set by holders of the device controller role</li>\n"
+        }
+        return ""
+    }
+
+    companion object {
+        const val ROLE_ANNOTATION_ALLOWED = 1
+        const val ROLE_ANNOTATION_DISALLOWED = 2
+    }
+}
+
 /**
  * Proxy class bound to an instance of the `android.processor.devicepolicy.PolicyDefinition`
  * annotation class.
@@ -130,6 +147,7 @@ class PolicyDefinitionProxy(
     private val requiredPermission: String?,
     private val requiredCrossUserPermission: String?,
     private val allowedDpcTypes: AllowedDpcTypesProxy,
+    private val allowedRoles: AllowedRolesProxy,
 ) {
     private val codebase = item.codebase
     private val reporter = codebase.reporter
@@ -269,6 +287,7 @@ class PolicyDefinitionProxy(
         }
 
         append(allowedDpcTypes.generateDocs())
+        append(allowedRoles.generateDocs())
     }
 
     companion object {

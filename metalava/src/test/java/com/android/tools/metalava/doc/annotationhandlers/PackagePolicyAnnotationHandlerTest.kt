@@ -37,6 +37,7 @@ class PackagePolicyAnnotationHandlerTest : DriverTest() {
                         import android.processor.devicepolicy.PackagePolicyDefinition;
                         import android.processor.devicepolicy.PolicyDefinition;
                         import android.processor.devicepolicy.AllowedDpcTypes;
+                        import android.processor.devicepolicy.AllowedRoles;
                         import static android.processor.devicepolicy.AllowedDpcTypes.ALLOWED;
 
                         @Retention(RetentionPolicy.SOURCE)
@@ -60,6 +61,9 @@ class PackagePolicyAnnotationHandlerTest : DriverTest() {
                                         managedProfileOwnerOfPersonalOwnedDevice = ALLOWED,
                                         profileOwnerOnUser0 = ALLOWED,
                                         fullUserProfileOwner = ALLOWED
+                                    ),
+                                    allowedRoles = @AllowedRoles(
+                                        deviceController = AllowedRoles.ALLOWED
                                     )
                                 )
                             )
@@ -112,6 +116,7 @@ class PackagePolicyAnnotationHandlerTest : DriverTest() {
                          *       <li>Affiliated Full User Profile Owner</li>
                          *     </ul>
                          *   </li>
+                         *   <li>This policy can be set by holders of the device controller role</li>
                          * </ul>
                          */
                         public static final int POLICY_FIELD = 1;

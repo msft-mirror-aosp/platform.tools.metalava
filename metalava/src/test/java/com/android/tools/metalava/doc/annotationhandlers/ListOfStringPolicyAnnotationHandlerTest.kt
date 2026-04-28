@@ -38,6 +38,7 @@ class ListOfStringPolicyAnnotationHandlerTest : DriverTest() {
                         import android.processor.devicepolicy.ListResolutionMechanism;
                         import android.processor.devicepolicy.PolicyDefinition;
                         import android.processor.devicepolicy.AllowedDpcTypes;
+                        import android.processor.devicepolicy.AllowedRoles;
                         import static android.processor.devicepolicy.AllowedDpcTypes.ALLOWED;
 
                         @Retention(RetentionPolicy.SOURCE)
@@ -62,6 +63,9 @@ class ListOfStringPolicyAnnotationHandlerTest : DriverTest() {
                                         managedProfileOwnerOfPersonalOwnedDevice = ALLOWED,
                                         profileOwnerOnUser0 = ALLOWED,
                                         fullUserProfileOwner = ALLOWED
+                                    ),
+                                    allowedRoles = @AllowedRoles(
+                                        deviceController = AllowedRoles.ALLOWED
                                     )
                                 ),
                                 emptyListAllowed = true,
@@ -121,6 +125,7 @@ class ListOfStringPolicyAnnotationHandlerTest : DriverTest() {
                          *       <li>Affiliated Full User Profile Owner</li>
                          *     </ul>
                          *   </li>
+                         *   <li>This policy can be set by holders of the device controller role</li>
                          *   <li>Resolution Mechanism: custom</li>
                          *   <li>Empty list: Allowed</li>
                          *   <li>Empty string: Allowed</li>

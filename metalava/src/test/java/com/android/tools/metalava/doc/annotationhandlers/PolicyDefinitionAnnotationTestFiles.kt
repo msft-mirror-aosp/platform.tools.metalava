@@ -92,6 +92,7 @@ object PolicyDefinitionAnnotationTestFiles {
                 String requiredPermission() default "";
                 String requiredCrossUserPermission() default "";
                 AllowedDpcTypes allowedDpcTypes();
+                AllowedRoles allowedRoles() default @AllowedRoles;
             }
 
             @Retention(RetentionPolicy.SOURCE)
@@ -106,6 +107,14 @@ object PolicyDefinitionAnnotationTestFiles {
                 public int fullUserProfileOwner();
                 public int financedDeviceOwner() default DISALLOWED;
                 public int profileOwnerOnUser0() default DISALLOWED;
+            }
+
+            @Retention(RetentionPolicy.SOURCE)
+            public @interface AllowedRoles {
+                public static final int ALLOWED = 1;
+                public static final int DISALLOWED = 2;
+
+                public int deviceController() default DISALLOWED;
             }
 
             @Retention(RetentionPolicy.SOURCE)

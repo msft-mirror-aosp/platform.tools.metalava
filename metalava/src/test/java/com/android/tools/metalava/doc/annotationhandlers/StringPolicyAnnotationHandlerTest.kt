@@ -36,6 +36,7 @@ class StringPolicyAnnotationHandlerTest : DriverTest() {
                         import android.processor.devicepolicy.StringPolicyDefinition;
                         import android.processor.devicepolicy.PolicyDefinition;
                         import android.processor.devicepolicy.AllowedDpcTypes;
+                        import android.processor.devicepolicy.AllowedRoles;
                         import static android.processor.devicepolicy.AllowedDpcTypes.ALLOWED;
                         import static android.processor.devicepolicy.AllowedDpcTypes.DISALLOWED;
 
@@ -59,6 +60,9 @@ class StringPolicyAnnotationHandlerTest : DriverTest() {
                                         managedProfileOwnerOfPersonalOwnedDevice = DISALLOWED,
                                         profileOwnerOnUser0 = ALLOWED,
                                         fullUserProfileOwner = DISALLOWED
+                                    ),
+                                    allowedRoles = @AllowedRoles(
+                                        deviceController = AllowedRoles.ALLOWED
                                     )
                                 ),
                                 emptyStringAllowed = true,
@@ -104,6 +108,7 @@ class StringPolicyAnnotationHandlerTest : DriverTest() {
                          *       <li>Profile Owner on User 0</li>
                          *     </ul>
                          *   </li>
+                         *   <li>This policy can be set by holders of the device controller role</li>
                          *   <li>Empty string: Allowed</li>
                          *   <li>Unprintable characters: Allowed</li>
                          *   <li>Pure whitespace: Allowed</li>

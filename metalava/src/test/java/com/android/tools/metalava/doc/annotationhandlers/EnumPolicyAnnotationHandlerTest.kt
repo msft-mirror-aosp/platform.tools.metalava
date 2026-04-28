@@ -44,6 +44,7 @@ class EnumPolicyAnnotationHandlerTest : DriverTest() {
                         import android.processor.devicepolicy.PolicyDefinition;
                         import android.processor.devicepolicy.EnumResolutionMechanism;
                         import android.processor.devicepolicy.AllowedDpcTypes;
+                        import android.processor.devicepolicy.AllowedRoles;
                         import static android.processor.devicepolicy.AllowedDpcTypes.ALLOWED;
                         import static android.processor.devicepolicy.AllowedDpcTypes.DISALLOWED;
 
@@ -64,6 +65,9 @@ class EnumPolicyAnnotationHandlerTest : DriverTest() {
                                         managedProfileOwnerOfPersonalOwnedDevice = DISALLOWED,
                                         profileOwnerOnUser0 = DISALLOWED,
                                         fullUserProfileOwner = ALLOWED
+                                    ),
+                                    allowedRoles = @AllowedRoles(
+                                        deviceController = AllowedRoles.ALLOWED
                                     )
                                 ),
                                 intDef = EnumPolicyValue.class,
@@ -111,6 +115,7 @@ class EnumPolicyAnnotationHandlerTest : DriverTest() {
                          *       <li>Affiliated Full User Profile Owner</li>
                          *     </ul>
                          *   </li>
+                         *   <li>This policy can be set by holders of the device controller role</li>
                          *   <li>Resolution Mechanism: custom</li>
                          *   <li>Enum policy values:
                          *     <ul>
