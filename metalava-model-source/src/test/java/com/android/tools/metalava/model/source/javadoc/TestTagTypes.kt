@@ -16,32 +16,47 @@
 
 package com.android.tools.metalava.model.source.javadoc
 
-import com.android.tools.metalava.model.source.doc.BlockTagTypes
 import com.android.tools.metalava.model.source.doc.DocCommentContext
 import com.android.tools.metalava.model.source.doc.ExtractDataResult
-import com.android.tools.metalava.model.source.doc.InlineTagTypes
 import com.android.tools.metalava.model.source.doc.JavadocContentPrinter
 import com.android.tools.metalava.model.source.doc.TagData
 import com.android.tools.metalava.model.source.doc.TagType
+import com.android.tools.metalava.model.source.doc.TagTypeForm
+import com.android.tools.metalava.model.source.doc.TagTypes
+import com.android.tools.metalava.model.source.doc.skipForwardsOverLeadingWhitespace
+import com.android.tools.metalava.reporter.Issues
+import com.android.tools.metalava.reporter.LocationSpecificReporter
 
 internal object TestTagTypes {
     val BAR_TAG_TYPE =
         BarTagType().also {
             // Register for use as block and inline tags.
-            BlockTagTypes.register(it)
-            InlineTagTypes.register(it)
+            TagTypes.register(it)
         }
 }
 
-internal class BarTagType : TagType<BarTagData>("bar") {
+internal class BarTagType : TagType<BarTagData>("bar", TagTypeForm.BOTH) {
     override fun extractData(
         context: DocCommentContext,
+        reporter: LocationSpecificReporter,
         text: CharSequence
     ): ExtractDataResult<BarTagData>? {
-        val identifier = text.findLeadingIdentifier() ?: return null
+        val identifierStart = text.skipForwardsOverLeadingWhitespace(0)
+        val identifier = text.findLeadingIdentifier(identifierStart) ?: return null
+
+        if (identifier.contains('e') || identifier.contains('o')) {
+            reporter.report(
+                Issues.INVALID_JAVADOC,
+                "@bar tag cannot contain 'e' or 'o' in the identifier"
+            )
+        }
+
         return ExtractDataResult(
             tagData = BarTagData(identifier),
-            consumedContent = identifier.length + 1,
+            // The identifier and any following whitespace must be removed from the content as they
+            // are part of [BarTagData].
+            consumedContent =
+                text.skipForwardsOverLeadingWhitespace(identifierStart + identifier.length),
         )
     }
 }

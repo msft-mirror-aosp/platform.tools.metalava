@@ -18,8 +18,10 @@ package com.android.tools.metalava.model.psi
 
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.BaseModifierList
+import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.JAVA_LANG_ANNOTATION_TARGET
 import com.android.tools.metalava.model.JAVA_LANG_TYPE_USE_TARGET
+import com.android.tools.metalava.model.ModifierContext
 import com.android.tools.metalava.model.ModifierFlags.Companion.ABSTRACT
 import com.android.tools.metalava.model.ModifierFlags.Companion.ACTUAL
 import com.android.tools.metalava.model.ModifierFlags.Companion.COMPANION
@@ -33,6 +35,7 @@ import com.android.tools.metalava.model.ModifierFlags.Companion.INFIX
 import com.android.tools.metalava.model.ModifierFlags.Companion.INLINE
 import com.android.tools.metalava.model.ModifierFlags.Companion.INTERNAL
 import com.android.tools.metalava.model.ModifierFlags.Companion.NATIVE
+import com.android.tools.metalava.model.ModifierFlags.Companion.NON_SEALED
 import com.android.tools.metalava.model.ModifierFlags.Companion.OPERATOR
 import com.android.tools.metalava.model.ModifierFlags.Companion.PACKAGE_PRIVATE
 import com.android.tools.metalava.model.ModifierFlags.Companion.PRIVATE
@@ -48,11 +51,14 @@ import com.android.tools.metalava.model.ModifierFlags.Companion.VALUE
 import com.android.tools.metalava.model.ModifierFlags.Companion.VARARG
 import com.android.tools.metalava.model.ModifierFlags.Companion.VOLATILE
 import com.android.tools.metalava.model.MutableModifierList
-import com.android.tools.metalava.model.VisibilityLevel
+import com.android.tools.metalava.model.RecordComponentItem
 import com.android.tools.metalava.model.createMutableModifiers
 import com.android.tools.metalava.model.hasAnnotation
 import com.android.tools.metalava.model.isNullnessAnnotation
+import com.android.tools.metalava.model.isRetention
+import com.intellij.codeInsight.AnnotationTargetUtil
 import com.intellij.psi.PsiAnnotation
+import com.intellij.psi.PsiAnnotation.TargetType
 import com.intellij.psi.PsiAnnotationMemberValue
 import com.intellij.psi.PsiArrayInitializerMemberValue
 import com.intellij.psi.PsiElement
@@ -63,6 +69,7 @@ import com.intellij.psi.PsiModifierList
 import com.intellij.psi.PsiModifierListOwner
 import com.intellij.psi.PsiParameter
 import com.intellij.psi.PsiPrimitiveType
+import com.intellij.psi.PsiRecordComponent
 import com.intellij.psi.PsiReferenceExpression
 import com.intellij.psi.impl.light.LightModifierList
 import org.jetbrains.annotations.NotNull
@@ -70,14 +77,12 @@ import org.jetbrains.annotations.Nullable
 import org.jetbrains.kotlin.analysis.api.analyze
 import org.jetbrains.kotlin.analysis.api.symbols.KaSymbolVisibility
 import org.jetbrains.kotlin.asJava.elements.KtLightElement
-import org.jetbrains.kotlin.lexer.KtModifierKeywordToken
 import org.jetbrains.kotlin.lexer.KtTokens
 import org.jetbrains.kotlin.psi.KtAnnotated
 import org.jetbrains.kotlin.psi.KtDeclaration
 import org.jetbrains.kotlin.psi.KtElement
 import org.jetbrains.kotlin.psi.KtModifierList
 import org.jetbrains.kotlin.psi.KtModifierListOwner
-import org.jetbrains.kotlin.psi.KtNamedFunction
 import org.jetbrains.kotlin.psi.KtObjectDeclaration
 import org.jetbrains.kotlin.psi.KtPrimaryConstructor
 import org.jetbrains.kotlin.psi.KtPropertyAccessor
@@ -94,16 +99,27 @@ import org.jetbrains.uast.toUElement
 
 internal object PsiModifierItem {
     fun create(
+        modifierContext: ModifierContext,
         codebase: PsiBasedCodebase,
         element: PsiModifierListOwner,
     ): MutableModifierList {
+        val flags =
+            element.modifierList?.let { modifierList ->
+                val computedFlags = computeFlag(element, modifierList)
+                modifierContext.normalizeFlags(computedFlags, element.sourceLanguage)
+            } ?: PACKAGE_PRIVATE
+
         val modifiers =
             if (element is UAnnotated) {
-                createFromUAnnotated(codebase, element, element)
+                createFromUAnnotated(codebase, flags, element)
             } else {
-                createFromPsiElement(codebase, element)
+                createFromPsiElement(codebase, flags, element)
             }
-
+        // Set exhaustivity as true until proven otherwise either by an inaccessible subclass
+        // or by a "nonexhaustive" keyword when parsing signature files.
+        if (modifiers.isSealed()) {
+            modifiers.setExhaustive(true)
+        }
         // Sometimes Psi/Kotlin interoperation goes a little awry and adds nullability annotations
         // that it should not, so this removes them.
         if (shouldRemoveNullnessAnnotations(modifiers)) {
@@ -125,14 +141,10 @@ internal object PsiModifierItem {
     private fun shouldRemoveNullnessAnnotations(
         modifiers: BaseModifierList,
     ): Boolean {
-        // Kotlin varargs are not nullable but can sometimes and up with an @Nullable annotation
+        // Kotlin varargs are not nullable but can sometimes and up with a @Nullable annotation
         // added to the [PsiParameter] so remove it from the modifiers. Only Kotlin varargs have a
         // `vararg` modifier.
-        if (modifiers.isVarArg()) {
-            return true
-        }
-
-        return false
+        return modifiers.isVarArg()
     }
 
     private fun hasDeprecatedAnnotation(modifiers: BaseModifierList) =
@@ -178,7 +190,7 @@ internal object PsiModifierItem {
 
         // Merge in kotlin flags
         if (ktModifierList != null) {
-            flags = flags or kotlinFlags { token -> ktModifierList.hasModifier(token) }
+            flags = flags or ktModifierList.kotlinFlags(sourcePsi)
         }
         return flags
     }
@@ -233,11 +245,11 @@ internal object PsiModifierItem {
                 }
             }
 
-            // With K2, the source psi of a data class copy method is the primary constructor, so
-            // that gets used to determine internal visibility above. That works if the data class
-            // is annotated with @ConsistentCopyVisibility (pre Kotlin 2.3), or is not annotated
-            // with @ExposedCopyVisibility (Kotlin 2.3 or later). Otherwise, the copy method should
-            // be public. If the copy method is supposed to be internal, it will get a mangled name
+            // The source psi of a data class copy method is the primary constructor, so that gets
+            // used to determine internal visibility above. That works if the data class is
+            // annotated with @ConsistentCopyVisibility (pre Kotlin 2.3), or is not annotated with
+            // @ExposedCopyVisibility (Kotlin 2.3 or later). Otherwise, the copy method should be
+            // public. If the copy method is supposed to be internal, it will get a mangled name
             // (`copy$<module name>`), so if the name is just plain "copy", that means it should not
             // be internal. Reset the visibility to public in that case.
             if (
@@ -246,20 +258,6 @@ internal object PsiModifierItem {
                     sourcePsi.containingClass()?.hasModifier(KtTokens.DATA_KEYWORD) == true &&
                     visibilityFlags == INTERNAL
             ) {
-                visibilityFlags = PUBLIC
-            }
-        }
-
-        if (ktModifierList?.hasModifier(KtTokens.INLINE_KEYWORD) == true) {
-            // Workaround for b/117565118:
-            val func = sourcePsi as? KtNamedFunction
-            if (
-                func != null &&
-                    (func.typeParameterList?.text ?: "").contains(KtTokens.REIFIED_KEYWORD.value) &&
-                    !ktModifierList.hasModifier(KtTokens.PRIVATE_KEYWORD) &&
-                    !ktModifierList.hasModifier(KtTokens.INTERNAL_KEYWORD)
-            ) {
-                // Switch back from private to public
                 visibilityFlags = PUBLIC
             }
         }
@@ -313,11 +311,19 @@ internal object PsiModifierItem {
         if (modifierList.hasModifierProperty(PsiModifier.DEFAULT)) {
             flags = flags or DEFAULT
         }
+        if (modifierList.hasModifierProperty(PsiModifier.SEALED)) {
+            flags = flags or SEALED
+        }
+        if (modifierList.hasModifierProperty(PsiModifier.NON_SEALED)) {
+            flags = flags or NON_SEALED
+        }
         return flags
     }
 
     /** Computes Kotlin-specific flags. */
-    private fun kotlinFlags(hasModifier: (KtModifierKeywordToken) -> Boolean): Int {
+    private fun KtModifierList.kotlinFlags(
+        sourcePsi: PsiElement?,
+    ): Int {
         var flags = 0
         if (hasModifier(KtTokens.VARARG_KEYWORD)) {
             flags = flags or VARARG
@@ -349,7 +355,10 @@ internal object PsiModifierItem {
         if (hasModifier(KtTokens.FUN_KEYWORD)) {
             flags = flags or FUN
         }
-        if (hasModifier(KtTokens.DATA_KEYWORD)) {
+        // A data object is just a regular object with special toString/equals/hashCode
+        // implementations, unlike data classes which have many more generated members. This makes
+        // the data modifier not important for API tracking of object declarations.
+        if (hasModifier(KtTokens.DATA_KEYWORD) && sourcePsi !is KtObjectDeclaration) {
             flags = flags or DATA
         }
         if (hasModifier(KtTokens.EXPECT_KEYWORD)) {
@@ -381,12 +390,32 @@ internal object PsiModifierItem {
      */
     private fun PsiAnnotationMemberValue.targets(): List<String> {
         return when (this) {
-            is PsiReferenceExpression -> listOf(qualifiedName)
-            is PsiArrayInitializerMemberValue ->
-                initializers.mapNotNull { (it as? PsiReferenceExpression)?.qualifiedName }
+            is PsiReferenceExpression -> {
+                // Note: This does not use canonicalText because while its documentation says that
+                // it should provide a fully qualified reference independent of imports that is not
+                // always true.
+
+                // Resolve the reference to what should be a field in ElementType.
+                val psiField = resolve() as? PsiField
+
+                // Return a list of the qualified field name, falling back to the inline text just
+                // in case it cannot be resolved.
+                val qualifiedName = psiField?.qualifiedName() ?: qualifiedName
+                listOf(qualifiedName)
+            }
+            is PsiArrayInitializerMemberValue -> {
+                // Combine the targets from each item in the array.
+                initializers.flatMap { it.targets() }
+            }
             else -> emptyList()
         }
     }
+
+    /**
+     * Get the qualified name of the [PsiField], returning `null` if the containing class could not
+     * be found.
+     */
+    private fun PsiField.qualifiedName() = containingClass?.qualifiedName?.let { "$it.$name" }
 
     /**
      * Annotations which are only `TYPE_USE` should only apply to types, not the owning item of the
@@ -398,8 +427,10 @@ internal object PsiModifierItem {
      *
      * To work around psi incorrectly applying exclusively `TYPE_USE` annotations to non-type items,
      * this filters all annotations which should apply to types but not the [forOwner] item.
+     *
+     * Similar to the behavior of [PsiCodebaseAssembler.shouldCopyTypeAnnotationToMethodItem].
      */
-    private fun List<PsiAnnotation>.filterIncorrectTypeUseAnnotations(
+    internal fun List<PsiAnnotation>.filterIncorrectTypeUseAnnotations(
         forOwner: PsiModifierListOwner
     ): List<PsiAnnotation> {
         val expectedTarget =
@@ -415,20 +446,35 @@ internal object PsiModifierItem {
             // If the annotation is not type use, it has been correctly applied to the item.
             !applicableTargets.contains(JAVA_LANG_TYPE_USE_TARGET) ||
                 // If the annotation has the item type as a target, it should be applied here.
-                applicableTargets.contains(expectedTarget) ||
-                // For now, leave in nullness annotations until they are specially handled.
-                isNullnessAnnotation(annotation.qualifiedName.orEmpty())
+                applicableTargets.contains(expectedTarget)
         }
     }
 
+    /**
+     * Filter out any unsupported annotations if [forOwner] is a [PsiRecordComponent].
+     *
+     * [PsiRecordComponent] allows annotations for fields, methods, record components and types to
+     * be used. However, the [RecordComponentItem] must only have those targeted explicitly at
+     * record components applied to it as the other annotations are added to the appropriate [Item]
+     * that was created from the record component.
+     */
+    internal fun List<PsiAnnotation>.filterRecordComponentAnnotations(
+        forOwner: PsiModifierListOwner,
+    ): List<PsiAnnotation> {
+        // Nothing to do if forOwner is not a PsiRecordComponent.
+        if (forOwner !is PsiRecordComponent) return this
+
+        return filter { psiAnnotation -> psiAnnotation.isSuitableForRecordComponent() }
+    }
+
+    private fun PsiAnnotation.isSuitableForRecordComponent(): Boolean =
+        AnnotationTargetUtil.findAnnotationTarget(this, TargetType.RECORD_COMPONENT) != null
+
     private fun createFromPsiElement(
         codebase: PsiBasedCodebase,
+        flags: Int,
         element: PsiModifierListOwner
     ): MutableModifierList {
-        var flags =
-            element.modifierList?.let { modifierList -> computeFlag(element, modifierList) }
-                ?: PACKAGE_PRIVATE
-
         val psiAnnotations = element.annotations
         return if (psiAnnotations.isEmpty()) {
             createMutableModifiers(flags)
@@ -440,6 +486,8 @@ internal object PsiModifierItem {
                     .distinct()
                     // Remove any type-use annotations that psi incorrectly applied to the item.
                     .filterIncorrectTypeUseAnnotations(element)
+                    // Remove any annotations that are not suitable for a PsiRecordComponent.
+                    .filterRecordComponentAnnotations(element)
                     .mapNotNull { PsiAnnotationItem.create(codebase, it) }
             createMutableModifiers(flags, annotations)
         }
@@ -447,29 +495,23 @@ internal object PsiModifierItem {
 
     private fun createFromUAnnotated(
         codebase: PsiBasedCodebase,
-        element: PsiModifierListOwner,
+        flags: Int,
         annotated: UAnnotated
     ): MutableModifierList {
-        val modifierList =
-            element.modifierList ?: return createMutableModifiers(VisibilityLevel.PACKAGE_PRIVATE)
         val uAnnotations = annotated.uAnnotations.toMutableList()
         val psiAnnotations =
-            modifierList.annotations.takeIf { it.isNotEmpty() }
-                ?: (annotated.javaPsi as? PsiModifierListOwner)?.annotations
-                ?: PsiAnnotation.EMPTY_ARRAY
-
-        var flags = computeFlag(element, modifierList)
+            (annotated.javaPsi as? PsiModifierListOwner)?.annotations ?: PsiAnnotation.EMPTY_ARRAY
 
         // The below code remedies a problem where companion objects as fields don't have
         // annotations in signature files (b/401235591). This code takes the annotations
         // from the companion class and applies them to the field.
-        if (element is UField) {
-            val companionObjectClass = (element.sourcePsi.toUElement())
+        if (annotated is UField) {
+            val companionObjectClass = (annotated.sourcePsi.toUElement())
 
             // The following checks if the field is indeed a companion object. Companion objects
             // are the only case where there is a field that has sourcePsi being a UClass, and
             // that UClass's sourcePsi is a KtObjectDeclaration. Other field types (e.g.
-            // primitives, lambdas, etc) don't have this property.
+            // primitives, lambdas, etc.) don't have this property.
             if (
                 companionObjectClass is UClass &&
                     companionObjectClass.sourcePsi is KtObjectDeclaration &&
@@ -490,6 +532,8 @@ internal object PsiModifierItem {
             }
         }
 
+        // Only use the psi annotations when there are no uAnnotations present (either ones added or
+        // originally present in UAST).
         return if (uAnnotations.isEmpty()) {
             if (psiAnnotations.isNotEmpty()) {
                 val annotations =
@@ -499,9 +543,9 @@ internal object PsiModifierItem {
                 createMutableModifiers(flags)
             }
         } else {
-            val isPrimitiveVariable = element is UVariable && element.type is PsiPrimitiveType
+            val isPrimitiveVariable = annotated is UVariable && annotated.type is PsiPrimitiveType
 
-            var annotations =
+            val annotations =
                 uAnnotations
                     // Uast sometimes puts nullability annotations on primitives!?
                     .filter {
@@ -510,6 +554,7 @@ internal object PsiModifierItem {
                             !it.isKotlinNullabilityAnnotation
                     }
                     .mapNotNull { UAnnotationItem.create(codebase, it) }
+                    .toMutableList()
 
             if (!isPrimitiveVariable) {
                 if (psiAnnotations.isNotEmpty() && annotations.none { it.isNullnessAnnotation() }) {
@@ -519,14 +564,22 @@ internal object PsiModifierItem {
                         }
                     ktNullAnnotation?.let {
                         PsiAnnotationItem.create(codebase, it)?.let { annotationItem ->
-                            annotations =
-                                annotations.toMutableList().run {
-                                    add(annotationItem)
-                                    toList()
-                                }
+                            annotations.add(annotationItem)
                         }
                     }
                 }
+            }
+
+            // if there are no retention annotations defined for this annotation class, we should
+            // add one so that it can be explicitly written in signature files
+            if (
+                (annotated as? UClass)?.isAnnotationType == true &&
+                    annotations.none { it.isRetention() }
+            ) {
+                psiAnnotations
+                    .firstOrNull { isRetention(it.qualifiedName) }
+                    ?.let { psiAnnotation -> PsiAnnotationItem.create(codebase, psiAnnotation) }
+                    ?.let { annotationItem -> annotations.add(annotationItem) }
             }
 
             createMutableModifiers(flags, annotations)

@@ -17,11 +17,11 @@
 package com.android.tools.metalava.lint
 
 import com.android.tools.metalava.DriverTest
-import com.android.tools.metalava.androidxNullableSource
 import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.testing.RequiresCapabilities
 import com.android.tools.metalava.nullableSource
 import com.android.tools.metalava.reporter.Issues
+import com.android.tools.metalava.testing.KnownSourceFiles
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
 import org.junit.Test
@@ -78,12 +78,6 @@ class VisiblySynchronizedTest : DriverTest() {
                         """,
                     silentUpdate = false,
                 ),
-            expectedFail =
-                """
-                    metalava wrote updated baseline to TESTROOT/update-baseline-api-lint.txt
-
-                """
-                    .trimIndent() + DefaultLintErrorMessage,
             sourceFiles =
                 arrayOf(
                     java(
@@ -144,7 +138,7 @@ class VisiblySynchronizedTest : DriverTest() {
                             }
                         """
                     ),
-                    androidxNullableSource,
+                    KnownSourceFiles.androidxNullableJavaSource,
                     nullableSource
                 )
         )
@@ -177,12 +171,6 @@ class VisiblySynchronizedTest : DriverTest() {
                         """,
                     silentUpdate = false,
                 ),
-            expectedFail =
-                """
-                    metalava wrote updated baseline to TESTROOT/update-baseline-api-lint.txt
-
-                """
-                    .trimIndent() + DefaultLintErrorMessage,
             sourceFiles =
                 arrayOf(
                     java(

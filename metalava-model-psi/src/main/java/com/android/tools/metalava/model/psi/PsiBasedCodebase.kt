@@ -17,11 +17,11 @@
 package com.android.tools.metalava.model.psi
 
 import com.android.tools.metalava.model.AnnotationItem
-import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.ClassOrigin
 import com.android.tools.metalava.model.Codebase
-import com.android.tools.metalava.model.Item
+import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.annotation.AnnotationDefaults
 import com.android.tools.metalava.model.item.DefaultCodebase
 import com.android.tools.metalava.model.type.ContextNullability
@@ -30,12 +30,8 @@ import com.android.tools.metalava.model.value.ValueProvider
 import com.intellij.openapi.project.Project
 import com.intellij.psi.PsiClass
 import com.intellij.psi.PsiFile
-import com.intellij.psi.PsiMethod
 import java.io.File
 import org.jetbrains.kotlin.analysis.api.projectStructure.KaModule
-import org.jetbrains.uast.UMethod
-
-const val METHOD_ESTIMATE = 1000
 
 /**
  * A codebase containing Java, Kotlin, or UAST PSI classes
@@ -43,7 +39,7 @@ const val METHOD_ESTIMATE = 1000
  * After creation, a list of PSI file is passed to [PsiCodebaseAssembler.initializeFromSources] or a
  * JAR file is passed to [PsiCodebaseAssembler.initializeFromJar]. This creates package and class
  * items along with their members. Any classes defined in those files will have [ClassItem.origin]
- * set based on [fromClasspath].
+ * set to [ClassOrigin.COMMAND_LINE].
  *
  * Classes that are created through [findOrCreateClass] will have [ClassItem.origin] set to
  * [ClassOrigin.SOURCE_PATH] or [ClassOrigin.CLASS_PATH] depending on whether the class is defined
@@ -53,10 +49,16 @@ internal class PsiBasedCodebase(
     location: File,
     description: String = "Unknown",
     config: Codebase.Config,
-    val allowReadingComments: Boolean,
-    val fromClasspath: Boolean = false,
     assembler: PsiCodebaseAssembler,
-    isMultiplatform: Boolean,
+    /**
+     * Whether types should be checked to see if there are any references to typealiases, and have
+     * the references replaced with the aliased type.
+     *
+     * This is necessary when processing multiplatform sources. Typealias usages may not have been
+     * replaced with the aliased type, particularly if the typealias is defined in a different
+     * module from the usage.
+     */
+    val inlineTypeAliasUsages: Boolean,
     /** The KaModule to use for adding kotlin-only APIs to the codebase. */
     val mainAnalysisModule: KaModule? = null,
 ) :
@@ -68,7 +70,6 @@ internal class PsiBasedCodebase(
         trustedApi = false,
         supportsDocumentation = true,
         assembler = assembler,
-        isMultiplatform = isMultiplatform,
     ) {
 
     internal val psiAssembler = assembler
@@ -76,14 +77,7 @@ internal class PsiBasedCodebase(
     internal val project: Project
         get() = psiAssembler.project
 
-    /**
-     * Map from classes to the set of callables for each (but only for classes where we've called
-     * [findCallableByPsiMethod]
-     */
-    private val methodMap: MutableMap<ClassItem, MutableMap<PsiMethod, PsiCallableItem>> =
-        HashMap(METHOD_ESTIMATE)
-
-    /** [PsiTypeItemFactory] used to create [PsiTypeItem]s. */
+    /** [PsiTypeItemFactory] used to create [TypeItem]s. */
     internal val globalTypeItemFactory
         get() = psiAssembler.globalTypeItemFactory
 
@@ -108,63 +102,6 @@ internal class PsiBasedCodebase(
     }
 
     internal fun findOrCreateClass(psiClass: PsiClass) = psiAssembler.findOrCreateClass(psiClass)
-
-    internal fun findCallableByPsiMethod(method: PsiMethod): PsiCallableItem {
-        val containingClass = method.containingClass
-        val cls = findOrCreateClass(containingClass!!)
-
-        // Ensure initialized/registered via [#registerMethods]
-        if (methodMap[cls] == null) {
-            val map = HashMap<PsiMethod, PsiCallableItem>(40)
-            registerCallablesByPsiMethod(cls.methods(), map)
-            registerCallablesByPsiMethod(cls.constructors(), map)
-            methodMap[cls] = map
-        }
-
-        val methods = methodMap[cls]!!
-        val methodItem = methods[method]
-        if (methodItem == null) {
-            // Probably switched psi classes (e.g. used source PsiClass in registry but found
-            // duplicate class in .jar library, and we're now pointing to it; in that case, find the
-            // equivalent method by signature
-            val psiClass = (cls as PsiClassItem).psiClass
-            val updatedMethod = psiClass.findMethodBySignature(method, true)
-            val result = methods[updatedMethod!!]
-            if (result == null) {
-                val extra =
-                    PsiMethodItem.create(this, cls, updatedMethod, globalTypeItemFactory.from(cls))
-                methods[method] = extra
-                methods[updatedMethod] = extra
-
-                return extra
-            }
-            return result
-        }
-
-        return methodItem
-    }
-
-    private fun registerCallablesByPsiMethod(
-        callables: List<CallableItem>,
-        map: MutableMap<PsiMethod, PsiCallableItem>
-    ) {
-        for (callable in callables) {
-            val psiMethod = (callable as PsiCallableItem).psiMethod
-            map[psiMethod] = callable
-            if (psiMethod is UMethod) {
-                // Register LC method as a key too
-                // so that we can find the corresponding [CallableItem]
-                // Otherwise, we will end up creating a new [CallableItem]
-                // without source PSI, resulting in wrong modifier.
-                map[psiMethod.javaPsi] = callable
-            }
-        }
-    }
-
-    override fun isFromClassPath() = fromClasspath
-
-    override fun createAnnotation(source: String, context: Item?) =
-        psiAssembler.createAnnotation(source, context)
 
     /**
      * Override to allow access to the [AnnotationDefaults] without having to resolve a [ClassItem]
@@ -214,5 +151,14 @@ internal class PsiBasedCodebase(
         }
 
         return AnnotationDefaults.EMPTY
+    }
+
+    /**
+     * Returns a typealias identified by fully qualified name, if in the codebase.
+     *
+     * If there is a [ClassItem] with the [qualifiedName] that is not a typealias, returns null.
+     */
+    fun findTypeAlias(qualifiedName: String): ClassItem? {
+        return findClass(qualifiedName)?.takeIf { it.classKind == ClassKind.TYPEALIAS }
     }
 }

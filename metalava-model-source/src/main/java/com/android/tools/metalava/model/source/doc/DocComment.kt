@@ -19,6 +19,7 @@ package com.android.tools.metalava.model.source.doc
 import com.android.tools.metalava.model.doc.DocContent
 import com.android.tools.metalava.model.doc.DocContentOwner
 import com.android.tools.metalava.model.source.javadoc.JavadocContent
+import com.android.tools.metalava.model.source.javadoc.JavadocContentRewriter
 import com.android.tools.metalava.model.source.javadoc.TextContainsAnyVisitor
 import java.io.PrintWriter
 import java.io.StringWriter
@@ -75,8 +76,16 @@ internal interface DocComment : DocContentOwner {
      */
     fun requiresSourceComment(): Boolean
 
-    /** Print this as a Javadoc comment to [writer]. */
-    fun printAsJavadocComment(writer: PrintWriter)
+    /**
+     * Print this as a Javadoc comment to [writer].
+     *
+     * If [mainDescriptionRewriter] is provided then it is applied to the [description] after fully
+     * qualifying but before printing.
+     */
+    fun printAsJavadocComment(
+        writer: PrintWriter,
+        mainDescriptionRewriter: JavadocContentRewriter? = null
+    )
 
     /** Get the output of [printAsJavadocComment] as a [String]. */
     fun asJavadocCommentString(): String {
@@ -128,14 +137,6 @@ private fun JavadocContent?.requiredSpace(): RequiredSpace =
         else -> RequiredSpace.SINGLE_LINE
     }
 
-/**
- * Interface that must be implemented by classes that need to respond to changes in a [DocComment].
- */
-interface DocCommentMutationListener {
-    /** Invoked when [DocComment] is mutated. */
-    fun docCommentMutated()
-}
-
 internal class DefaultDocComment(
     context: DocCommentContext,
     descriptionSupplier: ContentSupplier,
@@ -155,8 +156,16 @@ internal class DefaultDocComment(
     override fun hasBlockTagOfType(tagTypeName: String) =
         blockTagSections.any { it.tagType.name == tagTypeName }
 
+    /** Get the block [TagType] for [tagTypeName]. */
+    private fun blockTagTypeFor(tagTypeName: String) =
+        TagTypes.tagTypeOf(tagTypeName).apply {
+            if (!this.form.supportsBlockTag) {
+                error("Cannot use '$tagTypeName' as a block tag")
+            }
+        }
+
     override fun addBlockTagSection(tagTypeName: String, description: JavadocContent?) {
-        val tagType = BlockTagTypes.tagTypeOf(tagTypeName)
+        val tagType = blockTagTypeFor(tagTypeName)
         val blockTagSection =
             DefaultBlockTagSection(
                 context,
@@ -167,7 +176,7 @@ internal class DefaultDocComment(
         addBlockTagSection(blockTagSection)
     }
 
-    /** Add [blockTagSection] to [blockTagSections] invoking the [DocCommentMutationListener]. */
+    /** Add [blockTagSection] to [blockTagSections]. */
     internal fun addBlockTagSection(blockTagSection: BlockTagSection) {
         blockTagSections = blockTagSections + blockTagSection
 
@@ -179,16 +188,13 @@ internal class DefaultDocComment(
         if (blockTagSections.size == 1 && appendInheritDocIfNeeded()) {
             return
         }
-
-        // Notify any listener.
-        context.mutationListener.docCommentMutated()
     }
 
     override fun pendingBlockTagSection(
         tagTypeName: String,
         description: JavadocContent?
     ): DocContentOwner {
-        val tagType = BlockTagTypes.tagTypeOf(tagTypeName)
+        val tagType = blockTagTypeFor(tagTypeName)
         return PendingBlockTagSection(this, context, tagType, description.toSupplier())
     }
 
@@ -197,9 +203,6 @@ internal class DefaultDocComment(
         if (filtered.size != blockTagSections.size) {
             // Something was removed.
             blockTagSections = filtered
-
-            // Notify any listener.
-            context.mutationListener.docCommentMutated()
         }
     }
 
@@ -231,14 +234,23 @@ internal class DefaultDocComment(
     override fun requiresSourceComment() =
         !noComment || description != null || blockTagSections.isNotEmpty()
 
-    override fun printAsJavadocComment(writer: PrintWriter) {
+    override fun printAsJavadocComment(
+        writer: PrintWriter,
+        mainDescriptionRewriter: JavadocContentRewriter?
+    ) {
+        val mainDescription = mainDescriptionRewriter?.rewrite(description) ?: description
+
         // Compute require space for the main description and block tag sections.
-        val mainDescriptionRequiredSpace = description.requiredSpace()
+        val mainDescriptionRequiredSpace = mainDescription.requiredSpace()
         val blockTagSectionRequiredSpace = requiredSpaceForBlockTagSections()
         val overallRequiredSpace = mainDescriptionRequiredSpace + blockTagSectionRequiredSpace
 
+        // If there is no content in the comment and there was no comment in the source then do not
+        // print a comment at all.
+        if (overallRequiredSpace == RequiredSpace.EMPTY && noComment) return
+
         // Create a printer for [JavadocContent].
-        val contentPrinter = JavadocContentPrinter(writer)
+        val contentPrinter = JavadocContentPrinter(writer, context)
 
         // Check to see whether this is multi-line comment. If is then output it on multiple lines,
         // e.g.
@@ -263,7 +275,7 @@ internal class DefaultDocComment(
             }
             // Add leading space as all leading whitespace was removed from description.
             writer.print(" ")
-            contentPrinter.print(description)
+            contentPrinter.print(mainDescription)
             if (multiLine) {
                 writer.println()
             }

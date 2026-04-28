@@ -19,6 +19,9 @@ package com.android.tools.metalava.model.testsuite.propertyitem
 import com.android.tools.lint.checks.infrastructure.TestFiles.base64gzip
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.PropertyItem
+import com.android.tools.metalava.model.VisibilityLevel
+import com.android.tools.metalava.model.provider.InputFormat
+import com.android.tools.metalava.model.testing.SupportedInputFormats
 import com.android.tools.metalava.model.testing.testTypeString
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.testing.kotlin
@@ -29,6 +32,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Test
 
 /** Common tests for implementations of [PropertyItem]. */
+@SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.KOTLIN)
 class CommonPropertyItemTest : BaseModelTest() {
 
     @Test
@@ -73,6 +77,7 @@ class CommonPropertyItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test deprecated getter and setter by annotation`() {
         runCodebaseTest(
@@ -102,6 +107,7 @@ class CommonPropertyItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test property delegate to Kotlin object`() {
         runCodebaseTest(
@@ -135,6 +141,7 @@ class CommonPropertyItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test property delegate to generic Kotlin object`() {
         runCodebaseTest(
@@ -169,6 +176,7 @@ class CommonPropertyItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test property delegate to lambda Kotlin object`() {
         runCodebaseTest(
@@ -205,6 +213,7 @@ class CommonPropertyItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test abstract property of non-null string`() {
         runCodebaseTest(
@@ -230,6 +239,7 @@ class CommonPropertyItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test abstract property of nullable string`() {
         runCodebaseTest(
@@ -255,6 +265,7 @@ class CommonPropertyItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test abstract property of list of non-null string`() {
         runCodebaseTest(
@@ -281,6 +292,7 @@ class CommonPropertyItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test abstract property of list of nullable string`() {
         runCodebaseTest(
@@ -307,6 +319,7 @@ class CommonPropertyItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test abstract mutable property of non-null string`() {
         runCodebaseTest(
@@ -340,6 +353,7 @@ class CommonPropertyItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test abstract mutable property of nullable string`() {
         runCodebaseTest(
@@ -373,6 +387,7 @@ class CommonPropertyItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test abstract mutable property of list of non-null string`() {
         runCodebaseTest(
@@ -407,6 +422,7 @@ class CommonPropertyItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test abstract mutable property of list of nullable string`() {
         runCodebaseTest(
@@ -441,6 +457,7 @@ class CommonPropertyItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test mutable non-null generic property overriding property exposing public setter`() {
         runCodebaseTest(
@@ -475,6 +492,7 @@ class CommonPropertyItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test mutable nullable generic property overriding property exposing public setter`() {
         runCodebaseTest(
@@ -509,6 +527,7 @@ class CommonPropertyItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test mutable list of nullable property overriding property exposing public setter`() {
         runCodebaseTest(
@@ -543,6 +562,7 @@ class CommonPropertyItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test companion property`() {
         runCodebaseTest(
@@ -581,6 +601,7 @@ class CommonPropertyItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test top level properties`() {
         runCodebaseTest(
@@ -634,6 +655,7 @@ class CommonPropertyItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test top level extension properties`() {
         runCodebaseTest(
@@ -652,7 +674,11 @@ class CommonPropertyItemTest : BaseModelTest() {
             assertThat(fileFacadeClass.properties()).hasSize(1)
 
             // extension property has getter and setter, but no backing field
-            val stringExtension = fileFacadeClass.assertProperty("stringExtension")
+            val stringExtension =
+                fileFacadeClass.assertProperty(
+                    "stringExtension",
+                    receiverTypeString = "java.lang.String"
+                )
             assertThat(stringExtension.getter).isNotNull()
             assertThat(stringExtension.setter).isNotNull()
             assertThat(stringExtension.backingField).isNull()
@@ -660,6 +686,7 @@ class CommonPropertyItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Value class extension properties`() {
         runCodebaseTest(
@@ -733,7 +760,11 @@ class CommonPropertyItemTest : BaseModelTest() {
             assertThat(fileFacadeClass.properties()).hasSize(1)
 
             // extension property has getter and setter, but no backing field
-            val valueClassExtension = fileFacadeClass.assertProperty("valueClassExtension")
+            val valueClassExtension =
+                fileFacadeClass.assertProperty(
+                    "valueClassExtension",
+                    receiverTypeString = "test.pkg.IntValue"
+                )
             fileFacadeClass.assertMethod("getValueClassExtension-Vxmw0xk", listOf("int"))
             fileFacadeClass.assertMethod("setValueClassExtension-6VC4vj0", listOf("int", "int"))
             assertThat(valueClassExtension.backingField).isNull()
@@ -781,6 +812,7 @@ class CommonPropertyItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `JvmStatic property in object is static`() {
         runCodebaseTest(
@@ -804,6 +836,7 @@ class CommonPropertyItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test abstract and default modifier on properties`() {
         runCodebaseTest(
@@ -933,22 +966,33 @@ class CommonPropertyItemTest : BaseModelTest() {
 
             assertNull(fooClass.assertProperty("noReceiverProperty").receiver)
 
-            fooClass.assertProperty("intProperty").receiver.assertPrimitiveTypeItem {
-                assertEquals(kind, PrimitiveTypeItem.Primitive.INT)
-            }
+            fooClass
+                .assertProperty("intProperty", receiverTypeString = "int")
+                .receiver
+                .assertPrimitiveTypeItem { assertEquals(kind, PrimitiveTypeItem.Primitive.INT) }
 
-            fooClass.assertProperty("stringProperty").receiver.assertClassTypeItem {
-                assertTrue(isString())
-            }
+            fooClass
+                .assertProperty("stringProperty", receiverTypeString = "java.lang.String")
+                .receiver
+                .assertClassTypeItem { assertTrue(isString()) }
 
-            fooClass.assertProperty("stringArrayProperty").receiver.assertArrayTypeItem {
-                componentType.assertClassTypeItem { assertTrue(isString()) }
-            }
+            fooClass
+                .assertProperty("stringArrayProperty", receiverTypeString = "java.lang.String[]")
+                .receiver
+                .assertArrayTypeItem {
+                    componentType.assertClassTypeItem { assertTrue(isString()) }
+                }
 
-            fooClass.assertProperty("stringListProperty").receiver.assertClassTypeItem {
-                assertEquals(qualifiedName, "java.util.List")
-                arguments.single().assertClassTypeItem { assertTrue(isString()) }
-            }
+            fooClass
+                .assertProperty(
+                    "stringListProperty",
+                    receiverTypeString = "java.util.List<java.lang.String>"
+                )
+                .receiver
+                .assertClassTypeItem {
+                    assertEquals(qualifiedName, "java.util.List")
+                    arguments.single().assertClassTypeItem { assertTrue(isString()) }
+                }
         }
     }
 
@@ -1009,14 +1053,19 @@ class CommonPropertyItemTest : BaseModelTest() {
         ) {
             val fooClass = codebase.assertClass("test.pkg.Foo")
 
-            val noTypeParameterProperty = fooClass.assertProperty("noTypeParameterProperty")
+            val noTypeParameterProperty =
+                fooClass.assertProperty(
+                    "noTypeParameterProperty",
+                    receiverTypeString = "java.lang.String"
+                )
             assertThat(noTypeParameterProperty.typeParameterList).isEmpty()
 
             // val <T> T.oneTypeParameterReceiver
-            val oneTypeParameterReceiver = fooClass.assertProperty("oneTypeParameterReceiver")
+            val oneTypeParameterReceiver =
+                fooClass.assertProperty("oneTypeParameterReceiver", receiverTypeString = "T")
             val oneTypeParameterReceiverT = oneTypeParameterReceiver.typeParameterList.single()
             assertThat(oneTypeParameterReceiverT.name()).isEqualTo("T")
-            assertThat(oneTypeParameterReceiverT.typeBounds()).isEmpty()
+            oneTypeParameterReceiverT.assertUsesDefaultTypeBounds()
             assertThat(oneTypeParameterReceiverT.isReified()).isFalse()
             oneTypeParameterReceiver.receiver.assertVariableTypeItem {
                 assertEquals(asTypeParameter, oneTypeParameterReceiverT)
@@ -1024,11 +1073,14 @@ class CommonPropertyItemTest : BaseModelTest() {
 
             // val <T> List<T>.oneTypeParameterListReceiver
             val oneTypeParameterListReceiver =
-                fooClass.assertProperty("oneTypeParameterListReceiver")
+                fooClass.assertProperty(
+                    "oneTypeParameterListReceiver",
+                    receiverTypeString = "java.util.List<T>"
+                )
             val oneTypeParameterListReceiverT =
                 oneTypeParameterListReceiver.typeParameterList.single()
             assertThat(oneTypeParameterListReceiverT.name()).isEqualTo("T")
-            assertThat(oneTypeParameterListReceiverT.typeBounds()).isEmpty()
+            oneTypeParameterListReceiverT.assertUsesDefaultTypeBounds()
             assertThat(oneTypeParameterListReceiverT.isReified()).isFalse()
             oneTypeParameterListReceiver.receiver.assertClassTypeItem {
                 assertEquals(qualifiedName, "java.util.List")
@@ -1039,7 +1091,10 @@ class CommonPropertyItemTest : BaseModelTest() {
 
             // val <T : String> T.oneTypeParameterWithBoundsReceiver
             val oneTypeParameterWithBoundsReceiver =
-                fooClass.assertProperty("oneTypeParameterWithBoundsReceiver")
+                fooClass.assertProperty(
+                    "oneTypeParameterWithBoundsReceiver",
+                    receiverTypeString = "T"
+                )
             val oneTypeParameterWithBoundsReceiverT =
                 oneTypeParameterWithBoundsReceiver.typeParameterList.single()
             assertThat(oneTypeParameterWithBoundsReceiverT.name()).isEqualTo("T")
@@ -1051,14 +1106,18 @@ class CommonPropertyItemTest : BaseModelTest() {
             }
 
             // val <T1, T2> Map<T1, T2>.twoTypeParameterMapReceiver
-            val twoTypeParameterMapReceiver = fooClass.assertProperty("twoTypeParameterMapReceiver")
+            val twoTypeParameterMapReceiver =
+                fooClass.assertProperty(
+                    "twoTypeParameterMapReceiver",
+                    receiverTypeString = "java.util.Map<T1,T2>"
+                )
             val twoTypeParameterMapReceiverT1 = twoTypeParameterMapReceiver.typeParameterList[0]
             assertThat(twoTypeParameterMapReceiverT1.name()).isEqualTo("T1")
-            assertThat(twoTypeParameterMapReceiverT1.typeBounds()).isEmpty()
+            twoTypeParameterMapReceiverT1.assertUsesDefaultTypeBounds()
             assertThat(twoTypeParameterMapReceiverT1.isReified()).isFalse()
             val twoTypeParameterMapReceiverT2 = twoTypeParameterMapReceiver.typeParameterList[1]
             assertThat(twoTypeParameterMapReceiverT2.name()).isEqualTo("T2")
-            assertThat(twoTypeParameterMapReceiverT2.typeBounds()).isEmpty()
+            twoTypeParameterMapReceiverT2.assertUsesDefaultTypeBounds()
             assertThat(twoTypeParameterMapReceiverT2.isReified()).isFalse()
             twoTypeParameterMapReceiver.receiver.assertClassTypeItem {
                 assertEquals(qualifiedName, "java.util.Map")
@@ -1073,7 +1132,10 @@ class CommonPropertyItemTest : BaseModelTest() {
 
             // val <T1 : String, T2 : List<T1>> Map<T1, T2>.twoTypeParameterWithBoundsMapReceiver
             val twoTypeParameterWithBoundsMapReceiver =
-                fooClass.assertProperty("twoTypeParameterWithBoundsMapReceiver")
+                fooClass.assertProperty(
+                    "twoTypeParameterWithBoundsMapReceiver",
+                    receiverTypeString = "java.util.Map<T1,T2>"
+                )
             val twoTypeParameterWithBoundsMapReceiverT1 =
                 twoTypeParameterWithBoundsMapReceiver.typeParameterList[0]
             assertThat(twoTypeParameterWithBoundsMapReceiverT1.name()).isEqualTo("T1")
@@ -1140,10 +1202,11 @@ class CommonPropertyItemTest : BaseModelTest() {
         ) {
             val fooClass = codebase.assertClass("test.pkg.Foo")
             // Verify that the type parameter list is also used for the property type
-            val typeParameterExtension = fooClass.assertProperty("typeParameterExtension")
+            val typeParameterExtension =
+                fooClass.assertProperty("typeParameterExtension", receiverTypeString = "T")
             val typeParameterExtensionT = typeParameterExtension.typeParameterList.single()
             assertThat(typeParameterExtensionT.name()).isEqualTo("T")
-            assertThat(typeParameterExtensionT.typeBounds()).isEmpty()
+            typeParameterExtensionT.assertUsesDefaultTypeBounds()
             assertThat(typeParameterExtensionT.isReified()).isFalse()
             typeParameterExtension.type().assertVariableTypeItem {
                 assertEquals(asTypeParameter, typeParameterExtensionT)
@@ -1151,6 +1214,7 @@ class CommonPropertyItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test type of primitive property overriding type parameter type`() {
         runCodebaseTest(
@@ -1172,6 +1236,225 @@ class CommonPropertyItemTest : BaseModelTest() {
             fooProperty.type().assertClassTypeItem {
                 assertThat(qualifiedName).isEqualTo("java.lang.Integer")
             }
+        }
+    }
+
+    @SupportedInputFormats(InputFormat.KOTLIN)
+    @Test
+    fun `Test setter visibility`() {
+        runCodebaseTest(
+            kotlin(
+                """
+                package test.pkg
+                open class Foo {
+                    val noSet = 0
+                    var publicSet = 0
+                    var protectedSetOnPublic = 0
+                        protected set
+                    var privateSetOnPublic = 0
+                        private set
+                    protected var protectedSet = 0
+                    protected var internalSetOnProtected = 0
+                        internal set
+                    @PublishedApi
+                    internal var internalSet = 0
+                }
+                """
+            )
+        ) {
+            val fooClass = codebase.assertClass("test.pkg.Foo")
+
+            val noSet = fooClass.assertProperty("noSet")
+            assertThat(noSet.modifiers.getVisibilityLevel()).isEqualTo(VisibilityLevel.PUBLIC)
+            assertThat(noSet.setterVisibility).isNull()
+
+            val publicSet = fooClass.assertProperty("publicSet")
+            assertThat(publicSet.modifiers.getVisibilityLevel()).isEqualTo(VisibilityLevel.PUBLIC)
+            assertThat(publicSet.setterVisibility).isEqualTo(VisibilityLevel.PUBLIC)
+
+            val protectedSetOnPublic = fooClass.assertProperty("protectedSetOnPublic")
+            assertThat(protectedSetOnPublic.modifiers.getVisibilityLevel())
+                .isEqualTo(VisibilityLevel.PUBLIC)
+            assertThat(protectedSetOnPublic.setterVisibility).isEqualTo(VisibilityLevel.PROTECTED)
+
+            val privateSetOnPublic = fooClass.assertProperty("privateSetOnPublic")
+            assertThat(privateSetOnPublic.modifiers.getVisibilityLevel())
+                .isEqualTo(VisibilityLevel.PUBLIC)
+            assertThat(privateSetOnPublic.setterVisibility).isEqualTo(VisibilityLevel.PRIVATE)
+
+            val protectedSet = fooClass.assertProperty("protectedSet")
+            assertThat(protectedSet.modifiers.getVisibilityLevel())
+                .isEqualTo(VisibilityLevel.PROTECTED)
+            assertThat(protectedSet.setterVisibility).isEqualTo(VisibilityLevel.PROTECTED)
+
+            val internalSetOnProtected = fooClass.assertProperty("internalSetOnProtected")
+            assertThat(internalSetOnProtected.modifiers.getVisibilityLevel())
+                .isEqualTo(VisibilityLevel.PROTECTED)
+            assertThat(internalSetOnProtected.setterVisibility).isEqualTo(VisibilityLevel.INTERNAL)
+
+            val internalSet = fooClass.assertProperty("internalSet")
+            assertThat(internalSet.modifiers.getVisibilityLevel())
+                .isEqualTo(VisibilityLevel.INTERNAL)
+            assertThat(internalSet.setterVisibility).isEqualTo(VisibilityLevel.INTERNAL)
+        }
+    }
+
+    @Test
+    fun `Test equals, hashCode, toString, baselineKey for properties with and without receivers`() {
+        runCodebaseTest(
+            kotlin(
+                """
+                package test.pkg
+                class Foo {
+                    val foo = 0
+                    val String.foo
+                        get() = 0
+                    val <T> T.foo
+                        get() = 0
+                }
+                """
+            ),
+            signature(
+                """
+                // Signature format: 5.0
+                package test.pkg {
+                  public final class Foo {
+                    property public int foo;
+                    property public int String.foo;
+                    property public <T> int T.foo;
+                  }
+                }
+                """
+            ),
+        ) {
+            val fooClass = codebase.assertClass("test.pkg.Foo")
+
+            val noReceiver = fooClass.assertProperty("foo")
+            assertThat(noReceiver).isEqualTo(noReceiver)
+            val noReceiverHashCode = noReceiver.hashCode()
+            assertThat(noReceiver.toString()).isEqualTo("property test.pkg.Foo#foo")
+            assertThat(noReceiver.baselineKey.elementId()).isEqualTo("test.pkg.Foo#foo")
+
+            val stringReceiver =
+                fooClass.assertProperty("foo", receiverTypeString = "java.lang.String")
+            assertThat(stringReceiver).isEqualTo(stringReceiver)
+            val stringReceiverHashCode = stringReceiver.hashCode()
+            assertThat(stringReceiver.toString())
+                .isEqualTo("property test.pkg.Foo#java.lang.String.foo")
+            assertThat(stringReceiver.baselineKey.elementId())
+                .isEqualTo("test.pkg.Foo#java.lang.String.foo")
+
+            val typeParamReceiver = fooClass.assertProperty("foo", receiverTypeString = "T")
+            assertThat(typeParamReceiver).isEqualTo(typeParamReceiver)
+            val typeParamReceiverHashCode = typeParamReceiver.hashCode()
+            assertThat(typeParamReceiver.toString()).isEqualTo("property test.pkg.Foo#T.foo")
+            assertThat(typeParamReceiver.baselineKey.elementId()).isEqualTo("test.pkg.Foo#T.foo")
+
+            assertThat(noReceiver).isNotEqualTo(stringReceiver)
+            assertThat(stringReceiver).isNotEqualTo(typeParamReceiver)
+            assertThat(typeParamReceiver).isNotEqualTo(noReceiver)
+
+            assertThat(noReceiverHashCode).isNotEqualTo(stringReceiverHashCode)
+            assertThat(stringReceiverHashCode).isNotEqualTo(typeParamReceiverHashCode)
+        }
+    }
+
+    @SupportedInputFormats(InputFormat.KOTLIN)
+    @Test
+    fun `Test properties from the classpath`() {
+        /*
+        Compiled from the following file:
+        package other.pkg
+        open class ClasspathParent<T> {
+            private val privateVal: T? = null
+            val publicVal: T? = null
+        }
+        class ClasspathChild: ClasspathParent<Int>()
+         */
+        val classpathGzip =
+            base64gzip(
+                "test.jar",
+                // kotlinc version info: kotlinc-jvm 1.9.23 (JRE 21.0.9+10-b1163.91)
+                "" +
+                    "H4sIAAAAAAAA/wvwZmYRYeDg4GBgYFBkQAYiDCwMvq4hjrqefm76vo5+nm6u" +
+                    "wSF6vm7/TjEwfPY9c9rHW1fvIq+3rta5M+c3BxlcMX7wtEjPy1fH0/di6aot" +
+                    "QR+8dAu1vM6c0Q77cE7/5Mkzj58+esrEEODNzrFeWHO9JdACcyAOwGm9PBDn" +
+                    "l2SkFukXZKfrO+ckFhcXJJZkBCQWpeaV6CWD+KVBsdnCjiK2m3f/vLXsrdoy" +
+                    "09y/27KEDq49yn4x6IKTokC2p7PAJxPPtpRZb/NuzGSRb7Y/Gr9AgcPO48Vi" +
+                    "e689k9m6Mn8Xnd/7vO7czb+fv1/PZ1j/YU6i8qVawd+HHc/bc+wIcl73+7iN" +
+                    "2EK/RsMp36Tys5bXnPnb0G77P/l3SMmX239XizRvP7H0gYHK9xSNr3bNsVrm" +
+                    "mz2Unio1mjQv/h1kmHM1z6YhLa3aSb7/VuMbk8oDARpT19+eozFVmvfQ2yiR" +
+                    "73+CF942nL7wU6WE26xsyYn1JlxM9/hYpqa2TRf+HP489aHi9MZWm2brnqcz" +
+                    "sg1Xb033LtrquIRZ8pd8y7PYdZaF127eUHOcaSiZfOAA25H6aWq3FNf/nrTQ" +
+                    "dO6aHWEXi5YLX//U46l++fXRl0seLVku3P82yvra7yM/ry95evPrnuc5Vq7f" +
+                    "qqx+lvw7qnhp4TyX2rPe5zIXxTjnWr2cMt1Muywzu3nm05+smvE8Jnt/u3xz" +
+                    "Wue+UeHm68UBp40DeY8HeV56endp2JdcvkV6omuvpWj0uaXnCpr3lLmtW3G4" +
+                    "Wa1/aefzJdVCvY/6LKao3ZjBnxcn2d2+JLPpiUJqoENfQbXY2oeciZPOxame" +
+                    "kf6ZfyKy5Qv7xFqvifkhaj4hdUqfa6fVmemb1XXmfFvEoDeNo1hE/3Bcxr/G" +
+                    "6Ptis+Zmz9J/F/nzvVz1uVsa5z8YarW0T4ldvu+27o1QkdU3ViQJRz955Cda" +
+                    "XriedVmBPH/UCQ2diQZc/SJBXKytc5qWTwiN+McOSnks35g/6DIxMCxjxpfy" +
+                    "5LCnPOeMzJwUaMIL8PU+7CBQO3tLpvTqaz+u/qr9/DhhFYeciCO3k0LXii+X" +
+                    "LmdNL8vdNfFNmM237T/4bTjlllR8ce+c/MLzy4b8e3sqd282lp+/Pp/h24Zj" +
+                    "Ab2+4Sr/atc/Nlda99XW/K5buNtbJgln2z+Law4KLzyTWHFcfod84dWPzKku" +
+                    "7irs7uw8W+vzRSYkF/AtnfSs4+C9GznTHi54oNSv5HyuZGlaxI/Vyd8Uq6q1" +
+                    "3hxVm3TKXrht+86HSyL/ss9uS9ScEsTA/HriP43La/zW7D28wU7Kb0fY1V92" +
+                    "UxdZS4W5H767aPrnNbtC09V/flc/vurGytrpiR//H1ypvvVD3crbts7GJo+2" +
+                    "JczgWSr0vPlfr8e6n74uXeLHtttkfXJZ9rM/Ytck2aNnFRTfxR1tfhI259SW" +
+                    "gN0yGsq/F2luVXm+MWjjQ7djXsnsYmtfp58qqW7hnvIzku/J9riAKrWkxIkX" +
+                    "Trqwe7c8zWeO6QncsnHOzpw1KRvbQrt+P9GcnL6H1fqAS8NJBlEfwVbxBClj" +
+                    "XYPeyDNbJ1yWuDzj+ooskX3gsiTO20+8jZGBIYgJX4xKAzG8KMtNzMzTy84v" +
+                    "ycnMi8/NTynNSU1OSEhIA2KWJD82jYCkC0kMYLO/Ku3ZKwzUKQEupxiZRBgQ" +
+                    "piOXYaCCEhXgKjbRTUFOj/IoJtQTLv3QDUMOCjkUw34yEUrQ6GYhe10axazT" +
+                    "LHiDMsCblQ2kjAUINYCOUWcF8QBTsgZbZQYAAA=="
+            )
+        runCodebaseTest(
+            kotlin(
+                """
+                package test.pkg
+                import other.pkg.ClasspathChild
+                class SourceClass {
+                    fun foo(): ClasspathChild? = null
+                }
+                """
+            ),
+            testFixture = TestFixture(additionalClassPath = listOf(classpathGzip.toFile()))
+        ) {
+            val sourceClass = codebase.assertClass("test.pkg.SourceClass")
+            val classpathClassType = sourceClass.assertMethod("foo", emptyList()).returnType()
+            classpathClassType.assertClassTypeItem {
+                val classpathClass = resolveClass(codebase)!!
+                val property = classpathClass.assertProperty("publicVal")
+                property.type().assertClassTypeItem {
+                    assertThat(qualifiedName).isEqualTo("java.lang.Integer")
+                }
+            }
+        }
+    }
+
+    @SupportedInputFormats(InputFormat.KOTLIN)
+    @Test
+    fun `Test getter annotations on properties`() {
+        runCodebaseTest(
+            kotlin(
+                """
+                package test.pkg
+
+                @JvmInline value class IntValue(val value: Int)
+
+                annotation class Hide
+
+                class Foo {
+                    @get:Hide val intProperty: Int = 0
+                    @get:Hide val intValueProperty: IntValue = IntValue(0)
+                }
+                """
+            )
+        ) {
+            val fooClass = codebase.assertClass("test.pkg.Foo")
+            val intProperty = fooClass.assertProperty("intProperty")
+            assertThat(intProperty.annotationNames()).containsExactly("test.pkg.Hide")
+            val intValueProperty = fooClass.assertProperty("intValueProperty")
+            assertThat(intValueProperty.annotationNames()).containsExactly("test.pkg.Hide")
         }
     }
 }

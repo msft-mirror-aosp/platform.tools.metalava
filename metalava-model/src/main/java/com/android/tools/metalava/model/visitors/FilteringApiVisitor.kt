@@ -24,17 +24,14 @@ import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.DelegatedVisitor
 import com.android.tools.metalava.model.ExceptionTypeItem
 import com.android.tools.metalava.model.FieldItem
-import com.android.tools.metalava.model.FilterPredicate
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.ItemVisitor
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.PropertyItem
-import com.android.tools.metalava.model.SourceFile
 import com.android.tools.metalava.model.TargetLanguage
 import com.android.tools.metalava.model.TargetLanguageSet
-import com.android.tools.metalava.model.TypeAliasItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeTransformer
 import com.android.tools.metalava.model.typeUseAnnotationFilter
@@ -54,7 +51,6 @@ import com.android.tools.metalava.model.typeUseAnnotationFilter
 class FilteringApiVisitor(
     val delegate: DelegatedVisitor,
     inlineInheritedFields: Boolean = true,
-    callableComparator: Comparator<CallableItem> = CallableItem.comparator,
     /**
      * Optional lambda for sorting the filtered, list of interface types from a [ClassItem].
      *
@@ -91,7 +87,6 @@ class FilteringApiVisitor(
         // if and only if their containing method is included.
         visitParameterItems = false,
         inlineInheritedFields = inlineInheritedFields,
-        callableComparator = callableComparator,
         apiFilters = apiFilters,
         showUnannotated = showUnannotated,
         targetLanguages = targetLanguages,
@@ -175,23 +170,6 @@ class FilteringApiVisitor(
         delegate.visitProperty(filteringProperty)
     }
 
-    override fun visitTypeAlias(typeAlias: TypeAliasItem) {
-        val filteringTypeAlias = FilteringTypeAliasItem(typeAlias)
-        delegate.visitTypeAlias(filteringTypeAlias)
-    }
-
-    /**
-     * [SourceFile] that will filter out anything which is not to be written out by the
-     * [FilteringApiVisitor.delegate].
-     */
-    private inner class FilteringSourceFile(val delegate: SourceFile) : SourceFile by delegate {
-
-        override fun getImports() = delegate.getImports(filterReference)
-
-        override fun getImports(predicate: FilterPredicate) =
-            delegate.getImports(predicate.and(filterReference))
-    }
-
     /**
      * [ClassItem] that will filter out anything which is not to be written out by the
      * [FilteringApiVisitor.delegate].
@@ -200,9 +178,7 @@ class FilteringApiVisitor(
         val delegate: ClassItem,
     ) : ClassItem by delegate {
 
-        override fun sourceFile() = delegate.sourceFile()?.let { FilteringSourceFile(it) }
-
-        override fun superClass() = superClassType()?.asClass()
+        override fun superClass() = superClassType()?.resolveClass(codebase)
 
         override fun superClassType() =
             if (!filterSuperClassType || preFiltered) delegate.superClassType()
@@ -269,6 +245,9 @@ class FilteringApiVisitor(
 
         override fun fields(): List<FieldItem> =
             delegate.filteredFields(filterReference, showUnannotated).map { FilteringFieldItem(it) }
+
+        override val aliasedType: TypeItem
+            get() = delegate.aliasedType.transform(typeAnnotationFilter)
     }
 
     /**
@@ -346,16 +325,6 @@ class FilteringApiVisitor(
      */
     private inner class FilteringPropertyItem(private val delegate: PropertyItem) :
         PropertyItem by delegate {
-
-        override fun type() = delegate.type().transform(typeAnnotationFilter)
-    }
-
-    /**
-     * [TypeAliasItem] that will filter out anything which is not to be written out by the
-     * [FilteringApiVisitor.delegate].
-     */
-    private inner class FilteringTypeAliasItem(private val delegate: TypeAliasItem) :
-        TypeAliasItem by delegate {
 
         override fun type() = delegate.type().transform(typeAnnotationFilter)
     }
