@@ -87,6 +87,7 @@ import com.android.tools.metalava.testing.JavacHelper
 import com.android.tools.metalava.testing.KnownJarFiles
 import com.android.tools.metalava.testing.KnownSourceFiles
 import com.android.tools.metalava.testing.TemporaryFolderOwner
+import com.android.tools.metalava.testing.createFiles
 import com.android.tools.metalava.testing.findKotlinStdlibPaths
 import com.android.tools.metalava.testing.getAndroidJar
 import com.android.utils.SdkUtils
@@ -408,11 +409,16 @@ abstract class DriverTest :
         /** Expected [Severity.ERROR] issues to be generated when analyzing these sources */
         errorSeverityExpectedIssues: String? = null,
 
+        /** A list of [CompilationCheck]s to perform with the generated stubs. */
+        compilationChecks: List<CompilationCheck>? = null,
+
         /**
          * If `true` then stubs will be generated and then compiled to make sure that they are valid
          * java.
+         *
+         * Defaults to `false` if [compilationChecks] is not specified or is empty.
          */
-        checkCompilation: Boolean = false,
+        checkCompilation: Boolean = compilationChecks?.isNotEmpty() == true,
 
         /** Annotations to merge in (in .xml format) */
         @Language("XML") mergeXmlAnnotations: String? = null,
@@ -1360,11 +1366,13 @@ abstract class DriverTest :
             stubsDir
                 ?: error("internal error: stubsDir must be non-null when checkCompilation=true")
 
-            val compilationCheck = CompilationCheck(label = "default")
-            compilationCheck.compileStubs(
-                project,
-                stubsDir,
-            )
+            val checks = compilationChecks ?: listOf(CompilationCheck(label = "default"))
+            for (check in checks) {
+                check.compileStubs(
+                    project,
+                    stubsDir,
+                )
+            }
         }
 
         // Validate multiplatform API files exist and have the expected contents.
@@ -1613,10 +1621,12 @@ abstract class DriverTest :
      * Encapsulates information needed to check the compilation of the stubs.
      *
      * @param label the label for this check, used when reporting failures.
+     * @param additionalFiles additional files to compile with the stubs.
      * @param expectedFailure the expected failure output.
      */
     inner class CompilationCheck(
         private val label: String,
+        private val additionalFiles: List<TestFile> = emptyList(),
         private val expectedFailure: String = "",
     ) {
         /** Compile the stubs, verifying that it matches [expectedFailure]. */
@@ -1624,8 +1634,21 @@ abstract class DriverTest :
             projectDir: File,
             stubsDir: File,
         ) {
-            // Create a source path for the stubsDir.
-            val sourcePath = listOf(stubsDir)
+            // Get a folder in which the additionalFiles, if any, will be created. Delete it and its
+            // contents and then recreate it to ensure that it is empty so that multiple instances
+            // of CompilationCheck do not collide.
+            val additionalDir = getOrCreateFolder("additional-compilation-files")
+            additionalDir.deleteRecursively()
+            additionalDir.mkdirs()
+
+            // Create a source path for the stubsDir and the additionalDir if needed.
+            val sourcePath = buildList {
+                add(stubsDir)
+                if (additionalFiles.isNotEmpty()) {
+                    additionalFiles.createFiles(additionalDir)
+                    add(additionalDir)
+                }
+            }
 
             // Get the sources to compile by scanning the sourcePath.
             val generated =
@@ -1650,9 +1673,13 @@ abstract class DriverTest :
                         e.output.trim(),
                         mapOf(
                             stubsDir to "STUBS",
+                            additionalDir to "ADDITIONAL",
                         ),
                     )
                 assertEquals("$label compilation failure", expectedFailure.trimIndent(), output)
+            } finally {
+                // Delete the additional directory.
+                additionalDir.deleteRecursively()
             }
         }
     }

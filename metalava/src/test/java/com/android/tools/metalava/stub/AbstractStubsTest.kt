@@ -82,6 +82,9 @@ abstract class AbstractStubsTest : DriverTest() {
          */
         checkCompilation: Boolean = true,
 
+        /** A list of [CompilationCheck]s to perform with the generated stubs. */
+        compilationChecks: List<CompilationCheck>? = null,
+
         /**
          * Check whether stubs generated from signature text files matches (ignoring parameter
          * names) the stubs generated from sources.
