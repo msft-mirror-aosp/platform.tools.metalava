@@ -71,7 +71,7 @@ internal class JavaStubWriter(
         if (!cls.isNestedClass()) {
             // "ALL" doesn't do it; compiler still warns unless you actually explicitly list
             // "unchecked"
-            writer.println("@SuppressWarnings({\"unchecked\", \"deprecation\", \"all\"})")
+            writeSuppressWarnings(this@JavaStubWriter.writer)
         }
 
         appendModifiers(cls)
@@ -556,4 +556,9 @@ private fun defaultValueWithCastForType(
     // parameter uses an array type.
     val erasedTypeString = mappedType.toErasedTypeString()
     return "($erasedTypeString)null"
+}
+
+/** Write `@SuppressWarnings` annotation for the top-level class. */
+internal fun writeSuppressWarnings(writer: PrintWriter) {
+    writer.println("@SuppressWarnings({\"unchecked\", \"deprecation\", \"all\"})")
 }
