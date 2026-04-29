@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model
 
+import com.android.tools.metalava.reporter.Issues
 import java.io.Writer
 
 class ModifierListWriter(
@@ -200,6 +201,12 @@ class ModifierListWriter(
             if (list.isNonSealed()) {
                 writer.write("non-sealed ")
             }
+        } else if (list.isSealed()) {
+            item.codebase.reporter.report(
+                Issues.ADD_SEALED,
+                item,
+                "`sealed` is not currently supported, see b/482391240 for more details.",
+            )
         }
 
         if (list.isSuspend()) {

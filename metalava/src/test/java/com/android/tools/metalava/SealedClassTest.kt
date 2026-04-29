@@ -42,9 +42,8 @@ class SealedClassTest : DriverTest() {
                       }
                     }
                 """,
-            // TODO(b/482391240): Should be reporting an issue about sealed interfaces being
-            //  disallowed.
-            expectedIssues = "",
+            expectedIssues =
+                "src/test/pkg/Test.java:3: error: `sealed` is not currently supported, see b/482391240 for more details. [AddSealed]",
         )
     }
 
@@ -70,9 +69,8 @@ class SealedClassTest : DriverTest() {
                       }
                     }
                 """,
-            // TODO(b/482391240): Should be reporting an issue about sealed interfaces being
-            //  disallowed.
-            expectedIssues = "",
+            expectedIssues =
+                "src/test/pkg/Test.java:3: error: `sealed` is not currently supported, see b/482391240 for more details. [AddSealed]",
         )
     }
 }
