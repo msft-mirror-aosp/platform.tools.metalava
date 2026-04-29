@@ -246,7 +246,7 @@ internal class JavaStubWriter(
         if (isRecordConstructor) {
             val canonicalConstructor =
                 constructor.containingClass().constructors().find { it.isPrimary }!!
-            writeConstructorDelegate(constructor, canonicalConstructor)
+            writeConstructorDelegate(writer, constructor, canonicalConstructor)
         } else {
             writeConstructorDelegationToSuperIfNeeded(constructor)
         }
@@ -263,119 +263,9 @@ internal class JavaStubWriter(
         optionalSuperConstructor?.let { superConstructor ->
             val parameters = superConstructor.parameters()
             if (parameters.isNotEmpty()) {
-                writeConstructorDelegate(constructor, superConstructor)
+                writeConstructorDelegate(writer, constructor, superConstructor)
             }
         }
-    }
-
-    /** Write the code to delegate from [delegatingConstructor] to [delegateConstructor]. */
-    private fun writeConstructorDelegate(
-        delegatingConstructor: ConstructorItem,
-        delegateConstructor: ConstructorItem
-    ) {
-        val delegateReference =
-            if (delegatingConstructor.containingClass() == delegateConstructor.containingClass()) {
-                "this"
-            } else {
-                "super"
-            }
-        writer.print(delegateReference)
-        writer.print("(")
-
-        // Get the types to which this class binds the super class's type parameters, if any.
-        val typeParameterBindings =
-            delegatingConstructor
-                .containingClass()
-                .mapTypeVariables(delegateConstructor.containingClass())
-
-        val parameters = delegateConstructor.parameters()
-        for ((index, parameter) in parameters.withIndex()) {
-            if (index > 0) {
-                writer.write(", ")
-            }
-            // Always make sure to add appropriate casts to the parameters in the super call
-            // as without the casts the compiler will fail if there is more than one
-            // constructor that could match.
-            val defaultValueWithCast =
-                defaultValueWithCastForType(parameter.type(), typeParameterBindings)
-            writer.write(defaultValueWithCast)
-        }
-        writer.print("); ")
-    }
-
-    /**
-     * Get the string representation of the default value for [type], it will include a cast if
-     * necessary.
-     *
-     * If [type] is a [VariableTypeItem] then it will map it to the appropriate type given the
-     * [typeParameterBindings]. See the comment in the body for more details.
-     */
-    private fun defaultValueWithCastForType(
-        type: TypeItem,
-        typeParameterBindings: TypeParameterBindings,
-    ): String {
-        // Handle special cases and non-reference types, drop through to handle the default
-        // reference type.
-        when (type) {
-            is PrimitiveTypeItem -> {
-                val kind = type.kind
-                return when (kind) {
-                    Primitive.BOOLEAN,
-                    Primitive.INT,
-                    Primitive.LONG -> kind.defaultValueString
-                    else -> "(${kind.primitiveName})${kind.defaultValueString}"
-                }
-            }
-            is ClassTypeItem -> {
-                val qualifiedName = type.qualifiedName
-                when (qualifiedName) {
-                    JAVA_LANG_STRING -> return "\"\""
-                }
-            }
-        }
-
-        // Get the actual type that the super constructor expects, taking into account any type
-        // parameter mappings.
-        val mappedType =
-            if (type is VariableTypeItem) {
-                // The super constructor's parameter is a type variable: so see if it should be
-                // mapped back to a type specified by this class. e.g.
-                //
-                // Given:
-                //   class Bar<T extends Number> {
-                //       public Bar(int i) {}
-                //       public Bar(T t) {}
-                //   }
-                //   class Foo extends Bar<Integer> {
-                //       public Foo(Integer i) { super(i); }
-                //   }
-                //
-                // The stub for Foo should use:
-                //     super((Integer) i);
-                // Not:
-                //     super((Number) i);
-                //
-                // However, if the super class is referenced as a raw type then there will be no
-                // mapping in which case fall back to the erased type which will use the type
-                // variable's lower bound. e.g.
-                //
-                // Given:
-                //   class Foo extends Bar {
-                //       public Foo(Integer i) { super(i); }
-                //   }
-                //
-                // The stub for Foo should use:
-                //     super((Number) i);
-                type.convertType(typeParameterBindings)
-            } else {
-                type
-            }
-
-        // Casting to the erased type could lead to unchecked warnings (which are suppressed) but
-        // avoids having to deal with parameterized types and ensures that casting to a vararg
-        // parameter uses an array type.
-        val erasedTypeString = mappedType.toErasedTypeString()
-        return "($erasedTypeString)null"
     }
 
     override fun visitMethod(method: MethodItem) {
@@ -554,4 +444,117 @@ internal class JavaStubWriter(
                 Primitive.SHORT to """java.lang.Short.parseShort("0")""",
             )
     }
+}
+
+/**
+ * Write the code to delegate from [delegatingConstructor] to [delegateConstructor] into [writer].
+ */
+internal fun writeConstructorDelegate(
+    writer: PrintWriter,
+    delegatingConstructor: ConstructorItem,
+    delegateConstructor: ConstructorItem,
+) {
+    val delegateReference =
+        if (delegatingConstructor.containingClass() == delegateConstructor.containingClass()) {
+            "this"
+        } else {
+            "super"
+        }
+    writer.print(delegateReference)
+    writer.print("(")
+
+    // Get the types to which this class binds the super class's type parameters, if any.
+    val typeParameterBindings =
+        delegatingConstructor
+            .containingClass()
+            .mapTypeVariables(delegateConstructor.containingClass())
+
+    val parameters = delegateConstructor.parameters()
+    for ((index, parameter) in parameters.withIndex()) {
+        if (index > 0) {
+            writer.write(", ")
+        }
+        // Always make sure to add appropriate casts to the parameters in the super call
+        // as without the casts the compiler will fail if there is more than one
+        // constructor that could match.
+        val defaultValueWithCast =
+            defaultValueWithCastForType(parameter.type(), typeParameterBindings)
+        writer.write(defaultValueWithCast)
+    }
+    writer.print("); ")
+}
+
+/**
+ * Get the string representation of the default value for [type], it will include a cast if
+ * necessary.
+ *
+ * If [type] is a [VariableTypeItem] then it will map it to the appropriate type given the
+ * [typeParameterBindings]. See the comment in the body for more details.
+ */
+private fun defaultValueWithCastForType(
+    type: TypeItem,
+    typeParameterBindings: TypeParameterBindings,
+): String {
+    // Handle special cases and non-reference types, drop through to handle the default
+    // reference type.
+    when (type) {
+        is PrimitiveTypeItem -> {
+            val kind = type.kind
+            return when (kind) {
+                Primitive.BOOLEAN,
+                Primitive.INT,
+                Primitive.LONG -> kind.defaultValueString
+                else -> "(${kind.primitiveName})${kind.defaultValueString}"
+            }
+        }
+        is ClassTypeItem -> {
+            val qualifiedName = type.qualifiedName
+            when (qualifiedName) {
+                JAVA_LANG_STRING -> return "\"\""
+            }
+        }
+    }
+
+    // Get the actual type that the super constructor expects, taking into account any type
+    // parameter mappings.
+    val mappedType =
+        if (type is VariableTypeItem) {
+            // The super constructor's parameter is a type variable: so see if it should be
+            // mapped back to a type specified by this class. e.g.
+            //
+            // Given:
+            //   class Bar<T extends Number> {
+            //       public Bar(int i) {}
+            //       public Bar(T t) {}
+            //   }
+            //   class Foo extends Bar<Integer> {
+            //       public Foo(Integer i) { super(i); }
+            //   }
+            //
+            // The stub for Foo should use:
+            //     super((Integer) i);
+            // Not:
+            //     super((Number) i);
+            //
+            // However, if the super class is referenced as a raw type then there will be no
+            // mapping in which case fall back to the erased type which will use the type
+            // variable's lower bound. e.g.
+            //
+            // Given:
+            //   class Foo extends Bar {
+            //       public Foo(Integer i) { super(i); }
+            //   }
+            //
+            // The stub for Foo should use:
+            //     super((Number) i);
+            type.convertType(typeParameterBindings)
+        } else {
+            type
+        }
+
+    // Casting to the erased type could lead to unchecked warnings (which are suppressed) but
+    // avoids having to deal with parameterized types and ensures that casting to a vararg
+    // parameter uses an array type.
+    val erasedTypeString = mappedType.toErasedTypeString()
+    return "($erasedTypeString)null"
 }
