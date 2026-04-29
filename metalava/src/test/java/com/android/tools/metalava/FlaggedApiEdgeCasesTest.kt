@@ -344,19 +344,15 @@ class FlaggedApiEdgeCasesTest : DriverTest() {
                             Test() { throw new RuntimeException("Stub!"); }
                             public static final java.lang.String FLAG_NAME1 = "flag.name1";
                             public static final java.lang.String FLAG_NAME2 = "flag.name2";
-                            @SuppressWarnings({"unchecked", "deprecation", "all"})
                             @android.annotation.FlaggedApi("flag.name2")
                             public class FlaggedNested {
                             FlaggedNested() { throw new RuntimeException("Stub!"); }
-                            @SuppressWarnings({"unchecked", "deprecation", "all"})
                             public class FlaggedNestedTwice {
                             FlaggedNestedTwice() { throw new RuntimeException("Stub!"); }
                             }
                             }
-                            @SuppressWarnings({"unchecked", "deprecation", "all"})
                             public class Nested {
                             Nested() { throw new RuntimeException("Stub!"); }
-                            @SuppressWarnings({"unchecked", "deprecation", "all"})
                             public class NestedTwice {
                             NestedTwice() { throw new RuntimeException("Stub!"); }
                             }

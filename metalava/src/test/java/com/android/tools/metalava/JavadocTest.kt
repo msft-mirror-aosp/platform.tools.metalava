@@ -455,7 +455,6 @@ class JavadocTest : DriverTest() {
                 @SuppressWarnings({"unchecked", "deprecation", "all"})
                 public class R {
                 public R() { throw new RuntimeException("Stub!"); }
-                @SuppressWarnings({"unchecked", "deprecation", "all"})
                 public static class attr {
                 public attr() { throw new RuntimeException("Stub!"); }
                 /**
@@ -876,7 +875,6 @@ class JavadocTest : DriverTest() {
                 @SuppressWarnings({"unchecked", "deprecation", "all"})
                 public class Test {
                 public Test() { throw new RuntimeException("Stub!"); }
-                @SuppressWarnings({"unchecked", "deprecation", "all"})
                 public static class TestInner {
                 public TestInner() { throw new RuntimeException("Stub!"); }
                 public static final java.lang.String CONSTANT3 = "Hello";
@@ -1110,7 +1108,6 @@ class JavadocTest : DriverTest() {
                      */
                     @Deprecated
                     public android.view.WindowInsets replaceSystemWindowInsets(int left, int top, int right, int bottom) { throw new RuntimeException("Stub!"); }
-                    @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public static class Builder {
                     public Builder() { throw new RuntimeException("Stub!"); }
                     public Builder(android.view.WindowInsets insets) { throw new RuntimeException("Stub!"); }

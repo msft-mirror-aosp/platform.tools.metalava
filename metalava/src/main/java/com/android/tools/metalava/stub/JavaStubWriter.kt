@@ -67,8 +67,12 @@ internal class JavaStubWriter(
 
         appendDocumentation(cls, writer, config)
 
-        // "ALL" doesn't do it; compiler still warns unless you actually explicitly list "unchecked"
-        writer.println("@SuppressWarnings({\"unchecked\", \"deprecation\", \"all\"})")
+        // Only write out the SuppressWarnings annotations for a top level class.
+        if (!cls.isNestedClass()) {
+            // "ALL" doesn't do it; compiler still warns unless you actually explicitly list
+            // "unchecked"
+            writer.println("@SuppressWarnings({\"unchecked\", \"deprecation\", \"all\"})")
+        }
 
         appendModifiers(cls)
 
