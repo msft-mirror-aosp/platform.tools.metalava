@@ -16,7 +16,9 @@
 
 package com.android.tools.metalava.model.text
 
+import com.android.tools.metalava.model.AnnotationFormatter
 import com.android.tools.metalava.model.AnnotationItem
+import com.android.tools.metalava.model.AnnotationTarget
 import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassKind
@@ -44,6 +46,7 @@ import com.android.tools.metalava.model.text.CustomizableProperty.Companion.FLAG
 import com.android.tools.metalava.model.text.CustomizableProperty.Companion.INCLUDE_DEFAULT_PARAMETER_VALUES
 import com.android.tools.metalava.model.text.CustomizableProperty.Companion.INCLUDE_TYPE_USE_ANNOTATIONS
 import com.android.tools.metalava.model.text.CustomizableProperty.Companion.JAVA_RECORD_CLASSES
+import com.android.tools.metalava.model.text.CustomizableProperty.Companion.JAVA_SEALED_CLASSES
 import com.android.tools.metalava.model.text.CustomizableProperty.Companion.KOTLIN_NAME_TYPE_ORDER
 import com.android.tools.metalava.model.text.CustomizableProperty.Companion.KOTLIN_STYLE_NULLS
 import com.android.tools.metalava.model.text.CustomizableProperty.Companion.NORMALIZE_ABSTRACT_MODIFIER
@@ -79,6 +82,9 @@ class SignatureWriter(
     /** See [JAVA_RECORD_CLASSES]. */
     private val javaRecordClasses = fileFormat[JAVA_RECORD_CLASSES]
 
+    /** See [JAVA_SEALED_CLASSES]. */
+    private val javaSealedClasses = fileFormat[JAVA_SEALED_CLASSES]
+
     /** See [KOTLIN_NAME_TYPE_ORDER]. */
     private val kotlinNameTypeOrder = fileFormat[KOTLIN_NAME_TYPE_ORDER]
 
@@ -91,12 +97,17 @@ class SignatureWriter(
     private val stripJavaLangPrefixLegacy = stripJavaLangPrefix == StripJavaLangPrefix.LEGACY
 
     private val modifierListWriter =
-        ModifierListWriter.forSignature(
+        ModifierListWriter(
             writer = writer,
-            skipNullnessAnnotations = fileFormat[KOTLIN_STYLE_NULLS],
-            normalizeFinal = fileFormat[NORMALIZE_FINAL_MODIFIER],
-            normalizeAbstract = fileFormat[NORMALIZE_ABSTRACT_MODIFIER],
-            flaggedApiInheritance = fileFormat[FLAGGED_API_INHERITANCE],
+            config =
+                SIGNATURE_FILE_MODIFIER_LIST_WRITER_CONFIG.copy(
+                    skipNullnessAnnotations = fileFormat[KOTLIN_STYLE_NULLS],
+                    normalizeFinal = fileFormat[NORMALIZE_FINAL_MODIFIER],
+                    normalizeAbstract = fileFormat[NORMALIZE_ABSTRACT_MODIFIER],
+                    flaggedApiInheritance = fileFormat[FLAGGED_API_INHERITANCE],
+                    javaRecordClasses = javaRecordClasses,
+                    javaSealedClasses = javaSealedClasses,
+                ),
         )
 
     internal fun write(text: String) {
@@ -254,6 +265,8 @@ class SignatureWriter(
             writeTypeParameterList(cls.typeParameterList, addSpace = false)
             writeSuperClassStatement(cls)
             writeInterfaceList(cls)
+            writePermitsList(cls)
+
             propagateSuppressAnnotationsToSubclasses(cls)
 
             write(" {\n")
@@ -377,6 +390,18 @@ class SignatureWriter(
         orderedInterfaces.forEach { typeItem -> writeExtendsOrImplementsType(typeItem) }
     }
 
+    private fun writePermitsList(cls: ClassItem) {
+        if (!javaSealedClasses) return
+        val permitTypes = cls.permitTypes
+        if (permitTypes.isEmpty()) return
+
+        write(" permits")
+        permitTypes.forEach { typeItem ->
+            write(" ")
+            writeType(typeItem)
+        }
+    }
+
     /** [TypeStringConfiguration] for use when writing types in [writeTypeParameterList]. */
     private val typeParameterItemStringConfiguration =
         TypeStringConfiguration(
@@ -469,6 +494,18 @@ class SignatureWriter(
                 if (!stripJavaLangPrefixLegacy) writeType(type) else write(type.toTypeString())
             }
         }
+    }
+
+    companion object {
+        /** [ModifierListWriter.Config] suitable for use when writing signature files. */
+        private val SIGNATURE_FILE_MODIFIER_LIST_WRITER_CONFIG =
+            ModifierListWriter.Config(
+                target = AnnotationTarget.SIGNATURE_FILE,
+                annotationFormatter =
+                    AnnotationFormatter.legacyAnnotationFormatter(AnnotationTarget.SIGNATURE_FILE),
+                runtimeAnnotationsOnly = false,
+                skipNullnessAnnotations = false,
+            )
     }
 }
 

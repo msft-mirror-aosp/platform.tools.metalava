@@ -20,6 +20,9 @@ import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.JAVA_ENUM_VALUES
 import com.android.tools.metalava.model.JAVA_ENUM_VALUE_OF
+import com.android.tools.metalava.model.ModifierKeyword
+import com.android.tools.metalava.model.provider.InputFormat
+import com.android.tools.metalava.model.testing.SupportedInputFormats
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
@@ -140,6 +143,7 @@ class CommonEnumTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `Test enum locations - java`() {
         runCodebaseTest(
@@ -196,6 +200,66 @@ class CommonEnumTest : BaseModelTest() {
                 """
                     .trimIndent(),
                 removeTestSpecificDirectories(locations.trim())
+            )
+        }
+    }
+
+    private fun checkEnumWithAbstractMethods(
+        test: CodebaseContext.() -> Unit,
+    ) {
+        runCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+                    public enum Foo {
+                        FOO {
+                            public void method() {}
+                        };
+
+                        public abstract void method();
+                    }
+                """
+            ),
+            kotlin(
+                """
+                    package test.pkg
+                    enum class Foo {
+                        FOO {
+                            fun method() {}
+                        };
+
+                        abstract fun method()
+                    }
+                """
+            ),
+            test = test,
+        )
+    }
+
+    @SupportedInputFormats(InputFormat.JAVA, InputFormat.KOTLIN)
+    @Test
+    fun `Test enum with abstract methods - class modifiers`() {
+        checkEnumWithAbstractMethods {
+            val fooClass = codebase.assertClass("test.pkg.Foo")
+
+            assertEquals(
+                listOf(ModifierKeyword.PUBLIC_KEYWORD),
+                fooClass.modifiers.keywordList,
+                message = "class"
+            )
+        }
+    }
+
+    @SupportedInputFormats(InputFormat.JAVA, InputFormat.KOTLIN)
+    @Test
+    fun `Test enum with abstract methods - method modifiers`() {
+        checkEnumWithAbstractMethods {
+            val testMethod = codebase.assertClass("test.pkg.Foo").methods().single()
+
+            assertEquals(
+                listOf(ModifierKeyword.PUBLIC_KEYWORD, ModifierKeyword.ABSTRACT_KEYWORD),
+                testMethod.modifiers.keywordList,
+                message = "method"
             )
         }
     }

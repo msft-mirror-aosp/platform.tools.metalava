@@ -44,7 +44,7 @@ class StubsRecordClassTest : AbstractStubsTest() {
             api =
                 """
                     package test.pkg {
-                      public class Test {
+                      public final class Test {
                         ctor public Test(int);
                         method public int c();
                       }
@@ -56,7 +56,7 @@ class StubsRecordClassTest : AbstractStubsTest() {
                         """
                             package test.pkg;
                             @SuppressWarnings({"unchecked", "deprecation", "all"})
-                            public class Test {
+                            public final class Test {
                             public Test(int c) { throw new RuntimeException("Stub!"); }
                             public int c() { throw new RuntimeException("Stub!"); }
                             }

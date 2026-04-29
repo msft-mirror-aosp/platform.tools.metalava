@@ -50,6 +50,13 @@ internal class JavaStubWriter(
      */
     private val javaRecordClasses = config.javaRecordClasses
 
+    /**
+     * If true then include Java sealed class related information in the generated stubs.
+     *
+     * TODO(b/482391240): Decide what to do with sealed classes when this is false.
+     */
+    private val javaSealedClasses = config.javaSealedClasses
+
     override fun visitClass(cls: ClassItem) {
         if (cls.isTopLevelClass()) {
             val qualifiedName = cls.containingPackage().qualifiedName()
@@ -60,8 +67,12 @@ internal class JavaStubWriter(
 
         appendDocumentation(cls, writer, config)
 
-        // "ALL" doesn't do it; compiler still warns unless you actually explicitly list "unchecked"
-        writer.println("@SuppressWarnings({\"unchecked\", \"deprecation\", \"all\"})")
+        // Only write out the SuppressWarnings annotations for a top level class.
+        if (!cls.isNestedClass()) {
+            // "ALL" doesn't do it; compiler still warns unless you actually explicitly list
+            // "unchecked"
+            writer.println("@SuppressWarnings({\"unchecked\", \"deprecation\", \"all\"})")
+        }
 
         appendModifiers(cls)
 
@@ -85,6 +96,9 @@ internal class JavaStubWriter(
 
         generateSuperClassDeclaration(cls)
         generateInterfaceList(cls)
+        if (javaSealedClasses) {
+            generatePermitsList(cls)
+        }
 
         writer.println(" {")
 
@@ -157,6 +171,34 @@ internal class JavaStubWriter(
                 writer.print(" ")
                 writer.print(type.toTypeString())
             }
+        }
+    }
+
+    /**
+     * Generate a `permits` list if [cls] is sealed and the `permits` list is empty.
+     *
+     * This is only called when [javaSealedClasses] is `true`.
+     */
+    private fun generatePermitsList(cls: ClassItem) {
+        val modifiers = cls.modifiers
+        if (!modifiers.isSealed()) {
+            // Permits is only valid on a sealed class.
+            return
+        }
+
+        val permitTypes = cls.permitTypes
+        if (permitTypes.isEmpty()) {
+            // No permits list is available so using `permits` would result in invalid sources.
+            return
+        }
+
+        writer.print(" permits")
+        for ((index, type) in permitTypes.withIndex()) {
+            if (index > 0) {
+                writer.print(",")
+            }
+            writer.print(" ")
+            writer.print(type.toTypeString())
         }
     }
 

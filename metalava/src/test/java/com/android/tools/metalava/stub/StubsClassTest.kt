@@ -278,13 +278,11 @@ class StubsClassTest : AbstractStubsTest() {
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class FinalFieldTest {
                     public FinalFieldTest() { throw new RuntimeException("Stub!"); }
-                    @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public static final class IsoFields {
                     IsoFields() { throw new RuntimeException("Stub!"); }
                     public static final test.pkg.FinalFieldTest.TemporalField DAY_OF_QUARTER;
                     static { DAY_OF_QUARTER = null; }
                     }
-                    @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public static interface TemporalField {
                     public java.lang.String getBaseUnit();
                     }

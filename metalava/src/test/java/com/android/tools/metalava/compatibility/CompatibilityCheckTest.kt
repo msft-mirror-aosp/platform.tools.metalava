@@ -73,8 +73,8 @@ class CompatibilityCheckTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                load-api.txt:3: error: Binary breaking change: Class test.pkg.MyTest1 changed class/interface declaration [ChangedClass]
-                load-api.txt:5: error: Binary breaking change: Class test.pkg.MyTest2 changed class/interface declaration [ChangedClass]
+                load-api.txt:3: error: Binary breaking change: test.pkg.MyTest1 changed from class to interface [ChangedClass]
+                load-api.txt:5: error: Binary breaking change: test.pkg.MyTest2 changed from interface to class [ChangedClass]
                 """,
             checkCompatibilityApiReleased =
                 """
@@ -112,8 +112,8 @@ class CompatibilityCheckTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                load-api.txt:3: error: Binary breaking change: Class test.pkg.MyTest1 changed class/interface declaration [ChangedClass]
-                load-api.txt:5: error: Binary breaking change: Class test.pkg.MyTest2 changed class/interface declaration [ChangedClass]
+                load-api.txt:3: error: Binary breaking change: test.pkg.MyTest1 changed from class to interface [ChangedClass]
+                load-api.txt:5: error: Binary breaking change: test.pkg.MyTest2 changed from interface to class [ChangedClass]
                 """,
             checkCompatibilityApiReleased =
                 """
@@ -1178,7 +1178,7 @@ class CompatibilityCheckTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                src/test/pkg/Parent.java:3: error: Binary breaking change: Class test.pkg.Parent changed class/interface declaration [ChangedClass]
+                src/test/pkg/Parent.java:3: error: Binary breaking change: test.pkg.Parent changed from class to interface [ChangedClass]
                 """,
             checkCompatibilityApiReleased =
                 """
@@ -1211,7 +1211,7 @@ class CompatibilityCheckTest : DriverTest() {
             checkCompatibilityApiReleased =
                 """
                 package test.pkg {
-                  public abstract class Parent implements java.io.Closeable, java.util.Map {
+                  public abstract class Parent implements java.io.Closeable java.util.Map {
                   }
                 }
                 """,
@@ -2316,6 +2316,7 @@ class CompatibilityCheckTest : DriverTest() {
                 """
                 released-api.txt:4: error: Binary breaking change: method test.pkg.TestKt.add(T) has been removed from bytecode [RemovedFromBytecode]
                 released-api.txt:4: error: Source breaking change: method test.pkg.TestKt.add(T) can no longer be resolved from Java source [RemovedFromJava]
+                src/test/pkg/test.kt:5: error: Binary breaking change: Method test.pkg.TestKt.add made type variable T reified: incompatible change [AddedReified]
                 """,
             checkCompatibilityApiReleased =
                 """
@@ -3496,18 +3497,18 @@ class CompatibilityCheckTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                load-api.txt:3: error: Binary breaking change: Class test.pkg.ClassToEnum changed class/interface declaration [ChangedClass]
-                load-api.txt:4: error: Binary breaking change: Class test.pkg.ClassToInterface changed class/interface declaration [ChangedClass]
-                load-api.txt:5: error: Binary breaking change: Class test.pkg.ClassToAnnotation changed class/interface declaration [ChangedClass]
-                load-api.txt:6: error: Binary breaking change: Class test.pkg.EnumToClass changed class/interface declaration [ChangedClass]
-                load-api.txt:7: error: Binary breaking change: Class test.pkg.EnumToInterface changed class/interface declaration [ChangedClass]
-                load-api.txt:8: error: Binary breaking change: Class test.pkg.EnumToAnnotation changed class/interface declaration [ChangedClass]
-                load-api.txt:9: error: Binary breaking change: Class test.pkg.InterfaceToClass changed class/interface declaration [ChangedClass]
-                load-api.txt:10: error: Binary breaking change: Class test.pkg.InterfaceToEnum changed class/interface declaration [ChangedClass]
-                load-api.txt:11: error: Binary breaking change: Class test.pkg.InterfaceToAnnotation changed class/interface declaration [ChangedClass]
-                load-api.txt:12: error: Binary breaking change: Class test.pkg.AnnotationToClass changed class/interface declaration [ChangedClass]
-                load-api.txt:13: error: Binary breaking change: Class test.pkg.AnnotationToInterface changed class/interface declaration [ChangedClass]
-                load-api.txt:14: error: Binary breaking change: Class test.pkg.AnnotationToEnum changed class/interface declaration [ChangedClass]
+                load-api.txt:3: error: Binary breaking change: test.pkg.ClassToEnum changed from class to enum class [ChangedClass]
+                load-api.txt:4: error: Binary breaking change: test.pkg.ClassToInterface changed from class to interface [ChangedClass]
+                load-api.txt:5: error: Binary breaking change: test.pkg.ClassToAnnotation changed from class to annotation class [ChangedClass]
+                load-api.txt:6: error: Binary breaking change: test.pkg.EnumToClass changed from enum class to class [ChangedClass]
+                load-api.txt:7: error: Binary breaking change: test.pkg.EnumToInterface changed from enum class to interface [ChangedClass]
+                load-api.txt:8: error: Binary breaking change: test.pkg.EnumToAnnotation changed from enum class to annotation class [ChangedClass]
+                load-api.txt:9: error: Binary breaking change: test.pkg.InterfaceToClass changed from interface to class [ChangedClass]
+                load-api.txt:10: error: Binary breaking change: test.pkg.InterfaceToEnum changed from interface to enum class [ChangedClass]
+                load-api.txt:11: error: Binary breaking change: test.pkg.InterfaceToAnnotation changed from interface to annotation class [ChangedClass]
+                load-api.txt:12: error: Binary breaking change: test.pkg.AnnotationToClass changed from annotation class to class [ChangedClass]
+                load-api.txt:13: error: Binary breaking change: test.pkg.AnnotationToInterface changed from annotation class to interface [ChangedClass]
+                load-api.txt:14: error: Binary breaking change: test.pkg.AnnotationToEnum changed from annotation class to enum class [ChangedClass]
                 """,
             signatureSource =
                 """

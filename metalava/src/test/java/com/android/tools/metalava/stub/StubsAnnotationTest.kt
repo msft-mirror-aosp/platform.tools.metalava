@@ -529,7 +529,6 @@ class StubsAnnotationTest : AbstractStubsTest() {
                 public static final int DP = 0;
                 public static final int PX = 1;
                 public static final int SP = 2;
-                @SuppressWarnings({"unchecked", "deprecation", "all"})
                 @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.SOURCE)
                 public static @interface InnerAnnotation {
                 }

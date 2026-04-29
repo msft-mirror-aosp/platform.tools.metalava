@@ -24,6 +24,8 @@ import com.android.tools.metalava.model.JAVA_LANG_STRING
 import com.android.tools.metalava.model.ModifierKeyword
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.TypeItem
+import com.android.tools.metalava.model.provider.InputFormat
+import com.android.tools.metalava.model.testing.SupportedInputFormats
 import com.android.tools.metalava.model.testing.classTypeItem
 import com.android.tools.metalava.model.testing.primitiveTypeForKind
 import com.android.tools.metalava.model.testing.testTypeString
@@ -34,6 +36,7 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 import org.junit.Test
 
+@SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.JAVA)
 class CommonRecordClassTest : BaseModelTest() {
 
     /** Info available for a record component. */
@@ -66,13 +69,16 @@ class CommonRecordClassTest : BaseModelTest() {
         assertTrue(canonicalConstructor.isPrimary, message = "canonical constructor is primary")
 
         // Check for the accessor methods.
-        for (component in expectedComponents) {
-            val method = assertMethod(component.name, emptyList())
+        for (expectedComponent in expectedComponents) {
+            val name = expectedComponent.name
+            val method = assertMethod(name, emptyList())
             assertEquals(
-                component.type,
+                expectedComponent.type,
                 method.returnType(),
-                message = "method ${component.name} return type"
+                message = "method $name return type"
             )
+
+            assertTrue(method.isRecordComponentGetter)
         }
     }
 
@@ -151,12 +157,13 @@ class CommonRecordClassTest : BaseModelTest() {
             )
 
             assertEquals(
-                "record component test.pkg.Test#a",
+                "record component test.pkg.Test.a",
                 testClass.recordComponents["a"]!!.describe()
             )
         }
     }
 
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `Test record class without explicit Object method overrides`() {
         runSourceCodebaseTest(
@@ -180,6 +187,7 @@ class CommonRecordClassTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `Test record class with explicit Object method overrides`() {
         runSourceCodebaseTest(
@@ -212,6 +220,7 @@ class CommonRecordClassTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `Test record with compact constructor and implicit constructor parameters`() {
         runSourceCodebaseTest(
@@ -422,7 +431,7 @@ class CommonRecordClassTest : BaseModelTest() {
             assertEquals(
                 """
                     class test.pkg.Test
-                    record component test.pkg.Test#c
+                    record component test.pkg.Test.c
                         @test.pkg.RecordAnno
                         @test.pkg.MixedAnno
                         type: @test.pkg.TypeAnno @test.pkg.MixedAnno int

@@ -20,6 +20,8 @@ import com.android.tools.lint.checks.infrastructure.TestFiles.base64gzip
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.VisibilityLevel
+import com.android.tools.metalava.model.provider.InputFormat
+import com.android.tools.metalava.model.testing.SupportedInputFormats
 import com.android.tools.metalava.model.testing.testTypeString
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.testing.kotlin
@@ -30,6 +32,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Test
 
 /** Common tests for implementations of [PropertyItem]. */
+@SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.KOTLIN)
 class CommonPropertyItemTest : BaseModelTest() {
 
     @Test
@@ -74,6 +77,7 @@ class CommonPropertyItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test deprecated getter and setter by annotation`() {
         runCodebaseTest(
@@ -103,6 +107,7 @@ class CommonPropertyItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test property delegate to Kotlin object`() {
         runCodebaseTest(
@@ -136,6 +141,7 @@ class CommonPropertyItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test property delegate to generic Kotlin object`() {
         runCodebaseTest(
@@ -170,6 +176,7 @@ class CommonPropertyItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test property delegate to lambda Kotlin object`() {
         runCodebaseTest(
@@ -206,6 +213,7 @@ class CommonPropertyItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test abstract property of non-null string`() {
         runCodebaseTest(
@@ -231,6 +239,7 @@ class CommonPropertyItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test abstract property of nullable string`() {
         runCodebaseTest(
@@ -256,6 +265,7 @@ class CommonPropertyItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test abstract property of list of non-null string`() {
         runCodebaseTest(
@@ -282,6 +292,7 @@ class CommonPropertyItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test abstract property of list of nullable string`() {
         runCodebaseTest(
@@ -308,6 +319,7 @@ class CommonPropertyItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test abstract mutable property of non-null string`() {
         runCodebaseTest(
@@ -341,6 +353,7 @@ class CommonPropertyItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test abstract mutable property of nullable string`() {
         runCodebaseTest(
@@ -374,6 +387,7 @@ class CommonPropertyItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test abstract mutable property of list of non-null string`() {
         runCodebaseTest(
@@ -408,6 +422,7 @@ class CommonPropertyItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test abstract mutable property of list of nullable string`() {
         runCodebaseTest(
@@ -442,6 +457,7 @@ class CommonPropertyItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test mutable non-null generic property overriding property exposing public setter`() {
         runCodebaseTest(
@@ -476,6 +492,7 @@ class CommonPropertyItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test mutable nullable generic property overriding property exposing public setter`() {
         runCodebaseTest(
@@ -510,6 +527,7 @@ class CommonPropertyItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test mutable list of nullable property overriding property exposing public setter`() {
         runCodebaseTest(
@@ -544,6 +562,7 @@ class CommonPropertyItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test companion property`() {
         runCodebaseTest(
@@ -582,6 +601,7 @@ class CommonPropertyItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test top level properties`() {
         runCodebaseTest(
@@ -635,6 +655,7 @@ class CommonPropertyItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test top level extension properties`() {
         runCodebaseTest(
@@ -665,6 +686,7 @@ class CommonPropertyItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Value class extension properties`() {
         runCodebaseTest(
@@ -790,6 +812,7 @@ class CommonPropertyItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `JvmStatic property in object is static`() {
         runCodebaseTest(
@@ -813,6 +836,7 @@ class CommonPropertyItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test abstract and default modifier on properties`() {
         runCodebaseTest(
@@ -1190,6 +1214,7 @@ class CommonPropertyItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test type of primitive property overriding type parameter type`() {
         runCodebaseTest(
@@ -1214,6 +1239,7 @@ class CommonPropertyItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test setter visibility`() {
         runCodebaseTest(
@@ -1333,6 +1359,7 @@ class CommonPropertyItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test properties from the classpath`() {
         /*
@@ -1401,6 +1428,33 @@ class CommonPropertyItemTest : BaseModelTest() {
                     assertThat(qualifiedName).isEqualTo("java.lang.Integer")
                 }
             }
+        }
+    }
+
+    @SupportedInputFormats(InputFormat.KOTLIN)
+    @Test
+    fun `Test getter annotations on properties`() {
+        runCodebaseTest(
+            kotlin(
+                """
+                package test.pkg
+
+                @JvmInline value class IntValue(val value: Int)
+
+                annotation class Hide
+
+                class Foo {
+                    @get:Hide val intProperty: Int = 0
+                    @get:Hide val intValueProperty: IntValue = IntValue(0)
+                }
+                """
+            )
+        ) {
+            val fooClass = codebase.assertClass("test.pkg.Foo")
+            val intProperty = fooClass.assertProperty("intProperty")
+            assertThat(intProperty.annotationNames()).containsExactly("test.pkg.Hide")
+            val intValueProperty = fooClass.assertProperty("intValueProperty")
+            assertThat(intValueProperty.annotationNames()).containsExactly("test.pkg.Hide")
         }
     }
 }

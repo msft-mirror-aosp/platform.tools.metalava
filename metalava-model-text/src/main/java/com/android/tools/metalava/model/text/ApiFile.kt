@@ -58,6 +58,8 @@ import com.android.tools.metalava.model.createImmutableModifiers
 import com.android.tools.metalava.model.createMutableModifiers
 import com.android.tools.metalava.model.item.DefaultCodebase
 import com.android.tools.metalava.model.item.PackageInfo
+import com.android.tools.metalava.model.item.SealedClassImplicitPermitTypesUpdater
+import com.android.tools.metalava.model.multiplatform.MultiplatformCodebase
 import com.android.tools.metalava.model.parser.FileLocationTracker
 import com.android.tools.metalava.model.parser.TokenPurpose
 import com.android.tools.metalava.model.parser.Tokenizer
@@ -205,10 +207,26 @@ sealed class SignatureFile {
 @MetalavaApi
 class ApiFile
 private constructor(
-    private val assembler: TextCodebaseAssembler,
+    /** Location to use for the created [Codebase]. */
+    codebaseLocation: File,
+    /** Description to use for the created [Codebase]. */
+    codebaseDescription: String,
+    /** [Codebase.Config] to use for the created [Codebase]. */
+    codebaseConfig: Codebase.Config,
+    /** [ClassPathResolver] to use for the created [Codebase]. */
+    classPathResolver: ClassPathResolver?,
     private val formatForLegacyFiles: FileFormat?,
     private val allowClassModifierChanges: Boolean,
+    /** The [TargetLanguageSet] to use if an item does not have one specified. */
+    private val defaultTargetLanguageSet: Set<TargetLanguage> = TargetLanguageSet.ALL,
 ) {
+    private val assembler =
+        TextCodebaseAssembler.createAssembler(
+            codebaseLocation,
+            codebaseDescription,
+            codebaseConfig,
+            classPathResolver
+        )
 
     private val codebase = assembler.codebase
 
@@ -338,33 +356,89 @@ private constructor(
                             append(classPathResolver)
                         }
                     }
-            val assembler =
-                TextCodebaseAssembler.createAssembler(
-                    location = signatureFiles[0].file,
-                    description = actualDescription,
+            val parser =
+                ApiFile(
+                    codebaseLocation = signatureFiles[0].file,
+                    codebaseDescription = actualDescription,
                     codebaseConfig = codebaseConfig,
                     classPathResolver = classPathResolver,
+                    formatForLegacyFiles = formatForLegacyFiles,
+                    allowClassModifierChanges = allowClassModifierChanges
                 )
-            val parser = ApiFile(assembler, formatForLegacyFiles, allowClassModifierChanges)
-            val apiSurfaces = codebaseConfig.apiSurfaces
-            var first = true
-            for (signatureFile in signatureFiles) {
-                val file = signatureFile.file
-                val apiText = signatureFile.readContents()
-                val apiVariant = signatureFile.apiVariantFor(apiSurfaces)
-                parser.parseApiSingleFile(
-                    appending = !first,
-                    path = file.toPath(),
-                    apiText = apiText,
-                    apiVariant = apiVariant,
-                )
-                first = false
-            }
+            parser.parseMultipleFiles(signatureFiles)
 
-            parser.performAnyDeferredMerges()
+            val codebase = parser.codebase
+
+            // Update implicit permit types in any sealed class that does not have one provided.
+            SealedClassImplicitPermitTypesUpdater.updateImplicitPermitTypes(codebase)
 
             apiStatsConsumer(parser.stats)
-            return assembler.codebase
+            return codebase
+        }
+
+        /**
+         * Parses the [signatureFiles] into a [MultiplatformCodebase].
+         *
+         * Each signature file represents a source set. If there is a common signature file, all
+         * other signature files are parsed as a delta on the common one.
+         */
+        fun parseMultiplatformApi(
+            signatureFiles: List<SignatureFile>,
+            codebaseConfig: Codebase.Config = Codebase.Config.NOOP,
+        ): MultiplatformCodebase {
+            // Find the common signature file, if it exists.
+            val commonSignatureFile =
+                signatureFiles.firstOrNull {
+                    it.file.nameWithoutExtension ==
+                        MultiplatformSignatureWriter.COMMON_SOURCE_SET_NAME
+                }
+            val sourceSetToCodebase =
+                if (commonSignatureFile != null) {
+                    // When there is a common source set, each other signature file is parsed as an
+                    // extension on common.
+                    val commonNameToSourceSet = parseSourceSet(codebaseConfig, commonSignatureFile)
+                    signatureFiles.associate { signatureFile ->
+                        if (signatureFile == commonSignatureFile) {
+                            commonNameToSourceSet
+                        } else {
+                            parseSourceSet(codebaseConfig, signatureFile, commonSignatureFile)
+                        }
+                    }
+                } else {
+                    // When there is no common source set, each signature file is parsed separately.
+                    signatureFiles.associate { signatureFile ->
+                        parseSourceSet(codebaseConfig, signatureFile)
+                    }
+                }
+            return MultiplatformCodebase(sourceSetToCodebase)
+        }
+
+        /**
+         * Parses the [sourceSetSignatureFile], returning a pair of the name of the source set to
+         * the [Codebase] for the source set.
+         *
+         * If [baseSignatureFile] is not null, it is parsed first with [sourceSetSignatureFile]
+         * treated as an extension.
+         */
+        private fun parseSourceSet(
+            codebaseConfig: Codebase.Config,
+            sourceSetSignatureFile: SignatureFile,
+            baseSignatureFile: SignatureFile? = null,
+        ): Pair<String, Codebase> {
+            val name = sourceSetSignatureFile.file.nameWithoutExtension
+            val parser =
+                ApiFile(
+                    codebaseLocation = sourceSetSignatureFile.file,
+                    codebaseDescription = "Codebase for source set $name",
+                    codebaseConfig = codebaseConfig,
+                    classPathResolver = null,
+                    formatForLegacyFiles = null,
+                    allowClassModifierChanges = true,
+                    defaultTargetLanguageSet = TargetLanguageSet.KOTLIN_ONLY,
+                )
+            // Parse the base file first if it exists.
+            parser.parseMultipleFiles(listOfNotNull(baseSignatureFile) + sourceSetSignatureFile)
+            return name to parser.codebase
         }
 
         /**
@@ -491,6 +565,29 @@ private constructor(
         // This is safe because unlike `emit` which is Boolean the `selectedApiVariants` property is
         // a set of ApiVariants and this just adds an ApiVariant.
         markSelectedApiVariant()
+    }
+
+    /**
+     * Parses all the [signatureFiles], treating the first file as the base API and all other files
+     * as extensions.
+     */
+    private fun parseMultipleFiles(signatureFiles: List<SignatureFile>) {
+        val apiSurfaces = codebase.config.apiSurfaces
+        var first = true
+        for (signatureFile in signatureFiles) {
+            val file = signatureFile.file
+            val apiText = signatureFile.readContents()
+            val apiVariant = signatureFile.apiVariantFor(apiSurfaces)
+            parseApiSingleFile(
+                appending = !first,
+                path = file.toPath(),
+                apiText = apiText,
+                apiVariant = apiVariant,
+            )
+            first = false
+        }
+
+        performAnyDeferredMerges()
     }
 
     private fun parseApiSingleFile(
@@ -774,7 +871,7 @@ private constructor(
         if ("implements" == token || "extends" == token) {
             token = tokenizer.requireToken()
             while (true) {
-                if ("{" == token) {
+                if (token == "{" || token == "permits") {
                     break
                 } else if ("," != token) {
                     val interfaceTypeString = parseSuperTypeString(tokenizer)
@@ -785,6 +882,23 @@ private constructor(
                     token = tokenizer.requireToken()
                 }
             }
+        }
+
+        val permitTypes = mutableListOf<ClassTypeItem>()
+
+        if (token == "permits") {
+            token = tokenizer.requireToken()
+            while (true) {
+                if ("{" == token) {
+                    break
+                } else {
+                    val typeString = parseSuperTypeString(tokenizer)
+                    val permitsType = typeItemFactory.getHierarchicalClassType(typeString)
+                    permitTypes.add(permitsType)
+                    token = tokenizer.current
+                }
+            }
+            permitTypes.sortWith(TypeItem.qualifiedComparator)
         }
 
         if ("{" != token) {
@@ -848,7 +962,12 @@ private constructor(
                 origin = ClassOrigin.COMMAND_LINE,
                 superClassType = superClassType,
                 interfaceTypes = interfaceTypes.toList(),
+                permitTypes = permitTypes,
                 targetLanguages = targetLanguages,
+                // Classes with the placeholder name for top level declarations in a
+                // MultiplatformCodebase are definitely facade classes. There isn't enough
+                // information to tell for other classes, so this defaults to false otherwise.
+                isFileFacade = fullName == ClassItem.TOP_LEVEL_DECLARATION_FACADE_NAME,
                 recordComponentItemsFactory =
                     if (textRecordComponents == null) null
                     else
@@ -963,9 +1082,22 @@ private constructor(
         val newClassAnnotations = newClassCharacteristics.modifiers.annotations().toSet()
         val existingClassAnnotations = existingCharacteristics.modifiers.annotations().toSet()
 
-        val extraAnnotations = newClassAnnotations.subtract(existingClassAnnotations)
-        if (extraAnnotations.isNotEmpty()) {
-            existingClass.mutateModifiers { mutateAnnotations { addAll(extraAnnotations) } }
+        // If class modifier changes are allowed, overwrite the old annotations with the new ones.
+        // Otherwise, add the new ones.
+        if (allowClassModifierChanges) {
+            if (existingClassAnnotations != newClassAnnotations) {
+                existingClass.mutateModifiers {
+                    mutateAnnotations {
+                        clear()
+                        addAll(newClassAnnotations)
+                    }
+                }
+            }
+        } else {
+            val extraAnnotations = newClassAnnotations.subtract(existingClassAnnotations)
+            if (extraAnnotations.isNotEmpty()) {
+                existingClass.mutateModifiers { mutateAnnotations { addAll(extraAnnotations) } }
+            }
         }
 
         // If the class modifiers are allowed to change and have, update them.
@@ -1590,7 +1722,7 @@ private constructor(
         val targetLanguages =
             TargetLanguageSet.signatureFileRepresentationToTargetLanguageSet[token]?.also {
                 tokenizer.requireToken()
-            } ?: TargetLanguageSet.ALL
+            } ?: defaultTargetLanguageSet
 
         val modifiers = parseModifiers(tokenizer)
         return modifiers to targetLanguages
@@ -1618,121 +1750,101 @@ private constructor(
      */
     private fun parseKeywordModifiers(tokenizer: Tokenizer, modifiers: MutableModifierList) {
         var token = tokenizer.current
-        processModifiers@ while (true) {
-            token =
-                when (token) {
-                    "public" -> {
-                        modifiers.setVisibilityLevel(VisibilityLevel.PUBLIC)
-                        tokenizer.requireToken()
-                    }
-                    "protected" -> {
-                        modifiers.setVisibilityLevel(VisibilityLevel.PROTECTED)
-                        tokenizer.requireToken()
-                    }
-                    "private" -> {
-                        modifiers.setVisibilityLevel(VisibilityLevel.PRIVATE)
-                        tokenizer.requireToken()
-                    }
-                    "internal" -> {
-                        modifiers.setVisibilityLevel(VisibilityLevel.INTERNAL)
-                        tokenizer.requireToken()
-                    }
-                    "static" -> {
-                        modifiers.setStatic(true)
-                        tokenizer.requireToken()
-                    }
-                    "final" -> {
-                        modifiers.setFinal(true)
-                        tokenizer.requireToken()
-                    }
-                    "deprecated" -> {
-                        modifiers.setDeprecated(true)
-                        tokenizer.requireToken()
-                    }
-                    "abstract" -> {
-                        modifiers.setAbstract(true)
-                        tokenizer.requireToken()
-                    }
-                    "transient" -> {
-                        modifiers.setTransient(true)
-                        tokenizer.requireToken()
-                    }
-                    "volatile" -> {
-                        modifiers.setVolatile(true)
-                        tokenizer.requireToken()
-                    }
-                    "sealed" -> {
-                        modifiers.setSealed(true)
-                        // When reading in a sealed class, for backwards compatibility we want
-                        // to label it as non-exhaustive (for more details on what this means,
-                        // see b/447143803) in case the signature file doesn't have one of
-                        // "exhaustive" or "nonexhaustive" after the "sealed" modifier. This
-                        // allows compatibility checks to not raise unnecessary errors for
-                        // sealed classes without an exhaustivity modifier. If the class is indeed
-                        // labeled with an exhaustivity modifier in the signature file, the class's
-                        // exhaustivity will be adjusted accordingly in the following match
-                        // statements.
-                        modifiers.setExhaustive(false)
-                        tokenizer.requireToken()
-                    }
-                    "exhaustive" -> {
-                        modifiers.setExhaustive(true)
-                        tokenizer.requireToken()
-                    }
-                    "nonexhaustive" -> {
-                        modifiers.setExhaustive(false)
-                        tokenizer.requireToken()
-                    }
-                    "default" -> {
-                        modifiers.setDefault(true)
-                        tokenizer.requireToken()
-                    }
-                    "synchronized" -> {
-                        modifiers.setSynchronized(true)
-                        tokenizer.requireToken()
-                    }
-                    "native" -> {
-                        modifiers.setNative(true)
-                        tokenizer.requireToken()
-                    }
-                    "strictfp" -> {
-                        modifiers.setStrictFp(true)
-                        tokenizer.requireToken()
-                    }
-                    "infix" -> {
-                        modifiers.setInfix(true)
-                        tokenizer.requireToken()
-                    }
-                    "operator" -> {
-                        modifiers.setOperator(true)
-                        tokenizer.requireToken()
-                    }
-                    "inline" -> {
-                        modifiers.setInline(true)
-                        tokenizer.requireToken()
-                    }
-                    "value" -> {
-                        modifiers.setValue(true)
-                        tokenizer.requireToken()
-                    }
-                    "suspend" -> {
-                        modifiers.setSuspend(true)
-                        tokenizer.requireToken()
-                    }
-                    "vararg" -> {
-                        modifiers.setVarArg(true)
-                        tokenizer.requireToken()
-                    }
-                    "fun" -> {
-                        modifiers.setFunctional(true)
-                        tokenizer.requireToken()
-                    }
-                    "data" -> {
-                        modifiers.setData(true)
-                        tokenizer.requireToken()
-                    }
-                    else -> break@processModifiers
+        while (true) {
+            when (token) {
+                "public" -> {
+                    modifiers.setVisibilityLevel(VisibilityLevel.PUBLIC)
                 }
+                "protected" -> {
+                    modifiers.setVisibilityLevel(VisibilityLevel.PROTECTED)
+                }
+                "private" -> {
+                    modifiers.setVisibilityLevel(VisibilityLevel.PRIVATE)
+                }
+                "internal" -> {
+                    modifiers.setVisibilityLevel(VisibilityLevel.INTERNAL)
+                }
+                "static" -> {
+                    modifiers.setStatic(true)
+                }
+                "final" -> {
+                    modifiers.setFinal(true)
+                }
+                "deprecated" -> {
+                    modifiers.setDeprecated(true)
+                }
+                "abstract" -> {
+                    modifiers.setAbstract(true)
+                }
+                "transient" -> {
+                    modifiers.setTransient(true)
+                }
+                "volatile" -> {
+                    modifiers.setVolatile(true)
+                }
+                "sealed" -> {
+                    modifiers.setSealed(true)
+                    // When reading in a sealed class, for backwards compatibility we want
+                    // to label it as non-exhaustive (for more details on what this means,
+                    // see b/447143803) in case the signature file doesn't have one of
+                    // "exhaustive" or "nonexhaustive" after the "sealed" modifier. This
+                    // allows compatibility checks to not raise unnecessary errors for
+                    // sealed classes without an exhaustivity modifier. If the class is indeed
+                    // labeled with an exhaustivity modifier in the signature file, the class's
+                    // exhaustivity will be adjusted accordingly in the following match
+                    // statements.
+                    modifiers.setExhaustive(false)
+                }
+                "non-sealed" -> {
+                    modifiers.setNonSealed(true)
+                }
+                "exhaustive" -> {
+                    modifiers.setExhaustive(true)
+                }
+                "non-exhaustive",
+                "nonexhaustive" -> {
+                    modifiers.setExhaustive(false)
+                }
+                "default" -> {
+                    modifiers.setDefault(true)
+                }
+                "synchronized" -> {
+                    modifiers.setSynchronized(true)
+                }
+                "native" -> {
+                    modifiers.setNative(true)
+                }
+                "strictfp" -> {
+                    modifiers.setStrictFp(true)
+                }
+                "infix" -> {
+                    modifiers.setInfix(true)
+                }
+                "operator" -> {
+                    modifiers.setOperator(true)
+                }
+                "inline" -> {
+                    modifiers.setInline(true)
+                }
+                "value" -> {
+                    modifiers.setValue(true)
+                }
+                "suspend" -> {
+                    modifiers.setSuspend(true)
+                }
+                "vararg" -> {
+                    modifiers.setVarArg(true)
+                }
+                "fun" -> {
+                    modifiers.setFunctional(true)
+                }
+                "data" -> {
+                    modifiers.setData(true)
+                }
+                else -> break
+            }
+
+            token = tokenizer.requireToken()
         }
     }
 

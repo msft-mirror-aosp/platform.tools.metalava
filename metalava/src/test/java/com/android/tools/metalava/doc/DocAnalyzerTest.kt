@@ -1243,7 +1243,6 @@ class DocAnalyzerTest : DriverTest() {
                      * @apiSince 1
                      * @sdkExtSince R Extensions 2
                      */
-                    @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class Inner {
                     /**
                      * @apiSince 1
@@ -1310,7 +1309,6 @@ class DocAnalyzerTest : DriverTest() {
                      * @apiSince 1
                      * @sdkExtSince R Extensions 2
                      */
-                    @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class Inner {
                     /**
                      * @apiSince 1

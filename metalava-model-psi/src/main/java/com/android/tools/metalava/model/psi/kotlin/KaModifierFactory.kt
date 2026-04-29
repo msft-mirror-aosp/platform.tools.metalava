@@ -77,6 +77,15 @@ internal class KaModifierFactory(private val processor: KaModuleProcessor) {
             modifiers.setDeprecated(true)
         }
 
+        // Apply getter annotations to the property as well. This is legacy metalava behavior that
+        // supports things like hiding properties through an annotation on the getter.
+        for (kaAnnotation in propertySymbol.getter?.annotations ?: emptyList()) {
+            val annotationItem = processor.createAnnotation(kaAnnotation)
+            if (annotationItem !in modifiers.annotations()) {
+                modifiers.addAnnotation(annotationItem)
+            }
+        }
+
         return modifiers
     }
 
@@ -145,12 +154,6 @@ internal class KaModifierFactory(private val processor: KaModuleProcessor) {
                 ) {
                     backingField.mutateModifiers { addAnnotation(annotationItem) }
                 }
-            }
-        }
-
-        for (annotationItem in getter?.modifiers?.annotations() ?: emptyList()) {
-            if (annotationItem !in modifiers.annotations()) {
-                modifiers.addAnnotation(annotationItem)
             }
         }
     }

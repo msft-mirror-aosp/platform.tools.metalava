@@ -16,29 +16,47 @@
 
 package com.android.tools.metalava.model.testsuite
 
-import com.android.tools.metalava.model.FlaggedApiInheritance
+import com.android.tools.metalava.model.AnnotationFormatter
+import com.android.tools.metalava.model.AnnotationTarget
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.ModifierListWriter
+import com.android.tools.metalava.model.provider.InputFormat
+import com.android.tools.metalava.model.testing.SupportedInputFormats
 import com.android.tools.metalava.testing.java
+import com.android.tools.metalava.testing.kotlin
 import java.io.StringWriter
 import kotlin.test.assertEquals
 import org.junit.Test
 
 /** Common tests for implementations of [ModifierListWriter]. */
+@SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.JAVA)
 class CommonModifierListWriterTest : BaseModelTest() {
 
-    private fun Item.writeKeywords(
-        normalizeFinal: Boolean = false,
-        normalizeAbstract: Boolean = false,
-    ): String {
+    companion object {
+        private val defaultConfig =
+            ModifierListWriter.Config(
+                target = AnnotationTarget.SIGNATURE_FILE,
+                annotationFormatter = AnnotationFormatter.normalizingFormatter(),
+                runtimeAnnotationsOnly = false,
+                skipNullnessAnnotations = true,
+                normalizeFinal = false,
+                normalizeAbstract = false,
+            )
+
+        private val javaSealedClassesDisabledConfig = defaultConfig
+
+        private val javaSealedClassesEnabledConfig =
+            defaultConfig.copy(
+                javaSealedClasses = true,
+            )
+    }
+
+    private fun Item.writeKeywords(config: ModifierListWriter.Config = defaultConfig): String {
         val stringWriter = StringWriter()
         val writer =
-            ModifierListWriter.forSignature(
-                stringWriter,
-                skipNullnessAnnotations = true,
-                normalizeFinal = normalizeFinal,
-                normalizeAbstract = normalizeAbstract,
-                flaggedApiInheritance = FlaggedApiInheritance.NONE,
+            ModifierListWriter(
+                writer = stringWriter,
+                config = config,
             )
         writer.writeKeywords(this)
         return stringWriter.toString().trimEnd()
@@ -168,7 +186,14 @@ class CommonModifierListWriterTest : BaseModelTest() {
             val testClass = codebase.assertClass("test.pkg.Test")
             val methodItem = testClass.methods().single()
 
-            assertEquals("public", methodItem.writeKeywords(normalizeFinal = true))
+            assertEquals(
+                "public",
+                methodItem.writeKeywords(
+                    defaultConfig.copy(
+                        normalizeFinal = true,
+                    )
+                )
+            )
         }
     }
 
@@ -204,6 +229,67 @@ class CommonModifierListWriterTest : BaseModelTest() {
         }
     }
 
+    @Test
+    fun `modifiers record class - javaRecordClasses=false`() {
+        runCodebaseTest(
+            signature(
+                """
+                    // Signature format: 6.0
+                    // - style=java
+                    package test.pkg {
+                      public record Test {
+                      }
+                    }
+                """
+            ),
+            java(
+                """
+                    package test.pkg;
+                    public record Test() {
+                    }
+                """
+            ),
+        ) {
+            val testClass = codebase.assertClass("test.pkg.Test")
+
+            assertEquals("public final", testClass.writeKeywords())
+        }
+    }
+
+    @Test
+    fun `modifiers record class - javaRecordClasses=true`() {
+        runCodebaseTest(
+            signature(
+                """
+                    // Signature format: 6.0
+                    // - style=java
+                    package test.pkg {
+                      public record Test {
+                      }
+                    }
+                """
+            ),
+            java(
+                """
+                    package test.pkg;
+                    public record Test() {
+                    }
+                """
+            ),
+        ) {
+            val testClass = codebase.assertClass("test.pkg.Test")
+
+            assertEquals(
+                "public",
+                testClass.writeKeywords(
+                    defaultConfig.copy(
+                        javaRecordClasses = true,
+                    )
+                )
+            )
+        }
+    }
+
     /** Check handling of enum method with `abstract` keyword. */
     private fun checkAbstractEnumMethod(normalizeAbstract: Boolean, expectedKeywords: String) {
         runCodebaseTest(
@@ -228,12 +314,15 @@ class CommonModifierListWriterTest : BaseModelTest() {
             assertEquals(
                 expectedKeywords,
                 methodItem.writeKeywords(
-                    normalizeAbstract = normalizeAbstract,
+                    defaultConfig.copy(
+                        normalizeAbstract = normalizeAbstract,
+                    )
                 )
             )
         }
     }
 
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `Test abstract modifier on enum class method - not normalized`() {
         checkAbstractEnumMethod(
@@ -242,6 +331,7 @@ class CommonModifierListWriterTest : BaseModelTest() {
         )
     }
 
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `Test abstract modifier on enum class method - normalized`() {
         checkAbstractEnumMethod(
@@ -272,12 +362,15 @@ class CommonModifierListWriterTest : BaseModelTest() {
             assertEquals(
                 expectedKeywords,
                 methodItem.writeKeywords(
-                    normalizeAbstract = normalizeAbstract,
+                    defaultConfig.copy(
+                        normalizeAbstract = normalizeAbstract,
+                    )
                 )
             )
         }
     }
 
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `Test abstract modifier on annotation class method - not normalized`() {
         checkAbstractAnnotationMethod(
@@ -286,11 +379,109 @@ class CommonModifierListWriterTest : BaseModelTest() {
         )
     }
 
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `Test abstract modifier on annotation class method - normalized`() {
         checkAbstractAnnotationMethod(
             normalizeAbstract = true,
             expectedKeywords = "public",
         )
+    }
+
+    private fun checkJavaSealedKeywords(
+        className: String,
+        config: ModifierListWriter.Config,
+        expectedKeywords: String,
+    ) {
+        runCodebaseTest(
+            inputSet(
+                java(
+                    """
+                        package test.pkg;
+
+                        public sealed interface Sealed {
+                        }
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
+
+                        public non-sealed interface Subclass extends Sealed {}
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
+
+                        non-sealed interface PackagePrivate extends Sealed {}
+                    """
+                ),
+            ),
+        ) {
+            val testClass = codebase.assertClass(className)
+
+            assertEquals(expectedKeywords, testClass.writeKeywords(config))
+        }
+    }
+
+    @SupportedInputFormats(InputFormat.JAVA)
+    @Test
+    fun `Test sealed modifier - java class - javaSealedClasses=false`() {
+        checkJavaSealedKeywords(
+            className = "test.pkg.Sealed",
+            config = javaSealedClassesDisabledConfig,
+            expectedKeywords = "public",
+        )
+    }
+
+    @SupportedInputFormats(InputFormat.JAVA)
+    @Test
+    fun `Test sealed modifier - java class - javaSealedClasses=true`() {
+        checkJavaSealedKeywords(
+            className = "test.pkg.Sealed",
+            config = javaSealedClassesEnabledConfig,
+            expectedKeywords = "public sealed non-exhaustive",
+        )
+    }
+
+    @SupportedInputFormats(InputFormat.JAVA)
+    @Test
+    fun `Test non-sealed modifier - java class - javaSealedClasses=false`() {
+        checkJavaSealedKeywords(
+            className = "test.pkg.Subclass",
+            config = javaSealedClassesDisabledConfig,
+            expectedKeywords = "public",
+        )
+    }
+
+    @SupportedInputFormats(InputFormat.JAVA)
+    @Test
+    fun `Test non-sealed modifier - java class - javaSealedClasses=true`() {
+        checkJavaSealedKeywords(
+            className = "test.pkg.Subclass",
+            config = javaSealedClassesEnabledConfig,
+            expectedKeywords = "public non-sealed",
+        )
+    }
+
+    @SupportedInputFormats(InputFormat.KOTLIN)
+    @Test
+    fun `Test sealed modifier - kotlin class`() {
+        runCodebaseTest(
+            kotlin(
+                """
+                    package test.pkg
+
+                    sealed interface Test {
+                        private class InnerClass : Test
+                    }
+                """
+            ),
+        ) {
+            val testClass = codebase.assertClass("test.pkg.Test")
+
+            assertEquals("public sealed nonexhaustive", testClass.writeKeywords())
+        }
     }
 }

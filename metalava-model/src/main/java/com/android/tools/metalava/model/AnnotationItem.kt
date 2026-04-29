@@ -18,6 +18,7 @@ package com.android.tools.metalava.model
 
 import com.android.tools.metalava.model.annotation.AnnotationClass
 import com.android.tools.metalava.model.annotation.AnnotationDefaults
+import com.android.tools.metalava.model.annotation.binding.AnnotationBindingFactory
 import com.android.tools.metalava.model.api.flags.ApiFlag
 import com.android.tools.metalava.model.api.flags.ApiFlags
 import com.android.tools.metalava.model.type.TypeItemParser
@@ -29,6 +30,7 @@ import com.android.tools.metalava.model.value.ValueProvider
 import com.android.tools.metalava.model.value.ValueStringConfiguration
 import com.android.tools.metalava.reporter.FileLocation
 import java.lang.StringBuilder
+import kotlin.reflect.KClass
 
 fun isNullnessAnnotation(qualifiedName: String): Boolean =
     isNullableAnnotation(qualifiedName) || isNonNullAnnotation(qualifiedName)
@@ -77,6 +79,13 @@ sealed interface AnnotationItem {
 
     /** Fully qualified name of the annotation */
     val qualifiedName: String
+
+    /**
+     * The original name in the sources before normalizing the name.
+     *
+     * This must be used only when reporting issues with the original source.
+     */
+    val originalName: String
 
     /**
      * Determines the effect that this will have on whether an item annotated with this annotation
@@ -480,6 +489,12 @@ interface AnnotationContext : ClassResolver, ValueContext {
     fun defaultsForAnnotationClass(qualifiedName: String) =
         resolveClass(qualifiedName)?.annotationClass?.defaults ?: AnnotationDefaults.EMPTY
 
+    /** Get an [AnnotationBindingFactory] for [kClass] with [defaults]. */
+    fun <T : Any> bindingFactoryFor(
+        kClass: KClass<T>,
+        defaults: AnnotationDefaults?,
+    ): AnnotationBindingFactory<T> = error("unsupported")
+
     companion object {
         /**
          * Instance that can be used in contexts where [resolveClass] always returns null, e.g.
@@ -504,7 +519,7 @@ internal abstract class BaseAnnotationItem(
     override val fileLocation: FileLocation,
 
     /** Fully qualified name of the annotation (prior to name mapping) */
-    internal val originalName: String,
+    override val originalName: String,
 
     /** Fully qualified name of the annotation (after name mapping) */
     override val qualifiedName: String,

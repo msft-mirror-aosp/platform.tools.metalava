@@ -472,6 +472,7 @@ class MultiplatformLintTest : DriverTest() {
                     )
                 ),
             expectedIssues = null,
+            extraArguments = arrayOf(ARG_HIDE, "TypealiasDefinition"),
         )
     }
 
@@ -842,6 +843,47 @@ class MultiplatformLintTest : DriverTest() {
                 jsMain/src/test/pkg/js.kt:2: error: Class must start with uppercase char: js [StartWithUpper]
                 nativeMain/src/test/pkg/native.kt:2: error: Class must start with uppercase char: native [StartWithUpper]
                 """,
+        )
+    }
+
+    @Test
+    fun `Check non expect actual private nested class`() {
+        checkLint(
+            commonSource =
+                arrayOf(
+                    kotlin(
+                        "commonMain/src/test/pkg/Outer.kt",
+                        """
+                        package test.pkg
+                        expect class Outer
+                        """
+                    )
+                ),
+            androidSource =
+                arrayOf(
+                    kotlin(
+                        "androidMain/src/test/pkg/Outer.kt",
+                        """
+                        package test.pkg
+                        actual class Outer {
+                            private inner class Inner
+                        }
+                        """
+                    )
+                ),
+            nativeSource =
+                arrayOf(
+                    kotlin(
+                        "nativeMain/src/test/pkg/Outer.kt",
+                        """
+                        package test.pkg
+                        actual class Outer {
+                            private inner class Inner
+                        }
+                        """
+                    )
+                ),
+            expectedIssues = null,
         )
     }
 }

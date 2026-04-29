@@ -35,6 +35,7 @@ import com.android.tools.metalava.cli.common.ARG_PROJECT
 import com.android.tools.metalava.cli.common.ARG_QUIET
 import com.android.tools.metalava.cli.common.ARG_REPEAT_ERRORS_MAX
 import com.android.tools.metalava.cli.common.ARG_SOURCE_PATH
+import com.android.tools.metalava.cli.common.ARG_TRACE_FILE
 import com.android.tools.metalava.cli.common.ARG_VERBOSE
 import com.android.tools.metalava.cli.common.CheckerContext
 import com.android.tools.metalava.cli.common.CheckerFunction
@@ -51,6 +52,9 @@ import com.android.tools.metalava.cli.lint.ARG_API_LINT_PREVIOUS_API
 import com.android.tools.metalava.cli.lint.ARG_BASELINE_API_LINT
 import com.android.tools.metalava.cli.lint.ARG_ERROR_MESSAGE_API_LINT
 import com.android.tools.metalava.cli.lint.ARG_UPDATE_BASELINE_API_LINT
+import com.android.tools.metalava.cli.multiplatform.ARG_MULTIPLATFORM_API_DIR
+import com.android.tools.metalava.cli.multiplatform.ARG_MULTIPLATFORM_API_SOURCES
+import com.android.tools.metalava.cli.multiplatform.ARG_MULTIPLATFORM_CHECK_COMPATIBILITY
 import com.android.tools.metalava.cli.multiplatform.ARG_MULTIPLATFORM_ENABLED
 import com.android.tools.metalava.cli.signature.ARG_FORMAT
 import com.android.tools.metalava.model.ANDROIDX_ANNOTATION_PACKAGE
@@ -94,6 +98,7 @@ import java.io.PrintStream
 import java.io.PrintWriter
 import java.io.StringWriter
 import java.net.URI
+import java.nio.file.Files
 import junit.framework.ComparisonFailure
 import kotlin.text.Charsets.UTF_8
 import org.intellij.lang.annotations.Language
@@ -401,7 +406,13 @@ abstract class DriverTest :
         expectedIssues: String? = "",
         /** Expected [Severity.ERROR] issues to be generated when analyzing these sources */
         errorSeverityExpectedIssues: String? = null,
+
+        /**
+         * If `true` then stubs will be generated and then compiled to make sure that they are valid
+         * java.
+         */
         checkCompilation: Boolean = false,
+
         /** Annotations to merge in (in .xml format) */
         @Language("XML") mergeXmlAnnotations: String? = null,
         /** Annotations to merge in (in .txt/.signature format) */
@@ -554,11 +565,22 @@ abstract class DriverTest :
         /** Whether to create a multiplatform codebase. Only supported with psi. */
         enableMultiplatform: Boolean = false,
         /**
+         * A map from expected multiplatform API file name to contents. There should be one for each
+         * source set with an expected signature file.
+         */
+        multiplatformApi: Map<String, String> = emptyMap(),
+        /** Signature files to parse as source into a MultiplatformCodebase. */
+        multiplatformSignatureSource: List<TestFile> = emptyList(),
+        /**
          * If true, this does not include arguments specifying source files (from [sourceFiles]) in
          * the command run by Driver. This allows creating a multiplatform codebase (when
          * [enableMultiplatform] is true) without creating a regular codebase.
          */
         skipSourceArgs: Boolean = false,
+        /** Signature files to parse into a MultiplatformCodebase for compatibility checks. */
+        multiplatformCompatibilityApi: List<TestFile>? = null,
+        /** Whether tracing should be enabled */
+        enableTracing: Boolean = false,
         /**
          * Called on a [CheckerContext] after the analysis phase in the metalava main command.
          *
@@ -900,7 +922,7 @@ abstract class DriverTest :
 
         var stubsDir: File? = null
         val stubsArgs =
-            if (stubFiles.isNotEmpty() || stubPaths != null) {
+            if (stubFiles.isNotEmpty() || stubPaths != null || checkCompilation) {
                 stubsDir = getOrCreateFolder("stubs")
                 if (docStubs) {
                     arrayOf(ARG_DOC_STUBS, stubsDir.path)
@@ -1036,6 +1058,56 @@ abstract class DriverTest :
                 emptyArray()
             }
 
+        val multiplatformSignatureSourceOptions =
+            if (multiplatformSignatureSource.isNotEmpty()) {
+                // Create each multiplatform signature file in a new subdirectory.
+                val multiplatformSignatureSourceDirectory =
+                    File(project, "multiplatform-signature-source")
+                for (file in multiplatformSignatureSource) {
+                    file.createFile(multiplatformSignatureSourceDirectory)
+                }
+                arrayOf(ARG_MULTIPLATFORM_API_SOURCES, multiplatformSignatureSourceDirectory.path)
+            } else {
+                emptyArray()
+            }
+
+        // Generate multiplatform API files if specified.
+        var multiplatformApiDirectory: File? = null
+        val multiplatformApiArgs =
+            if (multiplatformApi.isNotEmpty()) {
+                multiplatformApiDirectory = getOrCreateFolder("multiplatform-api")
+                arrayOf(ARG_MULTIPLATFORM_API_DIR, multiplatformApiDirectory.path)
+            } else {
+                emptyArray()
+            }
+
+        // Run multiplatform compatibility checks if requested.
+        val multiplatformCompatibilityApiDirectory: File?
+        val multiplatformCompatibilityArgs =
+            if (multiplatformCompatibilityApi != null) {
+                multiplatformCompatibilityApiDirectory =
+                    getOrCreateFolder("multiplatform-compatibility-api")
+                for (file in multiplatformCompatibilityApi) {
+                    file.createFile(multiplatformCompatibilityApiDirectory)
+                }
+                arrayOf(
+                    ARG_MULTIPLATFORM_CHECK_COMPATIBILITY,
+                    multiplatformCompatibilityApiDirectory.path
+                )
+            } else {
+                emptyArray()
+            }
+
+        val traceFile: File?
+        val tracingArguments =
+            if (enableTracing) {
+                traceFile = File(project, "trace.perfetto-trace")
+                arrayOf(ARG_TRACE_FILE, traceFile.path)
+            } else {
+                traceFile = null
+                emptyArray()
+            }
+
         // Run optional additional setup steps on the project directory
         projectSetup?.invoke(project)
 
@@ -1093,6 +1165,10 @@ abstract class DriverTest :
                 *errorMessageCheckCompatibilityReleasedArgs,
                 *repeatErrorsMaxArgs,
                 *multiplatformOptions,
+                *multiplatformApiArgs,
+                *multiplatformSignatureSourceOptions,
+                *multiplatformCompatibilityArgs,
+                *tracingArguments,
                 // Must always be last as this can consume a following argument, breaking the test.
                 *apiLintArgs,
             ) +
@@ -1279,7 +1355,10 @@ abstract class DriverTest :
             }
         }
 
-        if (checkCompilation && stubsDir != null) {
+        if (checkCompilation) {
+            stubsDir
+                ?: error("internal error: stubsDir must be non-null when checkCompilation=true")
+
             val generated =
                 SourceSet.createFromSourcePath(ThrowingReporter.INSTANCE, listOf(stubsDir)).sources
 
@@ -1289,6 +1368,44 @@ abstract class DriverTest :
                 sources = generated,
                 classPath = listOf(KnownJarFiles.stubAnnotationsJar),
             )
+        }
+
+        // Validate multiplatform API files exist and have the expected contents.
+        if (multiplatformApiDirectory != null) {
+            assertTrue(
+                "${multiplatformApiDirectory.path} does not exist even though $ARG_MULTIPLATFORM_API_DIR was used",
+                multiplatformApiDirectory.exists(),
+            )
+            for ((sourceSet, expectedApi) in multiplatformApi) {
+                val sourceSetApiFile = File(multiplatformApiDirectory, sourceSet)
+                assertTrue(
+                    "${sourceSetApiFile.path} does not exist but was expected",
+                    sourceSetApiFile.exists(),
+                )
+                assertSignatureFilesMatch(
+                    expectedApi,
+                    sourceSetApiFile.readText(),
+                    expectedFormat = format
+                )
+            }
+            // Check that there aren't additional API files which were not expected.
+            val multiplatformSignatureFiles = multiplatformApiDirectory.listFiles().toList()
+            for (sourceSetApiFile in multiplatformSignatureFiles) {
+                assertTrue(
+                    "${sourceSetApiFile.path} was generated but was not expected",
+                    sourceSetApiFile.name in multiplatformApi,
+                )
+            }
+            // Parse back the multiplatform API to ensure there are no errors.
+            ApiFile.parseMultiplatformApi(
+                SignatureFile.fromFiles(multiplatformSignatureFiles),
+                Codebase.Config.NOOP
+            )
+        }
+
+        if (traceFile != null) {
+            assertTrue("Trace file exists", traceFile.exists())
+            assertTrue("Trace file is not empty", Files.size(traceFile.toPath()) > 0)
         }
     }
 

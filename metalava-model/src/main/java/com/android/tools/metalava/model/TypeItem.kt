@@ -249,7 +249,7 @@ interface TypeItem {
             Comparator.comparing { @Suppress("DEPRECATION") it.fullName() }
 
         /** A total ordering over [ClassTypeItem] comparing [ClassTypeItem.qualifiedName]. */
-        private val qualifiedComparator: Comparator<ClassTypeItem> =
+        val qualifiedComparator: Comparator<ClassTypeItem> =
             Comparator.comparing { it.qualifiedName }
 
         /**
@@ -1439,11 +1439,13 @@ private object WildcardFlatteningTransformer : BaseTypeTransformer() {
  * For instance, `List<String>` and `List<? extends String>` would be considered equal, as would
  * `List<? super String>`. These types are not equal, but considering them equal enables comparing
  * types generated from UAST and the analysis API.
+ *
+ * This type comparison includes nullability because it is intended to compare Kotlin types.
  */
 fun equalWithFlattenedWildcards(type1: TypeItem, type2: TypeItem): Boolean {
     val transformedType1 = type1.transform(WildcardFlatteningTransformer)
     val transformedType2 = type2.transform(WildcardFlatteningTransformer)
-    return transformedType1 == transformedType2
+    return transformedType1.equalToType(transformedType2, includeNullability = true)
 }
 
 /**

@@ -152,7 +152,6 @@ class SignatureInputOutputTest : Assertions {
                   }
                 }
             """
-                .trimIndent()
 
         runInputOutputTest(api, kotlinStyleFormat) {
             val foo = codebase.assertClass("test.pkg.Foo")
@@ -172,7 +171,6 @@ class SignatureInputOutputTest : Assertions {
                   }
                 }
             """
-                .trimIndent()
         runInputOutputTest(api, kotlinStyleFormat) {
             val foo = codebase.assertClass("test.pkg.Foo")
             assertThat(foo.properties()).hasSize(1)
@@ -194,7 +192,6 @@ class SignatureInputOutputTest : Assertions {
                   }
                 }
             """
-                .trimIndent()
         runInputOutputTest(api, kotlinStyleFormat) {
             val foo = codebase.assertClass("test.pkg.Foo")
             assertThat(foo.fields()).hasSize(1)
@@ -217,7 +214,6 @@ class SignatureInputOutputTest : Assertions {
                   }
                 }
             """
-                .trimIndent()
         runInputOutputTest(api, kotlinStyleFormat) {
             val foo = codebase.assertClass("test.pkg.Foo")
             assertThat(foo.fields()).hasSize(1)
@@ -241,7 +237,6 @@ class SignatureInputOutputTest : Assertions {
                   }
                 }
             """
-                .trimIndent()
         runInputOutputTest(api, kotlinStyleFormat) {
             val foo = codebase.assertClass("test.pkg.Foo")
             assertThat(foo.methods()).hasSize(1)
@@ -264,7 +259,6 @@ class SignatureInputOutputTest : Assertions {
                   }
                 }
             """
-                .trimIndent()
         runInputOutputTest(api, kotlinStyleFormat) {
             val foo = codebase.assertClass("test.pkg.Foo")
             assertThat(foo.methods()).hasSize(1)
@@ -292,7 +286,6 @@ class SignatureInputOutputTest : Assertions {
                   }
                 }
             """
-                .trimIndent()
         runInputOutputTest(api, kotlinStyleFormat) {
             val foo = codebase.assertClass("test.pkg.Foo")
             assertThat(foo.methods()).hasSize(1)
@@ -319,7 +312,6 @@ class SignatureInputOutputTest : Assertions {
                   }
                 }
             """
-                .trimIndent()
         runInputOutputTest(api, kotlinStyleFormat) {
             val foo = codebase.assertClass("test.pkg.Foo")
             val method = foo.methods().single()
@@ -343,7 +335,6 @@ class SignatureInputOutputTest : Assertions {
                   }
                 }
             """
-                .trimIndent()
         runInputOutputTest(api, kotlinStyleFormat) {
             val foo = codebase.assertClass("test.pkg.Foo")
             val method = foo.methods().single()
@@ -369,7 +360,6 @@ class SignatureInputOutputTest : Assertions {
                   }
                 }
             """
-                .trimIndent()
         runInputOutputTest(api, kotlinStyleFormat) {
             val foo = codebase.assertClass("test.pkg.Foo")
             val method = foo.methods().single()
@@ -388,15 +378,14 @@ class SignatureInputOutputTest : Assertions {
     @Test
     fun `Test method with one unnamed parameter`() {
         val api =
-            kotlinStyleFormat.header() +
-                """
+            """
                 package test.pkg {
                   public class Foo {
                     method public foo(_: int): String;
                   }
                 }
             """
-                    .trimIndent()
+
         runInputOutputTest(api, kotlinStyleFormat) {
             val foo = codebase.assertClass("test.pkg.Foo")
             val method = foo.methods().single()
@@ -420,7 +409,6 @@ class SignatureInputOutputTest : Assertions {
                   }
                 }
             """
-                .trimIndent()
         runInputOutputTest(api, kotlinStyleFormat) {
             val foo = codebase.assertClass("test.pkg.Foo")
             val method = foo.methods().single()
@@ -444,7 +432,6 @@ class SignatureInputOutputTest : Assertions {
                   }
                 }
             """
-                .trimIndent()
         runInputOutputTest(api, kotlinStyleFormat) {
             val foo = codebase.assertClass("test.pkg.Foo")
             val method = foo.methods().single()
@@ -486,7 +473,6 @@ class SignatureInputOutputTest : Assertions {
                   }
                 }
             """
-                .trimIndent()
         runInputOutputTest(api, kotlinStyleFormat) {
             val foo = codebase.assertClass("test.pkg.Foo")
             val method = foo.methods().single()
@@ -529,7 +515,6 @@ class SignatureInputOutputTest : Assertions {
                   }
                 }
             """
-                .trimIndent()
         runInputOutputTest(api, format) {
             val method = codebase.assertClass("test.pkg.MyTest").methods().single()
             // Return type has platform nullability
@@ -564,7 +549,6 @@ class SignatureInputOutputTest : Assertions {
                   }
                 }
             """
-                .trimIndent()
         runInputOutputTest(api, format) {
             val fooClass = codebase.assertClass("test.pkg.Foo")
             val superClassType = fooClass.superClassType()
@@ -585,7 +569,6 @@ class SignatureInputOutputTest : Assertions {
                   }
                 }
             """
-                .trimIndent()
         runInputOutputTest(api, kotlinStyleFormat)
     }
 
@@ -598,7 +581,6 @@ class SignatureInputOutputTest : Assertions {
                   }
                 }
             """
-                .trimIndent()
         runInputOutputTest(api, kotlinStyleFormat)
     }
 
@@ -783,7 +765,6 @@ class SignatureInputOutputTest : Assertions {
                   }
                 }
             """
-                .trimIndent()
         runInputOutputTest(
             api,
             FileFormat.V2.buildCopy { this[STRIP_JAVA_LANG_PREFIX] = StripJavaLangPrefix.NEVER }
@@ -803,7 +784,6 @@ class SignatureInputOutputTest : Assertions {
                   }
                 }
             """
-                .trimIndent()
         runInputOutputTest(
             api,
             FileFormat.V2.buildCopy { this[STRIP_JAVA_LANG_PREFIX] = StripJavaLangPrefix.LEGACY }
@@ -823,7 +803,6 @@ class SignatureInputOutputTest : Assertions {
                   }
                 }
             """
-                .trimIndent()
         runInputOutputTest(
             api,
             FileFormat.V2.buildCopy { this[STRIP_JAVA_LANG_PREFIX] = StripJavaLangPrefix.ALWAYS }
@@ -843,7 +822,6 @@ class SignatureInputOutputTest : Assertions {
                   }
                 }
             """
-                .trimIndent()
         runInputOutputTest(
             api,
             FileFormat.V2.buildCopy {
@@ -865,7 +843,6 @@ class SignatureInputOutputTest : Assertions {
                   }
                 }
             """
-                .trimIndent()
         runInputOutputTest(
             api,
             FileFormat.V2.buildCopy {
@@ -887,7 +864,6 @@ class SignatureInputOutputTest : Assertions {
                   }
                 }
             """
-                .trimIndent()
         runInputOutputTest(
             api,
             FileFormat.V2.buildCopy {
@@ -1053,7 +1029,7 @@ class SignatureInputOutputTest : Assertions {
             expectedOutput =
                 """
                     package test.pkg {
-                      public class Test {
+                      public final class Test {
                         ctor public Test(int, String);
                         method public int a();
                         method public String b();
@@ -1080,6 +1056,27 @@ class SignatureInputOutputTest : Assertions {
         runInputOutputTest(
             api,
             FORMAT_V6_WITH_JAVA_STYLE,
+        )
+    }
+
+    @Test
+    fun `Test sealed classes, java-sealed-classes=yes`() {
+        val api =
+            """
+                package test.pkg {
+                  public sealed non-exhaustive class Base implements test.pkg.Super permits test.pkg.SubclassA test.pkg.SubclassB {
+                  }
+                  public non-sealed class SubclassA extends test.pkg.Base {
+                  }
+                  public final class SubclassB extends test.pkg.Base {
+                  }
+                  public interface Super {
+                  }
+                }
+            """
+        runInputOutputTest(
+            api,
+            FORMAT_V6_WITH_JAVA_SEALED_CLASSES,
         )
     }
 

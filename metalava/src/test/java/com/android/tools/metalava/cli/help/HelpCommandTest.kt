@@ -119,6 +119,11 @@ Usage: metalava help signature-file-formats
   components, along with the constructor and methods. If `no` then record classes will be represented as normal classes
   without any properties but sill with the same constructor and methods.
 
+  * `java-sealed-classes = yes|no` - Whether to include java sealed classes in the signature file.
+
+  If `yes` then the signature file will include `sealed`, and `non-sealed` modifiers, and `permits` list. If `no` then
+  they will not be included but it is not clear how that would work.
+
   * `kotlin-name-type-order = yes|no` - Whether to order the names and types of APIs using Kotlin-style syntax (`name:
   type`) or Java-style syntax (`type name`).
 

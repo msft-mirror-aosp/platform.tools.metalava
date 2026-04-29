@@ -21,8 +21,7 @@ import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.SelectableItem
-import com.android.tools.metalava.model.value.AnnotationValue
-import com.android.tools.metalava.model.value.asInt
+import com.android.tools.metalava.model.annotation.binding.bindTo
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
 import java.util.function.Predicate
@@ -36,24 +35,113 @@ class PolicyDefinitionAnnotationHandler(
 
     /** Processes a policy annotation and returns a documentation string. */
     override fun processPolicyAnnotation(annotation: AnnotationItem, item: Item): String {
-        val basePolicy = parseBasePolicy(annotation, item)
-        return generateBaseDocs(basePolicy, item)
+        val proxy = annotation.bindTo<PolicyDefinitionProxy>(item)
+        return proxy?.generateDocs() ?: ""
+    }
+}
+
+enum class AllowedDpcType(
+    val description: String,
+    val isAllowed: AllowedDpcTypesProxy.() -> Boolean,
+) {
+    DEVICE_OWNER(
+        description = "Device Owner",
+        isAllowed = { deviceOwner == AllowedDpcTypesProxy.DPC_ANNOTATION_ALLOWED },
+    ),
+    MANAGED_PROFILE_OWNER_OF_ORGANIZATION_OWNED_DEVICE(
+        description = "Managed Profile Owner (Of Organization Owned Device)",
+        isAllowed = {
+            managedProfileOwnerOfOrganizationOwnedDevice ==
+                AllowedDpcTypesProxy.DPC_ANNOTATION_ALLOWED
+        },
+    ),
+    MANAGED_PROFILE_OWNER_OF_PERSONAL_OWNED_DEVICE(
+        description = "Managed Profile Owner (Of Personally Owned Device)",
+        isAllowed = {
+            managedProfileOwnerOfPersonalOwnedDevice == AllowedDpcTypesProxy.DPC_ANNOTATION_ALLOWED
+        },
+    ),
+    UNAFFILIATED_FULL_USER_PROFILE_OWNER(
+        description = "Unaffiliated Full User Profile Owner",
+        isAllowed = { fullUserProfileOwner == AllowedDpcTypesProxy.DPC_ANNOTATION_ALLOWED },
+    ),
+    FINANCED_DEVICE_OWNER(
+        description = "Financed Device Owner",
+        isAllowed = { financedDeviceOwner == AllowedDpcTypesProxy.DPC_ANNOTATION_ALLOWED },
+    ),
+    PROFILE_OWNER_ON_USER_0(
+        description = "Profile Owner on User 0",
+        isAllowed = { profileOwnerOnUser0 == AllowedDpcTypesProxy.DPC_ANNOTATION_ALLOWED },
+    ),
+    AFFILIATED_FULL_USER_PROFILE_OWNER(
+        description = "Affiliated Full User Profile Owner",
+        isAllowed = {
+            fullUserProfileOwner == AllowedDpcTypesProxy.DPC_ANNOTATION_ALLOWED ||
+                fullUserProfileOwner == AllowedDpcTypesProxy.DPC_ANNOTATION_ALLOWED_WHEN_AFFILIATED
+        },
+    ),
+}
+
+class AllowedDpcTypesProxy(
+    val deviceOwner: Int,
+    val managedProfileOwnerOfOrganizationOwnedDevice: Int,
+    val managedProfileOwnerOfPersonalOwnedDevice: Int,
+    val fullUserProfileOwner: Int,
+    val financedDeviceOwner: Int,
+    val profileOwnerOnUser0: Int,
+) {
+    fun generateDocs(): String {
+        val dpcTypes =
+            AllowedDpcType.entries.mapNotNull {
+                if (it.isAllowed(this)) {
+                    it.description
+                } else {
+                    null
+                }
+            }
+
+        if (dpcTypes.isEmpty()) return ""
+
+        return buildString {
+            append("   <li>Allowed DPC Types: \n    <ul>\n")
+            dpcTypes.joinTo(this, separator = "") { "       <li>$it</li>\n" }
+            append("     </ul>\n   </li>\n")
+        }
     }
 
-    /** Extracts allowed DPC values from the annotation. */
-    private fun extractAllowedDpcTypes(annotation: AnnotationItem): List<String> {
-        val allowedDpcTypesValue = annotation.findAttribute("allowedDpcTypes")?.value
-        val allowedDpcAnnotation = (allowedDpcTypesValue as? AnnotationValue)?.annotationItem
-        if (allowedDpcAnnotation == null) {
-            return emptyList()
-        }
+    companion object {
+        const val DPC_ANNOTATION_ALLOWED = 1
+        const val DPC_ANNOTATION_DISALLOWED = 2
+        const val DPC_ANNOTATION_ALLOWED_WHEN_AFFILIATED = 3
+    }
+}
 
-        return AllowedDpcType.entries.mapNotNull {
-            if (allowedDpcAnnotation.getIntAttribute(it.attributeName) == DPC_ANNOTATION_ALLOWED) {
-                it.description
-            } else {
-                null
-            }
+/**
+ * Proxy class bound to an instance of the `android.processor.devicepolicy.PolicyDefinition`
+ * annotation class.
+ *
+ * @see bindTo
+ */
+class PolicyDefinitionProxy(
+    /** The item on which this was annotated. */
+    val item: Item,
+    private val allowedScopes: List<Int>,
+    private val affectedResource: Int,
+    private val requiredPermission: String?,
+    private val requiredCrossUserPermission: String?,
+    private val allowedDpcTypes: AllowedDpcTypesProxy,
+) {
+    private val codebase = item.codebase
+    private val reporter = codebase.reporter
+
+    init {
+        // Validate the properties.
+        if (allowedScopes.isEmpty()) {
+            reporter.report(
+                Issues.INVALID_DEVICE_POLICY_ANNOTATION,
+                item,
+                "'allowedScopes' is empty on $item: Must provide at least one scope"
+            )
         }
     }
 
@@ -81,41 +169,9 @@ class PolicyDefinitionAnnotationHandler(
         return value
     }
 
-    /** Parses the base policy definition from the annotation. */
-    fun parseBasePolicy(annotation: AnnotationItem, item: Item): BasePolicyDefinition {
-        val allowedScopesItem = annotation.findAttribute("allowedScopes")?.value
-        val allowedScopesList =
-            allowedScopesItem?.asFlatList()?.mapNotNull { it.asInt() } ?: emptyList()
-        if (allowedScopesList.isEmpty()) {
-            reporter.report(
-                Issues.INVALID_DEVICE_POLICY_ANNOTATION,
-                item,
-                "Missing required field 'allowedScopes' inside $item"
-            )
-        }
-
-        val affectedResource =
-            annotation
-                .getIntAttribute("affectedResource")
-                .elseReportMissing(item, "affectedResource") ?: -1
-        val requiredPermission = annotation.getStringAttribute("requiredPermission")
-        val requiredCrossUserPermission =
-            annotation.getStringAttribute("requiredCrossUserPermission")
-
-        val allowedDpcTypes = extractAllowedDpcTypes(annotation)
-
-        return BasePolicyDefinition(
-            allowedScopes = allowedScopesList,
-            affectedResource = affectedResource,
-            requiredPermission = requiredPermission,
-            requiredCrossUserPermission = requiredCrossUserPermission,
-            allowedDpcTypes = allowedDpcTypes,
-        )
-    }
-
     /** Generates documentation for the base policy definition. */
-    fun generateBaseDocs(basePolicy: BasePolicyDefinition, item: Item) = buildString {
-        basePolicy.allowedScopes
+    fun generateDocs() = buildString {
+        allowedScopes
             .takeIf { it.isNotEmpty() }
             ?.let { scopes ->
                 append("   <li>Allowed Scopes:\n    <ul>\n")
@@ -123,83 +179,52 @@ class PolicyDefinitionAnnotationHandler(
                 append("     </ul>\n   </li>\n")
             }
 
-        basePolicy.affectedResource.let {
-            append("   <li>Affected Resource: ${getResourceName(it)}</li>\n")
-        }
-        basePolicy.requiredPermission?.let { permission ->
+        affectedResource.let { append("   <li>Affected Resource: ${getResourceName(it)}</li>\n") }
+        requiredPermission?.let { permission ->
             append(
                 "   <li>Required Permission: ${resolvePermissionCodeLink(permission, item)}</li>\n"
             )
         }
-        basePolicy.requiredCrossUserPermission?.let { permission ->
+        requiredCrossUserPermission?.let { permission ->
             append(
-                "   <li>Required Cross User Permission: ${resolvePermissionCodeLink(permission, item)}</li>\n"
+                "   <li>Required Cross User Permission: ${
+                    resolvePermissionCodeLink(
+                        permission,
+                        item
+                    )
+                }</li>\n"
             )
         }
 
-        basePolicy.allowedDpcTypes
-            .takeIf { it.isNotEmpty() }
-            ?.let { dpcTypes ->
-                append("   <li>Allowed DPC Types: \n    <ul>\n")
-                dpcTypes.joinTo(this, separator = "") { "       <li>$it</li>\n" }
-                append("     </ul>\n   </li>\n")
-            }
+        append(allowedDpcTypes.generateDocs())
     }
 
     companion object {
-        private const val DPC_ANNOTATION_ALLOWED = 1
+        /** Converts scope ID from [allowedScopes] to a human-readable name. */
+        private fun getScopeName(scope: Int) =
+            PolicyScope.fromId(scope)?.scopeName ?: scope.toString()
+
+        /** Converts resource type from [affectedResource] to a human-readable name. */
+        private fun getResourceName(resource: Int) =
+            PolicyResource.fromId(resource)?.resourceName ?: resource.toString()
     }
 }
 
-enum class AllowedDpcType(
-    val description: String,
-    val attributeName: String,
-) {
-    DEVICE_OWNER(
-        description = "Device Owner",
-        attributeName = "deviceOwner",
-    ),
-    MANAGED_PROFILE_OWNER_OF_ORGANIZATION_OWNED_DEVICE(
-        description = "Managed Profile Owner (Of Organization Owned Device)",
-        attributeName = "managedProfileOwnerOfOrganizationOwnedDevice",
-    ),
-    MANAGED_PROFILE_OWNER_OF_PERSONAL_OWNED_DEVICE(
-        description = "Managed Profile Owner (Of Personally Owned Device)",
-        attributeName = "managedProfileOwnerOfPersonalOwnedDevice",
-    ),
-    UNAFFILIATED_FULL_USER_PROFILE_OWNER(
-        description = "Unaffiliated Full User Profile Owner",
-        attributeName = "unaffiliatedFullUserProfileOwner",
-    ),
-    FINANCED_DEVICE_OWNER(
-        description = "Financed Device Owner",
-        attributeName = "financedDeviceOwner",
-    ),
-    PROFILE_OWNER_ON_USER_0(
-        description = "Profile Owner on User 0",
-        attributeName = "profileOwnerOnUser0",
-    ),
-    AFFILIATED_FULL_USER_PROFILE_OWNER(
-        description = "Affiliated Full User Profile Owner",
-        attributeName = "affiliatedFullUserProfileOwner",
-    ),
+enum class PolicyScope(val scopeName: String, val id: Int) {
+    USER("User", 1),
+    DEVICE("Device", 2),
+    PARENT_USER("Parent User", 3);
+
+    companion object {
+        fun fromId(id: Int): PolicyScope? = entries.firstOrNull { it.id == id }
+    }
 }
 
-/** Data class to hold the parsed {@link android.processor.devicepolicy.PolicyDefinition}. */
-data class BasePolicyDefinition(
-    // Contains parsed values of {@link
-    // android.processor.devicepolicy.PolicyDefinition#allowedScopes}
-    val allowedScopes: List<Int>,
-    // Contains parsed value of {@link
-    // android.processor.devicepolicy.PolicyDefinition#affectedResource}
-    val affectedResource: Int,
-    // Contains parsed value of {@link
-    // android.processor.devicepolicy.PolicyDefinition#requiredPermission}
-    val requiredPermission: String?,
-    // Contains parsed value of {@link
-    // android.processor.devicepolicy.PolicyDefinition#requiredCrossUserPermission}
-    val requiredCrossUserPermission: String?,
-    // Contains parsed values of {@link
-    // android.processor.devicepolicy.PolicyDefinition#allowedDpcTypes}
-    val allowedDpcTypes: List<String>,
-)
+enum class PolicyResource(val resourceName: String, val id: Int) {
+    DEVICE_WIDE("Device Wide", 1),
+    PER_USER("Per User", 2);
+
+    companion object {
+        fun fromId(id: Int): PolicyResource? = entries.firstOrNull { it.id == id }
+    }
+}

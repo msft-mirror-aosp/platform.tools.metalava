@@ -16,6 +16,8 @@
 
 package com.android.tools.metalava.model.testsuite.typeitem
 
+import com.android.tools.metalava.model.provider.InputFormat
+import com.android.tools.metalava.model.testing.SupportedInputFormats
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
@@ -64,6 +66,7 @@ class CommonSamCompatibleTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.KOTLIN)
     @Test
     fun `Kotlin lambda types are SAM-compatible`() {
         runCodebaseTest(
@@ -104,6 +107,7 @@ class CommonSamCompatibleTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.KOTLIN)
     @Test
     fun `Kotlin suspend lambda types are SAM-compatible`() {
         runCodebaseTest(
@@ -204,6 +208,7 @@ class CommonSamCompatibleTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Kotlin SAM interface types are not SAM-compatible`() {
         val samInterfaceDefinition =
@@ -251,6 +256,7 @@ class CommonSamCompatibleTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.KOTLIN)
     @Test
     fun `Kotlin fun interface types are SAM-compatible`() {
         val funInterfaceDefinition =
@@ -311,6 +317,7 @@ class CommonSamCompatibleTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.KOTLIN)
     @Test
     fun `Variable type with function bound is SAM-compatible`() {
         runCodebaseTest(
@@ -344,6 +351,7 @@ class CommonSamCompatibleTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.KOTLIN)
     @Test
     fun `Variable types with non-function SAM-compatible bound is not SAM-compatible`() {
         val funInterfaceDefinition =

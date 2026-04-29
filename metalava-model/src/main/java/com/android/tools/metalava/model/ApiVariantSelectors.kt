@@ -97,25 +97,17 @@ sealed class ApiVariantSelectors {
          * for each [SelectableItem].
          */
         val MUTABLE_FACTORY: ApiVariantSelectorsFactory = { Mutable(it) }
-
-        /**
-         * An [ApiVariantSelectors] factory for use by [RecordComponentItem]s that will return a
-         * [RecordComponentSelectors] instance.
-         */
-        val RECORD_COMPONENT_FACTORY: ApiVariantSelectorsFactory = {
-            if (it is RecordComponentItem) RecordComponentSelectors(it)
-            else error("Cannot create RecordComponentSelectors for non-RecordComponentItem")
-        }
     }
 
     /**
-     * Base class for [ApiVariantSelectors] that do not allow hiding of [SelectableItem]s.
+     * An immutable [ApiVariantSelectors] that will return `false` for all the properties and fail
+     * on any attempt to set the `var` properties.
      *
      * The implementation of [ApiVariantSelectors] properties return values that will prevent
      * [SelectableItem]s from being hidden in any way. Attempting to mutate them may result in an
      * error being thrown.
      */
-    private abstract class BaseNotHideableSelectors : ApiVariantSelectors() {
+    private object Immutable : ApiVariantSelectors() {
         override val originallyHidden: Boolean
             get() = false
 
@@ -146,49 +138,10 @@ sealed class ApiVariantSelectors {
             get() = Showability.NO_EFFECT
 
         override fun duplicate(item: Item): ApiVariantSelectors = this
-    }
 
-    /**
-     * An immutable [ApiVariantSelectors] that will return `false` for all the properties and fail
-     * on any attempt to set the `var` properties.
-     */
-    private object Immutable : BaseNotHideableSelectors() {
         override fun inheritInto() = error("Cannot inheritInto() $this")
 
         override fun toString() = "Immutable"
-    }
-
-    /**
-     * An [ApiVariantSelectors] specifically for record components.
-     *
-     * It will report issues if any attempt is made to hide [item] or to include it in a specific
-     * API surface.
-     */
-    private class RecordComponentSelectors(private val item: SelectableItem) :
-        BaseNotHideableSelectors() {
-        private var inheritIntoWasCalled = false
-
-        override fun inheritInto() {
-            if (inheritIntoWasCalled) return
-            inheritIntoWasCalled = true
-
-            if (item.wasOriginallyHidden()) {
-                item.codebase.reporter.report(
-                    Issues.HIDING_RECORD_COMPONENT,
-                    item,
-                    "Cannot hide ${item.describe()} as record components are an indivisible part of a record class"
-                )
-            }
-        }
-
-        override fun toString() = buildString {
-            append(item.describe())
-            append(" {\n")
-            append("    inheritIntoWasCalled=")
-            append(inheritIntoWasCalled)
-            append(",\n")
-            append("}")
-        }
     }
 
     /**
@@ -490,6 +443,26 @@ sealed class ApiVariantSelectors {
                     }
                 }
             }
+
+            // Check to see whether item has a relationship with a record component. If it does then
+            // it cannot be hidden.
+            (item as? PossiblyRecordComponentRelated)?.recordComponentRelationship?.let {
+                recordComponentRelationship ->
+
+                // Record component getters or canonical constructors cannot be hidden.
+                if (originallyHidden) {
+                    item.codebase.reporter.report(
+                        Issues.HIDING_RECORD_COMPONENT,
+                        item,
+                        "Cannot hide $recordComponentRelationship ${item.describe()} as it is an indivisible part of a record class"
+                    )
+                }
+
+                // Force this to not be hidden, doconly or removed.
+                propertyHasBeenSetBits = ALL_PROPERTIES_SET
+                propertyValueBits = NOT_RESTRICTED_SETTINGS
+                _showability = Showability.NO_EFFECT
+            }
         }
 
         /**
@@ -606,6 +579,20 @@ sealed class ApiVariantSelectors {
 
             /** The count of the number of bits used. */
             private const val COUNT_BITS_USED = INHERIT_INTO_BIT_POSITION + 1
+
+            /**
+             * Value of [propertyValueBits] that will ensure that the associated [item] is not
+             * restricted in any way.
+             *
+             * This sets all the [Boolean] properties to `false` apart from [accessible] which is
+             * set to `true`.
+             */
+            private const val NOT_RESTRICTED_SETTINGS: Int = ACCESSIBLE_BIT_MASK
+
+            /**
+             * Value of [propertyHasBeenSetBits] that indicates all the properties have been set.
+             */
+            private const val ALL_PROPERTIES_SET: Int = (1 shl COUNT_BITS_USED) - 1
 
             /** Map from bit to the associated property name, used in toString() */
             private val propertyNamePerBit =

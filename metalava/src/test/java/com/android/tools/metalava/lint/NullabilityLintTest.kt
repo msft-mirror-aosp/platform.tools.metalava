@@ -159,7 +159,6 @@ class NullabilityLintTest : DriverTest() {
                             public T[] badTypeVarArrayReturn() { return null; }
                         }
                     """
-                            .trimIndent()
                     )
                 )
         )

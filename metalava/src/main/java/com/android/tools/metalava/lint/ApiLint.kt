@@ -56,6 +56,7 @@ import com.android.tools.metalava.model.ArrayTypeItem
 import com.android.tools.metalava.model.BaseTypeVisitor
 import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.ClassOrVariableTypeItem
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.Codebase
@@ -76,6 +77,7 @@ import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.PrimitiveTypeItem.Primitive
 import com.android.tools.metalava.model.PropertyItem
+import com.android.tools.metalava.model.RecordComponentItem
 import com.android.tools.metalava.model.TargetLanguageSet
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeNullability
@@ -182,6 +184,7 @@ import com.android.tools.metalava.reporter.Issues.STATIC_FINAL_BUILDER
 import com.android.tools.metalava.reporter.Issues.STATIC_UTILS
 import com.android.tools.metalava.reporter.Issues.STREAM_FILES
 import com.android.tools.metalava.reporter.Issues.TOP_LEVEL_BUILDER
+import com.android.tools.metalava.reporter.Issues.TYPEALIAS_DEFINITION
 import com.android.tools.metalava.reporter.Issues.TYPE_PARAMETER_NAME
 import com.android.tools.metalava.reporter.Issues.UNIQUE_KOTLIN_OPERATOR
 import com.android.tools.metalava.reporter.Issues.USER_HANDLE
@@ -349,6 +352,30 @@ private constructor(
         // DO NOT ADD ANY MORE CHECKS TO THIS, ADD THEM TO [checkEveryType] INSTEAD.
     }
 
+    /** Check [component]. */
+    fun checkRecordComponent(component: RecordComponentItem) {
+        val type = component.type
+
+        // Perform common checks on the component type.
+        checkEveryType(type, component, TypeUseSite.RECORD_COMPONENT)
+
+        var foundArrayType = false
+        type.accept(
+            object : BaseTypeVisitor() {
+                override fun visitArrayType(arrayType: ArrayTypeItem) {
+                    foundArrayType = true
+                }
+            }
+        )
+        if (foundArrayType) {
+            report(
+                Issues.ARRAY_RECORD_COMPONENT,
+                component,
+                "${component.describe(capitalize = true)} type '${type.toTypeString()}' contains an array type; they do not work correctly with Record methods"
+            )
+        }
+    }
+
     // Enforce type parameter naming rules:
     // https://developer.android.com/kotlin/style-guide#type_variable_names
     fun <T> checkTypeParameterNames(item: T) where T : Item, T : TypeParameterListOwner {
@@ -435,6 +462,7 @@ private constructor(
         checkTypedef(cls)
         checkAccessorNullabilityMatches(methods)
         checkDataClass(cls)
+        checkTypealias(cls)
 
         // Check class types.
         for (typeParameterItem in cls.typeParameterList) {
@@ -445,6 +473,11 @@ private constructor(
         }
         for (interfaceType in interfaces) {
             checkEveryType(interfaceType, cls, TypeUseSite.INTERFACE)
+        }
+
+        // Check record components.
+        for (component in cls.recordComponents) {
+            checkRecordComponent(component)
         }
     }
 
@@ -3388,6 +3421,12 @@ private constructor(
                 "Exposing data classes as public API is discouraged because they are " +
                     "difficult to update while maintaining binary compatibility."
             )
+        }
+    }
+
+    private fun checkTypealias(cls: ClassItem) {
+        if (cls.classKind == ClassKind.TYPEALIAS) {
+            report(TYPEALIAS_DEFINITION, cls, "Exposing typealiases as public API is discouraged.")
         }
     }
 

@@ -77,6 +77,9 @@ internal class DefaultMethodItem(
     override val defaultValue
         get() = defaultValueProvider?.optionalValue
 
+    override val isRecordComponentGetter: Boolean =
+        if (parameters.isEmpty()) name in containingClass.recordComponents else false
+
     override var property: PropertyItem? = null
 
     private lateinit var superMethodList: List<MethodItem>

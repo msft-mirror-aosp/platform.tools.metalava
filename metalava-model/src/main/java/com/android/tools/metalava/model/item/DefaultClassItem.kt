@@ -63,6 +63,7 @@ internal class DefaultClassItem(
     origin: ClassOrigin,
     private var superClassType: ClassTypeItem?,
     private var interfaceTypes: List<ClassTypeItem>,
+    permitTypes: List<ClassTypeItem>,
     override val isFileFacade: Boolean,
     /**
      * If [classKind] is [ClassKind.TYPEALIAS], the [optionalAliasedType] must be specified.
@@ -89,6 +90,12 @@ internal class DefaultClassItem(
     private val fullName: String
 
     override var origin: ClassOrigin = origin
+        set(value) {
+            ensureNotFrozen()
+            field = value
+        }
+
+    override var permitTypes: List<ClassTypeItem> = permitTypes
         set(value) {
             ensureNotFrozen()
             field = value
@@ -140,13 +147,20 @@ internal class DefaultClassItem(
         }
         if (!::sealedClassSubclasses.isInitialized) {
             sealedClassSubclasses =
-                containingPackage
-                    .allClasses()
-                    .filter { cls ->
-                        cls.superClassType()?.qualifiedName == qualifiedName ||
-                            cls.interfaceTypes().any { it.qualifiedName == qualifiedName }
-                    }
-                    .toList()
+                if (modifiers.isSealed()) {
+                    // Use the permitTypes list for actual sealed classes.
+                    permitTypes.mapNotNull { codebase.findClass(it.qualifiedName) }
+                } else {
+                    // For classes that are only effectively sealed find subclasses in their
+                    // containing package.
+                    containingPackage
+                        .allClasses()
+                        .filter { cls ->
+                            cls.superClassType()?.qualifiedName == qualifiedName ||
+                                cls.interfaceTypes().any { it.qualifiedName == qualifiedName }
+                        }
+                        .toList()
+                }
         }
         return sealedClassSubclasses
     }

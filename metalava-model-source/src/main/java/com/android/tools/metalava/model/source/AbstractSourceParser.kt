@@ -152,9 +152,66 @@ abstract class AbstractSourceParser(protected val reporter: Reporter) : SourcePa
                 classPath = inputs.classPath.map { it.absoluteFile },
             )
 
-        return processInputs(absoluteInputs)
+        return processInputs(absoluteInputs)?.also { codebase ->
+
+            // Determine sealed class exhaustivity.
+            codebase.determineIfInaccessibleClassesMakeSuperClassesNonExhaustive()
+        }
     }
 
     /** Process the [inputs] to produce a [Codebase], if possible. */
     protected abstract fun processInputs(inputs: SourceParser.Inputs): Codebase?
+
+    /**
+     * Determine if sealed classes make super classes non-exhaustive.
+     *
+     * Instances of sealed classes can be matched using `when` statements. If all the subclasses of
+     * a sealed class are available to API consumers, then new subclasses can't be added to the
+     * sealed class because doing so would be a breaking change (clients' `when` statements would no
+     * longer be exhaustive). In this case, we label the sealed class as exhaustive. If there is an
+     * inaccessible class that extends a sealed class, however, then the sealed class is not
+     * exhaustive. For more details, see b/447143803
+     */
+    private fun Codebase.determineIfInaccessibleClassesMakeSuperClassesNonExhaustive() {
+        val allClasses = getTopLevelClassesFromSource()
+        allClasses.forEach { classItem -> sealedClassExhaustivityHelper(classItem, false) }
+    }
+
+    /**
+     * Recursively traverses the inner classes of [classItem] to determine if any sealed super
+     * classes should be marked as non-exhaustive.
+     *
+     * A sealed class is considered non-exhaustive if it has at least one inaccessible subclass.
+     *
+     * @param classItem The current [ClassItem] being checked.
+     * @param parentWasNotVisible True if any containing class of [classItem] was not visible.
+     */
+    private fun Codebase.sealedClassExhaustivityHelper(
+        classItem: ClassItem,
+        parentWasNotVisible: Boolean,
+    ) {
+        // If a ClassItem already exists for this psiClass, use its modifiers. Otherwise, create
+        // new ones.
+        val modifiers = classItem.modifiers
+        val curClassNotVisible =
+            modifiers.annotations().any { it.showability.hide() } || !modifiers.hasApiVisibility
+
+        if (curClassNotVisible || parentWasNotVisible) {
+            val superClassName = classItem.superClassType()?.qualifiedName
+            if (superClassName != null) {
+                findClass(superClassName)?.mutateModifiers { setExhaustive(false) }
+            }
+            classItem
+                .interfaceTypes()
+                .map { it.qualifiedName }
+                .forEach { name -> findClass(name)?.mutateModifiers { setExhaustive(false) } }
+        }
+
+        classItem.nestedClasses().forEach { nestedClass ->
+            sealedClassExhaustivityHelper(
+                nestedClass,
+                parentWasNotVisible || curClassNotVisible,
+            )
+        }
+    }
 }

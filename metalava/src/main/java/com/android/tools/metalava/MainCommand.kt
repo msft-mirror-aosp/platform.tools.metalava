@@ -33,6 +33,7 @@ import com.android.tools.metalava.cli.common.registerPostCommandAction
 import com.android.tools.metalava.cli.common.stderr
 import com.android.tools.metalava.cli.common.stdout
 import com.android.tools.metalava.cli.common.terminal
+import com.android.tools.metalava.cli.common.tracer
 import com.android.tools.metalava.cli.compatibility.CompatibilityCheckOptions
 import com.android.tools.metalava.cli.lint.ApiLintOptions
 import com.android.tools.metalava.cli.multiplatform.MultiplatformOptions
@@ -227,6 +228,7 @@ class MainCommand(
                         Driver(
                             executionEnvironment,
                             progressTracker,
+                            tracer,
                             environmentManager,
                             reporterManager.reporter,
                             commonOptions.verbosity,
@@ -244,7 +246,7 @@ class MainCommand(
                             sourceOptions,
                             stubGenerationOptions,
                         )
-                    driver.processFlags()
+                    tracer.trace("processFlags") { driver.processFlags() }
                 }
         } finally {
             // Write all saved reports. Do this even if the previous code threw an exception.

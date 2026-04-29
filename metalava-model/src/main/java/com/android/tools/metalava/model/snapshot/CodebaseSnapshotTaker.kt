@@ -264,6 +264,9 @@ private constructor(
         val snapshotInterfaceTypes =
             classToSnapshot.interfaceTypes().map { classTypeItemFactory.getInterfaceType(it) }
 
+        val snapshotPermitTypes =
+            classToSnapshot.permitTypes.map { classTypeItemFactory.getHierarchicalClassType(it) }
+
         val classKind = classToSnapshot.classKind
         val optionalAliasedType =
             if (classKind == ClassKind.TYPEALIAS) {
@@ -289,6 +292,7 @@ private constructor(
                 origin = classToSnapshot.origin,
                 superClassType = snapshotSuperClassType,
                 interfaceTypes = snapshotInterfaceTypes,
+                permitTypes = snapshotPermitTypes,
                 optionalAliasedType = optionalAliasedType,
                 recordComponentItemsFactory =
                     if (classKind == ClassKind.RECORD)

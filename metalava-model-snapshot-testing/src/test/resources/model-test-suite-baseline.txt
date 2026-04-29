@@ -14,8 +14,6 @@ com.android.tools.metalava.model.testsuite.annotationitem.CommonAnnotationItemTe
   unknown annotation class with named attribute - array value[psi,kotlin]
   unknown annotation class with named attribute - string value[psi,kotlin]
 
-com.android.tools.metalava.model.testsuite.classitem.CommonRecordClassTest
-
 com.android.tools.metalava.model.testsuite.classitem.CommonValueClassTest
   Usage of value class with type parameter[psi,kotlin]
 
@@ -32,6 +30,9 @@ com.android.tools.metalava.model.testsuite.methoditem.CommonMethodModifierTest
 com.android.tools.metalava.model.testsuite.methoditem.CommonParameterItemTest
   Test publicName reports correct name when called on binary class - Object#equals[turbine]
   Test publicName reports correct name when called on binary class - ViewGroup#onLayout[turbine]
+
+com.android.tools.metalava.model.testsuite.multiplatform.CommonMultiplatformTypeParameterItemTest
+  Type parameter with different names per source set[text]
 
 com.android.tools.metalava.model.testsuite.typeitem.CommonParameterizedInvalidTypeTest
   Test invalid source reference[turbine,genericStringInnerNumber - generic and inner both undefined]

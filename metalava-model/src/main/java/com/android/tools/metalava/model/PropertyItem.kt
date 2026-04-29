@@ -34,8 +34,6 @@ interface PropertyItem : MemberItem, TypeParameterListOwner, InheritableItem {
      */
     val constructorParameter: ParameterItem?
 
-    override fun describe(capitalize: Boolean) = toString()
-
     /** The type of this property */
     override fun type(): TypeItem
 
@@ -50,16 +48,6 @@ interface PropertyItem : MemberItem, TypeParameterListOwner, InheritableItem {
      * visibility is unknown).
      */
     val setterVisibility: VisibilityLevel?
-
-    /**
-     * The 0-based index of this within the list of record components of a [ClassKind.RECORD] class.
-     *
-     * Is -1 for properties that are not record components.
-     */
-    val recordComponentIndex: Int
-
-    /** Check to see whether this is a record component. */
-    fun isRecordComponent(): Boolean = recordComponentIndex >= 0
 
     override fun findCorrespondingItemIn(
         codebase: Codebase,
@@ -85,11 +73,7 @@ interface PropertyItem : MemberItem, TypeParameterListOwner, InheritableItem {
     }
 
     override fun accept(visitor: ItemVisitor) {
-        if (isRecordComponent()) {
-            visitor.visit(this as RecordComponentItem)
-        } else {
-            visitor.visit(this)
-        }
+        visitor.visit(this)
     }
 
     override fun equalsToItem(other: Any?): Boolean {
@@ -105,17 +89,8 @@ interface PropertyItem : MemberItem, TypeParameterListOwner, InheritableItem {
         return Objects.hash(name(), receiver)
     }
 
-    override fun toStringForItem(): String = buildString {
-        if (isRecordComponent()) {
-            append("record component ")
-        } else {
-            append("property ")
-        }
-        append(containingClass().qualifiedName())
-        append("#")
-        append(receiverString())
-        append(name())
-    }
+    override fun toStringForItem() =
+        "property ${containingClass().qualifiedName()}#${receiverString()}${name()}"
 
     // Inherit deprecation from the getter
     override val effectivelyDeprecated: Boolean

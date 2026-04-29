@@ -16,6 +16,10 @@
 
 package com.android.tools.metalava.model
 
+import com.android.tools.metalava.model.doc.DocContent
+import com.android.tools.metalava.model.doc.DocContentOwner
+import java.util.Objects
+
 typealias RecordComponentItemsFactory = (ClassItem) -> List<RecordComponentItem>
 
 /** An [Item] that represents a component in a record class. */
@@ -23,7 +27,9 @@ interface RecordComponentItem : Item {
     /** The modifiers of this, only the annotations are useful. */
     override val modifiers: ModifierList
 
-    /** The index of this record component. */
+    /**
+     * The 0-based index of this within the list of record components of a [ClassKind.RECORD] class.
+     */
     val recordComponentIndex: Int
 
     /** The name of the component. */
@@ -31,4 +37,47 @@ interface RecordComponentItem : Item {
 
     /** The type of the component. */
     val type: TypeItem
+
+    override fun type(): TypeItem = type
+
+    override fun containingClass(): ClassItem
+
+    override fun parent(): ClassItem = containingClass()
+
+    override fun containingPackage(): PackageItem = containingClass().containingPackage()
+
+    override fun accept(visitor: ItemVisitor) {
+        visitor.visit(this)
+    }
+
+    override val description: DocContent?
+        get() = containingClass().documentation?.paramTagDescription(name)
+
+    override val descriptionOwner: DocContentOwner
+        get() = containingClass().requiredDocumentation.paramTagDescriptionOwner(name)
+
+    override fun equalsToItem(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is PropertyItem) return false
+
+        return name == other.name() && containingClass() == other.containingClass()
+    }
+
+    override fun hashCodeForItem() = Objects.hash(name)
+
+    override fun toStringForItem() = "record component ${containingClass().qualifiedName()}.$name"
+
+    override val effectivelyDeprecated: Boolean
+        get() = originallyDeprecated || containingClass().effectivelyDeprecated
+
+    override fun findCorrespondingItemIn(
+        codebase: Codebase,
+        superMethods: Boolean,
+        duplicate: Boolean,
+    ) = containingClass().findCorrespondingItemIn(codebase)?.recordComponents?.get(name)
+
+    override fun baselineElementId() = "${containingClass().qualifiedName()}#$name"
+
+    override val targetLanguages: Set<TargetLanguage>
+        get() = containingClass().targetLanguages
 }

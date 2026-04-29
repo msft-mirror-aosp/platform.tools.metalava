@@ -1168,8 +1168,7 @@ class FlaggedApiLintTest : DriverTest() {
                     ctor public Foo();
                   }
                 }
-            """
-                    .trimIndent(),
+            """,
             sourceFiles =
                 arrayOf(
                     java(

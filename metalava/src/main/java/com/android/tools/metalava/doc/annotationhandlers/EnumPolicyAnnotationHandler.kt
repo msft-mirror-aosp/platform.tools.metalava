@@ -18,12 +18,11 @@ package com.android.tools.metalava.doc.annotationhandlers
 
 import com.android.tools.metalava.model.ANDROIDX_INT_DEF
 import com.android.tools.metalava.model.AnnotationItem
-import com.android.tools.metalava.model.ClassTypeItem
+import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.SelectableItem
-import com.android.tools.metalava.model.value.AnnotationValue
-import com.android.tools.metalava.model.value.ClassObjectValue
+import com.android.tools.metalava.model.annotation.binding.bindTo
 import com.android.tools.metalava.model.value.FieldReferenceValue
 import com.android.tools.metalava.model.value.asAny
 import com.android.tools.metalava.reporter.Issues
@@ -37,26 +36,36 @@ class EnumPolicyAnnotationHandler(
     filterReference: Predicate<SelectableItem>
 ) : BaseDevicePolicyAnnotationHandler(codebase, reporter, filterReference) {
 
-    private val policyHandler =
-        PolicyDefinitionAnnotationHandler(codebase, reporter, filterReference)
-
     /** Processes a policy annotation and returns a documentation string. */
     override fun processPolicyAnnotation(annotation: AnnotationItem, item: Item): String {
-        val resolutionMechanismDoc = buildResolutionMechanismDoc(annotation, item)
-        val enumValueToCodeReference = buildEnumValueToCodeReferenceMap(annotation, item)
-        val defaultValue =
-            annotation.getIntAttribute("defaultValue").elseReportMissing(item, "defaultValue") ?: -1
+        val proxy = annotation.bindTo<EnumPolicyDefinitionProxy>(item)
+        return proxy?.generateDocs(filterReference) ?: ""
+    }
+}
 
-        val basePolicyDefinition =
-            annotation.getPolicyDefinitionAttribute("base").elseReportMissing(item, "base")
-        val baseDocs =
-            basePolicyDefinition?.let {
-                policyHandler.processPolicyAnnotation(basePolicyDefinition, item)
-            } ?: ""
+/**
+ * Proxy class bound to an instance of the `android.processor.devicepolicy.EnumPolicyDefinition`
+ * annotation class.
+ *
+ * @see bindTo
+ */
+data class EnumPolicyDefinitionProxy(
+    val item: Item,
+    val base: PolicyDefinitionProxy,
+    val resolutionMechanism: EnumResolutionMechanismProxy,
+    val intDef: ClassItem?,
+    val defaultValue: Int = -1,
+) {
+    val reporter = item.codebase.reporter
+
+    fun generateDocs(filterReference: Predicate<SelectableItem>): String {
+        val enumValueToCodeReference = buildEnumValueToCodeReferenceMap(filterReference)
+        val defaultValue = defaultValue
 
         return buildString {
             append("\n<p>Policy Type: Enum</p>\n <ul>\n")
-            append(baseDocs)
+            append(base.generateDocs())
+            val resolutionMechanismDoc = resolutionMechanism.generateDocs()
             append("   <li>Resolution Mechanism: $resolutionMechanismDoc</li>\n")
             if (enumValueToCodeReference.isNotEmpty()) {
                 append("   <li>Enum policy values:\n     <ul>\n")
@@ -73,35 +82,6 @@ class EnumPolicyAnnotationHandler(
             }
             append(" </ul>\n")
         }
-    }
-
-    private fun buildResolutionMechanismDoc(annotation: AnnotationItem, item: Item): String {
-        val resolutionMechanismValue = annotation.findAttribute("resolutionMechanism")?.value
-        val resolutionMechanismAnnotation =
-            (resolutionMechanismValue as? AnnotationValue)?.annotationItem
-
-        var resolutionMechanismDoc = ""
-
-        if (resolutionMechanismAnnotation != null) {
-            val custom = resolutionMechanismAnnotation.getBooleanAttribute("custom") ?: false
-            val notCoexistable =
-                resolutionMechanismAnnotation.getBooleanAttribute("notCoexistable") ?: false
-            val mostRestrictiveValue =
-                resolutionMechanismAnnotation.findAttribute("mostRestrictive")?.value
-            val mostRestrictive = mostRestrictiveValue?.asFlatList() ?: emptyList()
-
-            if (custom) {
-                resolutionMechanismDoc = "custom"
-            } else if (notCoexistable) {
-                resolutionMechanismDoc = "not coexistable"
-            } else if (mostRestrictive.isNotEmpty()) {
-                resolutionMechanismDoc = "most restrictive: [${mostRestrictive.joinToString(", ")}]"
-            } else {
-                reportOnMissingFields("resolutionMechanism", item)
-            }
-        }
-
-        return resolutionMechanismDoc
     }
 
     /**
@@ -128,14 +108,11 @@ class EnumPolicyAnnotationHandler(
      * ```
      */
     private fun buildEnumValueToCodeReferenceMap(
-        annotation: AnnotationItem,
-        item: Item
+        filterReference: Predicate<SelectableItem>
     ): Map<Int, String> {
-        // Get the enum value class object. Currently the @EnumPolicyDefinition annotation's intDef
+        // Get the enum value class object. Currently, the @EnumPolicyDefinition annotation's intDef
         // field is of type: Class<?>.
-        val enumValueClassObject = annotation.findAttribute("intDef")?.value as? ClassObjectValue
-        val qualifiedName = (enumValueClassObject?.typeItem as? ClassTypeItem)?.qualifiedName
-        val classItem = qualifiedName?.let { codebase.resolveClass(it) }
+        val classItem = intDef
 
         // Find the @IntDef annotation of the enum value class
         val intDefAnnotation =
@@ -175,4 +152,29 @@ class EnumPolicyAnnotationHandler(
         }
         return enumValueToName
     }
+}
+
+/**
+ * Proxy class bound to an instance of the `android.processor.devicepolicy.EnumResolutionMechanism`
+ * annotation class.
+ *
+ * @see bindTo
+ */
+data class EnumResolutionMechanismProxy(
+    val item: Item,
+    val custom: Boolean,
+    val mostRestrictive: List<Int>,
+    val notCoexistable: Boolean,
+) {
+    fun generateDocs() =
+        if (custom) {
+            "custom"
+        } else if (notCoexistable) {
+            "not coexistable"
+        } else if (mostRestrictive.isNotEmpty()) {
+            "most restrictive: [${mostRestrictive.joinToString(", ")}]"
+        } else {
+            item.codebase.reporter.reportOnMissingFields("resolutionMechanism", item)
+            ""
+        }
 }

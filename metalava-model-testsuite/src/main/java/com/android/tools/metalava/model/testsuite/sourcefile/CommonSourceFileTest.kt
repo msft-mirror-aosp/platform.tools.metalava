@@ -21,8 +21,8 @@ import com.android.tools.lint.checks.infrastructure.TestFiles
 import com.android.tools.metalava.model.FilterPredicate
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.SourceFile
-import com.android.tools.metalava.model.provider.Capability
-import com.android.tools.metalava.model.testing.RequiresCapabilities
+import com.android.tools.metalava.model.provider.InputFormat
+import com.android.tools.metalava.model.testing.SupportedInputFormats
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
@@ -36,7 +36,7 @@ class CommonSourceFileTest : BaseModelTest() {
         override fun test(item: SelectableItem): Boolean = !item.isHiddenOrRemoved()
     }
 
-    @RequiresCapabilities(Capability.JAVA)
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `Test location of class file - java`() {
         runSourceCodebaseTest(
@@ -58,7 +58,7 @@ class CommonSourceFileTest : BaseModelTest() {
         }
     }
 
-    @RequiresCapabilities(Capability.KOTLIN)
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test location of class file - kotlin`() {
         runSourceCodebaseTest(
@@ -80,6 +80,7 @@ class CommonSourceFileTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.JAVA, InputFormat.KOTLIN)
     @Test
     fun `Test header comments`() {
         runSourceCodebaseTest(
@@ -170,6 +171,7 @@ class CommonSourceFileTest : BaseModelTest() {
     private fun dosFile(path: String, text: String) =
         TestFiles.file().to(path).withSource(text.trimIndent().replace("\n", "\r\n"))
 
+    @SupportedInputFormats(InputFormat.JAVA, InputFormat.KOTLIN)
     @Test
     fun `Test dos end-of-line in header comments`() {
         runSourceCodebaseTest(
@@ -213,6 +215,7 @@ class CommonSourceFileTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `test sourcefile classes`() {
         runSourceCodebaseTest(
@@ -236,6 +239,7 @@ class CommonSourceFileTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `Test codebase and containingPackage`() {
         runSourceCodebaseTest(

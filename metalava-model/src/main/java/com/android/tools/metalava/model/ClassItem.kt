@@ -101,15 +101,12 @@ interface ClassItem :
     fun superClassType(): ClassTypeItem?
 
     /**
-     * A class is effectively sealed if it is either explicitly marked sealed, is a non-public
-     * interface, or an abstract class with no publicly accessible constructors. For more
-     * information, see b/220960090
+     * A class is effectively sealed if it is either explicitly marked sealed, or is a class with no
+     * publicly accessible constructors. For more information, see b/220960090
      */
     fun isEffectivelySealed(): Boolean {
         return modifiers.isSealed() ||
-            (isInterface() && !isPublic) ||
-            ((isClass() && modifiers.isAbstract()) &&
-                (constructors().none { (it.isPublic || it.isProtected) && !it.hidden }))
+            (isClass() && (constructors().none { (it.isPublic || it.isProtected) && !it.hidden }))
     }
 
     /**
@@ -162,6 +159,9 @@ interface ClassItem :
     /** Any interfaces implemented by this class */
     @MetalavaApi fun interfaceTypes(): List<ClassTypeItem>
 
+    /** The list of subclasses/subinterfaces permitted to extend this class. */
+    val permitTypes: List<ClassTypeItem>
+
     /**
      * All classes and interfaces implemented (by this class and its super classes and the
      * interfaces themselves)
@@ -186,9 +186,13 @@ interface ClassItem :
     /** The fields in this class */
     @MetalavaApi fun fields(): List<FieldItem>
 
-    /** The members in this class: constructors, methods, fields/enum constants */
+    /** The members in this class: constructors, methods, fields/enum constants, properties */
     fun members(): Sequence<MemberItem> {
-        return fields().asSequence().plus(constructors().asSequence()).plus(methods().asSequence())
+        return fields()
+            .asSequence()
+            .plus(constructors().asSequence())
+            .plus(methods().asSequence())
+            .plus(properties().asSequence())
     }
 
     val classKind: ClassKind

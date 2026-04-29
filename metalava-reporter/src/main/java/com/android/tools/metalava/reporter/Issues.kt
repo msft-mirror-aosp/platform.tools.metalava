@@ -93,6 +93,10 @@ object Issues {
     val REMOVED_FROM_JAVA by Issue(Severity.ERROR, Category.SOURCE_COMPATIBILITY_ONLY)
     val REMOVED_FROM_KOTLIN by Issue(Severity.ERROR, Category.SOURCE_COMPATIBILITY_ONLY)
 
+    // Multiplatform-specific compatibility issues
+    val REMOVED_SOURCE_SET by Issue(Severity.ERROR, Category.SOURCE_COMPATIBILITY_ONLY)
+    val ADDED_SOURCE_SET by Issue(Severity.INFO, Category.SOURCE_COMPATIBILITY_ONLY)
+
     // Issues in javadoc generation
     val INVALID_JAVADOC by Issue(Severity.WARNING_ERROR_WHEN_NEW, Category.DOCUMENTATION)
     val INVALID_IF_TAG by Issue(Severity.ERROR, Category.DOCUMENTATION)
@@ -121,8 +125,14 @@ object Issues {
     // Record related issues
     val USING_JAVA_LANG_RECORD by Issue(Severity.ERROR, Category.API_LINT)
     val HIDING_RECORD_COMPONENT by Issue(Severity.ERROR, Category.API_LINT)
+    val ARRAY_RECORD_COMPONENT by Issue(Severity.ERROR, Category.API_LINT)
+    val ADDED_RECORD_COMPONENT by Issue(Severity.ERROR, Category.BINARY_AND_SOURCE_COMPATIBILITY)
+    val REMOVED_RECORD_COMPONENT by Issue(Severity.ERROR, Category.BINARY_AND_SOURCE_COMPATIBILITY)
+    val CHANGED_RECORD_COMPONENT by Issue(Severity.ERROR, Category.BINARY_AND_SOURCE_COMPATIBILITY)
 
     // Metalava warnings (not from doclava)
+    val INVALID_ANNOTATION_BINDING by Issue(Severity.ERROR, Category.API_LINT)
+    val MISSING_REQUIRED_ATTRIBUTE by Issue(Severity.ERROR, Category.API_LINT)
 
     val INVALID_FEATURE_ENFORCEMENT by Issue(Severity.ERROR, Category.DOCUMENTATION)
 
@@ -281,7 +291,6 @@ object Issues {
     val CONDITIONAL_REQUIRES_PERMISSION_NOT_EXPLAINED by Issue(Severity.HIDDEN, Category.API_LINT)
     val VALUE_CLASS_DEFINITION by Issue(Severity.ERROR, Category.API_LINT)
     val MISSING_ENVIRONMENTS_VALUE by Issue(Severity.ERROR, Category.API_LINT)
-    val MISSING_FROM_VALUE by Issue(Severity.ERROR, Category.API_LINT)
     val INHERIT_CHANGES_SIGNATURE by Issue(Severity.WARNING_ERROR_WHEN_NEW)
     val DATA_CLASS_DEFINITION by Issue(Severity.HIDDEN, Category.API_LINT)
     // TODO(b/165356974): set this to error once AndroidX selectively opts-in for projects that
@@ -289,6 +298,7 @@ object Issues {
     val FACADE_CLASS_JVM_NAME by Issue(Severity.HIDDEN, Category.API_LINT)
     val VALUE_CLASS_USAGE_WITHOUT_JVM_NAME by Issue(Severity.HIDDEN, Category.API_LINT)
     val VALUE_CLASS_USAGE_FROM_CONSTRUCTOR by Issue(Severity.HIDDEN, Category.API_LINT)
+    val TYPEALIAS_DEFINITION by Issue(Severity.ERROR, Category.API_LINT)
 
     val KMP_DEPRECATION_MISMATCH by Issue(Severity.ERROR, Category.API_LINT)
     val KMP_VISIBILITY_MISMATCH by Issue(Severity.ERROR, Category.API_LINT)

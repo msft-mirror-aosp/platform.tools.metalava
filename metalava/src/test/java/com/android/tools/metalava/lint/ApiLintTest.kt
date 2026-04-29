@@ -25,8 +25,13 @@ import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.testing.RequiresCapabilities
 import com.android.tools.metalava.nonNullSource
 import com.android.tools.metalava.testing.KnownSourceFiles
+import com.android.tools.metalava.testing.createAndroidModuleDescription
+import com.android.tools.metalava.testing.createCommonModuleDescription
+import com.android.tools.metalava.testing.createNativeModuleDescription
+import com.android.tools.metalava.testing.createProjectDescription
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
+import org.jetbrains.kotlin.cfg.pseudocode.and
 import org.junit.Test
 
 class ApiLintTest : DriverTest() {
@@ -2875,7 +2880,6 @@ src/android/pkg/Interface.kt:158: error: Parameter `default` has a default value
                             void doSomethingElse();
                         }
                     """
-                            .trimIndent()
                     ),
                     java(
                         """
@@ -2885,7 +2889,6 @@ src/android/pkg/Interface.kt:158: error: Parameter `default` has a default value
                             void doSomething();
                         }
                     """
-                            .trimIndent()
                     ),
                     kotlin(
                         """
@@ -3257,6 +3260,78 @@ src/android/pkg/Interface.kt:158: error: Parameter `default` has a default value
                         "59ck+1sg/gXJGvD/fYav8/c/U/6L/IN8320bHgcCfzoG3FvQvQt48X3a/QMK" +
                         "X7YyjwgAAA=="
                 )
+        )
+    }
+
+    @RequiresCapabilities(Capability.KOTLIN)
+    @Test
+    fun `Check typealias definition`() {
+        check(
+            apiLint = "",
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
+                        package test.pkg
+                        typealias PublicTypealias = String
+                        internal typealias InternalTypealias = String
+                        """
+                    )
+                ),
+            expectedIssues =
+                "src/test/pkg/test.kt:2: error: Exposing typealiases as public API is discouraged. [TypealiasDefinition]",
+        )
+    }
+
+    @RequiresCapabilities(Capability.MULTIPLATFORM)
+    @Test
+    fun `Check expect actual typealias definition`() {
+        val commonSource =
+            kotlin(
+                "commonMain/src/test/pkg/Common.kt",
+                """
+                package test.pkg
+                expect class ActualTypealiasInAndroid
+                expect class ActualTypealiasInNative
+                expect class ActualTypealiasInBoth
+                """
+            )
+        val androidSource =
+            kotlin(
+                "androidMain/src/test/pkg/Android.kt",
+                """
+                package test.pkg
+                actual typealias ActualTypealiasInAndroid = String
+                actual class ActualTypealiasInNative
+                actual typealias ActualTypealiasInBoth = String
+                """
+            )
+        val nativeSource =
+            kotlin(
+                "nativeMain/src/test/pkg/Native.kt",
+                """
+                package test.pkg
+                actual class ActualTypealiasInAndroid
+                actual typealias ActualTypealiasInNative = String
+                actual typealias ActualTypealiasInBoth = String
+                """
+            )
+        check(
+            apiLint = "",
+            sourceFiles = arrayOf(commonSource, androidSource, nativeSource),
+            projectDescription =
+                createProjectDescription(
+                    createCommonModuleDescription(arrayOf(commonSource)),
+                    createAndroidModuleDescription(arrayOf(androidSource)),
+                    createNativeModuleDescription(arrayOf(nativeSource)),
+                ),
+            enableMultiplatform = true,
+            // TODO(b/506113222): native typealias should be reported too
+            expectedIssues =
+                """
+                androidMain/src/test/pkg/Android.kt:2: error: Exposing typealiases as public API is discouraged. [TypealiasDefinition]
+                androidMain/src/test/pkg/Android.kt:4: error: Exposing typealiases as public API is discouraged. [TypealiasDefinition]
+                """,
         )
     }
 }

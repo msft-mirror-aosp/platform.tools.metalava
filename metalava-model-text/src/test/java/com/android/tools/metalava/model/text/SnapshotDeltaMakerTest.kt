@@ -189,6 +189,42 @@ class SnapshotDeltaMakerTest : BaseTextCodebaseTest() {
                         """,
                 ),
                 TestParams(
+                    name = "class - different annotations with modifier changes allowed",
+                    baseSignature =
+                        """
+                            // Signature format: 2.0
+                            package test.pkg {
+                              public @interface BaseAnnotation {
+                              }
+                              @test.pkg.BaseAnnotation public class Foo {
+                              }
+                            }
+                        """,
+                    extendsSignature =
+                        """
+                            // Signature format: 2.0
+                            package test.pkg {
+                              public @interface ExtendsAnnotation {
+                              }
+                              @test.pkg.ExtendsAnnotation public class Foo {
+                              }
+                            }
+                        """,
+                    combinedSignature =
+                        """
+                            // Signature format: 2.0
+                            package test.pkg {
+                              public @interface BaseAnnotation {
+                              }
+                              public @interface ExtendsAnnotation {
+                              }
+                              @test.pkg.ExtendsAnnotation public class Foo {
+                              }
+                            }
+                        """,
+                    allowClassModifierChanges = true,
+                ),
+                TestParams(
                     name = "class - changed to typealias",
                     baseSignature =
                         """

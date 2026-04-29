@@ -816,7 +816,7 @@ class SignatureMigrateCommandTest :
                             }
                             public interface Other {
                             }
-                            public interface Test extends test.pkg.Other, test.pkg.Another {
+                            public interface Test extends test.pkg.Other test.pkg.Another {
                             }
                         }
                     """
