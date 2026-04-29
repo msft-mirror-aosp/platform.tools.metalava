@@ -451,11 +451,12 @@ internal class JavaStubWriter(
  */
 internal fun writeConstructorDelegate(
     writer: PrintWriter,
-    delegatingConstructor: ConstructorItem,
+    delegatingConstructor: ConstructorItem?,
     delegateConstructor: ConstructorItem,
 ) {
+    val delegatingClass = delegatingConstructor?.containingClass()
     val delegateReference =
-        if (delegatingConstructor.containingClass() == delegateConstructor.containingClass()) {
+        if (delegatingClass == delegateConstructor.containingClass()) {
             "this"
         } else {
             "super"
@@ -465,9 +466,7 @@ internal fun writeConstructorDelegate(
 
     // Get the types to which this class binds the super class's type parameters, if any.
     val typeParameterBindings =
-        delegatingConstructor
-            .containingClass()
-            .mapTypeVariables(delegateConstructor.containingClass())
+        delegatingClass?.mapTypeVariables(delegateConstructor.containingClass()) ?: emptyMap()
 
     val parameters = delegateConstructor.parameters()
     for ((index, parameter) in parameters.withIndex()) {
