@@ -88,8 +88,6 @@ private constructor(
         for (interfaceType in classItem.interfaceTypes()) {
             processPossibleSealedClassType(interfaceType, classItem)
         }
-
-        classItem.nestedClasses().forEach { nestedClass -> updateSealedStatusForClass(nestedClass) }
     }
 
     /**
