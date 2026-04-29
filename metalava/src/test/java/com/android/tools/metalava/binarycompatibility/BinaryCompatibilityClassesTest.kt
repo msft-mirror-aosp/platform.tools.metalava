@@ -322,7 +322,7 @@ class BinaryCompatibilityClassesTest : DriverTest() {
                     }
                     public interface Two {
                     }
-                    public class Foo implements test.pkg.One, test.pkg.Two {
+                    public class Foo implements test.pkg.One test.pkg.Two {
                     }
                 }
             """,
@@ -365,7 +365,7 @@ class BinaryCompatibilityClassesTest : DriverTest() {
                     }
                     public interface Two {
                     }
-                    public class Foo implements test.pkg.One, test.pkg.Two {
+                    public class Foo implements test.pkg.One test.pkg.Two {
                     }
                 }
             """

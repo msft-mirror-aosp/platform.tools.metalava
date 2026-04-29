@@ -36,13 +36,6 @@ class AccessorNullabilityTest : DriverTest() {
         val expectedIssues: String? = null,
     ) {
         override fun toString() = name
-
-        val expectedFail =
-            if (expectedIssues == null) {
-                null
-            } else {
-                DefaultLintErrorMessage
-            }
     }
 
     companion object {
@@ -169,7 +162,7 @@ class AccessorNullabilityTest : DriverTest() {
                     getterType = "@NonNull T",
                     setterType = "T",
                     expectedIssues =
-                        "src/test/pkg/Foo.java:7: error: Nullability of T in getter method test.pkg.Foo.getValue() does not match T! in corresponding setter method test.pkg.Foo.setValue(T) [GetterSetterNullability]",
+                        "src/test/pkg/Foo.java:7: error: Nullability of T in getter method test.pkg.Foo.getValue() does not match T in corresponding setter method test.pkg.Foo.setValue(T) [GetterSetterNullability]",
                 ),
             )
     }
@@ -209,7 +202,6 @@ class AccessorNullabilityTest : DriverTest() {
                     ARG_HIDE,
                     "NullableCollectionElement",
                 ),
-            expectedFail = params.expectedFail,
             expectedIssues = params.expectedIssues,
         )
     }

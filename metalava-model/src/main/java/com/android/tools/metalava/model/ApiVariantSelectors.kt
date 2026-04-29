@@ -18,14 +18,14 @@ package com.android.tools.metalava.model
 
 import com.android.tools.metalava.reporter.Issues
 
-/** A factory that will create an [ApiVariantSelectors] for a specific [Item]. */
-typealias ApiVariantSelectorsFactory = (Item) -> ApiVariantSelectors
+/** A factory that will create an [ApiVariantSelectors] for a specific [SelectableItem]. */
+typealias ApiVariantSelectorsFactory = (SelectableItem) -> ApiVariantSelectors
 
 /** Contains properties that select which, if any, variant of an API an [Item] belongs in. */
 sealed class ApiVariantSelectors {
     /**
      * Indicates whether the item was explicitly hidden in the source, e.g. via an `@hide` javadoc
-     * tag in its [Item.documentation], or a hide annotation directly on the [Item].
+     * tag in its [SelectableItem.documentation], or a hide annotation directly on the [Item].
      */
     abstract val originallyHidden: Boolean
 
@@ -40,7 +40,7 @@ sealed class ApiVariantSelectors {
     /**
      * Indicates whether the [Item] is accessible, and its enclosing classes are accessible.
      *
-     * An [Item] is accessible if it is either `public` or `protected`. In Kotlin it is also
+     * An [Item] is accessible if it is either `public` or `protected`. In Kotlin, it is also
      * accessible if it is `internal` as long as it is annotated with `@PublishedApi`. However, that
      * annotation is not treated specially in Metalava, instead it relies on the user to specify
      * `@PublishedApi` as a show annotation and this just assumes that any show annotation is enough
@@ -59,16 +59,16 @@ sealed class ApiVariantSelectors {
     /**
      * Indicates whether the [Item] should be included in the doc only API surface variant.
      *
-     * Initially set to `true` if the [Item.documentation] contains `@doconly` but updated due to
-     * inheritance.
+     * Initially set to `true` if the [SelectableItem.documentation] contains `@doconly` but updated
+     * due to inheritance.
      */
     abstract val docOnly: Boolean
 
     /**
      * Indicates whether the [Item] should be in the removed API surface variant.
      *
-     * Initially set to `true` if the [Item.documentation] contains `@removed` but updated due to
-     * inheritance.
+     * Initially set to `true` if the [SelectableItem.documentation] contains `@removed` but updated
+     * due to inheritance.
      */
     abstract val removed: Boolean
 
@@ -88,30 +88,26 @@ sealed class ApiVariantSelectors {
         /**
          * An [ApiVariantSelectors] factory that will always return an immutable
          * [ApiVariantSelectors]. It will return `false` for all the properties and throw an error
-         * on any attempt to set a property.
+         * on any attempt to set a property, or if [ApiVariantSelectors.inheritInto] is called.
          */
         val IMMUTABLE_FACTORY: ApiVariantSelectorsFactory = { Immutable }
 
         /**
          * An [ApiVariantSelectors] factory that will return a new, mutable, [ApiVariantSelectors]
          * for each [SelectableItem].
-         *
-         * This cannot be used on an [Item] that is not a [SelectableItem], use [IMMUTABLE_FACTORY]
-         * instead.
          */
-        val MUTABLE_FACTORY: ApiVariantSelectorsFactory = {
-            if (it is SelectableItem) Mutable(it)
-            else error("Cannot create Mutable for non-SelectableItem, use Immutable instead")
-        }
+        val MUTABLE_FACTORY: ApiVariantSelectorsFactory = { Mutable(it) }
     }
 
     /**
      * An immutable [ApiVariantSelectors] that will return `false` for all the properties and fail
      * on any attempt to set the `var` properties.
+     *
+     * The implementation of [ApiVariantSelectors] properties return values that will prevent
+     * [SelectableItem]s from being hidden in any way. Attempting to mutate them may result in an
+     * error being thrown.
      */
-    @Suppress("ConvertObjectToDataObject") // Requires language level 1.9
     private object Immutable : ApiVariantSelectors() {
-
         override val originallyHidden: Boolean
             get() = false
 
@@ -249,22 +245,23 @@ sealed class ApiVariantSelectors {
         private fun lazySet(propertyBitMask: Int, value: Boolean) {
             // Record that the property has been set.
             propertyHasBeenSetBits = propertyHasBeenSetBits or propertyBitMask
-            if (value) {
-                // The value is true so set the bit.
-                propertyValueBits = propertyValueBits or propertyBitMask
-            } else {
-                // The value is false so clear the bit.
-                propertyValueBits = propertyValueBits and propertyBitMask.inv()
-            }
+            propertyValueBits =
+                if (value) {
+                    // The value is true so set the bit.
+                    propertyValueBits or propertyBitMask
+                } else {
+                    // The value is false so clear the bit.
+                    propertyValueBits and propertyBitMask.inv()
+                }
         }
 
         override val originallyHidden: Boolean
             get() =
                 lazyGet(ORIGINALLY_HIDDEN_BIT_MASK) {
-                    // The item is originally hidden if the javadoc contains @hide or similar, or
+                    // The item is originally hidden if the Javadoc contains @hide or similar, or
                     // it is tagged with a hide annotation. That is true even if the hide annotation
                     // is superseded by a show annotation.
-                    item.documentation.isHidden || item.hasHideAnnotation()
+                    item.wasOriginallyHidden()
                 }
 
         override var inheritableHidden: Boolean
@@ -314,14 +311,14 @@ sealed class ApiVariantSelectors {
             get() =
                 lazyGet(DOCONLY_BIT_MASK) {
                     (item.parent()?.variantSelectors?.docOnly == true) ||
-                        item.documentation.isDocOnly
+                        item.documentation?.isDocOnly == true
                 }
 
         override var removed: Boolean
             get() =
                 lazyGet(REMOVED_BIT_MASK) {
                     (item.parent()?.variantSelectors?.removed == true) ||
-                        item.documentation.isRemoved
+                        item.documentation?.isRemoved == true
                 }
             // This is only used for testing.
             set(value) {
@@ -329,13 +326,13 @@ sealed class ApiVariantSelectors {
             }
 
         /** Cache of [showability]. */
-        internal var _showability: Showability? = null
+        @Suppress("PropertyName") var _showability: Showability? = null
 
         override val showability: Showability
             get() =
                 _showability
                     ?: let {
-                        _showability = item.codebase.annotationManager.getShowabilityForItem(item)
+                        _showability = item.computeShowability()
                         _showability!!
                     }
 
@@ -347,7 +344,7 @@ sealed class ApiVariantSelectors {
          * This uses [lazyGet] and [lazySet] to be consistent with other properties and makes it
          * easy to include the information in the [toString] result.
          */
-        internal var inheritIntoWasCalled
+        var inheritIntoWasCalled
             get() = lazyGet(INHERIT_INTO_BIT_MASK) { false }
             set(value) {
                 lazySet(INHERIT_INTO_BIT_MASK, value)
@@ -380,13 +377,7 @@ sealed class ApiVariantSelectors {
             }
 
             // Inheritance is only done on a few Item types, ignore the rest.
-            if (
-                item !is ClassItem &&
-                    item !is CallableItem &&
-                    item !is FieldItem &&
-                    item !is TypeAliasItem
-            )
-                return
+            if (item !is ClassItem && item !is CallableItem && item !is FieldItem) return
 
             if (item is ClassItem) {
                 // Workaround: we're pulling in .aidl files from .jar files. These are
@@ -411,10 +402,9 @@ sealed class ApiVariantSelectors {
                 // always unhide this item.
                 hidden = false
 
-                if (item is ClassItem || item is TypeAliasItem) {
+                if (item is ClassItem) {
                     // Make containing package non-hidden if it contains a show-annotation class.
-                    // Both ClassItem and TypeAliasItem have a non-null containingPackage return.
-                    val containingPackageSelectors = item.containingPackage()!!.variantSelectors
+                    val containingPackageSelectors = item.containingPackage().variantSelectors
                     // Only unhide the package, do not affect anything that might inherit from that
                     // package.
                     (containingPackageSelectors as Mutable).hidden = false
@@ -443,22 +433,41 @@ sealed class ApiVariantSelectors {
                     } else if (containingClassSelectors.inheritableHidden) {
                         inheritableHidden = true
                     }
-                } else if (item is ClassItem || item is TypeAliasItem) {
+                } else if (item is ClassItem) {
                     // This will only be executed for top level classes, i.e. containing class is
                     // null, and type aliases which are always top-level. They inherit their
                     // properties from the containing package.
-                    // Both ClassItem and TypeAliasItem have a non-null containingPackage return.
-                    val containingPackageSelectors = item.containingPackage()!!.variantSelectors
+                    val containingPackageSelectors = item.containingPackage().variantSelectors
                     if (containingPackageSelectors.inheritableHidden) {
                         inheritableHidden = true
                     }
                 }
             }
+
+            // Check to see whether item has a relationship with a record component. If it does then
+            // it cannot be hidden.
+            (item as? PossiblyRecordComponentRelated)?.recordComponentRelationship?.let {
+                recordComponentRelationship ->
+
+                // Record component getters or canonical constructors cannot be hidden.
+                if (originallyHidden) {
+                    item.codebase.reporter.report(
+                        Issues.HIDING_RECORD_COMPONENT,
+                        item,
+                        "Cannot hide $recordComponentRelationship ${item.describe()} as it is an indivisible part of a record class"
+                    )
+                }
+
+                // Force this to not be hidden, doconly or removed.
+                propertyHasBeenSetBits = ALL_PROPERTIES_SET
+                propertyValueBits = NOT_RESTRICTED_SETTINGS
+                _showability = Showability.NO_EFFECT
+            }
         }
 
         /**
-         * Ensure that the parents of a visible [Item], i.e. one whose [Item.hidden] property is
-         * `false` are themselves visible.
+         * Ensure that the parents of a visible [SelectableItem], i.e. one whose
+         * [SelectableItem.hidden] property is `false` are themselves visible.
          *
          * Note: This will only be called when [item] is a class, constructor, method or field. In
          * particular, it does not apply to [PackageItem]s as they are completely separate from one
@@ -571,6 +580,20 @@ sealed class ApiVariantSelectors {
             /** The count of the number of bits used. */
             private const val COUNT_BITS_USED = INHERIT_INTO_BIT_POSITION + 1
 
+            /**
+             * Value of [propertyValueBits] that will ensure that the associated [item] is not
+             * restricted in any way.
+             *
+             * This sets all the [Boolean] properties to `false` apart from [accessible] which is
+             * set to `true`.
+             */
+            private const val NOT_RESTRICTED_SETTINGS: Int = ACCESSIBLE_BIT_MASK
+
+            /**
+             * Value of [propertyHasBeenSetBits] that indicates all the properties have been set.
+             */
+            private const val ALL_PROPERTIES_SET: Int = (1 shl COUNT_BITS_USED) - 1
+
             /** Map from bit to the associated property name, used in toString() */
             private val propertyNamePerBit =
                 Array(COUNT_BITS_USED) { "" }
@@ -601,7 +624,7 @@ sealed class ApiVariantSelectors {
      *
      * The `val` properties like [originallyHidden] cannot be set to a specific value. So, all that
      * this can do is force it to be initialized. That means that the [ApiVariantSelectors] returned
-     * from [createSelectorsforTesting] will only verify whether it is set or not-set as expected.
+     * from [createSelectorsForTesting] will only verify whether it is set or not-set as expected.
      * It cannot test if the value is expected. That will need to be done by the caller.
      */
     data class TestableSelectorsState(
@@ -619,7 +642,7 @@ sealed class ApiVariantSelectors {
          * Create a [Mutable] instance whose state matches this that can be used as the expected
          * state in a test.
          */
-        fun createSelectorsforTesting(): ApiVariantSelectors =
+        fun createSelectorsForTesting(): ApiVariantSelectors =
             Mutable(item).also { selectors ->
                 // If originally hidden is set then force it to be initialized.
                 originallyHidden?.let {
@@ -638,3 +661,14 @@ sealed class ApiVariantSelectors {
             }
     }
 }
+
+/**
+ * Check to see whether this [SelectableItem] was originally hidden, i.e. either had `@hide` block
+ * tag in the documentation or was annotated with a hide annotation.
+ */
+private fun SelectableItem.wasOriginallyHidden(): Boolean =
+    documentation?.isHidden == true || hasHideAnnotation()
+
+/** Compute the [Showability] of this [SelectableItem]. */
+private fun SelectableItem.computeShowability(): Showability =
+    codebase.annotationManager.getShowabilityForItem(this)
