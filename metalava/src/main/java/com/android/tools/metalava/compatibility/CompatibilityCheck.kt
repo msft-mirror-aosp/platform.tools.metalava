@@ -765,7 +765,7 @@ class CompatibilityCheck(
             reporter.report(
                 Issues.SEALED_CLASS_EXHAUSTIVITY_CHANGED,
                 new,
-                "Sealed ${if (new.isInterface()) "interface" else "class"} can no longer be exhaustively matched because an inaccessible subclass was added.",
+                "Sealed ${new.classKind.description} can no longer be exhaustively matched because an inaccessible subclass was added.",
                 new.fileLocation,
             )
         }
@@ -789,7 +789,7 @@ class CompatibilityCheck(
             reporter.report(
                 Issues.ADDED_SUBCLASS_TO_SEALED_CLASS,
                 new,
-                "Added a subclass to a sealed ${if (new.isInterface()) "interface" else "class"} that can be exhaustively matched",
+                "Added a subclass to a sealed ${new.classKind.description} that can be exhaustively matched",
                 addedSubclasses.first().fileLocation,
             )
         }
