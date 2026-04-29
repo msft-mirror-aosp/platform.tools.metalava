@@ -520,4 +520,115 @@ class StubsSealedClassTest : AbstractStubsTest() {
                 ),
         )
     }
+
+    @Test
+    fun `Test non-exhaustive sealed interface nested in class with java-sealed-classes=yes`() {
+        checkStubs(
+            format = FORMAT_V6_WITH_JAVA_SEALED_CLASSES,
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+
+                            public class Outer {
+                                private Outer() {}
+                                // The interface is protected to make sure it cannot be occessed
+                                // outside subclasses of Outer.
+                                protected sealed interface Sealed {
+                                    final class Subclass implements Sealed {}
+                                }
+                                private static final class Private implements Sealed {}
+                            }
+                        """
+                    ),
+                ),
+            api =
+                """
+                    // Signature format: 6.0
+                    // - style=java
+                    // - java-sealed-classes=yes
+                    package test.pkg {
+                      public class Outer {
+                      }
+                      protected static sealed non-exhaustive interface Outer.Sealed permits test.pkg.Outer.Sealed.Subclass {
+                      }
+                      public static final class Outer.Sealed.Subclass implements test.pkg.Outer.Sealed {
+                        ctor public Outer.Sealed.Subclass();
+                      }
+                    }
+                """,
+            stubFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            @SuppressWarnings({"unchecked", "deprecation", "all"})
+                            public class Outer {
+                            Outer() { throw new RuntimeException("Stub!"); }
+                            protected static sealed interface Sealed permits test.pkg.Outer.Sealed.Subclass {
+                            public static final class Subclass implements test.pkg.Outer.Sealed {
+                            public Subclass() { throw new RuntimeException("Stub!"); }
+                            }
+                            }
+                            }
+                        """
+                    ),
+                ),
+        )
+    }
+
+    @Test
+    fun `Test non-exhaustive sealed interface nested in interface with java-sealed-classes=yes`() {
+        checkStubs(
+            format = FORMAT_V6_WITH_JAVA_SEALED_CLASSES,
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+
+                            public interface Outer {
+                                sealed interface Sealed {
+                                    final class Subclass implements Sealed {}
+                                }
+                            }
+
+                            final class Private implements Outer.Sealed {}
+                        """
+                    ),
+                ),
+            api =
+                """
+                    // Signature format: 6.0
+                    // - style=java
+                    // - java-sealed-classes=yes
+                    package test.pkg {
+                      public interface Outer {
+                      }
+                      public static sealed non-exhaustive interface Outer.Sealed permits test.pkg.Outer.Sealed.Subclass {
+                      }
+                      public static final class Outer.Sealed.Subclass implements test.pkg.Outer.Sealed {
+                        ctor public Outer.Sealed.Subclass();
+                      }
+                    }
+                """,
+            stubFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            @SuppressWarnings({"unchecked", "deprecation", "all"})
+                            public interface Outer {
+                            public static sealed interface Sealed permits test.pkg.Outer.Sealed.Subclass {
+                            public static final class Subclass implements test.pkg.Outer.Sealed {
+                            public Subclass() { throw new RuntimeException("Stub!"); }
+                            }
+                            }
+                            }
+                        """
+                    ),
+                ),
+        )
+    }
 }
