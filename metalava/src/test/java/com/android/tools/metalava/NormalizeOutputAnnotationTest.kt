@@ -22,7 +22,7 @@ import org.junit.Test
 
 class NormalizeOutputAnnotationTest : DriverTest() {
     @Test
-    fun `Normalize nested permission annotations (java)`() {
+    fun `Normalize nested permission annotations - java`() {
         check(
             sourceFiles =
                 arrayOf(

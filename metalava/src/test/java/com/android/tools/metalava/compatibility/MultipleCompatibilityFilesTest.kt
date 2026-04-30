@@ -121,7 +121,7 @@ class MultipleCompatibilityFilesTest : DriverTest() {
     }
 
     @Test
-    fun `Test current system vs multiple released compatibility files (invalid first)`() {
+    fun `Test current system vs multiple released compatibility files - invalid first`() {
         check(
             includeSystemApiAnnotations = SystemApiType.PRIVILEGED_APPS,
             checkCompatibilityApiReleasedList =
@@ -135,7 +135,7 @@ class MultipleCompatibilityFilesTest : DriverTest() {
     }
 
     @Test
-    fun `Test current public vs multiple removed compatibility files (invalid first)`() {
+    fun `Test current public vs multiple removed compatibility files - invalid first`() {
         check(
             includeSystemApiAnnotations = SystemApiType.PRIVILEGED_APPS,
             checkCompatibilityRemovedApiReleasedList =

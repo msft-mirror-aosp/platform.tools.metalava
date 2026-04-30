@@ -291,7 +291,7 @@ class DocAnalyzerRangeTest : DriverTest() {
     }
 
     @Test
-    fun `Add to existing return value (ensuring it appears last)`() {
+    fun `Add to existing return value - ensuring it appears last`() {
         check(
             sourceFiles =
                 arrayOf(

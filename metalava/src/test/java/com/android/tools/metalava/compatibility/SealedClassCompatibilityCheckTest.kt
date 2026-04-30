@@ -357,7 +357,7 @@ class SealedClassCompatibilityCheckTest : DriverTest() {
     }
 
     @Test
-    fun `Should raise issue when adding private subclass to exhaustive sealed interface (sealed interface changes from exhaustive to nonexhaustive)`() {
+    fun `Should raise issue when adding private subclass to exhaustive sealed interface - sealed interface changes from exhaustive to nonexhaustive`() {
         check(
             expectedIssues =
                 """
@@ -388,7 +388,7 @@ class SealedClassCompatibilityCheckTest : DriverTest() {
     }
 
     @Test
-    fun `Should raise issue when adding private subclass to exhaustive sealed class (sealed class changes from exhaustive to nonexhaustive)`() {
+    fun `Should raise issue when adding private subclass to exhaustive sealed class - sealed class changes from exhaustive to nonexhaustive`() {
         check(
             expectedIssues =
                 """

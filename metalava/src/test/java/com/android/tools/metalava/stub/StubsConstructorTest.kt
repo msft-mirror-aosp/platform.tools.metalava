@@ -27,7 +27,7 @@ import org.junit.Test
 class StubsConstructorTest : AbstractStubsTest() {
 
     @Test
-    fun `Generate stubs for class that should not get default constructor (has other constructors)`() {
+    fun `Generate stubs for class that should not get default constructor - has other constructors`() {
         // Class without explicit constructors (shouldn't insert default constructor)
         checkStubs(
             sourceFiles =

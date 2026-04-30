@@ -1192,7 +1192,7 @@ class DocAnalyzerTest : DriverTest() {
     }
 
     @Test
-    fun `@sdkExtSince (finalized)`() {
+    fun `@sdkExtSince - finalized`() {
         check(
             extraArguments =
                 arrayOf(
@@ -1263,7 +1263,7 @@ class DocAnalyzerTest : DriverTest() {
     }
 
     @Test
-    fun `@sdkExtSince (not finalized)`() {
+    fun `@sdkExtSince - not finalized`() {
         check(
             sourceFiles = SdkExtSinceConstants.sourceFiles,
             applyApiLevelsXml = SdkExtSinceConstants.apiVersionsXml,
