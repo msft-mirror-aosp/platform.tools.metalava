@@ -99,7 +99,7 @@ class ApiPredicate(
         var hidden = itemSelectors.hidden && !visibleForAdditionalOverridePurpose
         if (hidden) return false
 
-        if (!includeApisForStubPurposes && includeOnlyForStubPurposes(item)) {
+        if (!includeApisForStubPurposes && item.includeOnlyForStubPurposes()) {
             return false
         }
 
@@ -112,7 +112,7 @@ class ApiPredicate(
         if (
             item is ClassItem &&
                 item.superClass()?.let {
-                    it.hasShowAnnotation() && !includeOnlyForStubPurposes(it)
+                    it.hasShowAnnotation() && !it.includeOnlyForStubPurposes()
                 } == true
         ) {
             return itemSelectors.removed == matchRemoved
@@ -156,12 +156,12 @@ class ApiPredicate(
      * have at least one [AnnotationItem.isShowAnnotation] annotation and all those annotations are
      * also an [AnnotationItem.isShowForStubPurposes] annotation.
      */
-    private fun includeOnlyForStubPurposes(item: SelectableItem): Boolean {
-        if (!item.codebase.annotationManager.hasAnyStubPurposesAnnotations()) {
+    private fun SelectableItem.includeOnlyForStubPurposes(): Boolean {
+        if (!codebase.annotationManager.hasAnyStubPurposesAnnotations()) {
             return false
         }
 
-        return includeOnlyForStubPurposesRecursive(item)
+        return includeOnlyForStubPurposesRecursive(this)
     }
 
     private fun includeOnlyForStubPurposesRecursive(item: SelectableItem): Boolean {
