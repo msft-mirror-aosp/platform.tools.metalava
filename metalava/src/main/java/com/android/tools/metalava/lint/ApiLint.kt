@@ -18,6 +18,7 @@ package com.android.tools.metalava.lint
 
 import com.android.sdklib.SdkVersionInfo
 import com.android.tools.metalava.KotlinInteropChecks
+import com.android.tools.metalava.lint.ApiLint.PackageRank.Companion.INVALID_RANK
 import com.android.tools.metalava.lint.ResourceType.AAPT
 import com.android.tools.metalava.lint.ResourceType.ANIM
 import com.android.tools.metalava.lint.ResourceType.ANIMATOR
@@ -1055,37 +1056,14 @@ private constructor(
     }
 
     private fun checkSynchronized(method: MethodItem) {
-
-        /**
-         * Report an error.
-         *
-         * @param synchronizedStatementLocation an optional [FileLocation] of the synchronized
-         *   statement that is the root of the problem.
-         */
-        fun reportError(synchronizedStatementLocation: FileLocation? = null) {
-            val message = StringBuilder("Internal locks must not be exposed")
-            if (synchronizedStatementLocation != null) {
-                message.append(" (synchronizing on this or class is still externally observable)")
-            }
-            message.append(": ")
-            message.append(method.describe())
-            val location = synchronizedStatementLocation ?: FileLocation.UNKNOWN
-            report(VISIBLY_SYNCHRONIZED, method, message.toString(), location)
-        }
-
         if (method.modifiers.isSynchronized()) {
             // The synchronizing is being done implicitly bny the method so there is no more
             // specific location to provide.
-            reportError()
-        } else {
-            // Find any visible synchronized statements in the method body.
-            val synchronizedLocations = method.body.findVisiblySynchronizedLocations()
-
-            for (location in synchronizedLocations) {
-                // Report the location of the synchronized statement that is synchronizing on
-                // `this` or the `class` object and causing the problem.
-                reportError(location)
-            }
+            val message = StringBuilder("Internal locks must not be exposed")
+            message.append(": ")
+            message.append(method.describe())
+            val location = FileLocation.UNKNOWN
+            report(VISIBLY_SYNCHRONIZED, method, message.toString(), location)
         }
     }
 
