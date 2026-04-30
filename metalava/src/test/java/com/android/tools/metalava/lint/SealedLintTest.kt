@@ -140,8 +140,8 @@ class SealedLintTest : DriverTest() {
     fun `non-exhaustive concrete sealed class`() {
         check(
             format = FORMAT_V6_WITH_JAVA_SEALED_CLASSES,
-            // TODO(b/482391240): Should discourage use of concrete sealed classes.
-            expectedIssues = "",
+            expectedIssues =
+                "src/test/pkg/Foo.java:3: warning: Concrete sealed classes are harder to use; make it `abstract` instead [ConcreteSealedClass]",
             apiLint = "",
             sourceFiles =
                 arrayOf(

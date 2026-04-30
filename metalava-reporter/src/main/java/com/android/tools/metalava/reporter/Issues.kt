@@ -130,6 +130,7 @@ object Issues {
     // Sealed related issues (in alphabetical order).
     val ADDED_SEALED by Issue(Severity.ERROR, Category.SOURCE_COMPATIBILITY_ONLY)
     val ADDED_SUBCLASS_TO_SEALED_CLASS by Issue(Severity.ERROR, Category.SOURCE_COMPATIBILITY_ONLY)
+    val CONCRETE_SEALED_CLASS by Issue(Severity.WARNING, Category.API_LINT)
     val EXHAUSTIVE_SEALED_CLASS by Issue(Severity.WARNING, Category.API_LINT)
     val SEALED_CLASS_EXHAUSTIVITY_CHANGED by
         Issue(Severity.ERROR, Category.SOURCE_COMPATIBILITY_ONLY)

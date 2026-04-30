@@ -112,6 +112,7 @@ import com.android.tools.metalava.reporter.Issues.CALLBACK_METHOD_NAME
 import com.android.tools.metalava.reporter.Issues.CALLBACK_NAME
 import com.android.tools.metalava.reporter.Issues.COMPILE_TIME_CONSTANT
 import com.android.tools.metalava.reporter.Issues.CONCRETE_COLLECTION
+import com.android.tools.metalava.reporter.Issues.CONCRETE_SEALED_CLASS
 import com.android.tools.metalava.reporter.Issues.CONFIG_FIELD_NAME
 import com.android.tools.metalava.reporter.Issues.CONTEXT_FIRST
 import com.android.tools.metalava.reporter.Issues.CONTEXT_NAME_SUFFIX
@@ -3440,6 +3441,15 @@ private constructor(
                 EXHAUSTIVE_SEALED_CLASS,
                 cls,
                 "`exhaustive` sealed classes cannot be extended without breaking source compatibility; add a subclass that is not in the API to make it `non-exhaustive`"
+            )
+        }
+
+        // Sealed classes should be abstract.
+        if (!modifiers.isAbstract()) {
+            report(
+                CONCRETE_SEALED_CLASS,
+                cls,
+                "Concrete sealed classes are harder to use; make it `abstract` instead"
             )
         }
     }

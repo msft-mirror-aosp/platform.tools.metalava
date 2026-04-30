@@ -84,6 +84,7 @@ Available Issues                             |  Category                        
   ChangedVolatile                            |  other_compatibility                  |   error
   CompileTimeConstant                        |  api_lint                             |   error
   ConcreteCollection                         |  api_lint                             |   error
+  ConcreteSealedClass                        |  api_lint                             |   warning
   ConditionalRequiresPermissionNotExplained  |  api_lint                             |   hidden
   ConfigFieldName                            |  api_lint                             |   error
   ContextFirst                               |  api_lint                             |   error
