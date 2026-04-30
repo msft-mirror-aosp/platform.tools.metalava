@@ -36,7 +36,6 @@ Available Issues                             |  Category                        
   AbstractInner                              |  api_lint                             |   warning
   AcronymName                                |  api_lint                             |   warning
   ActionValue                                |  api_lint                             |   error
-  AddSealed                                  |  source_compatibility_only            |   error
   AddedAbstractMethod                        |  binary_and_source_compatibility      |   error
   AddedAbstractProperty                      |  source_compatibility_only            |   error
   AddedAnnotation                            |  other_compatibility                  |   error
@@ -50,6 +49,7 @@ Available Issues                             |  Category                        
   AddedProperty                              |  other_compatibility                  |   hidden
   AddedRecordComponent                       |  binary_and_source_compatibility      |   error
   AddedReified                               |  binary_compatibility_only            |   error
+  AddedSealed                                |  source_compatibility_only            |   error
   AddedSourceSet                             |  source_compatibility_only            |   info
   AddedSubclassToSealedClass                 |  source_compatibility_only            |   error
   AllUpper                                   |  api_lint                             |   error
@@ -293,7 +293,7 @@ Available Issues                             |  Category                        
                 """
                 Aborting: Usage: metalava help issues <issue>?
 
-                Error: no such issue: "AdddFinal". (Possible issues: AddedFinal, AddedField, AddedFinalUninstantiable)
+                Error: no such issue: "AdddFinal". (Possible issues: AddedFinal, AddedField, AddedFinalUninstantiable, AddedSealed)
             """
                     .trimIndent()
         }

@@ -156,12 +156,12 @@ class IssueReportingOptionsTest :
 
             // Make sure the two issues both default to warning.
             val defaults = IssueConfiguration()
-            assertEquals(Severity.ERROR, defaults.getSeverity(Issues.ADD_SEALED))
+            assertEquals(Severity.ERROR, defaults.getSeverity(Issues.ADDED_SEALED))
             assertEquals(Severity.ERROR, defaults.getSeverity(Issues.CHANGED_CLASS))
 
             // Now make sure the issues are hidden.
             val issueConfiguration = options.issueConfiguration
-            assertEquals(Severity.HIDDEN, issueConfiguration.getSeverity(Issues.ADD_SEALED))
+            assertEquals(Severity.HIDDEN, issueConfiguration.getSeverity(Issues.ADDED_SEALED))
             assertEquals(Severity.HIDDEN, issueConfiguration.getSeverity(Issues.CHANGED_CLASS))
         }
     }

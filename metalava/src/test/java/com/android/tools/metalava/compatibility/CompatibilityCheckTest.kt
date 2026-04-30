@@ -945,7 +945,7 @@ class CompatibilityCheckTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                src/test/pkg/Foo.kt:2: error: Source breaking change: Cannot add 'sealed' modifier to class test.pkg.Foo: Incompatible change [AddSealed]
+                src/test/pkg/Foo.kt:2: error: Source breaking change: Cannot add 'sealed' modifier to class test.pkg.Foo: Incompatible change [AddedSealed]
                 """,
             checkCompatibilityApiReleased =
                 """

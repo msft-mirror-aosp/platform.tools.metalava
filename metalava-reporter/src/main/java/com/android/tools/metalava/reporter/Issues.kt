@@ -143,7 +143,7 @@ object Issues {
     val OPERATOR_REMOVAL by Issue(Severity.ERROR, Category.SOURCE_COMPATIBILITY_ONLY)
     val INFIX_REMOVAL by Issue(Severity.ERROR, Category.SOURCE_COMPATIBILITY_ONLY)
     val VARARG_REMOVAL by Issue(Severity.ERROR, Category.BINARY_AND_SOURCE_COMPATIBILITY)
-    val ADD_SEALED by Issue(Severity.ERROR, Category.SOURCE_COMPATIBILITY_ONLY)
+    val ADDED_SEALED by Issue(Severity.ERROR, Category.SOURCE_COMPATIBILITY_ONLY)
     val FUN_REMOVAL by Issue(Severity.ERROR, Category.SOURCE_COMPATIBILITY_ONLY)
     // Removing an API from the checked surface isn't itself breaking, but it could allow both
     // binary and source breaking changes to be made to the API in the future.

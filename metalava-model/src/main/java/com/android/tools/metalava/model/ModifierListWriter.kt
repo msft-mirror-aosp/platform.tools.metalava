@@ -203,7 +203,7 @@ class ModifierListWriter(
             }
         } else if (list.isSealed()) {
             item.codebase.reporter.report(
-                Issues.ADD_SEALED,
+                Issues.ADDED_SEALED,
                 item,
                 "`sealed` is not currently supported, see b/482391240 for more details.",
             )

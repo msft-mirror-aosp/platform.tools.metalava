@@ -616,7 +616,7 @@ class CompatibilityCheck(
 
         if (!oldModifiers.isSealed() && newModifiers.isSealed()) {
             report(
-                Issues.ADD_SEALED,
+                Issues.ADDED_SEALED,
                 new,
                 "Cannot add 'sealed' modifier to ${new.describe()}: Incompatible change",
                 oldItem = old,

@@ -43,7 +43,7 @@ class SealedClassTest : DriverTest() {
                     }
                 """,
             expectedIssues =
-                "src/test/pkg/Test.java:3: error: `sealed` is not currently supported, see b/482391240 for more details. [AddSealed]",
+                "src/test/pkg/Test.java:3: error: `sealed` is not currently supported, see b/482391240 for more details. [AddedSealed]",
         )
     }
 
@@ -70,7 +70,7 @@ class SealedClassTest : DriverTest() {
                     }
                 """,
             expectedIssues =
-                "src/test/pkg/Test.java:3: error: `sealed` is not currently supported, see b/482391240 for more details. [AddSealed]",
+                "src/test/pkg/Test.java:3: error: `sealed` is not currently supported, see b/482391240 for more details. [AddedSealed]",
         )
     }
 }

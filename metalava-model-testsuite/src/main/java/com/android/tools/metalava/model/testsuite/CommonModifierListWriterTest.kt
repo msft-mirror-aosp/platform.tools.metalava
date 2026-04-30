@@ -436,7 +436,7 @@ class CommonModifierListWriterTest : BaseModelTest() {
             config = javaSealedClassesDisabledConfig,
             expectedKeywords = "public",
             expectedIssues =
-                "MAIN_SRC/src/test/pkg/Sealed.java:3: error: `sealed` is not currently supported, see b/482391240 for more details. [AddSealed]",
+                "MAIN_SRC/src/test/pkg/Sealed.java:3: error: `sealed` is not currently supported, see b/482391240 for more details. [AddedSealed]",
         )
     }
 
