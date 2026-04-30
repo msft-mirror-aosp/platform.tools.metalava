@@ -45,6 +45,7 @@ import com.android.tools.metalava.model.ModifierFlags.Companion.VARARG
 import com.android.tools.metalava.model.ModifierFlags.Companion.VOLATILE
 import com.android.tools.metalava.model.MutableModifierList
 import com.android.tools.metalava.model.ParameterItem
+import com.android.tools.metalava.model.ParameterKind
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.SkeletonClassItem
 import com.android.tools.metalava.model.SkeletonTypeParameterItem
@@ -645,6 +646,8 @@ internal class TurbineClassBuilder(
                         type = type,
                         // Java parameters can't have default values
                         hasDefaultValue = false,
+                        // Java only has value parameters
+                        kind = ParameterKind.VALUE,
                     )
                 add(parameterItem)
                 parameterIndex += 1

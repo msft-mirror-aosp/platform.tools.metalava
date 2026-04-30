@@ -35,6 +35,7 @@ import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.MutableModifierList
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
+import com.android.tools.metalava.model.ParameterKind
 import com.android.tools.metalava.model.SkeletonClassItem
 import com.android.tools.metalava.model.SourceLanguage
 import com.android.tools.metalava.model.TargetLanguage
@@ -1079,6 +1080,7 @@ private constructor(
                     parameterIndex = 0,
                     type = type,
                     hasDefaultValue = false,
+                    kind = ParameterKind.RECEIVER,
                 )
             }
         val regularParameters =
@@ -1104,6 +1106,7 @@ private constructor(
                     parameterIndex = index,
                     type = type,
                     hasDefaultValue = parameterSymbol.hasDefaultValue,
+                    kind = ParameterKind.VALUE,
                 )
             }
 
@@ -1122,6 +1125,7 @@ private constructor(
                     parameterIndex = index,
                     type = enclosingTypeItemFactory.createContinuationType(returnType),
                     hasDefaultValue = false,
+                    kind = ParameterKind.CONTINUATION,
                 )
             } else {
                 null

@@ -34,6 +34,7 @@ import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ModifierContext
 import com.android.tools.metalava.model.MutableModifierList
 import com.android.tools.metalava.model.ParameterItem
+import com.android.tools.metalava.model.ParameterKind
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.SkeletonClassItem
 import com.android.tools.metalava.model.SkeletonTypeParameterItem
@@ -878,6 +879,7 @@ internal class PsiClassBuilder(
                 parameterIndex = parameterIndex,
                 type = type,
                 hasDefaultValue = PsiParameterDefaultValue.compute(psiParameter, parameterIndex),
+                kind = ParameterKind.VALUE, // TODO(b/508306763): compute parameter kinds
             )
         return parameter
     }
