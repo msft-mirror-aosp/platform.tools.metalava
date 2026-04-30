@@ -19,6 +19,8 @@ package com.android.tools.metalava.lint
 import com.android.tools.metalava.DriverTest
 import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.testing.RequiresCapabilities
+import com.android.tools.metalava.model.text.FORMAT_V6_WITH_JAVA_SEALED_CLASSES
+import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
 import org.junit.Test
 
@@ -65,6 +67,72 @@ class SealedLintTest : DriverTest() {
                         """
                     ),
                 ),
+        )
+    }
+
+    @Test
+    fun `exhaustive sealed interface`() {
+        check(
+            format = FORMAT_V6_WITH_JAVA_SEALED_CLASSES,
+            // TODO(b/482391240): Should discourage use of exhaustive sealed classes.
+            expectedIssues = "",
+            apiLint = "",
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+
+                            public sealed interface Foo {
+                                final class Subclass implements Foo {}
+                            }
+                        """
+                    ),
+                ),
+            api =
+                """
+                    package test.pkg {
+                      public sealed exhaustive interface Foo permits test.pkg.Foo.Subclass {
+                      }
+                      public static final class Foo.Subclass implements test.pkg.Foo {
+                        ctor public Foo.Subclass();
+                      }
+                    }
+                """,
+        )
+    }
+
+    @Test
+    fun `non-exhaustive sealed class`() {
+        check(
+            format = FORMAT_V6_WITH_JAVA_SEALED_CLASSES,
+            expectedIssues = "",
+            apiLint = "",
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+
+                            public abstract sealed class Foo {
+                                private Foo() {}
+                                public static final class Subclass extends Foo {
+                                    private Subclass() {}
+                                }
+                                private static final class Private extends Foo {}
+                            }
+                        """
+                    ),
+                ),
+            api =
+                """
+                    package test.pkg {
+                      public abstract sealed non-exhaustive class Foo permits test.pkg.Foo.Subclass {
+                      }
+                      public static final class Foo.Subclass extends test.pkg.Foo {
+                      }
+                    }
+                """,
         )
     }
 }
