@@ -50,7 +50,6 @@ import com.android.tools.metalava.model.ModifierFlags.Companion.VARARG
 import com.android.tools.metalava.model.ModifierFlags.Companion.VOLATILE
 import com.android.tools.metalava.model.MutableModifierList
 import com.android.tools.metalava.model.RecordComponentItem
-import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.createMutableModifiers
 import com.android.tools.metalava.model.hasAnnotation
 import com.android.tools.metalava.model.isNullnessAnnotation
@@ -76,7 +75,6 @@ import org.jetbrains.annotations.Nullable
 import org.jetbrains.kotlin.analysis.api.analyze
 import org.jetbrains.kotlin.analysis.api.symbols.KaSymbolVisibility
 import org.jetbrains.kotlin.asJava.elements.KtLightElement
-import org.jetbrains.kotlin.lexer.KtModifierKeywordToken
 import org.jetbrains.kotlin.lexer.KtTokens
 import org.jetbrains.kotlin.psi.KtAnnotated
 import org.jetbrains.kotlin.psi.KtDeclaration
@@ -102,11 +100,15 @@ internal object PsiModifierItem {
         codebase: PsiBasedCodebase,
         element: PsiModifierListOwner,
     ): MutableModifierList {
+        val flags =
+            element.modifierList?.let { modifierList -> computeFlag(element, modifierList) }
+                ?: PACKAGE_PRIVATE
+
         val modifiers =
             if (element is UAnnotated) {
-                createFromUAnnotated(codebase, element, element)
+                createFromUAnnotated(codebase, flags, element)
             } else {
-                createFromPsiElement(codebase, element)
+                createFromPsiElement(codebase, flags, element)
             }
         // Set exhaustivity as true until proven otherwise either by an inaccessible subclass
         // or by a "nonexhaustive" keyword when parsing signature files.
@@ -183,7 +185,7 @@ internal object PsiModifierItem {
 
         // Merge in kotlin flags
         if (ktModifierList != null) {
-            flags = flags or kotlinFlags(sourcePsi) { token -> ktModifierList.hasModifier(token) }
+            flags = flags or ktModifierList.kotlinFlags(sourcePsi)
         }
         return flags
     }
@@ -308,9 +310,8 @@ internal object PsiModifierItem {
     }
 
     /** Computes Kotlin-specific flags. */
-    private fun kotlinFlags(
+    private fun KtModifierList.kotlinFlags(
         sourcePsi: PsiElement?,
-        hasModifier: (KtModifierKeywordToken) -> Boolean
     ): Int {
         var flags = 0
         if (hasModifier(KtTokens.VARARG_KEYWORD)) {
@@ -460,12 +461,9 @@ internal object PsiModifierItem {
 
     private fun createFromPsiElement(
         codebase: PsiBasedCodebase,
+        flags: Int,
         element: PsiModifierListOwner
     ): MutableModifierList {
-        val flags =
-            element.modifierList?.let { modifierList -> computeFlag(element, modifierList) }
-                ?: PACKAGE_PRIVATE
-
         val psiAnnotations = element.annotations
         return if (psiAnnotations.isEmpty()) {
             createMutableModifiers(flags)
@@ -486,24 +484,18 @@ internal object PsiModifierItem {
 
     private fun createFromUAnnotated(
         codebase: PsiBasedCodebase,
-        element: PsiModifierListOwner,
+        flags: Int,
         annotated: UAnnotated
     ): MutableModifierList {
-        val modifierList =
-            element.modifierList ?: return createMutableModifiers(VisibilityLevel.PACKAGE_PRIVATE)
         val uAnnotations = annotated.uAnnotations.toMutableList()
         val psiAnnotations =
-            modifierList.annotations.takeIf { it.isNotEmpty() }
-                ?: (annotated.javaPsi as? PsiModifierListOwner)?.annotations
-                ?: PsiAnnotation.EMPTY_ARRAY
-
-        val flags = computeFlag(element, modifierList)
+            (annotated.javaPsi as? PsiModifierListOwner)?.annotations ?: PsiAnnotation.EMPTY_ARRAY
 
         // The below code remedies a problem where companion objects as fields don't have
         // annotations in signature files (b/401235591). This code takes the annotations
         // from the companion class and applies them to the field.
-        if (element is UField) {
-            val companionObjectClass = (element.sourcePsi.toUElement())
+        if (annotated is UField) {
+            val companionObjectClass = (annotated.sourcePsi.toUElement())
 
             // The following checks if the field is indeed a companion object. Companion objects
             // are the only case where there is a field that has sourcePsi being a UClass, and
@@ -531,7 +523,7 @@ internal object PsiModifierItem {
 
         // Only use the psi annotations when there are no uAnnotations present (either ones added or
         // originally present in UAST).
-        return if (uAnnotations.isEmpty() && annotated.uAnnotations.isEmpty()) {
+        return if (uAnnotations.isEmpty()) {
             if (psiAnnotations.isNotEmpty()) {
                 val annotations =
                     psiAnnotations.mapNotNull { PsiAnnotationItem.create(codebase, it) }
@@ -540,7 +532,7 @@ internal object PsiModifierItem {
                 createMutableModifiers(flags)
             }
         } else {
-            val isPrimitiveVariable = element is UVariable && element.type is PsiPrimitiveType
+            val isPrimitiveVariable = annotated is UVariable && annotated.type is PsiPrimitiveType
 
             val annotations =
                 uAnnotations
@@ -570,7 +562,7 @@ internal object PsiModifierItem {
             // if there are no retention annotations defined for this annotation class, we should
             // add one so that it can be explicitly written in signature files
             if (
-                (element as? UClass)?.isAnnotationType == true &&
+                (annotated as? UClass)?.isAnnotationType == true &&
                     annotations.none { it.isRetention() }
             ) {
                 psiAnnotations
