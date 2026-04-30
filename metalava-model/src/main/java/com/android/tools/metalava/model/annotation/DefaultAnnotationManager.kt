@@ -319,16 +319,16 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
 
                     // AndroidX annotations are all included, as is the built-in stuff like
                     // @Retention
-                    qualifiedName.startsWith(ANDROIDX_ANNOTATION_PREFIX) -> return qualifiedName
-                    qualifiedName.startsWith(JAVA_LANG_PREFIX) -> return qualifiedName
+                    qualifiedName.startsWith(ANDROIDX_ANNOTATION_PREFIX) -> qualifiedName
+                    qualifiedName.startsWith(JAVA_LANG_PREFIX) -> qualifiedName
 
                     // Unknown Android platform annotations
                     qualifiedName.startsWith(ANDROID_ANNOTATION_PREFIX) -> {
-                        return qualifiedName
+                        qualifiedName
                     }
 
                     // Ravenwood annotations are meaningless to Metalava.
-                    qualifiedName.startsWith("android.ravenwood.") -> return null
+                    qualifiedName.startsWith("android.ravenwood.") -> null
 
                     // Keep any other unknown annotations.
                     else -> qualifiedName
