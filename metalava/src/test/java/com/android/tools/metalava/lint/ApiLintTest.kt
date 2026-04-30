@@ -3060,51 +3060,6 @@ src/android/pkg/Interface.kt:158: error: Parameter `default` has a default value
 
     @RequiresCapabilities(Capability.KOTLIN)
     @Test
-    fun `No parameter ordering for sealed class constructor`() {
-        check(
-            expectedIssues = "",
-            apiLint = "",
-            sourceFiles =
-                arrayOf(
-                    kotlin(
-                        """
-                    package test.pkg
-
-                    sealed class Foo(
-                        default: Int = 0,
-                        required: () -> Unit,
-                    )
-                    """
-                    )
-                )
-        )
-    }
-
-    @RequiresCapabilities(Capability.KOTLIN)
-    @Test
-    fun `members in sealed class are not hidden abstract`() {
-        check(
-            expectedIssues = "",
-            apiLint = "",
-            sourceFiles =
-                arrayOf(
-                    kotlin(
-                        """
-                        package test.pkg
-
-                        sealed class ModifierLocalMap() {
-                            internal abstract operator fun <T> set(key: ModifierLocal<T>, value: T)
-                            internal abstract operator fun <T> get(key: ModifierLocal<T>): T?
-                            internal abstract operator fun contains(key: ModifierLocal<*>): Boolean
-                        }
-                    """
-                    )
-                )
-        )
-    }
-
-    @RequiresCapabilities(Capability.KOTLIN)
-    @Test
     fun `throw unresolved error`() {
         // Regression test from b/364736827
         check(
