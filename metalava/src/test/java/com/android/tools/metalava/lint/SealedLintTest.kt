@@ -135,4 +135,39 @@ class SealedLintTest : DriverTest() {
                 """,
         )
     }
+
+    @Test
+    fun `non-exhaustive concrete sealed class`() {
+        check(
+            format = FORMAT_V6_WITH_JAVA_SEALED_CLASSES,
+            // TODO(b/482391240): Should discourage use of concrete sealed classes.
+            expectedIssues = "",
+            apiLint = "",
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+
+                            public sealed class Foo {
+                                private Foo() {}
+                                public static final class Subclass extends Foo {
+                                    private Subclass() {}
+                                }
+                                private static final class Private extends Foo {}
+                            }
+                        """
+                    ),
+                ),
+            api =
+                """
+                    package test.pkg {
+                      public sealed non-exhaustive class Foo permits test.pkg.Foo.Subclass {
+                      }
+                      public static final class Foo.Subclass extends test.pkg.Foo {
+                      }
+                    }
+                """,
+        )
+    }
 }
