@@ -43,9 +43,6 @@ object Issues {
     val ADDED_ANNOTATION by Issue(Severity.ERROR, Category.OTHER_COMPATIBILITY)
     val ADDED_PACKAGE by Issue(Severity.HIDDEN, Category.OTHER_COMPATIBILITY)
     val ADDED_CLASS by Issue(Severity.HIDDEN, Category.OTHER_COMPATIBILITY)
-    val ADDED_SUBCLASS_TO_SEALED_CLASS by Issue(Severity.ERROR, Category.SOURCE_COMPATIBILITY_ONLY)
-    val SEALED_CLASS_EXHAUSTIVITY_CHANGED by
-        Issue(Severity.ERROR, Category.SOURCE_COMPATIBILITY_ONLY)
     // Adding an abstract method is breaking, but that is a separate issue.
     val ADDED_METHOD by Issue(Severity.HIDDEN, Category.OTHER_COMPATIBILITY)
     // Note that this may be breaking if the class/interface can be implemented, but the reporter
@@ -130,6 +127,12 @@ object Issues {
     val REMOVED_RECORD_COMPONENT by Issue(Severity.ERROR, Category.BINARY_AND_SOURCE_COMPATIBILITY)
     val CHANGED_RECORD_COMPONENT by Issue(Severity.ERROR, Category.BINARY_AND_SOURCE_COMPATIBILITY)
 
+    // Sealed related issues (in alphabetical order).
+    val ADDED_SEALED by Issue(Severity.ERROR, Category.SOURCE_COMPATIBILITY_ONLY)
+    val ADDED_SUBCLASS_TO_SEALED_CLASS by Issue(Severity.ERROR, Category.SOURCE_COMPATIBILITY_ONLY)
+    val SEALED_CLASS_EXHAUSTIVITY_CHANGED by
+        Issue(Severity.ERROR, Category.SOURCE_COMPATIBILITY_ONLY)
+
     // Metalava warnings (not from doclava)
     val INVALID_ANNOTATION_BINDING by Issue(Severity.ERROR, Category.API_LINT)
     val MISSING_REQUIRED_ATTRIBUTE by Issue(Severity.ERROR, Category.API_LINT)
@@ -143,7 +146,6 @@ object Issues {
     val OPERATOR_REMOVAL by Issue(Severity.ERROR, Category.SOURCE_COMPATIBILITY_ONLY)
     val INFIX_REMOVAL by Issue(Severity.ERROR, Category.SOURCE_COMPATIBILITY_ONLY)
     val VARARG_REMOVAL by Issue(Severity.ERROR, Category.BINARY_AND_SOURCE_COMPATIBILITY)
-    val ADDED_SEALED by Issue(Severity.ERROR, Category.SOURCE_COMPATIBILITY_ONLY)
     val FUN_REMOVAL by Issue(Severity.ERROR, Category.SOURCE_COMPATIBILITY_ONLY)
     // Removing an API from the checked surface isn't itself breaking, but it could allow both
     // binary and source breaking changes to be made to the API in the future.
