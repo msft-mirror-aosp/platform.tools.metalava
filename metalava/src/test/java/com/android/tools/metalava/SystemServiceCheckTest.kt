@@ -33,12 +33,12 @@ class SystemServiceCheckTest : DriverTest() {
     ) {
         check(
             expectedIssues = expectedIssues,
-            // TODO(b/412743564): Use includeSystemApiAnnotations = SystemApiType.PRIVILEGED_APPS
-            //   instead of the following.
+            includeSystemApiAnnotations = SystemApiType.PRIVILEGED_APPS,
+            configFiles = arrayOf(KnownConfigFiles.configPublicAndSystemSurfaces),
             extraArguments =
                 arrayOf(
-                    ARG_SHOW_ANNOTATION,
-                    ANDROID_SYSTEM_SERVICE_CHECK,
+                    ARG_API_SURFACE,
+                    "system",
                     ARG_ERROR,
                     Issues.REQUIRES_SYSTEM_PERMISSION.name,
                 ),

@@ -44,7 +44,6 @@ import com.android.tools.metalava.model.TargetLanguageSet
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.VariableTypeItem
-import com.android.tools.metalava.model.annotation.AnnotationFilter
 import com.android.tools.metalava.model.doc.DocContentPredicate
 import com.android.tools.metalava.model.source.SourceParser
 import com.android.tools.metalava.model.source.doc.DocContentPredicates
@@ -96,8 +95,8 @@ class ApiAnalyzer(
          */
         val mergeInclusionAnnotations: List<File> = emptyList(),
 
-        /** The filter for all the show annotations. */
-        val allShowAnnotations: AnnotationFilter = AnnotationFilter.emptyFilter(),
+        /** The API surface name. */
+        val apiSurface: String? = null,
 
         /** Configuration for any [ApiPredicate] instances this needs to create. */
         val apiPredicateConfig: ApiPredicate.Config = ApiPredicate.Config(),
@@ -608,16 +607,9 @@ class ApiAnalyzer(
             return
         }
 
-        // Create a special annotation with no attributes. This will not work in Android but it will
-        // work in SystemServerCheckTest.
-        // TODO(b/412743564): Fix this so it works in Android.
-        val systemServiceCheckAnnotation =
-            AnnotationItem.createFromSource(codebase, "@$ANDROID_SYSTEM_SERVICE_CHECK")
-
-        val checkSystemApi =
+        val checkSystemPermissions =
             !reporter.isSuppressed(Issues.REQUIRES_SYSTEM_PERMISSION) &&
-                systemServiceCheckAnnotation != null &&
-                config.allShowAnnotations.matches(systemServiceCheckAnnotation) &&
+                config.apiSurface == "system" &&
                 !config.manifest.isEmpty()
         val checkHiddenShowAnnotations = !reporter.isSuppressed(Issues.UNHIDDEN_SYSTEM_API)
 
@@ -688,7 +680,7 @@ class ApiAnalyzer(
                 }
 
                 override fun visitClass(cls: ClassItem) {
-                    if (checkSystemApi) {
+                    if (checkSystemPermissions) {
                         // Look for Android @SystemApi exposed outside the normal SDK; we require
                         // that they're protected with a system permission.
                         // Also flag @SystemApi apis not annotated with @hide.
@@ -1164,9 +1156,3 @@ private fun MethodItemSet.removeMatchingMethods(method: MethodItem) {
         }
     }
 }
-
-/**
- * A special constant used to ensure that [ApiAnalyzer.checkSystemPermissions] is only called from
- * the SystemServiceCheckTest.
- */
-const val ANDROID_SYSTEM_SERVICE_CHECK = "android.annotation.SystemServiceCheck"
