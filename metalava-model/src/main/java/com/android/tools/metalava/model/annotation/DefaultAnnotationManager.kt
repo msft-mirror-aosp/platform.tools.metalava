@@ -98,12 +98,7 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
          * [ApiFlag] for every provided flag and will use a default for any others.
          */
         val apiFlags: ApiFlags? = null,
-    ) {
-        val showAnnotations = apiSurfaceSelector.showAnnotations
-        val showSingleAnnotations = apiSurfaceSelector.showSingleAnnotations
-        val showForStubPurposesAnnotations = apiSurfaceSelector.showForStubPurposesAnnotations
-        val hideAnnotations = apiSurfaceSelector.hideAnnotations
-    }
+    )
 
     private val apiSurfaceSelector = config.apiSurfaceSelector
 
@@ -695,25 +690,10 @@ private class LazyAnnotationInfo(
     /** Compute lazily to avoid doing any more work than strictly necessary. */
     override val showability by
         lazy(LazyThreadSafetyMode.NONE) {
-            // The showAnnotations filter includes all the annotation patterns that are matched by
-            // the first two filters plus 0 or more additional patterns. Excluding the patterns that
-            // are purposely duplicated in showAnnotations the filters should not overlap, i.e. an
-            // AnnotationItem should not be matched by multiple filters. However, the filters could
-            // use the same annotation class (with different attributes). e.g. showAnnotations could
-            // match `@SystemApi(client=MODULE_LIBRARIES)` and showForStubPurposesAnnotations could
-            // match `@SystemApi(client=PRIVILEGED_APPS)`.
-            //
-            // Compare from most likely to match to least likely to match.
-            when {
-                config.showAnnotations.matches(annotationItem) -> SHOW
-                config.showForStubPurposesAnnotations.matches(annotationItem) -> SHOW_FOR_STUBS
-                config.showSingleAnnotations.matches(annotationItem) -> SHOW_SINGLE
-                config.hideAnnotations.matches(annotationItem) -> HIDE
-                else -> {
-                    // Check flags before using default
-                    apiFlag?.showability ?: Showability.NO_EFFECT
-                }
-            }
+            config.apiSurfaceSelector.showability(annotationItem)
+                // Check flags before using default
+                ?: apiFlag?.showability
+                ?: Showability.NO_EFFECT
         }
 
     override val apiFlag by lazy(LazyThreadSafetyMode.NONE) { getFlagForAnnotation(annotationItem) }
@@ -726,49 +706,6 @@ private class LazyAnnotationInfo(
 
     override val annotationClass
         get() = annotationClassItem?.annotationClass
-
-    companion object {
-        /**
-         * The annotation will cause the annotated item (and any enclosed items unless overridden by
-         * a closer annotation) to be shown.
-         */
-        val SHOW =
-            Showability(
-                show = ShowOrHide.SHOW,
-                recursive = ShowOrHide.SHOW,
-                forStubsOnly = ShowOrHide.NO_EFFECT,
-            )
-
-        /**
-         * The annotation will cause the annotated item (and any enclosed items unless overridden by
-         * a closer annotation) to be shown in the stubs only.
-         */
-        val SHOW_FOR_STUBS =
-            Showability(
-                show = ShowOrHide.NO_EFFECT,
-                recursive = ShowOrHide.NO_EFFECT,
-                forStubsOnly = ShowOrHide.SHOW,
-            )
-
-        /** The annotation will cause the annotated item (but not enclosed items) to be shown. */
-        val SHOW_SINGLE =
-            Showability(
-                show = ShowOrHide.SHOW,
-                recursive = ShowOrHide.NO_EFFECT,
-                forStubsOnly = ShowOrHide.NO_EFFECT,
-            )
-
-        /**
-         * The annotation will cause the annotated item (and any enclosed items unless overridden by
-         * a closer annotation) to not be shown.
-         */
-        val HIDE =
-            Showability(
-                show = ShowOrHide.HIDE,
-                recursive = ShowOrHide.HIDE,
-                forStubsOnly = ShowOrHide.NO_EFFECT,
-            )
-    }
 
     /** Resolve the [AnnotationItem] to a [ClassItem] lazily. */
     private val annotationClassItem by lazy(LazyThreadSafetyMode.NONE, annotationItem::resolve)
