@@ -134,7 +134,7 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
         // The list of all filters.
         val filters =
             listOf(
-                config.allShowAnnotations,
+                config.showAnnotations,
                 config.showSingleAnnotations,
                 config.showForStubPurposesAnnotations,
                 config.hideAnnotations,
