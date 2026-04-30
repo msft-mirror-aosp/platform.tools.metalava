@@ -357,4 +357,62 @@ class ApiSurfacesConfigTest : BaseConfigParserTest() {
             )
         )
     }
+
+    @Test
+    fun `api-surfaces selection criteria config`() {
+        roundTrip(
+            Config(
+                apiSurfaces =
+                    ApiSurfacesConfig(
+                        apiSurfaceList =
+                            listOf(
+                                ApiSurfaceConfig(
+                                    name = "public",
+                                    selectionCriteria =
+                                        SelectionCriteria(
+                                            unannotated = SelectionCriteriaEffect.SHOW,
+                                            annotationRules =
+                                                listOf(
+                                                    AnnotationRule(
+                                                        pattern = "test.annotation.Hide",
+                                                        effect = SelectionCriteriaEffect.HIDE,
+                                                    )
+                                                ),
+                                        ),
+                                ),
+                                ApiSurfaceConfig(
+                                    name = "system",
+                                    extends = "public",
+                                    selectionCriteria =
+                                        SelectionCriteria(
+                                            annotationRules =
+                                                listOf(
+                                                    AnnotationRule(
+                                                        pattern = "test.annotation.Show",
+                                                        recursive = false,
+                                                    )
+                                                ),
+                                        ),
+                                ),
+                            ),
+                    )
+            ),
+            """
+                <config xmlns="http://www.google.com/tools/metalava/config">
+                  <api-surfaces>
+                    <api-surface name="public">
+                      <selection-criteria unannotated="show">
+                        <annotation-rule pattern="test.annotation.Hide" effect="hide" recursive="true"/>
+                      </selection-criteria>
+                    </api-surface>
+                    <api-surface name="system" extends="public">
+                      <selection-criteria>
+                        <annotation-rule pattern="test.annotation.Show" effect="show" recursive="false"/>
+                      </selection-criteria>
+                    </api-surface>
+                  </api-surfaces>
+                </config>
+            """
+        )
+    }
 }
