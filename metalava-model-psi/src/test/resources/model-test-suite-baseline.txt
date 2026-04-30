@@ -5,7 +5,6 @@ com.android.tools.metalava.model.testsuite.annotationitem.CommonAnnotationItemTe
   unknown annotation class with named attribute - string value[kotlin]
 
 com.android.tools.metalava.model.testsuite.parameteritem.CommonParameterKindTest
-  Kind for context parameter on kotlin-only function[kotlin]
   Kind for parameters on function with all kinds of parameters[kotlin]
 
 com.android.tools.metalava.model.testsuite.value.CommonParameterizedFieldValueTest

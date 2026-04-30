@@ -35,7 +35,6 @@ com.android.tools.metalava.model.testsuite.parameteritem.CommonParameterItemTest
   Test publicName reports correct name when called on binary class - ViewGroup#onLayout[turbine]
 
 com.android.tools.metalava.model.testsuite.parameteritem.CommonParameterKindTest
-  Kind for context parameter on kotlin-only function[psi,kotlin]
   Kind for parameters on function with all kinds of parameters[psi,kotlin]
 
 com.android.tools.metalava.model.testsuite.typeitem.CommonParameterizedInvalidTypeTest
