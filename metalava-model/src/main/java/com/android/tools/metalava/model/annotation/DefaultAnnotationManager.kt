@@ -119,6 +119,15 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
         }
     }
 
+    /** The set of all annotation names that should be preserved during normalization. */
+    private val annotationNamesToPreserveDuringNormalization = buildSet {
+        // Add all the annotations specifically configured to be passed through.
+        addAll(config.passThroughAnnotations)
+
+        // Add all the annotations used for API surface selection.
+        addAll(allApiSurfaceSelectionAnnotationNames)
+    }
+
     /**
      * Map from annotation name to the [KeyFactory] to use to create a key.
      *
@@ -184,7 +193,7 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
     }
 
     override fun normalizeInputName(qualifiedName: String): String? {
-        if (passThroughAnnotation(qualifiedName)) {
+        if (preserveAnnotationDuringNormalization(qualifiedName)) {
             return qualifiedName
         }
 
@@ -341,7 +350,7 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
     }
 
     override fun normalizeOutputName(qualifiedName: String, target: AnnotationTarget): String {
-        if (passThroughAnnotation(qualifiedName)) {
+        if (preserveAnnotationDuringNormalization(qualifiedName)) {
             return qualifiedName
         }
 
@@ -363,10 +372,12 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
         return qualifiedName
     }
 
-    private fun passThroughAnnotation(qualifiedName: String) =
-        config.passThroughAnnotations.contains(qualifiedName) ||
-            config.allShowAnnotations.matchesAnnotationName(qualifiedName) ||
-            config.hideAnnotations.matchesAnnotationName(qualifiedName)
+    /**
+     * Returns `true` if [qualifiedName] should be preserved unchanged by [normalizeInputName] and
+     * [normalizeOutputName].
+     */
+    private fun preserveAnnotationDuringNormalization(qualifiedName: String) =
+        annotationNamesToPreserveDuringNormalization.contains(qualifiedName)
 
     /**
      * Targets for type def annotations, i.e. `@IntDef` and `@StringDef` annotated annotations.
