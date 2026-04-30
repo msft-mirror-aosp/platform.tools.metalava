@@ -103,6 +103,22 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
         val apiFlags: ApiFlags? = null,
     )
 
+    /** The set of all annotation names used for selecting API surfaces. */
+    private val allApiSurfaceSelectionAnnotationNames = buildSet {
+        // The list of all filters.
+        val filters =
+            listOf(
+                config.showAnnotations,
+                config.showSingleAnnotations,
+                config.showForStubPurposesAnnotations,
+                config.hideAnnotations,
+            )
+
+        for (filter in filters) {
+            addAll(filter.getIncludedAnnotationNames())
+        }
+    }
+
     /**
      * Map from annotation name to the [KeyFactory] to use to create a key.
      *
@@ -131,25 +147,12 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
             }
         }
 
-        // The list of all filters.
-        val filters =
-            listOf(
-                config.showAnnotations,
-                config.showSingleAnnotations,
-                config.showForStubPurposesAnnotations,
-                config.hideAnnotations,
-            )
-
         // Build a list of the names of annotations whose AnnotationInfo could be dependent on an
         // annotation attributes and not just its name.
         val annotationNames = buildList {
-            // Iterate over all the annotation names matched by all the filters currently used by
-            // [LazyAnnotationInfo] and associate them with a [KeyFactory] that will use the
-            // complete source representation of the annotation as the key. This is needed because
-            // filters can match on attribute values as well as the name.
-            for (filter in filters) {
-                addAll(filter.getIncludedAnnotationNames())
-            }
+            // Add all the annotation names matched by all the API surface selection filters as they
+            // can match on attribute values as well as the annotation name.
+            addAll(allApiSurfaceSelectionAnnotationNames)
 
             // ApiFlags have been provided so the flag name specified on an
             // `android.annotation.FlaggedApi` will affect the state of the associated
