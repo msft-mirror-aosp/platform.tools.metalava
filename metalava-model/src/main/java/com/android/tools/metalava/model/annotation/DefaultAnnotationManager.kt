@@ -98,8 +98,7 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
          * The set of available [ApiFlag]s.
          *
          * If this is `null` then no [ApiFlag]s have been provided, otherwise it contains an
-         * [ApiFlag] for every provided flag. Flags that are not provided will default to
-         * [ApiFlag.REVERT_FLAGGED_API].
+         * [ApiFlag] for every provided flag and will use a default for any others.
          */
         val apiFlags: ApiFlags? = null,
     )
