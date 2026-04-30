@@ -347,7 +347,7 @@ sealed class ApiVariantSelectors {
                     }
 
         override val includeOnlyForStubPurposes
-            get() = includeOnlyForStubPurposes(item)
+            get() = lazyGet(FOR_STUB_PURPOSES_BIT_MASK) { includeOnlyForStubPurposes(item) }
 
         override fun duplicate(item: Item): ApiVariantSelectors = Mutable(item as SelectableItem)
 
@@ -590,8 +590,12 @@ sealed class ApiVariantSelectors {
             private const val INHERIT_INTO_BIT_POSITION = REMOVED_BIT_POSITION + 1
             private const val INHERIT_INTO_BIT_MASK = 1 shl INHERIT_INTO_BIT_POSITION
 
+            /** [includeOnlyForStubPurposes] related constants. */
+            private const val FOR_STUB_PURPOSES_BIT_POSITION = INHERIT_INTO_BIT_POSITION + 1
+            private const val FOR_STUB_PURPOSES_BIT_MASK = 1 shl FOR_STUB_PURPOSES_BIT_POSITION
+
             /** The count of the number of bits used. */
-            private const val COUNT_BITS_USED = INHERIT_INTO_BIT_POSITION + 1
+            private const val COUNT_BITS_USED = FOR_STUB_PURPOSES_BIT_POSITION + 1
 
             /**
              * Value of [propertyValueBits] that will ensure that the associated [item] is not
@@ -618,6 +622,7 @@ sealed class ApiVariantSelectors {
                         array[DOCONLY_BIT_POSITION] = "docOnly"
                         array[REMOVED_BIT_POSITION] = "removed"
                         array[INHERIT_INTO_BIT_POSITION] = "inheritIntoWasCalled"
+                        array[FOR_STUB_PURPOSES_BIT_POSITION] = "forStubPurposes"
                     }
         }
     }
