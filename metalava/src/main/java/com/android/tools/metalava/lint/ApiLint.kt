@@ -78,6 +78,7 @@ import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.PrimitiveTypeItem.Primitive
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.RecordComponentItem
+import com.android.tools.metalava.model.SourceLanguage
 import com.android.tools.metalava.model.TargetLanguageSet
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeNullability
@@ -120,6 +121,7 @@ import com.android.tools.metalava.reporter.Issues.ENUM
 import com.android.tools.metalava.reporter.Issues.EQUALS_AND_HASH_CODE
 import com.android.tools.metalava.reporter.Issues.EXCEPTION_NAME
 import com.android.tools.metalava.reporter.Issues.EXECUTOR_REGISTRATION
+import com.android.tools.metalava.reporter.Issues.EXHAUSTIVE_SEALED_CLASS
 import com.android.tools.metalava.reporter.Issues.EXTENDS_ERROR
 import com.android.tools.metalava.reporter.Issues.FORBIDDEN_SUPER_CLASS
 import com.android.tools.metalava.reporter.Issues.FRACTION_FLOAT
@@ -462,6 +464,7 @@ private constructor(
         checkTypedef(cls)
         checkAccessorNullabilityMatches(methods)
         checkDataClass(cls)
+        checkSealedClass(cls)
         checkTypealias(cls)
 
         // Check class types.
@@ -3420,6 +3423,23 @@ private constructor(
                 cls,
                 "Exposing data classes as public API is discouraged because they are " +
                     "difficult to update while maintaining binary compatibility."
+            )
+        }
+    }
+
+    private fun checkSealedClass(cls: ClassItem) {
+        val modifiers = cls.modifiers
+        if (!modifiers.isSealed()) return
+
+        // Only report for Java to avoid breaking any existing Kotlin APIs.
+        if (cls.sourceLanguage != SourceLanguage.JAVA) return
+
+        // Exhaustive sealed classes cannot be extended.
+        if (modifiers.isExhaustive()) {
+            report(
+                EXHAUSTIVE_SEALED_CLASS,
+                cls,
+                "`exhaustive` sealed classes cannot be extended without breaking source compatibility; add a subclass that is not in the API to make it `non-exhaustive`"
             )
         }
     }

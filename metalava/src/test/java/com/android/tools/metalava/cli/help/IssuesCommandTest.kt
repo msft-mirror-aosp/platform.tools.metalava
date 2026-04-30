@@ -99,6 +99,7 @@ Available Issues                             |  Category                        
   EqualsAndHashCode                          |  api_lint                             |   error
   ExceptionName                              |  api_lint                             |   error
   ExecutorRegistration                       |  api_lint                             |   warning
+  ExhaustiveSealedClass                      |  api_lint                             |   warning
   ExtendsDeprecated                          |  api_lint                             |   hidden
   ExtendsError                               |  api_lint                             |   error
   FacadeClassJvmName                         |  api_lint                             |   hidden

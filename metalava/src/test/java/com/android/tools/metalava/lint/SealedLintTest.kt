@@ -74,8 +74,8 @@ class SealedLintTest : DriverTest() {
     fun `exhaustive sealed interface`() {
         check(
             format = FORMAT_V6_WITH_JAVA_SEALED_CLASSES,
-            // TODO(b/482391240): Should discourage use of exhaustive sealed classes.
-            expectedIssues = "",
+            expectedIssues =
+                "src/test/pkg/Foo.java:3: warning: `exhaustive` sealed classes cannot be extended without breaking source compatibility; add a subclass that is not in the API to make it `non-exhaustive` [ExhaustiveSealedClass]",
             apiLint = "",
             sourceFiles =
                 arrayOf(
