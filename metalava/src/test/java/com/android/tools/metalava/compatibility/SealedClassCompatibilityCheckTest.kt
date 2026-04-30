@@ -17,9 +17,62 @@
 package com.android.tools.metalava.compatibility
 
 import com.android.tools.metalava.DriverTest
+import com.android.tools.metalava.model.provider.Capability
+import com.android.tools.metalava.model.testing.RequiresCapabilities
+import com.android.tools.metalava.model.text.FileFormat
+import com.android.tools.metalava.testing.kotlin
 import org.junit.Test
 
 class SealedClassCompatibilityCheckTest : DriverTest() {
+    @RequiresCapabilities(Capability.KOTLIN)
+    @Test
+    fun `Add sealed`() {
+        check(
+            expectedIssues =
+                """
+                    src/test/pkg/Foo.kt:2: error: Source breaking change: Cannot add 'sealed' modifier to class test.pkg.Foo: Incompatible change [AddedSealed]
+                """,
+            checkCompatibilityApiReleased =
+                """
+                    package test.pkg {
+                      public class Foo {
+                      }
+                    }
+                """,
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
+                            package test.pkg
+                            sealed class Foo
+                        """
+                    ),
+                ),
+        )
+    }
+
+    @Test
+    fun `Allow change from non-final to final in sealed class`() {
+        check(
+            signatureSource =
+                """
+                    package test.pkg {
+                      sealed class Foo {
+                        method final public void bar(int);
+                      }
+                    }
+                """,
+            format = FileFormat.V4,
+            checkCompatibilityApiReleased =
+                """
+                    package test.pkg {
+                      sealed class Foo {
+                        method public void bar(int);
+                      }
+                    }
+                """,
+        )
+    }
 
     @Test
     fun `Should raise issue when adding abstract method to explicitly sealed non-effectively final class when a grandchild implements the abstract method`() {

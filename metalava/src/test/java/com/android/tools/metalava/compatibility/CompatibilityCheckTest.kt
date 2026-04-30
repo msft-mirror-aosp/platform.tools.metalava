@@ -941,33 +941,6 @@ class CompatibilityCheckTest : DriverTest() {
 
     @RequiresCapabilities(Capability.KOTLIN)
     @Test
-    fun `Add seal`() {
-        check(
-            expectedIssues =
-                """
-                src/test/pkg/Foo.kt:2: error: Source breaking change: Cannot add 'sealed' modifier to class test.pkg.Foo: Incompatible change [AddedSealed]
-                """,
-            checkCompatibilityApiReleased =
-                """
-                package test.pkg {
-                  public class Foo {
-                  }
-                }
-                """,
-            sourceFiles =
-                arrayOf(
-                    kotlin(
-                        """
-                    package test.pkg
-                    sealed class Foo
-                    """
-                    )
-                )
-        )
-    }
-
-    @RequiresCapabilities(Capability.KOTLIN)
-    @Test
     fun `Remove optional parameter`() {
         check(
             expectedIssues =
@@ -3767,29 +3740,6 @@ class CompatibilityCheckTest : DriverTest() {
                     }
                   }
               """
-        )
-    }
-
-    @Test
-    fun `Allow change from non-final to final in sealed class`() {
-        check(
-            signatureSource =
-                """
-                package test.pkg {
-                  sealed class Foo {
-                    method final public void bar(int);
-                  }
-                }
-            """,
-            format = FileFormat.V4,
-            checkCompatibilityApiReleased =
-                """
-                package test.pkg {
-                  sealed class Foo {
-                    method public void bar(int);
-                  }
-                }
-            """
         )
     }
 
