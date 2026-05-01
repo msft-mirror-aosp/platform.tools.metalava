@@ -105,21 +105,7 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
         val hideAnnotations = apiSurfaceSelector.hideAnnotations
     }
 
-    /** The set of all annotation names used for selecting API surfaces. */
-    private val allApiSurfaceSelectionAnnotationNames = buildSet {
-        // The list of all filters.
-        val filters =
-            listOf(
-                config.showAnnotations,
-                config.showSingleAnnotations,
-                config.showForStubPurposesAnnotations,
-                config.hideAnnotations,
-            )
-
-        for (filter in filters) {
-            addAll(filter.getIncludedAnnotationNames())
-        }
-    }
+    private val apiSurfaceSelector = config.apiSurfaceSelector
 
     /** The set of all annotation names that should be preserved during normalization. */
     private val annotationNamesToPreserveDuringNormalization = buildSet {
@@ -127,7 +113,7 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
         addAll(config.passThroughAnnotations)
 
         // Add all the annotations used for API surface selection.
-        addAll(allApiSurfaceSelectionAnnotationNames)
+        addAll(apiSurfaceSelector.annotationNames)
     }
 
     /**
@@ -163,7 +149,7 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
         val annotationNames = buildList {
             // Add all the annotation names matched by all the API surface selection filters as they
             // can match on attribute values as well as the annotation name.
-            addAll(allApiSurfaceSelectionAnnotationNames)
+            addAll(apiSurfaceSelector.annotationNames)
 
             // ApiFlags have been provided so the flag name specified on an
             // `android.annotation.FlaggedApi` will affect the state of the associated

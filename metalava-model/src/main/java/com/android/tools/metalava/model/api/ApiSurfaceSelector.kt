@@ -25,4 +25,24 @@ class ApiSurfaceSelector(
     val showSingleAnnotations: AnnotationFilter = AnnotationFilter.emptyFilter(),
     val showForStubPurposesAnnotations: AnnotationFilter = AnnotationFilter.emptyFilter(),
     val hideAnnotations: AnnotationFilter = AnnotationFilter.emptyFilter(),
-)
+) {
+    /** The qualified names of all annotations that can affect API surface selection. */
+    val annotationNames = buildSet {
+        // The list of all filters.
+        val filters =
+            listOf(
+                showAnnotations,
+                showSingleAnnotations,
+                showForStubPurposesAnnotations,
+                hideAnnotations,
+            )
+
+        // Iterate over all the annotation names matched by all the filters currently used by
+        // [LazyAnnotationInfo] and associate them with a [KeyFactory] that will use the
+        // complete source representation of the annotation as the key. This is needed because
+        // filters can match on attribute values as well as the name.
+        for (filter in filters) {
+            addAll(filter.getIncludedAnnotationNames())
+        }
+    }
+}
