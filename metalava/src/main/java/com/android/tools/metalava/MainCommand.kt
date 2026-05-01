@@ -38,7 +38,6 @@ import com.android.tools.metalava.cli.compatibility.CompatibilityCheckOptions
 import com.android.tools.metalava.cli.lint.ApiLintOptions
 import com.android.tools.metalava.cli.multiplatform.MultiplatformOptions
 import com.android.tools.metalava.cli.signature.SignatureFormatOptions
-import com.android.tools.metalava.model.utils.extractSimpleName
 import com.android.tools.metalava.reporter.Baseline
 import com.android.tools.metalava.reporter.DEFAULT_BASELINE_NAME
 import com.android.tools.metalava.reporter.Reporter
@@ -48,7 +47,6 @@ import com.github.ajalt.clikt.parameters.arguments.argument
 import com.github.ajalt.clikt.parameters.arguments.multiple
 import com.github.ajalt.clikt.parameters.groups.provideDelegate
 import java.io.File
-import java.util.Locale
 
 /**
  * A command that is passed to [MetalavaCommand.defaultCommand] when the main metalava functionality
@@ -282,15 +280,16 @@ class MainCommand(
     private fun getDefaultBaselineFile(): File? {
         val sourcePath = sourceOptions.sourcePath
         if (sourcePath.isNotEmpty() && sourcePath[0].path.isNotBlank()) {
-            fun annotationToPrefix(qualifiedName: String): String {
-                val name = qualifiedName.extractSimpleName()
-                return name.lowercase(Locale.US).removeSuffix("api") + "-"
+            // Create the file name.
+            val fileName = buildString {
+                // Prefix with the API surface name, if provided.
+                apiSelectionOptions.apiSurface?.let { apiSurface ->
+                    append(apiSurface)
+                    append("-")
+                }
+                append(DEFAULT_BASELINE_NAME)
             }
-            val sb = StringBuilder()
-            apiSelectionOptions.allShowAnnotations.getIncludedAnnotationNames().forEach {
-                sb.append(annotationToPrefix(it))
-            }
-            sb.append(DEFAULT_BASELINE_NAME)
+
             var base = sourcePath[0]
             // Convention: in AOSP, signature files are often in sourcepath/api: let's place
             // baseline files there too
@@ -298,7 +297,7 @@ class MainCommand(
             if (api.isDirectory) {
                 base = api
             }
-            return File(base, sb.toString())
+            return File(base, fileName)
         } else {
             return null
         }
