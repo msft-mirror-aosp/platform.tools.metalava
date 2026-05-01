@@ -115,12 +115,14 @@ class NullabilityAnnotationsValidator(
                     }
 
                     override fun visitParameter(parameter: ParameterItem) {
-                        checkItem(
-                            parameter.containingCallable(),
-                            parameter.toString(),
-                            parameter.type(),
-                            parameter
-                        )
+                        parameter.containingCallable()?.let { containingCallable ->
+                            checkItem(
+                                containingCallable,
+                                parameter.toString(),
+                                parameter.type(),
+                                parameter
+                            )
+                        }
                     }
                 }
             )

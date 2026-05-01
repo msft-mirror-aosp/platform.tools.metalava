@@ -2123,8 +2123,8 @@ private constructor(
         } else {
             when (item) {
                 is ParameterItem -> {
-                    // We don't enforce this check on constructor params
-                    if (item.containingCallable().isConstructor()) return
+                    // We don't enforce this check on constructor params or property context params
+                    if (item.possibleContainingMethod() == null) return
                     if (type.modifiers.isNonNull) {
                         // TODO (b/344859664): Skip warning for inner type
                         if (supers.anyTypeHasNullability(TypeNullability.PLATFORM) && !isInner) {

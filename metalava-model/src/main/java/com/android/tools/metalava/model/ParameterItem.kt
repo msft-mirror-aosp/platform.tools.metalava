@@ -30,11 +30,15 @@ interface ParameterItem :
         append(' ')
         append(name())
         append(" in ")
-        with(containingCallable()) {
-            appendCallableSignature(
-                includeParameterNames = true,
-                includeParameterTypes = true,
-            )
+        when (val parent = parent()) {
+            is CallableItem ->
+                with(parent) {
+                    appendCallableSignature(
+                        includeParameterNames = true,
+                        includeParameterTypes = true,
+                    )
+                }
+            is PropertyItem -> append(parent.describe(capitalize = false))
         }
     }
 
@@ -46,13 +50,21 @@ interface ParameterItem :
         superMethods: Boolean,
         duplicate: Boolean,
     ) =
-        containingCallable()
-            .findCorrespondingItemIn(codebase, superMethods = superMethods, duplicate = duplicate)
-            ?.parameters()
-            ?.getOrNull(parameterIndex)
+        when (val parent = parent()) {
+            is CallableItem ->
+                parent
+                    .findCorrespondingItemIn(
+                        codebase,
+                        superMethods = superMethods,
+                        duplicate = duplicate
+                    )
+                    ?.parameters()
+                    ?.getOrNull(parameterIndex)
+            else -> null // TODO: handle property
+        }
 
     /** The containing callable. */
-    fun containingCallable(): CallableItem
+    fun containingCallable(): CallableItem?
 
     /** The possible containing method, returns null if this is a constructor parameter. */
     fun possibleContainingMethod(): MethodItem? = containingCallable().let { it as? MethodItem }
@@ -88,12 +100,12 @@ interface ParameterItem :
     override var property: PropertyItem?
 
     override val isRecordComponentRelated: Boolean
-        get() = containingCallable().isRecordComponentRelated
+        get() = containingCallable()?.isRecordComponentRelated == true
 
     override val recordComponentRelationship: String?
         get() = if (isRecordComponentRelated) "canonical constructor" else null
 
-    override fun parent(): MemberItem = containingCallable()
+    override fun parent(): MemberItem
 
     override val effectivelyDeprecated: Boolean
         get() = originallyDeprecated || parent().effectivelyDeprecated
@@ -106,17 +118,17 @@ interface ParameterItem :
     }
 
     /**
-     * Create a duplicate of this for [containingCallable].
+     * Create a duplicate of this for [containingItem].
      *
      * The duplicate's [ParameterItem.type] is the result of applying [typeConverter] to this
      * [ParameterItem]'s [type].
      *
-     * This is called from within the constructor of the [containingCallable] so must only access
-     * its `name` and its reference. In particularly it must not access its
-     * [CallableItem.parameters] property as this is called during its initialization.
+     * This is called from within the constructor of the [containingItem] so must only access its
+     * `name` and its reference. In particularly it must not access its [CallableItem.parameters]
+     * property as this is called during its initialization.
      */
     fun duplicate(
-        containingCallable: CallableItem,
+        containingItem: MemberItem,
         typeConverter: TypeItemConverter,
         newParameterIndex: Int = parameterIndex,
     ): ParameterItem

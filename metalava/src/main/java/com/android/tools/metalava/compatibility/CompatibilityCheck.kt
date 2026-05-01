@@ -36,6 +36,7 @@ import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.MultipleTypeVisitor
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
+import com.android.tools.metalava.model.ParameterKind
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.RecordComponentItem
 import com.android.tools.metalava.model.SelectableItem
@@ -453,41 +454,56 @@ class CompatibilityCheck(
     }
 
     override fun compareParameterItems(old: ParameterItem, new: ParameterItem) {
-        val prevName = old.publicName()
-        val newName = new.publicName()
-        if (prevName != null) {
-            if (newName == null) {
-                report(
-                    Issues.PARAMETER_NAME_CHANGE,
-                    new,
-                    "Attempted to remove parameter name from ${new.describe()}",
-                    oldItem = old,
-                )
-            } else if (newName != prevName) {
-                report(
-                    Issues.PARAMETER_NAME_CHANGE,
-                    new,
-                    "Attempted to change parameter name from $prevName to $newName in ${new.containingCallable().describeCallableItem()}",
-                    oldItem = old,
-                )
+        // Parameter names are only important for value parameters, since in Kotlin functions can be
+        // called with named value parameters.
+        if (new.kind == ParameterKind.VALUE) {
+            val prevName = old.publicName()
+            val newName = new.publicName()
+            if (prevName != null) {
+                if (newName == null) {
+                    report(
+                        Issues.PARAMETER_NAME_CHANGE,
+                        new,
+                        "Attempted to remove parameter name from ${new.describe()}",
+                        oldItem = old,
+                    )
+                } else if (newName != prevName) {
+                    val containingCallable =
+                        requireNotNull(new.containingCallable()) {
+                            "Value parameter $new has a non-callable parent ${new.parent()}"
+                        }
+                    report(
+                        Issues.PARAMETER_NAME_CHANGE,
+                        new,
+                        "Attempted to change parameter name from $prevName to $newName in ${containingCallable.describeCallableItem()}",
+                        oldItem = old,
+                    )
+                }
             }
         }
 
-        if (old.hasDefaultValue() && !new.hasDefaultValue()) {
-            // Default values only matter for Kotlin clients. Check if there is another Kotlin
-            // function which could replace all calls to the old function with the default value.
-            // This could happen if the default value were removed from the old function to avoid
-            // a signature clash with a new function with additional optional parameters to the
-            // old function.
-            val compatibleOverload =
-                findCompatibleKotlinOverload(old.containingCallable(), new.containingClass())
-            if (compatibleOverload == null) {
-                report(
-                    Issues.DEFAULT_VALUE_CHANGE,
-                    new,
-                    "Attempted to remove default value from ${new.describe()}",
-                    oldItem = old
-                )
+        // Only value parameters can have default values.
+        if (new.kind == ParameterKind.VALUE) {
+            if (old.hasDefaultValue() && !new.hasDefaultValue()) {
+                // Default values only matter for Kotlin clients. Check if there is another Kotlin
+                // function which could replace all calls to the old function with the default
+                // value. This could happen if the default value were removed from the old function
+                // to avoid a signature clash with a new function with additional optional
+                // parameters to the old function.
+                val containingCallable =
+                    requireNotNull(old.containingCallable()) {
+                        "Value parameter $old has a non-callable parent ${old.parent()}"
+                    }
+                val compatibleOverload =
+                    findCompatibleKotlinOverload(containingCallable, new.containingClass())
+                if (compatibleOverload == null) {
+                    report(
+                        Issues.DEFAULT_VALUE_CHANGE,
+                        new,
+                        "Attempted to remove default value from ${new.describe()}",
+                        oldItem = old
+                    )
+                }
             }
         }
 

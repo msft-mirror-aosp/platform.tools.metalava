@@ -641,7 +641,7 @@ internal class TurbineClassBuilder(
                         modifiers = parametermodifiers,
                         name = parameter.name(),
                         publicName = null,
-                        containingCallable = containingCallable,
+                        containingItem = containingCallable,
                         parameterIndex = parameterIndex,
                         type = type,
                         // Java parameters can't have default values

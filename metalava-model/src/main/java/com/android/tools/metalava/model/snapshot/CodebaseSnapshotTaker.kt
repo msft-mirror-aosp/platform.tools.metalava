@@ -589,7 +589,7 @@ private constructor(
                     modifiers = parameterItem.modifiers.snapshot(),
                     name = name,
                     publicName = publicName,
-                    containingCallable = containingCallable,
+                    containingItem = containingCallable,
                     parameterIndex = parameterItem.parameterIndex,
                     type = parameterItem.type().snapshot(),
                     hasDefaultValue = parameterItem.hasDefaultValue(),

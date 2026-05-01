@@ -879,7 +879,7 @@ internal class PsiClassBuilder(
                         psiMethod,
                         containingCallableModifiers,
                     ),
-                containingCallable = containingCallable,
+                containingItem = containingCallable,
                 parameterIndex = parameterIndex,
                 type = type,
                 hasDefaultValue =
