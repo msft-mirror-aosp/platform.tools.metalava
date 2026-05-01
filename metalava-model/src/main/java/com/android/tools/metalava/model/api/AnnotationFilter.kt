@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.android.tools.metalava.model.annotation
+package com.android.tools.metalava.model.api
 
 import com.android.tools.metalava.model.AnnotationContext
 import com.android.tools.metalava.model.AnnotationItem
@@ -23,7 +23,7 @@ import com.android.tools.metalava.model.value.ArrayValue
 import com.android.tools.metalava.model.value.Value
 import java.util.TreeMap
 
-interface AnnotationFilter {
+internal interface AnnotationFilter {
     // tells whether an annotation is included by the filter
     fun matches(annotation: AnnotationItem): Boolean
 
@@ -46,7 +46,7 @@ interface AnnotationFilter {
 }
 
 /** Builder for [AnnotationFilter]s. */
-class AnnotationFilterBuilder {
+internal class AnnotationFilterBuilder {
     private val inclusionExpressions = mutableListOf<AnnotationFilterEntry>()
 
     // Adds the given option as a fully qualified annotation name to match with this filter
@@ -73,7 +73,7 @@ private class ImmutableAnnotationFilter(
     override fun matches(annotation: AnnotationItem): Boolean {
         val qualifiedName = annotation.qualifiedName
         // If the annotation name is not in the map of annotation names that can be matched then
-        // this can never match so return immediately rather than generating a entry for the
+        // this can never match so return immediately rather than generating an entry for the
         // annotation.
         if (qualifiedName !in qualifiedNameToEntries) {
             return false

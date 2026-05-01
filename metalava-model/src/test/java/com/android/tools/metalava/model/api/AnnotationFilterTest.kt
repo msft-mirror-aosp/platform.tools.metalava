@@ -14,13 +14,11 @@
  * limitations under the License.
  */
 
-package com.android.tools.metalava
+package com.android.tools.metalava.model.api
 
-import com.android.tools.metalava.model.annotation.AnnotationFilter
-import com.android.tools.metalava.model.annotation.AnnotationFilterBuilder
 import com.android.tools.metalava.model.testing.value.annotationItem
 import com.android.tools.metalava.model.testing.value.literalValue
-import org.junit.Assert.assertEquals
+import kotlin.test.assertEquals
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized

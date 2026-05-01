@@ -20,7 +20,6 @@ import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.ShowOrHide
 import com.android.tools.metalava.model.Showability
-import com.android.tools.metalava.model.annotation.AnnotationFilter
 
 /** Helps determine to which api surface a [SelectableItem] belongs. */
 class ApiSurfaceSelector(
