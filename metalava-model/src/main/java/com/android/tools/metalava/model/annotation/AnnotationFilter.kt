@@ -31,17 +31,7 @@ interface AnnotationFilter {
     // Note that this filter might incorporate parameters but this function strips them.
     fun getIncludedAnnotationNames(): Set<String>
 
-    // Returns true if nothing is matched by this filter
-    fun isEmpty(): Boolean
-
-    // Returns true if some annotation is matched by this filter
-    fun isNotEmpty(): Boolean
-
     companion object {
-        private val empty = AnnotationFilterBuilder().build()
-
-        fun emptyFilter(): AnnotationFilter = empty
-
         /**
          * Create an [AnnotationFilter] from a list of [filterExpressions] each of which is an
          * annotation filter expression that can include or exclude an annotation based on its
@@ -98,14 +88,6 @@ private class ImmutableAnnotationFilter(
     }
 
     override fun getIncludedAnnotationNames(): Set<String> = qualifiedNameToEntries.keys
-
-    override fun isEmpty(): Boolean {
-        return qualifiedNameToEntries.isEmpty()
-    }
-
-    override fun isNotEmpty(): Boolean {
-        return !isEmpty()
-    }
 
     private fun annotationsMatch(
         filter: AnnotationFilterEntry,

@@ -144,14 +144,6 @@ class AnnotationFilterTest(private val params: Params) {
     }
 
     @Test
-    fun `Test empty and not empty`() {
-        val filter = buildFilter()
-
-        assertEquals("empty", params.expectedEmpty, filter.isEmpty())
-        assertEquals("not empty", !params.expectedEmpty, filter.isNotEmpty())
-    }
-
-    @Test
     fun `Test match simple annotation no attributes`() {
         val filter = buildFilter()
 
