@@ -60,6 +60,7 @@ import com.android.tools.metalava.model.Showability
 import com.android.tools.metalava.model.Showability.Companion.REVERT_UNSTABLE_API
 import com.android.tools.metalava.model.TypedefMode
 import com.android.tools.metalava.model.annotation.DefaultAnnotationManager.Config
+import com.android.tools.metalava.model.api.ApiSurfaceSelector
 import com.android.tools.metalava.model.api.flags.ApiFlag
 import com.android.tools.metalava.model.api.flags.ApiFlags
 import com.android.tools.metalava.model.api.flags.optionalFlagName
@@ -80,10 +81,7 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
     data class Config(
         val reporter: Reporter = ThrowingReporter.INSTANCE,
         val passThroughAnnotations: Set<String> = emptySet(),
-        val showAnnotations: AnnotationFilter = AnnotationFilter.emptyFilter(),
-        val showSingleAnnotations: AnnotationFilter = AnnotationFilter.emptyFilter(),
-        val showForStubPurposesAnnotations: AnnotationFilter = AnnotationFilter.emptyFilter(),
-        val hideAnnotations: AnnotationFilter = AnnotationFilter.emptyFilter(),
+        val apiSurfaceSelector: ApiSurfaceSelector = ApiSurfaceSelector(),
         val suppressCompatibilityMetaAnnotations: Set<String> = emptySet(),
         val excludeAnnotations: Set<String> = emptySet(),
         val typedefMode: TypedefMode = TypedefMode.NONE,
@@ -100,7 +98,12 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
          * [ApiFlag] for every provided flag and will use a default for any others.
          */
         val apiFlags: ApiFlags? = null,
-    )
+    ) {
+        val showAnnotations = apiSurfaceSelector.showAnnotations
+        val showSingleAnnotations = apiSurfaceSelector.showSingleAnnotations
+        val showForStubPurposesAnnotations = apiSurfaceSelector.showForStubPurposesAnnotations
+        val hideAnnotations = apiSurfaceSelector.hideAnnotations
+    }
 
     /** The set of all annotation names used for selecting API surfaces. */
     private val allApiSurfaceSelectionAnnotationNames = buildSet {

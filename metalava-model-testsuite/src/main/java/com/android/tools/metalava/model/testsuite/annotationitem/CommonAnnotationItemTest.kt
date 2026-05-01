@@ -25,6 +25,7 @@ import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.PrimitiveTypeItem.Primitive
 import com.android.tools.metalava.model.annotation.AnnotationFilter
 import com.android.tools.metalava.model.annotation.DefaultAnnotationManager
+import com.android.tools.metalava.model.api.ApiSurfaceSelector
 import com.android.tools.metalava.model.noOpAnnotationManager
 import com.android.tools.metalava.model.provider.InputFormat
 import com.android.tools.metalava.model.source.hasApiVisibility
@@ -1625,7 +1626,10 @@ class CommonAnnotationItemTest : BaseModelTest() {
                             config =
                                 DefaultAnnotationManager.Config(
                                     apiFlags = apiFlags,
-                                    showAnnotations = showFilter,
+                                    apiSurfaceSelector =
+                                        ApiSurfaceSelector(
+                                            showAnnotations = showFilter,
+                                        ),
                                 )
                         )
                     }

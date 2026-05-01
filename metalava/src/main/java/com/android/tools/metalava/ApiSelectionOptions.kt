@@ -24,6 +24,7 @@ import com.android.tools.metalava.config.ApiSurfaceConfig
 import com.android.tools.metalava.config.ApiSurfacesConfig
 import com.android.tools.metalava.model.TypedefMode
 import com.android.tools.metalava.model.annotation.AnnotationFilter
+import com.android.tools.metalava.model.api.ApiSurfaceSelector
 import com.android.tools.metalava.model.api.surface.ApiSurface
 import com.android.tools.metalava.model.api.surface.ApiSurfaces
 import com.github.ajalt.clikt.parameters.groups.OptionGroup
@@ -162,7 +163,7 @@ class ApiSelectionOptions(
      *
      * @see [allShowAnnotations]
      */
-    internal val showAnnotations by
+    private val showAnnotations by
         lazy(LazyThreadSafetyMode.NONE) { AnnotationFilter.create(showAnnotationValues) }
 
     /**
@@ -170,7 +171,7 @@ class ApiSelectionOptions(
      *
      * @see [allShowAnnotations]
      */
-    internal val showSingleAnnotations by
+    private val showSingleAnnotations by
         lazy(LazyThreadSafetyMode.NONE) { AnnotationFilter.create(showSingleAnnotationValues) }
 
     /**
@@ -180,14 +181,25 @@ class ApiSelectionOptions(
      *
      * @see [allShowAnnotations]
      */
-    internal val showForStubPurposesAnnotations by
+    private val showForStubPurposesAnnotations by
         lazy(LazyThreadSafetyMode.NONE) {
             AnnotationFilter.create(showForStubPurposesAnnotationValues)
         }
 
     /** Annotations that mark items which should be treated as hidden. */
-    internal val hideAnnotations by
+    private val hideAnnotations by
         lazy(LazyThreadSafetyMode.NONE) { AnnotationFilter.create(hideAnnotationValues) }
+
+    /** The [ApiSurfaceSelector] that will determine to which API surface an item belongs. */
+    internal val apiSurfaceSelector by
+        lazy(LazyThreadSafetyMode.NONE) {
+            ApiSurfaceSelector(
+                showAnnotations = showAnnotations,
+                showSingleAnnotations = showSingleAnnotations,
+                showForStubPurposesAnnotations = showForStubPurposesAnnotations,
+                hideAnnotations = hideAnnotations,
+            )
+        }
 
     /** The set of annotation classes that should be removed from all outputs */
     internal val excludeAnnotations by
