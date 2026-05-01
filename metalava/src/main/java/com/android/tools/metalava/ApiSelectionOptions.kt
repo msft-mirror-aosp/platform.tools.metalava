@@ -92,7 +92,9 @@ class ApiSelectionOptions(
                 // If the caller has not explicitly requested that unannotated classes and members
                 // should be shown in the output then only show them if no show annotations were
                 // provided.
-                allShowAnnotations.isEmpty()
+                showAnnotationValues.isEmpty() &&
+                    showSingleAnnotationValues.isEmpty() &&
+                    showForStubPurposesAnnotationValues.isEmpty()
             }
 
     private val showAnnotationValues by
@@ -144,60 +146,15 @@ class ApiSelectionOptions(
             )
             .multiple()
 
-    /**
-     * Whether to include APIs with annotations (intended for documentation purposes). This includes
-     * [showAnnotations], [showSingleAnnotations] and [showForStubPurposesAnnotations].
-     */
-    private val allShowAnnotations by
-        lazy(LazyThreadSafetyMode.NONE) {
-            AnnotationFilter.create(
-                showAnnotationValues +
-                    showSingleAnnotationValues +
-                    showForStubPurposesAnnotationValues
-            )
-        }
-
-    /**
-     * A filter that will match annotations which will cause an annotated item (and its enclosed
-     * items unless overridden by a closer annotation) to be included in the API surface.
-     *
-     * @see [allShowAnnotations]
-     */
-    private val showAnnotations by
-        lazy(LazyThreadSafetyMode.NONE) { AnnotationFilter.create(showAnnotationValues) }
-
-    /**
-     * Like [showAnnotations], but does not work recursively.
-     *
-     * @see [allShowAnnotations]
-     */
-    private val showSingleAnnotations by
-        lazy(LazyThreadSafetyMode.NONE) { AnnotationFilter.create(showSingleAnnotationValues) }
-
-    /**
-     * Annotations that defines APIs that are implicitly included in the API surface. These APIs
-     * will be included in certain kinds of output such as stubs, but others (e.g. API lint and the
-     * API signature file) ignore them.
-     *
-     * @see [allShowAnnotations]
-     */
-    private val showForStubPurposesAnnotations by
-        lazy(LazyThreadSafetyMode.NONE) {
-            AnnotationFilter.create(showForStubPurposesAnnotationValues)
-        }
-
-    /** Annotations that mark items which should be treated as hidden. */
-    private val hideAnnotations by
-        lazy(LazyThreadSafetyMode.NONE) { AnnotationFilter.create(hideAnnotationValues) }
-
     /** The [ApiSurfaceSelector] that will determine to which API surface an item belongs. */
     internal val apiSurfaceSelector by
         lazy(LazyThreadSafetyMode.NONE) {
             ApiSurfaceSelector(
-                showAnnotations = showAnnotations,
-                showSingleAnnotations = showSingleAnnotations,
-                showForStubPurposesAnnotations = showForStubPurposesAnnotations,
-                hideAnnotations = hideAnnotations,
+                showAnnotations = AnnotationFilter.create(showAnnotationValues),
+                showSingleAnnotations = AnnotationFilter.create(showSingleAnnotationValues),
+                showForStubPurposesAnnotations =
+                    AnnotationFilter.create(showForStubPurposesAnnotationValues),
+                hideAnnotations = AnnotationFilter.create(hideAnnotationValues),
             )
         }
 
