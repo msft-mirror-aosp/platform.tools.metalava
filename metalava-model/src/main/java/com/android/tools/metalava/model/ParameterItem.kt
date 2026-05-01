@@ -96,10 +96,10 @@ interface ParameterItem :
     override fun parent(): MemberItem = containingCallable()
 
     override val effectivelyDeprecated: Boolean
-        get() = originallyDeprecated || containingCallable().effectivelyDeprecated
+        get() = originallyDeprecated || parent().effectivelyDeprecated
 
     override fun baselineElementId() =
-        containingCallable().baselineElementId() + " parameter #" + parameterIndex
+        parent().baselineElementId() + " parameter #" + parameterIndex
 
     override fun accept(visitor: ItemVisitor) {
         visitor.visit(this)
@@ -122,17 +122,16 @@ interface ParameterItem :
     ): ParameterItem
 
     override val description: DocContent?
-        get() = containingCallable().documentation?.paramTagDescription(name())
+        get() = parent().documentation?.paramTagDescription(name())
 
     override val descriptionOwner: DocContentOwner
-        get() = containingCallable().requiredDocumentation.paramTagDescriptionOwner(name())
+        get() = parent().requiredDocumentation.paramTagDescriptionOwner(name())
 
     override fun equalsToItem(other: Any?): Boolean {
         if (this === other) return true
         if (other !is ParameterItem) return false
 
-        return parameterIndex == other.parameterIndex &&
-            containingCallable() == other.containingCallable()
+        return parameterIndex == other.parameterIndex && parent() == other.parent()
     }
 
     override fun hashCodeForItem(): Int {
@@ -141,12 +140,12 @@ interface ParameterItem :
 
     override fun toStringForItem() = "parameter ${name()}"
 
-    override fun containingClass(): ClassItem = containingCallable().containingClass()
+    override fun containingClass(): ClassItem = parent().containingClass()
 
-    override fun containingPackage(): PackageItem? = containingCallable().containingPackage()
+    override fun containingPackage(): PackageItem? = parent().containingPackage()
 
     override val targetLanguages: Set<TargetLanguage>
-        get() = containingCallable().targetLanguages
+        get() = parent().targetLanguages
 
     // TODO: modifier list
 }

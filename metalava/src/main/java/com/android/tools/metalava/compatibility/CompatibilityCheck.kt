@@ -104,10 +104,14 @@ class CompatibilityCheck(
         // In a final method, you can change a parameter from nonnull to nullable.
         // This will also allow a constructor parameter to be changed from nonnull to nullable if
         // the class is not extensible.
+        // For context parameters (including on properties) it is also valid to switch from nonnull
+        // to nullable if the parent function/property cannot be overridden. The exception is if a
+        // call site has both a nonnull and nullable instance of the type in context, but that seems
+        // like an unlikely scenario.
         // TODO: Allow the parameter of any constructor to be switched from nonnull to nullable as
         //  they can never be overridden.
         val allowNonNullToNullable =
-            new is ParameterItem && !new.containingCallable().canBeExternallyOverridden()
+            new is ParameterItem && !new.parent().canBeExternallyOverridden()
         // In a final method, you can change a method return from nullable to nonnull
         val allowNullableToNonNull = new is MethodItem && !new.canBeExternallyOverridden()
         compareTypeNullability(
