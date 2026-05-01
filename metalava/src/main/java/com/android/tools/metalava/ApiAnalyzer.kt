@@ -553,7 +553,7 @@ class ApiAnalyzer(
                     }
 
                     reporter.report(
-                        Issues.REQUIRES_PERMISSION,
+                        Issues.REQUIRES_SYSTEM_PERMISSION,
                         method,
                         "Permission '$permission' is not defined by manifest ${config.manifest}."
                     )
@@ -571,7 +571,7 @@ class ApiAnalyzer(
             }
             if (any && missing.size == values.size) {
                 reporter.report(
-                    Issues.REQUIRES_PERMISSION,
+                    Issues.REQUIRES_SYSTEM_PERMISSION,
                     method,
                     "None of the permissions ${missing.joinToString()} are defined by manifest " +
                         "${config.manifest}."
@@ -582,7 +582,7 @@ class ApiAnalyzer(
                 hasAnnotation = false
             } else if (any && nonSystem.isNotEmpty() || !any && system.isEmpty()) {
                 reporter.report(
-                    Issues.REQUIRES_PERMISSION,
+                    Issues.REQUIRES_SYSTEM_PERMISSION,
                     method,
                     "Method '" +
                         method.name() +
@@ -595,7 +595,7 @@ class ApiAnalyzer(
 
         if (!hasAnnotation) {
             reporter.report(
-                Issues.REQUIRES_PERMISSION,
+                Issues.REQUIRES_SYSTEM_PERMISSION,
                 method,
                 "Method '" + method.name() + "' must be protected with a system permission."
             )
@@ -615,7 +615,7 @@ class ApiAnalyzer(
             AnnotationItem.createFromSource(codebase, "@$ANDROID_SYSTEM_SERVICE_CHECK")
 
         val checkSystemApi =
-            !reporter.isSuppressed(Issues.REQUIRES_PERMISSION) &&
+            !reporter.isSuppressed(Issues.REQUIRES_SYSTEM_PERMISSION) &&
                 systemServiceCheckAnnotation != null &&
                 config.allShowAnnotations.matches(systemServiceCheckAnnotation) &&
                 !config.manifest.isEmpty()

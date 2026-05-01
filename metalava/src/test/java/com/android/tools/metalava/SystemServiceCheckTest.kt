@@ -122,7 +122,7 @@ class SystemServiceCheckTest : DriverTest() {
     fun `Check SystemService -- no permission annotation`() {
         checkSystemServicePermissions(
             expectedIssues =
-                "src/test/pkg/MyTest1.java:4: error: Method 'myMethod2' must be protected with a system permission. [RequiresPermission]",
+                "src/test/pkg/MyTest1.java:4: error: Method 'myMethod2' must be protected with a system permission. [RequiresSystemPermission]",
             sourceFiles =
                 arrayOf(
                     java(
@@ -183,8 +183,8 @@ class SystemServiceCheckTest : DriverTest() {
         checkSystemServicePermissions(
             expectedIssues =
                 """
-                src/test/pkg/MyTest2.java:6: error: Method 'myMethod1' must be protected with a system permission. [RequiresPermission]
-                src/test/pkg/MyTest2.java:6: error: None of the permissions foo.bar.PERMISSION1, foo.bar.PERMISSION2 are defined by manifest TESTROOT/manifest.xml. [RequiresPermission]
+                src/test/pkg/MyTest2.java:6: error: Method 'myMethod1' must be protected with a system permission. [RequiresSystemPermission]
+                src/test/pkg/MyTest2.java:6: error: None of the permissions foo.bar.PERMISSION1, foo.bar.PERMISSION2 are defined by manifest TESTROOT/manifest.xml. [RequiresSystemPermission]
                 """,
             sourceFiles =
                 arrayOf(
@@ -214,7 +214,7 @@ class SystemServiceCheckTest : DriverTest() {
     fun `Check SystemService -- missing one permission with allOf`() {
         checkSystemServicePermissions(
             expectedIssues =
-                "src/test/pkg/MyTest2.java:6: error: Permission 'foo.bar.PERMISSION2' is not defined by manifest TESTROOT/manifest.xml. [RequiresPermission]",
+                "src/test/pkg/MyTest2.java:6: error: Permission 'foo.bar.PERMISSION2' is not defined by manifest TESTROOT/manifest.xml. [RequiresSystemPermission]",
             sourceFiles =
                 arrayOf(
                     java(
@@ -251,7 +251,7 @@ class SystemServiceCheckTest : DriverTest() {
             expectedIssues =
                 "src/test/pkg/MyTest2.java:7: error: Method 'test' must be protected with a system " +
                     "permission; it currently allows non-system callers holding [foo.bar.PERMISSION1, " +
-                    "foo.bar.PERMISSION2] [RequiresPermission]",
+                    "foo.bar.PERMISSION2] [RequiresSystemPermission]",
             sourceFiles =
                 arrayOf(
                     java(
@@ -292,9 +292,9 @@ class SystemServiceCheckTest : DriverTest() {
         checkSystemServicePermissions(
             expectedIssues =
                 """
-                src/test/pkg/MyTest2.java:8: error: Method 'test' must be protected with a system permission. [RequiresPermission]
-                src/test/pkg/MyTest2.java:8: error: Permission 'android.permission.MY_PERMISSION' is not defined by manifest TESTROOT/manifest.xml. [RequiresPermission]
-                src/test/pkg/MyTest2.java:8: error: Permission 'android.permission.MY_PERMISSION2' is not defined by manifest TESTROOT/manifest.xml. [RequiresPermission]
+                src/test/pkg/MyTest2.java:8: error: Method 'test' must be protected with a system permission. [RequiresSystemPermission]
+                src/test/pkg/MyTest2.java:8: error: Permission 'android.permission.MY_PERMISSION' is not defined by manifest TESTROOT/manifest.xml. [RequiresSystemPermission]
+                src/test/pkg/MyTest2.java:8: error: Permission 'android.permission.MY_PERMISSION2' is not defined by manifest TESTROOT/manifest.xml. [RequiresSystemPermission]
                 """,
             sourceFiles =
                 arrayOf(
@@ -328,8 +328,8 @@ class SystemServiceCheckTest : DriverTest() {
             expectedIssues =
                 """
                 manifest.xml: error: Failed to parse TESTROOT/manifest.xml: The markup in the document preceding the root element must be well-formed. [ParseError]
-                src/test/pkg/MyTest2.java:7: error: Method 'test' must be protected with a system permission. [RequiresPermission]
-                src/test/pkg/MyTest2.java:7: error: None of the permissions foo.bar.PERMISSION1, foo.bar.PERMISSION2 are defined by manifest TESTROOT/manifest.xml. [RequiresPermission]
+                src/test/pkg/MyTest2.java:7: error: Method 'test' must be protected with a system permission. [RequiresSystemPermission]
+                src/test/pkg/MyTest2.java:7: error: None of the permissions foo.bar.PERMISSION1, foo.bar.PERMISSION2 are defined by manifest TESTROOT/manifest.xml. [RequiresSystemPermission]
                 """,
             sourceFiles =
                 arrayOf(
@@ -368,7 +368,7 @@ class SystemServiceCheckTest : DriverTest() {
 
                     @android.annotation.SystemService("Myservice")
                     public class MyTest1 {
-                        @android.annotation.SuppressLint({"RemovedField","RequiresPermission"})
+                        @android.annotation.SuppressLint({"RemovedField","RequiresSystemPermission"})
                         @android.annotation.RequiresPermission(anyOf={"foo.bar.PERMISSION1","foo.bar.PERMISSION2"})
                         public void myMethod1() {
                         }

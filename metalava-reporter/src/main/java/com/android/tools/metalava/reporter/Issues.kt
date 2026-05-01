@@ -114,6 +114,7 @@ object Issues {
     val NULLABLE by Issue(Severity.HIDDEN, Category.DOCUMENTATION)
     val INT_DEF by Issue(Severity.HIDDEN, Category.DOCUMENTATION)
     val REQUIRES_PERMISSION by Issue(Severity.ERROR, Category.DOCUMENTATION)
+    val REQUIRES_SYSTEM_PERMISSION by Issue(Severity.ERROR, Category.DOCUMENTATION)
     val BROADCAST_BEHAVIOR by Issue(Severity.ERROR, Category.DOCUMENTATION)
     val SDK_CONSTANT by Issue(Severity.ERROR, Category.DOCUMENTATION)
     val TODO by Issue(Severity.ERROR, Category.DOCUMENTATION)

@@ -226,6 +226,7 @@ Available Issues                             |  Category                        
   RemovedSourceSet                           |  source_compatibility_only            |   error
   RemovedTypeAlias                           |  source_compatibility_only            |   error
   RequiresPermission                         |  documentation                        |   error
+  RequiresSystemPermission                   |  documentation                        |   error
   ResourceFieldName                          |  api_lint                             |   error
   ResourceStyleFieldName                     |  api_lint                             |   error
   ResourceValueFieldName                     |  api_lint                             |   error
