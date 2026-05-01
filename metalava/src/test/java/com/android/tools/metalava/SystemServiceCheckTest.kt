@@ -17,6 +17,8 @@
 package com.android.tools.metalava
 
 import com.android.tools.lint.checks.infrastructure.TestFile
+import com.android.tools.metalava.cli.common.ARG_ERROR
+import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.testing.KnownSourceFiles
 import com.android.tools.metalava.testing.java
 import org.intellij.lang.annotations.Language
@@ -37,6 +39,8 @@ class SystemServiceCheckTest : DriverTest() {
                 arrayOf(
                     ARG_SHOW_ANNOTATION,
                     ANDROID_SYSTEM_SERVICE_CHECK,
+                    ARG_ERROR,
+                    Issues.REQUIRES_SYSTEM_PERMISSION.name,
                 ),
             sourceFiles = sourceFiles,
             manifest = manifest,
