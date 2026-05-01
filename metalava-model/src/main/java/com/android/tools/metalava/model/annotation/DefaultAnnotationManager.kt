@@ -80,7 +80,6 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
     data class Config(
         val reporter: Reporter = ThrowingReporter.INSTANCE,
         val passThroughAnnotations: Set<String> = emptySet(),
-        val allShowAnnotations: AnnotationFilter = AnnotationFilter.emptyFilter(),
         val showAnnotations: AnnotationFilter = AnnotationFilter.emptyFilter(),
         val showSingleAnnotations: AnnotationFilter = AnnotationFilter.emptyFilter(),
         val showForStubPurposesAnnotations: AnnotationFilter = AnnotationFilter.emptyFilter(),

@@ -147,7 +147,7 @@ class ApiSelectionOptions(
      * Whether to include APIs with annotations (intended for documentation purposes). This includes
      * [showAnnotations], [showSingleAnnotations] and [showForStubPurposesAnnotations].
      */
-    internal val allShowAnnotations by
+    private val allShowAnnotations by
         lazy(LazyThreadSafetyMode.NONE) {
             AnnotationFilter.create(
                 showAnnotationValues +

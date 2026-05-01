@@ -207,7 +207,6 @@ class Driver(
             DefaultAnnotationManager.Config(
                 reporter = reporter,
                 passThroughAnnotations = apiSelectionOptions.passThroughAnnotations,
-                allShowAnnotations = apiSelectionOptions.allShowAnnotations,
                 showAnnotations = apiSelectionOptions.showAnnotations,
                 showSingleAnnotations = apiSelectionOptions.showSingleAnnotations,
                 showForStubPurposesAnnotations = apiSelectionOptions.showForStubPurposesAnnotations,

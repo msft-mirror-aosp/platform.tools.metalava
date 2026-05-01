@@ -1624,7 +1624,6 @@ class CommonAnnotationItemTest : BaseModelTest() {
                         DefaultAnnotationManager(
                             config =
                                 DefaultAnnotationManager.Config(
-                                    allShowAnnotations = showFilter,
                                     apiFlags = apiFlags,
                                     showAnnotations = showFilter,
                                 )
