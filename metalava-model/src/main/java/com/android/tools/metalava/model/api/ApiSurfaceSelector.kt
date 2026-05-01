@@ -26,38 +26,90 @@ import com.android.tools.metalava.model.api.surface.ApiSurfaces
 
 /** Helps determine to which api surface a [SelectableItem] belongs. */
 class ApiSurfaceSelector(
-    val showUnannotated: Boolean = true,
-    showAnnotationValues: List<String> = emptyList(),
-    showSingleAnnotationValues: List<String> = emptyList(),
-    showForStubPurposesAnnotationValues: List<String> = emptyList(),
-    hideAnnotationValues: List<String> = emptyList(),
+    apiSurfaceRules: ApiSurfaceRules = ApiSurfaceRules(),
 ) {
+    /** True if unannotated items should be included in the main [ApiSurface]. */
+    val showUnannotated: Boolean
+
     /** True if this has annotations that include a [SelectableItem] in the stubs only. */
-    val hasAnyShowForStubPurposesAnnotations = showForStubPurposesAnnotationValues.isNotEmpty()
+    val hasAnyShowForStubPurposesAnnotations: Boolean
 
     /** True if this has any annotations that can hide a [SelectableItem] from the public API. */
-    val hasAnyHideAnnotations = hideAnnotationValues.isNotEmpty()
-
-    /** Create an [AnnotationMatcher] from the [List] of annotation sources. */
-    private fun List<String>.addRules(
-        mutableList: MutableList<AnnotationMatcher.Rule<Showability>>,
-        showability: Showability
-    ) = mapTo(mutableList) { AnnotationMatcher.Rule(it, showability) }
+    val hasAnyHideAnnotations: Boolean
 
     /**
      * Associates an annotation pattern, e.g. `--show-annotation android.annotation.TestApi` with
      * its [Showability].
      */
-    internal val matcher =
-        AnnotationMatcher.createFromRules(
-            buildList {
-                showForStubPurposesAnnotationValues.addRules(this, SHOW_FOR_STUBS)
-                showSingleAnnotationValues.addRules(this, SHOW_SINGLE)
-                showAnnotationValues.addRules(this, SHOW)
-                // Hide are at the end as these are processed in order and show has priority.
-                hideAnnotationValues.addRules(this, HIDE)
+    internal val matcher: AnnotationMatcher<Showability>
+
+    init {
+        var hasShowUnannotatedOnMain = false
+        var hasShowForStubs = false
+        var hasHideAnnotations = false
+
+        val matcherRules = buildList {
+            fun addMatcherRule(annotated: SelectAnnotated, showability: Showability) {
+                add(AnnotationMatcher.Rule(annotated.annotationPattern, showability))
             }
-        )
+            val apiSurfaces = apiSurfaceRules.apiSurfaces
+
+            val main = apiSurfaces.main
+            val all = apiSurfaces.all
+            val narrowest = all.first()
+
+            for (surface in all) {
+                val isNarrowest = surface === narrowest
+                val rules = apiSurfaceRules[surface.name] ?: continue
+                for (rule in rules) {
+                    if (rule is SelectUnannotated) {
+                        require(isNarrowest) {
+                            "unannotated rule is only allowed on narrowest surface $narrowest but was found on $surface"
+                        }
+                        if (surface.isMain) {
+                            hasShowUnannotatedOnMain = true
+                        }
+                    } else if (rule is SelectAnnotated) {
+                        val effect = rule.effect
+                        if (effect == Effect.HIDE) {
+                            require(isNarrowest) {
+                                "hide rules are only allowed on narrowest surface $narrowest but $rule was found on $surface"
+                            }
+                            hasHideAnnotations = true
+                            addMatcherRule(rule, HIDE)
+                        } else if (effect == Effect.SHOW) {
+                            if (surface.isMain) {
+                                if (rule.recursive) {
+                                    addMatcherRule(rule, SHOW)
+                                } else {
+                                    addMatcherRule(rule, SHOW_SINGLE)
+                                }
+                            } else {
+                                // TODO(b/508331653): Remove this restriction which only exists due
+                                //  to limitations in the Showability mechanism. Once that has been
+                                //  replaced with the ApiSurface mechanism it should be possible to
+                                //  remove this.
+                                require(rule.recursive) {
+                                    "non-recursive rules are only allowed on main surface $main but was found on $surface"
+                                }
+                                hasShowForStubs = true
+                                addMatcherRule(rule, SHOW_FOR_STUBS)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Sort the rules from longest (most specific pattern) to shortest. That is because a more
+        // specific pattern should be matched before a shorter, less specific one.
+        val sortedRules = matcherRules.sortedByDescending { it.annotationPattern }
+
+        matcher = AnnotationMatcher.createFromRules(sortedRules)
+        showUnannotated = hasShowUnannotatedOnMain
+        hasAnyHideAnnotations = hasHideAnnotations
+        hasAnyShowForStubPurposesAnnotations = hasShowForStubs
+    }
 
     /** The qualified names of all annotations that can affect API surface selection. */
     val annotationNames = matcher.annotationNames

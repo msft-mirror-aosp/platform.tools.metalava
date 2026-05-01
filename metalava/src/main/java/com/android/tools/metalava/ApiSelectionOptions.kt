@@ -155,13 +155,9 @@ class ApiSelectionOptions(
     /** The [ApiSurfaceSelector] that will determine to which API surface an item belongs. */
     internal val apiSurfaceSelector by
         lazy(LazyThreadSafetyMode.NONE) {
-            ApiSurfaceSelector(
-                showUnannotated = showUnannotatedOption,
-                showAnnotationValues = showAnnotationValues,
-                showSingleAnnotationValues = showSingleAnnotationValues,
-                showForStubPurposesAnnotationValues = showForStubPurposesAnnotationValues,
-                hideAnnotationValues = hideAnnotationValues,
-            )
+            val apiSurfaceRules = createApiSurfaceRulesFromOptions()
+
+            ApiSurfaceSelector(apiSurfaceRules)
         }
 
     /**

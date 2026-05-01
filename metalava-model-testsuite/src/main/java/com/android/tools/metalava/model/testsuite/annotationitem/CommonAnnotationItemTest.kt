@@ -24,7 +24,9 @@ import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.PrimitiveTypeItem.Primitive
 import com.android.tools.metalava.model.annotation.DefaultAnnotationManager
+import com.android.tools.metalava.model.api.ApiSurfaceRules
 import com.android.tools.metalava.model.api.ApiSurfaceSelector
+import com.android.tools.metalava.model.api.SurfaceSelectionRule
 import com.android.tools.metalava.model.noOpAnnotationManager
 import com.android.tools.metalava.model.provider.InputFormat
 import com.android.tools.metalava.model.source.hasApiVisibility
@@ -1585,9 +1587,17 @@ class CommonAnnotationItemTest : BaseModelTest() {
     @Test
     fun `annotation on internal`() {
         // Treat RestrictTo(Scope.LIBRARY) as a show annotation.
-        val showAnnotation =
-            listOf(
-                "androidx.annotation.RestrictTo(androidx.annotation.RestrictTo.Scope.LIBRARY)",
+        val apiSurfaceRules =
+            ApiSurfaceRules(
+                byName =
+                    mapOf(
+                        "main" to
+                            listOf(
+                                SurfaceSelectionRule.createAnnotationRule(
+                                    "androidx.annotation.RestrictTo(androidx.annotation.RestrictTo.Scope.LIBRARY)"
+                                )
+                            )
+                    ),
             )
 
         runCodebaseTest(
@@ -1625,7 +1635,7 @@ class CommonAnnotationItemTest : BaseModelTest() {
                                     apiFlags = apiFlags,
                                     apiSurfaceSelector =
                                         ApiSurfaceSelector(
-                                            showAnnotationValues = showAnnotation,
+                                            apiSurfaceRules = apiSurfaceRules,
                                         ),
                                 )
                         )
