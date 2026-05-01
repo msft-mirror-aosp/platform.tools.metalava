@@ -551,13 +551,13 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
         // previously released version `X'` will need to be written out to the stubs for the system
         // API, just as if it was annotated with an annotation from
         // `--show-for-stub-purposes-annotation`.
-        return config.showForStubPurposesAnnotations.isNotEmpty() || couldRevertItems()
+        return apiSurfaceSelector.hasAnyShowForStubPurposesAnnotations || couldRevertItems()
     }
 
     override fun hasHideAnnotations(modifiers: ModifierList): Boolean {
         // If there are no hide annotations and items cannot be reverted then this can never return
         // true. Reverted items can behave as if they are hidden it they are newly added.
-        if (config.hideAnnotations.isEmpty() && !couldRevertItems()) {
+        if (!apiSurfaceSelector.hasAnyHideAnnotations && !couldRevertItems()) {
             return false
         }
         return modifiers.hasAnnotation(AnnotationItem::isHideAnnotation)

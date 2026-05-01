@@ -26,6 +26,12 @@ class ApiSurfaceSelector(
     val showForStubPurposesAnnotations: AnnotationFilter = AnnotationFilter.emptyFilter(),
     val hideAnnotations: AnnotationFilter = AnnotationFilter.emptyFilter(),
 ) {
+    /** True if this has annotations that include a [SelectableItem] in the stubs only. */
+    val hasAnyShowForStubPurposesAnnotations = showForStubPurposesAnnotations.isNotEmpty()
+
+    /** True if this has any annotations that can hide a [SelectableItem] from the public API. */
+    val hasAnyHideAnnotations = hideAnnotations.isNotEmpty()
+
     /** The qualified names of all annotations that can affect API surface selection. */
     val annotationNames = buildSet {
         // The list of all filters.
