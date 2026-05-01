@@ -187,26 +187,6 @@ class AnnotationFilterTest(private val params: Params) {
     }
 
     @Test
-    fun `Test matches annotation name`() {
-        val filter = buildFilter()
-
-        assertEquals(
-            params.expectedMatchesAnnotationName,
-            filter.matchesAnnotationName("test.pkg.Annotation")
-        )
-    }
-
-    @Test
-    fun `Test does not match annotation name`() {
-        val filter = buildFilter()
-
-        assertEquals(
-            params.expectedMatchesOtherAnnotationName,
-            filter.matchesAnnotationName("other.OtherAnnotation")
-        )
-    }
-
-    @Test
     fun `Test included names`() {
         val filter = buildFilter()
 

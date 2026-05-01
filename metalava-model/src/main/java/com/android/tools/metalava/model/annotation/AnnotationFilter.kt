@@ -31,9 +31,6 @@ interface AnnotationFilter {
     // Note that this filter might incorporate parameters but this function strips them.
     fun getIncludedAnnotationNames(): Set<String>
 
-    // Returns true if [getIncludedAnnotationNames] includes the given qualified name
-    fun matchesAnnotationName(qualifiedName: String): Boolean
-
     // Returns true if nothing is matched by this filter
     fun isEmpty(): Boolean
 
@@ -101,10 +98,6 @@ private class ImmutableAnnotationFilter(
     }
 
     override fun getIncludedAnnotationNames(): Set<String> = qualifiedNameToEntries.keys
-
-    override fun matchesAnnotationName(qualifiedName: String): Boolean {
-        return qualifiedNameToEntries.contains(qualifiedName)
-    }
 
     override fun isEmpty(): Boolean {
         return qualifiedNameToEntries.isEmpty()
