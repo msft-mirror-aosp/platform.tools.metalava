@@ -277,6 +277,7 @@ class DefaultItemFactory(
         receiver: TypeItem?,
         typeParameterList: TypeParameterList,
         setterVisibility: VisibilityLevel?,
+        contextParameterFactory: (PropertyItem) -> List<ParameterItem>,
         getter: MethodItem? = null,
         setter: MethodItem? = null,
         constructorParameter: ParameterItem? = null,
@@ -299,6 +300,7 @@ class DefaultItemFactory(
             receiver,
             typeParameterList,
             setterVisibility,
+            contextParameterFactory,
         )
 
     /** Create a [PropertyItem] for use as a record component. */

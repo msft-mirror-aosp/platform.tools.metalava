@@ -1910,6 +1910,8 @@ private constructor(
                 // There isn't any information about whether a setter exists or its visibility if it
                 // does in API files currently.
                 setterVisibility = null,
+                // TODO(b/508307884): parse context parameters on a property
+                contextParameterFactory = { emptyList() },
             )
         property.markForMainApiSurface()
 

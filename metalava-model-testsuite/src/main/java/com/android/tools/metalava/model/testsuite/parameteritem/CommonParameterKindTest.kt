@@ -269,4 +269,26 @@ class CommonParameterKindTest : BaseModelTest() {
             assertThat(fooMethod.parameters()[3].kind).isEqualTo(ParameterKind.CONTINUATION)
         }
     }
+
+    @SupportedInputFormats(InputFormat.KOTLIN)
+    @Test
+    fun `Kind for context parameter on property`() {
+        runCodebaseTest(
+            kotlin(
+                """
+                package test.pkg
+                class Foo {
+                    context(s: String)
+                    val foo: Int
+                        get() = 0
+                }
+                """
+            )
+            // TODO(b/508307884): add signature case once support for context params is added
+        ) {
+            val fooClass = codebase.assertClass("test.pkg.Foo")
+            val fooVal = fooClass.assertProperty("foo")
+            assertThat(fooVal.contextParameters[0].kind).isEqualTo(ParameterKind.CONTEXT)
+        }
+    }
 }

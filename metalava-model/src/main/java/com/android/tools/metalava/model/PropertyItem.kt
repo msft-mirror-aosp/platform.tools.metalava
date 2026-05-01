@@ -44,6 +44,12 @@ interface PropertyItem : MemberItem, TypeParameterListOwner, InheritableItem {
     override val typeParameterList: TypeParameterList
 
     /**
+     * The [context parameters](https://kotlinlang.org/docs/context-parameters.html) of this
+     * property.
+     */
+    val contextParameters: List<ParameterItem>
+
+    /**
      * The visibility of the property's setter, or null if the property has no setter (or the
      * visibility is unknown).
      */

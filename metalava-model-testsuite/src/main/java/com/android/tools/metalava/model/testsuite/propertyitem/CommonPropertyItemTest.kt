@@ -17,6 +17,7 @@
 package com.android.tools.metalava.model.testsuite.propertyitem
 
 import com.android.tools.lint.checks.infrastructure.TestFiles.base64gzip
+import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.VisibilityLevel
@@ -1455,6 +1456,85 @@ class CommonPropertyItemTest : BaseModelTest() {
             assertThat(intProperty.annotationNames()).containsExactly("test.pkg.Hide")
             val intValueProperty = fooClass.assertProperty("intValueProperty")
             assertThat(intValueProperty.annotationNames()).containsExactly("test.pkg.Hide")
+        }
+    }
+
+    @SupportedInputFormats(InputFormat.KOTLIN)
+    @Test
+    fun `Test context parameters on property`() {
+        runCodebaseTest(
+            kotlin(
+                """
+                package test.pkg
+                class Foo {
+                    val noContextParams: Int = 0
+
+                    context(s: String)
+                    val oneContextParam: Int get() = 1
+
+                    context(s: String, i: Int)
+                    val twoContextParams: Int get() = 2
+
+                    context(_: String)
+                    val unnamedContextParam: Int get() = 3
+                }
+                """
+            )
+            // TODO(b/508307884): add signature case once support for context params is added
+        ) {
+            fun ParameterItem.checkValues(
+                expectedParent: PropertyItem,
+                expectedName: String,
+                expectedIndex: Int,
+                expectedTypeString: String
+            ) {
+                assertThat(parent()).isEqualTo(expectedParent)
+                assertThat(containingCallable()).isNull()
+                assertThat(name()).isEqualTo(expectedName)
+                // "_" is used as a non-public name
+                assertThat(publicName()).isEqualTo(expectedName.takeUnless { it == "_" })
+                assertThat(parameterIndex).isEqualTo(expectedIndex)
+                assertThat(hasDefaultValue()).isFalse()
+                assertThat(type().toTypeString()).isEqualTo(expectedTypeString)
+            }
+
+            val fooClass = codebase.assertClass("test.pkg.Foo")
+
+            val noContextParams = fooClass.assertProperty("noContextParams")
+            assertThat(noContextParams.contextParameters).isEmpty()
+
+            val oneContextParam = fooClass.assertProperty("oneContextParam")
+            assertThat(oneContextParam.contextParameters).hasSize(1)
+            oneContextParam.contextParameters[0].checkValues(
+                expectedParent = oneContextParam,
+                expectedName = "s",
+                expectedIndex = 0,
+                expectedTypeString = "java.lang.String"
+            )
+
+            val twoContextParams = fooClass.assertProperty("twoContextParams")
+            assertThat(twoContextParams.contextParameters).hasSize(2)
+            twoContextParams.contextParameters[0].checkValues(
+                expectedParent = twoContextParams,
+                expectedName = "s",
+                expectedIndex = 0,
+                expectedTypeString = "java.lang.String"
+            )
+            twoContextParams.contextParameters[1].checkValues(
+                expectedParent = twoContextParams,
+                expectedName = "i",
+                expectedIndex = 1,
+                expectedTypeString = "int"
+            )
+
+            val unnamedContextParam = fooClass.assertProperty("unnamedContextParam")
+            assertThat(unnamedContextParam.contextParameters).hasSize(1)
+            unnamedContextParam.contextParameters[0].checkValues(
+                expectedParent = unnamedContextParam,
+                expectedName = "_",
+                expectedIndex = 0,
+                expectedTypeString = "java.lang.String"
+            )
         }
     }
 }

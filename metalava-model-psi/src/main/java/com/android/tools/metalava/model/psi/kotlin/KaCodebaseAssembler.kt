@@ -36,6 +36,7 @@ import com.android.tools.metalava.model.MutableModifierList
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.ParameterKind
+import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.SkeletonClassItem
 import com.android.tools.metalava.model.SourceLanguage
 import com.android.tools.metalava.model.TargetLanguage
@@ -98,6 +99,7 @@ import org.jetbrains.kotlin.analysis.api.symbols.KaSymbolVisibility
 import org.jetbrains.kotlin.analysis.api.symbols.KaTypeAliasSymbol
 import org.jetbrains.kotlin.analysis.api.symbols.KaTypeParameterSymbol
 import org.jetbrains.kotlin.analysis.api.symbols.KaValueParameterSymbol
+import org.jetbrains.kotlin.analysis.api.symbols.contextParameters
 import org.jetbrains.kotlin.analysis.api.symbols.receiverType
 import org.jetbrains.kotlin.analysis.api.types.KaType
 import org.jetbrains.kotlin.asJava.toLightElements
@@ -1025,6 +1027,26 @@ private constructor(
                 null
             }
 
+        @OptIn(KaExperimentalApi::class)
+        val contextParameterFactory = { propertyItem: PropertyItem ->
+            propertySymbol.contextParameters.mapIndexed { index, parameterSymbol ->
+                val type = typeFactory.getGeneralType(parameterSymbol.returnType)
+                val name = parameterSymbol.name.identifierOrNullIfSpecial
+                itemFactory.createParameterItem(
+                    fileLocation = PsiFileLocation.fromPsiElement(parameterSymbol.psi),
+                    modifiers = kaModifierFactory.createForContextParameter(parameterSymbol),
+                    // If no name is available, "_" was used in source, which is not a public name.
+                    name = name ?: "_",
+                    publicName = name,
+                    containingItem = propertyItem,
+                    parameterIndex = index,
+                    type = type,
+                    hasDefaultValue = false,
+                    kind = ParameterKind.CONTEXT
+                )
+            }
+        }
+
         val modifiers =
             kaModifierFactory.createForProperty(
                 propertySymbol,
@@ -1046,7 +1068,8 @@ private constructor(
                 receiver = receiverType,
                 typeParameterList = typeParameterListAndFactory.typeParameterList,
                 setterVisibility =
-                    propertySymbol.setter?.let { kaModifierFactory.getVisibilityLevel(it) }
+                    propertySymbol.setter?.let { kaModifierFactory.getVisibilityLevel(it) },
+                contextParameterFactory = contextParameterFactory,
             )
         getter?.property = propertyItem
         setter?.property = propertyItem
