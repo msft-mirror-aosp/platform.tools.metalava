@@ -619,9 +619,7 @@ class ApiAnalyzer(
                 systemServiceCheckAnnotation != null &&
                 config.allShowAnnotations.matches(systemServiceCheckAnnotation) &&
                 !config.manifest.isEmpty()
-        val checkHiddenShowAnnotations =
-            !reporter.isSuppressed(Issues.UNHIDDEN_SYSTEM_API) &&
-                config.allShowAnnotations.isNotEmpty()
+        val checkHiddenShowAnnotations = !reporter.isSuppressed(Issues.UNHIDDEN_SYSTEM_API)
 
         codebase.accept(
             object :
