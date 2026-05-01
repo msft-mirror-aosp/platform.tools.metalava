@@ -93,7 +93,7 @@ interface ParameterItem :
     override val recordComponentRelationship: String?
         get() = if (isRecordComponentRelated) "canonical constructor" else null
 
-    override fun parent(): CallableItem? = containingCallable()
+    override fun parent(): MemberItem = containingCallable()
 
     override val effectivelyDeprecated: Boolean
         get() = originallyDeprecated || containingCallable().effectivelyDeprecated
