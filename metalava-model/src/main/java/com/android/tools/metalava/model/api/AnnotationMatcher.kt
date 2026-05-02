@@ -48,7 +48,7 @@ internal interface AnnotationMatcher {
 }
 
 /** Builder for [AnnotationMatcher]s. */
-internal class AnnotationMatcherBuilder {
+private class AnnotationMatcherBuilder {
     private val annotationPatterns = mutableListOf<AnnotationMatcherEntry>()
 
     /**

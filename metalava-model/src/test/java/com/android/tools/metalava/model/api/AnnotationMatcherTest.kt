@@ -135,11 +135,7 @@ class AnnotationMatcherTest(private val params: Params) {
         @JvmStatic @Parameterized.Parameters(name = "{0}") fun testParameters() = params
     }
 
-    private fun buildMatcher(): AnnotationMatcher {
-        val builder = AnnotationMatcherBuilder()
-        params.patterns.forEach(builder::add)
-        return builder.build()
-    }
+    private fun buildMatcher() = AnnotationMatcher.create(params.patterns)
 
     @Test
     fun `Test match simple annotation no attributes`() {
