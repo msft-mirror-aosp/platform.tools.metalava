@@ -34,16 +34,16 @@ class ApiSurfaceSelector(
     /** True if this has any annotations that can hide a [SelectableItem] from the public API. */
     val hasAnyHideAnnotations = hideAnnotationValues.isNotEmpty()
 
-    private val showAnnotations = AnnotationFilter.create(showAnnotationValues)
-    private val showSingleAnnotations = AnnotationFilter.create(showSingleAnnotationValues)
+    private val showAnnotations = AnnotationMatcher.create(showAnnotationValues)
+    private val showSingleAnnotations = AnnotationMatcher.create(showSingleAnnotationValues)
     private val showForStubPurposesAnnotations =
-        AnnotationFilter.create(showForStubPurposesAnnotationValues)
-    private val hideAnnotations = AnnotationFilter.create(hideAnnotationValues)
+        AnnotationMatcher.create(showForStubPurposesAnnotationValues)
+    private val hideAnnotations = AnnotationMatcher.create(hideAnnotationValues)
 
     /** The qualified names of all annotations that can affect API surface selection. */
     val annotationNames = buildSet {
-        // The list of all filters.
-        val filters =
+        // The list of all matchers.
+        val matchers =
             listOf(
                 showAnnotations,
                 showSingleAnnotations,
@@ -51,12 +51,12 @@ class ApiSurfaceSelector(
                 hideAnnotations,
             )
 
-        // Iterate over all the annotation names matched by all the filters currently used by
+        // Iterate over all the annotation names matched by all the matchers currently used by
         // [LazyAnnotationInfo] and associate them with a [KeyFactory] that will use the
         // complete source representation of the annotation as the key. This is needed because
-        // filters can match on attribute values as well as the name.
-        for (filter in filters) {
-            addAll(filter.getIncludedAnnotationNames())
+        // matchers can match on attribute values as well as the name.
+        for (matcher in matchers) {
+            addAll(matcher.annotationNames)
         }
     }
 
@@ -65,10 +65,10 @@ class ApiSurfaceSelector(
      * affect API selection.
      */
     fun showability(annotationItem: AnnotationItem): Showability? {
-        // The showAnnotations filter includes all the annotation patterns that are matched by
-        // the first two filters plus 0 or more additional patterns. Excluding the patterns that
-        // are purposely duplicated in showAnnotations the filters should not overlap, i.e. an
-        // AnnotationItem should not be matched by multiple filters. However, the filters could
+        // The showAnnotations matcher includes all the annotation patterns that are matched by
+        // the first two matchers plus 0 or more additional patterns. Excluding the patterns that
+        // are purposely duplicated in showAnnotations the matchers should not overlap, i.e. an
+        // AnnotationItem should not be matched by multiple matchers. However, the matchers could
         // use the same annotation class (with different attributes). e.g. showAnnotations could
         // match `@SystemApi(client=MODULE_LIBRARIES)` and showForStubPurposesAnnotations could
         // match `@SystemApi(client=PRIVILEGED_APPS)`.

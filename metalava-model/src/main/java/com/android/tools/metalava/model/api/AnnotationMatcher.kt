@@ -23,52 +23,55 @@ import com.android.tools.metalava.model.value.ArrayValue
 import com.android.tools.metalava.model.value.Value
 import java.util.TreeMap
 
-internal interface AnnotationFilter {
-    // tells whether an annotation is included by the filter
+internal interface AnnotationMatcher {
+    /** Checks whether an annotation is matched by this. */
     fun matches(annotation: AnnotationItem): Boolean
 
-    // Returns a sorted set of fully qualified annotation names that may be included by this filter.
-    // Note that this filter might incorporate parameters but this function strips them.
-    fun getIncludedAnnotationNames(): Set<String>
+    /**
+     * Returns a sorted set of fully qualified annotation names that may be matched by this matcher.
+     * Note that this matcher might incorporate parameters but this function strips them.
+     */
+    val annotationNames: Set<String>
 
     companion object {
         /**
-         * Create an [AnnotationFilter] from a list of [filterExpressions] each of which is an
-         * annotation filter expression that can include or exclude an annotation based on its
-         * qualified name and/or attribute values.
+         * Create an [AnnotationMatcher] from a list of [annotationPatterns] each of which is an
+         * annotation that can match an annotation based on its qualified name and/or attribute
+         * values.
          */
-        fun create(filterExpressions: List<String>): AnnotationFilter {
-            val builder = AnnotationFilterBuilder()
-            filterExpressions.forEach(builder::add)
+        fun create(annotationPatterns: List<String>): AnnotationMatcher {
+            val builder = AnnotationMatcherBuilder()
+            annotationPatterns.forEach(builder::add)
             return builder.build()
         }
     }
 }
 
-/** Builder for [AnnotationFilter]s. */
-internal class AnnotationFilterBuilder {
-    private val inclusionExpressions = mutableListOf<AnnotationFilterEntry>()
+/** Builder for [AnnotationMatcher]s. */
+internal class AnnotationMatcherBuilder {
+    private val annotationPatterns = mutableListOf<AnnotationMatcherEntry>()
 
-    // Adds the given option as a fully qualified annotation name to match with this filter
-    // Can be "androidx.annotation.RestrictTo"
-    // Can be "androidx.annotation.RestrictTo(androidx.annotation.RestrictTo.Scope.LIBRARY_GROUP)"
-    // Note that the order of calls to this method could affect the return from
-    // {@link #firstQualifiedName} .
-    fun add(option: String) {
-        inclusionExpressions.add(AnnotationFilterEntry.fromOption(option))
+    /**
+     * Adds the given [annotationSource] as a fully qualified annotation name to match with this.
+     *
+     * e.g. something like "androidx.annotation.RestrictTo" or
+     * "androidx.annotation.RestrictTo(androidx.annotation.RestrictTo.Scope.LIBRARY_GROUP)".
+     */
+    fun add(annotationSource: String) {
+        annotationPatterns.add(AnnotationMatcherEntry.fromOption(annotationSource))
     }
 
-    /** Build the [AnnotationFilter]. */
-    fun build(): AnnotationFilter {
-        val map = inclusionExpressions.groupByTo(TreeMap()) { it.qualifiedName }
-        return ImmutableAnnotationFilter(map)
+    /** Build the [AnnotationMatcher]. */
+    fun build(): AnnotationMatcher {
+        val map = annotationPatterns.groupByTo(TreeMap()) { it.qualifiedName }
+        return ImmutableAnnotationMatcher(map)
     }
 }
 
-// Immutable implementation of AnnotationFilter
-private class ImmutableAnnotationFilter(
-    private val qualifiedNameToEntries: Map<String, List<AnnotationFilterEntry>>
-) : AnnotationFilter {
+/** Immutable implementation of [AnnotationMatcher] */
+private class ImmutableAnnotationMatcher(
+    private val qualifiedNameToEntries: Map<String, List<AnnotationMatcherEntry>>
+) : AnnotationMatcher {
 
     override fun matches(annotation: AnnotationItem): Boolean {
         val qualifiedName = annotation.qualifiedName
@@ -78,41 +81,42 @@ private class ImmutableAnnotationFilter(
         if (qualifiedName !in qualifiedNameToEntries) {
             return false
         }
-        val wrapper = AnnotationFilterEntry.fromAnnotationItem(annotation)
+        val wrapper = AnnotationMatcherEntry.fromAnnotationItem(annotation)
         return matches(wrapper)
     }
 
-    private fun matches(annotation: AnnotationFilterEntry): Boolean {
+    private fun matches(annotation: AnnotationMatcherEntry): Boolean {
         val entries = qualifiedNameToEntries[annotation.qualifiedName] ?: return false
         return entries.any { entry -> annotationsMatch(entry, annotation) }
     }
 
-    override fun getIncludedAnnotationNames(): Set<String> = qualifiedNameToEntries.keys
+    override val annotationNames: Set<String>
+        get() = qualifiedNameToEntries.keys
 
     private fun annotationsMatch(
-        filter: AnnotationFilterEntry,
-        existingAnnotation: AnnotationFilterEntry
+        entry: AnnotationMatcherEntry,
+        existingAnnotation: AnnotationMatcherEntry,
     ): Boolean {
-        // The annotation must have an attribute for each attribute in the filter.
-        if (filter.attributes.size > existingAnnotation.attributes.size) {
+        // The annotation must have an attribute for each attribute in the matcher.
+        if (entry.attributes.size > existingAnnotation.attributes.size) {
             return false
         }
 
-        // The annotation must have the same value as every filter attribute.
+        // The annotation must have the same value as every matcher attribute.
         val annotationAttributes = existingAnnotation.attributes
-        return filter.attributes.all { (attributeName, filterValue) ->
-            filterValue == annotationAttributes[attributeName]
+        return entry.attributes.all { (attributeName, matcherValue) ->
+            matcherValue == annotationAttributes[attributeName]
         }
     }
 }
 
 /**
- * An [AnnotationFilterEntry] filters for annotations having a certain [qualifiedName] and possibly
- * certain [attributes].
+ * An [AnnotationMatcherEntry] for annotations having a certain [qualifiedName] and possibly certain
+ * [attributes].
  *
- * An [AnnotationFilterEntry] does not have a Codebase like an [AnnotationItem] does.
+ * An [AnnotationMatcherEntry] does not have a Codebase like an [AnnotationItem] does.
  */
-private class AnnotationFilterEntry
+private class AnnotationMatcherEntry
 private constructor(
     val qualifiedName: String,
     val attributes: Map<String, Value>,
@@ -134,7 +138,7 @@ private constructor(
                 is ArrayElementValue -> this
             }
 
-        fun fromOption(text: String): AnnotationFilterEntry {
+        fun fromOption(text: String): AnnotationMatcherEntry {
             val annotationItem =
                 AnnotationItem.createFromSource(
                     // Use the NoOpAnnotationManager whose `normalizeInputName(...)` method will not
@@ -146,7 +150,7 @@ private constructor(
             return fromAnnotationItem(annotationItem)
         }
 
-        fun fromAnnotationItem(annotationItem: AnnotationItem): AnnotationFilterEntry {
+        fun fromAnnotationItem(annotationItem: AnnotationItem): AnnotationMatcherEntry {
             val qualifiedName = annotationItem.qualifiedName
 
             // Create a map from attribute name to normalized value.
@@ -159,7 +163,7 @@ private constructor(
                     .defaultsForAnnotationClass(annotationItem.qualifiedName)
                     .apply(attributes)
 
-            return AnnotationFilterEntry(qualifiedName, withDefaults)
+            return AnnotationMatcherEntry(qualifiedName, withDefaults)
         }
     }
 }

@@ -24,19 +24,19 @@ import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 
 /**
- * Tests for [AnnotationFilter].
+ * Tests for [AnnotationMatcher].
  *
- * There are two sets of inputs to testing [AnnotationFilter.matches], the sets of patterns used to
- * build the filter and the sets of annotations used to test the filter. There are also some
+ * There are two sets of inputs to testing [AnnotationMatcher.matches], the sets of patterns used to
+ * build the matcher and the sets of annotations used to test the matcher. There are also some
  * additional methods that need testing which have at least one of those two sets.
  *
  * This test is organized by having one test method for each method or annotations against which the
- * filter is created and parameterized by the set of patterns and the expected results of those
+ * matcher is created and parameterized by the set of patterns and the expected results of those
  * patterns in each test method. That ensures comprehensive test coverage at the expense of some
  * duplication of tests.
  */
 @RunWith(Parameterized::class)
-class AnnotationFilterTest(private val params: Params) {
+class AnnotationMatcherTest(private val params: Params) {
 
     data class Params(
         val name: String,
@@ -135,24 +135,24 @@ class AnnotationFilterTest(private val params: Params) {
         @JvmStatic @Parameterized.Parameters(name = "{0}") fun testParameters() = params
     }
 
-    private fun buildFilter(): AnnotationFilter {
-        val builder = AnnotationFilterBuilder()
+    private fun buildMatcher(): AnnotationMatcher {
+        val builder = AnnotationMatcherBuilder()
         params.patterns.forEach(builder::add)
         return builder.build()
     }
 
     @Test
     fun `Test match simple annotation no attributes`() {
-        val filter = buildFilter()
+        val matcher = buildMatcher()
 
         val annotationItem = annotationItem("test.pkg.Annotation")
 
-        assertEquals(params.expectedMatchesSimple, filter.matches(annotationItem))
+        assertEquals(params.expectedMatchesSimple, matcher.matches(annotationItem))
     }
 
     @Test
     fun `Test match annotation, value property`() {
-        val filter = buildFilter()
+        val matcher = buildMatcher()
 
         val annotationItem =
             annotationItem(
@@ -160,12 +160,12 @@ class AnnotationFilterTest(private val params: Params) {
                 "value" to literalValue("value"),
             )
 
-        assertEquals(params.expectedMatchesNamedValue, filter.matches(annotationItem))
+        assertEquals(params.expectedMatchesNamedValue, matcher.matches(annotationItem))
     }
 
     @Test
     fun `Test match annotation, other property`() {
-        val filter = buildFilter()
+        val matcher = buildMatcher()
 
         val annotationItem =
             annotationItem(
@@ -173,18 +173,18 @@ class AnnotationFilterTest(private val params: Params) {
                 "other" to literalValue("other"),
             )
 
-        assertEquals(params.expectedMatchesNamedOther, filter.matches(annotationItem))
+        assertEquals(params.expectedMatchesNamedOther, matcher.matches(annotationItem))
     }
 
     @Test
     fun `Test included names`() {
-        val filter = buildFilter()
+        val matcher = buildMatcher()
 
         // Although the names are a set the order matters, however equality of sets ignores order so
         // convert each set to a list and then compare.
         assertEquals(
             params.expectedIncludedAnnotationNames.toList(),
-            filter.getIncludedAnnotationNames().toList()
+            matcher.annotationNames.toList()
         )
     }
 }
