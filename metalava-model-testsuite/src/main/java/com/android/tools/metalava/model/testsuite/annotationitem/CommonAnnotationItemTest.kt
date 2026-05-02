@@ -23,7 +23,6 @@ import com.android.tools.metalava.model.BaseItemVisitor
 import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.PrimitiveTypeItem.Primitive
-import com.android.tools.metalava.model.annotation.AnnotationFilter
 import com.android.tools.metalava.model.annotation.DefaultAnnotationManager
 import com.android.tools.metalava.model.api.ApiSurfaceSelector
 import com.android.tools.metalava.model.noOpAnnotationManager
@@ -1585,12 +1584,10 @@ class CommonAnnotationItemTest : BaseModelTest() {
     @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `annotation on internal`() {
-        // Create a filter that will treat RestrictTo(Scope.LIBRARY) as a show annotation.
-        val showFilter =
-            AnnotationFilter.create(
-                listOf(
-                    "androidx.annotation.RestrictTo(androidx.annotation.RestrictTo.Scope.LIBRARY)",
-                )
+        // Treat RestrictTo(Scope.LIBRARY) as a show annotation.
+        val showAnnotation =
+            listOf(
+                "androidx.annotation.RestrictTo(androidx.annotation.RestrictTo.Scope.LIBRARY)",
             )
 
         runCodebaseTest(
@@ -1628,7 +1625,7 @@ class CommonAnnotationItemTest : BaseModelTest() {
                                     apiFlags = apiFlags,
                                     apiSurfaceSelector =
                                         ApiSurfaceSelector(
-                                            showAnnotations = showFilter,
+                                            showAnnotationValues = showAnnotation,
                                         ),
                                 )
                         )

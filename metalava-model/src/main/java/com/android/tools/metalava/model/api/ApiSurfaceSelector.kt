@@ -24,16 +24,22 @@ import com.android.tools.metalava.model.annotation.AnnotationFilter
 
 /** Helps determine to which api surface a [SelectableItem] belongs. */
 class ApiSurfaceSelector(
-    private val showAnnotations: AnnotationFilter = AnnotationFilter.emptyFilter(),
-    private val showSingleAnnotations: AnnotationFilter = AnnotationFilter.emptyFilter(),
-    private val showForStubPurposesAnnotations: AnnotationFilter = AnnotationFilter.emptyFilter(),
-    private val hideAnnotations: AnnotationFilter = AnnotationFilter.emptyFilter(),
+    showAnnotationValues: List<String> = emptyList(),
+    showSingleAnnotationValues: List<String> = emptyList(),
+    showForStubPurposesAnnotationValues: List<String> = emptyList(),
+    hideAnnotationValues: List<String> = emptyList(),
 ) {
     /** True if this has annotations that include a [SelectableItem] in the stubs only. */
-    val hasAnyShowForStubPurposesAnnotations = showForStubPurposesAnnotations.isNotEmpty()
+    val hasAnyShowForStubPurposesAnnotations = showForStubPurposesAnnotationValues.isNotEmpty()
 
     /** True if this has any annotations that can hide a [SelectableItem] from the public API. */
-    val hasAnyHideAnnotations = hideAnnotations.isNotEmpty()
+    val hasAnyHideAnnotations = hideAnnotationValues.isNotEmpty()
+
+    private val showAnnotations = AnnotationFilter.create(showAnnotationValues)
+    private val showSingleAnnotations = AnnotationFilter.create(showSingleAnnotationValues)
+    private val showForStubPurposesAnnotations =
+        AnnotationFilter.create(showForStubPurposesAnnotationValues)
+    private val hideAnnotations = AnnotationFilter.create(hideAnnotationValues)
 
     /** The qualified names of all annotations that can affect API surface selection. */
     val annotationNames = buildSet {

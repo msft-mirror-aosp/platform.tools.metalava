@@ -23,7 +23,6 @@ import com.android.tools.metalava.cli.common.splitMultiple
 import com.android.tools.metalava.config.ApiSurfaceConfig
 import com.android.tools.metalava.config.ApiSurfacesConfig
 import com.android.tools.metalava.model.TypedefMode
-import com.android.tools.metalava.model.annotation.AnnotationFilter
 import com.android.tools.metalava.model.api.ApiSurfaceSelector
 import com.android.tools.metalava.model.api.surface.ApiSurface
 import com.android.tools.metalava.model.api.surface.ApiSurfaces
@@ -150,11 +149,10 @@ class ApiSelectionOptions(
     internal val apiSurfaceSelector by
         lazy(LazyThreadSafetyMode.NONE) {
             ApiSurfaceSelector(
-                showAnnotations = AnnotationFilter.create(showAnnotationValues),
-                showSingleAnnotations = AnnotationFilter.create(showSingleAnnotationValues),
-                showForStubPurposesAnnotations =
-                    AnnotationFilter.create(showForStubPurposesAnnotationValues),
-                hideAnnotations = AnnotationFilter.create(hideAnnotationValues),
+                showAnnotationValues = showAnnotationValues,
+                showSingleAnnotationValues = showSingleAnnotationValues,
+                showForStubPurposesAnnotationValues = showForStubPurposesAnnotationValues,
+                hideAnnotationValues = hideAnnotationValues,
             )
         }
 
