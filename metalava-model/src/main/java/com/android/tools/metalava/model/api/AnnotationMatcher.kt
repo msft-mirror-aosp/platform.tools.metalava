@@ -50,12 +50,6 @@ private constructor(
         get() = qualifiedNameToEntries.keys
 
     /**
-     * Checks whether an annotation is matched by a [Rule] and if was then return `true`, otherwise
-     * return `false`.
-     */
-    fun matches(annotation: AnnotationItem) = matchResult(annotation) != null
-
-    /**
      * Checks whether an annotation is matched by a [Rule] and if was then return the [Rule.result],
      * otherwise return `null`.
      */
@@ -114,14 +108,6 @@ private constructor(
                     .groupByTo(TreeMap(), { it.qualifiedName }) { Entry(it.attributes, it.result) }
             return AnnotationMatcher(map)
         }
-
-        /**
-         * Create an [AnnotationMatcher] from a list of [annotationPatterns] each of which is an
-         * annotation that can match an annotation based on its qualified name and/or attribute
-         * values.
-         */
-        fun create(annotationPatterns: List<String>) =
-            createFromRules(annotationPatterns.map { Rule(it, true) })
 
         /**
          * Encapsulates information extracted from an [AnnotationItem] needed during construction of

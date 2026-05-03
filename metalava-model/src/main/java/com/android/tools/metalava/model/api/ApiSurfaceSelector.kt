@@ -35,55 +35,33 @@ class ApiSurfaceSelector(
     val hasAnyHideAnnotations = hideAnnotationValues.isNotEmpty()
 
     /** Create an [AnnotationMatcher] from the [List] of annotation sources. */
-    private fun List<String>.toMatcher() = AnnotationMatcher.create(this)
+    private fun List<String>.addRules(
+        mutableList: MutableList<AnnotationMatcher.Rule<Showability>>,
+        showability: Showability
+    ) = mapTo(mutableList) { AnnotationMatcher.Rule(it, showability) }
 
-    private val showAnnotations = showAnnotationValues.toMatcher()
-    private val showSingleAnnotations = showSingleAnnotationValues.toMatcher()
-    private val showForStubPurposesAnnotations = showForStubPurposesAnnotationValues.toMatcher()
-    private val hideAnnotations = hideAnnotationValues.toMatcher()
+    /**
+     * Associates an annotation pattern, e.g. `--show-annotation android.annotation.TestApi` with
+     * its [Showability].
+     */
+    private val matcher =
+        AnnotationMatcher.createFromRules(
+            buildList {
+                showAnnotationValues.addRules(this, SHOW)
+                showSingleAnnotationValues.addRules(this, SHOW_SINGLE)
+                showForStubPurposesAnnotationValues.addRules(this, SHOW_FOR_STUBS)
+                hideAnnotationValues.addRules(this, HIDE)
+            }
+        )
 
     /** The qualified names of all annotations that can affect API surface selection. */
-    val annotationNames = buildSet {
-        // The list of all matchers.
-        val matchers =
-            listOf(
-                showAnnotations,
-                showSingleAnnotations,
-                showForStubPurposesAnnotations,
-                hideAnnotations,
-            )
-
-        // Iterate over all the annotation names matched by all the matchers currently used by
-        // [LazyAnnotationInfo] and associate them with a [KeyFactory] that will use the
-        // complete source representation of the annotation as the key. This is needed because
-        // matchers can match on attribute values as well as the name.
-        for (matcher in matchers) {
-            addAll(matcher.annotationNames)
-        }
-    }
+    val annotationNames = matcher.annotationNames
 
     /**
      * Compute the [Showability] for [annotationItem], returns `null` if [annotationItem] does not
      * affect API selection.
      */
-    fun showability(annotationItem: AnnotationItem): Showability? {
-        // The showAnnotations matcher includes all the annotation patterns that are matched by
-        // the first two matchers plus 0 or more additional patterns. Excluding the patterns that
-        // are purposely duplicated in showAnnotations the matchers should not overlap, i.e. an
-        // AnnotationItem should not be matched by multiple matchers. However, the matchers could
-        // use the same annotation class (with different attributes). e.g. showAnnotations could
-        // match `@SystemApi(client=MODULE_LIBRARIES)` and showForStubPurposesAnnotations could
-        // match `@SystemApi(client=PRIVILEGED_APPS)`.
-        //
-        // Compare from most likely to match to least likely to match.
-        return when {
-            showAnnotations.matches(annotationItem) -> SHOW
-            showForStubPurposesAnnotations.matches(annotationItem) -> SHOW_FOR_STUBS
-            showSingleAnnotations.matches(annotationItem) -> SHOW_SINGLE
-            hideAnnotations.matches(annotationItem) -> HIDE
-            else -> null
-        }
-    }
+    fun showability(annotationItem: AnnotationItem) = matcher.matchResult(annotationItem)
 
     companion object {
         /**
