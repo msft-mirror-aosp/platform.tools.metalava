@@ -38,17 +38,21 @@ import org.junit.runners.Parameterized
 @RunWith(Parameterized::class)
 class AnnotationMatcherTest(private val params: Params) {
 
+    enum class TestResult {
+        MATCHED,
+    }
+
     data class Params(
         val name: String,
         val patterns: List<String>,
         val expectedIncludedAnnotationNames: Set<String> = emptySet(),
-        val expectedEmpty: Boolean = false,
-        val expectedMatchesSimple: Boolean = false,
-        val expectedMatchesNamedValue: Boolean = false,
-        val expectedMatchesNamedOther: Boolean = false,
-        val expectedMatchesAnnotationName: Boolean = expectedMatchesSimple,
-        val expectedMatchesOtherAnnotationName: Boolean = false,
-        val expectedMatchesSuffix: Boolean = false,
+        val expectedEmpty: TestResult? = null,
+        val expectedMatchesSimple: TestResult? = null,
+        val expectedMatchesNamedValue: TestResult? = null,
+        val expectedMatchesNamedOther: TestResult? = null,
+        val expectedMatchesAnnotationName: TestResult? = expectedMatchesSimple,
+        val expectedMatchesOtherAnnotationName: TestResult? = null,
+        val expectedMatchesSuffix: TestResult? = null,
     ) {
         override fun toString(): String {
             return name
@@ -61,55 +65,55 @@ class AnnotationMatcherTest(private val params: Params) {
                 Params(
                     name = "empty",
                     patterns = emptyList(),
-                    expectedEmpty = true,
+                    expectedEmpty = TestResult.MATCHED,
                 ),
                 Params(
                     name = "simple",
                     patterns = listOf("test.pkg.Annotation"),
                     expectedIncludedAnnotationNames = setOf("test.pkg.Annotation"),
-                    expectedMatchesSimple = true,
-                    expectedMatchesNamedValue = true,
-                    expectedMatchesNamedOther = true,
+                    expectedMatchesSimple = TestResult.MATCHED,
+                    expectedMatchesNamedValue = TestResult.MATCHED,
+                    expectedMatchesNamedOther = TestResult.MATCHED,
                 ),
                 Params(
                     name = "simple-plus-parentheses",
                     patterns = listOf("test.pkg.Annotation()"),
                     expectedIncludedAnnotationNames = setOf("test.pkg.Annotation"),
-                    expectedMatchesSimple = true,
-                    expectedMatchesNamedValue = true,
-                    expectedMatchesNamedOther = true,
+                    expectedMatchesSimple = TestResult.MATCHED,
+                    expectedMatchesNamedValue = TestResult.MATCHED,
+                    expectedMatchesNamedOther = TestResult.MATCHED,
                 ),
                 Params(
                     name = "simple-suffix-plus-value",
                     patterns = listOf("test.pkg.AnnotationSuffix(2)"),
                     expectedIncludedAnnotationNames = setOf("test.pkg.AnnotationSuffix"),
-                    expectedMatchesSuffix = true,
+                    expectedMatchesSuffix = TestResult.MATCHED,
                 ),
                 Params(
                     name = "other-suffix-plus-value",
                     patterns = listOf("other.OtherAnnotationSuffix(2)"),
                     expectedIncludedAnnotationNames = setOf("other.OtherAnnotationSuffix"),
-                    expectedMatchesSuffix = true,
+                    expectedMatchesSuffix = TestResult.MATCHED,
                 ),
                 Params(
                     name = "implicit-value",
                     patterns = listOf("""test.pkg.Annotation("value")"""),
                     expectedIncludedAnnotationNames = setOf("test.pkg.Annotation"),
-                    expectedMatchesNamedValue = true,
-                    expectedMatchesAnnotationName = true,
+                    expectedMatchesNamedValue = TestResult.MATCHED,
+                    expectedMatchesAnnotationName = TestResult.MATCHED,
                 ),
                 Params(
                     name = "named-value",
                     patterns = listOf("""test.pkg.Annotation(value = "value")"""),
                     expectedIncludedAnnotationNames = setOf("test.pkg.Annotation"),
-                    expectedMatchesNamedValue = true,
-                    expectedMatchesAnnotationName = true,
+                    expectedMatchesNamedValue = TestResult.MATCHED,
+                    expectedMatchesAnnotationName = TestResult.MATCHED,
                 ),
                 Params(
                     name = "other-value",
                     patterns = listOf("""test.pkg.Annotation(other = "value")"""),
                     expectedIncludedAnnotationNames = setOf("test.pkg.Annotation"),
-                    expectedMatchesAnnotationName = true,
+                    expectedMatchesAnnotationName = TestResult.MATCHED,
                 ),
                 Params(
                     name = "everything-but-simple",
@@ -125,17 +129,20 @@ class AnnotationMatcherTest(private val params: Params) {
                             "other.OtherAnnotation",
                             "test.pkg.Annotation",
                         ),
-                    expectedMatchesNamedValue = true,
-                    expectedMatchesNamedOther = true,
-                    expectedMatchesAnnotationName = true,
-                    expectedMatchesOtherAnnotationName = true,
+                    expectedMatchesNamedValue = TestResult.MATCHED,
+                    expectedMatchesNamedOther = TestResult.MATCHED,
+                    expectedMatchesAnnotationName = TestResult.MATCHED,
+                    expectedMatchesOtherAnnotationName = TestResult.MATCHED,
                 ),
             )
 
         @JvmStatic @Parameterized.Parameters(name = "{0}") fun testParameters() = params
     }
 
-    private fun buildMatcher() = AnnotationMatcher.create(params.patterns)
+    private fun buildMatcher() =
+        AnnotationMatcher.createFromRules(
+            params.patterns.map { AnnotationMatcher.Rule(it, TestResult.MATCHED) }
+        )
 
     @Test
     fun `Test match simple annotation no attributes`() {
@@ -143,7 +150,7 @@ class AnnotationMatcherTest(private val params: Params) {
 
         val annotationItem = annotationItem("test.pkg.Annotation")
 
-        assertEquals(params.expectedMatchesSimple, matcher.matches(annotationItem))
+        assertEquals(params.expectedMatchesSimple, matcher.matchResult(annotationItem))
     }
 
     @Test
@@ -156,7 +163,7 @@ class AnnotationMatcherTest(private val params: Params) {
                 "value" to literalValue("value"),
             )
 
-        assertEquals(params.expectedMatchesNamedValue, matcher.matches(annotationItem))
+        assertEquals(params.expectedMatchesNamedValue, matcher.matchResult(annotationItem))
     }
 
     @Test
@@ -169,7 +176,7 @@ class AnnotationMatcherTest(private val params: Params) {
                 "other" to literalValue("other"),
             )
 
-        assertEquals(params.expectedMatchesNamedOther, matcher.matches(annotationItem))
+        assertEquals(params.expectedMatchesNamedOther, matcher.matchResult(annotationItem))
     }
 
     @Test

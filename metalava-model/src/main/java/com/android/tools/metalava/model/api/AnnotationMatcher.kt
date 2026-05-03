@@ -22,11 +22,26 @@ import com.android.tools.metalava.model.value.ArrayElementValue
 import com.android.tools.metalava.model.value.ArrayValue
 import com.android.tools.metalava.model.value.Value
 import java.util.TreeMap
+import kotlin.collections.map
 
-internal class AnnotationMatcher
+/**
+ * Matches an annotation against a set of [Rule]s.
+ *
+ * Each [Rule] contains a pattern for matching and the result to return if the pattern matches.
+ */
+internal class AnnotationMatcher<R : Any>
 private constructor(
-    private val qualifiedNameToEntries: Map<String, List<Entry>>,
+    private val qualifiedNameToEntries: Map<String, List<Entry<R>>>,
 ) {
+    /**
+     * A rule that this will try and match.
+     *
+     * @param annotationPattern the annotation pattern that it will match. This is the source
+     *   representation of an annotation without the leading `@`.
+     * @param result the value that will be returned from [matchResult].
+     */
+    data class Rule<R : Any>(val annotationPattern: String, val result: R)
+
     /**
      * Returns a sorted set of fully qualified annotation names that may be matched by this matcher.
      * Note that this matcher might incorporate parameters but this function strips them.
@@ -34,22 +49,31 @@ private constructor(
     val annotationNames: Set<String>
         get() = qualifiedNameToEntries.keys
 
-    /** Checks whether an annotation is matched by this. */
-    fun matches(annotation: AnnotationItem): Boolean {
+    /**
+     * Checks whether an annotation is matched by a [Rule] and if was then return `true`, otherwise
+     * return `false`.
+     */
+    fun matches(annotation: AnnotationItem) = matchResult(annotation) != null
+
+    /**
+     * Checks whether an annotation is matched by a [Rule] and if was then return the [Rule.result],
+     * otherwise return `null`.
+     */
+    fun matchResult(annotation: AnnotationItem): R? {
         val qualifiedName = annotation.qualifiedName
         // If the annotation name is not in the map of annotation names that can be matched then
         // this can never match so return immediately rather than generating an entry for the
         // annotation.
         if (qualifiedName !in qualifiedNameToEntries) {
-            return false
+            return null
         }
 
         // If there are no entries for the annotation's class then return immediately.
-        val entries = qualifiedNameToEntries[annotation.qualifiedName] ?: return false
+        val entries = qualifiedNameToEntries[annotation.qualifiedName] ?: return null
 
         // Get the attributes from the annotation and normalize them.
         val attributes = normalizeAttributes(annotation)
-        return entries.any { entry -> entry.attributesMatch(attributes) }
+        return entries.find { entry -> entry.attributesMatch(attributes) }?.result
     }
 
     /**
@@ -58,8 +82,9 @@ private constructor(
      * This does not match [AnnotationItem.qualifiedName] as that has already been used to retrieve
      * the possibly matching [Entry] list from [qualifiedNameToEntries].
      */
-    private class Entry(
+    private class Entry<R : Any>(
         private val attributes: Map<String, Value>,
+        val result: R,
     ) {
         fun attributesMatch(
             annotationAttributes: Map<String, Value>,
@@ -78,25 +103,34 @@ private constructor(
 
     companion object {
         /**
+         * Create an [AnnotationMatcher] from a list of [rules] each of which maps an annotation
+         * pattern to an associated [Rule.result] that will be returned by
+         * [AnnotationMatcher.matchResult] if the supplied annotation matches the pattern.
+         */
+        fun <R : Any> createFromRules(rules: List<Rule<R>>): AnnotationMatcher<R> {
+            val map =
+                rules
+                    .map { fromRule(it) }
+                    .groupByTo(TreeMap(), { it.qualifiedName }) { Entry(it.attributes, it.result) }
+            return AnnotationMatcher(map)
+        }
+
+        /**
          * Create an [AnnotationMatcher] from a list of [annotationPatterns] each of which is an
          * annotation that can match an annotation based on its qualified name and/or attribute
          * values.
          */
-        fun create(annotationPatterns: List<String>): AnnotationMatcher {
-            val map =
-                annotationPatterns
-                    .map { fromOption(it) }
-                    .groupByTo(TreeMap(), { it.qualifiedName }) { Entry(it.attributes) }
-            return AnnotationMatcher(map)
-        }
+        fun create(annotationPatterns: List<String>) =
+            createFromRules(annotationPatterns.map { Rule(it, true) })
 
         /**
          * Encapsulates information extracted from an [AnnotationItem] needed during construction of
          * an [AnnotationMatcher].
          */
-        private class IntermediateData(
+        private class IntermediateData<R : Any>(
             val qualifiedName: String,
             val attributes: Map<String, Value>,
+            val result: R,
         )
 
         /** Normalize this [Value] to simplify comparison. */
@@ -115,17 +149,18 @@ private constructor(
                 is ArrayElementValue -> this
             }
 
-        private fun fromOption(text: String): IntermediateData {
+        private fun <R : Any> fromRule(rule: Rule<R>): IntermediateData<R> {
+            val pattern = rule.annotationPattern
             val annotationItem =
                 AnnotationItem.createFromSource(
                     // Use the NoOpAnnotationManager whose `normalizeInputName(...)` method will not
                     // reject any annotations so createFromSource(...) will never return null.
                     AnnotationContext.DEFAULT_RESOLVE_NULL,
-                    "@$text"
-                ) ?: error("Could not construct annotation from `$text`")
+                    "@$pattern"
+                ) ?: error("Could not construct annotation from `$pattern`")
 
             val attributes = normalizeAttributes(annotationItem)
-            return IntermediateData(annotationItem.qualifiedName, attributes)
+            return IntermediateData(annotationItem.qualifiedName, attributes, rule.result)
         }
 
         private fun normalizeAttributes(annotationItem: AnnotationItem): Map<String, Value> {
