@@ -40,31 +40,10 @@ internal interface AnnotationMatcher {
          * values.
          */
         fun create(annotationPatterns: List<String>): AnnotationMatcher {
-            val builder = AnnotationMatcherBuilder()
-            annotationPatterns.forEach(builder::add)
-            return builder.build()
+            val entries = annotationPatterns.map { AnnotationMatcherEntry.fromOption(it) }
+            val map = entries.groupByTo(TreeMap()) { it.qualifiedName }
+            return ImmutableAnnotationMatcher(map)
         }
-    }
-}
-
-/** Builder for [AnnotationMatcher]s. */
-private class AnnotationMatcherBuilder {
-    private val annotationPatterns = mutableListOf<AnnotationMatcherEntry>()
-
-    /**
-     * Adds the given [annotationSource] as a fully qualified annotation name to match with this.
-     *
-     * e.g. something like "androidx.annotation.RestrictTo" or
-     * "androidx.annotation.RestrictTo(androidx.annotation.RestrictTo.Scope.LIBRARY_GROUP)".
-     */
-    fun add(annotationSource: String) {
-        annotationPatterns.add(AnnotationMatcherEntry.fromOption(annotationSource))
-    }
-
-    /** Build the [AnnotationMatcher]. */
-    fun build(): AnnotationMatcher {
-        val map = annotationPatterns.groupByTo(TreeMap()) { it.qualifiedName }
-        return ImmutableAnnotationMatcher(map)
     }
 }
 
