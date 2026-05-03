@@ -53,14 +53,13 @@ private constructor(
     }
 
     /**
-     * An [Entry] for annotations having a certain [qualifiedName] and possibly certain
-     * [attributes].
+     * Matches [attributes] against those retrieved from an [AnnotationItem].
      *
-     * An [Entry] does not have a Codebase like an [AnnotationItem] does.
+     * This does not match [AnnotationItem.qualifiedName] as that has already been used to retrieve
+     * the possibly matching [Entry] list from [qualifiedNameToEntries].
      */
     private class Entry(
-        val qualifiedName: String,
-        val attributes: Map<String, Value>,
+        private val attributes: Map<String, Value>,
     ) {
         fun attributesMatch(
             annotationAttributes: Map<String, Value>,
@@ -84,10 +83,21 @@ private constructor(
          * values.
          */
         fun create(annotationPatterns: List<String>): AnnotationMatcher {
-            val entries = annotationPatterns.map { fromOption(it) }
-            val map = entries.groupByTo(TreeMap()) { it.qualifiedName }
+            val map =
+                annotationPatterns
+                    .map { fromOption(it) }
+                    .groupByTo(TreeMap(), { it.qualifiedName }) { Entry(it.attributes) }
             return AnnotationMatcher(map)
         }
+
+        /**
+         * Encapsulates information extracted from an [AnnotationItem] needed during construction of
+         * an [AnnotationMatcher].
+         */
+        private class IntermediateData(
+            val qualifiedName: String,
+            val attributes: Map<String, Value>,
+        )
 
         /** Normalize this [Value] to simplify comparison. */
         private fun Value.normalizeValue(): Value =
@@ -105,7 +115,7 @@ private constructor(
                 is ArrayElementValue -> this
             }
 
-        private fun fromOption(text: String): Entry {
+        private fun fromOption(text: String): IntermediateData {
             val annotationItem =
                 AnnotationItem.createFromSource(
                     // Use the NoOpAnnotationManager whose `normalizeInputName(...)` method will not
@@ -115,7 +125,7 @@ private constructor(
                 ) ?: error("Could not construct annotation from `$text`")
 
             val attributes = normalizeAttributes(annotationItem)
-            return Entry(annotationItem.qualifiedName, attributes)
+            return IntermediateData(annotationItem.qualifiedName, attributes)
         }
 
         private fun normalizeAttributes(annotationItem: AnnotationItem): Map<String, Value> {
