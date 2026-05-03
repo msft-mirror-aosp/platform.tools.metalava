@@ -43,13 +43,13 @@ private constructor(
         if (qualifiedName !in qualifiedNameToEntries) {
             return false
         }
-        val wrapper = fromAnnotationItem(annotation)
-        return matches(wrapper)
-    }
 
-    private fun matches(annotation: Entry): Boolean {
+        // If there are no entries for the annotation's class then return immediately.
         val entries = qualifiedNameToEntries[annotation.qualifiedName] ?: return false
-        return entries.any { entry -> annotationsMatch(entry, annotation) }
+
+        // Get an Entry from the annotation.
+        val wrapper = fromAnnotationItem(annotation)
+        return entries.any { entry -> annotationsMatch(entry, wrapper) }
     }
 
     private fun annotationsMatch(
