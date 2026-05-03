@@ -34,11 +34,13 @@ class ApiSurfaceSelector(
     /** True if this has any annotations that can hide a [SelectableItem] from the public API. */
     val hasAnyHideAnnotations = hideAnnotationValues.isNotEmpty()
 
-    private val showAnnotations = AnnotationMatcher.create(showAnnotationValues)
-    private val showSingleAnnotations = AnnotationMatcher.create(showSingleAnnotationValues)
-    private val showForStubPurposesAnnotations =
-        AnnotationMatcher.create(showForStubPurposesAnnotationValues)
-    private val hideAnnotations = AnnotationMatcher.create(hideAnnotationValues)
+    /** Create an [AnnotationMatcher] from the [List] of annotation sources. */
+    private fun List<String>.toMatcher() = AnnotationMatcher.create(this)
+
+    private val showAnnotations = showAnnotationValues.toMatcher()
+    private val showSingleAnnotations = showSingleAnnotationValues.toMatcher()
+    private val showForStubPurposesAnnotations = showForStubPurposesAnnotationValues.toMatcher()
+    private val hideAnnotations = hideAnnotationValues.toMatcher()
 
     /** The qualified names of all annotations that can affect API surface selection. */
     val annotationNames = buildSet {
