@@ -25,7 +25,7 @@ import java.util.TreeMap
 
 internal class AnnotationMatcher
 private constructor(
-    private val qualifiedNameToEntries: Map<String, List<AnnotationMatcherEntry>>,
+    private val qualifiedNameToEntries: Map<String, List<Entry>>,
 ) {
     /**
      * Returns a sorted set of fully qualified annotation names that may be matched by this matcher.
@@ -43,18 +43,18 @@ private constructor(
         if (qualifiedName !in qualifiedNameToEntries) {
             return false
         }
-        val wrapper = AnnotationMatcherEntry.fromAnnotationItem(annotation)
+        val wrapper = fromAnnotationItem(annotation)
         return matches(wrapper)
     }
 
-    private fun matches(annotation: AnnotationMatcherEntry): Boolean {
+    private fun matches(annotation: Entry): Boolean {
         val entries = qualifiedNameToEntries[annotation.qualifiedName] ?: return false
         return entries.any { entry -> annotationsMatch(entry, annotation) }
     }
 
     private fun annotationsMatch(
-        entry: AnnotationMatcherEntry,
-        existingAnnotation: AnnotationMatcherEntry,
+        entry: Entry,
+        existingAnnotation: Entry,
     ): Boolean {
         // The annotation must have an attribute for each attribute in the matcher.
         if (entry.attributes.size > existingAnnotation.attributes.size) {
@@ -68,6 +68,17 @@ private constructor(
         }
     }
 
+    /**
+     * An [Entry] for annotations having a certain [qualifiedName] and possibly certain
+     * [attributes].
+     *
+     * An [Entry] does not have a Codebase like an [AnnotationItem] does.
+     */
+    private class Entry(
+        val qualifiedName: String,
+        val attributes: Map<String, Value>,
+    )
+
     companion object {
         /**
          * Create an [AnnotationMatcher] from a list of [annotationPatterns] each of which is an
@@ -75,25 +86,11 @@ private constructor(
          * values.
          */
         fun create(annotationPatterns: List<String>): AnnotationMatcher {
-            val entries = annotationPatterns.map { AnnotationMatcherEntry.fromOption(it) }
+            val entries = annotationPatterns.map { fromOption(it) }
             val map = entries.groupByTo(TreeMap()) { it.qualifiedName }
             return AnnotationMatcher(map)
         }
-    }
-}
 
-/**
- * An [AnnotationMatcherEntry] for annotations having a certain [qualifiedName] and possibly certain
- * [attributes].
- *
- * An [AnnotationMatcherEntry] does not have a Codebase like an [AnnotationItem] does.
- */
-private class AnnotationMatcherEntry
-private constructor(
-    val qualifiedName: String,
-    val attributes: Map<String, Value>,
-) {
-    companion object {
         /** Normalize this [Value] to simplify comparison. */
         private fun Value.normalizeValue(): Value =
             when (this) {
@@ -110,7 +107,7 @@ private constructor(
                 is ArrayElementValue -> this
             }
 
-        fun fromOption(text: String): AnnotationMatcherEntry {
+        private fun fromOption(text: String): Entry {
             val annotationItem =
                 AnnotationItem.createFromSource(
                     // Use the NoOpAnnotationManager whose `normalizeInputName(...)` method will not
@@ -122,7 +119,7 @@ private constructor(
             return fromAnnotationItem(annotationItem)
         }
 
-        fun fromAnnotationItem(annotationItem: AnnotationItem): AnnotationMatcherEntry {
+        private fun fromAnnotationItem(annotationItem: AnnotationItem): Entry {
             val qualifiedName = annotationItem.qualifiedName
 
             // Create a map from attribute name to normalized value.
@@ -135,7 +132,7 @@ private constructor(
                     .defaultsForAnnotationClass(annotationItem.qualifiedName)
                     .apply(attributes)
 
-            return AnnotationMatcherEntry(qualifiedName, withDefaults)
+            return Entry(qualifiedName, withDefaults)
         }
     }
 }
