@@ -23,36 +23,19 @@ import com.android.tools.metalava.model.value.ArrayValue
 import com.android.tools.metalava.model.value.Value
 import java.util.TreeMap
 
-internal interface AnnotationMatcher {
-    /** Checks whether an annotation is matched by this. */
-    fun matches(annotation: AnnotationItem): Boolean
-
+internal class AnnotationMatcher
+private constructor(
+    private val qualifiedNameToEntries: Map<String, List<AnnotationMatcherEntry>>,
+) {
     /**
      * Returns a sorted set of fully qualified annotation names that may be matched by this matcher.
      * Note that this matcher might incorporate parameters but this function strips them.
      */
     val annotationNames: Set<String>
+        get() = qualifiedNameToEntries.keys
 
-    companion object {
-        /**
-         * Create an [AnnotationMatcher] from a list of [annotationPatterns] each of which is an
-         * annotation that can match an annotation based on its qualified name and/or attribute
-         * values.
-         */
-        fun create(annotationPatterns: List<String>): AnnotationMatcher {
-            val entries = annotationPatterns.map { AnnotationMatcherEntry.fromOption(it) }
-            val map = entries.groupByTo(TreeMap()) { it.qualifiedName }
-            return ImmutableAnnotationMatcher(map)
-        }
-    }
-}
-
-/** Immutable implementation of [AnnotationMatcher] */
-private class ImmutableAnnotationMatcher(
-    private val qualifiedNameToEntries: Map<String, List<AnnotationMatcherEntry>>
-) : AnnotationMatcher {
-
-    override fun matches(annotation: AnnotationItem): Boolean {
+    /** Checks whether an annotation is matched by this. */
+    fun matches(annotation: AnnotationItem): Boolean {
         val qualifiedName = annotation.qualifiedName
         // If the annotation name is not in the map of annotation names that can be matched then
         // this can never match so return immediately rather than generating an entry for the
@@ -69,9 +52,6 @@ private class ImmutableAnnotationMatcher(
         return entries.any { entry -> annotationsMatch(entry, annotation) }
     }
 
-    override val annotationNames: Set<String>
-        get() = qualifiedNameToEntries.keys
-
     private fun annotationsMatch(
         entry: AnnotationMatcherEntry,
         existingAnnotation: AnnotationMatcherEntry,
@@ -85,6 +65,19 @@ private class ImmutableAnnotationMatcher(
         val annotationAttributes = existingAnnotation.attributes
         return entry.attributes.all { (attributeName, matcherValue) ->
             matcherValue == annotationAttributes[attributeName]
+        }
+    }
+
+    companion object {
+        /**
+         * Create an [AnnotationMatcher] from a list of [annotationPatterns] each of which is an
+         * annotation that can match an annotation based on its qualified name and/or attribute
+         * values.
+         */
+        fun create(annotationPatterns: List<String>): AnnotationMatcher {
+            val entries = annotationPatterns.map { AnnotationMatcherEntry.fromOption(it) }
+            val map = entries.groupByTo(TreeMap()) { it.qualifiedName }
+            return AnnotationMatcher(map)
         }
     }
 }
