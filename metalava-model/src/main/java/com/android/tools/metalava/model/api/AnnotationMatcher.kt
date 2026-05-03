@@ -49,23 +49,7 @@ private constructor(
 
         // Get an Entry from the annotation.
         val wrapper = fromAnnotationItem(annotation)
-        return entries.any { entry -> annotationsMatch(entry, wrapper) }
-    }
-
-    private fun annotationsMatch(
-        entry: Entry,
-        existingAnnotation: Entry,
-    ): Boolean {
-        // The annotation must have an attribute for each attribute in the matcher.
-        if (entry.attributes.size > existingAnnotation.attributes.size) {
-            return false
-        }
-
-        // The annotation must have the same value as every matcher attribute.
-        val annotationAttributes = existingAnnotation.attributes
-        return entry.attributes.all { (attributeName, matcherValue) ->
-            matcherValue == annotationAttributes[attributeName]
-        }
+        return entries.any { entry -> entry.annotationsMatch(wrapper) }
     }
 
     /**
@@ -77,7 +61,22 @@ private constructor(
     private class Entry(
         val qualifiedName: String,
         val attributes: Map<String, Value>,
-    )
+    ) {
+        fun annotationsMatch(
+            existingAnnotation: Entry,
+        ): Boolean {
+            // The annotation must have an attribute for each attribute in the matcher.
+            if (attributes.size > existingAnnotation.attributes.size) {
+                return false
+            }
+
+            // The annotation must have the same value as every matcher attribute.
+            val annotationAttributes = existingAnnotation.attributes
+            return attributes.all { (attributeName, matcherValue) ->
+                matcherValue == annotationAttributes[attributeName]
+            }
+        }
+    }
 
     companion object {
         /**
