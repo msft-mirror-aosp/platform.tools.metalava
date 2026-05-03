@@ -47,9 +47,9 @@ private constructor(
         // If there are no entries for the annotation's class then return immediately.
         val entries = qualifiedNameToEntries[annotation.qualifiedName] ?: return false
 
-        // Get an Entry from the annotation.
-        val wrapper = fromAnnotationItem(annotation)
-        return entries.any { entry -> entry.attributesMatch(wrapper.attributes) }
+        // Get the attributes from the annotation and normalize them.
+        val attributes = normalizeAttributes(annotation)
+        return entries.any { entry -> entry.attributesMatch(attributes) }
     }
 
     /**
@@ -114,23 +114,25 @@ private constructor(
                     "@$text"
                 ) ?: error("Could not construct annotation from `$text`")
 
-            return fromAnnotationItem(annotationItem)
+            val attributes = normalizeAttributes(annotationItem)
+            return Entry(annotationItem.qualifiedName, attributes)
         }
 
-        private fun fromAnnotationItem(annotationItem: AnnotationItem): Entry {
-            val qualifiedName = annotationItem.qualifiedName
+        private fun normalizeAttributes(annotationItem: AnnotationItem): Map<String, Value> {
+            val attributes = annotationItem.attributes
+            val attributeDefaults =
+                annotationItem.annotationContext.defaultsForAnnotationClass(
+                    annotationItem.qualifiedName
+                )
 
             // Create a map from attribute name to normalized value.
-            val attributes =
-                annotationItem.attributes.associateBy({ it.name }) { it.value.normalizeValue() }
+            val normalizedAttributes =
+                attributes.associateBy({ it.name }) { it.value.normalizeValue() }
 
             // Merge in any default values.
-            val withDefaults =
-                annotationItem.annotationContext
-                    .defaultsForAnnotationClass(annotationItem.qualifiedName)
-                    .apply(attributes)
+            val withDefaults = attributeDefaults.apply(normalizedAttributes)
 
-            return Entry(qualifiedName, withDefaults)
+            return withDefaults
         }
     }
 }
