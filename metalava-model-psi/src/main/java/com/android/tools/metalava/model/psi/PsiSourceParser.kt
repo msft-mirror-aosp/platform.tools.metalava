@@ -30,6 +30,7 @@ import com.android.tools.metalava.model.source.AbstractSourceParser
 import com.android.tools.metalava.model.source.SourceParser
 import com.intellij.pom.java.LanguageLevel
 import java.io.File
+import org.jetbrains.kotlin.analysis.api.KaPlatformInterface
 import org.jetbrains.kotlin.analysis.api.platform.projectStructure.KotlinProjectStructureProvider
 import org.jetbrains.kotlin.analysis.api.projectStructure.KaModule
 import org.jetbrains.kotlin.analysis.api.projectStructure.KaSourceModule
@@ -132,6 +133,7 @@ internal class PsiSourceParser(
     }
 
     /** Lists all of the [KaModule]s that exist in this project. */
+    @OptIn(KaPlatformInterface::class)
     private fun UastEnvironment.findAllSourceModules(): List<KaSourceModule> {
         return (KotlinProjectStructureProvider.getInstance(ideaProject)
                 as? KotlinStaticProjectStructureProvider)
