@@ -882,7 +882,8 @@ internal class PsiClassBuilder(
                 containingCallable = containingCallable,
                 parameterIndex = parameterIndex,
                 type = type,
-                hasDefaultValue = PsiParameterDefaultValue.compute(psiParameter, parameterIndex),
+                hasDefaultValue =
+                    PsiParameterDefaultValue.compute(psiParameter, parameterIndex, kind),
                 kind = kind,
             )
         return parameter
