@@ -89,6 +89,8 @@ import org.jetbrains.uast.UAnnotation
 import org.jetbrains.uast.UClass
 import org.jetbrains.uast.UField
 import org.jetbrains.uast.UMethod
+import org.jetbrains.uast.UParameter
+import org.jetbrains.uast.UReceiverParameter
 import org.jetbrains.uast.kotlin.KotlinUMethodWithFakeLightDelegateBase
 import org.jetbrains.uast.kotlin.psi.UastFakeSourceLightMethod
 import org.jetbrains.uast.toUElementOfType
@@ -861,6 +863,8 @@ internal class PsiClassBuilder(
                 parameterIndex = parameterIndex,
                 isVarArg = psiParameter.type is PsiEllipsisType,
             )
+        val kind =
+            computeParameterKind(psiParameter, containingCallable, parameterIndex, fingerprint)
         val parameter =
             itemFactory.createParameterItem(
                 fileLocation = PsiFileLocation.fromPsiElement(psiParameter),
@@ -879,7 +883,7 @@ internal class PsiClassBuilder(
                 parameterIndex = parameterIndex,
                 type = type,
                 hasDefaultValue = PsiParameterDefaultValue.compute(psiParameter, parameterIndex),
-                kind = ParameterKind.VALUE, // TODO(b/508306763): compute parameter kinds
+                kind = kind,
             )
         return parameter
     }
@@ -944,6 +948,29 @@ internal class PsiClassBuilder(
         }
 
         return null
+    }
+
+    /** Determines the [ParameterKind] of the [psiParameter]. */
+    private fun computeParameterKind(
+        psiParameter: PsiParameter,
+        containingCallable: CallableItem,
+        parameterIndex: Int,
+        fingerprint: MethodFingerprint,
+    ): ParameterKind {
+        return when {
+            // Any Java parameter or parameter loaded from a jar is a value parameter
+            !psiParameter.isKotlin() -> ParameterKind.VALUE
+            // The final parameter of a suspend function is the continuation parameter
+            (containingCallable.modifiers.isSuspend() &&
+                parameterIndex == fingerprint.parameterCount - 1) -> ParameterKind.CONTINUATION
+            // Receiver parameters have a specific UAST type
+            psiParameter is UReceiverParameter -> ParameterKind.RECEIVER
+            // The source psi has information about context parameters
+            ((psiParameter as? UParameter)?.sourcePsi as? KtParameter)?.isContextParameter ==
+                true -> ParameterKind.CONTEXT
+            // Not any special kotlin parameter kind, must be a value parameter
+            else -> ParameterKind.VALUE
+        }
     }
 
     private fun throwsTypes(

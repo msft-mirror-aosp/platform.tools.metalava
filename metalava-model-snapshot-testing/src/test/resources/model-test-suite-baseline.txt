@@ -37,9 +37,7 @@ com.android.tools.metalava.model.testsuite.parameteritem.CommonParameterItemTest
 com.android.tools.metalava.model.testsuite.parameteritem.CommonParameterKindTest
   Kind for context parameter on function[psi,kotlin]
   Kind for context parameter on kotlin-only function[psi,kotlin]
-  Kind for continuation parameter[psi,kotlin]
   Kind for parameters on function with all kinds of parameters[psi,kotlin]
-  Kind for receiver parameters[psi,kotlin]
 
 com.android.tools.metalava.model.testsuite.typeitem.CommonParameterizedInvalidTypeTest
   Test invalid source reference[turbine,genericStringInnerNumber - generic and inner both undefined]
