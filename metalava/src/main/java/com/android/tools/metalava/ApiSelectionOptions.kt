@@ -84,7 +84,7 @@ class ApiSelectionOptions(
                 """,
         )
 
-    val showUnannotated by
+    private val showUnannotatedOption by
         option(help = "Include un-annotated public APIs in the signature file as well.")
             .switch(ARG_SHOW_UNANNOTATED to true)
             .defaultLazy(defaultForHelp = "true if no --show*-annotation options specified") {
@@ -95,6 +95,9 @@ class ApiSelectionOptions(
                     showSingleAnnotationValues.isEmpty() &&
                     showForStubPurposesAnnotationValues.isEmpty()
             }
+
+    val showUnannotated
+        get() = apiSurfaceSelector.showUnannotated
 
     private val showAnnotationValues by
         option(
@@ -149,6 +152,7 @@ class ApiSelectionOptions(
     internal val apiSurfaceSelector by
         lazy(LazyThreadSafetyMode.NONE) {
             ApiSurfaceSelector(
+                showUnannotated = showUnannotatedOption,
                 showAnnotationValues = showAnnotationValues,
                 showSingleAnnotationValues = showSingleAnnotationValues,
                 showForStubPurposesAnnotationValues = showForStubPurposesAnnotationValues,
@@ -219,7 +223,7 @@ class ApiSelectionOptions(
             val apiSurfacesConfig = apiSurfacesConfigProvider()
             val checkSurfaceConsistency = checkSurfaceConsistencyProvider()
             createApiSurfaces(
-                showUnannotated,
+                showUnannotatedOption,
                 apiSurface,
                 apiSurfacesConfig,
                 checkSurfaceConsistency,

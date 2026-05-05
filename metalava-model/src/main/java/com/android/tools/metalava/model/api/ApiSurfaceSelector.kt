@@ -23,6 +23,7 @@ import com.android.tools.metalava.model.Showability
 
 /** Helps determine to which api surface a [SelectableItem] belongs. */
 class ApiSurfaceSelector(
+    val showUnannotated: Boolean = true,
     showAnnotationValues: List<String> = emptyList(),
     showSingleAnnotationValues: List<String> = emptyList(),
     showForStubPurposesAnnotationValues: List<String> = emptyList(),
