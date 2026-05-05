@@ -337,12 +337,12 @@ class ApiSelectionOptionsTest :
                             }
                             android.annotation.SystemApi -> {
                                 Entry(
-                                    client=android.annotation.SystemApi.Client.MODULE_LIBRARIES
-                                    result: Showability(show=SHOW, recursive=SHOW, forStubsOnly=NO_EFFECT, revertItem=null)
-                                )
-                                Entry(
                                     client=android.annotation.SystemApi.Client.PRIVILEGED_APPS
                                     result: Showability(show=NO_EFFECT, recursive=NO_EFFECT, forStubsOnly=SHOW, revertItem=null)
+                                )
+                                Entry(
+                                    client=android.annotation.SystemApi.Client.MODULE_LIBRARIES
+                                    result: Showability(show=SHOW, recursive=SHOW, forStubsOnly=NO_EFFECT, revertItem=null)
                                 )
                             }
                         )

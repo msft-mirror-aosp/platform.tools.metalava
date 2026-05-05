@@ -48,9 +48,10 @@ class ApiSurfaceSelector(
     internal val matcher =
         AnnotationMatcher.createFromRules(
             buildList {
-                showAnnotationValues.addRules(this, SHOW)
-                showSingleAnnotationValues.addRules(this, SHOW_SINGLE)
                 showForStubPurposesAnnotationValues.addRules(this, SHOW_FOR_STUBS)
+                showSingleAnnotationValues.addRules(this, SHOW_SINGLE)
+                showAnnotationValues.addRules(this, SHOW)
+                // Hide are at the end as these are processed in order and show has priority.
                 hideAnnotationValues.addRules(this, HIDE)
             }
         )
