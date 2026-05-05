@@ -21,9 +21,11 @@ import com.android.tools.metalava.cli.common.MetalavaCliException
 import com.android.tools.metalava.config.ApiSurfaceConfig
 import com.android.tools.metalava.config.ApiSurfacesConfig
 import com.android.tools.metalava.model.ANDROID_SYSTEM_API
+import com.android.tools.metalava.model.api.ApiSurfaceRules
 import com.android.tools.metalava.model.api.ApiSurfaceSelector
 import com.android.tools.metalava.model.testing.api.assertState
 import com.google.common.truth.Truth.assertThat
+import kotlin.test.assertEquals
 import org.junit.Assert.assertThrows
 import org.junit.Test
 
@@ -214,16 +216,21 @@ class ApiSelectionOptionsTest :
      *
      * @param expectedMatcherState see [assertState].
      * @param expectedShowUnannotated see [assertState].
+     * @param expectedSurfaceRules the expected [ApiSurfaceRules] passed to [ApiSurfaceSelector].
      */
     private fun Result<ApiSelectionOptions>.checkApiSurfaceSelectorState(
         expectedMatcherState: String,
         expectedShowUnannotated: Boolean,
+        expectedSurfaceRules: String,
     ) {
         val selector = options.apiSurfaceSelector
         selector.assertState(
             expectedMatcherState = expectedMatcherState,
             expectedShowUnannotated = expectedShowUnannotated,
         )
+
+        val rules = options.createApiSurfaceRulesFromOptions()
+        assertEquals(expectedSurfaceRules.trimIndent(), rules.toString())
     }
 
     @Test
@@ -246,6 +253,15 @@ class ApiSelectionOptionsTest :
                         )
                     """,
                 expectedShowUnannotated = true,
+                expectedSurfaceRules =
+                    """
+                        ApiSurfaceRules(
+                            public -> {
+                                SelectUnannotated
+                                SelectAnnotated(annotationPattern=android.annotation.Hide, effect=HIDE, recursive=true)
+                            }
+                        )
+                    """,
             )
         }
     }
@@ -278,6 +294,16 @@ class ApiSelectionOptionsTest :
                         )
                     """,
                 expectedShowUnannotated = true,
+                expectedSurfaceRules =
+                    """
+                        ApiSurfaceRules(
+                            public -> {
+                                SelectUnannotated
+                                SelectAnnotated(annotationPattern=android.annotation.Hide, effect=HIDE, recursive=true)
+                                SelectAnnotated(annotationPattern=android.annotation.OtherApi, effect=SHOW, recursive=true)
+                            }
+                        )
+                    """,
             )
         }
     }
@@ -310,6 +336,18 @@ class ApiSelectionOptionsTest :
                         )
                     """,
                 expectedShowUnannotated = false,
+                expectedSurfaceRules =
+                    """
+                        ApiSurfaceRules(
+                            public -> {
+                                SelectUnannotated
+                                SelectAnnotated(annotationPattern=android.annotation.Hide, effect=HIDE, recursive=true)
+                            }
+                            system -> {
+                                SelectAnnotated(annotationPattern=android.annotation.SystemApi(client=android.annotation.SystemApi.Client.PRIVILEGED_APPS), effect=SHOW, recursive=true)
+                            }
+                        )
+                    """,
             )
         }
     }
@@ -348,6 +386,21 @@ class ApiSelectionOptionsTest :
                         )
                     """,
                 expectedShowUnannotated = false,
+                expectedSurfaceRules =
+                    """
+                        ApiSurfaceRules(
+                            public -> {
+                                SelectUnannotated
+                                SelectAnnotated(annotationPattern=android.annotation.Hide, effect=HIDE, recursive=true)
+                            }
+                            system -> {
+                                SelectAnnotated(annotationPattern=android.annotation.SystemApi(client=android.annotation.SystemApi.Client.PRIVILEGED_APPS), effect=SHOW, recursive=true)
+                            }
+                            module-lib -> {
+                                SelectAnnotated(annotationPattern=android.annotation.SystemApi(client=android.annotation.SystemApi.Client.MODULE_LIBRARIES), effect=SHOW, recursive=true)
+                            }
+                        )
+                    """,
             )
         }
     }
@@ -380,6 +433,18 @@ class ApiSelectionOptionsTest :
                         )
                     """,
                 expectedShowUnannotated = false,
+                expectedSurfaceRules =
+                    """
+                        ApiSurfaceRules(
+                            public -> {
+                                SelectUnannotated
+                                SelectAnnotated(annotationPattern=android.annotation.Hide, effect=HIDE, recursive=true)
+                            }
+                            system -> {
+                                SelectAnnotated(annotationPattern=android.annotation.SystemApi(client=android.annotation.SystemApi.Client.PRIVILEGED_APPS), effect=SHOW, recursive=false)
+                            }
+                        )
+                    """,
             )
         }
     }

@@ -20,6 +20,9 @@ import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.ShowOrHide
 import com.android.tools.metalava.model.Showability
+import com.android.tools.metalava.model.api.SurfaceSelectionRule.Effect
+import com.android.tools.metalava.model.api.surface.ApiSurface
+import com.android.tools.metalava.model.api.surface.ApiSurfaces
 
 /** Helps determine to which api surface a [SelectableItem] belongs. */
 class ApiSurfaceSelector(
@@ -108,3 +111,88 @@ class ApiSurfaceSelector(
             )
     }
 }
+
+/** Associates a list of [SurfaceSelectionRule]s with each [ApiSurface] in [ApiSurfaces.all]. */
+class ApiSurfaceRules(
+    internal val apiSurfaces: ApiSurfaces = ApiSurfaces.DEFAULT,
+    private val byName: Map<String, List<SurfaceSelectionRule>> = emptyMap(),
+) {
+    operator fun get(surfaceName: String) = byName[surfaceName]
+
+    override fun toString() = buildString {
+        append("ApiSurfaceRules(\n")
+        for ((surface, rules) in byName) {
+            append("    ")
+            append(surface)
+            append(" -> {\n")
+            for (rule in rules) {
+                append("        ")
+                append(rule)
+                append("\n")
+            }
+            append("    }\n")
+        }
+        append(")")
+    }
+}
+
+/** A rule for selecting items to belong to an [ApiSurface]. */
+sealed interface SurfaceSelectionRule {
+    /** The effect that a [SurfaceSelectionRule] created by [createAnnotationRule] will have. */
+    enum class Effect {
+        /** The annotated item will be included in the [ApiSurface]. */
+        SHOW,
+
+        /**
+         * The annotated item will be excluded from the [ApiSurface].
+         *
+         * This must only be used on the narrowest [ApiSurface].
+         */
+        HIDE,
+    }
+
+    companion object {
+        /**
+         * Include unannotated items.
+         *
+         * Must only be specified on the narrowest [ApiSurface].
+         */
+        val unannotated: SurfaceSelectionRule = SelectUnannotated()
+
+        /**
+         * Create a rule that will show/hide items that are annotated with an annotation that
+         * matches [annotationPattern].
+         *
+         * @param annotationPattern the pattern that the annotation must match.
+         * @param effect the effect of this rule on the annotated item.
+         * @param recursive if `true` then enclosed items will also be included in the [ApiSurface].
+         */
+        fun createAnnotationRule(
+            annotationPattern: String,
+            effect: Effect = Effect.SHOW,
+            recursive: Boolean = true,
+        ): SurfaceSelectionRule = SelectAnnotated(annotationPattern, effect, recursive)
+    }
+}
+
+/**
+ * A [SurfaceSelectionRule] that will include unannotated items in the [ApiSurface].
+ *
+ * Must only be specified on the narrowest [ApiSurface].
+ */
+private class SelectUnannotated : SurfaceSelectionRule {
+    override fun toString() = "SelectUnannotated"
+}
+
+/**
+ * A [SurfaceSelectionRule] that will include/exclude annotated items in/from the [ApiSurface].
+ *
+ * @param annotationPattern the pattern that the annotation must match.
+ * @param effect the effect of this rule on the annotated item.
+ * @param recursive if `true` then enclosed items will also be included in the [ApiSurface].
+ */
+private data class SelectAnnotated(
+    val annotationPattern: String,
+    val effect: Effect,
+    val recursive: Boolean,
+) : SurfaceSelectionRule

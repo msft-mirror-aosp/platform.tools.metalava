@@ -23,7 +23,11 @@ import com.android.tools.metalava.cli.common.splitMultiple
 import com.android.tools.metalava.config.ApiSurfaceConfig
 import com.android.tools.metalava.config.ApiSurfacesConfig
 import com.android.tools.metalava.model.TypedefMode
+import com.android.tools.metalava.model.api.ApiSurfaceRules
 import com.android.tools.metalava.model.api.ApiSurfaceSelector
+import com.android.tools.metalava.model.api.SurfaceSelectionRule
+import com.android.tools.metalava.model.api.SurfaceSelectionRule.Companion.unannotated
+import com.android.tools.metalava.model.api.SurfaceSelectionRule.Effect
 import com.android.tools.metalava.model.api.surface.ApiSurface
 import com.android.tools.metalava.model.api.surface.ApiSurfaces
 import com.github.ajalt.clikt.parameters.groups.OptionGroup
@@ -159,6 +163,84 @@ class ApiSelectionOptions(
                 hideAnnotationValues = hideAnnotationValues,
             )
         }
+
+    /**
+     * Treat this [String] as an annotation pattern that will hide any annotated item from the
+     * narrowest API.
+     */
+    private fun String.toHideRule() =
+        SurfaceSelectionRule.createAnnotationRule(
+            annotationPattern = this,
+            effect = Effect.HIDE,
+            recursive = true,
+        )
+
+    /**
+     * Treat this [String] as an annotation pattern that will include any annotated item as part of
+     * the main API.
+     *
+     * @param recursive if `true` then it will also include any enclosed items, otherwise it will
+     *   not.
+     */
+    private fun String.toShowRule(recursive: Boolean) =
+        SurfaceSelectionRule.createAnnotationRule(
+            annotationPattern = this,
+            effect = Effect.SHOW,
+            recursive = recursive,
+        )
+
+    /** Create [ApiSurfaceRules] from the command line options. */
+    internal fun createApiSurfaceRulesFromOptions(): ApiSurfaceRules {
+        val surfaces = apiSurfaces
+        val main = surfaces.main
+        val base = surfaces.base
+        val rulesBySurfaceName = buildMap {
+            // Iterate over the surfaces, adding information from the --show-* and --hide-annotation
+            // options.
+            for (surface in surfaces.all) {
+                val name = surface.name
+                val surfaceRules = buildList {
+                    // The --show-unannotated and --hide-annotation options only apply to the
+                    // narrowest API surface.
+                    if (surface.extends == null) {
+                        // If --show-unannotated is set (explicitly or implicitly) or this is not
+                        // the main surface then include unannotated items in the API. The latter is
+                        // there to match the behavior in createApiSurfaces which assumes that if
+                        // --show-unannotated is not set that the surface must extend one where it
+                        // is set.
+                        if (showUnannotatedOption || !surface.isMain) {
+                            add(unannotated)
+                        }
+
+                        addAll(hideAnnotationValues.map { it.toHideRule() })
+                    }
+
+                    if (surface === main) {
+                        // The --show-annotation and --show-single-annotation only apply to the
+                        // main surface.
+                        addAll(showAnnotationValues.map { it.toShowRule(recursive = true) })
+                        addAll(showSingleAnnotationValues.map { it.toShowRule(recursive = false) })
+                    } else if (surface === base) {
+                        // The --show-for-stub-purposes-annotation could apply to any surface other
+                        // than the main one but as there is no way to differentiate between them on
+                        // the command line this just adds them all to the base surface.
+                        addAll(
+                            showForStubPurposesAnnotationValues.map {
+                                it.toShowRule(recursive = true)
+                            }
+                        )
+                    }
+                }
+
+                put(name, surfaceRules)
+            }
+        }
+
+        return ApiSurfaceRules(
+            apiSurfaces,
+            rulesBySurfaceName,
+        )
+    }
 
     /** The set of annotation classes that should be removed from all outputs */
     internal val excludeAnnotations by
