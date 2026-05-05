@@ -32,7 +32,7 @@ import com.android.tools.metalava.model.api.SurfaceSelectionRule.Effect
 import com.android.tools.metalava.model.api.surface.ApiSurface
 import com.android.tools.metalava.model.api.surface.ApiSurfaces
 import com.github.ajalt.clikt.parameters.groups.OptionGroup
-import com.github.ajalt.clikt.parameters.options.defaultLazy
+import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.multiple
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.options.switch
@@ -99,17 +99,41 @@ class ApiSelectionOptions(
                 """,
         )
 
-    private val showUnannotatedOption by
+    /** The values of [optionalShowUnannotated]. */
+    private enum class ShowUnannotated {
+        /** Indicates that [ARG_SHOW_UNANNOTATED] was not specified on the command line. */
+        UNSPECIFIED,
+
+        /** Indicates that [ARG_SHOW_UNANNOTATED] was specified on the command line. */
+        SPECIFIED,
+    }
+
+    private val optionalShowUnannotated by
         option(help = "Include un-annotated public APIs in the signature file as well.")
-            .switch(ARG_SHOW_UNANNOTATED to true)
-            .defaultLazy(defaultForHelp = "true if no --show*-annotation options specified") {
-                // If the caller has not explicitly requested that unannotated classes and members
-                // should be shown in the output then only show them if no show annotations were
-                // provided.
-                showAnnotationValues.isEmpty() &&
-                    showSingleAnnotationValues.isEmpty() &&
-                    showForStubPurposesAnnotationValues.isEmpty()
+            .switch(ARG_SHOW_UNANNOTATED to ShowUnannotated.SPECIFIED)
+            .default(
+                ShowUnannotated.UNSPECIFIED,
+                defaultForHelp = "true if no --show*-annotation options specified",
+            )
+
+    /**
+     * Convert [optionalShowUnannotated] into a [Boolean], defaulting to `true` if no show options
+     * were specified.
+     */
+    private val showUnannotatedOption by
+        lazy(LazyThreadSafetyMode.NONE) {
+            when (optionalShowUnannotated) {
+                ShowUnannotated.UNSPECIFIED -> {
+                    // If the caller has not explicitly requested that unannotated classes and
+                    // members should be shown in the output then only show them if no show
+                    // annotations were provided.
+                    showAnnotationValues.isEmpty() &&
+                        showSingleAnnotationValues.isEmpty() &&
+                        showForStubPurposesAnnotationValues.isEmpty()
+                }
+                else -> true
             }
+        }
 
     val showUnannotated
         get() = apiSurfaceSelector.showUnannotated
