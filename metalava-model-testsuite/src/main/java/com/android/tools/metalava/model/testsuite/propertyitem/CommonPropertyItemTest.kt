@@ -1459,7 +1459,7 @@ class CommonPropertyItemTest : BaseModelTest() {
         }
     }
 
-    @SupportedInputFormats(InputFormat.KOTLIN)
+    @SupportedInputFormats(InputFormat.KOTLIN, InputFormat.SIGNATURE)
     @Test
     fun `Test context parameters on property`() {
         runCodebaseTest(
@@ -1479,8 +1479,20 @@ class CommonPropertyItemTest : BaseModelTest() {
                     val unnamedContextParam: Int get() = 3
                 }
                 """
+            ),
+            signature(
+                """
+                // Signature format: 5.0
+                package test.pkg {
+                  public class Foo {
+                    property public int noContextParams;
+                    property public int oneContextParam(String s);
+                    property public int twoContextParams(String s, int i);
+                    property public int unnamedContextParam(String);
+                  }
+                }
+                """
             )
-            // TODO(b/508307884): add signature case once support for context params is added
         ) {
             fun ParameterItem.checkValues(
                 expectedParent: PropertyItem,

@@ -40,6 +40,7 @@ import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.ParameterKind
 import com.android.tools.metalava.model.PrimitiveTypeItem
+import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.SkeletonClassItem
 import com.android.tools.metalava.model.SkeletonTypeParameterItem
@@ -1894,7 +1895,24 @@ private constructor(
         val type = typeItemFactory.getGeneralType(typeString)
         synchronizeNullability(type, modifiers)
 
-        val token = tokenizer.current
+        var token = tokenizer.current
+        val contextParameters =
+            if (token == "(") {
+                val params =
+                    parseParameterList(
+                        tokenizer = tokenizer,
+                        // The current token is already the "("
+                        startWithCurrentToken = true,
+                        useUnderscoreAsDefaultName = true,
+                    )
+                // `parseParameterList` ends with the tokenizer on the closing ")", skip to the next
+                // token to continue parsing
+                token = tokenizer.requireToken()
+                params
+            } else {
+                emptyList()
+            }
+
         if (";" != token) {
             throw ApiParseException("expected ; found $token", tokenizer)
         }
@@ -1910,8 +1928,9 @@ private constructor(
                 // There isn't any information about whether a setter exists or its visibility if it
                 // does in API files currently.
                 setterVisibility = null,
-                // TODO(b/508307884): parse context parameters on a property
-                contextParameterFactory = { emptyList() },
+                contextParameterFactory = { propertyItem ->
+                    contextParameters.map { it.create(propertyItem, typeItemFactory) }
+                },
             )
         property.markForMainApiSurface()
 
@@ -2184,17 +2203,30 @@ private constructor(
     }
 
     /**
-     * Parses a list of parameters. Before calling, [tokenizer] should point to the token *before*
-     * the opening `(` of the parameter list (the method starts by calling
+     * Parses a list of parameters.
+     *
+     * If [startWithCurrentToken] is true, before calling [tokenizer] should point to the opening
+     * `(` of the parameter list. If [startWithCurrentToken] is false, [tokenizer] should point to
+     * the token *before* the opening `(` (and the method will start by calling
      * [Tokenizer.requireToken]).
+     *
+     * If [useUnderscoreAsDefaultName] is true, parameters without a public name will have "_" as
+     * their name. If it is false, they will have "arg<index>" as their name.
      *
      * When the method returns, [tokenizer] will point to the closing `)` of the parameter list.
      */
     private fun parseParameterList(
         tokenizer: Tokenizer,
+        startWithCurrentToken: Boolean = false,
+        useUnderscoreAsDefaultName: Boolean = false,
     ): List<ParameterInfo> {
         val parameters = mutableListOf<ParameterInfo>()
-        var token: String = tokenizer.requireToken()
+        var token: String =
+            if (startWithCurrentToken) {
+                tokenizer.current
+            } else {
+                tokenizer.requireToken()
+            }
         if ("(" != token) {
             throw ApiParseException("expected (, was $token", tokenizer)
         }
@@ -2260,7 +2292,7 @@ private constructor(
                 }
             }
 
-            val name = publicName ?: "arg${index + 1}"
+            val name = publicName ?: (if (useUnderscoreAsDefaultName) "_" else "arg${index + 1}")
             parameters.add(
                 ParameterInfo(
                     name,
@@ -2292,7 +2324,10 @@ private constructor(
         val location: FileLocation,
         val index: Int
     ) {
-        /** Turn this [ParameterInfo] into a [ParameterItem] by parsing the [typeString]. */
+        /**
+         * Turn this [ParameterInfo] into a [ParameterItem] of the [containingCallable] by parsing
+         * the [typeString].
+         */
         fun create(
             containingCallable: CallableItem,
             typeItemFactory: TextTypeItemFactory,
@@ -2334,6 +2369,29 @@ private constructor(
                 )
 
             return parameter
+        }
+
+        /**
+         * Turn this [ParameterInfo] into a context [ParameterItem] of the [containingProperty] by
+         * parsing the [typeString].
+         */
+        fun create(
+            containingProperty: PropertyItem,
+            typeItemFactory: TextTypeItemFactory
+        ): ParameterItem {
+            val type = typeItemFactory.getGeneralType(typeString)
+            synchronizeNullability(type, modifiers)
+            return itemFactory.createParameterItem(
+                fileLocation = location,
+                modifiers = modifiers,
+                name = name,
+                publicName = publicName,
+                containingItem = containingProperty,
+                parameterIndex = index,
+                type = type,
+                hasDefaultValue = hasDefaultValue,
+                kind = ParameterKind.CONTEXT, // All ParameterItems for a property are context
+            )
         }
     }
 

@@ -270,7 +270,7 @@ class CommonParameterKindTest : BaseModelTest() {
         }
     }
 
-    @SupportedInputFormats(InputFormat.KOTLIN)
+    @SupportedInputFormats(InputFormat.KOTLIN, InputFormat.SIGNATURE)
     @Test
     fun `Kind for context parameter on property`() {
         runCodebaseTest(
@@ -283,8 +283,17 @@ class CommonParameterKindTest : BaseModelTest() {
                         get() = 0
                 }
                 """
+            ),
+            signature(
+                """
+                // Signature format: 5.0
+                package test.pkg {
+                  public class Foo {
+                    property public int foo(String s);
+                  }
+                }
+                """
             )
-            // TODO(b/508307884): add signature case once support for context params is added
         ) {
             val fooClass = codebase.assertClass("test.pkg.Foo")
             val fooVal = fooClass.assertProperty("foo")
