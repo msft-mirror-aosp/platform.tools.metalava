@@ -77,6 +77,9 @@ interface ParameterItem :
     /** Whether this is a varargs parameter */
     fun isVarArgs(): Boolean = modifiers.isVarArg()
 
+    /** The kind of parameter this is. See the values of [ParameterKind] for more details. */
+    val kind: ParameterKind
+
     /**
      * The property declared by this parameter; inverse of [PropertyItem.constructorParameter].
      *
@@ -146,4 +149,28 @@ interface ParameterItem :
         get() = containingCallable().targetLanguages
 
     // TODO: modifier list
+}
+
+/** The possible kinds of [ParameterItem]s that can be defined in Java and Kotlin. */
+enum class ParameterKind {
+    /**
+     * Any parameter from Java source or loaded from a jar, or a value parameter from Kotlin source.
+     */
+    VALUE,
+
+    /**
+     * The synthetic receiver parameter generated for a Kotlin
+     * [extension](https://kotlinlang.org/docs/extensions.html#receivers).
+     */
+    RECEIVER,
+
+    /** A Kotlin [context parameter](https://kotlinlang.org/docs/context-parameters.html). */
+    CONTEXT,
+
+    /**
+     * The synthetic
+     * [continuation parameter](https://kotlinlang.org/spec/asynchronous-programming-with-coroutines.html#continuation-passing-style)
+     * for a Kotlin suspend function.
+     */
+    CONTINUATION,
 }

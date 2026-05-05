@@ -35,6 +35,7 @@ import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.MutableModifierList
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
+import com.android.tools.metalava.model.ParameterKind
 import com.android.tools.metalava.model.SkeletonClassItem
 import com.android.tools.metalava.model.SourceLanguage
 import com.android.tools.metalava.model.TargetLanguage
@@ -82,6 +83,7 @@ import org.jetbrains.kotlin.analysis.api.symbols.KaCallableSymbol
 import org.jetbrains.kotlin.analysis.api.symbols.KaClassKind
 import org.jetbrains.kotlin.analysis.api.symbols.KaClassifierSymbol
 import org.jetbrains.kotlin.analysis.api.symbols.KaConstructorSymbol
+import org.jetbrains.kotlin.analysis.api.symbols.KaContextParameterSymbol
 import org.jetbrains.kotlin.analysis.api.symbols.KaDeclarationSymbol
 import org.jetbrains.kotlin.analysis.api.symbols.KaFunctionSymbol
 import org.jetbrains.kotlin.analysis.api.symbols.KaNamedClassSymbol
@@ -690,17 +692,20 @@ private constructor(
                 typeParameterList = typeParameterListAndFactory.typeParameterList,
                 returnType = containingClass.type(),
                 parameterItemsFactory = { callableItem ->
+                    @OptIn(KaExperimentalApi::class) // for context parameters
                     parameterList(
-                        constructorSymbol.valueParameters,
-                        callableItem,
-                        typeParameterListAndFactory.factory,
-                        kaReceiverParameter = null,
-                        isSuspend = false,
+                        kaParameters = constructorSymbol.valueParameters,
+                        containingCallable = callableItem,
+                        enclosingTypeItemFactory = typeParameterListAndFactory.factory,
+                        kaContextParameters = emptyList(), // Constructors can't have context params
+                        kaReceiverParameter = null, // Constructors can't have receivers
+                        isSuspend = false, // Constructors can't be suspend
                         returnType = containingClass.type(),
-                        MethodFingerprint(
-                            containingClass.simpleName(),
-                            constructorSymbol.valueParameters.count()
-                        )
+                        fingerprint =
+                            MethodFingerprint(
+                                containingClass.simpleName(),
+                                constructorSymbol.valueParameters.count()
+                            )
                     )
                 },
                 throwsTypes = throwsTypesFromModifiers(modifiers),
@@ -841,14 +846,16 @@ private constructor(
                 typeParameterList = typeParameterListAndFactory.typeParameterList,
                 returnType = returnType,
                 parameterItemsFactory = { callableItem ->
+                    @OptIn(KaExperimentalApi::class) // for context parameters
                     parameterList(
-                        functionSymbol.valueParameters,
-                        callableItem,
-                        typeParameterListAndFactory.factory,
-                        functionSymbol.receiverParameter,
-                        functionSymbol.isSuspend,
-                        originalReturnType,
-                        fingerprint,
+                        kaParameters = functionSymbol.valueParameters,
+                        containingCallable = callableItem,
+                        enclosingTypeItemFactory = typeParameterListAndFactory.factory,
+                        kaContextParameters = functionSymbol.contextParameters,
+                        kaReceiverParameter = functionSymbol.receiverParameter,
+                        isSuspend = functionSymbol.isSuspend,
+                        returnType = originalReturnType,
+                        fingerprint = fingerprint,
                     )
                 },
                 throwsTypes = throwsTypesFromModifiers(modifiers),
@@ -1049,24 +1056,52 @@ private constructor(
     }
 
     /** Converts the [kaParameters] to [ParameterItem]s for the [containingCallable]. */
+    @OptIn(KaExperimentalApi::class) // For context parameters
     private fun parameterList(
         kaParameters: List<KaValueParameterSymbol>,
         containingCallable: CallableItem,
         enclosingTypeItemFactory: KaTypeItemFactory,
+        kaContextParameters: List<KaContextParameterSymbol>,
         kaReceiverParameter: KaReceiverParameterSymbol?,
         isSuspend: Boolean,
         returnType: TypeItem,
         fingerprint: MethodFingerprint,
     ): List<ParameterItem> {
+        val contextParameters =
+            kaContextParameters.mapIndexed { sourceIndex, parameterSymbol ->
+                val type =
+                    enclosingTypeItemFactory.getMethodParameterType(
+                        underlyingParameterType = parameterSymbol.returnType,
+                        itemAnnotations = containingCallable.modifiers.annotations(),
+                        fingerprint = fingerprint,
+                        parameterIndex = sourceIndex,
+                        isVarArg = false,
+                    )
+                val sourceName = parameterSymbol.name.identifierOrNullIfSpecial
+                itemFactory.createParameterItem(
+                    fileLocation = PsiFileLocation.fromPsiElement(parameterSymbol.psi),
+                    modifiers = kaModifierFactory.createForContextParameter(parameterSymbol),
+                    // If no name is available, "_" was used in source, which is not a public name.
+                    name = sourceName ?: "_",
+                    publicName = sourceName,
+                    containingCallable = containingCallable,
+                    parameterIndex = sourceIndex,
+                    type = type,
+                    hasDefaultValue = false,
+                    kind = ParameterKind.CONTEXT
+                )
+            }
+
         // If there is a receiver, convert it to a parameter item.
         val receiverParameter =
             kaReceiverParameter?.let {
+                val index = contextParameters.size
                 val type =
                     enclosingTypeItemFactory.getMethodParameterType(
                         underlyingParameterType = it.returnType,
                         itemAnnotations = containingCallable.modifiers.annotations(),
                         fingerprint = fingerprint,
-                        parameterIndex = 0,
+                        parameterIndex = index,
                         isVarArg = false,
                     )
 
@@ -1076,16 +1111,19 @@ private constructor(
                     name = "receiver",
                     publicName = null,
                     containingCallable = containingCallable,
-                    parameterIndex = 0,
+                    parameterIndex = index,
                     type = type,
                     hasDefaultValue = false,
+                    kind = ParameterKind.RECEIVER,
                 )
             }
-        val regularParameters =
+        val receiverParameterCount = (receiverParameter?.let { 1 } ?: 0)
+
+        val valueParameters =
             kaParameters.mapIndexed { sourceIndex, parameterSymbol ->
                 // If there is a receiver, it becomes the first parameter, so shift the index of all
                 // other parameters
-                val index = if (receiverParameter != null) 1 + sourceIndex else sourceIndex
+                val index = contextParameters.size + receiverParameterCount + sourceIndex
                 val type =
                     enclosingTypeItemFactory.getMethodParameterType(
                         underlyingParameterType = parameterSymbol.returnType,
@@ -1104,6 +1142,7 @@ private constructor(
                     parameterIndex = index,
                     type = type,
                     hasDefaultValue = parameterSymbol.hasDefaultValue,
+                    kind = ParameterKind.VALUE,
                 )
             }
 
@@ -1111,7 +1150,7 @@ private constructor(
         // for the jvm signature (which is used when adding to a psi codebase).
         val continuationParameter =
             if (addingToPsiCodebase && isSuspend) {
-                val index = regularParameters.size + (receiverParameter?.let { 1 } ?: 0)
+                val index = valueParameters.size + receiverParameterCount + contextParameters.size
                 itemFactory.createParameterItem(
                     fileLocation = FileLocation.UNKNOWN,
                     modifiers =
@@ -1122,14 +1161,18 @@ private constructor(
                     parameterIndex = index,
                     type = enclosingTypeItemFactory.createContinuationType(returnType),
                     hasDefaultValue = false,
+                    kind = ParameterKind.CONTINUATION,
                 )
             } else {
                 null
             }
 
-        return listOfNotNull(receiverParameter) +
-            regularParameters +
-            listOfNotNull(continuationParameter)
+        return buildList {
+            addAll(contextParameters)
+            receiverParameter?.let { add(it) }
+            addAll(valueParameters)
+            continuationParameter?.let { add(it) }
+        }
     }
 
     /** Finds any exception types listed with the @Throws annotation. */

@@ -38,6 +38,7 @@ import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.MutableModifierList
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
+import com.android.tools.metalava.model.ParameterKind
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.SkeletonClassItem
@@ -2305,6 +2306,18 @@ private constructor(
                 )
             synchronizeNullability(type, modifiers)
 
+            // The last parameter of a suspend function is the continuation parameter
+            // TODO(b/508307884): support context and receiver parameters
+            val kind =
+                if (
+                    containingCallable.modifiers.isSuspend() &&
+                        index == methodFingerprint.parameterCount - 1
+                ) {
+                    ParameterKind.CONTINUATION
+                } else {
+                    ParameterKind.VALUE
+                }
+
             val parameter =
                 itemFactory.createParameterItem(
                     fileLocation = location,
@@ -2315,6 +2328,7 @@ private constructor(
                     parameterIndex = index,
                     type = type,
                     hasDefaultValue = hasDefaultValue,
+                    kind = kind,
                 )
 
             return parameter

@@ -593,6 +593,7 @@ private constructor(
                     parameterIndex = parameterItem.parameterIndex,
                     type = parameterItem.type().snapshot(),
                     hasDefaultValue = parameterItem.hasDefaultValue(),
+                    kind = parameterItem.kind,
                 )
             }
         }

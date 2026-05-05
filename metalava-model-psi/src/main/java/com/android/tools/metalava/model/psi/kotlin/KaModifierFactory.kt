@@ -26,8 +26,10 @@ import com.android.tools.metalava.model.MutableModifierList
 import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.createMutableModifiers
 import com.android.tools.metalava.model.hasAnnotation
+import org.jetbrains.kotlin.analysis.api.KaExperimentalApi
 import org.jetbrains.kotlin.analysis.api.symbols.KaCallableSymbol
 import org.jetbrains.kotlin.analysis.api.symbols.KaClassKind
+import org.jetbrains.kotlin.analysis.api.symbols.KaContextParameterSymbol
 import org.jetbrains.kotlin.analysis.api.symbols.KaDeclarationSymbol
 import org.jetbrains.kotlin.analysis.api.symbols.KaKotlinPropertySymbol
 import org.jetbrains.kotlin.analysis.api.symbols.KaNamedClassSymbol
@@ -299,6 +301,11 @@ internal class KaModifierFactory(private val processor: KaModuleProcessor) {
 
     /** Creates modifiers for a receiver parameter (just visibility and annotations). */
     fun createForReceiverParameter(symbol: KaReceiverParameterSymbol): MutableModifierList {
+        return createForParameter(symbol)
+    }
+
+    @OptIn(KaExperimentalApi::class)
+    fun createForContextParameter(symbol: KaContextParameterSymbol): MutableModifierList {
         return createForParameter(symbol)
     }
 

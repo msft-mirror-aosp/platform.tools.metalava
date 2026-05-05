@@ -34,6 +34,7 @@ import com.android.tools.metalava.model.ItemDocumentationFactory
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
+import com.android.tools.metalava.model.ParameterKind
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.RecordComponentItem
 import com.android.tools.metalava.model.RecordComponentItemsFactory
@@ -248,6 +249,7 @@ class DefaultItemFactory(
         parameterIndex: Int,
         type: TypeItem,
         hasDefaultValue: Boolean,
+        kind: ParameterKind,
     ): ParameterItem =
         DefaultParameterItem(
             codebase,
@@ -260,6 +262,7 @@ class DefaultItemFactory(
             parameterIndex,
             type,
             hasDefaultValue,
+            kind,
         )
 
     /** Create a [PropertyItem]. */

@@ -21,6 +21,7 @@ import com.android.tools.metalava.model.BaseModifierList
 import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.ParameterItem
+import com.android.tools.metalava.model.ParameterKind
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.SourceLanguage
 import com.android.tools.metalava.model.TypeItem
@@ -38,6 +39,7 @@ internal class DefaultParameterItem(
     override val parameterIndex: Int,
     private var type: TypeItem,
     private val hasDefaultValue: Boolean,
+    override val kind: ParameterKind,
 ) :
     DefaultItem(
         codebase = codebase,
@@ -84,5 +86,6 @@ internal class DefaultParameterItem(
             newParameterIndex,
             typeConverter(type()),
             hasDefaultValue(),
+            kind,
         )
 }
