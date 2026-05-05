@@ -22,6 +22,7 @@ import com.android.tools.metalava.cli.common.map
 import com.android.tools.metalava.cli.common.splitMultiple
 import com.android.tools.metalava.config.ApiSurfaceConfig
 import com.android.tools.metalava.config.ApiSurfacesConfig
+import com.android.tools.metalava.config.SelectionCriteriaEffect
 import com.android.tools.metalava.model.TypedefMode
 import com.android.tools.metalava.model.api.ApiSurfaceRules
 import com.android.tools.metalava.model.api.ApiSurfaceSelector
@@ -36,6 +37,7 @@ import com.github.ajalt.clikt.parameters.options.multiple
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.options.switch
 import com.github.ajalt.clikt.parameters.options.unique
+import kotlin.collections.buildList
 
 const val ARG_API_SURFACE = "--api-surface"
 const val ARG_SHOW_UNANNOTATED = "--show-unannotated"
@@ -161,10 +163,54 @@ class ApiSelectionOptions(
             )
             .multiple()
 
+    /**
+     * Select the [ApiSurfaceRules] to use between the [apiSurfaceRulesFromConfig] and
+     * [apiSurfaceRulesFromOptions].
+     */
+    private fun selectApiSurfaceRulesToUse(
+        apiSurfaceRulesFromConfig: ApiSurfaceRules?,
+        apiSurfaceRulesFromOptions: ApiSurfaceRules,
+    ): ApiSurfaceRules {
+        // If no config was available then just use the one from the options.
+        if (apiSurfaceRulesFromConfig == null) return apiSurfaceRulesFromOptions
+
+        // If the command line options are significant then check to make sure that the rules
+        // created from them are consistent with those created from configuration. Uses the string
+        // representation as that is simple and this is only temporary while migrating Android from
+        // a mixture config and command line options to config only.
+        // TODO(b/508331653): Remove once migration is complete.
+        if (checkSurfaceConsistency) {
+            val fromConfigState = apiSurfaceRulesFromConfig.toString()
+            val fromOptionsState = apiSurfaceRulesFromOptions.toString()
+            if (fromConfigState != fromOptionsState) {
+                error(
+                    """
+Configuration <selection-criteria> and command line options are inconsistent
+    apiSurfaceRulesFromConfig:
+${fromConfigState.prependIndent("        ")}
+    apiSurfaceRulesFromOptions:
+${fromOptionsState.prependIndent("        ")}
+                    """
+                        .trimIndent()
+                )
+            }
+        }
+
+        // The configuration provided rules take priority as they are better in many ways, i.e.
+        // more consistent to specify, simpler, less duplication.
+        return apiSurfaceRulesFromConfig
+    }
+
     /** The [ApiSurfaceSelector] that will determine to which API surface an item belongs. */
     internal val apiSurfaceSelector by
         lazy(LazyThreadSafetyMode.NONE) {
-            val apiSurfaceRules = createApiSurfaceRulesFromOptions()
+            val apiSurfaceRulesFromConfig = createApiSurfaceRulesFromConfig()
+            val apiSurfaceRulesFromOptions = createApiSurfaceRulesFromOptions()
+            val apiSurfaceRules =
+                selectApiSurfaceRulesToUse(
+                    apiSurfaceRulesFromConfig,
+                    apiSurfaceRulesFromOptions,
+                )
 
             ApiSurfaceSelector(apiSurfaceRules)
         }
@@ -193,6 +239,54 @@ class ApiSelectionOptions(
             effect = Effect.SHOW,
             recursive = recursive,
         )
+
+    /** Create [ApiSurfaceRules] from the [apiSurfacesConfig], if available. */
+    internal fun createApiSurfaceRulesFromConfig(): ApiSurfaceRules? {
+        // If there is no configuration then they cannot be created.
+        val surfacesConfig = apiSurfacesConfig ?: return null
+
+        // Build a map from surface name to the [SurfaceSelectionRule]s that apply to that surface.
+        val rulesBySurfaceName = buildMap {
+            // Iterate over the surfaces, adding information from the --show-* and --hide-annotation
+            // options.
+            for (surface in apiSurfaces.all) {
+                val name = surface.name
+                val surfaceConfig = surfacesConfig.byName[name] ?: continue
+                val selectionCriteria = surfaceConfig.selectionCriteria ?: continue
+
+                val surfaceRules = buildList {
+                    if (selectionCriteria.unannotated == SelectionCriteriaEffect.SHOW) {
+                        add(unannotated)
+                    }
+                    for (annotationRule in selectionCriteria.annotationRules) {
+                        val effect =
+                            when (annotationRule.effect) {
+                                SelectionCriteriaEffect.SHOW -> Effect.SHOW
+                                SelectionCriteriaEffect.HIDE -> Effect.HIDE
+                            }
+                        add(
+                            SurfaceSelectionRule.createAnnotationRule(
+                                annotationRule.pattern,
+                                effect,
+                                annotationRule.recursive
+                            )
+                        )
+                    }
+                }
+
+                put(name, surfaceRules)
+            }
+        }
+
+        // If the map is empty then there are no rules so return null.
+        if (rulesBySurfaceName.isEmpty()) return null
+
+        // Create and return the rules.
+        return ApiSurfaceRules(
+            apiSurfaces,
+            rulesBySurfaceName,
+        )
+    }
 
     /** Create [ApiSurfaceRules] from the command line options. */
     internal fun createApiSurfaceRulesFromOptions(): ApiSurfaceRules {

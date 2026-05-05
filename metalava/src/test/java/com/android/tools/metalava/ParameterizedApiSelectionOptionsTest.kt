@@ -17,8 +17,11 @@
 package com.android.tools.metalava
 
 import com.android.tools.metalava.cli.common.BaseOptionGroupTest
+import com.android.tools.metalava.config.AnnotationRule
 import com.android.tools.metalava.config.ApiSurfaceConfig
 import com.android.tools.metalava.config.ApiSurfacesConfig
+import com.android.tools.metalava.config.SelectionCriteria
+import com.android.tools.metalava.config.SelectionCriteriaEffect
 import com.android.tools.metalava.model.api.ApiSurfaceRules
 import com.android.tools.metalava.model.api.ApiSurfaceSelector
 import com.android.tools.metalava.model.testing.api.assertState
@@ -39,13 +42,25 @@ class ParameterizedApiSelectionOptionsTest :
      * Enumeration of the source of the API surface rule information.
      *
      * @param useOptions use options to define the rules.
+     * @param useConfig use [ApiSurfacesConfig] to define the rules.
      */
     enum class SurfaceRuleSource(
         val useOptions: Boolean,
+        val useConfig: Boolean,
     ) {
         /** Run the test providing surface rules using command line options only. */
         OPTIONS_ONLY(
             useOptions = true,
+            useConfig = false,
+        ),
+
+        /**
+         * Run the test providing surface rules using command line options and [ApiSurfaceConfig]
+         * too.
+         */
+        OPTIONS_AND_CONFIG(
+            useOptions = true,
+            useConfig = false,
         ),
     }
 
@@ -60,6 +75,7 @@ class ParameterizedApiSelectionOptionsTest :
      * Check the state of the [ApiSurfaceSelector] created by [ApiSelectionOptions].
      *
      * @param ruleOptions the command line options that specify the API selection rules.
+     * @param apiSurfacesConfigWithRules the [ApiSurfaceConfig] to use.
      * @param expectedMatcherState see [assertState].
      * @param expectedShowUnannotated see [assertState].
      * @param expectedSurfaceRules the expected [ApiSurfaceRules] passed to [ApiSurfaceSelector].
@@ -67,19 +83,24 @@ class ParameterizedApiSelectionOptionsTest :
     private fun checkApiSurfaceSelectorState(
         surface: String,
         ruleOptions: List<String>,
+        apiSurfacesConfigWithRules: ApiSurfacesConfig,
         expectedMatcherState: String,
         expectedShowUnannotated: Boolean,
         expectedSurfaceRules: String,
     ) {
         val apiSurfacesConfig =
-            ApiSurfacesConfig(
-                apiSurfaceList =
-                    listOf(
-                        ApiSurfaceConfig(name = "public"),
-                        ApiSurfaceConfig(name = "system", extends = "public"),
-                        ApiSurfaceConfig(name = "module-lib", extends = "system"),
-                    )
-            )
+            if (surfaceRuleSource.useConfig) {
+                apiSurfacesConfigWithRules
+            } else {
+                ApiSurfacesConfig(
+                    apiSurfaceList =
+                        listOf(
+                            ApiSurfaceConfig(name = "public"),
+                            ApiSurfaceConfig(name = "system", extends = "public"),
+                            ApiSurfaceConfig(name = "module-lib", extends = "system"),
+                        )
+                )
+            }
 
         val optionGroup =
             ApiSelectionOptions(
@@ -107,6 +128,15 @@ class ParameterizedApiSelectionOptionsTest :
                     message = "ApiSurfaceRules from options"
                 )
             }
+
+            if (surfaceRuleSource.useConfig) {
+                val rules = options.createApiSurfaceRulesFromConfig()
+                assertEquals(
+                    expectedSurfaceRules.trimIndent(),
+                    rules.toString(),
+                    message = "ApiSurfaceRules from config"
+                )
+            }
         }
     }
 
@@ -118,6 +148,26 @@ class ParameterizedApiSelectionOptionsTest :
                 listOf(
                     ARG_HIDE_ANNOTATION,
                     "android.annotation.Hide",
+                ),
+            apiSurfacesConfigWithRules =
+                ApiSurfacesConfig(
+                    apiSurfaceList =
+                        listOf(
+                            ApiSurfaceConfig(
+                                name = "public",
+                                selectionCriteria =
+                                    SelectionCriteria(
+                                        unannotated = SelectionCriteriaEffect.SHOW,
+                                        annotationRules =
+                                            listOf(
+                                                AnnotationRule(
+                                                    pattern = "android.annotation.Hide",
+                                                    effect = SelectionCriteriaEffect.HIDE,
+                                                ),
+                                            ),
+                                    ),
+                            ),
+                        ),
                 ),
             expectedMatcherState =
                 """
@@ -153,6 +203,29 @@ class ParameterizedApiSelectionOptionsTest :
                     ARG_SHOW_UNANNOTATED,
                     ARG_SHOW_ANNOTATION,
                     "android.annotation.OtherApi",
+                ),
+            apiSurfacesConfigWithRules =
+                ApiSurfacesConfig(
+                    apiSurfaceList =
+                        listOf(
+                            ApiSurfaceConfig(
+                                name = "public",
+                                selectionCriteria =
+                                    SelectionCriteria(
+                                        unannotated = SelectionCriteriaEffect.SHOW,
+                                        annotationRules =
+                                            listOf(
+                                                AnnotationRule(
+                                                    pattern = "android.annotation.Hide",
+                                                    effect = SelectionCriteriaEffect.HIDE,
+                                                ),
+                                                AnnotationRule(
+                                                    pattern = "android.annotation.OtherApi",
+                                                ),
+                                            ),
+                                    ),
+                            ),
+                        ),
                 ),
             expectedMatcherState =
                 """
@@ -193,6 +266,40 @@ class ParameterizedApiSelectionOptionsTest :
                     "android.annotation.Hide",
                     ARG_SHOW_ANNOTATION,
                     "android.annotation.SystemApi(client=android.annotation.SystemApi.Client.PRIVILEGED_APPS)",
+                ),
+            apiSurfacesConfigWithRules =
+                ApiSurfacesConfig(
+                    apiSurfaceList =
+                        listOf(
+                            ApiSurfaceConfig(
+                                name = "public",
+                                selectionCriteria =
+                                    SelectionCriteria(
+                                        unannotated = SelectionCriteriaEffect.SHOW,
+                                        annotationRules =
+                                            listOf(
+                                                AnnotationRule(
+                                                    pattern = "android.annotation.Hide",
+                                                    effect = SelectionCriteriaEffect.HIDE,
+                                                ),
+                                            ),
+                                    ),
+                            ),
+                            ApiSurfaceConfig(
+                                name = "system",
+                                extends = "public",
+                                selectionCriteria =
+                                    SelectionCriteria(
+                                        annotationRules =
+                                            listOf(
+                                                AnnotationRule(
+                                                    pattern =
+                                                        "android.annotation.SystemApi(client=android.annotation.SystemApi.Client.PRIVILEGED_APPS)",
+                                                ),
+                                            ),
+                                    ),
+                            ),
+                        ),
                 ),
             expectedMatcherState =
                 """
@@ -238,6 +345,54 @@ class ParameterizedApiSelectionOptionsTest :
                     "android.annotation.SystemApi(client=android.annotation.SystemApi.Client.PRIVILEGED_APPS)",
                     ARG_SHOW_ANNOTATION,
                     "android.annotation.SystemApi(client=android.annotation.SystemApi.Client.MODULE_LIBRARIES)",
+                ),
+            apiSurfacesConfigWithRules =
+                ApiSurfacesConfig(
+                    apiSurfaceList =
+                        listOf(
+                            ApiSurfaceConfig(
+                                name = "public",
+                                selectionCriteria =
+                                    SelectionCriteria(
+                                        unannotated = SelectionCriteriaEffect.SHOW,
+                                        annotationRules =
+                                            listOf(
+                                                AnnotationRule(
+                                                    pattern = "android.annotation.Hide",
+                                                    effect = SelectionCriteriaEffect.HIDE,
+                                                ),
+                                            ),
+                                    ),
+                            ),
+                            ApiSurfaceConfig(
+                                name = "system",
+                                extends = "public",
+                                selectionCriteria =
+                                    SelectionCriteria(
+                                        annotationRules =
+                                            listOf(
+                                                AnnotationRule(
+                                                    pattern =
+                                                        "android.annotation.SystemApi(client=android.annotation.SystemApi.Client.PRIVILEGED_APPS)",
+                                                ),
+                                            ),
+                                    ),
+                            ),
+                            ApiSurfaceConfig(
+                                name = "module-lib",
+                                extends = "system",
+                                selectionCriteria =
+                                    SelectionCriteria(
+                                        annotationRules =
+                                            listOf(
+                                                AnnotationRule(
+                                                    pattern =
+                                                        "android.annotation.SystemApi(client=android.annotation.SystemApi.Client.MODULE_LIBRARIES)",
+                                                ),
+                                            ),
+                                    ),
+                            ),
+                        ),
                 ),
             expectedMatcherState =
                 """
@@ -288,6 +443,41 @@ class ParameterizedApiSelectionOptionsTest :
                     "android.annotation.Hide",
                     ARG_SHOW_SINGLE_ANNOTATION,
                     "android.annotation.SystemApi(client=android.annotation.SystemApi.Client.PRIVILEGED_APPS)",
+                ),
+            apiSurfacesConfigWithRules =
+                ApiSurfacesConfig(
+                    apiSurfaceList =
+                        listOf(
+                            ApiSurfaceConfig(
+                                name = "public",
+                                selectionCriteria =
+                                    SelectionCriteria(
+                                        unannotated = SelectionCriteriaEffect.SHOW,
+                                        annotationRules =
+                                            listOf(
+                                                AnnotationRule(
+                                                    pattern = "android.annotation.Hide",
+                                                    effect = SelectionCriteriaEffect.HIDE,
+                                                ),
+                                            ),
+                                    ),
+                            ),
+                            ApiSurfaceConfig(
+                                name = "system",
+                                extends = "public",
+                                selectionCriteria =
+                                    SelectionCriteria(
+                                        annotationRules =
+                                            listOf(
+                                                AnnotationRule(
+                                                    pattern =
+                                                        "android.annotation.SystemApi(client=android.annotation.SystemApi.Client.PRIVILEGED_APPS)",
+                                                    recursive = false,
+                                                ),
+                                            ),
+                                    ),
+                            ),
+                        ),
                 ),
             expectedMatcherState =
                 """
