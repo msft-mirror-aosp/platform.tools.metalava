@@ -99,7 +99,7 @@ class CommonParameterKindTest : BaseModelTest() {
         }
     }
 
-    @SupportedInputFormats(InputFormat.KOTLIN)
+    @SupportedInputFormats(InputFormat.KOTLIN, InputFormat.SIGNATURE)
     @Test
     fun `Kind for receiver parameters`() {
         runCodebaseTest(
@@ -110,7 +110,16 @@ class CommonParameterKindTest : BaseModelTest() {
                 fun String.foo() = Unit
                 """
             ),
-            // TODO(b/508307067): add signature case once receiver modifier exists
+            signature(
+                """
+                // Signature format: 5.0
+                package test.pkg {
+                  public final class Foo {
+                    method public static void foo(receiver String);
+                  }
+                }
+                """
+            ),
         ) {
             val fooClass = codebase.assertClass("test.pkg.Foo")
             val fooMethod = fooClass.assertMethod("foo", listOf("java.lang.String"))
@@ -195,7 +204,7 @@ class CommonParameterKindTest : BaseModelTest() {
         }
     }
 
-    @SupportedInputFormats(InputFormat.KOTLIN)
+    @SupportedInputFormats(InputFormat.KOTLIN, InputFormat.SIGNATURE)
     @Test
     fun `Kind for context parameter on function`() {
         runCodebaseTest(
@@ -208,7 +217,16 @@ class CommonParameterKindTest : BaseModelTest() {
                 }
                 """
             ),
-            // TODO(b/508307067): add signature case once context modifier exists
+            signature(
+                """
+                // Signature format: 5.0
+                package test.pkg {
+                  public final class Foo {
+                    method public void foo(context String s);
+                  }
+                }
+                """
+            ),
         ) {
             val fooClass = codebase.assertClass("test.pkg.Foo")
             val fooMethod = fooClass.assertMethod("foo", listOf("java.lang.String"))
@@ -216,7 +234,7 @@ class CommonParameterKindTest : BaseModelTest() {
         }
     }
 
-    @SupportedInputFormats(InputFormat.KOTLIN)
+    @SupportedInputFormats(InputFormat.KOTLIN, InputFormat.SIGNATURE)
     @Test
     fun `Kind for context parameter on kotlin-only function`() {
         runCodebaseTest(
@@ -231,7 +249,26 @@ class CommonParameterKindTest : BaseModelTest() {
                 }
                 """
             ),
-            // TODO(b/508307067): add signature case once context modifier exists
+            signature(
+                """
+                // Signature format: 5.0
+                package test.pkg {
+                  public final class Foo {
+                    ctor public Foo();
+                    method @KotlinOnly public void foo(context test.pkg.IntValue iv);
+                    method @BytecodeOnly public void foo-Vxmw0xk(int);
+                  }
+                  @kotlin.jvm.JvmInline public final value class IntValue {
+                    ctor @KotlinOnly public IntValue(int value);
+                    method @BytecodeOnly public static test.pkg.IntValue! box-impl(int);
+                    method @BytecodeOnly public static int constructor-impl(int);
+                    method @InaccessibleFromKotlin public int getValue();
+                    method @BytecodeOnly public int unbox-impl();
+                    property public int value;
+                  }
+                }
+                """
+            ),
         ) {
             val fooClass = codebase.assertClass("test.pkg.Foo")
             val fooMethod = fooClass.assertMethod("foo", listOf("test.pkg.IntValue"))
@@ -249,8 +286,17 @@ class CommonParameterKindTest : BaseModelTest() {
                 context(c: String)
                 suspend fun Int.foo(b: Boolean) = Unit
                 """
-            )
-            // TODO(b/508307067): add signature case once context and receiver modifiers exist
+            ),
+            signature(
+                """
+                // Signature format: 5.0
+                package test.pkg {
+                  public class Foo {
+                    method public suspend Object? foo(context String c, receiver int, boolean b, kotlin.coroutines.Continuation<? super kotlin.Unit>);
+                  }
+                }
+                """
+            ),
         ) {
             val fooClass = codebase.assertClass("test.pkg.Foo")
             val fooMethod =
@@ -289,7 +335,7 @@ class CommonParameterKindTest : BaseModelTest() {
                 // Signature format: 5.0
                 package test.pkg {
                   public class Foo {
-                    property public int foo(String s);
+                    property public int foo(context String s);
                   }
                 }
                 """

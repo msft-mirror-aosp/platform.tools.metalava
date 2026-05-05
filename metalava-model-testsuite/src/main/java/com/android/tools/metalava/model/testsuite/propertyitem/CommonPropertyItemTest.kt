@@ -1486,9 +1486,9 @@ class CommonPropertyItemTest : BaseModelTest() {
                 package test.pkg {
                   public class Foo {
                     property public int noContextParams;
-                    property public int oneContextParam(String s);
-                    property public int twoContextParams(String s, int i);
-                    property public int unnamedContextParam(String);
+                    property public int oneContextParam(context String s);
+                    property public int twoContextParams(context String s, context int i);
+                    property public int unnamedContextParam(context String);
                   }
                 }
                 """

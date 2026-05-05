@@ -2249,6 +2249,17 @@ private constructor(
                 tokenizer.requireToken()
             }
 
+            // The kind of the parameter might be specified.
+            val optionalKind =
+                when (token) {
+                    "context" -> ParameterKind.CONTEXT
+                    "receiver" -> ParameterKind.RECEIVER
+                    else -> null
+                }
+            if (optionalKind != null) {
+                tokenizer.requireToken()
+            }
+
             val modifiers = parseModifiers(tokenizer)
             token = tokenizer.current
 
@@ -2302,7 +2313,8 @@ private constructor(
                     typeString,
                     modifiers,
                     tokenizer.fileLocation(),
-                    index
+                    index,
+                    optionalKind,
                 )
             )
             index++
@@ -2322,7 +2334,8 @@ private constructor(
         val typeString: String,
         val modifiers: MutableModifierList,
         val location: FileLocation,
-        val index: Int
+        val index: Int,
+        val optionalKind: ParameterKind?,
     ) {
         /**
          * Turn this [ParameterInfo] into a [ParameterItem] of the [containingCallable] by parsing
@@ -2343,8 +2356,8 @@ private constructor(
                 )
             synchronizeNullability(type, modifiers)
 
-            // The last parameter of a suspend function is the continuation parameter
-            // TODO(b/508307884): support context and receiver parameters
+            // The last parameter of a suspend function is the continuation parameter. If there was
+            // a parameter kind listed in the file, use that, otherwise this is a value parameter.
             val kind =
                 if (
                     containingCallable.modifiers.isSuspend() &&
@@ -2352,7 +2365,7 @@ private constructor(
                 ) {
                     ParameterKind.CONTINUATION
                 } else {
-                    ParameterKind.VALUE
+                    optionalKind ?: ParameterKind.VALUE
                 }
 
             val parameter =
