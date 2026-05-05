@@ -214,10 +214,15 @@ class ApiSelectionOptions(
      */
     private fun selectApiSurfaceRulesToUse(
         apiSurfaceRulesFromConfig: ApiSurfaceRules?,
-        apiSurfaceRulesFromOptions: ApiSurfaceRules,
+        apiSurfaceRulesFromOptions: ApiSurfaceRules?,
     ): ApiSurfaceRules {
         // If no config was available then just use the one from the options.
-        if (apiSurfaceRulesFromConfig == null) return apiSurfaceRulesFromOptions
+        if (apiSurfaceRulesFromConfig == null) {
+            return apiSurfaceRulesFromOptions
+                ?: ApiSurfaceRules(byName = mapOf("main" to listOf(unannotated)))
+        } else if (apiSurfaceRulesFromOptions == null) {
+            return apiSurfaceRulesFromConfig
+        }
 
         // If the command line options are significant then check to make sure that the rules
         // created from them are consistent with those created from configuration. Uses the string
@@ -334,7 +339,9 @@ ${fromOptionsState.prependIndent("        ")}
     }
 
     /** Create [ApiSurfaceRules] from the command line options. */
-    internal fun createApiSurfaceRulesFromOptions(): ApiSurfaceRules {
+    internal fun createApiSurfaceRulesFromOptions(): ApiSurfaceRules? {
+        if (!atLeastOneApiSelectionOptionWasSpecified()) return null
+
         val surfaces = apiSurfaces
         val main = surfaces.main
         val base = surfaces.base
