@@ -95,6 +95,7 @@ class ApiSelectionOptionsTest :
                     listOf(
                         ApiSurfaceConfig(name = "public"),
                         ApiSurfaceConfig(name = "system", extends = "public"),
+                        ApiSurfaceConfig(name = "module-lib", extends = "system"),
                     )
             ),
         test: Result<ApiSelectionOptions>.() -> Unit,
@@ -146,7 +147,7 @@ class ApiSelectionOptionsTest :
             val exception = assertThrows(IllegalStateException::class.java) { options.apiSurfaces }
             assertThat(exception.message)
                 .isEqualTo(
-                    "--api-surface (`unknown`) does not match an <api-surface> in a --config-file, expected one of `public`, `system`"
+                    "--api-surface (`unknown`) does not match an <api-surface> in a --config-file, expected one of `public`, `system`, `module-lib`"
                 )
         }
     }
