@@ -70,6 +70,30 @@ private constructor(
         return entries.find { entry -> entry.attributesMatch(attributes) }?.result
     }
 
+    override fun toString() = buildString {
+        append("AnnotationMatcher(\n")
+        for ((qualifiedName, entries) in qualifiedNameToEntries) {
+            append("    ")
+            append(qualifiedName)
+            append(" -> {\n")
+            for (entry in entries) {
+                append("        Entry(\n")
+                for ((name, value) in entry.attributes) {
+                    append("            ")
+                    append(name)
+                    append("=")
+                    append(value.toValueString())
+                    append("\n")
+                }
+                append("            result: ")
+                append(entry.result)
+                append("\n        )\n")
+            }
+            append("    }\n")
+        }
+        append(")")
+    }
+
     /**
      * Matches [attributes] against those retrieved from an [AnnotationItem].
      *
@@ -77,7 +101,7 @@ private constructor(
      * the possibly matching [Entry] list from [qualifiedNameToEntries].
      */
     private class Entry<R : Any>(
-        private val attributes: Map<String, Value>,
+        val attributes: Map<String, Value>,
         val result: R,
     ) {
         fun attributesMatch(

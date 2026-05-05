@@ -21,6 +21,8 @@ import com.android.tools.metalava.cli.common.MetalavaCliException
 import com.android.tools.metalava.config.ApiSurfaceConfig
 import com.android.tools.metalava.config.ApiSurfacesConfig
 import com.android.tools.metalava.model.ANDROID_SYSTEM_API
+import com.android.tools.metalava.model.api.ApiSurfaceSelector
+import com.android.tools.metalava.model.testing.api.assertState
 import com.google.common.truth.Truth.assertThat
 import org.junit.Assert.assertThrows
 import org.junit.Test
@@ -204,6 +206,181 @@ class ApiSelectionOptionsTest :
         ) {
             options.apiSurfaces.assertBaseWasNotCreated()
             assertThat(options.apiSurfaces.main.name).isEqualTo("public")
+        }
+    }
+
+    /**
+     * Check the state of the [ApiSurfaceSelector] created by [ApiSelectionOptions].
+     *
+     * @param expectedMatcherState see [assertState].
+     * @param expectedShowUnannotated see [assertState].
+     */
+    private fun Result<ApiSelectionOptions>.checkApiSurfaceSelectorState(
+        expectedMatcherState: String,
+        expectedShowUnannotated: Boolean,
+    ) {
+        val selector = options.apiSurfaceSelector
+        selector.assertState(
+            expectedMatcherState = expectedMatcherState,
+            expectedShowUnannotated = expectedShowUnannotated,
+        )
+    }
+
+    @Test
+    fun `Test configuring api surface rules - public`() {
+        runTestWithConfig(
+            ARG_API_SURFACE,
+            "public",
+            ARG_HIDE_ANNOTATION,
+            "android.annotation.Hide",
+        ) {
+            checkApiSurfaceSelectorState(
+                expectedMatcherState =
+                    """
+                        AnnotationMatcher(
+                            android.annotation.Hide -> {
+                                Entry(
+                                    result: Showability(show=HIDE, recursive=HIDE, forStubsOnly=NO_EFFECT, revertItem=null)
+                                )
+                            }
+                        )
+                    """,
+                expectedShowUnannotated = true,
+            )
+        }
+    }
+
+    @Test
+    fun `Test configuring api surface rules - public plus other`() {
+        runTestWithConfig(
+            ARG_API_SURFACE,
+            "public",
+            ARG_HIDE_ANNOTATION,
+            "android.annotation.Hide",
+            ARG_SHOW_UNANNOTATED,
+            ARG_SHOW_ANNOTATION,
+            "android.annotation.OtherApi",
+        ) {
+            checkApiSurfaceSelectorState(
+                expectedMatcherState =
+                    """
+                        AnnotationMatcher(
+                            android.annotation.Hide -> {
+                                Entry(
+                                    result: Showability(show=HIDE, recursive=HIDE, forStubsOnly=NO_EFFECT, revertItem=null)
+                                )
+                            }
+                            android.annotation.OtherApi -> {
+                                Entry(
+                                    result: Showability(show=SHOW, recursive=SHOW, forStubsOnly=NO_EFFECT, revertItem=null)
+                                )
+                            }
+                        )
+                    """,
+                expectedShowUnannotated = true,
+            )
+        }
+    }
+
+    @Test
+    fun `Test configuring api surface rules - system`() {
+        runTestWithConfig(
+            ARG_API_SURFACE,
+            "system",
+            ARG_HIDE_ANNOTATION,
+            "android.annotation.Hide",
+            ARG_SHOW_ANNOTATION,
+            "android.annotation.SystemApi(client=android.annotation.SystemApi.Client.PRIVILEGED_APPS)",
+        ) {
+            checkApiSurfaceSelectorState(
+                expectedMatcherState =
+                    """
+                        AnnotationMatcher(
+                            android.annotation.Hide -> {
+                                Entry(
+                                    result: Showability(show=HIDE, recursive=HIDE, forStubsOnly=NO_EFFECT, revertItem=null)
+                                )
+                            }
+                            android.annotation.SystemApi -> {
+                                Entry(
+                                    client=android.annotation.SystemApi.Client.PRIVILEGED_APPS
+                                    result: Showability(show=SHOW, recursive=SHOW, forStubsOnly=NO_EFFECT, revertItem=null)
+                                )
+                            }
+                        )
+                    """,
+                expectedShowUnannotated = false,
+            )
+        }
+    }
+
+    @Test
+    fun `Test configuring api surface rules - module-lib`() {
+        runTestWithConfig(
+            ARG_API_SURFACE,
+            "module-lib",
+            ARG_HIDE_ANNOTATION,
+            "android.annotation.Hide",
+            ARG_SHOW_FOR_STUB_PURPOSES_ANNOTATION,
+            "android.annotation.SystemApi(client=android.annotation.SystemApi.Client.PRIVILEGED_APPS)",
+            ARG_SHOW_ANNOTATION,
+            "android.annotation.SystemApi(client=android.annotation.SystemApi.Client.MODULE_LIBRARIES)",
+        ) {
+            checkApiSurfaceSelectorState(
+                expectedMatcherState =
+                    """
+                        AnnotationMatcher(
+                            android.annotation.Hide -> {
+                                Entry(
+                                    result: Showability(show=HIDE, recursive=HIDE, forStubsOnly=NO_EFFECT, revertItem=null)
+                                )
+                            }
+                            android.annotation.SystemApi -> {
+                                Entry(
+                                    client=android.annotation.SystemApi.Client.MODULE_LIBRARIES
+                                    result: Showability(show=SHOW, recursive=SHOW, forStubsOnly=NO_EFFECT, revertItem=null)
+                                )
+                                Entry(
+                                    client=android.annotation.SystemApi.Client.PRIVILEGED_APPS
+                                    result: Showability(show=NO_EFFECT, recursive=NO_EFFECT, forStubsOnly=SHOW, revertItem=null)
+                                )
+                            }
+                        )
+                    """,
+                expectedShowUnannotated = false,
+            )
+        }
+    }
+
+    @Test
+    fun `Test configuring api surface rules - single other`() {
+        runTestWithConfig(
+            ARG_API_SURFACE,
+            "system",
+            ARG_HIDE_ANNOTATION,
+            "android.annotation.Hide",
+            ARG_SHOW_SINGLE_ANNOTATION,
+            "android.annotation.SystemApi(client=android.annotation.SystemApi.Client.PRIVILEGED_APPS)",
+        ) {
+            checkApiSurfaceSelectorState(
+                expectedMatcherState =
+                    """
+                        AnnotationMatcher(
+                            android.annotation.Hide -> {
+                                Entry(
+                                    result: Showability(show=HIDE, recursive=HIDE, forStubsOnly=NO_EFFECT, revertItem=null)
+                                )
+                            }
+                            android.annotation.SystemApi -> {
+                                Entry(
+                                    client=android.annotation.SystemApi.Client.PRIVILEGED_APPS
+                                    result: Showability(show=SHOW, recursive=NO_EFFECT, forStubsOnly=NO_EFFECT, revertItem=null)
+                                )
+                            }
+                        )
+                    """,
+                expectedShowUnannotated = false,
+            )
         }
     }
 }

@@ -45,7 +45,7 @@ class ApiSurfaceSelector(
      * Associates an annotation pattern, e.g. `--show-annotation android.annotation.TestApi` with
      * its [Showability].
      */
-    private val matcher =
+    internal val matcher =
         AnnotationMatcher.createFromRules(
             buildList {
                 showAnnotationValues.addRules(this, SHOW)
