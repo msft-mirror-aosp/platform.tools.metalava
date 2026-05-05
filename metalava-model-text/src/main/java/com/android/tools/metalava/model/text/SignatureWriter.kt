@@ -34,6 +34,7 @@ import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ModifierListWriter
 import com.android.tools.metalava.model.MutableModifierList
 import com.android.tools.metalava.model.PackageItem
+import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.RecordComponentItem
 import com.android.tools.metalava.model.SelectableItem
@@ -136,7 +137,7 @@ class SignatureWriter(
         writeModifiers(constructor)
         writeTypeParameterList(constructor.typeParameterList, addSpace = true)
         write(constructor.containingClass().fullName())
-        writeParameterList(constructor)
+        writeParameterList(constructor.parameters())
         writeThrowsList(constructor)
         write(";\n")
     }
@@ -187,6 +188,10 @@ class SignatureWriter(
             }
             write(property.name())
         }
+        // Don't write an empty parameter list "()" if there are no context parameters.
+        if (property.contextParameters.isNotEmpty()) {
+            writeParameterList(property.contextParameters)
+        }
         write(";\n")
     }
 
@@ -213,7 +218,7 @@ class SignatureWriter(
         if (kotlinNameTypeOrder) {
             // Kotlin style: write the name of the method and the parameters, then the type.
             write(method.name())
-            writeParameterList(method)
+            writeParameterList(method.parameters())
             write(": ")
             writeType(method.returnType())
         } else {
@@ -221,7 +226,7 @@ class SignatureWriter(
             writeType(method.returnType())
             write(" ")
             write(method.name())
-            writeParameterList(method)
+            writeParameterList(method.parameters())
         }
 
         writeThrowsList(method)
@@ -426,10 +431,10 @@ class SignatureWriter(
         }
     }
 
-    private fun writeParameterList(callable: CallableItem) {
+    private fun writeParameterList(parameters: List<ParameterItem>) {
         write("(")
         var writtenParams = 0
-        callable.parameters().asSequence().forEach { parameter ->
+        parameters.asSequence().forEach { parameter ->
             if (writtenParams > 0) {
                 write(", ")
             }
