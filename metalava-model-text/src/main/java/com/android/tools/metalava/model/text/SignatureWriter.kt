@@ -35,6 +35,7 @@ import com.android.tools.metalava.model.ModifierListWriter
 import com.android.tools.metalava.model.MutableModifierList
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
+import com.android.tools.metalava.model.ParameterKind
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.RecordComponentItem
 import com.android.tools.metalava.model.SelectableItem
@@ -441,6 +442,12 @@ class SignatureWriter(
             if (parameter.hasDefaultValue() && includeDefaultParameterValues) {
                 // Indicate the parameter has a default.
                 write("optional ")
+            }
+            // Write special parameter kinds.
+            when (parameter.kind) {
+                ParameterKind.CONTEXT -> write("context ")
+                // TODO(b/508307067): write receiver
+                else -> {}
             }
             writeModifiers(parameter)
 
