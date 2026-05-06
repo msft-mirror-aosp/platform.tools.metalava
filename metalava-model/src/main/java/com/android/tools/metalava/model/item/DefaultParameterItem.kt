@@ -20,6 +20,7 @@ import com.android.tools.metalava.model.ArrayTypeItem
 import com.android.tools.metalava.model.BaseModifierList
 import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.Codebase
+import com.android.tools.metalava.model.MemberItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.ParameterKind
 import com.android.tools.metalava.model.PropertyItem
@@ -35,7 +36,7 @@ internal class DefaultParameterItem(
     modifiers: BaseModifierList,
     private val name: String,
     protected val publicName: String?,
-    private val containingCallable: CallableItem,
+    private val containingItem: MemberItem,
     override val parameterIndex: Int,
     private var type: TypeItem,
     private val hasDefaultValue: Boolean,
@@ -58,7 +59,11 @@ internal class DefaultParameterItem(
 
     override fun publicName(): String? = publicName
 
-    override fun containingCallable(): CallableItem = containingCallable
+    override fun parent(): MemberItem = containingItem
+
+    private val containingCallable: CallableItem? = containingItem as? CallableItem
+
+    override fun containingCallable(): CallableItem? = containingCallable
 
     override fun type(): TypeItem = type
 
@@ -71,7 +76,7 @@ internal class DefaultParameterItem(
     override var property: PropertyItem? = null
 
     override fun duplicate(
-        containingCallable: CallableItem,
+        containingItem: MemberItem,
         typeConverter: TypeItemConverter,
         newParameterIndex: Int,
     ): ParameterItem =
@@ -82,7 +87,7 @@ internal class DefaultParameterItem(
             modifiers,
             name(),
             publicName,
-            containingCallable,
+            containingItem,
             newParameterIndex,
             typeConverter(type()),
             hasDefaultValue(),

@@ -2324,7 +2324,7 @@ private constructor(
                     modifiers = modifiers,
                     name = name,
                     publicName = publicName,
-                    containingCallable = containingCallable,
+                    containingItem = containingCallable,
                     parameterIndex = index,
                     type = type,
                     hasDefaultValue = hasDefaultValue,

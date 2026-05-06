@@ -20,7 +20,6 @@ import com.android.tools.metalava.model.ApiVariantSelectorsFactory
 import com.android.tools.metalava.model.BaseModifierList
 import com.android.tools.metalava.model.CallableBody
 import com.android.tools.metalava.model.CallableBodyFactory
-import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.ClassOrigin
@@ -31,6 +30,7 @@ import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.ItemDocumentationFactory
+import com.android.tools.metalava.model.MemberItem
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
@@ -245,7 +245,7 @@ class DefaultItemFactory(
         modifiers: BaseModifierList,
         name: String,
         publicName: String?,
-        containingCallable: CallableItem,
+        containingItem: MemberItem,
         parameterIndex: Int,
         type: TypeItem,
         hasDefaultValue: Boolean,
@@ -258,7 +258,7 @@ class DefaultItemFactory(
             modifiers,
             name,
             publicName,
-            containingCallable,
+            containingItem,
             parameterIndex,
             type,
             hasDefaultValue,
