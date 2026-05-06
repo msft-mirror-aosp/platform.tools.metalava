@@ -153,10 +153,41 @@ class ApiSelectionOptionsTest :
     }
 
     @Test
-    fun `Test configuring extending surface without --show-annotation option`() {
+    fun `Test configuring extending surface without any show or hide options`() {
         runTestWithConfig(
             ARG_API_SURFACE,
             "system",
+        ) {
+            assertThrowsCliError(
+                """Configuration of `<api-surface name="system">` is inconsistent with command line options because `system` extends public which requires that it not show unannotated items but --show-unannotated is true"""
+            ) {
+                options.apiSurfaces
+            }
+        }
+    }
+
+    @Test
+    fun `Test configuring extending surface with --show-unannotated`() {
+        runTestWithConfig(
+            ARG_API_SURFACE,
+            "system",
+            ARG_SHOW_UNANNOTATED,
+        ) {
+            assertThrowsCliError(
+                """Configuration of `<api-surface name="system">` is inconsistent with command line options because `system` extends public which requires that it not show unannotated items but --show-unannotated is true"""
+            ) {
+                options.apiSurfaces
+            }
+        }
+    }
+
+    @Test
+    fun `Test configuring extending surface with --hide-annotation`() {
+        runTestWithConfig(
+            ARG_API_SURFACE,
+            "system",
+            ARG_HIDE_ANNOTATION,
+            "android.annotation.Hide",
         ) {
             assertThrowsCliError(
                 """Configuration of `<api-surface name="system">` is inconsistent with command line options because `system` extends public which requires that it not show unannotated items but --show-unannotated is true"""
