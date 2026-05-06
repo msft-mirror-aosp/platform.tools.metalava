@@ -1173,6 +1173,7 @@ abstract class DriverTest :
                 *validateNullabilityFromListArgs,
                 format.outputFlags(),
                 *extraArguments,
+                *apiLintArgs,
                 *errorMessageApiLintArgs,
                 *errorMessageCheckCompatibilityReleasedArgs,
                 *repeatErrorsMaxArgs,
@@ -1180,8 +1181,6 @@ abstract class DriverTest :
                 *multiplatformApiArgs,
                 *multiplatformSignatureSourceOptions,
                 *multiplatformCompatibilityArgs,
-                // Must always be last as this can consume a following argument, breaking the test.
-                *apiLintArgs,
             ) +
                 buildList {
                         if (projectDescriptionFile != null) {
