@@ -59,15 +59,6 @@ class ParameterizedApiSelectionOptionsTest :
             useOptions = false,
             useConfig = true,
         ),
-
-        /**
-         * Run the test providing surface rules using command line options and [ApiSurfaceConfig]
-         * too.
-         */
-        OPTIONS_AND_CONFIG(
-            useOptions = true,
-            useConfig = false,
-        ),
     }
 
     companion object {
@@ -84,7 +75,10 @@ class ParameterizedApiSelectionOptionsTest :
      * @param apiSurfacesConfigWithRules the [ApiSurfaceConfig] to use.
      * @param expectedMatcherState see [assertState].
      * @param expectedShowUnannotated see [assertState].
-     * @param expectedSurfaceRules the expected [ApiSurfaceRules] passed to [ApiSurfaceSelector].
+     * @param expectedOptionSurfaceRules the expected option [ApiSurfaceRules] passed to
+     *   [ApiSurfaceSelector].
+     * @param expectedConfigSurfaceRules the expected config [ApiSurfaceRules] passed to
+     *   [ApiSurfaceSelector].
      */
     private fun checkApiSurfaceSelectorState(
         surface: String,
@@ -92,20 +86,14 @@ class ParameterizedApiSelectionOptionsTest :
         apiSurfacesConfigWithRules: ApiSurfacesConfig,
         expectedMatcherState: String,
         expectedShowUnannotated: Boolean,
-        expectedSurfaceRules: String,
+        expectedOptionSurfaceRules: String,
+        expectedConfigSurfaceRules: String,
     ) {
         val apiSurfacesConfig =
             if (surfaceRuleSource.useConfig) {
                 apiSurfacesConfigWithRules
             } else {
-                ApiSurfacesConfig(
-                    apiSurfaceList =
-                        listOf(
-                            ApiSurfaceConfig(name = "public"),
-                            ApiSurfaceConfig(name = "system", extends = "public"),
-                            ApiSurfaceConfig(name = "module-lib", extends = "system"),
-                        )
-                )
+                null
             }
 
         val optionGroup =
@@ -113,8 +101,10 @@ class ParameterizedApiSelectionOptionsTest :
                 apiSurfacesConfigProvider = { apiSurfacesConfig },
             )
         val combinedArgs = buildList {
-            add(ARG_API_SURFACE)
-            add(surface)
+            if (surfaceRuleSource.useConfig) {
+                add(ARG_API_SURFACE)
+                add(surface)
+            }
             if (surfaceRuleSource.useOptions) {
                 addAll(ruleOptions)
             }
@@ -129,7 +119,7 @@ class ParameterizedApiSelectionOptionsTest :
             if (surfaceRuleSource.useOptions) {
                 val rules = options.createApiSurfaceRulesFromOptions()
                 assertEquals(
-                    expectedSurfaceRules.trimIndent(),
+                    expectedOptionSurfaceRules.trimIndent(),
                     rules.toString(),
                     message = "ApiSurfaceRules from options"
                 )
@@ -138,7 +128,7 @@ class ParameterizedApiSelectionOptionsTest :
             if (surfaceRuleSource.useConfig) {
                 val rules = options.createApiSurfaceRulesFromConfig()
                 assertEquals(
-                    expectedSurfaceRules.trimIndent(),
+                    expectedConfigSurfaceRules.trimIndent(),
                     rules.toString(),
                     message = "ApiSurfaceRules from config"
                 )
@@ -186,7 +176,16 @@ class ParameterizedApiSelectionOptionsTest :
                     )
                 """,
             expectedShowUnannotated = true,
-            expectedSurfaceRules =
+            expectedOptionSurfaceRules =
+                """
+                    ApiSurfaceRules(
+                        main -> {
+                            SelectUnannotated
+                            SelectAnnotated(annotationPattern=android.annotation.Hide, effect=HIDE, recursive=true)
+                        }
+                    )
+                """,
+            expectedConfigSurfaceRules =
                 """
                     ApiSurfaceRules(
                         public -> {
@@ -249,7 +248,17 @@ class ParameterizedApiSelectionOptionsTest :
                     )
                 """,
             expectedShowUnannotated = true,
-            expectedSurfaceRules =
+            expectedOptionSurfaceRules =
+                """
+                    ApiSurfaceRules(
+                        main -> {
+                            SelectUnannotated
+                            SelectAnnotated(annotationPattern=android.annotation.Hide, effect=HIDE, recursive=true)
+                            SelectAnnotated(annotationPattern=android.annotation.OtherApi, effect=SHOW, recursive=true)
+                        }
+                    )
+                """,
+            expectedConfigSurfaceRules =
                 """
                     ApiSurfaceRules(
                         public -> {
@@ -324,7 +333,19 @@ class ParameterizedApiSelectionOptionsTest :
                     )
                 """,
             expectedShowUnannotated = false,
-            expectedSurfaceRules =
+            expectedOptionSurfaceRules =
+                """
+                    ApiSurfaceRules(
+                        base -> {
+                            SelectUnannotated
+                            SelectAnnotated(annotationPattern=android.annotation.Hide, effect=HIDE, recursive=true)
+                        }
+                        main -> {
+                            SelectAnnotated(annotationPattern=android.annotation.SystemApi(client=android.annotation.SystemApi.Client.PRIVILEGED_APPS), effect=SHOW, recursive=true)
+                        }
+                    )
+                """,
+            expectedConfigSurfaceRules =
                 """
                     ApiSurfaceRules(
                         public -> {
@@ -421,7 +442,20 @@ class ParameterizedApiSelectionOptionsTest :
                     )
                 """,
             expectedShowUnannotated = false,
-            expectedSurfaceRules =
+            expectedOptionSurfaceRules =
+                """
+                    ApiSurfaceRules(
+                        base -> {
+                            SelectUnannotated
+                            SelectAnnotated(annotationPattern=android.annotation.Hide, effect=HIDE, recursive=true)
+                            SelectAnnotated(annotationPattern=android.annotation.SystemApi(client=android.annotation.SystemApi.Client.PRIVILEGED_APPS), effect=SHOW, recursive=true)
+                        }
+                        main -> {
+                            SelectAnnotated(annotationPattern=android.annotation.SystemApi(client=android.annotation.SystemApi.Client.MODULE_LIBRARIES), effect=SHOW, recursive=true)
+                        }
+                    )
+                """,
+            expectedConfigSurfaceRules =
                 """
                     ApiSurfaceRules(
                         public -> {
@@ -502,7 +536,19 @@ class ParameterizedApiSelectionOptionsTest :
                     )
                 """,
             expectedShowUnannotated = false,
-            expectedSurfaceRules =
+            expectedOptionSurfaceRules =
+                """
+                    ApiSurfaceRules(
+                        base -> {
+                            SelectUnannotated
+                            SelectAnnotated(annotationPattern=android.annotation.Hide, effect=HIDE, recursive=true)
+                        }
+                        main -> {
+                            SelectAnnotated(annotationPattern=android.annotation.SystemApi(client=android.annotation.SystemApi.Client.PRIVILEGED_APPS), effect=SHOW, recursive=false)
+                        }
+                    )
+                """,
+            expectedConfigSurfaceRules =
                 """
                     ApiSurfaceRules(
                         public -> {
