@@ -76,6 +76,9 @@ class ApiSelectionOptions(
             """
                 .trimIndent()
     ) {
+    /** The [ApiSurfaceConfig] extracted from configuration files. */
+    private val apiSurfacesConfig by lazy(LazyThreadSafetyMode.NONE) { apiSurfacesConfigProvider() }
+
     /**
      * Specifies whether it makes sense to check consistency of surface related information between
      * command line options and configuration.
@@ -304,7 +307,6 @@ class ApiSelectionOptions(
 
     val apiSurfaces by
         lazy(LazyThreadSafetyMode.NONE) {
-            val apiSurfacesConfig = apiSurfacesConfigProvider()
             createApiSurfaces(
                 showUnannotatedOption,
                 apiSurface,
