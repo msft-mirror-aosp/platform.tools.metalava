@@ -506,6 +506,8 @@ abstract class DriverTest :
         skipEmitPackages: List<String>? = null,
         /** Whether we should include --showAnnotations=android.annotation.SystemApi */
         includeSystemApiAnnotations: SystemApiType? = null,
+        /** Optional test surface to use. */
+        apiSurface: KnownApiSurface? = null,
         /** Whether we should warn about super classes that are stripped because they are hidden */
         includeStrippedSuperclassWarnings: Boolean = false,
         /**
@@ -854,6 +856,19 @@ abstract class DriverTest :
                 emptyArray()
             }
 
+        val apiSurfaceArguments =
+            if (apiSurface != null) {
+                listOf(
+                        ARG_API_SURFACE,
+                        apiSurface.surface,
+                        ARG_CONFIG_FILE,
+                        apiSurface.configFile.createFile(project).path,
+                    )
+                    .toTypedArray()
+            } else {
+                emptyArray()
+            }
+
         val showAnnotationArguments =
             if (showAnnotations.isNotEmpty() || includeSystemApiAnnotations != null) {
                 val args = mutableListOf<String>()
@@ -1161,6 +1176,7 @@ abstract class DriverTest :
                 *baselineApiLintCheck.args,
                 *baselineCheckCompatibilityReleasedCheck.args,
                 *apiCompatAnnotationArguments,
+                *apiSurfaceArguments,
                 *showAnnotationArguments,
                 *hideAnnotationArguments,
                 *suppressCompatMetaAnnotationArguments,
@@ -2190,3 +2206,14 @@ enum class SystemApiType(
             }
         }
 }
+
+/**
+ * Specifies a known API surface to use.
+ *
+ * @param surface the name of the surface, adding as [ARG_API_SURFACE].
+ * @param configFile the config file that will define [surface].
+ */
+data class KnownApiSurface(
+    val surface: String,
+    val configFile: TestFile,
+)
