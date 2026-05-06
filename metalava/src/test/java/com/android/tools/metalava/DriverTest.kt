@@ -1131,7 +1131,13 @@ abstract class DriverTest :
 
         val args =
             arrayOf(
+                // Common options.
                 ARG_NO_COLOR,
+                *quiet,
+                *tracingArguments,
+
+                // The sub-command to run.
+                "main",
 
                 // Annotation generation temporarily turned off by default while integrating with
                 // SDK builds; tests need these
@@ -1141,7 +1147,6 @@ abstract class DriverTest :
                 *removedArgs,
                 *apiArgs,
                 *stubsArgs,
-                *quiet,
                 *mergeAnnotationsArgs,
                 *signatureAnnotationsArgs,
                 *javaStubAnnotationsArgs,
@@ -1175,7 +1180,6 @@ abstract class DriverTest :
                 *multiplatformApiArgs,
                 *multiplatformSignatureSourceOptions,
                 *multiplatformCompatibilityArgs,
-                *tracingArguments,
                 // Must always be last as this can consume a following argument, breaking the test.
                 *apiLintArgs,
             ) +
