@@ -200,7 +200,12 @@ internal class KaCodebaseAssembler(
                                     assembler = assembler,
                                 )
                             }
-                        tracer.trace("processor.assemble") { processor.assemble(allPackages) }
+                        tracer.trace(
+                            "processor.assemble",
+                            metadataBlock = { addMetadataEntry("moduleName", kaModule.name) }
+                        ) {
+                            processor.assemble(allPackages)
+                        }
                         processor.codebase
                     }
                 ),

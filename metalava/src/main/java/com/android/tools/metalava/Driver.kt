@@ -572,11 +572,15 @@ class Driver(
 
     private fun runMultiplatformCodebaseChecks(multiplatformCodebase: MultiplatformCodebase) {
         for (codebase in multiplatformCodebase.sourceSetToCodebase.values) {
-            ApiAnalyzer(sourceParser, codebase, reporter, apiAnalyzerConfig).computeApi()
+            tracer.trace("computeApi") {
+                ApiAnalyzer(sourceParser, codebase, reporter, apiAnalyzerConfig).computeApi()
+            }
         }
 
         if (apiLintOptions.apiLintEnabled) {
-            MultiplatformLint(reporter).check(multiplatformCodebase)
+            tracer.trace("MultiplatformLint.check") {
+                MultiplatformLint(reporter).check(multiplatformCodebase)
+            }
 
             // For the regular, non-multiplatform codebase operations, if they happened, either the
             // android or jvm source set would have been used. Find which one of these it was.
@@ -599,16 +603,18 @@ class Driver(
             // the checks below, and any lint issues in common will only be reported once here
             // instead of being duplicated.
             if (mainSourceSet == "commonMain") {
-                ApiLint.check(
-                    mainCodebase!!,
-                    null,
-                    reporter,
-                    apiPredicateConfig,
-                    ApiLint.Config(
-                        manifest = miscellaneousOptions.manifest,
-                        allowedAcronyms = apiLintOptions.allowedAcronyms,
-                    ),
-                )
+                tracer.trace("commonMain ApiLint.check") {
+                    ApiLint.check(
+                        mainCodebase!!,
+                        null,
+                        reporter,
+                        apiPredicateConfig,
+                        ApiLint.Config(
+                            manifest = miscellaneousOptions.manifest,
+                            allowedAcronyms = apiLintOptions.allowedAcronyms,
+                        ),
+                    )
+                }
             }
 
             // Run regular API lint checks for each source set.
@@ -617,20 +623,23 @@ class Driver(
                 // the non-multiplatform lint checks. Also skip checking common, since all APIs will
                 // be included in the checks for other source sets.
                 if (sourceSet == mainSourceSet || sourceSet == "commonMain") continue
-                runApiChecksFromOptions(codebase) { codebase, _ ->
-                    ApiLint.check(
-                        codebase,
-                        // By making the main android/jvm/common codebase the "oldCodebase", any
-                        // issues which have already been reported for the main codebase through the
-                        // non-multiplatform checks or the common check above will be skipped.
-                        oldCodebase = mainCodebase,
-                        reporter,
-                        apiPredicateConfig,
-                        ApiLint.Config(
-                            manifest = miscellaneousOptions.manifest,
-                            allowedAcronyms = apiLintOptions.allowedAcronyms,
-                        ),
-                    )
+                tracer.trace("$sourceSet ApiLint.check") {
+                    runApiChecksFromOptions(codebase) { codebase, _ ->
+                        ApiLint.check(
+                            codebase,
+                            // By making the main android/jvm/common codebase the "oldCodebase", any
+                            // issues which have already been reported for the main codebase through
+                            // the
+                            // non-multiplatform checks or the common check above will be skipped.
+                            oldCodebase = mainCodebase,
+                            reporter,
+                            apiPredicateConfig,
+                            ApiLint.Config(
+                                manifest = miscellaneousOptions.manifest,
+                                allowedAcronyms = apiLintOptions.allowedAcronyms,
+                            ),
+                        )
+                    }
                 }
             }
         }
