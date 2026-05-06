@@ -88,6 +88,12 @@ class ApiSelectionOptions(
     private val checkSurfaceConsistency by
         lazy(LazyThreadSafetyMode.NONE) { checkSurfaceConsistencyProvider() }
 
+    /** Return true if at least one `--show*-annotation` option was specified. */
+    private fun atLeastOneShowAnnotationOptionWasSpecified() =
+        showAnnotationValues.isNotEmpty() ||
+            showSingleAnnotationValues.isNotEmpty() ||
+            showForStubPurposesAnnotationValues.isNotEmpty()
+
     internal val apiSurface by
         option(
             ARG_API_SURFACE,
@@ -127,9 +133,7 @@ class ApiSelectionOptions(
                     // If the caller has not explicitly requested that unannotated classes and
                     // members should be shown in the output then only show them if no show
                     // annotations were provided.
-                    showAnnotationValues.isEmpty() &&
-                        showSingleAnnotationValues.isEmpty() &&
-                        showForStubPurposesAnnotationValues.isEmpty()
+                    !atLeastOneShowAnnotationOptionWasSpecified()
                 }
                 else -> true
             }
