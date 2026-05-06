@@ -81,6 +81,25 @@ object KnownConfigFiles {
             """
         )
 
+    /** Surface needed by [KnownApiSurface.SYSTEM_WITH_PUBLIC]. */
+    val configSystemWithPublicSurface =
+        xml(
+            "config-public-and-system-surfaces.xml",
+            """
+                <config xmlns="http://www.google.com/tools/metalava/config"
+                    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                    xsi:schemaLocation="http://www.google.com/tools/metalava/config ../../../../../resources/schemas/config.xsd">
+                    <api-surfaces>
+                        <api-surface name="system-with-public">
+                            <selection-criteria unannotated="show">
+                                <annotation-rule pattern="android.annotation.SystemApi(client=android.annotation.SystemApi.Client.PRIVILEGED_APPS)"/>
+                            </selection-criteria>
+                        </api-surface>
+                    </api-surfaces>
+                </config>
+            """
+        )
+
     val configEmptyApiFlags =
         xml(
             "config-empty-api-flags.xml",

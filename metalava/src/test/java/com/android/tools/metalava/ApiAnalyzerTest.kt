@@ -833,11 +833,9 @@ class ApiAnalyzerTest : DriverTest() {
     fun `Test propagation of @hide through package and class nesting`() {
         check(
             // Include system API annotations as a show annotation overrides hidden on a class that
-            // is in a hidden package.
-            includeSystemApiAnnotations = SystemApiType.PRIVILEGED_APPS,
-            // This is set to true so any class that is incorrectly unhidden will be included in the
-            // generated API and fail the test.
-            showUnannotated = true,
+            // is in a hidden package. This also includes unannotated items so any class that is
+            // incorrectly unhidden will be included in the generated API and fail the test.
+            apiSurface = KnownApiSurface.SYSTEM_WITH_PUBLIC,
             sourceFiles =
                 arrayOf(
                     // Package "test.a" is hidden but "test.a.B" os marked with a show annotation so

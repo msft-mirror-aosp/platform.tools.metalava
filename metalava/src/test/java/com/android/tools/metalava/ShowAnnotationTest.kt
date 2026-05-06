@@ -84,8 +84,9 @@ class ShowAnnotationTest : DriverTest() {
     @Test
     fun `Basic showAnnotation with showUnannotated test`() {
         check(
-            includeSystemApiAnnotations = SystemApiType.PRIVILEGED_APPS,
-            showUnannotated = true,
+            // Use system-with-public as it is equivalent to `--show-annotation` and
+            // `--show-unannotated`.
+            apiSurface = KnownApiSurface.SYSTEM_WITH_PUBLIC,
             expectedIssues =
                 "src/test/pkg/Foo.java:18: error: @SystemApi APIs must also be marked @hide: method test.pkg.Foo.method4() [UnhiddenSystemApi]",
             sourceFiles =

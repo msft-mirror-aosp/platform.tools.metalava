@@ -2219,6 +2219,8 @@ data class KnownApiSurface(
 ) {
     companion object {
         val SYSTEM = KnownApiSurface("system", KnownConfigFiles.configKnownTestSurfaces)
+        val SYSTEM_WITH_PUBLIC =
+            KnownApiSurface("system-with-public", KnownConfigFiles.configSystemWithPublicSurface)
         val TEST = KnownApiSurface("test", KnownConfigFiles.configKnownTestSurfaces)
     }
 }
