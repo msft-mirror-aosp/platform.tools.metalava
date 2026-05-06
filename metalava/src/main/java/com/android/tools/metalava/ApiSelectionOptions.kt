@@ -17,6 +17,7 @@
 package com.android.tools.metalava
 
 import com.android.tools.metalava.cli.common.MetalavaCliException
+import com.android.tools.metalava.cli.common.cliError
 import com.android.tools.metalava.cli.common.enumOption
 import com.android.tools.metalava.cli.common.map
 import com.android.tools.metalava.cli.common.splitMultiple
@@ -413,6 +414,12 @@ class ApiSelectionOptions(
 
     val apiSurfaces by
         lazy(LazyThreadSafetyMode.NONE) {
+            if (apiSurface != null && atLeastOneApiSelectionOptionWasSpecified()) {
+                cliError(
+                    "$ARG_API_SURFACE is mutually exclusive with $ARG_SHOW_UNANNOTATED, $ARG_SHOW_ANNOTATION, $ARG_SHOW_SINGLE_ANNOTATION, $ARG_SHOW_FOR_STUB_PURPOSES_ANNOTATION and $ARG_HIDE_ANNOTATION"
+                )
+            }
+
             createApiSurfaces(
                 showUnannotatedOption,
                 apiSurface,

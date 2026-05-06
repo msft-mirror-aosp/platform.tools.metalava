@@ -169,53 +169,58 @@ class ApiSelectionOptionsTest :
         }
     }
 
-    @Test
-    fun `Test configuring extending surface with --show-unannotated`() {
-        runTestWithConfig(
-            ARG_API_SURFACE,
-            "system",
-            ARG_SHOW_UNANNOTATED,
-        ) {
-            options.apiSurfaces
+    private fun checkApiSurfaceMutuallyExclusive(vararg additionalArgs: String) {
+        val args =
+            arrayOf(
+                ARG_API_SURFACE,
+                "system",
+            ) + additionalArgs
+        runTestWithConfig(*args) {
+            assertThrowsCliError(
+                """--api-surface is mutually exclusive with --show-unannotated, --show-annotation, --show-single-annotation, --show-for-stub-purposes-annotation and --hide-annotation"""
+            ) {
+                options.apiSurfaces
+            }
         }
     }
 
     @Test
-    fun `Test configuring extending surface with --hide-annotation`() {
-        runTestWithConfig(
-            ARG_API_SURFACE,
-            "system",
+    fun `Test mixing --api-surface with --show-unannotated`() {
+        checkApiSurfaceMutuallyExclusive(
+            ARG_SHOW_UNANNOTATED,
+        )
+    }
+
+    @Test
+    fun `Test mixing --api-surface with --show-annotation`() {
+        checkApiSurfaceMutuallyExclusive(
+            ARG_SHOW_ANNOTATION,
+            ANDROID_SYSTEM_API,
+        )
+    }
+
+    @Test
+    fun `Test mixing --api-surface with --show-single-annotation`() {
+        checkApiSurfaceMutuallyExclusive(
+            ARG_SHOW_SINGLE_ANNOTATION,
+            ANDROID_SYSTEM_API,
+        )
+    }
+
+    @Test
+    fun `Test mixing --api-surface with --show-for-stub-purposes-annotation`() {
+        checkApiSurfaceMutuallyExclusive(
+            ARG_SHOW_FOR_STUB_PURPOSES_ANNOTATION,
+            ANDROID_SYSTEM_API,
+        )
+    }
+
+    @Test
+    fun `Test mixing --api-surface with --hide-annotation`() {
+        checkApiSurfaceMutuallyExclusive(
             ARG_HIDE_ANNOTATION,
             "android.annotation.Hide",
-        ) {
-            options.apiSurfaces
-        }
-    }
-
-    @Test
-    fun `Test configuring extending surface with --show-annotation option`() {
-        runTestWithConfig(
-            ARG_API_SURFACE,
-            "system",
-            ARG_SHOW_ANNOTATION,
-            ANDROID_SYSTEM_API,
-        ) {
-            options.apiSurfaces.assertBaseWasCreated()
-            assertThat(options.apiSurfaces.main.name).isEqualTo("system")
-            assertThat(options.apiSurfaces.base?.name).isEqualTo("public")
-        }
-    }
-
-    @Test
-    fun `Test configuring non-extending surface with --show-annotation option`() {
-        runTestWithConfig(
-            ARG_API_SURFACE,
-            "public",
-            ARG_SHOW_ANNOTATION,
-            ANDROID_SYSTEM_API,
-        ) {
-            options.apiSurfaces
-        }
+        )
     }
 
     @Test
