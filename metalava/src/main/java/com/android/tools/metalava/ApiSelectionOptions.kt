@@ -62,12 +62,9 @@ const val API_SELECTION_OPTIONS_GROUP = "Api Selection"
  *
  * @param apiSurfacesConfigProvider Provides the [ApiSurfacesConfig] that was provided in an
  *   [ARG_CONFIG_FILE], if any. This must only be called after all the options have been parsed.
- * @param checkSurfaceConsistencyProvider Returns `true` if the configured [ApiSurfaces] should be
- *   checked for consistency with the [showUnannotated] property.
  */
 class ApiSelectionOptions(
     private val apiSurfacesConfigProvider: () -> ApiSurfacesConfig? = { null },
-    private val checkSurfaceConsistencyProvider: () -> Boolean = { true },
 ) :
     OptionGroup(
         name = API_SELECTION_OPTIONS_GROUP,
@@ -80,21 +77,6 @@ class ApiSelectionOptions(
     ) {
     /** The [ApiSurfaceConfig] extracted from configuration files. */
     private val apiSurfacesConfig by lazy(LazyThreadSafetyMode.NONE) { apiSurfacesConfigProvider() }
-
-    /**
-     * Specifies whether it makes sense to check consistency of surface related information between
-     * command line options and configuration.
-     *
-     * If no command line options were specified then the consistency check is not performed. That
-     * is because in that case it is impossible to differentiate between an actual inconsistency and
-     * using the configuration on its own without corresponding command line options. If the
-     * inconsistent is significant then it will affect some of the output files, at which point it
-     * can be fixed.
-     */
-    private val checkSurfaceConsistency by
-        lazy(LazyThreadSafetyMode.NONE) {
-            checkSurfaceConsistencyProvider() && atLeastOneApiSelectionOptionWasSpecified()
-        }
 
     /**
      * Return true if at least one `--show*-annotation`, `--show-unanannotated` or
@@ -222,28 +204,6 @@ class ApiSelectionOptions(
                 ?: ApiSurfaceRules(byName = mapOf("main" to listOf(unannotated)))
         } else if (apiSurfaceRulesFromOptions == null) {
             return apiSurfaceRulesFromConfig
-        }
-
-        // If the command line options are significant then check to make sure that the rules
-        // created from them are consistent with those created from configuration. Uses the string
-        // representation as that is simple and this is only temporary while migrating Android from
-        // a mixture config and command line options to config only.
-        // TODO(b/508331653): Remove once migration is complete.
-        if (checkSurfaceConsistency) {
-            val fromConfigState = apiSurfaceRulesFromConfig.toString()
-            val fromOptionsState = apiSurfaceRulesFromOptions.toString()
-            if (fromConfigState != fromOptionsState) {
-                error(
-                    """
-Configuration <selection-criteria> and command line options are inconsistent
-    apiSurfaceRulesFromConfig:
-${fromConfigState.prependIndent("        ")}
-    apiSurfaceRulesFromOptions:
-${fromOptionsState.prependIndent("        ")}
-                    """
-                        .trimIndent()
-                )
-            }
         }
 
         // The configuration provided rules take priority as they are better in many ways, i.e.
@@ -457,7 +417,6 @@ ${fromOptionsState.prependIndent("        ")}
                 showUnannotatedOption,
                 apiSurface,
                 apiSurfacesConfig,
-                checkSurfaceConsistency,
             )
         }
 
@@ -470,14 +429,11 @@ ${fromOptionsState.prependIndent("        ")}
          * @param targetApiSurface the optional name of the target API surface to be created. If
          *   supplied it MUST reference an [ApiSurfaceConfig] in [apiSurfacesConfig].
          * @param apiSurfacesConfig the optional [ApiSurfacesConfig].
-         * @param checkSurfaceConsistency if `true` and [targetApiSurface] is not-null then check
-         *   the consistency between the configured surfaces and the [ApiSelectionOptions].
          */
         private fun createApiSurfaces(
             showUnannotated: Boolean,
             targetApiSurface: String?,
             apiSurfacesConfig: ApiSurfacesConfig?,
-            checkSurfaceConsistency: Boolean,
         ): ApiSurfaces {
             // A base API surface is needed if and only if the main API surface being generated
             // extends another API surface. That is not currently explicitly specified on the
@@ -527,24 +483,6 @@ ${fromOptionsState.prependIndent("        ")}
                 apiSurfacesConfig.getByNameOrError(targetApiSurface) {
                     "$ARG_API_SURFACE (`$it`) does not match an <api-surface> in a --config-file"
                 }
-
-            val extendedSurface = targetApiSurfaceConfig.extends
-            val extendsSurface = extendedSurface != null
-
-            // If show annotations should not be ignored then perform a consistency check to ensure
-            // that the configuration and command line options are compatible.
-            if (checkSurfaceConsistency) {
-                if (extendsSurface != needsBase) {
-                    val reason =
-                        if (extendsSurface)
-                            "extends $extendedSurface which requires that it not show unannotated items but $ARG_SHOW_UNANNOTATED is true"
-                        else
-                            "does not extend another surface which requires that it show unannotated items but $ARG_SHOW_UNANNOTATED is false"
-                    throw MetalavaCliException(
-                        """Configuration of `<api-surface name="$targetApiSurface">` is inconsistent with command line options because `$targetApiSurface` $reason"""
-                    )
-                }
-            }
 
             // Create the ApiSurfaces from the configured API surfaces.
             return apiSurfacesFromConfig(

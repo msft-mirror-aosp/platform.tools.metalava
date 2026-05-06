@@ -176,11 +176,7 @@ class ApiSelectionOptionsTest :
             "system",
             ARG_SHOW_UNANNOTATED,
         ) {
-            assertThrowsCliError(
-                """Configuration of `<api-surface name="system">` is inconsistent with command line options because `system` extends public which requires that it not show unannotated items but --show-unannotated is true"""
-            ) {
-                options.apiSurfaces
-            }
+            options.apiSurfaces
         }
     }
 
@@ -192,11 +188,7 @@ class ApiSelectionOptionsTest :
             ARG_HIDE_ANNOTATION,
             "android.annotation.Hide",
         ) {
-            assertThrowsCliError(
-                """Configuration of `<api-surface name="system">` is inconsistent with command line options because `system` extends public which requires that it not show unannotated items but --show-unannotated is true"""
-            ) {
-                options.apiSurfaces
-            }
+            options.apiSurfaces
         }
     }
 
@@ -222,11 +214,7 @@ class ApiSelectionOptionsTest :
             ARG_SHOW_ANNOTATION,
             ANDROID_SYSTEM_API,
         ) {
-            assertThrowsCliError(
-                """Configuration of `<api-surface name="public">` is inconsistent with command line options because `public` does not extend another surface which requires that it show unannotated items but --show-unannotated is false"""
-            ) {
-                options.apiSurfaces
-            }
+            options.apiSurfaces
         }
     }
 

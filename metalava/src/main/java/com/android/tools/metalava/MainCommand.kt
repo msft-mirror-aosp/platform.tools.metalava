@@ -120,28 +120,6 @@ class MainCommand(
     private val apiSelectionOptions: ApiSelectionOptions by
         ApiSelectionOptions(
             apiSurfacesConfigProvider = { configFileOptions.config.apiSurfaces },
-            checkSurfaceConsistencyProvider = {
-                val sources = sourceOptions.sourceFiles
-                // The --show-unannotated and --show*-annotation options affect the ApiSurfaces that
-                // is used. As do the --api-surface and API surfaces defined in a config file. In
-                // the long term the former will be discarded in favor of the latter but during the
-                // transition it is important that they are consistent. Consistency is important
-                // when the --show* options are significant, i.e. affect the output of Metalava.
-                // Unfortunately, they can be significant even if they are not specified, i.e. if
-                // none of them are specified then it behaves as if --show-unannotated was specified
-                // and depending on other options they may be significant or not.
-                //
-                // The --show* options are always significant if sources are provided, and they are
-                // not signature files or jar files. If they are signature files then the --show*
-                // options are not significant because signature files are already pre-filtered. If
-                // they are jar files then they are almost certainly stubs and so the --show*
-                // options are not significant because stub jar files are are also already
-                // pre-filtered.
-                sources.isNotEmpty() &&
-                    sources[0].extension.let { extension ->
-                        extension != "jar" && extension != "txt"
-                    }
-            },
         )
 
     /** API lint options. */
