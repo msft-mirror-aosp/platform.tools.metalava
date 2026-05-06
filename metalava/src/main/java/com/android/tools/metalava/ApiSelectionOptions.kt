@@ -84,9 +84,26 @@ class ApiSelectionOptions(
     /**
      * Specifies whether it makes sense to check consistency of surface related information between
      * command line options and configuration.
+     *
+     * If no command line options were specified then the consistency check is not performed. That
+     * is because in that case it is impossible to differentiate between an actual inconsistency and
+     * using the configuration on its own without corresponding command line options. If the
+     * inconsistent is significant then it will affect some of the output files, at which point it
+     * can be fixed.
      */
     private val checkSurfaceConsistency by
-        lazy(LazyThreadSafetyMode.NONE) { checkSurfaceConsistencyProvider() }
+        lazy(LazyThreadSafetyMode.NONE) {
+            checkSurfaceConsistencyProvider() && atLeastOneApiSelectionOptionWasSpecified()
+        }
+
+    /**
+     * Return true if at least one `--show*-annotation`, `--show-unanannotated` or
+     * `--hide-annotation` option was specified.
+     */
+    private fun atLeastOneApiSelectionOptionWasSpecified() =
+        optionalShowUnannotated == ShowUnannotated.SPECIFIED ||
+            hideAnnotationValues.isNotEmpty() ||
+            atLeastOneShowAnnotationOptionWasSpecified()
 
     /** Return true if at least one `--show*-annotation` option was specified. */
     private fun atLeastOneShowAnnotationOptionWasSpecified() =

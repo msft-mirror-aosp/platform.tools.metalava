@@ -158,11 +158,14 @@ class ApiSelectionOptionsTest :
             ARG_API_SURFACE,
             "system",
         ) {
-            assertThrowsCliError(
-                """Configuration of `<api-surface name="system">` is inconsistent with command line options because `system` extends public which requires that it not show unannotated items but --show-unannotated is true"""
-            ) {
-                options.apiSurfaces
-            }
+            // This does not report an error because no command line arguments were provided abd
+            // that could happen because there is an inconsistency or because the caller is just
+            // using the configuration. As they cannot be differentiated the consistency check is
+            // not run and if the inconsistency is significant it will affect some of the output
+            // files.
+            options.apiSurfaces.assertBaseWasCreated()
+            assertThat(options.apiSurfaces.main.name).isEqualTo("system")
+            assertThat(options.apiSurfaces.base?.name).isEqualTo("public")
         }
     }
 

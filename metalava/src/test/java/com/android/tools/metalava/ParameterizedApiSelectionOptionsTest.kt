@@ -54,6 +54,12 @@ class ParameterizedApiSelectionOptionsTest :
             useConfig = false,
         ),
 
+        /** Run the test providing surface rules using [ApiSurfacesConfig] only. */
+        CONFIG_ONLY(
+            useOptions = false,
+            useConfig = true,
+        ),
+
         /**
          * Run the test providing surface rules using command line options and [ApiSurfaceConfig]
          * too.
