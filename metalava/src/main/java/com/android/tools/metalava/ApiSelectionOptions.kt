@@ -76,6 +76,12 @@ class ApiSelectionOptions(
             """
                 .trimIndent()
     ) {
+    /**
+     * Specifies whether it makes sense to check consistency of surface related information between
+     * command line options and configuration.
+     */
+    private val checkSurfaceConsistency by
+        lazy(LazyThreadSafetyMode.NONE) { checkSurfaceConsistencyProvider() }
 
     internal val apiSurface by
         option(
@@ -299,7 +305,6 @@ class ApiSelectionOptions(
     val apiSurfaces by
         lazy(LazyThreadSafetyMode.NONE) {
             val apiSurfacesConfig = apiSurfacesConfigProvider()
-            val checkSurfaceConsistency = checkSurfaceConsistencyProvider()
             createApiSurfaces(
                 showUnannotatedOption,
                 apiSurface,
