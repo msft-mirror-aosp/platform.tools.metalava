@@ -680,7 +680,7 @@ class NullnessMigrationTest : DriverTest() {
     fun `Merge nullness annotations in stubs that are not in the API signature file`() {
         check(
             format = FileFormat.V2,
-            includeSystemApiAnnotations = SystemApiType.PRIVILEGED_APPS,
+            apiSurface = KnownApiSurface.SYSTEM,
             sourceFiles =
                 arrayOf(
                     java(

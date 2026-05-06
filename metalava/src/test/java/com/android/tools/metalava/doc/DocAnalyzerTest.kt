@@ -21,7 +21,7 @@ import com.android.tools.metalava.ARG_API_VERSION_FOR_SOURCES
 import com.android.tools.metalava.ARG_API_VERSION_LABEL
 import com.android.tools.metalava.ARG_ENHANCE_DOCUMENTATION
 import com.android.tools.metalava.DriverTest
-import com.android.tools.metalava.SystemApiType
+import com.android.tools.metalava.KnownApiSurface
 import com.android.tools.metalava.columnSource
 import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.testing.RequiresCapabilities
@@ -880,7 +880,7 @@ class DocAnalyzerTest : DriverTest() {
         check(
             extraArguments =
                 arrayOf(ARG_API_VERSION_FOR_SOURCES, "36", ARG_API_VERSION_LABEL, "36:FOO"),
-            includeSystemApiAnnotations = SystemApiType.PRIVILEGED_APPS,
+            apiSurface = KnownApiSurface.SYSTEM,
             sourceFiles =
                 arrayOf(
                     java(

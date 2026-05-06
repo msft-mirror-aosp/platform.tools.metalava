@@ -2216,4 +2216,9 @@ enum class SystemApiType(
 data class KnownApiSurface(
     val surface: String,
     val configFile: TestFile,
-)
+) {
+    companion object {
+        val SYSTEM = KnownApiSurface("system", KnownConfigFiles.configKnownTestSurfaces)
+        val TEST = KnownApiSurface("test", KnownConfigFiles.configKnownTestSurfaces)
+    }
+}

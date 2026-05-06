@@ -33,8 +33,7 @@ class SystemServiceCheckTest : DriverTest() {
     ) {
         check(
             expectedIssues = expectedIssues,
-            includeSystemApiAnnotations = SystemApiType.PRIVILEGED_APPS,
-            configFiles = arrayOf(KnownConfigFiles.configPublicAndSystemSurfaces),
+            apiSurface = KnownApiSurface.SYSTEM,
             extraArguments =
                 arrayOf(
                     ARG_API_SURFACE,

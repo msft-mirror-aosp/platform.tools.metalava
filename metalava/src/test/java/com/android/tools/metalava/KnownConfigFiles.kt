@@ -41,8 +41,41 @@ object KnownConfigFiles {
                     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
                     xsi:schemaLocation="http://www.google.com/tools/metalava/config ../../../../../resources/schemas/config.xsd">
                     <api-surfaces>
-                        <api-surface name="public"/>
-                        <api-surface name="system" extends="public"/>
+                        <api-surface name="public">
+                            <selection-criteria unannotated="show"/>
+                        </api-surface>
+                        <api-surface name="system" extends="public">
+                            <selection-criteria>
+                                <annotation-rule pattern="android.annotation.SystemApi(client=android.annotation.SystemApi.Client.PRIVILEGED_APPS)"/>
+                            </selection-criteria>
+                        </api-surface>
+                    </api-surfaces>
+                </config>
+            """
+        )
+
+    /** Surfaces needed by [KnownApiSurface.SYSTEM] and [KnownApiSurface.TEST]. */
+    val configKnownTestSurfaces =
+        xml(
+            "config-public-and-system-surfaces.xml",
+            """
+                <config xmlns="http://www.google.com/tools/metalava/config"
+                    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                    xsi:schemaLocation="http://www.google.com/tools/metalava/config ../../../../../resources/schemas/config.xsd">
+                    <api-surfaces>
+                        <api-surface name="public">
+                            <selection-criteria unannotated="show"/>
+                        </api-surface>
+                        <api-surface name="system" extends="public">
+                            <selection-criteria>
+                                <annotation-rule pattern="android.annotation.SystemApi(client=android.annotation.SystemApi.Client.PRIVILEGED_APPS)"/>
+                            </selection-criteria>
+                        </api-surface>
+                        <api-surface name="test" extends="system">
+                            <selection-criteria>
+                                <annotation-rule pattern="android.annotation.TestApi"/>
+                            </selection-criteria>
+                        </api-surface>
                     </api-surfaces>
                 </config>
             """

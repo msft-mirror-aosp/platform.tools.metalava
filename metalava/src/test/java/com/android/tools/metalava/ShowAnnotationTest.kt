@@ -31,7 +31,7 @@ class ShowAnnotationTest : DriverTest() {
     @Test
     fun `Basic showAnnotation test`() {
         check(
-            includeSystemApiAnnotations = SystemApiType.PRIVILEGED_APPS,
+            apiSurface = KnownApiSurface.SYSTEM,
             expectedIssues =
                 "src/test/pkg/Foo.java:18: error: @SystemApi APIs must also be marked @hide: method test.pkg.Foo.method4() [UnhiddenSystemApi]",
             sourceFiles =
@@ -145,7 +145,7 @@ class ShowAnnotationTest : DriverTest() {
     @Test
     fun `Check @TestApi handling`() {
         check(
-            includeSystemApiAnnotations = SystemApiType.TEST,
+            apiSurface = KnownApiSurface.TEST,
             sourceFiles =
                 arrayOf(
                     java(
@@ -200,6 +200,7 @@ class ShowAnnotationTest : DriverTest() {
         // and the additional API made visible with annotations. However,
         // in the *stubs*, we have to include everything.
         check(
+            apiSurface = KnownApiSurface.SYSTEM,
             sourceFiles =
                 arrayOf(
                     java(
@@ -260,7 +261,6 @@ class ShowAnnotationTest : DriverTest() {
                 ),
             // Empty API: showUnannotated=false
             api = "",
-            includeSystemApiAnnotations = SystemApiType.TEST,
         )
     }
 

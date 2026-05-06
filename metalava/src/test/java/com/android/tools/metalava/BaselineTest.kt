@@ -177,7 +177,7 @@ class BaselineTest : DriverTest() {
         // When using show annotations we should only reference errors that are present in the delta
         check(
             format = FileFormat.V2,
-            includeSystemApiAnnotations = SystemApiType.TEST,
+            apiSurface = KnownApiSurface.TEST,
             extraArguments = arrayOf(ARG_API_LINT),
             baselineTestInfo =
                 BaselineTestInfo(
