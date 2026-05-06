@@ -27,7 +27,9 @@ object KnownConfigFiles {
                     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
                     xsi:schemaLocation="http://www.google.com/tools/metalava/config ../../../../../resources/schemas/config.xsd">
                     <api-surfaces>
-                        <api-surface name="public"/>
+                        <api-surface name="public">
+                            <selection-criteria unannotated="show"/>
+                        </api-surface>
                     </api-surfaces>
                 </config>
             """

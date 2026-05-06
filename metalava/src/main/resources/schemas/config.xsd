@@ -135,7 +135,7 @@
             </xs:documentation>
         </xs:annotation>
         <xs:choice>
-            <xs:element name="selection-criteria" type="config:ApiSelectionCriteria" minOccurs="0">
+            <xs:element name="selection-criteria" type="config:ApiSelectionCriteria">
                 <xs:annotation>
                     <xs:documentation>
                         API surface selection criteria.

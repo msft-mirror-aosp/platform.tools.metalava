@@ -262,7 +262,7 @@ class ApiSelectionOptions(
             for (surface in apiSurfaces.all) {
                 val name = surface.name
                 val surfaceConfig = surfacesConfig.byName[name] ?: continue
-                val selectionCriteria = surfaceConfig.selectionCriteria ?: continue
+                val selectionCriteria = surfaceConfig.selectionCriteria
 
                 val surfaceRules = buildList {
                     if (selectionCriteria.unannotated == SelectionCriteriaEffect.SHOW) {

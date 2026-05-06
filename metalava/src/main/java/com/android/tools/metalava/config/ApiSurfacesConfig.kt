@@ -170,7 +170,8 @@ data class ApiSurfaceConfig(
     /** The optional name of the API surface that this surface extends, e.g. `public`. */
     @field:JacksonXmlProperty(isAttribute = true) val extends: String? = null,
     @field:JacksonXmlProperty(localName = "selection-criteria", namespace = CONFIG_NAMESPACE)
-    val selectionCriteria: SelectionCriteria? = null,
+    val selectionCriteria: SelectionCriteria =
+        SelectionCriteria(unannotated = SelectionCriteriaEffect.SHOW),
 )
 
 /** Enumeration of the possible effects that [SelectionCriteria] may have an on an item. */
