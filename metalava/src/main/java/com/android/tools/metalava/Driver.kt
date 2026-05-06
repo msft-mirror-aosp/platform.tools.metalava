@@ -321,18 +321,18 @@ class Driver(
 
         // Run operations on the regular codebase, if it exists.
         codebase?.let {
-            tracer.trace("runCodebaseChecks") { runCodebaseChecks(stopwatch, codebase) }
+            tracer.trace("runCodebaseOperations") { runCodebaseOperations(stopwatch, codebase) }
         }
 
         // Run additional operations on the multiplatform codebase, if it exists.
         multiplatformCodebase?.let {
-            tracer.trace("runMultiplatformCodebaseChecks") {
-                runMultiplatformCodebaseChecks(multiplatformCodebase)
+            tracer.trace("runMultiplatformCodebaseOperations") {
+                runMultiplatformCodebaseOperations(multiplatformCodebase)
             }
         }
     }
 
-    private fun runCodebaseChecks(stopwatch: Stopwatch, codebase: Codebase) {
+    private fun runCodebaseOperations(stopwatch: Stopwatch, codebase: Codebase) {
         generateApiHistoryFromOptions(codebase)
 
         // Generate signature files based on provided input flags (i.e. if api file locations were
@@ -570,7 +570,7 @@ class Driver(
         }
     }
 
-    private fun runMultiplatformCodebaseChecks(multiplatformCodebase: MultiplatformCodebase) {
+    private fun runMultiplatformCodebaseOperations(multiplatformCodebase: MultiplatformCodebase) {
         for (codebase in multiplatformCodebase.sourceSetToCodebase.values) {
             ApiAnalyzer(sourceParser, codebase, reporter, apiAnalyzerConfig).computeApi()
         }
