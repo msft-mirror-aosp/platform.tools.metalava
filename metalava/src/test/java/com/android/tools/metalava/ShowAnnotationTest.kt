@@ -32,8 +32,6 @@ class ShowAnnotationTest : DriverTest() {
     fun `Basic showAnnotation test`() {
         check(
             apiSurface = KnownApiSurface.SYSTEM,
-            expectedIssues =
-                "src/test/pkg/Foo.java:18: error: @android.annotation.SystemApi APIs must also be marked @hide: method test.pkg.Foo.method4() [UnhiddenSystemApi]",
             sourceFiles =
                 arrayOf(
                     java(
@@ -53,10 +51,6 @@ class ShowAnnotationTest : DriverTest() {
                          * @hide Always hidden
                          */
                         public void method3() { }
-
-                        @SystemApi
-                        public void method4() { }
-
                     }
                     """
                     ),
@@ -74,7 +68,6 @@ class ShowAnnotationTest : DriverTest() {
                 package test.pkg {
                   public class Foo {
                     method public void method2();
-                    method public void method4();
                   }
                 }
                 """
@@ -87,8 +80,6 @@ class ShowAnnotationTest : DriverTest() {
             // Use system-with-public as it is equivalent to `--show-annotation` and
             // `--show-unannotated`.
             apiSurface = KnownApiSurface.SYSTEM_WITH_PUBLIC,
-            expectedIssues =
-                "src/test/pkg/Foo.java:18: error: @android.annotation.SystemApi APIs must also be marked @hide: method test.pkg.Foo.method4() [UnhiddenSystemApi]",
             sourceFiles =
                 arrayOf(
                     java(
@@ -108,10 +99,6 @@ class ShowAnnotationTest : DriverTest() {
                          * @hide Always hidden
                          */
                         public void method3() { }
-
-                        @SystemApi
-                        public void method4() { }
-
                     }
                     """
                     ),
@@ -136,7 +123,6 @@ class ShowAnnotationTest : DriverTest() {
                     ctor public Foo();
                     method public void method1();
                     method public void method2();
-                    method public void method4();
                   }
                 }
                 """

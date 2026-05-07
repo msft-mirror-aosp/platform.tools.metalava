@@ -2175,6 +2175,16 @@ data class KnownApiSurface(
     val commandLineOptions: List<String> = emptyList(),
 ) {
     companion object {
+        /** The public API as used by Android. */
+        val PUBLIC =
+            KnownApiSurface(
+                "public",
+                KnownConfigFiles.configKnownTestSurfaces,
+                listOf(
+                    ARG_SHOW_UNANNOTATED,
+                ),
+            )
+
         /** The system API as used by Android. */
         val SYSTEM =
             KnownApiSurface(
@@ -2195,6 +2205,19 @@ data class KnownApiSurface(
                     ARG_SHOW_UNANNOTATED,
                     ARG_SHOW_ANNOTATION,
                     "android.annotation.SystemApi(client=android.annotation.SystemApi.Client.PRIVILEGED_APPS)",
+                ),
+            )
+
+        /** The module-lib API as used by Android. */
+        val MODULE_LIB =
+            KnownApiSurface(
+                "module-lib",
+                KnownConfigFiles.configKnownTestSurfaces,
+                listOf(
+                    ARG_SHOW_FOR_STUB_PURPOSES_ANNOTATION,
+                    "android.annotation.SystemApi(client=android.annotation.SystemApi.Client.PRIVILEGED_APPS)",
+                    ARG_SHOW_ANNOTATION,
+                    "android.annotation.SystemApi(client=android.annotation.SystemApi.Client.MODULE_LIBRARIES)",
                 ),
             )
 

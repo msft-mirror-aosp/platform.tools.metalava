@@ -56,10 +56,10 @@ object KnownConfigFiles {
             """
         )
 
-    /** Surfaces needed by [KnownApiSurface.SYSTEM] and [KnownApiSurface.TEST]. */
+    /** Surfaces needed by various [KnownApiSurface] instances. */
     val configKnownTestSurfaces =
         xml(
-            "config-public-and-system-surfaces.xml",
+            "config-known-test-surfaces.xml",
             """
                 <config xmlns="http://www.google.com/tools/metalava/config"
                     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
@@ -76,6 +76,11 @@ object KnownConfigFiles {
                         <api-surface name="test" extends="system">
                             <selection-criteria>
                                 <annotation-rule pattern="android.annotation.TestApi"/>
+                            </selection-criteria>
+                        </api-surface>
+                        <api-surface name="module-lib" extends="system">
+                            <selection-criteria>
+                                <annotation-rule pattern="android.annotation.SystemApi(client=android.annotation.SystemApi.Client.MODULE_LIBRARIES)"/>
                             </selection-criteria>
                         </api-surface>
                     </api-surfaces>
