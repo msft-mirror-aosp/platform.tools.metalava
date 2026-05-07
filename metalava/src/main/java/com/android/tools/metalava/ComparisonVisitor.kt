@@ -638,6 +638,17 @@ object CodebaseComparator {
                                         }
                                 }
                         }
+                        if (delta == 0) {
+                            delta = item1.contextParameters.size - item2.contextParameters.size
+                            if (delta == 0) {
+                                for ((p1, p2) in
+                                    item1.contextParameters.zip(item2.contextParameters)) {
+                                    delta =
+                                        p1.type().toTypeString().compareTo(p2.type().toTypeString())
+                                    if (delta != 0) break
+                                }
+                            }
+                        }
                         delta
                     }
                     else -> error("Unexpected item $item1 of ${item1.javaClass}")

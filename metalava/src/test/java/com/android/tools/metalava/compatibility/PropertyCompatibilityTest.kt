@@ -665,4 +665,46 @@ class PropertyCompatibilityTest : DriverTest() {
                 """,
         )
     }
+
+    @Test
+    fun `Add, remove, or change property context parameters`() {
+        check(
+            extraArguments = arrayOf(ARG_ERROR_CATEGORY, "Compatibility"),
+            checkCompatibilityApiReleased =
+                """
+                // Signature format: 5.0
+                package test.pkg {
+                  public final class Foo {
+                    property public int addFirstContextParameter;
+                    property public int addSecondContextParameter(context String c1);
+                    property public int removeFirstContextParameter(context String c1);
+                    property public int removeSecondContextParameter(context String c1, context int c2);
+                  }
+                }
+                """,
+            signatureSource =
+                """
+                // Signature format: 5.0
+                package test.pkg {
+                  public final class Foo {
+                    property public int addFirstContextParameter(context String c1);
+                    property public int addSecondContextParameter(context String c1, context int c2);
+                    property public int removeFirstContextParameter;
+                    property public int removeSecondContextParameter(context String c1);
+                  }
+                }
+                """,
+            expectedIssues =
+                """
+                load-api.txt:4: error: Added property test.pkg.Foo#addFirstContextParameter(context java.lang.String) [AddedProperty]
+                load-api.txt:5: error: Added property test.pkg.Foo#addSecondContextParameter(context java.lang.String, context int) [AddedProperty]
+                load-api.txt:6: error: Added property test.pkg.Foo#removeFirstContextParameter [AddedProperty]
+                load-api.txt:7: error: Added property test.pkg.Foo#removeSecondContextParameter(context java.lang.String) [AddedProperty]
+                released-api.txt:4: error: Source breaking change: Removed property test.pkg.Foo#addFirstContextParameter [RemovedProperty]
+                released-api.txt:5: error: Source breaking change: Removed property test.pkg.Foo#addSecondContextParameter(context java.lang.String) [RemovedProperty]
+                released-api.txt:6: error: Source breaking change: Removed property test.pkg.Foo#removeFirstContextParameter(context java.lang.String) [RemovedProperty]
+                released-api.txt:7: error: Source breaking change: Removed property test.pkg.Foo#removeSecondContextParameter(context java.lang.String, context int) [RemovedProperty]
+                """,
+        )
+    }
 }
