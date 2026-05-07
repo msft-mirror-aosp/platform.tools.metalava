@@ -153,7 +153,7 @@ class StubsAnnotationTest : AbstractStubsTest() {
                       }
                     }
                     """,
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
@@ -192,7 +192,7 @@ class StubsAnnotationTest : AbstractStubsTest() {
                     }
                     """,
             docStubs = true,
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
@@ -233,7 +233,7 @@ class StubsAnnotationTest : AbstractStubsTest() {
                       }
                     }
                 """,
-            stubFiles =
+            expectedStubFiles =
                 if (SUPPORT_TYPE_USE_ANNOTATIONS) {
                     arrayOf(
                         java(
@@ -295,7 +295,7 @@ class StubsAnnotationTest : AbstractStubsTest() {
                       }
                     }
                 """,
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
@@ -376,7 +376,7 @@ class StubsAnnotationTest : AbstractStubsTest() {
                       }
                     }
                     """,
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
@@ -592,7 +592,7 @@ class StubsAnnotationTest : AbstractStubsTest() {
                     """
                     )
                 ),
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
@@ -660,7 +660,7 @@ class StubsAnnotationTest : AbstractStubsTest() {
                     """
                     )
                 ),
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
@@ -731,7 +731,7 @@ class StubsAnnotationTest : AbstractStubsTest() {
                     """
                     )
                 ),
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """

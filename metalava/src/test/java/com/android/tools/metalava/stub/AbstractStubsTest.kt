@@ -102,7 +102,7 @@ abstract class AbstractStubsTest : DriverTest() {
             sourceFiles = sourceFiles,
             signatureSources = signatureSources,
             showAnnotations = showAnnotations,
-            stubFiles = stubFilesArr,
+            expectedStubFiles = stubFilesArr,
             expectedIssues = warnings,
             checkCompilation = checkCompilation,
             compilationChecks = compilationChecks,
@@ -119,7 +119,7 @@ abstract class AbstractStubsTest : DriverTest() {
             check(
                 signatureSources = arrayOf(readFileFilterBlankLines(getApiFile())),
                 showAnnotations = showAnnotations,
-                stubFiles = stubFilesArr,
+                expectedStubFiles = stubFilesArr,
                 // Signature files do not contain parameter names so ignore them when comparing stub
                 // files.
                 ignoreParameterNamesInStubFiles = true,

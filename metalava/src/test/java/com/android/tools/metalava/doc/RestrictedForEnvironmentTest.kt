@@ -77,7 +77,7 @@ class RestrictedForEnvironmentTest : DriverTest() {
                             </root>
                         """
                 ),
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
@@ -174,7 +174,7 @@ class RestrictedForEnvironmentTest : DriverTest() {
                             </root>
                         """
                 ),
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """

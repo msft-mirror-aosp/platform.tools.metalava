@@ -115,7 +115,7 @@ class FlaggedApiEdgeCasesTest : DriverTest() {
                       }
                     }
                 """,
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
@@ -163,7 +163,7 @@ class FlaggedApiEdgeCasesTest : DriverTest() {
                     flaggedApiSource,
                     systemApiSource,
                 ),
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
@@ -217,7 +217,7 @@ class FlaggedApiEdgeCasesTest : DriverTest() {
                       </class>
                     </api>
                 """,
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
@@ -268,7 +268,7 @@ class FlaggedApiEdgeCasesTest : DriverTest() {
                       }
                     }
                 """,
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
@@ -333,7 +333,7 @@ class FlaggedApiEdgeCasesTest : DriverTest() {
                     flaggedApiSource
                 ),
             api = expectedApi,
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """

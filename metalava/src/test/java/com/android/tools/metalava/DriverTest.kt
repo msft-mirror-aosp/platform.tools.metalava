@@ -379,7 +379,7 @@ abstract class DriverTest :
         /** The removed API (corresponds to --removed-api) */
         removedApi: String? = null,
         /** Expected stubs (corresponds to --stubs) */
-        stubFiles: Array<TestFile> = emptyArray(),
+        expectedStubFiles: Array<TestFile> = emptyArray(),
         /**
          * Whether to ignore parameter names when comparing stub files. Should only be true when
          * generating stubs from signature files.
@@ -936,7 +936,7 @@ abstract class DriverTest :
 
         var stubsDir: File? = null
         val stubsArgs =
-            if (stubFiles.isNotEmpty() || stubPaths != null || checkCompilation) {
+            if (expectedStubFiles.isNotEmpty() || stubPaths != null || checkCompilation) {
                 stubsDir = getOrCreateFolder("stubs")
                 if (docStubs) {
                     arrayOf(ARG_DOC_STUBS, stubsDir.path)
@@ -1351,8 +1351,8 @@ abstract class DriverTest :
             assertEquals("stub paths", stubPaths.joinToString("\n"), stubsCreated)
         }
 
-        if (stubFiles.isNotEmpty()) {
-            for (expected in stubFiles) {
+        if (expectedStubFiles.isNotEmpty()) {
+            for (expected in expectedStubFiles) {
                 val actual = File(stubsDir!!, expected.targetRelativePath)
                 if (!actual.exists()) {
                     throw FileNotFoundException(

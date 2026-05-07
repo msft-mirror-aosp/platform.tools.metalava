@@ -372,7 +372,7 @@ class AnnotationsMergerTest : DriverTest() {
                     @NonNull Appendable append(@Nullable java.lang.CharSequence csq);
                 }
                 """,
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """

@@ -439,7 +439,7 @@ class ExtractAnnotationsTest : DriverTest() {
                     intRangeAnnotationSource,
                     recentlyNullableSource
                 ),
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """

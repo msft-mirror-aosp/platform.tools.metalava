@@ -303,7 +303,7 @@ class StubsConstructorTest : AbstractStubsTest() {
                       }
                     }
                     """,
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
@@ -755,7 +755,7 @@ class StubsConstructorTest : AbstractStubsTest() {
                   }
                 }
                 """,
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
@@ -815,7 +815,7 @@ class StubsConstructorTest : AbstractStubsTest() {
                   }
                 }
                 """,
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
@@ -876,7 +876,7 @@ class StubsConstructorTest : AbstractStubsTest() {
                   }
                 }
                 """,
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
@@ -918,7 +918,7 @@ class StubsConstructorTest : AbstractStubsTest() {
                     }
                 """,
             stubPaths = arrayOf("test/pkg/ConstantsKt.java"),
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """

@@ -72,7 +72,7 @@ class AnnotationRetentionTest : DriverTest() {
                       }
                     }
                 """,
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     // For annotations where the java.lang.annotation classes themselves are not
                     // part of the source tree, ensure that we compute the right retention (runtime,

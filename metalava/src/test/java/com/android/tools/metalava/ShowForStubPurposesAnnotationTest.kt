@@ -370,7 +370,7 @@ class ShowForStubPurposesAnnotationTest : DriverTest() {
                   }
                 }
                 """,
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """

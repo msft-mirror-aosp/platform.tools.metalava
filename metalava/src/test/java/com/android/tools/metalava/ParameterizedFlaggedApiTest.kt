@@ -327,7 +327,7 @@ class ParameterizedFlaggedApiTest(private val config: Configuration) : DriverTes
             // Access android.annotation.FlaggedApi
             classpath = arrayOf(KnownJarFiles.stubAnnotationsTestFile),
             api = expectations.expectedApi,
-            stubFiles = expectations.expectedStubs,
+            expectedStubFiles = expectations.expectedStubs,
             stubPaths = expectations.expectedStubPaths,
             expectedIssues = expectations.expectedIssues,
             // Do not include flags in the output but do not mark them as hide or removed.

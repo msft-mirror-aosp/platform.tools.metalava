@@ -41,7 +41,7 @@ class JavadocTest : DriverTest() {
         check(
             sourceFiles = sourceFiles,
             showAnnotations = showAnnotations,
-            stubFiles = arrayOf(java(source)),
+            expectedStubFiles = arrayOf(java(source)),
             expectedIssues = warnings,
             checkCompilation = true,
             apiLint = apiLint,
@@ -1086,7 +1086,7 @@ class JavadocTest : DriverTest() {
                     )
                 ),
             docStubs = true,
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
@@ -1167,7 +1167,7 @@ class JavadocTest : DriverTest() {
                     """
                     )
                 ),
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
@@ -1259,7 +1259,7 @@ class JavadocTest : DriverTest() {
                       }
                     }
                 """,
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
@@ -1310,7 +1310,7 @@ class JavadocTest : DriverTest() {
                     src/test/pkg/Foo.java:6: error: Documentation contains '@hide', `@removed` or '@doconly' that is not used as a block tag; that could cause unexpected behavior downstream. [InvalidBlockTagUse]
                 """,
             docStubs = true,
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
@@ -1401,7 +1401,7 @@ class JavadocTest : DriverTest() {
                       }
                     }
                 """,
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """

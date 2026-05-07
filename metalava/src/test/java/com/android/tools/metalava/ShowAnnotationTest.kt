@@ -233,7 +233,7 @@ class ShowAnnotationTest : DriverTest() {
                     """
                     ),
                 ),
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
@@ -820,7 +820,7 @@ class ShowAnnotationTest : DriverTest() {
                   }
                 }
                 """,
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
@@ -898,7 +898,7 @@ class ShowAnnotationTest : DriverTest() {
                   }
                 }
                 """,
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         "test/pkg/Foo.java",
