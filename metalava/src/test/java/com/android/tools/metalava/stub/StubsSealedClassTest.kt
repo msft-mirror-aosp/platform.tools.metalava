@@ -192,7 +192,7 @@ class StubsSealedClassTest : AbstractStubsTest() {
                       }
                     }
                 """,
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
@@ -282,7 +282,7 @@ class StubsSealedClassTest : AbstractStubsTest() {
                       }
                     }
                 """,
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
@@ -368,7 +368,7 @@ class StubsSealedClassTest : AbstractStubsTest() {
                       }
                     }
                 """,
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
@@ -459,7 +459,7 @@ class StubsSealedClassTest : AbstractStubsTest() {
                       }
                     }
                 """,
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
@@ -541,7 +541,7 @@ class StubsSealedClassTest : AbstractStubsTest() {
                       }
                     }
                 """,
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
@@ -625,7 +625,7 @@ class StubsSealedClassTest : AbstractStubsTest() {
                       }
                     }
                 """,
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
@@ -697,7 +697,7 @@ class StubsSealedClassTest : AbstractStubsTest() {
                       }
                     }
                 """,
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
@@ -755,7 +755,7 @@ class StubsSealedClassTest : AbstractStubsTest() {
                       }
                     }
                 """,
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """

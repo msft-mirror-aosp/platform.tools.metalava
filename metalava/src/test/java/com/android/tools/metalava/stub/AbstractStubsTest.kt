@@ -28,8 +28,8 @@ import org.intellij.lang.annotations.Language
 abstract class AbstractStubsTest : DriverTest() {
     protected fun checkStubs(
         /**
-         * A wrapper for [stubFiles]. When passing multiple stub Java files to test, use
-         * [stubFiles].
+         * A wrapper for [expectedStubFiles]. When passing multiple stub Java files to test, use
+         * [expectedStubFiles].
          */
         @Language("JAVA") source: String = "",
 
@@ -38,7 +38,7 @@ abstract class AbstractStubsTest : DriverTest() {
          *
          * Each [TestFile] in here will be compared against the generated stub files.
          */
-        stubFiles: Array<TestFile> = emptyArray(),
+        expectedStubFiles: Array<TestFile> = emptyArray(),
 
         /** The set of expected issues. */
         warnings: String? = "",
@@ -93,7 +93,7 @@ abstract class AbstractStubsTest : DriverTest() {
          */
         checkTextStubEquivalence: Boolean? = null,
     ) {
-        val stubFilesArr = if (source.isNotEmpty()) arrayOf(java(source)) else stubFiles
+        val stubFilesArr = if (source.isNotEmpty()) arrayOf(java(source)) else expectedStubFiles
         if (stubFilesArr.isEmpty()) {
             error("must provide at least one expected stub files")
         }

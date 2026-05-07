@@ -299,7 +299,7 @@ class StubsTest : AbstractStubsTest() {
                 """
                     )
                 ),
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
