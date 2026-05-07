@@ -87,7 +87,7 @@ data class ApiSurfacesConfig(
         lazy(LazyThreadSafetyMode.NONE) {
             buildSet {
                 for (apiSurfaceConfig in apiSurfaceList) {
-                    apiSurfaceConfig.flatten(this, mutableSetOf())
+                    apiSurfaceConfig.flattenExtends(this, mutableSetOf())
                 }
             }
         }
@@ -97,9 +97,11 @@ data class ApiSurfacesConfig(
      *
      * A surface that contributes to [targetSurface] is one which is extended (possibly indirectly)
      * by [targetSurface] or [targetSurface] itself.
+     *
+     * This is returned in order from narrowest (i.e. does not extend anything) to [targetSurface].
      */
     fun contributesTo(targetSurface: ApiSurfaceConfig): Set<ApiSurfaceConfig> {
-        return buildSet { targetSurface.flatten(this, mutableSetOf()) }
+        return buildSet { targetSurface.flattenExtends(this, mutableSetOf()) }
     }
 
     /**
@@ -116,9 +118,50 @@ data class ApiSurfacesConfig(
      *   while flattening an [ApiSurfaceConfig] that extends (possibly indirectly) this one. Used to
      *   detect cycles.
      */
-    private fun ApiSurfaceConfig.flatten(
+    private fun ApiSurfaceConfig.flattenExtends(
         flattened: MutableOrderedSet<ApiSurfaceConfig>,
-        visited: MutableSet<String>
+        visited: MutableSet<String>,
+    ) {
+        flattenEdges(flattened, visited) { surface ->
+            val extends = surface.extends
+            if (extends == null) emptyList()
+            else {
+                val extendedSurface =
+                    getByNameOrError(extends) {
+                        // This should not occur outside tests as the schema should ensure that
+                        // `extends` always references an actual surface but throw a meaningful
+                        // error anyway, just in case.
+                        "Surface `$name` extends an unknown surface `$it`"
+                    }
+
+                listOf(extendedSurface)
+            }
+        }
+    }
+
+    /**
+     * Flatten an [ApiSurfaceConfig] hierarchy.
+     *
+     * The hierarchy is determined by the [edgesProvider] which given an [ApiSurfaceConfig] must
+     * return a possibly empty list of reachable [ApiSurfaceConfig].
+     *
+     * This will be added to [flattened] after the [ApiSurfaceConfig] reachable by the edges have
+     * been flattened.
+     *
+     * @param flattened the ordered set of [ApiSurfaceConfig]s, such that each [ApiSurfaceConfig]
+     *   appears after any [ApiSurfaceConfig] that it [ApiSurfaceConfig.extends]. Any
+     *   [ApiSurfaceConfig] in this list is guaranteed not to be part of a cycle as it will only
+     *   have been added after checking for cycles.
+     * @param visited the ordered set of names of [ApiSurfaceConfig] that have already been visited
+     *   while flattening an [ApiSurfaceConfig] that extends (possibly indirectly) this one. Used to
+     *   detect cycles.
+     * @param edgesProvider provides a list of [ApiSurfaceConfig] reachable from this
+     *   [ApiSurfaceConfig].
+     */
+    private fun ApiSurfaceConfig.flattenEdges(
+        flattened: MutableOrderedSet<ApiSurfaceConfig>,
+        visited: MutableSet<String>,
+        edgesProvider: (ApiSurfaceConfig) -> List<ApiSurfaceConfig>,
     ) {
         // If this has already been added then it is not part of a cycle as it will only have been
         // added after checking for cycles so there is nothing to do.
@@ -135,16 +178,10 @@ data class ApiSurfacesConfig(
         // Remember this has been visited before visiting a surface this extends.
         visited += name
 
-        // If this extends another surface then resolve it and flatten it first.
-        if (extends != null) {
-            val extendedSurface =
-                getByNameOrError(extends) {
-                    // This should not occur outside tests as the schema should ensure that
-                    // `extends` always references an actual surface but throw a meaningful error
-                    // anyway, just in case.
-                    "Surface `$name` extends an unknown surface `$it`"
-                }
-            extendedSurface.flatten(flattened, visited)
+        // Flatten any edges of this surface.
+        val edges = edgesProvider(this)
+        for (edge in edges) {
+            edge.flattenEdges(flattened, visited, edgesProvider)
         }
 
         // Finally, add this to the set. At this point it is guaranteed not to be part of a cycle
