@@ -260,7 +260,7 @@ class FlaggedApiEdgeCasesTest : DriverTest() {
                     ),
                     flaggedApiSource
                 ),
-            api =
+            expectedApiSignature =
                 """
                     // Signature format: 5.0
                     package test.pkg {
@@ -332,7 +332,7 @@ class FlaggedApiEdgeCasesTest : DriverTest() {
                     ),
                     flaggedApiSource
                 ),
-            api = expectedApi,
+            expectedApiSignature = expectedApi,
             expectedStubFiles =
                 arrayOf(
                     java(

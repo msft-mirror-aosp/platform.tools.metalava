@@ -289,7 +289,7 @@ class StubsConstructorTest : AbstractStubsTest() {
                     )
                 ),
             expectedIssues = "",
-            api =
+            expectedApiSignature =
                 """
                     package test.pkg {
                       public class MyClass1 {
@@ -740,7 +740,7 @@ class StubsConstructorTest : AbstractStubsTest() {
                     """
                     )
                 ),
-            api =
+            expectedApiSignature =
                 """
                 package test.pkg {
                   public class BasicPoolEntry {
@@ -803,7 +803,7 @@ class StubsConstructorTest : AbstractStubsTest() {
                     """
                     ),
                 ),
-            api =
+            expectedApiSignature =
                 """
                 package test.pkg {
                   public class Bar<T extends java.lang.Number> {
@@ -863,7 +863,7 @@ class StubsConstructorTest : AbstractStubsTest() {
                     """
                     ),
                 ),
-            api =
+            expectedApiSignature =
                 """
                 package test.pkg {
                   public class Child extends test.pkg.Parent {
@@ -908,7 +908,7 @@ class StubsConstructorTest : AbstractStubsTest() {
                         """
                     ),
                 ),
-            api =
+            expectedApiSignature =
                 """
                     package test.pkg {
                       public final class ConstantsKt {

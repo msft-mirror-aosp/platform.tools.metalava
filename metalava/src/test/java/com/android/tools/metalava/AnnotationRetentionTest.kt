@@ -58,7 +58,7 @@ class AnnotationRetentionTest : DriverTest() {
                 ),
             // Override default to emit android.annotation classes.
             skipEmitPackages = emptyList(),
-            api =
+            expectedApiSignature =
                 """
                     // Signature format: 4.0
                     package android.annotation {
@@ -125,7 +125,7 @@ class AnnotationRetentionTest : DriverTest() {
                         """
                     )
                 ),
-            api =
+            expectedApiSignature =
                 """
                     // Signature format: 4.0
                     package test.pkg {
@@ -157,7 +157,7 @@ class AnnotationRetentionTest : DriverTest() {
                         """
                     )
                 ),
-            api =
+            expectedApiSignature =
                 // MyAnnotation should have a RUNTIME retention written to it (as that is the Kotlin
                 // default)
                 """
@@ -188,7 +188,7 @@ class AnnotationRetentionTest : DriverTest() {
                         """
                     )
                 ),
-            api =
+            expectedApiSignature =
                 """
                 package test.pkg {
                   @kotlin.annotation.Retention(kotlin.annotation.AnnotationRetention.SOURCE) public @interface MyAnnotation {

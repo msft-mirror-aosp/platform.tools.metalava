@@ -77,7 +77,7 @@ class TypeUseAnnotationFilteringTest : DriverTest() {
                         """
                     ),
                 ),
-            api = api,
+            expectedApiSignature = api,
             expectedStubFiles = stubFiles,
         )
     }

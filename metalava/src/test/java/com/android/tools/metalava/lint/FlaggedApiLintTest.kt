@@ -313,7 +313,7 @@ class FlaggedApiLintTest : DriverTest() {
             // api signature file.
             // This inconsistency will be resolved in later Cls where the signature writer
             // should write fields in this edge case
-            api =
+            expectedApiSignature =
                 """
                 package android.foobar {
                   public class Bad {
@@ -704,7 +704,7 @@ class FlaggedApiLintTest : DriverTest() {
                     }
                   }
                 """,
-            api =
+            expectedApiSignature =
                 """
                   package test.pkg {
                     public class Foo {
@@ -772,7 +772,7 @@ class FlaggedApiLintTest : DriverTest() {
                     }
                   }
                 """,
-            api =
+            expectedApiSignature =
                 """
                   package test.pkg {
                     @RequiresPermission(test.pkg.Manifest.permission.MY_PERMISSION) public class Foo {
@@ -841,7 +841,7 @@ class FlaggedApiLintTest : DriverTest() {
                       }
                     }
                 """,
-            api =
+            expectedApiSignature =
                 """
                 package test.annotation {
                   @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.CLASS) @java.lang.annotation.Target({java.lang.annotation.ElementType.METHOD}) public @interface Custom {
@@ -932,7 +932,7 @@ class FlaggedApiLintTest : DriverTest() {
                       }
                     }
                 """,
-            api =
+            expectedApiSignature =
                 """
                     package test.annotation {
                       @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.CLASS) @java.lang.annotation.Target({java.lang.annotation.ElementType.METHOD, java.lang.annotation.ElementType.TYPE, java.lang.annotation.ElementType.FIELD, java.lang.annotation.ElementType.CONSTRUCTOR}) public @interface Custom {
@@ -1023,7 +1023,7 @@ class FlaggedApiLintTest : DriverTest() {
                        }
                      }
                 """,
-            api =
+            expectedApiSignature =
                 """
                     // Signature format: 5.0
                     package test.annotation {
@@ -1160,7 +1160,7 @@ class FlaggedApiLintTest : DriverTest() {
                       }
                     }
                 """,
-            api =
+            expectedApiSignature =
                 """
                 // Signature format: 5.0
                 package android.pkg {

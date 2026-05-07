@@ -90,7 +90,7 @@ class StubsPackageInfoTest : AbstractStubsTest() {
                         .indented(),
                     java("""package test.pkg; public abstract class Class1 { }""")
                 ),
-            api =
+            expectedApiSignature =
                 """
                 package test.pkg {
                   public abstract class Class1 {
@@ -133,7 +133,7 @@ class StubsPackageInfoTest : AbstractStubsTest() {
                         .indented(),
                     java("""package test.pkg; public abstract class Class1 { }""")
                 ),
-            api =
+            expectedApiSignature =
                 """
                 package test.pkg {
                   public abstract class Class1 {
@@ -181,7 +181,7 @@ class StubsPackageInfoTest : AbstractStubsTest() {
                     java("""package test.pkg; public abstract class Class1 { }"""),
                     restrictToSource,
                 ),
-            api =
+            expectedApiSignature =
                 """
                 package @RestrictTo(androidx.annotation.RestrictTo.Scope.SUBCLASSES) test.pkg {
                   public abstract class Class1 {

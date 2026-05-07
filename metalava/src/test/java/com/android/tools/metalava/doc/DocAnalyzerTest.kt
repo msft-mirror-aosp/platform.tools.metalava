@@ -1413,7 +1413,7 @@ class DocAnalyzerTest : DriverTest() {
             docStubs = true,
             // Make sure we expose exactly what we intend (so @hide via javadocs and
             // via package-info.java works)
-            api =
+            expectedApiSignature =
                 """
                 package test.visible {
                   public class MyClass {

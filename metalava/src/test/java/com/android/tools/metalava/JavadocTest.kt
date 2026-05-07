@@ -45,7 +45,7 @@ class JavadocTest : DriverTest() {
             expectedIssues = warnings,
             checkCompilation = true,
             apiLint = apiLint,
-            api = api,
+            expectedApiSignature = api,
             extraArguments = extraArguments,
             docStubs = docStubs,
             skipEmitPackages = skipEmitPackages
@@ -1247,7 +1247,7 @@ class JavadocTest : DriverTest() {
                     src/test/pkg/Foo.java:14: error: Documentation contains '@hide', `@removed` or '@doconly' that is not used as a block tag; that could cause unexpected behavior downstream. [InvalidBlockTagUse]
                     src/test/pkg/Foo.java:19: error: Documentation contains '@hide', `@removed` or '@doconly' that is not used as a block tag; that could cause unexpected behavior downstream. [InvalidBlockTagUse]
                 """,
-            api =
+            expectedApiSignature =
                 """
                     // Signature format: 5.0
                     package test.pkg {
@@ -1389,7 +1389,7 @@ class JavadocTest : DriverTest() {
                     src/test/pkg/Foo.java:14: error: Documentation contains '@hide', `@removed` or '@doconly' that is not used as a block tag; that could cause unexpected behavior downstream. [InvalidBlockTagUse]
                     src/test/pkg/Foo.java:19: error: Documentation contains '@hide', `@removed` or '@doconly' that is not used as a block tag; that could cause unexpected behavior downstream. [InvalidBlockTagUse]
                 """,
-            api =
+            expectedApiSignature =
                 """
                     // Signature format: 5.0
                     package test.pkg {

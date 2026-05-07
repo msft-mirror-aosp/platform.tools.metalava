@@ -52,7 +52,7 @@ class RestrictedForEnvironmentTest : DriverTest() {
                     restrictedForEnvironmentClass,
                     KnownSourceFiles.stringDefSource,
                 ),
-            api =
+            expectedApiSignature =
                 """
                     package test.pkg {
                       @RestrictedForEnvironment(environments=$packageName.RestrictedForEnvironment.ENVIRONMENT_SDK_RUNTIME, from=14) public class MyClass1 {

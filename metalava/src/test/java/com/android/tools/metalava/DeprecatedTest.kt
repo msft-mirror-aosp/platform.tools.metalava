@@ -40,7 +40,7 @@ class DeprecatedTest : DriverTest() {
                         """
                     ),
                 ),
-            api =
+            expectedApiSignature =
                 """
                     // Signature format: 5.0
                     package test.pkg {
@@ -99,7 +99,7 @@ class DeprecatedTest : DriverTest() {
                         """
                     ),
                 ),
-            api =
+            expectedApiSignature =
                 """
                     // Signature format: 5.0
                     package test.pkg {
@@ -155,7 +155,7 @@ class DeprecatedTest : DriverTest() {
                         """
                     ),
                 ),
-            api =
+            expectedApiSignature =
                 """
                     // Signature format: 5.0
                     package test.pkg {
@@ -210,7 +210,7 @@ class DeprecatedTest : DriverTest() {
                         """
                     ),
                 ),
-            api =
+            expectedApiSignature =
                 """
                     // Signature format: 5.0
                     package test.pkg {
@@ -287,7 +287,7 @@ class DeprecatedTest : DriverTest() {
                       }
                     }
                 """,
-            api =
+            expectedApiSignature =
                 """
                     // Signature format: 5.0
                 """,

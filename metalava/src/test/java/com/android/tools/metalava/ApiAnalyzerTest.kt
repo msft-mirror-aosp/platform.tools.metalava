@@ -382,7 +382,7 @@ class ApiAnalyzerTest : DriverTest() {
                     ),
                 ),
             format = FileFormat.V2,
-            api =
+            expectedApiSignature =
                 """
                     // Signature format: 2.0
                     package test.pkg {
@@ -447,7 +447,7 @@ class ApiAnalyzerTest : DriverTest() {
                     ),
                 ),
             format = FileFormat.V2,
-            api =
+            expectedApiSignature =
                 """
                     // Signature format: 2.0
                     package test.pkg {
@@ -501,7 +501,7 @@ class ApiAnalyzerTest : DriverTest() {
                     ),
                 ),
             format = FileFormat.V4,
-            api =
+            expectedApiSignature =
                 """
                     package test.pkg {
                       @Deprecated public final class Foo {
@@ -584,7 +584,7 @@ class ApiAnalyzerTest : DriverTest() {
                     ),
                 ),
             format = FileFormat.V2,
-            api =
+            expectedApiSignature =
                 """
                     // Signature format: 2.0
                     package test.pkg {
@@ -631,7 +631,7 @@ class ApiAnalyzerTest : DriverTest() {
                         """
                     )
                 ),
-            api =
+            expectedApiSignature =
                 """
                     // Signature format: 5.0
                     package test.pkg {
@@ -665,7 +665,7 @@ class ApiAnalyzerTest : DriverTest() {
                         """
                     )
                 ),
-            api =
+            expectedApiSignature =
                 """
                     package test.pkg {
                       public class Container {
@@ -707,7 +707,7 @@ class ApiAnalyzerTest : DriverTest() {
                         """
                     )
                 ),
-            api =
+            expectedApiSignature =
                 """
                     package test.pkg {
                       @Deprecated public class DeprecatedOuterClass {
@@ -757,7 +757,7 @@ class ApiAnalyzerTest : DriverTest() {
                         """
                     )
                 ),
-            api =
+            expectedApiSignature =
                 """
                     package test.pkg {
                       @Deprecated public class DeprecatedOuterClass {
@@ -808,7 +808,7 @@ class ApiAnalyzerTest : DriverTest() {
                         """
                     )
                 ),
-            api =
+            expectedApiSignature =
                 """
                     package test.pkg {
                       @Deprecated public class DeprecatedClass {
@@ -894,7 +894,7 @@ class ApiAnalyzerTest : DriverTest() {
                     ),
                     KnownSourceFiles.systemApiSource,
                 ),
-            api =
+            expectedApiSignature =
                 """
                     package test.a {
                       public class B {
@@ -1164,7 +1164,7 @@ class ApiAnalyzerTest : DriverTest() {
                     KnownSourceFiles.hideAnnotation,
                 ),
             hideAnnotations = arrayOf("android.annotation.Hide"),
-            api =
+            expectedApiSignature =
                 """
                 // Signature format: 5.0
                 """

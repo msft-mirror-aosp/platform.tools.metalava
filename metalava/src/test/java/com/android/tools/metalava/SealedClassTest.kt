@@ -35,7 +35,7 @@ class SealedClassTest : DriverTest() {
                         """
                     )
                 ),
-            api =
+            expectedApiSignature =
                 """
                     package test.pkg {
                       public interface Test {
@@ -61,7 +61,7 @@ class SealedClassTest : DriverTest() {
                         """
                     )
                 ),
-            api =
+            expectedApiSignature =
                 """
                     package test.pkg {
                       public class Test {

@@ -106,7 +106,7 @@ abstract class AbstractStubsTest : DriverTest() {
             expectedIssues = warnings,
             checkCompilation = checkCompilation,
             compilationChecks = compilationChecks,
-            api = api,
+            expectedApiSignature = api,
             extraArguments = extraArguments,
             docStubs = docStubs,
             skipEmitPackages = skipEmitPackages,

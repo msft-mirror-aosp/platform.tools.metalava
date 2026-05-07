@@ -65,7 +65,7 @@ class NormalizeOutputAnnotationTest : DriverTest() {
                     requiresPermissionSource,
                 ),
             format = FileFormat.V4,
-            api =
+            expectedApiSignature =
                 """
                 // Signature format: 4.0
                 package test.pkg {

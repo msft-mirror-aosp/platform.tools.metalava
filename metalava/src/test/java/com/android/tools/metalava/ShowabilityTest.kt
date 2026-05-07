@@ -83,7 +83,7 @@ class ShowabilityTest : DriverTest() {
                     "test.annotation.NonRecursiveShow",
                 ),
             format = FileFormat.V2,
-            api =
+            expectedApiSignature =
                 """
                     // Signature format: 2.0
                     package test.pkg {
@@ -124,7 +124,7 @@ class ShowabilityTest : DriverTest() {
                     "test.annotation.NonRecursiveShow",
                 ),
             format = FileFormat.V2,
-            api =
+            expectedApiSignature =
                 """
                     // Signature format: 2.0
                     package test.pkg {
@@ -167,7 +167,7 @@ class ShowabilityTest : DriverTest() {
                     ARG_SHOW_SINGLE_ANNOTATION,
                     "test.annotation.NonRecursiveShow",
                 ),
-            api =
+            expectedApiSignature =
                 """
                 // Signature format: 5.0
                 package test.pkg {

@@ -240,7 +240,7 @@ class ShowForStubPurposesAnnotationTest : DriverTest() {
             hideAnnotations = arrayOf(HIDE_ANNOTATION),
             showAnnotations = arrayOf(MODULE_API, SYSTEM_API),
             sourceFiles = SOURCE_FILES_1_2_3_4_5,
-            api =
+            expectedApiSignature =
                 """
                 // Signature format: 2.0
                 package test.pkg {
@@ -297,7 +297,7 @@ class ShowForStubPurposesAnnotationTest : DriverTest() {
             hideAnnotations = arrayOf(HIDE_ANNOTATION),
             showAnnotations = arrayOf(SYSTEM_API),
             sourceFiles = SOURCE_FILES_1_2_3_4_5,
-            api =
+            expectedApiSignature =
                 """
                 // Signature format: 2.0
                 package test.pkg {
@@ -335,7 +335,7 @@ class ShowForStubPurposesAnnotationTest : DriverTest() {
             showAnnotations = arrayOf(MODULE_API),
             showForStubPurposesAnnotations = arrayOf(SYSTEM_API),
             sourceFiles = SOURCE_FILES_1_2_3_4_5,
-            api =
+            expectedApiSignature =
                 """
                 // Signature format: 2.0
                 package test.pkg {
@@ -585,7 +585,7 @@ class ShowForStubPurposesAnnotationTest : DriverTest() {
             hideAnnotations = arrayOf(HIDE_ANNOTATION),
             showAnnotations = arrayOf(SYSTEM_API, MODULE_API),
             sourceFiles = SOURCE_FILES_6_7_8_9,
-            api =
+            expectedApiSignature =
                 """
                 // Signature format: 2.0
                 package test.pkg {
@@ -622,7 +622,7 @@ class ShowForStubPurposesAnnotationTest : DriverTest() {
             hideAnnotations = arrayOf(HIDE_ANNOTATION),
             showAnnotations = arrayOf(SYSTEM_API),
             sourceFiles = SOURCE_FILES_6_7_8_9,
-            api =
+            expectedApiSignature =
                 """
                 // Signature format: 2.0
                 package test.pkg {
@@ -652,7 +652,7 @@ class ShowForStubPurposesAnnotationTest : DriverTest() {
             showAnnotations = arrayOf(MODULE_API),
             showForStubPurposesAnnotations = arrayOf(SYSTEM_API),
             sourceFiles = SOURCE_FILES_6_7_8_9,
-            api =
+            expectedApiSignature =
                 """
                 // Signature format: 2.0
                 package test.pkg {
@@ -700,7 +700,7 @@ class ShowForStubPurposesAnnotationTest : DriverTest() {
             """
                     )
                 ),
-            api =
+            expectedApiSignature =
                 """
                 // Signature format: 2.0
                 package test.pkg {

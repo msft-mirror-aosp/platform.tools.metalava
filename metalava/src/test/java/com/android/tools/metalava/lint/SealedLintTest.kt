@@ -89,7 +89,7 @@ class SealedLintTest : DriverTest() {
                         """
                     ),
                 ),
-            api =
+            expectedApiSignature =
                 """
                     package test.pkg {
                       public sealed exhaustive interface Foo permits test.pkg.Foo.Subclass {
@@ -124,7 +124,7 @@ class SealedLintTest : DriverTest() {
                         """
                     ),
                 ),
-            api =
+            expectedApiSignature =
                 """
                     package test.pkg {
                       public abstract sealed non-exhaustive class Foo permits test.pkg.Foo.Subclass {
@@ -159,7 +159,7 @@ class SealedLintTest : DriverTest() {
                         """
                     ),
                 ),
-            api =
+            expectedApiSignature =
                 """
                     package test.pkg {
                       public sealed non-exhaustive class Foo permits test.pkg.Foo.Subclass {

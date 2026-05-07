@@ -1043,7 +1043,7 @@ class StubsTest : AbstractStubsTest() {
                     """
                     )
                 ),
-            api =
+            expectedApiSignature =
                 """
                 package test.pkg {
                   public class Alpha extends test.pkg.Charlie<test.pkg.Orange!> {
@@ -1319,7 +1319,7 @@ class StubsTest : AbstractStubsTest() {
                     )
                 ),
             format = FileFormat.V2,
-            api =
+            expectedApiSignature =
                 """
                     package test.pkg {
                       public class Foo {

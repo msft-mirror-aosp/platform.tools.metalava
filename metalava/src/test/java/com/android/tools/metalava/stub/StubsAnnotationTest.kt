@@ -145,7 +145,7 @@ class StubsAnnotationTest : AbstractStubsTest() {
                     )
                 ),
             expectedIssues = "",
-            api =
+            expectedApiSignature =
                 """
                     package my.pkg {
                       public class String {
@@ -183,7 +183,7 @@ class StubsAnnotationTest : AbstractStubsTest() {
                     )
                 ),
             expectedIssues = "",
-            api =
+            expectedApiSignature =
                 """
                     package my.pkg {
                       public class String {
@@ -225,7 +225,7 @@ class StubsAnnotationTest : AbstractStubsTest() {
                     libcoreNonNullSource,
                 ),
             expectedIssues = "",
-            api =
+            expectedApiSignature =
                 """
                     package my.pkg {
                       public class String {
@@ -283,7 +283,7 @@ class StubsAnnotationTest : AbstractStubsTest() {
             // Override default to emit libcore.util classes.
             skipEmitPackages = emptyList(),
             expectedIssues = "",
-            api =
+            expectedApiSignature =
                 """
                     package libcore.util {
                       @java.lang.annotation.Documented @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.SOURCE) @java.lang.annotation.Target({java.lang.annotation.ElementType.FIELD, java.lang.annotation.ElementType.METHOD, java.lang.annotation.ElementType.PARAMETER, java.lang.annotation.ElementType.TYPE_USE}) public @interface NonNull {
@@ -367,7 +367,7 @@ class StubsAnnotationTest : AbstractStubsTest() {
                     requiresApiSource
                 ),
             expectedIssues = "",
-            api =
+            expectedApiSignature =
                 """
                     package my.pkg {
                       public class MyClass {

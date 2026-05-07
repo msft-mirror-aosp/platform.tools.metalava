@@ -375,7 +375,7 @@ abstract class DriverTest :
         /** Any jars to add to the class path */
         classpath: Array<TestFile>? = null,
         /** The API signature content (corresponds to --api) */
-        @Language("TEXT") api: String? = null,
+        @Language("TEXT") expectedApiSignature: String? = null,
         /** The removed API (corresponds to --removed-api) */
         removedApi: String? = null,
         /** Expected stubs (corresponds to --stubs) */
@@ -1250,12 +1250,16 @@ abstract class DriverTest :
             )
         }
 
-        if (api != null) {
+        if (expectedApiSignature != null) {
             assertTrue(
                 "${apiFile.path} does not exist even though --api was used",
                 apiFile.exists()
             )
-            assertSignatureFilesMatch(api, apiFile.readText(), expectedFormat = format)
+            assertSignatureFilesMatch(
+                expectedApiSignature,
+                apiFile.readText(),
+                expectedFormat = format
+            )
             // Make sure we can read back the files we write
             ApiFile.parseApi(SignatureFile.fromFiles(apiFile), Codebase.Config.NOOP)
         }

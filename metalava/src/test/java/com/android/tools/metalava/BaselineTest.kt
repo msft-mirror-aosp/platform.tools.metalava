@@ -155,7 +155,7 @@ class BaselineTest : DriverTest() {
                 val git = File(file, ".git").toPath()
                 java.nio.file.Files.createSymbolicLink(git, dir.toPath())
             },
-            api =
+            expectedApiSignature =
                 """
                 package test.pkg {
                   public class Foo {
@@ -239,7 +239,7 @@ class BaselineTest : DriverTest() {
                     testApiSource,
                     KnownSourceFiles.androidxNullableJavaSource,
                 ),
-            api =
+            expectedApiSignature =
                 """
                 package android.pkg {
                   public class RegistrationMethods {

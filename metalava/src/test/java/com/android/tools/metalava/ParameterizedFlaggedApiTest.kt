@@ -326,7 +326,7 @@ class ParameterizedFlaggedApiTest(private val config: Configuration) : DriverTes
                     .toTypedArray(),
             // Access android.annotation.FlaggedApi
             classpath = arrayOf(KnownJarFiles.stubAnnotationsTestFile),
-            api = expectations.expectedApi,
+            expectedApiSignature = expectations.expectedApi,
             expectedStubFiles = expectations.expectedStubs,
             stubPaths = expectations.expectedStubPaths,
             expectedIssues = expectations.expectedIssues,

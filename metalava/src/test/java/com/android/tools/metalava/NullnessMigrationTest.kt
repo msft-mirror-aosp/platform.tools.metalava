@@ -46,7 +46,7 @@ class NullnessMigrationTest : DriverTest() {
                     KnownSourceFiles.androidxNonNullJavaSource,
                     KnownSourceFiles.androidxNullableJavaSource,
                 ),
-            api =
+            expectedApiSignature =
                 """
                     // Signature format: 4.0
                     package test.pkg {
@@ -91,7 +91,7 @@ class NullnessMigrationTest : DriverTest() {
                       }
                     }
                 """,
-            api =
+            expectedApiSignature =
                 """
                     package test.pkg {
                       public abstract class MyTest {
@@ -143,7 +143,7 @@ class NullnessMigrationTest : DriverTest() {
                       }
                     }
                 """,
-            api =
+            expectedApiSignature =
                 """
                     package test.pkg {
                       public abstract class MyTest {
@@ -203,7 +203,7 @@ class NullnessMigrationTest : DriverTest() {
                       }
                     }
                 """,
-            api =
+            expectedApiSignature =
                 """
                     package test.pkg {
                       public class MyTest {
@@ -276,7 +276,7 @@ class NullnessMigrationTest : DriverTest() {
                       }
                     }
                 """,
-            api =
+            expectedApiSignature =
                 """
                     // Signature format: 4.0
                     package test.pkg {
@@ -327,7 +327,7 @@ class NullnessMigrationTest : DriverTest() {
                         """
                     ),
                 ),
-            api =
+            expectedApiSignature =
                 """
                     package test.pkg {
                       public class Test {
@@ -367,7 +367,7 @@ class NullnessMigrationTest : DriverTest() {
                     KnownSourceFiles.typeUseOnlyNonNullSource,
                     KnownSourceFiles.typeUseOnlyNullableSource,
                 ),
-            api =
+            expectedApiSignature =
                 """
                     package test.pkg {
                       public class Test {
@@ -409,7 +409,7 @@ class NullnessMigrationTest : DriverTest() {
                     KnownSourceFiles.mixedUseNonNullSource,
                     KnownSourceFiles.mixedUseNullableSource,
                 ),
-            api =
+            expectedApiSignature =
                 """
                     package test.pkg {
                       public class Test {
@@ -448,7 +448,7 @@ class NullnessMigrationTest : DriverTest() {
                     KnownSourceFiles.androidxNonNullJavaSource,
                     KnownSourceFiles.androidxNullableJavaSource,
                 ),
-            api =
+            expectedApiSignature =
                 """
                     package test.pkg {
                       public class Test {
@@ -792,7 +792,7 @@ class NullnessMigrationTest : DriverTest() {
                         """
                     ),
                 ),
-            api =
+            expectedApiSignature =
                 """
                     // Signature format: 2.0
                     package test.pkg {

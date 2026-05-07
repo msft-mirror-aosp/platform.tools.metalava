@@ -250,7 +250,7 @@ class CompatibilityCheckTest : DriverTest() {
                         """
                     )
                 ),
-            api =
+            expectedApiSignature =
                 """
                 // Signature format: 5.0
                 package com.example {
@@ -1986,7 +1986,7 @@ class CompatibilityCheckTest : DriverTest() {
                         .indented(),
                     testApiSource,
                 ),
-            api =
+            expectedApiSignature =
                 """
                 package test.view {
                   public final class View {
@@ -4476,7 +4476,7 @@ class CompatibilityCheckTest : DriverTest() {
                         """
                     )
                 ),
-            api =
+            expectedApiSignature =
                 """
                     package test.pkg {
                       public final class KeepNoArgsCtor {
@@ -4534,7 +4534,7 @@ class CompatibilityCheckTest : DriverTest() {
                         """
                     )
                 ),
-            api =
+            expectedApiSignature =
                 """
                 // Signature format: 5.0
                 package test.pkg {
@@ -4581,7 +4581,7 @@ class CompatibilityCheckTest : DriverTest() {
                   }
                 }
                 """,
-            api =
+            expectedApiSignature =
                 """
                 // Signature format: 5.0
                 package test.pkg {

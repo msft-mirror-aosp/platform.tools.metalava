@@ -69,7 +69,7 @@ class ShowAnnotationTest : DriverTest() {
                     ),
                     systemApiSource,
                 ),
-            api =
+            expectedApiSignature =
                 """
                 package test.pkg {
                   public class Foo {
@@ -124,7 +124,7 @@ class ShowAnnotationTest : DriverTest() {
                     ),
                     systemApiSource,
                 ),
-            api =
+            expectedApiSignature =
                 """
                 package foo.bar {
                   public class Bar {
@@ -181,7 +181,7 @@ class ShowAnnotationTest : DriverTest() {
                     ),
                     testApiSource,
                 ),
-            api =
+            expectedApiSignature =
                 """
                 package test.pkg {
                   public class Bar {
@@ -261,7 +261,7 @@ class ShowAnnotationTest : DriverTest() {
                     )
                 ),
             // Empty API: showUnannotated=false
-            api = "",
+            expectedApiSignature = "",
         )
     }
 
@@ -309,7 +309,7 @@ class ShowAnnotationTest : DriverTest() {
                     ARG_SHOW_SINGLE_ANNOTATION,
                     "android.annotation.SystemApi",
                 ),
-            api =
+            expectedApiSignature =
                 """
                 package test.pkg {
                   public class Foo {
@@ -414,7 +414,7 @@ class ShowAnnotationTest : DriverTest() {
                     ARG_SHOW_ANNOTATION,
                     "androidx.annotation.RestrictTo(androidx.annotation.RestrictTo.Scope.LIBRARY_GROUP)",
                 ),
-            api =
+            expectedApiSignature =
                 """
                 package test.pkg {
                   public class Foo {
@@ -474,7 +474,7 @@ class ShowAnnotationTest : DriverTest() {
                     ARG_SHOW_ANNOTATION,
                     "test.annotation.Api(type=test.annotation.Api.Type.A)",
                 ),
-            api =
+            expectedApiSignature =
                 """
                 package test.pkg {
                   public class Foo {
@@ -508,7 +508,7 @@ class ShowAnnotationTest : DriverTest() {
                     ),
                     intDefAnnotationSource,
                 ),
-            api =
+            expectedApiSignature =
                 """
                 // Signature format: 4.0
                 package androidx.room {
@@ -572,7 +572,7 @@ class ShowAnnotationTest : DriverTest() {
                     restrictToSource,
                 ),
             expectedIssues = null,
-            api =
+            expectedApiSignature =
                 """
                 // Signature format: 4.0
                 package a {
@@ -655,7 +655,7 @@ class ShowAnnotationTest : DriverTest() {
                     ARG_SHOW_ANNOTATION,
                     "test.annotation.Api",
                 ),
-            api =
+            expectedApiSignature =
                 """
                 package test.pkg {
                   public class Foo {
@@ -687,7 +687,7 @@ class ShowAnnotationTest : DriverTest() {
                     publishedApiSource
                 ),
             extraArguments = arrayOf(ARG_SHOW_ANNOTATION, "kotlin.PublishedApi"),
-            api =
+            expectedApiSignature =
                 """
                 // Signature format: 4.0
                 package test.pkg {
@@ -726,7 +726,7 @@ class ShowAnnotationTest : DriverTest() {
                     "UnhiddenSystemApi",
                     ARG_SHOW_UNANNOTATED
                 ),
-            api =
+            expectedApiSignature =
                 """
                 package test.pkg {
                   public final class Foo {
@@ -807,7 +807,7 @@ class ShowAnnotationTest : DriverTest() {
             expectedIssues =
                 """
                 """,
-            api =
+            expectedApiSignature =
                 """
                 package test.pkg {
                   public class Class1 {
@@ -889,7 +889,7 @@ class ShowAnnotationTest : DriverTest() {
                     ARG_SHOW_FOR_STUB_PURPOSES_ANNOTATION,
                     "android.annotation.TestApi",
                 ),
-            api =
+            expectedApiSignature =
                 """
                 package test.pkg {
                   public class Foo {

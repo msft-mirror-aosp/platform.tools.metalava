@@ -116,7 +116,7 @@ class RecordLintTest : DriverTest() {
                         """
                     ),
                 ),
-            api =
+            expectedApiSignature =
                 """
                     package test.pkg {
                       public record Test {
@@ -204,7 +204,7 @@ class RecordLintTest : DriverTest() {
                         """
                     ),
                 ),
-            api =
+            expectedApiSignature =
                 """
                     package test.pkg {
                       public record Test {
@@ -257,7 +257,7 @@ class RecordLintTest : DriverTest() {
                         """
                     ),
                 ),
-            api =
+            expectedApiSignature =
                 """
                     // Signature format: 6.0
                     // - style=java

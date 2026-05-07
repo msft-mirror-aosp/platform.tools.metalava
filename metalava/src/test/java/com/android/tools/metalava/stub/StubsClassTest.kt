@@ -401,7 +401,7 @@ class StubsClassTest : AbstractStubsTest() {
                     """
                     )
                 ),
-            api =
+            expectedApiSignature =
                 """
                 package test.pkg {
                   public class PublicApi {
@@ -466,7 +466,7 @@ class StubsClassTest : AbstractStubsTest() {
                     """
                     )
                 ),
-            api =
+            expectedApiSignature =
                 """
                 package test.pkg {
                   public class PublicApi {
