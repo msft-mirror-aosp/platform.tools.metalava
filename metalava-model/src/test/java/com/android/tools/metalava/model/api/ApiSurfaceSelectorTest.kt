@@ -263,12 +263,12 @@ class ApiSurfaceSelectorTest {
                         }
                         android.annotation.SystemApi -> {
                             Entry(
-                                client=android.annotation.SystemApi.Client.PRIVILEGED_APPS
-                                result: SHOW_FOR_STUBS
-                            )
-                            Entry(
                                 client=android.annotation.SystemApi.Client.MODULE_LIBRARIES
                                 result: SHOW
+                            )
+                            Entry(
+                                client=android.annotation.SystemApi.Client.PRIVILEGED_APPS
+                                result: SHOW_FOR_STUBS
                             )
                         }
                     )

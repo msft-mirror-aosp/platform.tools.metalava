@@ -101,9 +101,8 @@ class ApiSurfaceSelector(
             }
         }
 
-        // Sort the rules from longest (most specific pattern) to shortest. That is because a more
-        // specific pattern should be matched before a shorter, less specific one.
-        val sortedRules = matcherRules.sortedByDescending { it.annotationPattern }
+        // Sort the rules.
+        val sortedRules = matcherRules.sortedWith(comparator)
 
         matcher = AnnotationMatcher.createFromRules(sortedRules)
         showUnannotated = hasShowUnannotatedOnMain
@@ -165,6 +164,36 @@ class ApiSurfaceSelector(
                 recursive = ShowOrHide.HIDE,
                 forStubsOnly = ShowOrHide.NO_EFFECT,
             )
+
+        /** Define a mapping from [Showability] instance to ordinal. */
+        private val showabilityOrdinal =
+            mapOf(
+                SHOW to 0,
+                SHOW_FOR_STUBS to 1,
+                SHOW_SINGLE to 2,
+                HIDE to 3,
+            )
+
+        /**
+         * Comparator that sorts [AnnotationMatcher.Rule] by
+         * [AnnotationMatcher.Rule.annotationPattern].
+         */
+        private val patternComparator: Comparator<AnnotationMatcher.Rule<Showability>> =
+            Comparator.comparing { it.annotationPattern }
+
+        /**
+         * Comparator that sors [AnnotationMatcher.Rule] by [Showability] then reverse order of
+         * [patternComparator]
+         */
+        private val comparator =
+            Comparator.comparing<AnnotationMatcher.Rule<Showability>, Int> {
+                    // First sort so that HIDE is last. That is because SHOW overrides HIDE.
+                    showabilityOrdinal[it.result]!!
+                }
+                // Then sort from longest (most specific pattern) to shortest. That is because a
+                // longer more specific pattern should be matched before a shorter, less specific
+                // one.
+                .thenDescending(patternComparator)
     }
 }
 
