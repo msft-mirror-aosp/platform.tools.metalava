@@ -2167,15 +2167,48 @@ val TYPE_USE_FORMAT =
  *
  * @param surface the name of the surface, adding as [ARG_API_SURFACE].
  * @param configFile the config file that will define [surface].
+ * @param commandLineOptions the command line options that are equivalent to [surface].
  */
 data class KnownApiSurface(
     val surface: String,
     val configFile: TestFile,
+    val commandLineOptions: List<String> = emptyList(),
 ) {
     companion object {
-        val SYSTEM = KnownApiSurface("system", KnownConfigFiles.configKnownTestSurfaces)
+        /** The system API as used by Android. */
+        val SYSTEM =
+            KnownApiSurface(
+                "system",
+                KnownConfigFiles.configKnownTestSurfaces,
+                listOf(
+                    ARG_SHOW_ANNOTATION,
+                    "android.annotation.SystemApi(client=android.annotation.SystemApi.Client.PRIVILEGED_APPS)",
+                ),
+            )
+
+        /** The system API plus public API. */
         val SYSTEM_WITH_PUBLIC =
-            KnownApiSurface("system-with-public", KnownConfigFiles.configSystemWithPublicSurface)
-        val TEST = KnownApiSurface("test", KnownConfigFiles.configKnownTestSurfaces)
+            KnownApiSurface(
+                "system-with-public",
+                KnownConfigFiles.configSystemWithPublicSurface,
+                listOf(
+                    ARG_SHOW_UNANNOTATED,
+                    ARG_SHOW_ANNOTATION,
+                    "android.annotation.SystemApi(client=android.annotation.SystemApi.Client.PRIVILEGED_APPS)",
+                ),
+            )
+
+        /** The test API as used by Android. */
+        val TEST =
+            KnownApiSurface(
+                "test",
+                KnownConfigFiles.configKnownTestSurfaces,
+                listOf(
+                    ARG_SHOW_FOR_STUB_PURPOSES_ANNOTATION,
+                    "android.annotation.SystemApi(client=android.annotation.SystemApi.Client.PRIVILEGED_APPS)",
+                    ARG_SHOW_ANNOTATION,
+                    "android.annotation.TestApi",
+                ),
+            )
     }
 }
