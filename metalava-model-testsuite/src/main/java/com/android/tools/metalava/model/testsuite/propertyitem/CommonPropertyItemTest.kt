@@ -1561,4 +1561,76 @@ class CommonPropertyItemTest : BaseModelTest() {
             )
         }
     }
+
+    @SupportedInputFormats(InputFormat.KOTLIN, InputFormat.SIGNATURE)
+    @Test
+    fun `Test toString, equals, and baseline ID for property with context parameters`() {
+        runCodebaseTest(
+            kotlin(
+                """
+                package test.pkg
+                class Foo {
+                    context(s: String)
+                    val oneContextParam: Int
+                        get() = 0
+
+                    context(s: String, i: Int)
+                    val twoContextParam: Int
+                        get() = 0
+
+                    val withAndWithoutContextParam: Int = 0
+                    context(_: String)
+                    val withAndWithoutContextParam: Int
+                        get() = 0
+                }
+                """
+            ),
+            signature(
+                """
+                // Signature format: 5.0
+                package test.pkg {
+                  public class Foo {
+                    property public int oneContextParam(context String s);
+                    property public int twoContextParam(context String s, context int i);
+                    property public int withAndWithoutContextParam(context String);
+                    property public int withAndWithoutContextParam;
+                  }
+                }
+                """
+            )
+        ) {
+            val fooClass = codebase.assertClass("test.pkg.Foo")
+
+            val oneContextParam =
+                fooClass.assertProperty(
+                    "oneContextParam",
+                    contextParameterTypeStrings = listOf("java.lang.String")
+                )
+            assertThat(oneContextParam.toString())
+                .isEqualTo("property test.pkg.Foo#oneContextParam(context java.lang.String)")
+            assertThat(oneContextParam.baselineElementId())
+                .isEqualTo("test.pkg.Foo#oneContextParam(context java.lang.String)")
+
+            val twoContextParam =
+                fooClass.assertProperty(
+                    "twoContextParam",
+                    contextParameterTypeStrings = listOf("java.lang.String", "int")
+                )
+            assertThat(twoContextParam.toString())
+                .isEqualTo(
+                    "property test.pkg.Foo#twoContextParam(context java.lang.String, context int)"
+                )
+            assertThat(twoContextParam.baselineElementId())
+                .isEqualTo("test.pkg.Foo#twoContextParam(context java.lang.String, context int)")
+
+            val withContextParam =
+                fooClass.assertProperty(
+                    "withAndWithoutContextParam",
+                    contextParameterTypeStrings = listOf("java.lang.String")
+                )
+            val withoutContextParam = fooClass.assertProperty("withAndWithoutContextParam")
+            assertThat(withContextParam).isNotEqualTo(withoutContextParam)
+            assertThat(withContextParam.hashCode()).isNotEqualTo(withoutContextParam.hashCode())
+        }
+    }
 }

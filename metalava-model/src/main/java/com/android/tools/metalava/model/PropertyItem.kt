@@ -67,6 +67,16 @@ interface PropertyItem : MemberItem, TypeParameterListOwner, InheritableItem {
     private fun receiverString(): String =
         receiver?.let { it.toTypeString(TypeStringConfiguration.DEFAULT_KOTLIN_NULLS) + "." } ?: ""
 
+    private fun contextString(): String {
+        return if (contextParameters.isNotEmpty()) {
+            "(${contextParameters.joinToString(", ") {
+                "context " + it.type().toTypeString(TypeStringConfiguration.DEFAULT_KOTLIN_NULLS)
+            }})"
+        } else {
+            ""
+        }
+    }
+
     override fun baselineElementId() = buildString {
         if (containingClass().simpleName() != ClassItem.TOP_LEVEL_DECLARATION_FACADE_NAME) {
             append(containingClass().qualifiedName())
@@ -76,6 +86,7 @@ interface PropertyItem : MemberItem, TypeParameterListOwner, InheritableItem {
         append("#")
         append(receiverString())
         append(name())
+        append(contextString())
     }
 
     override fun accept(visitor: ItemVisitor) {
@@ -88,15 +99,16 @@ interface PropertyItem : MemberItem, TypeParameterListOwner, InheritableItem {
 
         return name() == other.name() &&
             containingClass() == other.containingClass() &&
-            equalReceivers(receiver, other.receiver)
+            equalReceivers(receiver, other.receiver) &&
+            equalContextParameters(contextParameters, other.contextParameters)
     }
 
     override fun hashCodeForItem(): Int {
-        return Objects.hash(name(), receiver)
+        return Objects.hash(name(), receiver, contextParameters)
     }
 
     override fun toStringForItem() =
-        "property ${containingClass().qualifiedName()}#${receiverString()}${name()}"
+        "property ${containingClass().qualifiedName()}#${receiverString()}${name()}${contextString()}"
 
     // Inherit deprecation from the getter
     override val effectivelyDeprecated: Boolean
@@ -117,6 +129,19 @@ interface PropertyItem : MemberItem, TypeParameterListOwner, InheritableItem {
             // Nullability is important for property receivers because kotlin allows defining
             // properties which differ only in receiver nullability.
             return receiver1?.equalToType(receiver2, true) ?: (receiver2 == null)
+        }
+
+        /** Returns whether the two lists should be considered equal context parameters. */
+        fun equalContextParameters(
+            contextParameters1: List<ParameterItem>,
+            contextParameters2: List<ParameterItem>
+        ): Boolean {
+            // Nullability is important for property context parameters because kotlin allows
+            // defining properties which differ only in context parameter nullability.
+            return contextParameters1.size == contextParameters2.size &&
+                contextParameters1.zip(contextParameters2).all { (thisParam, otherParam) ->
+                    thisParam.type().equalToType(otherParam.type(), includeNullability = true)
+                }
         }
     }
 }
