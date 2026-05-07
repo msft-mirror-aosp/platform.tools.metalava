@@ -4601,6 +4601,40 @@ class CompatibilityCheckTest : DriverTest() {
         )
     }
 
+    @Test
+    fun `Change kind of method parameters`() {
+        check(
+            checkCompatibilityApiReleased =
+                """
+                // Signature format: 5.0
+                package test.pkg {
+                  public class Foo {
+                    method public void contextToReceiver(context String c);
+                    method public void receiverToValue(receiver String c);
+                    method public void valueToContext(String c);
+                  }
+                }
+                """,
+            signatureSource =
+                """
+                // Signature format: 5.0
+                package test.pkg {
+                  public class Foo {
+                    method public void contextToReceiver(receiver String c);
+                    method public void receiverToValue(String c);
+                    method public void valueToContext(context String c);
+                  }
+                }
+                """,
+            expectedIssues =
+                """
+                load-api.txt:4: error: Source breaking change: Parameter c in test.pkg.Foo.contextToReceiver(String c) has changed from CONTEXT to RECEIVER [ParameterKindChange]
+                load-api.txt:5: error: Source breaking change: Parameter c in test.pkg.Foo.receiverToValue(String c) has changed from RECEIVER to VALUE [ParameterKindChange]
+                load-api.txt:6: error: Source breaking change: Parameter c in test.pkg.Foo.valueToContext(String c) has changed from VALUE to CONTEXT [ParameterKindChange]
+                """
+        )
+    }
+
     // TODO: Check method signatures changing incompatibly (look especially out for adding new
     // overloaded methods and comparator getting confused!)
     //   ..equals on the method items should actually be very useful!

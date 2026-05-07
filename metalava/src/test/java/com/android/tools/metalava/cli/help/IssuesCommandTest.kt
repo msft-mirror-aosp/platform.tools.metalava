@@ -193,6 +193,7 @@ Available Issues                             |  Category                        
   OverlappingConstants                       |  api_lint                             |   warning
   PackageLayering                            |  api_lint                             |   warning
   PairedRegistration                         |  api_lint                             |   error
+  ParameterKindChange                        |  source_compatibility_only            |   error
   ParameterNameChange                        |  source_compatibility_only            |   error
   ParcelConstructor                          |  api_lint                             |   error
   ParcelCreator                              |  api_lint                             |   error
