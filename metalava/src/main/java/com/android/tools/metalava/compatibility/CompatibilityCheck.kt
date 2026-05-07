@@ -454,6 +454,15 @@ class CompatibilityCheck(
     }
 
     override fun compareParameterItems(old: ParameterItem, new: ParameterItem) {
+        if (new.kind != old.kind) {
+            report(
+                Issues.PARAMETER_KIND_CHANGE,
+                new,
+                "${new.describe(capitalize = true)} has changed from ${old.kind} to ${new.kind}",
+                oldItem = old,
+            )
+        }
+
         // Parameter names are only important for value parameters, since in Kotlin functions can be
         // called with named value parameters.
         if (new.kind == ParameterKind.VALUE) {
