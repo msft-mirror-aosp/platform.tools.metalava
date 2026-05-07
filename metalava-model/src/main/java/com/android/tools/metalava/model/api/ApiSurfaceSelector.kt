@@ -127,6 +127,7 @@ class ApiSurfaceSelector(
          */
         private val SHOW =
             Showability(
+                name = "SHOW",
                 show = ShowOrHide.SHOW,
                 recursive = ShowOrHide.SHOW,
                 forStubsOnly = ShowOrHide.NO_EFFECT,
@@ -138,6 +139,7 @@ class ApiSurfaceSelector(
          */
         private val SHOW_FOR_STUBS =
             Showability(
+                name = "SHOW_FOR_STUBS",
                 show = ShowOrHide.NO_EFFECT,
                 recursive = ShowOrHide.NO_EFFECT,
                 forStubsOnly = ShowOrHide.SHOW,
@@ -146,6 +148,7 @@ class ApiSurfaceSelector(
         /** The annotation will cause the annotated item (but not enclosed items) to be shown. */
         private val SHOW_SINGLE =
             Showability(
+                name = "SHOW_SINGLE",
                 show = ShowOrHide.SHOW,
                 recursive = ShowOrHide.NO_EFFECT,
                 forStubsOnly = ShowOrHide.NO_EFFECT,
@@ -157,6 +160,7 @@ class ApiSurfaceSelector(
          */
         private val HIDE =
             Showability(
+                name = "HIDE",
                 show = ShowOrHide.HIDE,
                 recursive = ShowOrHide.HIDE,
                 forStubsOnly = ShowOrHide.NO_EFFECT,

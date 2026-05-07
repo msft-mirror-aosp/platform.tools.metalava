@@ -167,12 +167,12 @@ class ApiSurfaceSelectorTest {
                     AnnotationMatcher(
                         android.annotation.Hide -> {
                             Entry(
-                                result: Showability(show=HIDE, recursive=HIDE, forStubsOnly=NO_EFFECT, revertItem=null)
+                                result: HIDE
                             )
                         }
                         android.annotation.OtherApi -> {
                             Entry(
-                                result: Showability(show=SHOW, recursive=SHOW, forStubsOnly=NO_EFFECT, revertItem=null)
+                                result: SHOW
                             )
                         }
                     )
@@ -207,12 +207,12 @@ class ApiSurfaceSelectorTest {
                     AnnotationMatcher(
                         android.annotation.Hide -> {
                             Entry(
-                                result: Showability(show=HIDE, recursive=HIDE, forStubsOnly=NO_EFFECT, revertItem=null)
+                                result: HIDE
                             )
                         }
                         android.annotation.OtherApi -> {
                             Entry(
-                                result: Showability(show=SHOW, recursive=SHOW, forStubsOnly=NO_EFFECT, revertItem=null)
+                                result: SHOW
                             )
                         }
                     )
@@ -258,17 +258,17 @@ class ApiSurfaceSelectorTest {
                     AnnotationMatcher(
                         android.annotation.Hide -> {
                             Entry(
-                                result: Showability(show=HIDE, recursive=HIDE, forStubsOnly=NO_EFFECT, revertItem=null)
+                                result: HIDE
                             )
                         }
                         android.annotation.SystemApi -> {
                             Entry(
                                 client=android.annotation.SystemApi.Client.PRIVILEGED_APPS
-                                result: Showability(show=NO_EFFECT, recursive=NO_EFFECT, forStubsOnly=SHOW, revertItem=null)
+                                result: SHOW_FOR_STUBS
                             )
                             Entry(
                                 client=android.annotation.SystemApi.Client.MODULE_LIBRARIES
-                                result: Showability(show=SHOW, recursive=SHOW, forStubsOnly=NO_EFFECT, revertItem=null)
+                                result: SHOW
                             )
                         }
                     )

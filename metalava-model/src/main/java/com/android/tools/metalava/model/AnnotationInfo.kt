@@ -183,6 +183,9 @@ data class Showability(
 
     /** The item to which this item should be reverted. Null if no such item exists. */
     val revertItem: SelectableItem? = null,
+
+    /** Optional name, makes it easier to understand while testing and debug. */
+    val name: String? = null,
 ) {
     /**
      * Check whether the annotated item should be considered part of the API or not.
@@ -264,6 +267,10 @@ data class Showability(
 
         return Showability(newShow, newRecursive, forStubsOnly)
     }
+
+    override fun toString() =
+        name
+            ?: "Showability(show=$show, recursive=$recursive, forStubsOnly=$forStubsOnly, revertItem=$revertItem)"
 
     companion object {
         /** The annotation does not affect whether an annotated item is shown. */
