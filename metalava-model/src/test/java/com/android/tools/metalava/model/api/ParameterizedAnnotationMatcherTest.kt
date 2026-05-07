@@ -26,9 +26,9 @@ import org.junit.runners.Parameterized
 /**
  * Tests for [AnnotationMatcher].
  *
- * There are two sets of inputs to testing [AnnotationMatcher.matches], the sets of patterns used to
- * build the matcher and the sets of annotations used to test the matcher. There are also some
- * additional methods that need testing which have at least one of those two sets.
+ * There are two sets of inputs to testing [AnnotationMatcher.matchResult], the sets of patterns
+ * used to build the matcher and the sets of annotations used to test the matcher. There are also
+ * some additional methods that need testing which have at least one of those two sets.
  *
  * This test is organized by having one test method for each method or annotations against which the
  * matcher is created and parameterized by the set of patterns and the expected results of those
@@ -36,7 +36,7 @@ import org.junit.runners.Parameterized
  * duplication of tests.
  */
 @RunWith(Parameterized::class)
-class AnnotationMatcherTest(private val params: Params) {
+class ParameterizedAnnotationMatcherTest(private val params: Params) {
 
     enum class TestResult {
         MATCHED,
