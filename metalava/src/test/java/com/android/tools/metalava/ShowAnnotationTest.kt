@@ -33,7 +33,7 @@ class ShowAnnotationTest : DriverTest() {
         check(
             apiSurface = KnownApiSurface.SYSTEM,
             expectedIssues =
-                "src/test/pkg/Foo.java:18: error: @SystemApi APIs must also be marked @hide: method test.pkg.Foo.method4() [UnhiddenSystemApi]",
+                "src/test/pkg/Foo.java:18: error: @android.annotation.SystemApi APIs must also be marked @hide: method test.pkg.Foo.method4() [UnhiddenSystemApi]",
             sourceFiles =
                 arrayOf(
                     java(
@@ -88,7 +88,7 @@ class ShowAnnotationTest : DriverTest() {
             // `--show-unannotated`.
             apiSurface = KnownApiSurface.SYSTEM_WITH_PUBLIC,
             expectedIssues =
-                "src/test/pkg/Foo.java:18: error: @SystemApi APIs must also be marked @hide: method test.pkg.Foo.method4() [UnhiddenSystemApi]",
+                "src/test/pkg/Foo.java:18: error: @android.annotation.SystemApi APIs must also be marked @hide: method test.pkg.Foo.method4() [UnhiddenSystemApi]",
             sourceFiles =
                 arrayOf(
                     java(

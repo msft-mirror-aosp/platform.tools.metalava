@@ -19,7 +19,6 @@ package com.android.tools.metalava
 import com.android.tools.metalava.manifest.Manifest
 import com.android.tools.metalava.manifest.emptyManifest
 import com.android.tools.metalava.model.ANDROIDX_REQUIRES_PERMISSION
-import com.android.tools.metalava.model.ANDROID_ANNOTATION_PREFIX
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.BaseItemVisitor
 import com.android.tools.metalava.model.BaseTypeVisitor
@@ -665,11 +664,8 @@ class ApiAnalyzer(
                             // and a hide annotation on another but is neither a show or hide
                             // annotation.
                             .firstOrNull(AnnotationItem::isShowAnnotation)
-                            // All show annotations must have a non-null string otherwise they
-                            // would not have been matched.
-                            ?.qualifiedName
-                            ?.removePrefix(ANDROID_ANNOTATION_PREFIX)
-                            ?.let { annotationName ->
+                            ?.let { annotation ->
+                                val annotationName = annotation.qualifiedName
                                 reporter.report(
                                     Issues.UNHIDDEN_SYSTEM_API,
                                     item,
