@@ -1170,4 +1170,35 @@ class ApiAnalyzerTest : DriverTest() {
                 """
         )
     }
+
+    @RequiresCapabilities(Capability.KOTLIN)
+    @Test
+    fun `Reference to hidden type in property context parameter`() {
+        check(
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
+                        package test.pkg
+                        /** @hide */
+                        class HiddenType
+                        class Foo {
+                            context(hidden: HiddenType)
+                            val propertyWithContext: Int get() = 0
+                        }
+                        """
+                    )
+                ),
+            expectedIssues =
+                // One `HiddenTypeParameter` error is for the property, one is for the getter.
+                // The `ReferencesHidden` and `UnavailableSymbol` checks look specifically at
+                // methods so the errors are for the getter.
+                """
+                src/test/pkg/HiddenType.kt:5: warning: Parameter hidden references hidden type test.pkg.HiddenType. [HiddenTypeParameter]
+                src/test/pkg/HiddenType.kt:5: warning: Parameter hidden references hidden type test.pkg.HiddenType. [HiddenTypeParameter]
+                src/test/pkg/HiddenType.kt:5: error: Class test.pkg.HiddenType is hidden but was referenced (in parameter type) from public parameter hidden in test.pkg.Foo.getPropertyWithContext(test.pkg.HiddenType hidden) [ReferencesHidden]
+                src/test/pkg/HiddenType.kt:6: warning: Parameter of unavailable type test.pkg.HiddenType in test.pkg.Foo.getPropertyWithContext() [UnavailableSymbol]
+                """
+        )
+    }
 }
