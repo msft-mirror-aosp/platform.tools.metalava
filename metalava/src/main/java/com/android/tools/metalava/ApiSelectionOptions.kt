@@ -283,6 +283,13 @@ class ApiSelectionOptions(
                             )
                         )
                     }
+
+                    // If this is the narrowest API then see if any related API surfaces need to be
+                    // hidden.
+                    if (surface.extends == null) {
+                        // Add hide rules for all the other related surfaces.
+                        addHideRulesForAllOtherRelatedSurfaces(surface, surfacesConfig)
+                    }
                 }
 
                 put(name, surfaceRules)
@@ -297,6 +304,37 @@ class ApiSelectionOptions(
             apiSurfaces,
             rulesBySurfaceName,
         )
+    }
+
+    /**
+     * Add rules to this list that will hide related surfaces that are not currently being tracked.
+     */
+    private fun MutableList<SurfaceSelectionRule>.addHideRulesForAllOtherRelatedSurfaces(
+        surface: ApiSurface,
+        surfacesConfig: ApiSurfacesConfig
+    ) {
+        // Get the tracked surfaces by name.
+        val trackedSurfaces = apiSurfaces.byName
+
+        // Get the set of annotation rules that must be hidden.
+        val rulesToHide =
+            surfacesConfig
+                // Get all API surfaces related to this one.
+                .relatedTo(surfacesConfig.byName[surface.name]!!)
+                // Remove any that are being tracked.
+                .filter { it.name !in trackedSurfaces }
+                // Flatten all the rules.
+                .flatMap { it.selectionCriteria.annotationRules }
+                // Sort by pattern.
+                .sortedBy { it.pattern }
+                .toSet()
+
+        // Hide all the rules that need to be hidden.
+        for (rule in rulesToHide) {
+            add(
+                SurfaceSelectionRule.createAnnotationRule(rule.pattern, Effect.HIDE, rule.recursive)
+            )
+        }
     }
 
     /** Create [ApiSurfaceRules] from the command line options. */

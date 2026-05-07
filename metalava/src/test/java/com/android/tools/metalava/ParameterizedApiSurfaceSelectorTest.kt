@@ -128,6 +128,25 @@ class ParameterizedApiSurfaceSelectorTest :
                                         result: HIDE
                                     )
                                 }
+                                android.annotation.SystemApi -> {
+                                    Entry(
+                                        client=android.annotation.SystemApi.Client.SYSTEM_SERVER
+                                        result: HIDE
+                                    )
+                                    Entry(
+                                        client=android.annotation.SystemApi.Client.PRIVILEGED_APPS
+                                        result: HIDE
+                                    )
+                                    Entry(
+                                        client=android.annotation.SystemApi.Client.MODULE_LIBRARIES
+                                        result: HIDE
+                                    )
+                                }
+                                android.annotation.TestApi -> {
+                                    Entry(
+                                        result: HIDE
+                                    )
+                                }
                             )
                         """,
                     expectedShowUnannotated = true,
@@ -146,6 +165,19 @@ class ParameterizedApiSurfaceSelectorTest :
                                     Entry(
                                         client=android.annotation.SystemApi.Client.PRIVILEGED_APPS
                                         result: SHOW
+                                    )
+                                    Entry(
+                                        client=android.annotation.SystemApi.Client.SYSTEM_SERVER
+                                        result: HIDE
+                                    )
+                                    Entry(
+                                        client=android.annotation.SystemApi.Client.MODULE_LIBRARIES
+                                        result: HIDE
+                                    )
+                                }
+                                android.annotation.TestApi -> {
+                                    Entry(
+                                        result: HIDE
                                     )
                                 }
                             )
@@ -166,6 +198,14 @@ class ParameterizedApiSurfaceSelectorTest :
                                     Entry(
                                         client=android.annotation.SystemApi.Client.PRIVILEGED_APPS
                                         result: SHOW_FOR_STUBS
+                                    )
+                                    Entry(
+                                        client=android.annotation.SystemApi.Client.SYSTEM_SERVER
+                                        result: HIDE
+                                    )
+                                    Entry(
+                                        client=android.annotation.SystemApi.Client.MODULE_LIBRARIES
+                                        result: HIDE
                                     )
                                 }
                                 android.annotation.TestApi -> {
@@ -191,6 +231,23 @@ class ParameterizedApiSurfaceSelectorTest :
                                     Entry(
                                         client=android.annotation.SystemApi.Client.SYSTEM_SERVER
                                         result: SHOW
+                                    )
+                                    Entry(
+                                        client=android.annotation.SystemApi.Client.SYSTEM_SERVER
+                                        result: HIDE
+                                    )
+                                    Entry(
+                                        client=android.annotation.SystemApi.Client.PRIVILEGED_APPS
+                                        result: HIDE
+                                    )
+                                    Entry(
+                                        client=android.annotation.SystemApi.Client.MODULE_LIBRARIES
+                                        result: HIDE
+                                    )
+                                }
+                                android.annotation.TestApi -> {
+                                    Entry(
+                                        result: HIDE
                                     )
                                 }
                             )

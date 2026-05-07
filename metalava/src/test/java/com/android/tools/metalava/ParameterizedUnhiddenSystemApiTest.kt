@@ -67,6 +67,15 @@ class ParameterizedUnhiddenSystemApiTest : DriverTest() {
                               public class Foo {
                                 ctor public Foo();
                                 method public void method1();
+                              }
+                            }
+                        """,
+                    expectedApiForOptions =
+                        """
+                            package test.pkg {
+                              public class Foo {
+                                ctor public Foo();
+                                method public void method1();
                                 method public void method4();
                               }
                             }
