@@ -342,7 +342,11 @@ class CommonParameterKindTest : BaseModelTest() {
             )
         ) {
             val fooClass = codebase.assertClass("test.pkg.Foo")
-            val fooVal = fooClass.assertProperty("foo")
+            val fooVal =
+                fooClass.assertProperty(
+                    "foo",
+                    contextParameterTypeStrings = listOf("java.lang.String")
+                )
             assertThat(fooVal.contextParameters[0].kind).isEqualTo(ParameterKind.CONTEXT)
         }
     }

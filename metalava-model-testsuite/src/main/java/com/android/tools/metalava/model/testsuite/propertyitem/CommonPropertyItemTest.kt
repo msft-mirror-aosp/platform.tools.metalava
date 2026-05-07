@@ -1515,7 +1515,11 @@ class CommonPropertyItemTest : BaseModelTest() {
             val noContextParams = fooClass.assertProperty("noContextParams")
             assertThat(noContextParams.contextParameters).isEmpty()
 
-            val oneContextParam = fooClass.assertProperty("oneContextParam")
+            val oneContextParam =
+                fooClass.assertProperty(
+                    "oneContextParam",
+                    contextParameterTypeStrings = listOf("java.lang.String")
+                )
             assertThat(oneContextParam.contextParameters).hasSize(1)
             oneContextParam.contextParameters[0].checkValues(
                 expectedParent = oneContextParam,
@@ -1524,7 +1528,11 @@ class CommonPropertyItemTest : BaseModelTest() {
                 expectedTypeString = "java.lang.String"
             )
 
-            val twoContextParams = fooClass.assertProperty("twoContextParams")
+            val twoContextParams =
+                fooClass.assertProperty(
+                    "twoContextParams",
+                    contextParameterTypeStrings = listOf("java.lang.String", "int")
+                )
             assertThat(twoContextParams.contextParameters).hasSize(2)
             twoContextParams.contextParameters[0].checkValues(
                 expectedParent = twoContextParams,
@@ -1539,7 +1547,11 @@ class CommonPropertyItemTest : BaseModelTest() {
                 expectedTypeString = "int"
             )
 
-            val unnamedContextParam = fooClass.assertProperty("unnamedContextParam")
+            val unnamedContextParam =
+                fooClass.assertProperty(
+                    "unnamedContextParam",
+                    contextParameterTypeStrings = listOf("java.lang.String")
+                )
             assertThat(unnamedContextParam.contextParameters).hasSize(1)
             unnamedContextParam.contextParameters[0].checkValues(
                 expectedParent = unnamedContextParam,
