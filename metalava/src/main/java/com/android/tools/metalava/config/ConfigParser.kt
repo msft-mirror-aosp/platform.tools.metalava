@@ -34,26 +34,30 @@ class ConfigParser private constructor() : DefaultHandler() {
     /** Errors that were reported while parsing a configuration file. */
     private val errors = StringBuilder()
 
-    private fun recordException(path: String, message: String) {
+    private fun recordException(path: String, lineNumber: Int, message: String) {
         errors.apply {
             append("    ")
             append(path)
+            if (lineNumber > 0) {
+                append(":")
+                append(lineNumber)
+            }
             append(": ")
             append(message)
             append("\n")
         }
     }
 
+    private fun recordException(path: String, message: String) {
+        recordException(path, lineNumber = -1, message)
+    }
+
     private fun recordParseException(exception: SAXParseException) {
-        errors.apply {
-            append("    ")
-            append(exception.systemId)
-            append(":")
-            append(exception.lineNumber)
-            append(": ")
-            append(exception.message)
-            append("\n")
-        }
+        recordException(
+            exception.systemId,
+            exception.lineNumber,
+            exception.message ?: "Unknown error",
+        )
     }
 
     override fun warning(exception: SAXParseException) {
