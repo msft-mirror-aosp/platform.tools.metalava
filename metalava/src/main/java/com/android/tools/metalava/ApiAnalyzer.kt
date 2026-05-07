@@ -102,6 +102,9 @@ class ApiAnalyzer(
 
         /** Configuration for [AnnotationsMerger] instances this needs to create. */
         val annotationsMergerConfig: AnnotationsMerger.Config = AnnotationsMerger.Config(),
+
+        /** Determines whether it is necessary to perform the [Issues.UNHIDDEN_SYSTEM_API] check. */
+        val needUnhiddenSystemApiCheck: Boolean = true,
     )
 
     /** All packages in the API */
@@ -610,7 +613,10 @@ class ApiAnalyzer(
             !reporter.isSuppressed(Issues.REQUIRES_SYSTEM_PERMISSION) &&
                 config.apiSurface == "system" &&
                 !config.manifest.isEmpty()
-        val checkHiddenShowAnnotations = !reporter.isSuppressed(Issues.UNHIDDEN_SYSTEM_API)
+
+        // Only check for hidden show annotations if it is needed and it is not suppressed.
+        val checkHiddenShowAnnotations =
+            config.needUnhiddenSystemApiCheck && !reporter.isSuppressed(Issues.UNHIDDEN_SYSTEM_API)
 
         codebase.accept(
             object :

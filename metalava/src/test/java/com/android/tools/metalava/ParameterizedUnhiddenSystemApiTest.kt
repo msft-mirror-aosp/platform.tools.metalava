@@ -148,7 +148,8 @@ class ParameterizedUnhiddenSystemApiTest : DriverTest() {
     fun `Test api surface configuration`() {
         checkUnhiddenSystemApi(
             apiSurface = params.apiSurface,
-            expectedIssues = params.expectedIssues,
+            // This never expects any UnhiddenSystemApi issues to be reported.
+            expectedIssues = "",
             expectedApi = params.expectedApiForConfig,
         )
     }
