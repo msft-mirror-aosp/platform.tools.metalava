@@ -430,6 +430,49 @@ class ApiSurfacesConfigTest : BaseConfigParserTest() {
         )
     }
 
+    /**
+     * Check that [ApiSurfacesConfig.relatedTo] returns the expected result.
+     *
+     * @param name The name of the surface whose relation is to be checked.
+     * @param expectedSurfaces The list of expected surface names.
+     */
+    private fun ApiSurfacesConfig.assertRelatedTo(
+        name: String,
+        expectedSurfaces: List<String>,
+    ) {
+        val surfaceConfig = getByNameOrError(name) { "unknown `$it`" }
+        assertEquals(expectedSurfaces, relatedTo(surfaceConfig).map { it.name }, "related to $name")
+    }
+
+    @Test
+    fun `Test relatedTo`() {
+        val apiSurfacesConfig =
+            ApiSurfacesConfig(
+                apiSurfaceList =
+                    listOf(
+                        ApiSurfaceConfig(name = "test", extends = "system"),
+                        ApiSurfaceConfig(name = "module-lib", extends = "system"),
+                        ApiSurfaceConfig(name = "public"),
+                        ApiSurfaceConfig(name = "system", extends = "public"),
+                        ApiSurfaceConfig(name = "other"),
+                    ),
+            )
+
+        val related =
+            listOf(
+                "public",
+                "system",
+                "test",
+                "module-lib",
+            )
+
+        for (name in related) {
+            apiSurfacesConfig.assertRelatedTo(name, related)
+        }
+
+        apiSurfacesConfig.assertRelatedTo("other", listOf("other"))
+    }
+
     @Test
     fun `api-surfaces selection criteria config`() {
         roundTrip(

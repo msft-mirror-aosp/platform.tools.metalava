@@ -140,13 +140,25 @@ data class ApiSurfacesConfig(
     }
 
     /**
+     * The order in which an [ApiSurfaceConfig] must be added relative to any connected
+     * [ApiSurfaceConfig].
+     */
+    private enum class FlattenOrder {
+        /** Add the [ApiSurfaceConfig] before flattening any connected [ApiSurfaceConfig]. */
+        PRE,
+
+        /** Add the [ApiSurfaceConfig] after flattening any connected [ApiSurfaceConfig]. */
+        POST,
+    }
+
+    /**
      * Flatten an [ApiSurfaceConfig] hierarchy.
      *
      * The hierarchy is determined by the [edgesProvider] which given an [ApiSurfaceConfig] must
      * return a possibly empty list of reachable [ApiSurfaceConfig].
      *
-     * This will be added to [flattened] after the [ApiSurfaceConfig] reachable by the edges have
-     * been flattened.
+     * If this has a non-null [ApiSurfaceConfig.extends] then this will be called on the
+     * [ApiSurfaceConfig] it references and then this will be added to [flattened].
      *
      * @param flattened the ordered set of [ApiSurfaceConfig]s, such that each [ApiSurfaceConfig]
      *   appears after any [ApiSurfaceConfig] that it [ApiSurfaceConfig.extends]. Any
@@ -155,12 +167,15 @@ data class ApiSurfacesConfig(
      * @param visited the ordered set of names of [ApiSurfaceConfig] that have already been visited
      *   while flattening an [ApiSurfaceConfig] that extends (possibly indirectly) this one. Used to
      *   detect cycles.
+     * @param flattenOrder the relative order in which this [ApiSurfaceConfig] and any
+     *   [ApiSurfaceConfig] reachable through an edge will be added.
      * @param edgesProvider provides a list of [ApiSurfaceConfig] reachable from this
      *   [ApiSurfaceConfig].
      */
     private fun ApiSurfaceConfig.flattenEdges(
         flattened: MutableOrderedSet<ApiSurfaceConfig>,
         visited: MutableSet<String>,
+        flattenOrder: FlattenOrder = FlattenOrder.POST,
         edgesProvider: (ApiSurfaceConfig) -> List<ApiSurfaceConfig>,
     ) {
         // If this has already been added then it is not part of a cycle as it will only have been
@@ -178,15 +193,47 @@ data class ApiSurfacesConfig(
         // Remember this has been visited before visiting a surface this extends.
         visited += name
 
+        if (flattenOrder == FlattenOrder.PRE) {
+            flattened += this
+        }
+
         // Flatten any edges of this surface.
         val edges = edgesProvider(this)
         for (edge in edges) {
-            edge.flattenEdges(flattened, visited, edgesProvider)
+            edge.flattenEdges(flattened, visited, flattenOrder, edgesProvider)
         }
 
-        // Finally, add this to the set. At this point it is guaranteed not to be part of a cycle
-        // as that will have been detected above.
-        flattened += this
+        if (flattenOrder == FlattenOrder.POST) {
+            flattened += this
+        }
+    }
+
+    /**
+     * Finds all [ApiSurfaceConfig] instances related to [targetSurface].
+     *
+     * An [ApiSurfaceConfig] is related to another one, if it extends or is extended by it, either
+     * directly or indirectly.
+     *
+     * This is returned in order from narrowest to widest. Where an API surface is extended by
+     * multiple surfaces the relative order of those is not defined.
+     */
+    fun relatedTo(targetSurface: ApiSurfaceConfig): Collection<ApiSurfaceConfig> {
+        // Create a map from ApiSurfaceConfig to those ApiSurfaceConfigs that directly extend it.
+        val extendedBy =
+            orderedSurfaces.filter { it.extends != null }.groupBy { byName[it.extends]!! }
+
+        // Find the narrowest API surface that all the others extend, directly or indirectly.
+        val narrowest = contributesTo(targetSurface).first()
+
+        return buildSet {
+            narrowest.flattenEdges(
+                this,
+                mutableSetOf(),
+                flattenOrder = FlattenOrder.PRE,
+            ) { surface ->
+                extendedBy[surface] ?: emptyList()
+            }
+        }
     }
 
     /** Validate this object, i.e. check to make sure that the contained objects are consistent. */
