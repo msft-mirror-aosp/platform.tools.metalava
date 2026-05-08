@@ -17,6 +17,7 @@
 package com.android.tools.metalava.config
 
 import com.fasterxml.jackson.annotation.JsonIgnore
+import com.fasterxml.jackson.annotation.JsonValue
 import com.fasterxml.jackson.dataformat.xml.annotation.JacksonXmlProperty
 
 // Neither Kotlin nor Java has an interface for an ordered collection of unique elements, i.e. an
@@ -168,4 +169,53 @@ data class ApiSurfaceConfig(
 
     /** The optional name of the API surface that this surface extends, e.g. `public`. */
     @field:JacksonXmlProperty(isAttribute = true) val extends: String? = null,
+    @field:JacksonXmlProperty(localName = "selection-criteria", namespace = CONFIG_NAMESPACE)
+    val selectionCriteria: SelectionCriteria =
+        SelectionCriteria(unannotated = SelectionCriteriaEffect.SHOW),
+)
+
+/** Enumeration of the possible effects that [SelectionCriteria] may have an on an item. */
+enum class SelectionCriteriaEffect {
+    /** Include the affected item in the API. */
+    SHOW,
+
+    /**
+     * Exclude the affected item from the public API; where public is just the narrowest surface.
+     */
+    HIDE,
+    ;
+
+    /** Name to use when serializing and deserializing this [SelectionCriteriaEffect] instance. */
+    @JsonValue fun forJackson() = name.lowercase()
+}
+
+/**
+ * The criteria that determine what belongs in the API surface represented by the referencing
+ * [ApiSurfaceConfig].
+ */
+data class SelectionCriteria(
+    /**
+     * Determines what is done with items that are not annotated with one of the annotations in
+     * [annotationRules].
+     */
+    @field:JacksonXmlProperty(isAttribute = true) val unannotated: SelectionCriteriaEffect? = null,
+
+    /** Rules that determine what effect an annotation has on its annotated item. */
+    @field:JacksonXmlProperty(localName = "annotation-rule", namespace = CONFIG_NAMESPACE)
+    val annotationRules: List<AnnotationRule> = emptyList(),
+)
+
+/**
+ * A rule that specifies the effect annotations have on annotated items and their enclosed items.
+ */
+data class AnnotationRule(
+    /** Determines which annotation instances are matched by this rule. */
+    @field:JacksonXmlProperty(isAttribute = true) val pattern: String,
+
+    /** The effect that the matching annotation has on its annotated item. */
+    @field:JacksonXmlProperty(isAttribute = true)
+    val effect: SelectionCriteriaEffect = SelectionCriteriaEffect.SHOW,
+
+    /** Determines if [effect] also applies to an annotated item's enclosed items or not. */
+    @field:JacksonXmlProperty(isAttribute = true) val recursive: Boolean = true,
 )

@@ -30,8 +30,8 @@ import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.PropertyItem
-import com.android.tools.metalava.model.SourceFile
-import com.android.tools.metalava.model.TypeAliasItem
+import com.android.tools.metalava.model.TargetLanguage
+import com.android.tools.metalava.model.TargetLanguageSet
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeTransformer
 import com.android.tools.metalava.model.typeUseAnnotationFilter
@@ -51,7 +51,6 @@ import com.android.tools.metalava.model.typeUseAnnotationFilter
 class FilteringApiVisitor(
     val delegate: DelegatedVisitor,
     inlineInheritedFields: Boolean = true,
-    callableComparator: Comparator<CallableItem> = CallableItem.comparator,
     /**
      * Optional lambda for sorting the filtered, list of interface types from a [ClassItem].
      *
@@ -80,6 +79,7 @@ class FilteringApiVisitor(
     private val filterSuperClassType: Boolean = true,
     showUnannotated: Boolean = true,
     private val ignoreEmit: Boolean = false,
+    targetLanguages: Set<TargetLanguage> = TargetLanguageSet.ALL,
 ) :
     ApiVisitor(
         preserveClassNesting = delegate.requiresClassNesting,
@@ -87,9 +87,9 @@ class FilteringApiVisitor(
         // if and only if their containing method is included.
         visitParameterItems = false,
         inlineInheritedFields = inlineInheritedFields,
-        callableComparator = callableComparator,
         apiFilters = apiFilters,
         showUnannotated = showUnannotated,
+        targetLanguages = targetLanguages,
     ),
     ItemVisitor {
 
@@ -170,20 +170,6 @@ class FilteringApiVisitor(
         delegate.visitProperty(filteringProperty)
     }
 
-    override fun visitTypeAlias(typeAlias: TypeAliasItem) {
-        val filteringTypeAlias = FilteringTypeAliasItem(typeAlias)
-        delegate.visitTypeAlias(filteringTypeAlias)
-    }
-
-    /**
-     * [SourceFile] that will filter out anything which is not to be written out by the
-     * [FilteringApiVisitor.delegate].
-     */
-    private inner class FilteringSourceFile(val delegate: SourceFile) : SourceFile by delegate {
-
-        override fun getImports() = delegate.getImports(filterReference)
-    }
-
     /**
      * [ClassItem] that will filter out anything which is not to be written out by the
      * [FilteringApiVisitor.delegate].
@@ -192,9 +178,7 @@ class FilteringApiVisitor(
         val delegate: ClassItem,
     ) : ClassItem by delegate {
 
-        override fun sourceFile() = delegate.sourceFile()?.let { FilteringSourceFile(it) }
-
-        override fun superClass() = superClassType()?.asClass()
+        override fun superClass() = superClassType()?.resolveClass(codebase)
 
         override fun superClassType() =
             if (!filterSuperClassType || preFiltered) delegate.superClassType()
@@ -253,6 +237,21 @@ class FilteringApiVisitor(
                 }
         }
 
+        override val permitTypes: List<ClassTypeItem>
+            get() =
+                if (preFiltered) delegate.permitTypes
+                else
+                    delegate.permitTypes.filter { type ->
+                        val classItem = type.resolveClass(codebase) ?: return@filter false
+                        // Use `filterEmit` instead of `filterReference`. That is because
+                        // `filterEmit` will only match classes that will be emitted as part of the
+                        // same API surface as this class. However, `filterReference` will also
+                        // match classes that are defined in another API surface. The latter would
+                        // not work as sealed classes and their subclasses have to be defined within
+                        // the same API surface as they depend on each other.
+                        filterEmit.test(classItem)
+                    }
+
         override fun constructors() =
             delegate
                 .filteredConstructors(filterReference)
@@ -261,6 +260,9 @@ class FilteringApiVisitor(
 
         override fun fields(): List<FieldItem> =
             delegate.filteredFields(filterReference, showUnannotated).map { FilteringFieldItem(it) }
+
+        override val aliasedType: TypeItem
+            get() = delegate.aliasedType.transform(typeAnnotationFilter)
     }
 
     /**
@@ -338,16 +340,6 @@ class FilteringApiVisitor(
      */
     private inner class FilteringPropertyItem(private val delegate: PropertyItem) :
         PropertyItem by delegate {
-
-        override fun type() = delegate.type().transform(typeAnnotationFilter)
-    }
-
-    /**
-     * [TypeAliasItem] that will filter out anything which is not to be written out by the
-     * [FilteringApiVisitor.delegate].
-     */
-    private inner class FilteringTypeAliasItem(private val delegate: TypeAliasItem) :
-        TypeAliasItem by delegate {
 
         override fun type() = delegate.type().transform(typeAnnotationFilter)
     }

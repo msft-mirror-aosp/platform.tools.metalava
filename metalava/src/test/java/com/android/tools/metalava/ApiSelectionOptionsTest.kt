@@ -46,6 +46,24 @@ Api Selection:
                                              certain kinds of output such as stubs, but not in others, such as the
                                              signature file and API lint.
   --hide-annotation <annotation-filter>      Treat any elements annotated with the given annotation as hidden.
+  --exclude-annotation <annotation-classes>  A comma separated list of fully qualified names of annotation classes that
+                                             must be stripped from metalava's outputs.
+  --pass-through-annotation <annotation-classes>
+                                             A comma separated list of fully qualified names of annotation classes that
+                                             must be passed through unchanged.
+  --suppress-compatibility-meta-annotation <meta-annotation-class>
+                                             Suppress compatibility checks for any elements within the scope of an
+                                             annotation which is itself annotated with the given
+                                             `meta-annotation-class`.
+  --typedefs-in-signatures [none|ref|inline]
+                                             Whether to include typedef annotations in signature files.
+
+                                             none (default) - will not include typedef annotations in signature.
+
+                                             ref - will include just a reference to the typedef class, which is not
+                                             itself part of the API and is not included as a class
+
+                                             inline - will include the constants themselves into each usage site
     """
         .trimIndent()
 
@@ -66,7 +84,7 @@ class ApiSelectionOptionsTest :
     }
 
     /**
-     * Run the test, providing an optional [ApiSelectionOptions] to
+     * Run the test, providing an optional [ApiSurfacesConfig] to
      * [ApiSelectionOptions.apiSurfacesConfigProvider].
      */
     private fun runTestWithConfig(
@@ -77,6 +95,7 @@ class ApiSelectionOptionsTest :
                     listOf(
                         ApiSurfaceConfig(name = "public"),
                         ApiSurfaceConfig(name = "system", extends = "public"),
+                        ApiSurfaceConfig(name = "module-lib", extends = "system"),
                     )
             ),
         test: Result<ApiSelectionOptions>.() -> Unit,
@@ -128,53 +147,80 @@ class ApiSelectionOptionsTest :
             val exception = assertThrows(IllegalStateException::class.java) { options.apiSurfaces }
             assertThat(exception.message)
                 .isEqualTo(
-                    "--api-surface (`unknown`) does not match an <api-surface> in a --config-file, expected one of `public`, `system`"
+                    "--api-surface (`unknown`) does not match an <api-surface> in a --config-file, expected one of `public`, `system`, `module-lib`"
                 )
         }
     }
 
     @Test
-    fun `Test configuring extending surface without --show-annotation option`() {
+    fun `Test configuring extending surface without any show or hide options`() {
         runTestWithConfig(
             ARG_API_SURFACE,
             "system",
         ) {
-            assertThrowsCliError(
-                """Configuration of `<api-surface name="system">` is inconsistent with command line options because `system` extends public which requires that it not show unannotated items but --show-unannotated is true"""
-            ) {
-                options.apiSurfaces
-            }
-        }
-    }
-
-    @Test
-    fun `Test configuring extending surface with --show-annotation option`() {
-        runTestWithConfig(
-            ARG_API_SURFACE,
-            "system",
-            ARG_SHOW_ANNOTATION,
-            ANDROID_SYSTEM_API,
-        ) {
+            // This does not report an error because no command line arguments were provided abd
+            // that could happen because there is an inconsistency or because the caller is just
+            // using the configuration. As they cannot be differentiated the consistency check is
+            // not run and if the inconsistency is significant it will affect some of the output
+            // files.
             options.apiSurfaces.assertBaseWasCreated()
             assertThat(options.apiSurfaces.main.name).isEqualTo("system")
             assertThat(options.apiSurfaces.base?.name).isEqualTo("public")
         }
     }
 
-    @Test
-    fun `Test configuring non-extending surface with --show-annotation option`() {
-        runTestWithConfig(
-            ARG_API_SURFACE,
-            "public",
-            ARG_SHOW_ANNOTATION,
-            ANDROID_SYSTEM_API,
-        ) {
+    private fun checkApiSurfaceMutuallyExclusive(vararg additionalArgs: String) {
+        val args =
+            arrayOf(
+                ARG_API_SURFACE,
+                "system",
+            ) + additionalArgs
+        runTestWithConfig(*args) {
             assertThrowsCliError(
-                """Configuration of `<api-surface name="public">` is inconsistent with command line options because `public` does not extend another surface which requires that it show unannotated items but --show-unannotated is false"""
+                """--api-surface is mutually exclusive with --show-unannotated, --show-annotation, --show-single-annotation, --show-for-stub-purposes-annotation and --hide-annotation"""
             ) {
                 options.apiSurfaces
             }
         }
+    }
+
+    @Test
+    fun `Test mixing --api-surface with --show-unannotated`() {
+        checkApiSurfaceMutuallyExclusive(
+            ARG_SHOW_UNANNOTATED,
+        )
+    }
+
+    @Test
+    fun `Test mixing --api-surface with --show-annotation`() {
+        checkApiSurfaceMutuallyExclusive(
+            ARG_SHOW_ANNOTATION,
+            ANDROID_SYSTEM_API,
+        )
+    }
+
+    @Test
+    fun `Test mixing --api-surface with --show-single-annotation`() {
+        checkApiSurfaceMutuallyExclusive(
+            ARG_SHOW_SINGLE_ANNOTATION,
+            ANDROID_SYSTEM_API,
+        )
+    }
+
+    @Test
+    fun `Test mixing --api-surface with --show-for-stub-purposes-annotation`() {
+        checkApiSurfaceMutuallyExclusive(
+            ARG_SHOW_FOR_STUB_PURPOSES_ANNOTATION,
+            ANDROID_SYSTEM_API,
+        )
+    }
+
+    @Test
+    fun `Test mixing --api-surface with --hide-annotation`() {
+        checkApiSurfaceMutuallyExclusive(
+            ARG_HIDE_ANNOTATION,
+            "android.annotation.Hide",
+        )
     }
 
     @Test

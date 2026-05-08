@@ -19,9 +19,10 @@ package com.android.tools.metalava.model.api.surface
 /** The configured set of [ApiSurface]s. */
 sealed interface ApiSurfaces {
     /**
-     * The list of all [ApiSurface]s.
+     * The list of all [ApiSurface]s that are being tracked, from the narrowest to the widest
+     * ([main]).
      *
-     * If [base] is set then it comes first; [main] is always last.
+     * The narrowest is the one whose [ApiSurface.extends] is null.
      */
     val all: List<ApiSurface>
 

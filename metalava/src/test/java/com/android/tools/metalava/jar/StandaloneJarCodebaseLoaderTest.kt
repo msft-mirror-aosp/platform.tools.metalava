@@ -18,7 +18,10 @@ package com.android.tools.metalava.jar
 
 import com.android.tools.metalava.DriverTest
 import com.android.tools.metalava.ProgressTracker
+import com.android.tools.metalava.model.provider.Capability
+import com.android.tools.metalava.model.testing.RequiresCapabilities
 import com.android.tools.metalava.reporter.ThrowingReporter
+import com.android.tools.metalava.testing.getNoopTracer
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.toTestFile
 import java.io.File
@@ -35,11 +38,13 @@ class StandaloneJarCodebaseLoaderTest : DriverTest() {
         StandaloneJarCodebaseLoader.create(
             disableStderrDumping = false,
             ProgressTracker(),
+            getNoopTracer(),
             ThrowingReporter.INSTANCE,
             sourceModelProvider = codebaseCreatorConfig.creator,
         )
     }
 
+    @RequiresCapabilities(Capability.LOAD_JAR)
     @Test
     fun `Test jar loader freezes codebase`() {
         lateinit var jarFile: File
@@ -65,6 +70,7 @@ class StandaloneJarCodebaseLoaderTest : DriverTest() {
         assertEquals("Cannot modify frozen class test.pkg.Foo", exception.message)
     }
 
+    @RequiresCapabilities(Capability.LOAD_JAR)
     @Test
     fun `Test jar loader does not freeze codebase`() {
         lateinit var jarFile: File
@@ -88,6 +94,7 @@ class StandaloneJarCodebaseLoaderTest : DriverTest() {
         assertTrue(fooClass.modifiers.isFinal(), message = "isFinal after mutation")
     }
 
+    @RequiresCapabilities(Capability.LOAD_JAR)
     @Test
     fun `Test loaded jar depends on class path`() {
         lateinit var classPathJarFile: File

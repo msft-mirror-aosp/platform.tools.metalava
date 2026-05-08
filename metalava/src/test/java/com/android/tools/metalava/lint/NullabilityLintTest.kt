@@ -17,8 +17,6 @@
 package com.android.tools.metalava.lint
 
 import com.android.tools.metalava.DriverTest
-import com.android.tools.metalava.androidxNonNullSource
-import com.android.tools.metalava.androidxNullableSource
 import com.android.tools.metalava.cli.common.ARG_ERROR
 import com.android.tools.metalava.cli.common.ARG_HIDE
 import com.android.tools.metalava.cli.lint.ARG_API_LINT
@@ -27,6 +25,7 @@ import com.android.tools.metalava.libcoreNullableSource
 import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.testing.RequiresCapabilities
 import com.android.tools.metalava.reporter.Issues
+import com.android.tools.metalava.testing.KnownSourceFiles
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
 import org.junit.Test
@@ -44,7 +43,6 @@ class NullabilityLintTest : DriverTest() {
                 src/android/pkg/Foo.java:13: error: Missing nullability on method `getBadValue` return [MissingNullability]
                 src/android/pkg/Foo.java:20: error: Missing nullability on parameter `duration` in method `methodMissingParamAnnotations` [MissingNullability]
                 """,
-            expectedFail = DefaultLintErrorMessage,
             sourceFiles =
                 arrayOf(
                     java(
@@ -74,8 +72,8 @@ class NullabilityLintTest : DriverTest() {
                         }
                     """
                     ),
-                    androidxNullableSource,
-                    androidxNonNullSource
+                    KnownSourceFiles.androidxNullableJavaSource,
+                    KnownSourceFiles.androidxNonNullJavaSource
                 )
         )
     }
@@ -151,7 +149,6 @@ class NullabilityLintTest : DriverTest() {
                 """
                 src/test/pkg/Foo.java:4: error: Missing nullability on method `badTypeVarArrayReturn` return [MissingNullability]
             """,
-            expectedFail = DefaultLintErrorMessage,
             sourceFiles =
                 arrayOf(
                     java(
@@ -162,7 +159,6 @@ class NullabilityLintTest : DriverTest() {
                             public T[] badTypeVarArrayReturn() { return null; }
                         }
                     """
-                            .trimIndent()
                     )
                 )
         )
@@ -207,8 +203,8 @@ class NullabilityLintTest : DriverTest() {
                         }
                     """
                     ),
-                    androidxNullableSource,
-                    androidxNonNullSource
+                    KnownSourceFiles.androidxNullableJavaSource,
+                    KnownSourceFiles.androidxNonNullJavaSource
                 )
         )
     }
@@ -222,7 +218,6 @@ class NullabilityLintTest : DriverTest() {
                 src/test/pkg/MyClass.java:14: error: Missing nullability on method `method4` return [MissingNullability]
                 src/test/pkg/MyClass.java:14: error: Missing nullability on parameter `input` in method `method4` [MissingNullability]
             """,
-            expectedFail = DefaultLintErrorMessage,
             sourceFiles =
                 arrayOf(
                     java(
@@ -255,8 +250,8 @@ class NullabilityLintTest : DriverTest() {
                     }
                     """
                     ),
-                    androidxNullableSource,
-                    androidxNonNullSource
+                    KnownSourceFiles.androidxNullableJavaSource,
+                    KnownSourceFiles.androidxNonNullJavaSource
                 ),
             extraArguments = arrayOf(ARG_HIDE, Issues.INHERIT_CHANGES_SIGNATURE.name),
         )
@@ -322,7 +317,7 @@ class NullabilityLintTest : DriverTest() {
                         }
                     """
                     ),
-                    androidxNonNullSource
+                    KnownSourceFiles.androidxNonNullJavaSource
                 )
         )
     }
@@ -340,7 +335,6 @@ class NullabilityLintTest : DriverTest() {
                 src/test/pkg/Foo.java:19: error: Invalid nullability on type java.lang.String in parameter `y` in method `x`. Parameter in method override cannot use a non-null type when the corresponding type from the super method is platform-nullness. [InvalidNullabilityOverride]
                 """,
             apiLint = "",
-            expectedFail = DefaultLintErrorMessage,
             sourceFiles =
                 arrayOf(
                     java(
@@ -367,8 +361,8 @@ class NullabilityLintTest : DriverTest() {
                         }
                     """
                     ),
-                    androidxNullableSource,
-                    androidxNonNullSource
+                    KnownSourceFiles.androidxNullableJavaSource,
+                    KnownSourceFiles.androidxNonNullJavaSource
                 )
         )
     }
@@ -384,7 +378,6 @@ class NullabilityLintTest : DriverTest() {
                 src/test/pkg/Foo.java:5: error: Missing nullability on parameter `baz` in method `bar` [MissingNullability]
                 """,
             apiLint = "",
-            expectedFail = DefaultLintErrorMessage,
             sourceFiles =
                 arrayOf(
                     java(
@@ -407,8 +400,8 @@ class NullabilityLintTest : DriverTest() {
                         }
                     """
                     ),
-                    androidxNullableSource,
-                    androidxNonNullSource
+                    KnownSourceFiles.androidxNullableJavaSource,
+                    KnownSourceFiles.androidxNonNullJavaSource
                 )
         )
     }
@@ -421,7 +414,6 @@ class NullabilityLintTest : DriverTest() {
                 src/test/pkg/Foo.java:12: error: Invalid nullability on type java.lang.String method `bar` return. Method override cannot use a nullable type when the corresponding type from the super method is non-null. [InvalidNullabilityOverride]
                 """,
             apiLint = "",
-            expectedFail = DefaultLintErrorMessage,
             sourceFiles =
                 arrayOf(
                     java(
@@ -441,8 +433,8 @@ class NullabilityLintTest : DriverTest() {
                         }
                     """
                     ),
-                    androidxNullableSource,
-                    androidxNonNullSource
+                    KnownSourceFiles.androidxNullableJavaSource,
+                    KnownSourceFiles.androidxNonNullJavaSource
                 )
         )
     }
@@ -455,7 +447,6 @@ class NullabilityLintTest : DriverTest() {
                 src/test/pkg/Foo.java:13: error: Invalid nullability on type java.lang.String in parameter `baz` in method `bar`. Parameter in method override cannot use a non-null type when the corresponding type from the super method is nullable. [InvalidNullabilityOverride]
                 """,
             apiLint = "",
-            expectedFail = DefaultLintErrorMessage,
             sourceFiles =
                 arrayOf(
                     java(
@@ -476,8 +467,8 @@ class NullabilityLintTest : DriverTest() {
                         }
                     """
                     ),
-                    androidxNullableSource,
-                    androidxNonNullSource
+                    KnownSourceFiles.androidxNullableJavaSource,
+                    KnownSourceFiles.androidxNonNullJavaSource
                 )
         )
     }
@@ -518,7 +509,6 @@ class NullabilityLintTest : DriverTest() {
     fun `Invalid nullability override in function with generic parameter`() {
         check(
             apiLint = "",
-            expectedFail = DefaultLintErrorMessage,
             expectedIssues =
                 "src/test/pkg/StringProperty.java:5: error: Invalid nullability on type java.lang.String in parameter `arg2` in method `foo`. Parameter in method override cannot use a non-null type when the corresponding type from the super method is platform-nullness. [InvalidNullabilityOverride]",
             sourceFiles =
@@ -541,17 +531,16 @@ class NullabilityLintTest : DriverTest() {
                             }
                         """
                     ),
-                    androidxNonNullSource,
+                    KnownSourceFiles.androidxNonNullJavaSource,
                 )
         )
     }
 
     @RequiresCapabilities(Capability.KOTLIN)
     @Test
-    fun `Nullability overrides in unbounded generics (Object to generic and back)`() {
+    fun `Nullability overrides in unbounded generics - Object to generic and back`() {
         check(
             apiLint = "",
-            expectedFail = DefaultLintErrorMessage,
             expectedIssues =
                 "src/test/pkg/ArrayMap.java:11: error: Invalid nullability on type java.lang.Object in parameter `key` in method `get`. Parameter in method override cannot use a non-null type when the corresponding type from the super method is nullable. [InvalidNullabilityOverride]",
             sourceFiles =
@@ -586,15 +575,15 @@ class NullabilityLintTest : DriverTest() {
 
                     """
                     ),
-                    androidxNonNullSource,
-                    androidxNullableSource,
+                    KnownSourceFiles.androidxNonNullJavaSource,
+                    KnownSourceFiles.androidxNullableJavaSource,
                 )
         )
     }
 
     @RequiresCapabilities(Capability.KOTLIN)
     @Test
-    fun `Nullability overrides in unbounded generics (one super method lacks nullness info)`() {
+    fun `Nullability overrides in unbounded generics - one super method lacks nullness info`() {
         check(
             apiLint = "",
             sourceFiles =
@@ -627,7 +616,7 @@ class NullabilityLintTest : DriverTest() {
                         }
                     """
                     ),
-                    androidxNullableSource
+                    KnownSourceFiles.androidxNullableJavaSource
                 )
         )
     }
@@ -678,7 +667,6 @@ class NullabilityLintTest : DriverTest() {
         check(
             apiLint = "",
             extraArguments = arrayOf(ARG_ERROR, "MissingInnerNullability"),
-            expectedFail = DefaultLintErrorMessage,
             expectedIssues =
                 """
                     src/test/pkg/Foo.java:5: error: Missing nullability on inner type java.lang.String in method `getArray` return [MissingInnerNullability]
@@ -713,7 +701,6 @@ class NullabilityLintTest : DriverTest() {
         check(
             apiLint = "",
             extraArguments = arrayOf(ARG_HIDE, "NullableCollectionElement"),
-            expectedFail = DefaultLintErrorMessage,
             expectedIssues =
                 """
                     src/test/pkg/Foo.java:7: error: Invalid nullability on type java.lang.String in parameter `arg` in method `foo`. Parameter in method override cannot use a non-null type when the corresponding type from the super method is nullable. [InvalidNullabilityOverride]

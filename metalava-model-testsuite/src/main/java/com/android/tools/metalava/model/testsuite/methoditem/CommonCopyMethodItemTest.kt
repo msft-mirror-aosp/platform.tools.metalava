@@ -20,6 +20,7 @@ import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.provider.InputFormat
+import com.android.tools.metalava.model.testing.SupportedInputFormats
 import com.android.tools.metalava.model.testsuite.memberitem.CommonCopyMemberItemTest
 import com.android.tools.metalava.testing.java
 import kotlin.test.assertEquals
@@ -34,6 +35,7 @@ import org.junit.runners.Parameterized
  * These methods do very similar jobs, i.e. take a [MethodItem] from one [ClassItem], create a copy
  * of it in some way, and then add it to another [ClassItem].
  */
+@SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.JAVA)
 class CommonCopyMethodItemTest : CommonCopyMemberItemTest<MethodItem>() {
 
     enum class CopyMethod(
@@ -69,7 +71,8 @@ class CommonCopyMethodItemTest : CommonCopyMemberItemTest<MethodItem>() {
         return (inputFormat in copyMethod.supportedInputFormats)
     }
 
-    override fun getMember(sourceClassItem: ClassItem) = sourceClassItem.assertMethod("method", "")
+    override fun getMember(sourceClassItem: ClassItem) =
+        sourceClassItem.assertMethod("method", emptyList())
 
     override fun copyMember(sourceMemberItem: MethodItem, targetClassItem: ClassItem) =
         copyMethod.copy(sourceMemberItem, targetClassItem)
@@ -218,7 +221,7 @@ class CommonCopyMethodItemTest : CommonCopyMemberItemTest<MethodItem>() {
                           public class Source {
                             method public void method();
                           }
-                          public final class Target implements test.pkg.Source {
+                          public final class Target extends test.pkg.Source {
                           }
                         }
                     """
@@ -240,7 +243,7 @@ class CommonCopyMethodItemTest : CommonCopyMemberItemTest<MethodItem>() {
                     """
                         package test.pkg;
 
-                        public final class Target implements Source {}
+                        public final class Target extends Source {}
                     """
                 ),
             ),
@@ -265,7 +268,7 @@ class CommonCopyMethodItemTest : CommonCopyMemberItemTest<MethodItem>() {
                           public class Source {
                             method public void method();
                           }
-                          @Deprecated public class Target implements test.pkg.Source {
+                          @Deprecated public class Target extends test.pkg.Source {
                           }
                         }
                     """
@@ -289,7 +292,7 @@ class CommonCopyMethodItemTest : CommonCopyMemberItemTest<MethodItem>() {
 
                         /** @deprecated */
                         @Deprecated
-                        public final class Target implements Source {}
+                        public final class Target extends Source {}
                     """
                 ),
             ),
@@ -317,7 +320,7 @@ class CommonCopyMethodItemTest : CommonCopyMemberItemTest<MethodItem>() {
                           @Deprecated public class Source {
                             method public void method();
                           }
-                          public class Target implements test.pkg.Source {
+                          public class Target extends test.pkg.Source {
                           }
                         }
                     """
@@ -341,7 +344,7 @@ class CommonCopyMethodItemTest : CommonCopyMemberItemTest<MethodItem>() {
                     """
                         package test.pkg;
 
-                        public final class Target implements Source {}
+                        public final class Target extends Source {}
                     """
                 ),
             ),
@@ -369,7 +372,7 @@ class CommonCopyMethodItemTest : CommonCopyMemberItemTest<MethodItem>() {
                           public class Source {
                             method @Deprecated public void method();
                           }
-                          public class Target implements test.pkg.Source {
+                          public class Target extends test.pkg.Source {
                           }
                         }
                     """
@@ -392,7 +395,7 @@ class CommonCopyMethodItemTest : CommonCopyMemberItemTest<MethodItem>() {
                     """
                         package test.pkg;
 
-                        public final class Target implements Source {}
+                        public final class Target extends Source {}
                     """
                 ),
             ),

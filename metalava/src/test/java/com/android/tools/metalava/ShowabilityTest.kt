@@ -55,7 +55,7 @@ class ShowabilityTest : DriverTest() {
     }
 
     @Test
-    fun `Recursive hide and non-recursive show (show first)`() {
+    fun `Recursive hide and non-recursive show - show first`() {
         check(
             sourceFiles =
                 arrayOf(
@@ -96,7 +96,7 @@ class ShowabilityTest : DriverTest() {
     }
 
     @Test
-    fun `Recursive hide and non-recursive show (hide first)`() {
+    fun `Recursive hide and non-recursive show - hide first`() {
         check(
             sourceFiles =
                 arrayOf(

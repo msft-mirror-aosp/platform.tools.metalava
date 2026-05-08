@@ -19,6 +19,8 @@ package com.android.tools.metalava.model.testsuite.methoditem
 import com.android.tools.metalava.model.JAVA_LANG_THROWABLE
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PrimitiveTypeItem
+import com.android.tools.metalava.model.provider.InputFormat
+import com.android.tools.metalava.model.testing.SupportedInputFormats
 import com.android.tools.metalava.model.testing.classTypeItem
 import com.android.tools.metalava.model.testing.value.annotationValue
 import com.android.tools.metalava.model.testing.value.arrayValueFromAny
@@ -94,13 +96,14 @@ class CommonMethodItemTest : BaseModelTest() {
             val methodType =
                 codebase
                     .assertClass("test.pkg.Outer.Middle.Inner")
-                    .assertMethod("method", "")
+                    .assertMethod("method", emptyList())
                     .type()
 
             methodType.assertReferencesTypeParameter(oTypeParameter)
         }
     }
 
+    @SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.JAVA)
     @Test
     fun `MethodItem type`() {
         runCodebaseTest(
@@ -158,6 +161,7 @@ class CommonMethodItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.JAVA)
     @Test
     fun `MethodItem superMethods() on simple method`() {
         runCodebaseTest(
@@ -211,6 +215,7 @@ class CommonMethodItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.JAVA)
     @Test
     fun `Test equality of methods with type parameters`() {
         runCodebaseTest(
@@ -245,6 +250,7 @@ class CommonMethodItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.JAVA)
     @Test
     fun `Test throws method type parameter extends Throwable`() {
         runCodebaseTest(
@@ -276,10 +282,11 @@ class CommonMethodItemTest : BaseModelTest() {
             val typeParameterItem = methodItem.typeParameterList.single()
             val throwsType = methodItem.throwsTypes().single()
             throwsType.assertReferencesTypeParameter(typeParameterItem)
-            assertEquals(throwsType.erasedClass!!.qualifiedName(), JAVA_LANG_THROWABLE)
+            assertEquals(throwsType.asErasedClass(codebase)!!.qualifiedName(), JAVA_LANG_THROWABLE)
         }
     }
 
+    @SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.JAVA)
     @Test
     fun `Test throws method type parameter does not extend Throwable`() {
         // This is an error but Metalava should try not to fail on an error.
@@ -313,10 +320,11 @@ class CommonMethodItemTest : BaseModelTest() {
             val throwsType = methodItem.throwsTypes().single()
             throwsType.assertReferencesTypeParameter(typeParameterItem)
             // The type parameter does not extend a throwable type.
-            assertFalse(throwsType.erasedClass!!.extends(JAVA_LANG_THROWABLE))
+            assertFalse(throwsType.asErasedClass(codebase)!!.extends(JAVA_LANG_THROWABLE))
         }
     }
 
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `Test throws method class does not exist`() {
         // This is an error but Metalava should try not to fail on an error.
@@ -339,10 +347,11 @@ class CommonMethodItemTest : BaseModelTest() {
             val methodItem = codebase.assertClass("test.pkg.Test").methods().single()
             val throwsType = methodItem.throwsTypes().single()
             // Neither the class nor throwable class is available.
-            assertNull(throwsType.erasedClass)
+            assertNull(throwsType.asErasedClass(codebase))
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test throws type on kotlin only constructor`() {
         runCodebaseTest(
@@ -366,7 +375,7 @@ class CommonMethodItemTest : BaseModelTest() {
             assertEquals(
                 codebase
                     .assertClass("test.pkg.SingleThrowsType")
-                    .assertConstructor("int")
+                    .assertConstructor(listOf("int"))
                     .throwsTypes()
                     .single()
                     .toTypeString(),
@@ -375,7 +384,7 @@ class CommonMethodItemTest : BaseModelTest() {
             assertContentEquals(
                 codebase
                     .assertClass("test.pkg.MultipleThrowsTypes")
-                    .assertConstructor("int")
+                    .assertConstructor(listOf("int"))
                     .throwsTypes()
                     .map { it.toTypeString() },
                 listOf("java.lang.IllegalStateException", "java.lang.IllegalArgumentException")
@@ -383,13 +392,14 @@ class CommonMethodItemTest : BaseModelTest() {
             assertTrue(
                 codebase
                     .assertClass("test.pkg.NoThrowsTypes")
-                    .assertConstructor("int")
+                    .assertConstructor(listOf("int"))
                     .throwsTypes()
                     .isEmpty()
             )
         }
     }
 
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `Test method default values`() {
         runSourceCodebaseTest(
@@ -454,6 +464,7 @@ class CommonMethodItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `JvmOverloads methods`() {
         val commonSource =
@@ -498,21 +509,25 @@ class CommonMethodItemTest : BaseModelTest() {
             val fooClass = codebase.assertClass("test.pkg.Foo")
 
             // check all overloads for `allOptionalJvmOverloads` are present
-            fooClass.assertMethod("allOptionalJvmOverloads", "")
-            fooClass.assertMethod("allOptionalJvmOverloads", "int")
-            fooClass.assertMethod("allOptionalJvmOverloads", "int,int")
-            fooClass.assertMethod("allOptionalJvmOverloads", "int,int,int")
+            fooClass.assertMethod("allOptionalJvmOverloads", emptyList())
+            fooClass.assertMethod("allOptionalJvmOverloads", listOf("int"))
+            fooClass.assertMethod("allOptionalJvmOverloads", listOf("int", "int"))
+            fooClass.assertMethod("allOptionalJvmOverloads", listOf("int", "int", "int"))
 
             // check all overloads for `someOptionalJvmOverloads` are present
-            fooClass.assertMethod("someOptionalJvmOverloads", "int,int,int")
-            fooClass.assertMethod("someOptionalJvmOverloads", "int,long,int,int")
-            fooClass.assertMethod("someOptionalJvmOverloads", "int,long,int,float,int")
+            fooClass.assertMethod("someOptionalJvmOverloads", listOf("int", "int", "int"))
+            fooClass.assertMethod("someOptionalJvmOverloads", listOf("int", "long", "int", "int"))
+            fooClass.assertMethod(
+                "someOptionalJvmOverloads",
+                listOf("int", "long", "int", "float", "int")
+            )
 
             // check that there aren't any other methods present
             assertEquals(fooClass.methods().size, 7)
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `JvmOverloads with initial vararg parameter`() {
         val commonSource =

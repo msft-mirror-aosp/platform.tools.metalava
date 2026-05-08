@@ -22,6 +22,7 @@ import com.android.tools.metalava.cli.common.existingFile
 import com.android.tools.metalava.cli.common.newFile
 import com.android.tools.metalava.cli.common.progressTracker
 import com.android.tools.metalava.cli.common.stderr
+import com.android.tools.metalava.cli.common.tracer
 import com.android.tools.metalava.jar.StandaloneJarCodebaseLoader
 import com.android.tools.metalava.model.CodebaseFragment
 import com.android.tools.metalava.model.visitors.ApiPredicate
@@ -66,13 +67,10 @@ class JarToJDiffCommand :
             .newFile()
 
     override fun run() {
-        // Make sure that none of the code called by this command accesses the global `options`
-        // property.
-        OptionsDelegate.disallowAccess()
-
         StandaloneJarCodebaseLoader.create(
                 executionEnvironment.disableStderrDumping(),
                 progressTracker,
+                tracer,
                 BasicReporter(stderr)
             )
             .use { jarCodebaseLoader ->
@@ -92,8 +90,12 @@ class JarToJDiffCommand :
                         )
                     }
 
-                createReportFile(progressTracker, codebaseFragment, xmlFile, "JDiff File") {
-                    printWriter ->
+                createOutputFileFromCodebaseFragment(
+                    progressTracker,
+                    codebaseFragment,
+                    xmlFile,
+                    "JDiff File"
+                ) { printWriter ->
                     JDiffXmlWriter(
                         writer = printWriter,
                     )
