@@ -294,7 +294,7 @@ class FlaggedApiEdgeCasesTest : DriverTest() {
     /** Check [flaggedApiInheritance] behavior. */
     private fun checkFlaggedApiInheritance(
         flaggedApiInheritance: FlaggedApiInheritance,
-        expectedApi: String,
+        expectedApiSignature: String,
     ) {
         check(
             format =
@@ -332,7 +332,7 @@ class FlaggedApiEdgeCasesTest : DriverTest() {
                     ),
                     flaggedApiSource
                 ),
-            expectedApiSignature = expectedApi,
+            expectedApiSignature = expectedApiSignature,
             expectedStubFiles =
                 arrayOf(
                     java(
@@ -368,7 +368,7 @@ class FlaggedApiEdgeCasesTest : DriverTest() {
     fun `Test flagged API inheritance in signature files - no inheritance`() {
         checkFlaggedApiInheritance(
             flaggedApiInheritance = FlaggedApiInheritance.NONE,
-            expectedApi =
+            expectedApiSignature =
                 """
                     // Signature format: 6.0
                     // - flagged-api-inheritance=none
@@ -395,7 +395,7 @@ class FlaggedApiEdgeCasesTest : DriverTest() {
         checkFlaggedApiInheritance(
             flaggedApiInheritance = FlaggedApiInheritance.NESTED_CLASSES,
             // TODO(b/362253909): Should be added to nested classes.
-            expectedApi =
+            expectedApiSignature =
                 """
                     // Signature format: 6.0
                     package test.pkg {
