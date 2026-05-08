@@ -231,6 +231,15 @@ class Driver(
                 apiFlags = apiFlags,
                 apiSurfaces = apiSelectionOptions.apiSurfaces,
                 reporter = reporter,
+
+                // Allow hiding when --api-surface is not provided to maintain backwards
+                // compatibility.
+                //
+                // This behavior is a workaround to support AndroidX which does preserve the
+                // RestrictTo annotation.
+                // TODO(b/510724278): Remove, or use something else when AndroidX uses
+                //  --api-surface.
+                hideItemsOnClassPath = apiSelectionOptions.apiSurface == null,
             )
         }
 

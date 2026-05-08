@@ -64,6 +64,7 @@ import com.android.tools.metalava.model.api.ApiSurfaceSelector
 import com.android.tools.metalava.model.api.flags.ApiFlag
 import com.android.tools.metalava.model.api.flags.ApiFlags
 import com.android.tools.metalava.model.api.flags.optionalFlagName
+import com.android.tools.metalava.model.canBeHidden
 import com.android.tools.metalava.model.computeTypeNullability
 import com.android.tools.metalava.model.hasAnnotation
 import com.android.tools.metalava.model.isNonNullAnnotation
@@ -566,6 +567,9 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
     }
 
     override fun getShowabilityForItem(item: SelectableItem): Showability {
+        // Return no effect for items that cannot be hidden.
+        if (!item.canBeHidden()) return Showability.NO_EFFECT
+
         // Iterates over the annotations on the item and computes the showability for the item by
         // combining the showability of each annotation. The basic rules are:
         // * `show=true` beats `show=false`
