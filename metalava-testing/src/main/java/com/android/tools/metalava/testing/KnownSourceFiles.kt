@@ -256,7 +256,7 @@ object KnownSourceFiles {
                 import static java.lang.annotation.ElementType.*;
                 import java.lang.annotation.*;
                 @Target({TYPE, FIELD, METHOD, CONSTRUCTOR, ANNOTATION_TYPE, PACKAGE})
-                @Retention(RetentionPolicy.SOURCE)
+                @Retention(RetentionPolicy.RUNTIME)
                 public @interface SystemApi {
                     enum Client {
                         /**
