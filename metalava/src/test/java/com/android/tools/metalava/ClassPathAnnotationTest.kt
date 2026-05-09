@@ -53,6 +53,15 @@ class ClassPathAnnotationTest : DriverTest() {
                             }
                         """
                     ),
+                    java(
+                        """
+                            package test.jar;
+                            import android.annotation.SystemApi;
+                            @SystemApi
+                            public @interface SystemAnnotation {
+                            }
+                        """
+                    ),
                 )
                 .cacheIn(testFileCacheRule)
     }
@@ -146,5 +155,41 @@ class ClassPathAnnotationTest : DriverTest() {
             )
             assertTrue(field.hidden)
         }
+    }
+
+    @Test
+    fun `test annotation from classpath with --api-surfaces`() {
+        check(
+            // Use system so system API will be used.
+            apiSurface = KnownApiSurface.SYSTEM,
+            classpath = arrayOf(jar),
+            sourceFiles =
+                arrayOf(
+                    KnownSourceFiles.systemApiSource,
+                    java(
+                        """
+                            package test.pkg;
+                            import android.annotation.SystemApi;
+                            import test.jar.SystemAnnotation;
+
+                            @SystemAnnotation
+                            @SystemApi
+                            public class Test {
+                                private Test() {}
+                            }
+                        """
+                    ),
+                ),
+            expectedApiSignature =
+                // TODO(b/510724278): Prior to change https://r.android.com/4065225 this would have
+                //  included @SystemAnnotation.Correct behavior to add missing @SystemAnnotation.
+                """
+                    // Signature format: 5.0
+                    package test.pkg {
+                      public class Test {
+                      }
+                    }
+                """,
+        )
     }
 }
