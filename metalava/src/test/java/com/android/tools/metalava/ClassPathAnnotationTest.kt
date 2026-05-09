@@ -181,12 +181,10 @@ class ClassPathAnnotationTest : DriverTest() {
                     ),
                 ),
             expectedApiSignature =
-                // TODO(b/510724278): Prior to change https://r.android.com/4065225 this would have
-                //  included @SystemAnnotation.Correct behavior to add missing @SystemAnnotation.
                 """
                     // Signature format: 5.0
                     package test.pkg {
-                      public class Test {
+                      @test.jar.SystemAnnotation public class Test {
                       }
                     }
                 """,

@@ -567,14 +567,14 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
     }
 
     override fun getShowabilityForItem(item: SelectableItem): Showability {
-        // Return no effect for items that cannot be hidden.
-        if (!item.canBeHidden()) return Showability.NO_EFFECT
-
         // Iterates over the annotations on the item and computes the showability for the item by
         // combining the showability of each annotation. The basic rules are:
         // * `show=true` beats `show=false`
         // * `recurse=true` beats `recurse=false`
         // * `forStubsOnly=false` beats `forStubsOnly=true`
+
+        // Check whether this item can be hidden.
+        val cannotBeHidden = !item.canBeHidden()
 
         // The resulting showability of the item.
         var itemShowability = Showability.NO_EFFECT
@@ -583,6 +583,9 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
             val showability = annotation.showability
             if (showability == Showability.NO_EFFECT) {
                 // NO_EFFECT has no effect on the result so just ignore it.
+                continue
+            } else if (cannotBeHidden && showability.hide()) {
+                // Hide is ignored as the item cannot be hidden.
                 continue
             }
             itemShowability = itemShowability.combineWith(showability)
