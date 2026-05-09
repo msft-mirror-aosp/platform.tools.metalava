@@ -30,8 +30,11 @@ import kotlin.test.assertTrue
 import org.junit.ClassRule
 import org.junit.Test
 
-/** A test to show the behavior of constants loaded from class path and used in annotations. */
-class ClassPathConstantsInAnnotationTest : DriverTest() {
+/**
+ * A test to show the behavior of annotations where either the annotation class or constants it uses
+ * are loaded from the class path.
+ */
+class ClassPathAnnotationTest : DriverTest() {
     companion object {
         /** Create a [TestFileCache] whose lifespan encompasses all the tests in this class. */
         @ClassRule @JvmField val testFileCacheRule = TestFileCacheRule()
