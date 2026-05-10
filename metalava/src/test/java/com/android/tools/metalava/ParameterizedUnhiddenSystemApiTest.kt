@@ -40,6 +40,7 @@ class ParameterizedUnhiddenSystemApiTest : DriverTest() {
     @EntryPoint
     constructor(
         val apiSurface: KnownApiSurface,
+        val expectedIssuesForConfig: String = "",
         val expectedIssuesForOptions: String = "",
         val expectedApiForConfig: String,
         val expectedApiForOptions: String = expectedApiForConfig,
@@ -82,6 +83,8 @@ class ParameterizedUnhiddenSystemApiTest : DriverTest() {
                 ),
                 TestParams(
                     apiSurface = KnownApiSurface.SYSTEM,
+                    expectedIssuesForConfig =
+                        "src/test/pkg/Foo.java:8: warning: @android.annotation.SystemApi APIs must not be marked @hide: method test.pkg.Foo.method2() (ErrorWhenNew) [HiddenShowAnnotation]",
                     expectedIssuesForOptions =
                         "src/test/pkg/Foo.java:14: error: @android.annotation.SystemApi APIs must also be marked @hide: method test.pkg.Foo.method4() [UnhiddenSystemApi]",
                     expectedApiForConfig =
@@ -96,6 +99,8 @@ class ParameterizedUnhiddenSystemApiTest : DriverTest() {
                 ),
                 TestParams(
                     apiSurface = KnownApiSurface.MODULE_LIB,
+                    expectedIssuesForConfig =
+                        "src/test/pkg/Foo.java:8: warning: @android.annotation.SystemApi APIs must not be marked @hide: method test.pkg.Foo.method2() (ErrorWhenNew) [HiddenShowAnnotation]",
                     expectedIssuesForOptions =
                         "src/test/pkg/Foo.java:14: error: @android.annotation.SystemApi APIs must also be marked @hide: method test.pkg.Foo.method4() [UnhiddenSystemApi]",
                     expectedApiForConfig = "",
@@ -147,8 +152,7 @@ class ParameterizedUnhiddenSystemApiTest : DriverTest() {
     fun `Test api surface configuration`() {
         checkUnhiddenSystemApi(
             apiSurface = params.apiSurface,
-            // This never expects any UnhiddenSystemApi issues to be reported.
-            expectedIssues = "",
+            expectedIssues = params.expectedIssuesForConfig,
             expectedApi = params.expectedApiForConfig,
         )
     }

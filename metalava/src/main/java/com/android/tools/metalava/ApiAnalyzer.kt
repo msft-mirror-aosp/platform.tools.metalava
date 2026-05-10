@@ -658,6 +658,8 @@ class ApiAnalyzer(
 
                     if (checkHiddenShowAnnotations) {
                         checkEnsureShowAnnotationsAreExplicitlyHidden(item)
+                    } else {
+                        checkEnsureShowAnnotationsAreNotExplicitlyHidden(item)
                     }
                 }
 
@@ -746,6 +748,37 @@ class ApiAnalyzer(
                         Issues.UNHIDDEN_SYSTEM_API,
                         item,
                         "@$annotationName APIs must also be marked @hide: ${item.describe()}"
+                    )
+                }
+        }
+    }
+
+    /**
+     * Check to make sure that [item] does not have show annotations without being explicitly
+     * hidden.
+     */
+    private fun checkEnsureShowAnnotationsAreNotExplicitlyHidden(item: SelectableItem) {
+        if (
+            item.hasShowAnnotation() &&
+                // Only check for @hide doc tag. Testing for annotations would complicate this
+                // because
+                // it would be necessary to differentiate between
+                item.documentation?.isHidden == true &&
+                !item.showability.showNonRecursive()
+        ) {
+            item.modifiers
+                .annotations()
+                // Find the first show annotation. Just because item.hasShowAnnotation() is true
+                // does not mean that there must be one show annotation as a revert annotation could
+                // be treated as a show annotation on one item and a hide annotation on another but
+                // is neither a show nor hide annotation.
+                .firstOrNull(AnnotationItem::isShowAnnotation)
+                ?.let { annotation ->
+                    val annotationName = annotation.qualifiedName
+                    reporter.report(
+                        Issues.HIDDEN_SHOW_ANNOTATION,
+                        item,
+                        "@$annotationName APIs must not be marked @hide: ${item.describe()}"
                     )
                 }
         }

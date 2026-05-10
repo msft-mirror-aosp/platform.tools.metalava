@@ -169,6 +169,7 @@ object Issues {
     // and (2) the principle is adopted by the API council
     val REFERENCES_DEPRECATED by Issue(Severity.HIDDEN, Category.API_LINT)
     val UNHIDDEN_SYSTEM_API by Issue(Severity.ERROR, Category.API_LINT)
+    val HIDDEN_SHOW_ANNOTATION by Issue(Severity.WARNING_ERROR_WHEN_NEW, Category.API_LINT)
     val SHOWING_MEMBER_IN_HIDDEN_CLASS by Issue(Severity.ERROR, Category.API_LINT)
     val INVALID_NULLABILITY_ANNOTATION by Issue(Severity.ERROR)
     val REFERENCES_HIDDEN by Issue(Severity.ERROR, Category.API_LINT)
