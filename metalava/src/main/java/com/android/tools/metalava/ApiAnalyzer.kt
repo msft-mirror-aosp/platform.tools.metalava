@@ -656,28 +656,8 @@ class ApiAnalyzer(
                         // TODO: Check opposite (doc tag but no annotation)
                     }
 
-                    if (
-                        checkHiddenShowAnnotations &&
-                            item.hasShowAnnotation() &&
-                            !item.originallyHidden &&
-                            !item.showability.showNonRecursive()
-                    ) {
-                        item.modifiers
-                            .annotations()
-                            // Find the first show annotation. Just because item.hasShowAnnotation()
-                            // is true does not mean that there must be one show annotation as a
-                            // revert annotation could be treated as a show annotation on one item
-                            // and a hide annotation on another but is neither a show or hide
-                            // annotation.
-                            .firstOrNull(AnnotationItem::isShowAnnotation)
-                            ?.let { annotation ->
-                                val annotationName = annotation.qualifiedName
-                                reporter.report(
-                                    Issues.UNHIDDEN_SYSTEM_API,
-                                    item,
-                                    "@$annotationName APIs must also be marked @hide: ${item.describe()}"
-                                )
-                            }
+                    if (checkHiddenShowAnnotations) {
+                        checkEnsureShowAnnotationsAreExplicitlyHidden(item)
                     }
                 }
 
@@ -738,6 +718,37 @@ class ApiAnalyzer(
                 }
             }
         )
+    }
+
+    /**
+     * Check to make sure that [item] does not have show annotations without being explicitly
+     * hidden.
+     *
+     * This is not called when the API surfaces are defined in the configuration file as that
+     * provides enough information to automatically hide items from a related but untracked surface.
+     */
+    private fun checkEnsureShowAnnotationsAreExplicitlyHidden(item: SelectableItem) {
+        if (
+            item.hasShowAnnotation() &&
+                !item.originallyHidden &&
+                !item.showability.showNonRecursive()
+        ) {
+            item.modifiers
+                .annotations()
+                // Find the first show annotation. Just because item.hasShowAnnotation() is true
+                // does not mean that there must be one show annotation as a revert annotation could
+                // be treated as a show annotation on one item and a hide annotation on another but
+                // is neither a show nor hide annotation.
+                .firstOrNull(AnnotationItem::isShowAnnotation)
+                ?.let { annotation ->
+                    val annotationName = annotation.qualifiedName
+                    reporter.report(
+                        Issues.UNHIDDEN_SYSTEM_API,
+                        item,
+                        "@$annotationName APIs must also be marked @hide: ${item.describe()}"
+                    )
+                }
+        }
     }
 
     // TODO: Switch to visitor iteration
