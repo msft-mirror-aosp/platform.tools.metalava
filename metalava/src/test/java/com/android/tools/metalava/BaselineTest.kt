@@ -215,22 +215,20 @@ class BaselineTest : DriverTest() {
                         public void registerOk1Callback(@Nullable Runnable r) { }
                         public void unregisterOk1Callback(@Nullable Runnable r) { }
 
-                        /** @hide */
                         @TestApi
                         public void registerOk2Callback(@Nullable Runnable r) { }
-                        /** @hide */
+
                         @TestApi
                         public void unregisterOk2Callback(@Nullable Runnable r) { }
 
                         // In the Test API, both methods are present
                         public void registerOk3Callback(@Nullable Runnable r) { }
-                        /** @hide */
+
                         @TestApi
                         public void unregisterOk3Callback(@Nullable Runnable r) { }
 
                         public void registerUnpaired1Callback(@Nullable Runnable r) { }
 
-                        /** @hide */
                         @TestApi
                         public void registerUnpaired2Callback(@Nullable Runnable r) { }
                     }

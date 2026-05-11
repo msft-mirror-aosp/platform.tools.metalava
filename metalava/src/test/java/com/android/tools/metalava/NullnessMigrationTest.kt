@@ -716,7 +716,6 @@ class NullnessMigrationTest : DriverTest() {
                             import androidx.annotation.NonNull;
                             import androidx.annotation.Nullable;
 
-                            /** @hide */
                             @android.annotation.SystemApi
                             public class ForSystemUse {
                                 public ForSystemUse(@NonNull String s) {}
@@ -781,7 +780,6 @@ class NullnessMigrationTest : DriverTest() {
                     java(
                         """
                             package test.pkg;
-                            /** */
                             @SuppressWarnings({"unchecked", "deprecation", "all"})
                             public class ForSystemUse {
                             public ForSystemUse(@androidx.annotation.RecentlyNonNull java.lang.String s) { throw new RuntimeException("Stub!"); }

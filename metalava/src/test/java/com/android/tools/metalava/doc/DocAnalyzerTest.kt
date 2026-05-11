@@ -889,9 +889,6 @@ class DocAnalyzerTest : DriverTest() {
                     import android.annotation.SystemApi;
                     public class Test {
                        public static final String UNIT_TEST_1 = "unit.test.1";
-                       /**
-                         * @hide
-                         */
                         @SystemApi
                        public static final String UNIT_TEST_2 = "unit.test.2";
                     }

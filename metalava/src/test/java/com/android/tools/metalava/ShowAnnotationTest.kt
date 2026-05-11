@@ -42,7 +42,7 @@ class ShowAnnotationTest : DriverTest() {
                         public void method1() { }
 
                         /**
-                         * @hide Only for use by WebViewProvider implementations
+                         * Only for use by WebViewProvider implementations
                          */
                         @SystemApi
                         public void method2() { }
@@ -90,7 +90,7 @@ class ShowAnnotationTest : DriverTest() {
                         public void method1() { }
 
                         /**
-                         * @hide Only for use by WebViewProvider implementations
+                         * Only for use by WebViewProvider implementations
                          */
                         @SystemApi
                         public void method2() { }
@@ -142,7 +142,6 @@ class ShowAnnotationTest : DriverTest() {
 
                     /**
                      * Blah blah blah
-                     * @hide
                      */
                     @TestApi
                     public class Bar {

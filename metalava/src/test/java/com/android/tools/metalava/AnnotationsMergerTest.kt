@@ -351,7 +351,6 @@ class AnnotationsMergerTest : DriverTest() {
                         """
                     package test.pkg;
 
-                    /** @hide */
                     @android.annotation.TestApi
                     public interface ForTesting {
                         void foo();
@@ -387,7 +386,6 @@ class AnnotationsMergerTest : DriverTest() {
                     java(
                         """
                     package test.pkg;
-                    /** */
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public interface ForTesting {
                     public void foo();

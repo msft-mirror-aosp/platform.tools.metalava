@@ -856,7 +856,6 @@ class ApiAnalyzerTest : DriverTest() {
                     java(
                         """
                             package test.a;
-                            /** @hide */
                             @android.annotation.SystemApi
                             public class B {}
                         """
@@ -881,7 +880,6 @@ class ApiAnalyzerTest : DriverTest() {
                     java(
                         """
                             package test.a.b;
-                            /** @hide */
                             @android.annotation.SystemApi
                             public class B {}
                         """

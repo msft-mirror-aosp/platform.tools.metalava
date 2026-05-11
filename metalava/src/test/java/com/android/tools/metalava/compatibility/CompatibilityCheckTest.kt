@@ -1875,15 +1875,9 @@ class CompatibilityCheckTest : DriverTest() {
                             public class Inner2 {
                                 private Inner2() { }
 
-                                /**
-                                 * @hide
-                                 */
                                 @SystemApi
                                 public void method() { }
 
-                                /**
-                                 * @hide
-                                 */
                                 @SystemApi
                                 public void addedMethod() { }
                             }
@@ -1906,15 +1900,15 @@ class CompatibilityCheckTest : DriverTest() {
     }
 
     @Test
-    fun `Incompatible Changes in Released System API `() {
+    fun `Incompatible Changes in Released System API`() {
         // Incompatible changes to a released System API should be detected
         // In this case removing final and changing value of constant
         check(
             apiSurface = KnownApiSurface.TEST,
             expectedIssues =
                 """
-                src/android/rolecontrollerservice/RoleControllerService.java:8: error: Method android.rolecontrollerservice.RoleControllerService.sendNetworkScore has removed 'final' qualifier [RemovedFinalStrict]
-                src/android/rolecontrollerservice/RoleControllerService.java:9: error: Binary breaking change: Field android.rolecontrollerservice.RoleControllerService.APP_RETURN_UNWANTED has changed value from 1 to 0 [ChangedValue]
+                src/android/rolecontrollerservice/RoleControllerService.java:7: error: Method android.rolecontrollerservice.RoleControllerService.sendNetworkScore has removed 'final' qualifier [RemovedFinalStrict]
+                src/android/rolecontrollerservice/RoleControllerService.java:8: error: Binary breaking change: Field android.rolecontrollerservice.RoleControllerService.APP_RETURN_UNWANTED has changed value from 1 to 0 [ChangedValue]
                 """,
             sourceFiles =
                 arrayOf(
@@ -1923,7 +1917,6 @@ class CompatibilityCheckTest : DriverTest() {
                     package android.rolecontrollerservice;
                     import android.annotation.SystemApi;
 
-                    /** @hide */
                     @SystemApi
                     public abstract class RoleControllerService {
                         public abstract void onGrantDefaultRoles();
