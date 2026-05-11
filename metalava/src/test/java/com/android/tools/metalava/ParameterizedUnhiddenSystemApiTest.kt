@@ -40,7 +40,7 @@ class ParameterizedUnhiddenSystemApiTest : DriverTest() {
     @EntryPoint
     constructor(
         val apiSurface: KnownApiSurface,
-        val expectedIssues: String = "",
+        val expectedIssuesForOptions: String = "",
         val expectedApiForConfig: String,
         val expectedApiForOptions: String = expectedApiForConfig,
     ) {
@@ -60,7 +60,6 @@ class ParameterizedUnhiddenSystemApiTest : DriverTest() {
             listOf(
                 TestParams(
                     apiSurface = KnownApiSurface.PUBLIC,
-                    expectedIssues = "",
                     expectedApiForConfig =
                         """
                             package test.pkg {
@@ -83,21 +82,21 @@ class ParameterizedUnhiddenSystemApiTest : DriverTest() {
                 ),
                 TestParams(
                     apiSurface = KnownApiSurface.SYSTEM,
-                    expectedIssues =
+                    expectedIssuesForOptions =
                         "src/test/pkg/Foo.java:14: error: @android.annotation.SystemApi APIs must also be marked @hide: method test.pkg.Foo.method4() [UnhiddenSystemApi]",
                     expectedApiForConfig =
                         """
-                    package test.pkg {
-                      public class Foo {
-                        method public void method2();
-                        method public void method4();
-                      }
-                    }
-                """,
+                            package test.pkg {
+                              public class Foo {
+                                method public void method2();
+                                method public void method4();
+                              }
+                            }
+                        """,
                 ),
                 TestParams(
                     apiSurface = KnownApiSurface.MODULE_LIB,
-                    expectedIssues =
+                    expectedIssuesForOptions =
                         "src/test/pkg/Foo.java:14: error: @android.annotation.SystemApi APIs must also be marked @hide: method test.pkg.Foo.method4() [UnhiddenSystemApi]",
                     expectedApiForConfig = "",
                 ),
@@ -158,7 +157,7 @@ class ParameterizedUnhiddenSystemApiTest : DriverTest() {
     fun `Test api surface options`() {
         checkUnhiddenSystemApi(
             extraArguments = params.apiSurface.commandLineOptions.toTypedArray(),
-            expectedIssues = params.expectedIssues,
+            expectedIssues = params.expectedIssuesForOptions,
             expectedApi = params.expectedApiForOptions,
         )
     }
