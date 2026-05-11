@@ -61,7 +61,9 @@ interface PropertyItem : MemberItem, TypeParameterListOwner, InheritableItem {
         duplicate: Boolean,
     ) =
         containingClass().findCorrespondingItemIn(codebase)?.properties()?.find {
-            it.name() == name()
+            it.name() == name() &&
+                equalReceivers(receiver, it.receiver) &&
+                equalContextParameters(contextParameters, it.contextParameters)
         }
 
     private fun receiverString(): String =
