@@ -39,9 +39,9 @@ class ApiSurfaceSelector(
 
     /**
      * Associates an annotation pattern, e.g. `--show-annotation android.annotation.TestApi` with
-     * its [Showability].
+     * its [Result].
      */
-    internal val matcher: AnnotationMatcher<Showability>
+    internal val matcher: AnnotationMatcher<Result>
 
     init {
         var hasShowUnannotatedOnMain = false
@@ -49,8 +49,19 @@ class ApiSurfaceSelector(
         var hasHideAnnotations = false
 
         val matcherRules = buildList {
-            fun addMatcherRule(annotated: SelectAnnotated, showability: Showability) {
-                add(AnnotationMatcher.Rule(annotated.annotationPattern, showability))
+            fun addMatcherRule(
+                annotated: SelectAnnotated,
+                showability: Showability,
+            ) {
+                add(
+                    AnnotationMatcher.Rule(
+                        annotated.annotationPattern,
+                        Result(
+                            showability.ordinal,
+                            showability,
+                        )
+                    )
+                )
             }
             val apiSurfaces = apiSurfaceRules.apiSurfaces
 
@@ -117,7 +128,19 @@ class ApiSurfaceSelector(
      * Compute the [Showability] for [annotationItem], returns `null` if [annotationItem] does not
      * affect API selection.
      */
-    fun showability(annotationItem: AnnotationItem) = matcher.matchResult(annotationItem)
+    fun showability(annotationItem: AnnotationItem) =
+        matcher.matchResult(annotationItem)?.showability
+
+    /** Result of matching an [AnnotationItem] against the set of rules. */
+    internal data class Result(
+        /** The order of the result. */
+        val ordinal: Int,
+
+        /** The [Showability] of the [AnnotationItem]. */
+        val showability: Showability,
+    ) {
+        override fun toString() = showability.toString()
+    }
 
     companion object {
         /**
@@ -182,7 +205,7 @@ class ApiSurfaceSelector(
          * Comparator that sorts [AnnotationMatcher.Rule] by
          * [AnnotationMatcher.Rule.annotationPattern].
          */
-        private val patternComparator: Comparator<AnnotationMatcher.Rule<Showability>> =
+        private val patternComparator: Comparator<AnnotationMatcher.Rule<Result>> =
             Comparator.comparing { it.annotationPattern }
 
         /**
@@ -190,7 +213,7 @@ class ApiSurfaceSelector(
          * [patternComparator]
          */
         private val comparator =
-            Comparator.comparing<AnnotationMatcher.Rule<Showability>, Int> {
+            Comparator.comparing<AnnotationMatcher.Rule<Result>, Int> {
                     // First sort so that HIDE is last. That is because SHOW overrides HIDE.
                     it.result.ordinal
                 }
