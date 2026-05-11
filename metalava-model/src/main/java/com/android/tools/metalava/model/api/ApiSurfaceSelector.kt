@@ -174,6 +174,10 @@ class ApiSurfaceSelector(
                 HIDE to 3,
             )
 
+        /** Get the ordinal number for one of the above [Showability] instances. */
+        private val Showability.ordinal
+            get() = showabilityOrdinal[this]!!
+
         /**
          * Comparator that sorts [AnnotationMatcher.Rule] by
          * [AnnotationMatcher.Rule.annotationPattern].
@@ -188,7 +192,7 @@ class ApiSurfaceSelector(
         private val comparator =
             Comparator.comparing<AnnotationMatcher.Rule<Showability>, Int> {
                     // First sort so that HIDE is last. That is because SHOW overrides HIDE.
-                    showabilityOrdinal[it.result]!!
+                    it.result.ordinal
                 }
                 // Then sort from longest (most specific pattern) to shortest. That is because a
                 // longer more specific pattern should be matched before a shorter, less specific
