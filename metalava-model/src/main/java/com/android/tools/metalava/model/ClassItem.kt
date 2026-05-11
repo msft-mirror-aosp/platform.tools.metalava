@@ -419,8 +419,8 @@ interface ClassItem :
     }
 
     /**
-     * Searches for a property with the [template]'s name and receiver in the class, including
-     * searching super classes and interfaces if specified.
+     * Searches for a property with the [template]'s name, receiver, and context parameters in the
+     * class, including searching super classes and interfaces if specified.
      */
     fun findProperty(
         template: PropertyItem,
@@ -430,7 +430,11 @@ interface ClassItem :
         properties()
             .firstOrNull {
                 it.name() == template.name() &&
-                    PropertyItem.equalReceivers(template.receiver, it.receiver)
+                    PropertyItem.equalReceivers(template.receiver, it.receiver) &&
+                    PropertyItem.equalContextParameters(
+                        template.contextParameters,
+                        it.contextParameters
+                    )
             }
             ?.let {
                 return it

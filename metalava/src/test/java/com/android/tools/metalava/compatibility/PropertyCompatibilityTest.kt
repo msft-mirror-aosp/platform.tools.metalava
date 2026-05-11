@@ -624,4 +624,45 @@ class PropertyCompatibilityTest : DriverTest() {
                 """,
         )
     }
+
+    @Test
+    fun `Adding and removing property with context parameter similar to parent property`() {
+        // The properties on Foo have context parameters, the properties on Parent do not. The
+        // compatibility check should not treat the Foo properties as overrides of the Parent
+        // properties even though the properties otherwise have the same signature.
+        check(
+            extraArguments = arrayOf(ARG_ERROR_CATEGORY, "Compatibility"),
+            checkCompatibilityApiReleased =
+                """
+                // Signature format: 5.0
+                package test.pkg {
+                  public class Foo extends test.pkg.Parent {
+                    property public int removeFromFoo(context String s);
+                  }
+                  public class Parent {
+                    property public int addToFoo;
+                    property public int removeFromFoo;
+                  }
+                }
+                """,
+            signatureSource =
+                """
+                // Signature format: 5.0
+                package test.pkg {
+                  public class Foo extends test.pkg.Parent {
+                    property public int addToFoo(context String s);
+                  }
+                  public class Parent {
+                    property public int addToFoo;
+                    property public int removeFromFoo;
+                  }
+                }
+                """,
+            expectedIssues =
+                """
+                load-api.txt:4: error: Added property test.pkg.Foo#addToFoo(context java.lang.String) [AddedProperty]
+                released-api.txt:4: error: Source breaking change: Removed property test.pkg.Foo#removeFromFoo(context java.lang.String) [RemovedProperty]
+                """,
+        )
+    }
 }
