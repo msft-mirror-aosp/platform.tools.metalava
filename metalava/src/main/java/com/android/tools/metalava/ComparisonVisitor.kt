@@ -622,11 +622,21 @@ object CodebaseComparator {
                             // If the properties have the same name, additionally check the receiver
                             // types.
                             delta =
-                                item1.receiver?.let { receiver1 ->
-                                    item2.receiver?.let { receiver2 ->
-                                        receiver1.toTypeString().compareTo(receiver2.toTypeString())
-                                    } ?: -1
-                                } ?: 1
+                                when (val receiver1 = item1.receiver) {
+                                    null ->
+                                        when (item2.receiver) {
+                                            null -> 0
+                                            else -> 1
+                                        }
+                                    else ->
+                                        when (val receiver2 = item2.receiver) {
+                                            null -> -1
+                                            else ->
+                                                receiver1
+                                                    .toTypeString()
+                                                    .compareTo(receiver2.toTypeString())
+                                        }
+                                }
                         }
                         delta
                     }
