@@ -1633,4 +1633,75 @@ class CommonPropertyItemTest : BaseModelTest() {
             assertThat(withContextParam.hashCode()).isNotEqualTo(withoutContextParam.hashCode())
         }
     }
+
+    @SupportedInputFormats(InputFormat.KOTLIN, InputFormat.SIGNATURE)
+    @Test
+    fun `Test findCorrespondingItemIn for properties`() {
+        val kotlinFile =
+            kotlin(
+                """
+                package test.pkg
+                class Foo {
+                    val foo: Int = 0
+                    val String.foo: Int get() = 0
+                    context(s: String) val foo: Int get() = 0
+                }
+                """
+            )
+        val signatureFile =
+            signature(
+                """
+                // Signature format: 5.0
+                package test.pkg {
+                  public final class Foo {
+                    property public int foo;
+                    property public int String.foo;
+                    property public int foo(context String s);
+                  }
+                }
+                """
+            )
+        // Use `runCodebaseTest` twice to create two separate codebases for testing
+        runCodebaseTest(kotlinFile, signatureFile) {
+            // This is the codebase created by the first `runCodebaseTest`
+            val previousCodebase = codebase
+            runCodebaseTest(kotlinFile, signatureFile) {
+                // This is the codebase created by the second `runCodebaseTest`
+                val currentCodebase = codebase
+                // Verify that there are two separate codebases
+                assertThat(previousCodebase).isNotSameInstanceAs(currentCodebase)
+
+                val previousClass = previousCodebase.assertClass("test.pkg.Foo")
+                val currentClass = currentCodebase.assertClass("test.pkg.Foo")
+
+                val previousRegularVal = previousClass.assertProperty("foo")
+                val currentRegularVal = currentClass.assertProperty("foo")
+                assertThat(currentRegularVal.findCorrespondingItemIn(previousCodebase))
+                    .isSameInstanceAs(previousRegularVal)
+
+                val previousExtensionVal = previousClass.assertProperty("foo", "java.lang.String")
+                val currentExtensionVal = currentClass.assertProperty("foo", "java.lang.String")
+                assertThat(currentExtensionVal.findCorrespondingItemIn(previousCodebase))
+                    .isSameInstanceAs(previousExtensionVal)
+
+                val previousContextVal =
+                    previousClass.assertProperty(
+                        "foo",
+                        contextParameterTypeStrings = listOf("java.lang.String")
+                    )
+                val currentContextVal =
+                    currentClass.assertProperty(
+                        "foo",
+                        contextParameterTypeStrings = listOf("java.lang.String")
+                    )
+                assertThat(currentContextVal.findCorrespondingItemIn(previousCodebase))
+                    .isSameInstanceAs(previousContextVal)
+
+                val previousContextParam = previousContextVal.contextParameters[0]
+                val currentContextParam = currentContextVal.contextParameters[0]
+                assertThat(currentContextParam.findCorrespondingItemIn(previousCodebase))
+                    .isSameInstanceAs(previousContextParam)
+            }
+        }
+    }
 }

@@ -60,7 +60,16 @@ interface ParameterItem :
                     )
                     ?.parameters()
                     ?.getOrNull(parameterIndex)
-            else -> null // TODO: handle property
+            is PropertyItem ->
+                parent
+                    .findCorrespondingItemIn(
+                        codebase,
+                        superMethods = superMethods,
+                        duplicate = duplicate,
+                    )
+                    ?.contextParameters
+                    ?.getOrNull(parameterIndex)
+            else -> error("Unexpected parent of type ${parent::class.java} for $this")
         }
 
     /** The containing callable. */
