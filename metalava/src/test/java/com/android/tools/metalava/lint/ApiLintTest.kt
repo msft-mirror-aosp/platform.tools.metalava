@@ -1534,6 +1534,36 @@ class ApiLintTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
+    @Test
+    fun `Check context first for function with context parameters`() {
+        check(
+            apiLint = "", // enabled
+            // TODO(b/512120881): there should not be an error for the `okCallExtension`
+            expectedIssues =
+                """
+                src/android/pkg/test.kt:5: error: Context is distinct, so it must be the first argument (method `badCall`) [ContextFirst]
+                src/android/pkg/test.kt:7: error: Context is distinct, so it must be the first argument (method `okCallExtension`) [ContextFirst]
+                src/android/pkg/test.kt:8: error: Context is distinct, so it must be the first argument (method `badCallExtension`) [ContextFirst]
+                """,
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
+                    package android.pkg
+                    import android.content.Context
+
+                    context(s: String) fun okCall(context: Context, value: Int) {}
+                    context(s: String) fun badCall(value: Int, context: Context) {}
+
+                    context(s: String) fun String.okCallExtension(context: Context, value: Int) {}
+                    context(s: String) fun String.badCallExtension(value: Int, context: Context) {}
+                    """
+                    ),
+                )
+        )
+    }
+
     @Test
     fun `Check listener last`() {
         check(

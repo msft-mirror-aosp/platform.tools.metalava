@@ -75,6 +75,7 @@ import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.MultipleTypeVisitor
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
+import com.android.tools.metalava.model.ParameterKind
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.PrimitiveTypeItem.Primitive
 import com.android.tools.metalava.model.PropertyItem
@@ -2370,11 +2371,15 @@ private constructor(
 
     private fun checkContextFirst(callable: CallableItem) {
         val parameters = callable.parameters()
-        // The first parameter for a Kotlin extension method is the receiver
+        // Skip context and receiver parameters (
         val effectivelyFirstParameterPosition =
-            if (callable is MethodItem && callable.isExtensionMethod()) 1 else 0
+            callable.parameters().indexOfFirst { it.kind == ParameterKind.VALUE }
         val effectivelySecondParameterPosition = effectivelyFirstParameterPosition + 1
-        if (parameters.size <= effectivelySecondParameterPosition) return
+        if (
+            effectivelyFirstParameterPosition == -1 ||
+                parameters.size <= effectivelySecondParameterPosition
+        )
+            return
         val firstParameterTypeString =
             parameters[effectivelyFirstParameterPosition].type().toTypeString()
         if (firstParameterTypeString != "android.content.Context") {
