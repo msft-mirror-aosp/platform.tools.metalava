@@ -932,6 +932,102 @@ class KotlinInteropChecksTest : DriverTest() {
 
     @RequiresCapabilities(Capability.KOTLIN)
     @Test
+    fun `Check usage of value class type without JvmName for context parameters`() {
+        check(
+            apiLint = "", // enabled
+            expectedIssues =
+                """
+                src/test/pkg/IntValue.kt:4: error: Method funNoJvmName with parameter iv of value class type should use JvmName to be usable for Java clients [ValueClassUsageWithoutJvmName]
+                src/test/pkg/IntValue.kt:8: error: Property valNoJvmName with value class context parameter type `test.pkg.IntValue` should use `@get:JvmName` to have a usable getter for Java clients [ValueClassUsageWithoutJvmName]
+                """,
+            extraArguments =
+                arrayOf(
+                    ARG_HIDE,
+                    "ValueClassDefinition",
+                    ARG_ERROR,
+                    "ValueClassUsageWithoutJvmName",
+                ),
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
+                        package test.pkg
+                        @JvmInline value class IntValue(val value: Int)
+                        class Foo {
+                            context(s: String, iv: IntValue, i: Int) fun funNoJvmName() = Unit
+                            @JvmName("funWithJvmName")
+                            context(s: String, iv: IntValue, i: Int) fun funWithJvmName() = Unit
+
+                            context(s: String, iv: IntValue, i: Int) val valNoJvmName get() = 0
+                            @get:JvmName("getValWithJvmName")
+                            context(s: String, iv: IntValue, i: Int) val valWithJvmName get() = 0
+                        }
+                        """
+                    )
+                ),
+            compiledSourceJar =
+                base64gzip(
+                    "test.jar",
+                    // kotlinc version info: kotlinc-jvm 2.3.20 (JRE 21.0.9+10-b1163.91)
+                    "" +
+                        "H4sIAAAAAAAA/42WZ1DT6RbG/0RACMkCISAsXbnIBROiNEMR0CWhJbKAlFBM" +
+                        "DEV6DXWDtAUVgYihKFUBC0WQjqCoiKI0KYKUhQABglRDR2QX94Orzlz3nnfO" +
+                        "t3eec+bMPM/8zEz2ccIBHh4eAABkga8LDkABnIGlPsIIj1HG6eONMAYWlkgc" +
+                        "5owlF8AB3O6E7b4GgBVce5upCQLZDTVBKHa2d1Wao/pUGFP+SGPcESNcN6Wo" +
+                        "ynzZGOGnaNzermS13Kn86lX75NTEFAgwM9nPUyb03zL03iSNvTb7n3scAHiB" +
+                        "QOeAQGVfD1dlI+9AK5InxRlJ9iQFBHxZhWpp4iN+Br67uOahnSNHvoMjH9aT" +
+                        "fjMU2uetUEiTL+Cl430JhpdloUfkO1uvP1fWJhe3yYgs89mUczzQT60AeFMu" +
+                        "GivESjbxynaKJS+0XqJhNvwW0WNbi8Gd2U1/fvrED9R+qNcbqZbQsBtDOCcW" +
+                        "2aHacEog2bylDISKnXpx4fxkh2QxCyMgYGZsNYyVoXWKgm5ahR+GQAUVfjX8" +
+                        "hSt6sWaBBzLTRewCQ+qq1WpJ1ia9QYWOInUZ6se2HGvWxbYc3tci1BfYaW8v" +
+                        "Eg1lfuu6P7TYiM3Pk02KBUs2g05lm7olD2ZFJzC9+uesKCZETap67yAz4pYt" +
+                        "NB31us4o6sOKTU6QBPmlX5D99oWX6YMfhHsq8mOe/L6KBp+viy6eD0/kVBMv" +
+                        "zIrjgBQVLFNgfsOBNenudmnK52isX9ETOvCep4oPCEL0oslSElhM+FpGP206" +
+                        "9RcrGRdqt2pbEr9aijr7U0tuh7awWebbjiGVLpPmOZ6AVS/3qBsNXmqcMNd8" +
+                        "wy11VestbTNoLar5uE9tmZmZIFPxfQvhrZ94xy07j80qOt47mTSd1T+hXveS" +
+                        "uHFP2g40dM9j6qLrEGrz54qIhHixZ6+W+kcqHDoWqxQHp6xa7vbE2amOom0e" +
+                        "2Ae0BeIqXhkr6flg2AIMDrpz+oFVAlMl05pu4C24vTL5qLhIIrWoL3nDcrvg" +
+                        "/l1z3m6JfLTpikyHOXorjLQa4oOZfj5hdrCkjd7OhY+A7E/NkyJI9QoPYV3h" +
+                        "DjgurAFee2du+FpZ9Gio6UDa5DbwsXKtrYZCuzWxLWC7ZtFfl2OTGPxAeOIa" +
+                        "WJGk489OpJlm0PManmtqjo5Q7omOIFZvsOVa812ce921j2q0iVjXW6m2cVWS" +
+                        "VkY1fiqpd/ELbin5GE4p7feEl+5X90kp7ijysC6JXngXGNZEKK2/7WERdW8z" +
+                        "5X3HoNDORp7wACoWZXvipkOa2m206gelPqqVdG6P6PoV2Jxj5EykaGmkgq6g" +
+                        "7iaOzahk8rHm4utoomg9RUpk+mo7B1Ka8Tb3UbsOTc5x5ThPRMiJVkpu1DNI" +
+                        "km++LmZW/vYM86X9XDlecnw64qze3UynovCOx3L1uxmOsDBERDv5oWStvTv7" +
+                        "dOuSAHj+tNQpKUZifd/mRiO0Zi3MmMx5bJufe5h2yKkAlctdtkizNGUgR9lP" +
+                        "65Hzws4nr2EzFo66x2OpmEb2M8qr5C7+3I3mt5dOteOufOJeSw/wGHhh3mBT" +
+                        "NMAZjZppOOe4Xn31XsQZpwbnVbnRp9FL1BjV8UoWX+tan6zIxznhlpQD8Blp" +
+                        "mwuPNB3kO2dL5EZbwqkbCYUvIvTkNoWio3LeycLCx6usjmovFyaNU5ciYOI5" +
+                        "4Ry53Y244nhVcfjDxqjIKH4IE1rCuKrvvPvmCdbmj0jf8rjD4qJBeejNd/rP" +
+                        "xWcknSRiJWIlR9aOBLMc0Bl+qCmZBcZlVwlf1Kb05zhCSLhb63MCwPr+H8UR" +
+                        "7Os4wvj4fJdEqZYmFn16Arvytik0h7QjedqWy1HgxxUMPr42xWowtPq+CCOM" +
+                        "QXeYOPbRsCR7kI7t3IV0OWq7hZYrJO8qtOV4RnJVgc2vz+bk7G7P5cwyN3Kl" +
+                        "dTlGmg/FZUFiA3VV5xaN4deJEHxzMrV2Kp6yQakW7CvgzX4a0n4KmYtiBayk" +
+                        "SnAT37U+cWpt9UKKsgt39dog5KUGEpqQOOzcJDmSpMHcxkwhmjftZ2V2H84v" +
+                        "lz+eD10RjlMqvGsRLB5VEvSbFHiAv9lwOwVbkH7IdrGGAE/j5QuNm3WRs9MO" +
+                        "FPcbnroJ0bw55v/IrEWoUd70OMTVfVi/9PrJsU3J1zESYvc37rxR8tsKMS96" +
+                        "LXhlSIF4hcSs2xfzgmzcmv90Frg7GmzvfUe4l4O+7W9ayvk69tViiA5NuInC" +
+                        "Fjp44yR/wMXC8pdsRdpumjI11VqrfzZCTW3WHVT4zhLsULZ+VanUcKgfRFZp" +
+                        "0KqsUb85eKOygeyRhr9MYHpVyzXAkgy0YoQatBIIV3VULlDVj6VNs4r58C7G" +
+                        "Sj+VuBnExBk0e4smGanHMGWMEpzSCrKJ/p0CJDZ4pUdb1jggrj8ti1RNINxL" +
+                        "4YcWF62feABPPc+L7F6nvbB84Z8FuomFrSZY5GOzozVvG9zGowbG3kDy90NP" +
+                        "U7EDPWdqMxM+LtJvHDzh7zCoM6aFM3q0rD10cNL3Urx+/fB97mxo0xDYssFA" +
+                        "renMBy37UovJeYIGvVEyhNTOdbg34rSuzqalaKckRavKowz7Bx5hM6444fSe" +
+                        "gJ6+yHV+lVrsGul+pyt72oBQX5ROX3uhYXP2TPo4sgNzrm82F8QM+0k0FlcR" +
+                        "ecS2inNHE+o+KiG2m6QSP86tD9/BdP3ndyVEcqWRodBkhkxsj7xRr1/uagk+" +
+                        "8xRLh8tUMDMCpj7X58kPF1/IzvdzFOjVZSkTNRHrOGOfNdaaMnazkrrTf6Kp" +
+                        "ustnYcXuz7KgONaqUPfUaVxwwcj1yZ2fpeRXQGmG/W4zBx0mCnEsKWR43QRJ" +
+                        "xFrHvpnCH5AxVtCk4ewbIEQG1TxBRHFwnGIE3erNPFB3CJXDugayjZLIroxU" +
+                        "8tUnEvIMQ3e4PtuOkZe7jtwHAE3cP7Kd+J7tvtCIF8nNG+nhE+jp5n3Wy8eJ" +
+                        "4un8xX9kIpHostfnIt8Q857ntQB/k4a1dGgfbE9F9G/S4ADBgX+mfE0hn5nn" +
+                        "2/pXAvpe7usU+Ywu/9TFvf43kPle7evjwL5RO8AF/CiHvhf6+gLi3wgl8QD/" +
+                        "12XNTLi4P//n3HvHOQCA/VkY+AtVQyekQAoAAA=="
+                ),
+        )
+    }
+
+    @RequiresCapabilities(Capability.KOTLIN)
+    @Test
     fun `Check usage of value class type in constructor parameters`() {
         check(
             apiLint = "",
