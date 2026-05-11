@@ -50,6 +50,7 @@ class ApiSurfaceSelector(
 
         val matcherRules = buildList {
             fun addMatcherRule(
+                surface: ApiSurface,
                 annotated: SelectAnnotated,
                 showability: Showability,
             ) {
@@ -57,8 +58,10 @@ class ApiSurfaceSelector(
                     AnnotationMatcher.Rule(
                         annotated.annotationPattern,
                         Result(
-                            showability.ordinal,
                             showability,
+                            surface,
+                            annotated.effect == Effect.SHOW,
+                            annotated.recursive,
                         )
                     )
                 )
@@ -87,13 +90,13 @@ class ApiSurfaceSelector(
                                 "hide rules are only allowed on narrowest surface $narrowest but $rule was found on $surface"
                             }
                             hasHideAnnotations = true
-                            addMatcherRule(rule, HIDE)
+                            addMatcherRule(surface, rule, HIDE)
                         } else if (effect == Effect.SHOW) {
                             if (surface.isMain) {
                                 if (rule.recursive) {
-                                    addMatcherRule(rule, SHOW)
+                                    addMatcherRule(surface, rule, SHOW)
                                 } else {
-                                    addMatcherRule(rule, SHOW_SINGLE)
+                                    addMatcherRule(surface, rule, SHOW_SINGLE)
                                 }
                             } else {
                                 // TODO(b/508331653): Remove this restriction which only exists due
@@ -104,7 +107,7 @@ class ApiSurfaceSelector(
                                     "non-recursive rules are only allowed on main surface $main but was found on $surface"
                                 }
                                 hasShowForStubs = true
-                                addMatcherRule(rule, SHOW_FOR_STUBS)
+                                addMatcherRule(surface, rule, SHOW_FOR_STUBS)
                             }
                         }
                     }
@@ -133,11 +136,23 @@ class ApiSurfaceSelector(
 
     /** Result of matching an [AnnotationItem] against the set of rules. */
     internal data class Result(
-        /** The order of the result. */
-        val ordinal: Int,
-
         /** The [Showability] of the [AnnotationItem]. */
         val showability: Showability,
+
+        /** The [ApiSurface] to which the annotation applies. */
+        val surface: ApiSurface,
+
+        /**
+         * True if an item annotated with the annotation is shown in the [surface], false if it is
+         * hidden from the [surface].
+         */
+        val show: Boolean,
+
+        /**
+         * True if [show] applies to the contents of the annotated item, false if it only applies to
+         * the item itself.
+         */
+        val recursive: Boolean,
     ) {
         override fun toString() = showability.toString()
     }
@@ -188,19 +203,6 @@ class ApiSurfaceSelector(
                 forStubsOnly = ShowOrHide.NO_EFFECT,
             )
 
-        /** Define a mapping from [Showability] instance to ordinal. */
-        private val showabilityOrdinal =
-            mapOf(
-                SHOW to 0,
-                SHOW_FOR_STUBS to 1,
-                SHOW_SINGLE to 2,
-                HIDE to 3,
-            )
-
-        /** Get the ordinal number for one of the above [Showability] instances. */
-        private val Showability.ordinal
-            get() = showabilityOrdinal[this]!!
-
         /**
          * Comparator that sorts [AnnotationMatcher.Rule] by
          * [AnnotationMatcher.Rule.annotationPattern].
@@ -213,11 +215,14 @@ class ApiSurfaceSelector(
          * [patternComparator]
          */
         private val comparator =
-            Comparator.comparing<AnnotationMatcher.Rule<Result>, Int> {
-                    // First sort so that HIDE is last. That is because SHOW overrides HIDE.
-                    it.result.ordinal
-                }
-                // Then sort from longest (most specific pattern) to shortest. That is because a
+            // First sort so that HIDE is last. That is because SHOW overrides HIDE.
+            Comparator.comparing<AnnotationMatcher.Rule<Result>, Boolean> { !it.result.show }
+                // Then make sure that a rule that matches the main surface comes before any other
+                // surface.
+                .thenComparing { !it.result.surface.isMain }
+                // Then make sure that recursive rules come before non-recursive rules.
+                .thenComparing { !it.result.recursive }
+                // Finally, sort from longest (most specific pattern) to shortest. That is because a
                 // longer more specific pattern should be matched before a shorter, less specific
                 // one.
                 .thenDescending(patternComparator)
