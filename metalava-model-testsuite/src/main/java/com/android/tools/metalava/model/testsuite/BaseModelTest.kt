@@ -24,8 +24,8 @@ import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.PackageFilter
 import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.annotation.DefaultAnnotationManager
+import com.android.tools.metalava.model.api.ApiSurfaceRules
 import com.android.tools.metalava.model.api.flags.ApiFlags
-import com.android.tools.metalava.model.api.surface.ApiSurfaces
 import com.android.tools.metalava.model.multiplatform.MultiplatformCodebase
 import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.provider.InputFormat
@@ -229,8 +229,8 @@ abstract class BaseModelTest() :
          */
         val apiPackages: PackageFilter? = null,
 
-        /** The set of [ApiSurfaces] used in the test. */
-        val apiSurfaces: ApiSurfaces = ApiSurfaces.DEFAULT,
+        /** The set of [ApiSurfaceRules] used in the test. */
+        val apiSurfaceRules: ApiSurfaceRules = ApiSurfaceRules.DEFAULT,
 
         /** Additional jar files to add to the class path. */
         val additionalClassPath: List<File> = emptyList(),
@@ -268,7 +268,7 @@ abstract class BaseModelTest() :
                                 )
                             ),
                     apiFlags = apiFlags,
-                    apiSurfaces = apiSurfaces,
+                    apiSurfaces = apiSurfaceRules.apiSurfaces,
                     reporter = recordingReporter,
                 )
     }
