@@ -131,7 +131,8 @@ class CommonApiSurfacesTest : BaseModelTest() {
                 "empty selectedApiVariants"
             )
 
-            val mainStubsApiVariant = codebase.apiSurfaces.main.variantFor(ApiVariantType.DOC_ONLY)
+            val mainStubsApiVariant =
+                codebase.apiSurfaces.main.variantFor(ApiVariantType.DOCUMENTATION)
             testClass.mutateSelectedApiVariants { add(mainStubsApiVariant) }
             assertEquals(
                 "ApiVariantSet[main(D)]",
