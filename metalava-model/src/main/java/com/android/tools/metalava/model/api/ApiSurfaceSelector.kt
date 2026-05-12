@@ -26,7 +26,7 @@ import com.android.tools.metalava.model.api.surface.ApiSurfaces
 
 /** Helps determine to which api surface a [SelectableItem] belongs. */
 class ApiSurfaceSelector(
-    apiSurfaceRules: ApiSurfaceRules = ApiSurfaceRules(),
+    apiSurfaceRules: ApiSurfaceRules = ApiSurfaceRules.DEFAULT,
 ) {
     /** True if unannotated items should be included in the main [ApiSurface]. */
     val showUnannotated: Boolean
@@ -232,8 +232,8 @@ class ApiSurfaceSelector(
 
 /** Associates a list of [SurfaceSelectionRule]s with each [ApiSurface] in [ApiSurfaces.all]. */
 class ApiSurfaceRules(
-    internal val apiSurfaces: ApiSurfaces = ApiSurfaces.DEFAULT,
-    private val byName: Map<String, List<SurfaceSelectionRule>> = emptyMap(),
+    val apiSurfaces: ApiSurfaces,
+    private val byName: Map<String, List<SurfaceSelectionRule>>,
 ) {
     operator fun get(surfaceName: String) = byName[surfaceName]
 
@@ -251,6 +251,38 @@ class ApiSurfaceRules(
             append("    }\n")
         }
         append(")")
+    }
+
+    companion object {
+        /** Rules with "base" and "main" surfaces. */
+        private val ruleByNameWithBase =
+            mapOf(
+                "base" to listOf(SurfaceSelectionRule.unannotated),
+                "main" to listOf(SurfaceSelectionRule.createAnnotationRule("test.api.MainApi")),
+            )
+
+        /** Rules with only a "main" surface. */
+        private val ruleByNameWithoutBase =
+            mapOf(
+                "main" to listOf(SurfaceSelectionRule.unannotated),
+            )
+
+        val DEFAULT = create(needsBase = false)
+
+        /**
+         * Create an [ApiSurfaceRules] with a "main" surface and, depending on [needsBase] as "base"
+         * surface too.
+         */
+        fun create(needsBase: Boolean) =
+            ApiSurfaceRules(
+                apiSurfaces = ApiSurfaces.create(needsBase = needsBase),
+                byName =
+                    if (needsBase) {
+                        ruleByNameWithBase
+                    } else {
+                        ruleByNameWithoutBase
+                    }
+            )
     }
 }
 

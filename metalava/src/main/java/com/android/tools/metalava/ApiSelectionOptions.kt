@@ -201,8 +201,7 @@ class ApiSelectionOptions(
     ): ApiSurfaceRules {
         // If no config was available then just use the one from the options.
         if (apiSurfaceRulesFromConfig == null) {
-            return apiSurfaceRulesFromOptions
-                ?: ApiSurfaceRules(byName = mapOf("main" to listOf(unannotated)))
+            return apiSurfaceRulesFromOptions ?: ApiSurfaceRules.DEFAULT
         } else if (apiSurfaceRulesFromOptions == null) {
             return apiSurfaceRulesFromConfig
         }
