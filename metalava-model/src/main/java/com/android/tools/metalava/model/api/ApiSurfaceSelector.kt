@@ -44,7 +44,7 @@ class ApiSurfaceSelector(
     internal val matcher: AnnotationMatcher<Result>
 
     init {
-        var hasShowUnannotatedOnMain = false
+        var unannotatedSurface: ApiSurface? = null
         var hasShowForStubs = false
         var hasHideAnnotations = false
 
@@ -80,9 +80,7 @@ class ApiSurfaceSelector(
                         require(isNarrowest) {
                             "unannotated rule is only allowed on narrowest surface $narrowest but was found on $surface"
                         }
-                        if (surface.isMain) {
-                            hasShowUnannotatedOnMain = true
-                        }
+                        unannotatedSurface = surface
                     } else if (rule is SelectAnnotated) {
                         val effect = rule.effect
                         if (effect == Effect.HIDE) {
@@ -119,7 +117,10 @@ class ApiSurfaceSelector(
         val sortedRules = matcherRules.sortedWith(comparator)
 
         matcher = AnnotationMatcher.createFromRules(sortedRules)
-        showUnannotated = hasShowUnannotatedOnMain
+
+        // showUnannotated only affects the main surface.
+        showUnannotated = unannotatedSurface?.isMain == true
+
         hasAnyHideAnnotations = hasHideAnnotations
         hasAnyShowForStubPurposesAnnotations = hasShowForStubs
     }
