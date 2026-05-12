@@ -52,7 +52,7 @@ class RestrictedForEnvironmentTest : DriverTest() {
                     restrictedForEnvironmentClass,
                     KnownSourceFiles.stringDefSource,
                 ),
-            api =
+            expectedApiSignature =
                 """
                     package test.pkg {
                       @RestrictedForEnvironment(environments=$packageName.RestrictedForEnvironment.ENVIRONMENT_SDK_RUNTIME, from=14) public class MyClass1 {
@@ -77,7 +77,7 @@ class RestrictedForEnvironmentTest : DriverTest() {
                             </root>
                         """
                 ),
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
@@ -174,7 +174,7 @@ class RestrictedForEnvironmentTest : DriverTest() {
                             </root>
                         """
                 ),
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """

@@ -238,10 +238,18 @@ class StubConstructorManager(codebase: Codebase) {
      * constructor.
      */
     fun optionalSyntheticConstructor(classItem: ClassItem): ConstructorItem? {
-        val stubConstructor = classToStubConstructors[classItem]?.stubConstructor ?: return null
+        val stubConstructor = optionalStubConstructor(classItem) ?: return null
         if (stubConstructor in classItem.constructors()) return null
         return stubConstructor
     }
+
+    /**
+     * Get the optional stub constructor for [classItem].
+     *
+     * This is the [ConstructorItem] that subclasses of [classItem] will delegate to, if needed.
+     */
+    fun optionalStubConstructor(classItem: ClassItem) =
+        classToStubConstructors[classItem]?.stubConstructor
 
     /** Get the optional super constructor, if needed, for [classItem]. */
     fun optionalSuperConstructor(classItem: ClassItem): ConstructorItem? {

@@ -571,7 +571,7 @@ class KotlinInteropChecksTest : DriverTest() {
                         """
                     ),
                 ),
-            api =
+            expectedApiSignature =
                 """
                 // Signature format: 5.0
                 package test.pkg {
@@ -639,7 +639,7 @@ class KotlinInteropChecksTest : DriverTest() {
                         """
                     ),
                 ),
-            api =
+            expectedApiSignature =
                 """
                 // Signature format: 5.0
                 package test.pkg {

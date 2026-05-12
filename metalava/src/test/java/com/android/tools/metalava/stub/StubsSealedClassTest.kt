@@ -21,6 +21,129 @@ import com.android.tools.metalava.testing.java
 import org.junit.Test
 
 class StubsSealedClassTest : AbstractStubsTest() {
+
+    companion object {
+        /** A switch over an exhaustive `Sealed` class that needs no default. */
+        private val switchNoDefault =
+            java(
+                """
+                    package other;
+
+                    import test.pkg.*;
+
+                    public class Other {
+                        public int method(Sealed sealed) {
+                            return switch(sealed) {
+                                case SubclassA a -> 0;
+                                case SubclassB b -> 1;
+                                // No default case needed as Sealed is an exhaustive, sealed class,
+                                // i.e. all of its subclasses are part of its API surface.
+                            };
+                        }
+                    }
+                """
+            )
+
+        /**
+         * A switch over a non-exhaustive `Sealed` class that should have a default but does not yet
+         * need one.
+         */
+        private val switchWithDefault =
+            java(
+                """
+                    package other;
+
+                    import test.pkg.*;
+
+                    public class Other {
+                        public int method(Sealed sealed) {
+                            return switch(sealed) {
+                                case SubclassA a -> 0;
+                                case SubclassB b -> 1;
+                                default -> 2;
+                            };
+                        }
+                    }
+                """
+            )
+
+        /**
+         * A switch over a concrete `Sealed` class that needs a `case Sealed s` that will match all
+         * subclasses of `Sealed` not matched by one of the preceding cases. This works whether
+         * `Sealed` is exhaustive or not.
+         */
+        val switchWithSealed =
+            java(
+                """
+                    package other;
+
+                    import test.pkg.*;
+
+                    public class Other {
+                        public int method(Sealed sealed) {
+                            return switch(sealed) {
+                                case SubclassA a -> 0;
+                                case SubclassB b -> 1;
+                                case Sealed s -> 2;
+                            };
+                        }
+                    }
+                """
+            )
+    }
+
+    /**
+     * Get [CompilationCheck]s for an exhaustive `abstract sealed` class.
+     *
+     * Only needs one as there is an exhaustive class does not need a default case.
+     */
+    private fun compilationChecksForExhaustiveAbstractSealedClass() =
+        listOf(
+            CompilationCheck(
+                label = "pass",
+                additionalFiles = listOf(switchNoDefault),
+            )
+        )
+
+    /**
+     * Get [CompilationCheck]s for a non-exhaustive `abstract sealed` class.
+     *
+     * Has two, one without a default that should fail and one with a default that should pass.
+     */
+    private fun compilationChecksForNonExhaustiveAbstractSealedClass() =
+        listOf(
+            CompilationCheck(
+                label = "fail",
+                additionalFiles = listOf(switchNoDefault),
+                expectedFailure =
+                    """
+                        ADDITIONAL/src/other/Other.java:7: error: the switch expression does not cover all possible input values
+                                return switch(sealed) {
+                                       ^
+                        1 error
+                    """,
+            ),
+            CompilationCheck(
+                label = "pass",
+                additionalFiles = listOf(switchWithDefault),
+            )
+        )
+
+    /**
+     * Get [CompilationCheck]s for a concrete `sealed` class.
+     *
+     * Only needs one as it requires a `case Sealed s` and so does not need a default case.
+     *
+     * This works for both exhaustive and non-exhaustive cases.
+     */
+    private fun compilationChecksForConcreteSealedClass() =
+        listOf(
+            CompilationCheck(
+                label = "pass",
+                additionalFiles = listOf(switchWithSealed),
+            )
+        )
+
     @Test
     fun `Test exhaustive abstract sealed class with java-sealed-classes=yes`() {
         checkStubs(
@@ -69,7 +192,7 @@ class StubsSealedClassTest : AbstractStubsTest() {
                       }
                     }
                 """,
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
@@ -99,6 +222,7 @@ class StubsSealedClassTest : AbstractStubsTest() {
                         """
                     ),
                 ),
+            compilationChecks = compilationChecksForExhaustiveAbstractSealedClass(),
         )
     }
 
@@ -158,14 +282,17 @@ class StubsSealedClassTest : AbstractStubsTest() {
                       }
                     }
                 """,
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
                             package test.pkg;
                             @SuppressWarnings({"unchecked", "deprecation", "all"})
-                            public abstract sealed class Sealed permits test.pkg.SubclassA, test.pkg.SubclassB {
+                            public abstract sealed class Sealed permits test.pkg.SubclassA, test.pkg.SubclassB, test.pkg.Sealed._Private_ {
                             Sealed() { throw new RuntimeException("Stub!"); }
+                            static abstract non-sealed class _Private_ extends test.pkg.Sealed {
+                            private _Private_() { throw new RuntimeException("Stub!"); }
+                            }
                             }
                         """
                     ),
@@ -188,6 +315,7 @@ class StubsSealedClassTest : AbstractStubsTest() {
                         """
                     ),
                 ),
+            compilationChecks = compilationChecksForNonExhaustiveAbstractSealedClass(),
         )
     }
 
@@ -240,7 +368,7 @@ class StubsSealedClassTest : AbstractStubsTest() {
                       }
                     }
                 """,
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
@@ -270,6 +398,7 @@ class StubsSealedClassTest : AbstractStubsTest() {
                         """
                     ),
                 ),
+            compilationChecks = compilationChecksForConcreteSealedClass(),
         )
     }
 
@@ -330,14 +459,17 @@ class StubsSealedClassTest : AbstractStubsTest() {
                       }
                     }
                 """,
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
                             package test.pkg;
                             @SuppressWarnings({"unchecked", "deprecation", "all"})
-                            public sealed class Sealed permits test.pkg.SubclassA, test.pkg.SubclassB {
+                            public sealed class Sealed permits test.pkg.SubclassA, test.pkg.SubclassB, test.pkg.Sealed._Private_ {
                             public Sealed(int a) { throw new RuntimeException("Stub!"); }
+                            static abstract non-sealed class _Private_ extends test.pkg.Sealed {
+                            private _Private_() { super(0); throw new RuntimeException("Stub!"); }
+                            }
                             }
                         """
                     ),
@@ -360,6 +492,7 @@ class StubsSealedClassTest : AbstractStubsTest() {
                         """
                     ),
                 ),
+            compilationChecks = compilationChecksForConcreteSealedClass(),
         )
     }
 
@@ -408,7 +541,7 @@ class StubsSealedClassTest : AbstractStubsTest() {
                       }
                     }
                 """,
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
@@ -435,6 +568,7 @@ class StubsSealedClassTest : AbstractStubsTest() {
                         """
                     ),
                 ),
+            compilationChecks = compilationChecksForExhaustiveAbstractSealedClass(),
         )
     }
 
@@ -491,13 +625,17 @@ class StubsSealedClassTest : AbstractStubsTest() {
                       }
                     }
                 """,
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
                             package test.pkg;
                             @SuppressWarnings({"unchecked", "deprecation", "all"})
-                            public sealed interface Sealed permits test.pkg.SubclassA, test.pkg.SubclassB {
+                            public sealed interface Sealed permits test.pkg.SubclassA, test.pkg.SubclassB, test.pkg.Sealed__Private_ {
+                            }
+                            @SuppressWarnings({"unchecked", "deprecation", "all"})
+                            abstract non-sealed class Sealed__Private_ implements test.pkg.Sealed {
+                            private Sealed__Private_() { throw new RuntimeException("Stub!"); }
                             }
                         """
                     ),
@@ -518,6 +656,7 @@ class StubsSealedClassTest : AbstractStubsTest() {
                         """
                     ),
                 ),
+            compilationChecks = compilationChecksForNonExhaustiveAbstractSealedClass(),
         )
     }
 
@@ -558,7 +697,7 @@ class StubsSealedClassTest : AbstractStubsTest() {
                       }
                     }
                 """,
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
@@ -566,10 +705,13 @@ class StubsSealedClassTest : AbstractStubsTest() {
                             @SuppressWarnings({"unchecked", "deprecation", "all"})
                             public class Outer {
                             Outer() { throw new RuntimeException("Stub!"); }
-                            protected static sealed interface Sealed permits test.pkg.Outer.Sealed.Subclass {
+                            protected static sealed interface Sealed permits test.pkg.Outer.Sealed.Subclass, test.pkg.Outer.Sealed__Private_ {
                             public static final class Subclass implements test.pkg.Outer.Sealed {
                             public Subclass() { throw new RuntimeException("Stub!"); }
                             }
+                            }
+                            private static abstract non-sealed class Sealed__Private_ implements test.pkg.Outer.Sealed {
+                            private Sealed__Private_() { throw new RuntimeException("Stub!"); }
                             }
                             }
                         """
@@ -613,18 +755,22 @@ class StubsSealedClassTest : AbstractStubsTest() {
                       }
                     }
                 """,
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
                             package test.pkg;
                             @SuppressWarnings({"unchecked", "deprecation", "all"})
                             public interface Outer {
-                            public static sealed interface Sealed permits test.pkg.Outer.Sealed.Subclass {
+                            public static sealed interface Sealed permits test.pkg.Outer.Sealed.Subclass, test.pkg.Outer_Sealed__Private_ {
                             public static final class Subclass implements test.pkg.Outer.Sealed {
                             public Subclass() { throw new RuntimeException("Stub!"); }
                             }
                             }
+                            }
+                            @SuppressWarnings({"unchecked", "deprecation", "all"})
+                            abstract non-sealed class Outer_Sealed__Private_ implements test.pkg.Outer.Sealed {
+                            private Outer_Sealed__Private_() { throw new RuntimeException("Stub!"); }
                             }
                         """
                     ),

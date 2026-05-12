@@ -382,7 +382,7 @@ class ApiAnalyzerTest : DriverTest() {
                     ),
                 ),
             format = FileFormat.V2,
-            api =
+            expectedApiSignature =
                 """
                     // Signature format: 2.0
                     package test.pkg {
@@ -394,7 +394,7 @@ class ApiAnalyzerTest : DriverTest() {
                       }
                     }
                 """,
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
@@ -447,7 +447,7 @@ class ApiAnalyzerTest : DriverTest() {
                     ),
                 ),
             format = FileFormat.V2,
-            api =
+            expectedApiSignature =
                 """
                     // Signature format: 2.0
                     package test.pkg {
@@ -459,7 +459,7 @@ class ApiAnalyzerTest : DriverTest() {
                       }
                     }
                 """,
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
@@ -501,7 +501,7 @@ class ApiAnalyzerTest : DriverTest() {
                     ),
                 ),
             format = FileFormat.V4,
-            api =
+            expectedApiSignature =
                 """
                     package test.pkg {
                       @Deprecated public final class Foo {
@@ -584,7 +584,7 @@ class ApiAnalyzerTest : DriverTest() {
                     ),
                 ),
             format = FileFormat.V2,
-            api =
+            expectedApiSignature =
                 """
                     // Signature format: 2.0
                     package test.pkg {
@@ -594,7 +594,7 @@ class ApiAnalyzerTest : DriverTest() {
                       }
                     }
                 """,
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
@@ -631,7 +631,7 @@ class ApiAnalyzerTest : DriverTest() {
                         """
                     )
                 ),
-            api =
+            expectedApiSignature =
                 """
                     // Signature format: 5.0
                     package test.pkg {
@@ -665,7 +665,7 @@ class ApiAnalyzerTest : DriverTest() {
                         """
                     )
                 ),
-            api =
+            expectedApiSignature =
                 """
                     package test.pkg {
                       public class Container {
@@ -707,7 +707,7 @@ class ApiAnalyzerTest : DriverTest() {
                         """
                     )
                 ),
-            api =
+            expectedApiSignature =
                 """
                     package test.pkg {
                       @Deprecated public class DeprecatedOuterClass {
@@ -757,7 +757,7 @@ class ApiAnalyzerTest : DriverTest() {
                         """
                     )
                 ),
-            api =
+            expectedApiSignature =
                 """
                     package test.pkg {
                       @Deprecated public class DeprecatedOuterClass {
@@ -808,7 +808,7 @@ class ApiAnalyzerTest : DriverTest() {
                         """
                     )
                 ),
-            api =
+            expectedApiSignature =
                 """
                     package test.pkg {
                       @Deprecated public class DeprecatedClass {
@@ -833,11 +833,9 @@ class ApiAnalyzerTest : DriverTest() {
     fun `Test propagation of @hide through package and class nesting`() {
         check(
             // Include system API annotations as a show annotation overrides hidden on a class that
-            // is in a hidden package.
-            includeSystemApiAnnotations = SystemApiType.PRIVILEGED_APPS,
-            // This is set to true so any class that is incorrectly unhidden will be included in the
-            // generated API and fail the test.
-            showUnannotated = true,
+            // is in a hidden package. This also includes unannotated items so any class that is
+            // incorrectly unhidden will be included in the generated API and fail the test.
+            apiSurface = KnownApiSurface.SYSTEM_WITH_PUBLIC,
             sourceFiles =
                 arrayOf(
                     // Package "test.a" is hidden but "test.a.B" os marked with a show annotation so
@@ -858,7 +856,6 @@ class ApiAnalyzerTest : DriverTest() {
                     java(
                         """
                             package test.a;
-                            /** @hide */
                             @android.annotation.SystemApi
                             public class B {}
                         """
@@ -883,7 +880,6 @@ class ApiAnalyzerTest : DriverTest() {
                     java(
                         """
                             package test.a.b;
-                            /** @hide */
                             @android.annotation.SystemApi
                             public class B {}
                         """
@@ -896,7 +892,7 @@ class ApiAnalyzerTest : DriverTest() {
                     ),
                     KnownSourceFiles.systemApiSource,
                 ),
-            api =
+            expectedApiSignature =
                 """
                     package test.a {
                       public class B {
@@ -1166,9 +1162,40 @@ class ApiAnalyzerTest : DriverTest() {
                     KnownSourceFiles.hideAnnotation,
                 ),
             hideAnnotations = arrayOf("android.annotation.Hide"),
-            api =
+            expectedApiSignature =
                 """
                 // Signature format: 5.0
+                """
+        )
+    }
+
+    @RequiresCapabilities(Capability.KOTLIN)
+    @Test
+    fun `Reference to hidden type in property context parameter`() {
+        check(
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
+                        package test.pkg
+                        /** @hide */
+                        class HiddenType
+                        class Foo {
+                            context(hidden: HiddenType)
+                            val propertyWithContext: Int get() = 0
+                        }
+                        """
+                    )
+                ),
+            expectedIssues =
+                // One `HiddenTypeParameter` error is for the property, one is for the getter.
+                // The `ReferencesHidden` and `UnavailableSymbol` checks look specifically at
+                // methods so the errors are for the getter.
+                """
+                src/test/pkg/HiddenType.kt:5: warning: Parameter hidden references hidden type test.pkg.HiddenType. [HiddenTypeParameter]
+                src/test/pkg/HiddenType.kt:5: warning: Parameter hidden references hidden type test.pkg.HiddenType. [HiddenTypeParameter]
+                src/test/pkg/HiddenType.kt:5: error: Class test.pkg.HiddenType is hidden but was referenced (in parameter type) from public parameter hidden in test.pkg.Foo.getPropertyWithContext(test.pkg.HiddenType hidden) [ReferencesHidden]
+                src/test/pkg/HiddenType.kt:6: warning: Parameter of unavailable type test.pkg.HiddenType in test.pkg.Foo.getPropertyWithContext() [UnavailableSymbol]
                 """
         )
     }

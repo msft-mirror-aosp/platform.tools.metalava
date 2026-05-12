@@ -74,7 +74,7 @@ class ListOfPackagePolicyAnnotationHandlerTest : DriverTest() {
                 ),
             checkCompilation = true,
             docStubs = true,
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
@@ -160,7 +160,7 @@ class ListOfPackagePolicyAnnotationHandlerTest : DriverTest() {
                 ),
             checkCompilation = true,
             docStubs = true,
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """

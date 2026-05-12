@@ -134,7 +134,15 @@
                 The type of the `api-surface` element defined inside `ApiSurfacesType`.
             </xs:documentation>
         </xs:annotation>
-        <xs:choice/>
+        <xs:choice>
+            <xs:element name="selection-criteria" type="config:ApiSelectionCriteria">
+                <xs:annotation>
+                    <xs:documentation>
+                        API surface selection criteria.
+                    </xs:documentation>
+                </xs:annotation>
+            </xs:element>
+        </xs:choice>
         <xs:attribute name="name" type="config:ApiSurfaceNameType" use="required">
             <xs:annotation>
                 <xs:documentation>
@@ -150,6 +158,94 @@
             </xs:annotation>
         </xs:attribute>
     </xs:complexType>
+
+    <xs:complexType name="ApiSelectionCriteria">
+        <xs:annotation>
+            <xs:documentation>
+                The type of the `selection-criteria` element defined inside `ApiSurfaceType`.
+            </xs:documentation>
+        </xs:annotation>
+        <xs:choice>
+            <xs:element name="annotation-rule" type="config:AnnotationRule" minOccurs="0" maxOccurs="unbounded">
+                <xs:annotation>
+                    <xs:documentation>
+                        Annotation rule definition.
+                    </xs:documentation>
+                </xs:annotation>
+            </xs:element>
+        </xs:choice>
+        <xs:attribute name="unannotated" type="config:SelectionCriteriaEffectType">
+            <xs:annotation>
+                <xs:documentation>
+                    Specifies what will happen to items which are not annotated with an annotation that matches an
+                    `annotation-rule`.
+                </xs:documentation>
+            </xs:annotation>
+        </xs:attribute>
+    </xs:complexType>
+
+    <xs:simpleType name="SelectionCriteriaEffectType">
+        <xs:annotation>
+            <xs:documentation>
+                The selection criteria effect type.
+            </xs:documentation>
+        </xs:annotation>
+        <xs:restriction base="xs:string">
+            <xs:enumeration value="show">
+                <xs:annotation>
+                    <xs:documentation>
+                        Show a matching item in the containing API surface.
+                    </xs:documentation>
+                </xs:annotation>
+            </xs:enumeration>
+            <xs:enumeration value="hide">
+                <xs:annotation>
+                    <xs:documentation>
+                        Hide a matching item from the containing API surface.
+                    </xs:documentation>
+                </xs:annotation>
+            </xs:enumeration>
+        </xs:restriction>
+    </xs:simpleType>
+
+    <xs:complexType name="AnnotationRule">
+        <xs:annotation>
+            <xs:documentation>
+                The type of the `annotation-rule` element defined inside `ApiSelectionCriteria`.
+            </xs:documentation>
+        </xs:annotation>
+        <xs:choice/>
+        <xs:attribute name="pattern" type="config:AnnotationRulePattern" use="required">
+            <xs:annotation>
+                <xs:documentation>
+                    The pattern that will match an annotation.
+                </xs:documentation>
+            </xs:annotation>
+        </xs:attribute>
+        <xs:attribute name="effect" type="config:SelectionCriteriaEffectType">
+            <xs:annotation>
+                <xs:documentation>
+                    The effect that the annotation will have on the annotated item.
+                </xs:documentation>
+            </xs:annotation>
+        </xs:attribute>
+        <xs:attribute name="recursive" type="xs:boolean">
+            <xs:annotation>
+                <xs:documentation>
+                    Whether the annotation applies to enclosed items or not.
+                </xs:documentation>
+            </xs:annotation>
+        </xs:attribute>
+    </xs:complexType>
+
+    <xs:simpleType name="AnnotationRulePattern">
+        <xs:annotation>
+            <xs:documentation>
+                The allowable type of an annotation rule pattern.
+            </xs:documentation>
+        </xs:annotation>
+        <xs:restriction base="xs:string"/>
+    </xs:simpleType>
 
     <xs:complexType name="ApiFlagsType">
         <xs:annotation>

@@ -55,7 +55,7 @@ class ShowabilityTest : DriverTest() {
     }
 
     @Test
-    fun `Recursive hide and non-recursive show (show first)`() {
+    fun `Recursive hide and non-recursive show - show first`() {
         check(
             sourceFiles =
                 arrayOf(
@@ -83,7 +83,7 @@ class ShowabilityTest : DriverTest() {
                     "test.annotation.NonRecursiveShow",
                 ),
             format = FileFormat.V2,
-            api =
+            expectedApiSignature =
                 """
                     // Signature format: 2.0
                     package test.pkg {
@@ -96,7 +96,7 @@ class ShowabilityTest : DriverTest() {
     }
 
     @Test
-    fun `Recursive hide and non-recursive show (hide first)`() {
+    fun `Recursive hide and non-recursive show - hide first`() {
         check(
             sourceFiles =
                 arrayOf(
@@ -124,7 +124,7 @@ class ShowabilityTest : DriverTest() {
                     "test.annotation.NonRecursiveShow",
                 ),
             format = FileFormat.V2,
-            api =
+            expectedApiSignature =
                 """
                     // Signature format: 2.0
                     package test.pkg {
@@ -167,7 +167,7 @@ class ShowabilityTest : DriverTest() {
                     ARG_SHOW_SINGLE_ANNOTATION,
                     "test.annotation.NonRecursiveShow",
                 ),
-            api =
+            expectedApiSignature =
                 """
                 // Signature format: 5.0
                 package test.pkg {

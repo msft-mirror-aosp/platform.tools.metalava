@@ -538,7 +538,7 @@ class NullabilityLintTest : DriverTest() {
 
     @RequiresCapabilities(Capability.KOTLIN)
     @Test
-    fun `Nullability overrides in unbounded generics (Object to generic and back)`() {
+    fun `Nullability overrides in unbounded generics - Object to generic and back`() {
         check(
             apiLint = "",
             expectedIssues =
@@ -583,7 +583,7 @@ class NullabilityLintTest : DriverTest() {
 
     @RequiresCapabilities(Capability.KOTLIN)
     @Test
-    fun `Nullability overrides in unbounded generics (one super method lacks nullness info)`() {
+    fun `Nullability overrides in unbounded generics - one super method lacks nullness info`() {
         check(
             apiLint = "",
             sourceFiles =

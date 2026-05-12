@@ -23,8 +23,10 @@ import com.android.tools.metalava.model.BaseItemVisitor
 import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.PrimitiveTypeItem.Primitive
-import com.android.tools.metalava.model.annotation.AnnotationFilter
 import com.android.tools.metalava.model.annotation.DefaultAnnotationManager
+import com.android.tools.metalava.model.api.ApiSurfaceRules
+import com.android.tools.metalava.model.api.ApiSurfaceSelector
+import com.android.tools.metalava.model.api.SurfaceSelectionRule
 import com.android.tools.metalava.model.noOpAnnotationManager
 import com.android.tools.metalava.model.provider.InputFormat
 import com.android.tools.metalava.model.source.hasApiVisibility
@@ -1584,12 +1586,18 @@ class CommonAnnotationItemTest : BaseModelTest() {
     @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `annotation on internal`() {
-        // Create a filter that will treat RestrictTo(Scope.LIBRARY) as a show annotation.
-        val showFilter =
-            AnnotationFilter.create(
-                listOf(
-                    "androidx.annotation.RestrictTo(androidx.annotation.RestrictTo.Scope.LIBRARY)",
-                )
+        // Treat RestrictTo(Scope.LIBRARY) as a show annotation.
+        val apiSurfaceRules =
+            ApiSurfaceRules(
+                byName =
+                    mapOf(
+                        "main" to
+                            listOf(
+                                SurfaceSelectionRule.createAnnotationRule(
+                                    "androidx.annotation.RestrictTo(androidx.annotation.RestrictTo.Scope.LIBRARY)"
+                                )
+                            )
+                    ),
             )
 
         runCodebaseTest(
@@ -1624,9 +1632,11 @@ class CommonAnnotationItemTest : BaseModelTest() {
                         DefaultAnnotationManager(
                             config =
                                 DefaultAnnotationManager.Config(
-                                    allShowAnnotations = showFilter,
                                     apiFlags = apiFlags,
-                                    showAnnotations = showFilter,
+                                    apiSurfaceSelector =
+                                        ApiSurfaceSelector(
+                                            apiSurfaceRules = apiSurfaceRules,
+                                        ),
                                 )
                         )
                     }

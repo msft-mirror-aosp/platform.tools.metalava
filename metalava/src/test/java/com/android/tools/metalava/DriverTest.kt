@@ -59,8 +59,6 @@ import com.android.tools.metalava.cli.multiplatform.ARG_MULTIPLATFORM_ENABLED
 import com.android.tools.metalava.cli.signature.ARG_FORMAT
 import com.android.tools.metalava.model.ANDROIDX_ANNOTATION_PACKAGE
 import com.android.tools.metalava.model.ANDROID_ANNOTATION_PACKAGE
-import com.android.tools.metalava.model.ANDROID_SYSTEM_API
-import com.android.tools.metalava.model.ANDROID_TEST_API
 import com.android.tools.metalava.model.Assertions
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.StripJavaLangPrefix
@@ -82,10 +80,12 @@ import com.android.tools.metalava.model.text.prepareSignatureFileForTest
 import com.android.tools.metalava.reporter.ReporterEnvironment
 import com.android.tools.metalava.reporter.Severity
 import com.android.tools.metalava.reporter.ThrowingReporter
+import com.android.tools.metalava.testing.JavacCompilationError
 import com.android.tools.metalava.testing.JavacHelper
 import com.android.tools.metalava.testing.KnownJarFiles
 import com.android.tools.metalava.testing.KnownSourceFiles
 import com.android.tools.metalava.testing.TemporaryFolderOwner
+import com.android.tools.metalava.testing.createFiles
 import com.android.tools.metalava.testing.findKotlinStdlibPaths
 import com.android.tools.metalava.testing.getAndroidJar
 import com.android.utils.SdkUtils
@@ -375,11 +375,11 @@ abstract class DriverTest :
         /** Any jars to add to the class path */
         classpath: Array<TestFile>? = null,
         /** The API signature content (corresponds to --api) */
-        @Language("TEXT") api: String? = null,
+        @Language("TEXT") expectedApiSignature: String? = null,
         /** The removed API (corresponds to --removed-api) */
         removedApi: String? = null,
         /** Expected stubs (corresponds to --stubs) */
-        stubFiles: Array<TestFile> = emptyArray(),
+        expectedStubFiles: Array<TestFile> = emptyArray(),
         /**
          * Whether to ignore parameter names when comparing stub files. Should only be true when
          * generating stubs from signature files.
@@ -407,11 +407,16 @@ abstract class DriverTest :
         /** Expected [Severity.ERROR] issues to be generated when analyzing these sources */
         errorSeverityExpectedIssues: String? = null,
 
+        /** A list of [CompilationCheck]s to perform with the generated stubs. */
+        compilationChecks: List<CompilationCheck>? = null,
+
         /**
          * If `true` then stubs will be generated and then compiled to make sure that they are valid
          * java.
+         *
+         * Defaults to `false` if [compilationChecks] is not specified or is empty.
          */
-        checkCompilation: Boolean = false,
+        checkCompilation: Boolean = compilationChecks?.isNotEmpty() == true,
 
         /** Annotations to merge in (in .xml format) */
         @Language("XML") mergeXmlAnnotations: String? = null,
@@ -497,8 +502,8 @@ abstract class DriverTest :
         importedPackages: List<String> = emptyList(),
         /** See [TestEnvironment.skipEmitPackages], defaults to [DEFAULT_SKIP_EMIT_PACKAGES]. */
         skipEmitPackages: List<String>? = null,
-        /** Whether we should include --showAnnotations=android.annotation.SystemApi */
-        includeSystemApiAnnotations: SystemApiType? = null,
+        /** Optional test surface to use. */
+        apiSurface: KnownApiSurface? = null,
         /** Whether we should warn about super classes that are stripped because they are hidden */
         includeStrippedSuperclassWarnings: Boolean = false,
         /**
@@ -847,19 +852,28 @@ abstract class DriverTest :
                 emptyArray()
             }
 
+        val apiSurfaceArguments =
+            if (apiSurface != null) {
+                listOf(
+                        ARG_API_SURFACE,
+                        apiSurface.surface,
+                        ARG_CONFIG_FILE,
+                        apiSurface.configFile.createFile(project).path,
+                    )
+                    .toTypedArray()
+            } else {
+                emptyArray()
+            }
+
         val showAnnotationArguments =
-            if (showAnnotations.isNotEmpty() || includeSystemApiAnnotations != null) {
-                val args = mutableListOf<String>()
-                for (annotation in showAnnotations) {
-                    args.add(ARG_SHOW_ANNOTATION)
-                    args.add(annotation)
-                }
-                if (includeSystemApiAnnotations != null) {
-                    if (!args.contains(includeSystemApiAnnotations.annotationClass)) {
-                        args.addAll(includeSystemApiAnnotations.extraArguments)
+            if (showAnnotations.isNotEmpty()) {
+                buildList {
+                        for (annotation in showAnnotations) {
+                            add(ARG_SHOW_ANNOTATION)
+                            add(annotation)
+                        }
                     }
-                }
-                args.toTypedArray()
+                    .toTypedArray()
             } else {
                 emptyArray()
             }
@@ -922,7 +936,7 @@ abstract class DriverTest :
 
         var stubsDir: File? = null
         val stubsArgs =
-            if (stubFiles.isNotEmpty() || stubPaths != null || checkCompilation) {
+            if (expectedStubFiles.isNotEmpty() || stubPaths != null || checkCompilation) {
                 stubsDir = getOrCreateFolder("stubs")
                 if (docStubs) {
                     arrayOf(ARG_DOC_STUBS, stubsDir.path)
@@ -1124,7 +1138,13 @@ abstract class DriverTest :
 
         val args =
             arrayOf(
+                // Common options.
                 ARG_NO_COLOR,
+                *quiet,
+                *tracingArguments,
+
+                // The sub-command to run.
+                "main",
 
                 // Annotation generation temporarily turned off by default while integrating with
                 // SDK builds; tests need these
@@ -1134,7 +1154,6 @@ abstract class DriverTest :
                 *removedArgs,
                 *apiArgs,
                 *stubsArgs,
-                *quiet,
                 *mergeAnnotationsArgs,
                 *signatureAnnotationsArgs,
                 *javaStubAnnotationsArgs,
@@ -1149,6 +1168,7 @@ abstract class DriverTest :
                 *baselineApiLintCheck.args,
                 *baselineCheckCompatibilityReleasedCheck.args,
                 *apiCompatAnnotationArguments,
+                *apiSurfaceArguments,
                 *showAnnotationArguments,
                 *hideAnnotationArguments,
                 *suppressCompatMetaAnnotationArguments,
@@ -1161,6 +1181,7 @@ abstract class DriverTest :
                 *validateNullabilityFromListArgs,
                 format.outputFlags(),
                 *extraArguments,
+                *apiLintArgs,
                 *errorMessageApiLintArgs,
                 *errorMessageCheckCompatibilityReleasedArgs,
                 *repeatErrorsMaxArgs,
@@ -1168,9 +1189,6 @@ abstract class DriverTest :
                 *multiplatformApiArgs,
                 *multiplatformSignatureSourceOptions,
                 *multiplatformCompatibilityArgs,
-                *tracingArguments,
-                // Must always be last as this can consume a following argument, breaking the test.
-                *apiLintArgs,
             ) +
                 buildList {
                         if (projectDescriptionFile != null) {
@@ -1232,12 +1250,16 @@ abstract class DriverTest :
             )
         }
 
-        if (api != null) {
+        if (expectedApiSignature != null) {
             assertTrue(
                 "${apiFile.path} does not exist even though --api was used",
                 apiFile.exists()
             )
-            assertSignatureFilesMatch(api, apiFile.readText(), expectedFormat = format)
+            assertSignatureFilesMatch(
+                expectedApiSignature,
+                apiFile.readText(),
+                expectedFormat = format
+            )
             // Make sure we can read back the files we write
             ApiFile.parseApi(SignatureFile.fromFiles(apiFile), Codebase.Config.NOOP)
         }
@@ -1333,8 +1355,8 @@ abstract class DriverTest :
             assertEquals("stub paths", stubPaths.joinToString("\n"), stubsCreated)
         }
 
-        if (stubFiles.isNotEmpty()) {
-            for (expected in stubFiles) {
+        if (expectedStubFiles.isNotEmpty()) {
+            for (expected in expectedStubFiles) {
                 val actual = File(stubsDir!!, expected.targetRelativePath)
                 if (!actual.exists()) {
                     throw FileNotFoundException(
@@ -1359,15 +1381,13 @@ abstract class DriverTest :
             stubsDir
                 ?: error("internal error: stubsDir must be non-null when checkCompilation=true")
 
-            val generated =
-                SourceSet.createFromSourcePath(ThrowingReporter.INSTANCE, listOf(stubsDir)).sources
-
-            // Compile the stubs, throwing an exception if it fails.
-            JavacHelper.compile(
-                outputDirectory = project,
-                sources = generated,
-                classPath = listOf(KnownJarFiles.stubAnnotationsJar),
-            )
+            val checks = compilationChecks ?: listOf(CompilationCheck(label = "default"))
+            for (check in checks) {
+                check.compileStubs(
+                    project,
+                    stubsDir,
+                )
+            }
         }
 
         // Validate multiplatform API files exist and have the expected contents.
@@ -1610,6 +1630,73 @@ abstract class DriverTest :
         /** Check to see whether this [String] contains an issue of error severity. */
         private fun String?.containsErrorIssue() =
             this != null && contains(containsErrorSeverityIssueRegex)
+    }
+
+    /**
+     * Encapsulates information needed to check the compilation of the stubs.
+     *
+     * @param label the label for this check, used when reporting failures.
+     * @param additionalFiles additional files to compile with the stubs.
+     * @param expectedFailure the expected failure output.
+     */
+    inner class CompilationCheck(
+        private val label: String,
+        private val additionalFiles: List<TestFile> = emptyList(),
+        private val expectedFailure: String = "",
+    ) {
+        /** Compile the stubs, verifying that it matches [expectedFailure]. */
+        internal fun compileStubs(
+            projectDir: File,
+            stubsDir: File,
+        ) {
+            // Get a folder in which the additionalFiles, if any, will be created. Delete it and its
+            // contents and then recreate it to ensure that it is empty so that multiple instances
+            // of CompilationCheck do not collide.
+            val additionalDir = getOrCreateFolder("additional-compilation-files")
+            additionalDir.deleteRecursively()
+            additionalDir.mkdirs()
+
+            // Create a source path for the stubsDir and the additionalDir if needed.
+            val sourcePath = buildList {
+                add(stubsDir)
+                if (additionalFiles.isNotEmpty()) {
+                    additionalFiles.createFiles(additionalDir)
+                    add(additionalDir)
+                }
+            }
+
+            // Get the sources to compile by scanning the sourcePath.
+            val generated =
+                SourceSet.createFromSourcePath(ThrowingReporter.INSTANCE, sourcePath).sources
+
+            // Compile the stubs, throwing an exception if it fails.
+            try {
+                JavacHelper.compile(
+                    outputDirectory = projectDir,
+                    sources = generated,
+                    classPath = listOf(KnownJarFiles.stubAnnotationsJar),
+                )
+
+                // If it was expected to fail but did not then fail.
+                if (expectedFailure != "") {
+                    fail("Expected failure: $expectedFailure")
+                }
+            } catch (e: JavacCompilationError) {
+                // Process the output to remove any test specific paths.
+                val output =
+                    replaceFileWithSymbol(
+                        e.output.trim(),
+                        mapOf(
+                            stubsDir to "STUBS",
+                            additionalDir to "ADDITIONAL",
+                        ),
+                    )
+                assertEquals("$label compilation failure", expectedFailure.trimIndent(), output)
+            } finally {
+                // Delete the additional directory.
+                additionalDir.deleteRecursively()
+            }
+        }
     }
 }
 
@@ -2076,42 +2163,75 @@ val TYPE_USE_FORMAT =
     }
 
 /**
- * Enumeration of the different types of system APIs used in Android.
+ * Specifies a known API surface to use.
  *
- * While this is Android specific it does test behavior relied upon by other users of Metalava, e.g.
- * AndroidX.
- *
- * @param annotationClass The annotation class name, used to check to see if this is present in the
- *   arguments already.
- * @param annotationFilter The annotation filter to pass on the command line, e.g. for a
- *   `--show-annotation` option.
+ * @param surface the name of the surface, adding as [ARG_API_SURFACE].
+ * @param configFile the config file that will define [surface].
+ * @param commandLineOptions the command line options that are equivalent to [surface].
  */
-enum class SystemApiType(
-    val annotationClass: String,
-    private val annotationFilter: String = ANDROID_SYSTEM_API,
-    private val forStubs: List<SystemApiType> = emptyList()
+data class KnownApiSurface(
+    val surface: String,
+    val configFile: TestFile,
+    val commandLineOptions: List<String> = emptyList(),
 ) {
-    PRIVILEGED_APPS(
-        annotationClass = ANDROID_SYSTEM_API,
-        annotationFilter = "$ANDROID_SYSTEM_API(client=$ANDROID_SYSTEM_API.Client.PRIVILEGED_APPS)",
-    ),
-    // MODULE_LIBRARIES is not required yet.
-    // SYSTEM_SERVER is not required yet.
-    TEST(
-        annotationClass = ANDROID_TEST_API,
-        annotationFilter = ANDROID_TEST_API,
-        forStubs = listOf(PRIVILEGED_APPS),
-    ),
-    ;
+    companion object {
+        /** The public API as used by Android. */
+        val PUBLIC =
+            KnownApiSurface(
+                "public",
+                KnownConfigFiles.configKnownTestSurfaces,
+                listOf(
+                    ARG_SHOW_UNANNOTATED,
+                ),
+            )
 
-    /** The arguments to pass on the command line. */
-    val extraArguments
-        get() = buildList {
-            add(ARG_SHOW_ANNOTATION)
-            add(annotationFilter)
-            for (forStub in forStubs) {
-                add(ARG_SHOW_FOR_STUB_PURPOSES_ANNOTATION)
-                add(forStub.annotationFilter)
-            }
-        }
+        /** The system API as used by Android. */
+        val SYSTEM =
+            KnownApiSurface(
+                "system",
+                KnownConfigFiles.configKnownTestSurfaces,
+                listOf(
+                    ARG_SHOW_ANNOTATION,
+                    "android.annotation.SystemApi(client=android.annotation.SystemApi.Client.PRIVILEGED_APPS)",
+                ),
+            )
+
+        /** The system API plus public API. */
+        val SYSTEM_WITH_PUBLIC =
+            KnownApiSurface(
+                "system-with-public",
+                KnownConfigFiles.configSystemWithPublicSurface,
+                listOf(
+                    ARG_SHOW_UNANNOTATED,
+                    ARG_SHOW_ANNOTATION,
+                    "android.annotation.SystemApi(client=android.annotation.SystemApi.Client.PRIVILEGED_APPS)",
+                ),
+            )
+
+        /** The module-lib API as used by Android. */
+        val MODULE_LIB =
+            KnownApiSurface(
+                "module-lib",
+                KnownConfigFiles.configKnownTestSurfaces,
+                listOf(
+                    ARG_SHOW_FOR_STUB_PURPOSES_ANNOTATION,
+                    "android.annotation.SystemApi(client=android.annotation.SystemApi.Client.PRIVILEGED_APPS)",
+                    ARG_SHOW_ANNOTATION,
+                    "android.annotation.SystemApi(client=android.annotation.SystemApi.Client.MODULE_LIBRARIES)",
+                ),
+            )
+
+        /** The test API as used by Android. */
+        val TEST =
+            KnownApiSurface(
+                "test",
+                KnownConfigFiles.configKnownTestSurfaces,
+                listOf(
+                    ARG_SHOW_FOR_STUB_PURPOSES_ANNOTATION,
+                    "android.annotation.SystemApi(client=android.annotation.SystemApi.Client.PRIVILEGED_APPS)",
+                    ARG_SHOW_ANNOTATION,
+                    "android.annotation.TestApi",
+                ),
+            )
+    }
 }

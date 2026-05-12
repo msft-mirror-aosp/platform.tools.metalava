@@ -439,7 +439,7 @@ class ExtractAnnotationsTest : DriverTest() {
                     intRangeAnnotationSource,
                     recentlyNullableSource
                 ),
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
@@ -558,7 +558,7 @@ class ExtractAnnotationsTest : DriverTest() {
             extraArguments = arrayOf(ARG_TYPEDEFS_IN_SIGNATURES, "none"),
             format = FileFormat.V2,
             sourceFiles = sourceFiles1,
-            api =
+            expectedApiSignature =
                 """
                 // Signature format: 2.0
                 package test.pkg {
@@ -591,7 +591,7 @@ class ExtractAnnotationsTest : DriverTest() {
             extraArguments = arrayOf(ARG_TYPEDEFS_IN_SIGNATURES, "inline"),
             format = FileFormat.V2,
             sourceFiles = sourceFiles1,
-            api =
+            expectedApiSignature =
                 """
                 // Signature format: 2.0
                 package test.pkg {
@@ -624,7 +624,7 @@ class ExtractAnnotationsTest : DriverTest() {
             extraArguments = arrayOf(ARG_TYPEDEFS_IN_SIGNATURES, "ref"),
             format = FileFormat.V2,
             sourceFiles = sourceFiles1,
-            api =
+            expectedApiSignature =
                 """
                 // Signature format: 2.0
                 package test.pkg {

@@ -46,7 +46,7 @@ class NullnessMigrationTest : DriverTest() {
                     KnownSourceFiles.androidxNonNullJavaSource,
                     KnownSourceFiles.androidxNullableJavaSource,
                 ),
-            api =
+            expectedApiSignature =
                 """
                     // Signature format: 4.0
                     package test.pkg {
@@ -91,7 +91,7 @@ class NullnessMigrationTest : DriverTest() {
                       }
                     }
                 """,
-            api =
+            expectedApiSignature =
                 """
                     package test.pkg {
                       public abstract class MyTest {
@@ -99,7 +99,7 @@ class NullnessMigrationTest : DriverTest() {
                       }
                     }
                 """,
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
@@ -143,7 +143,7 @@ class NullnessMigrationTest : DriverTest() {
                       }
                     }
                 """,
-            api =
+            expectedApiSignature =
                 """
                     package test.pkg {
                       public abstract class MyTest {
@@ -151,7 +151,7 @@ class NullnessMigrationTest : DriverTest() {
                       }
                     }
                 """,
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
@@ -203,7 +203,7 @@ class NullnessMigrationTest : DriverTest() {
                       }
                     }
                 """,
-            api =
+            expectedApiSignature =
                 """
                     package test.pkg {
                       public class MyTest {
@@ -216,7 +216,7 @@ class NullnessMigrationTest : DriverTest() {
                       }
                     }
                 """,
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
@@ -276,7 +276,7 @@ class NullnessMigrationTest : DriverTest() {
                       }
                     }
                 """,
-            api =
+            expectedApiSignature =
                 """
                     // Signature format: 4.0
                     package test.pkg {
@@ -327,7 +327,7 @@ class NullnessMigrationTest : DriverTest() {
                         """
                     ),
                 ),
-            api =
+            expectedApiSignature =
                 """
                     package test.pkg {
                       public class Test {
@@ -367,7 +367,7 @@ class NullnessMigrationTest : DriverTest() {
                     KnownSourceFiles.typeUseOnlyNonNullSource,
                     KnownSourceFiles.typeUseOnlyNullableSource,
                 ),
-            api =
+            expectedApiSignature =
                 """
                     package test.pkg {
                       public class Test {
@@ -409,7 +409,7 @@ class NullnessMigrationTest : DriverTest() {
                     KnownSourceFiles.mixedUseNonNullSource,
                     KnownSourceFiles.mixedUseNullableSource,
                 ),
-            api =
+            expectedApiSignature =
                 """
                     package test.pkg {
                       public class Test {
@@ -448,7 +448,7 @@ class NullnessMigrationTest : DriverTest() {
                     KnownSourceFiles.androidxNonNullJavaSource,
                     KnownSourceFiles.androidxNullableJavaSource,
                 ),
-            api =
+            expectedApiSignature =
                 """
                     package test.pkg {
                       public class Test {
@@ -496,7 +496,7 @@ class NullnessMigrationTest : DriverTest() {
                       }
                     }
                 """,
-            stubFiles =
+            expectedStubFiles =
                 if (SUPPORT_TYPE_USE_ANNOTATIONS) {
                     arrayOf(
                         java(
@@ -568,7 +568,7 @@ class NullnessMigrationTest : DriverTest() {
                       }
                     }
                 """,
-            stubFiles =
+            expectedStubFiles =
                 if (SUPPORT_TYPE_USE_ANNOTATIONS) {
                     arrayOf(
                         java(
@@ -639,7 +639,7 @@ class NullnessMigrationTest : DriverTest() {
                       }
                     }
                 """,
-            stubFiles =
+            expectedStubFiles =
                 if (SUPPORT_TYPE_USE_ANNOTATIONS) {
                     arrayOf(
                         java(
@@ -680,7 +680,7 @@ class NullnessMigrationTest : DriverTest() {
     fun `Merge nullness annotations in stubs that are not in the API signature file`() {
         check(
             format = FileFormat.V2,
-            includeSystemApiAnnotations = SystemApiType.PRIVILEGED_APPS,
+            apiSurface = KnownApiSurface.SYSTEM,
             sourceFiles =
                 arrayOf(
                     java(
@@ -716,7 +716,6 @@ class NullnessMigrationTest : DriverTest() {
                             import androidx.annotation.NonNull;
                             import androidx.annotation.Nullable;
 
-                            /** @hide */
                             @android.annotation.SystemApi
                             public class ForSystemUse {
                                 public ForSystemUse(@NonNull String s) {}
@@ -753,7 +752,7 @@ class NullnessMigrationTest : DriverTest() {
                         }
                     """,
                 ),
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
@@ -781,7 +780,6 @@ class NullnessMigrationTest : DriverTest() {
                     java(
                         """
                             package test.pkg;
-                            /** */
                             @SuppressWarnings({"unchecked", "deprecation", "all"})
                             public class ForSystemUse {
                             public ForSystemUse(@androidx.annotation.RecentlyNonNull java.lang.String s) { throw new RuntimeException("Stub!"); }
@@ -792,7 +790,7 @@ class NullnessMigrationTest : DriverTest() {
                         """
                     ),
                 ),
-            api =
+            expectedApiSignature =
                 """
                     // Signature format: 2.0
                     package test.pkg {
@@ -888,7 +886,7 @@ class NullnessMigrationTest : DriverTest() {
                     KnownSourceFiles.androidxNonNullJavaSource,
                     KnownSourceFiles.androidxNullableJavaSource,
                 ),
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """

@@ -28,8 +28,8 @@ import org.intellij.lang.annotations.Language
 abstract class AbstractStubsTest : DriverTest() {
     protected fun checkStubs(
         /**
-         * A wrapper for [stubFiles]. When passing multiple stub Java files to test, use
-         * [stubFiles].
+         * A wrapper for [expectedStubFiles]. When passing multiple stub Java files to test, use
+         * [expectedStubFiles].
          */
         @Language("JAVA") source: String = "",
 
@@ -38,7 +38,7 @@ abstract class AbstractStubsTest : DriverTest() {
          *
          * Each [TestFile] in here will be compared against the generated stub files.
          */
-        stubFiles: Array<TestFile> = emptyArray(),
+        expectedStubFiles: Array<TestFile> = emptyArray(),
 
         /** The set of expected issues. */
         warnings: String? = "",
@@ -82,6 +82,9 @@ abstract class AbstractStubsTest : DriverTest() {
          */
         checkCompilation: Boolean = true,
 
+        /** A list of [CompilationCheck]s to perform with the generated stubs. */
+        compilationChecks: List<CompilationCheck>? = null,
+
         /**
          * Check whether stubs generated from signature text files matches (ignoring parameter
          * names) the stubs generated from sources.
@@ -90,7 +93,7 @@ abstract class AbstractStubsTest : DriverTest() {
          */
         checkTextStubEquivalence: Boolean? = null,
     ) {
-        val stubFilesArr = if (source.isNotEmpty()) arrayOf(java(source)) else stubFiles
+        val stubFilesArr = if (source.isNotEmpty()) arrayOf(java(source)) else expectedStubFiles
         if (stubFilesArr.isEmpty()) {
             error("must provide at least one expected stub files")
         }
@@ -99,10 +102,11 @@ abstract class AbstractStubsTest : DriverTest() {
             sourceFiles = sourceFiles,
             signatureSources = signatureSources,
             showAnnotations = showAnnotations,
-            stubFiles = stubFilesArr,
+            expectedStubFiles = stubFilesArr,
             expectedIssues = warnings,
             checkCompilation = checkCompilation,
-            api = api,
+            compilationChecks = compilationChecks,
+            expectedApiSignature = api,
             extraArguments = extraArguments,
             docStubs = docStubs,
             skipEmitPackages = skipEmitPackages,
@@ -115,11 +119,12 @@ abstract class AbstractStubsTest : DriverTest() {
             check(
                 signatureSources = arrayOf(readFileFilterBlankLines(getApiFile())),
                 showAnnotations = showAnnotations,
-                stubFiles = stubFilesArr,
+                expectedStubFiles = stubFilesArr,
                 // Signature files do not contain parameter names so ignore them when comparing stub
                 // files.
                 ignoreParameterNamesInStubFiles = true,
                 checkCompilation = checkCompilation,
+                compilationChecks = compilationChecks,
                 extraArguments = arrayOf(*extraArguments),
                 skipEmitPackages = skipEmitPackages,
                 format = format

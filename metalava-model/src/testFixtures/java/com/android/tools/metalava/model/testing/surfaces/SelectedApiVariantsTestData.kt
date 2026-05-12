@@ -192,15 +192,12 @@ val selectedApiVariantsTestData =
                             import android.annotation.SystemApi;
 
                             public class Test {
-                                /** @hide */
                                 @SystemApi
                                 public int field;
 
-                                /** @hide */
                                 @SystemApi
                                 public void method(int p) {}
 
-                                /** @hide */
                                 @SystemApi
                                 public static class Nested {
                                 }

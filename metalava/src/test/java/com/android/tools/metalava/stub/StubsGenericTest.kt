@@ -60,7 +60,7 @@ class StubsGenericTest : AbstractStubsTest() {
                     )
                 ),
             expectedIssues = "",
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """

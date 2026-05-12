@@ -299,7 +299,7 @@ class StubsTest : AbstractStubsTest() {
                 """
                     )
                 ),
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
@@ -1043,7 +1043,7 @@ class StubsTest : AbstractStubsTest() {
                     """
                     )
                 ),
-            api =
+            expectedApiSignature =
                 """
                 package test.pkg {
                   public class Alpha extends test.pkg.Charlie<test.pkg.Orange!> {
@@ -1054,7 +1054,7 @@ class StubsTest : AbstractStubsTest() {
                   }
                 }
                 """,
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
@@ -1095,7 +1095,7 @@ class StubsTest : AbstractStubsTest() {
                     """
                     )
                 ),
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
@@ -1142,7 +1142,7 @@ class StubsTest : AbstractStubsTest() {
             }
             """, // system-current.txt
                 ),
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
@@ -1195,7 +1195,7 @@ class StubsTest : AbstractStubsTest() {
             }
             """,
                 ),
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
@@ -1241,7 +1241,7 @@ class StubsTest : AbstractStubsTest() {
             }
             """,
                 ),
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     // class java.text.AttributedCharacterIterator.Attribute is included in
                     // android.jar, which is passed as classpath in DriverTest. The class does not
@@ -1303,7 +1303,7 @@ class StubsTest : AbstractStubsTest() {
                         """
                     )
                 ),
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
@@ -1319,7 +1319,7 @@ class StubsTest : AbstractStubsTest() {
                     )
                 ),
             format = FileFormat.V2,
-            api =
+            expectedApiSignature =
                 """
                     package test.pkg {
                       public class Foo {

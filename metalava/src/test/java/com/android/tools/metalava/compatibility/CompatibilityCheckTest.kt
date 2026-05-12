@@ -20,7 +20,7 @@ import com.android.tools.lint.checks.infrastructure.TestFiles.base64gzip
 import com.android.tools.metalava.ARG_SHOW_ANNOTATION
 import com.android.tools.metalava.ARG_SHOW_UNANNOTATED
 import com.android.tools.metalava.DriverTest
-import com.android.tools.metalava.SystemApiType
+import com.android.tools.metalava.KnownApiSurface
 import com.android.tools.metalava.cli.common.ARG_ERROR_CATEGORY
 import com.android.tools.metalava.cli.common.ARG_HIDE
 import com.android.tools.metalava.model.ANDROID_SYSTEM_API
@@ -250,7 +250,7 @@ class CompatibilityCheckTest : DriverTest() {
                         """
                     )
                 ),
-            api =
+            expectedApiSignature =
                 """
                 // Signature format: 5.0
                 package com.example {
@@ -933,33 +933,6 @@ class CompatibilityCheckTest : DriverTest() {
                         fun add2(s: String) { }
                         infix fun add3(s: String) { }
                     }
-                    """
-                    )
-                )
-        )
-    }
-
-    @RequiresCapabilities(Capability.KOTLIN)
-    @Test
-    fun `Add seal`() {
-        check(
-            expectedIssues =
-                """
-                src/test/pkg/Foo.kt:2: error: Source breaking change: Cannot add 'sealed' modifier to class test.pkg.Foo: Incompatible change [AddSealed]
-                """,
-            checkCompatibilityApiReleased =
-                """
-                package test.pkg {
-                  public class Foo {
-                  }
-                }
-                """,
-            sourceFiles =
-                arrayOf(
-                    kotlin(
-                        """
-                    package test.pkg
-                    sealed class Foo
                     """
                     )
                 )
@@ -1871,7 +1844,7 @@ class CompatibilityCheckTest : DriverTest() {
         // from the base API. When parsing these code bases we need to gracefully handle
         // references to inner classes.
         check(
-            includeSystemApiAnnotations = SystemApiType.PRIVILEGED_APPS,
+            apiSurface = KnownApiSurface.SYSTEM,
             expectedIssues =
                 """
                 released-api.txt:5: error: Binary breaking change: Removed method test.pkg.Bar.Inner1.Inner2.removedMethod() [RemovedMethod]
@@ -1902,15 +1875,9 @@ class CompatibilityCheckTest : DriverTest() {
                             public class Inner2 {
                                 private Inner2() { }
 
-                                /**
-                                 * @hide
-                                 */
                                 @SystemApi
                                 public void method() { }
 
-                                /**
-                                 * @hide
-                                 */
                                 @SystemApi
                                 public void addedMethod() { }
                             }
@@ -1933,15 +1900,15 @@ class CompatibilityCheckTest : DriverTest() {
     }
 
     @Test
-    fun `Incompatible Changes in Released System API `() {
+    fun `Incompatible Changes in Released System API`() {
         // Incompatible changes to a released System API should be detected
         // In this case removing final and changing value of constant
         check(
-            includeSystemApiAnnotations = SystemApiType.TEST,
+            apiSurface = KnownApiSurface.TEST,
             expectedIssues =
                 """
-                src/android/rolecontrollerservice/RoleControllerService.java:8: error: Method android.rolecontrollerservice.RoleControllerService.sendNetworkScore has removed 'final' qualifier [RemovedFinalStrict]
-                src/android/rolecontrollerservice/RoleControllerService.java:9: error: Binary breaking change: Field android.rolecontrollerservice.RoleControllerService.APP_RETURN_UNWANTED has changed value from 1 to 0 [ChangedValue]
+                src/android/rolecontrollerservice/RoleControllerService.java:7: error: Method android.rolecontrollerservice.RoleControllerService.sendNetworkScore has removed 'final' qualifier [RemovedFinalStrict]
+                src/android/rolecontrollerservice/RoleControllerService.java:8: error: Binary breaking change: Field android.rolecontrollerservice.RoleControllerService.APP_RETURN_UNWANTED has changed value from 1 to 0 [ChangedValue]
                 """,
             sourceFiles =
                 arrayOf(
@@ -1950,7 +1917,6 @@ class CompatibilityCheckTest : DriverTest() {
                     package android.rolecontrollerservice;
                     import android.annotation.SystemApi;
 
-                    /** @hide */
                     @SystemApi
                     public abstract class RoleControllerService {
                         public abstract void onGrantDefaultRoles();
@@ -2013,7 +1979,7 @@ class CompatibilityCheckTest : DriverTest() {
                         .indented(),
                     testApiSource,
                 ),
-            api =
+            expectedApiSignature =
                 """
                 package test.view {
                   public final class View {
@@ -3771,29 +3737,6 @@ class CompatibilityCheckTest : DriverTest() {
     }
 
     @Test
-    fun `Allow change from non-final to final in sealed class`() {
-        check(
-            signatureSource =
-                """
-                package test.pkg {
-                  sealed class Foo {
-                    method final public void bar(int);
-                  }
-                }
-            """,
-            format = FileFormat.V4,
-            checkCompatibilityApiReleased =
-                """
-                package test.pkg {
-                  sealed class Foo {
-                    method public void bar(int);
-                  }
-                }
-            """
-        )
-    }
-
-    @Test
     fun `unchanged self-referencing type parameter is compatible`() {
         check(
             checkCompatibilityApiReleased =
@@ -4526,7 +4469,7 @@ class CompatibilityCheckTest : DriverTest() {
                         """
                     )
                 ),
-            api =
+            expectedApiSignature =
                 """
                     package test.pkg {
                       public final class KeepNoArgsCtor {
@@ -4584,7 +4527,7 @@ class CompatibilityCheckTest : DriverTest() {
                         """
                     )
                 ),
-            api =
+            expectedApiSignature =
                 """
                 // Signature format: 5.0
                 package test.pkg {
@@ -4631,7 +4574,7 @@ class CompatibilityCheckTest : DriverTest() {
                   }
                 }
                 """,
-            api =
+            expectedApiSignature =
                 """
                 // Signature format: 5.0
                 package test.pkg {
@@ -4648,6 +4591,40 @@ class CompatibilityCheckTest : DriverTest() {
                   }
                 }
                 """,
+        )
+    }
+
+    @Test
+    fun `Change kind of method parameters`() {
+        check(
+            checkCompatibilityApiReleased =
+                """
+                // Signature format: 5.0
+                package test.pkg {
+                  public class Foo {
+                    method public void contextToReceiver(context String c);
+                    method public void receiverToValue(receiver String c);
+                    method public void valueToContext(String c);
+                  }
+                }
+                """,
+            signatureSource =
+                """
+                // Signature format: 5.0
+                package test.pkg {
+                  public class Foo {
+                    method public void contextToReceiver(receiver String c);
+                    method public void receiverToValue(String c);
+                    method public void valueToContext(context String c);
+                  }
+                }
+                """,
+            expectedIssues =
+                """
+                load-api.txt:4: error: Source breaking change: Parameter c in test.pkg.Foo.contextToReceiver(String c) has changed from CONTEXT to RECEIVER [ParameterKindChange]
+                load-api.txt:5: error: Source breaking change: Parameter c in test.pkg.Foo.receiverToValue(String c) has changed from RECEIVER to VALUE [ParameterKindChange]
+                load-api.txt:6: error: Source breaking change: Parameter c in test.pkg.Foo.valueToContext(String c) has changed from VALUE to CONTEXT [ParameterKindChange]
+                """
         )
     }
 

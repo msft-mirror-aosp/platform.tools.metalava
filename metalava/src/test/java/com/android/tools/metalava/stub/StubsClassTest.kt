@@ -401,7 +401,7 @@ class StubsClassTest : AbstractStubsTest() {
                     """
                     )
                 ),
-            api =
+            expectedApiSignature =
                 """
                 package test.pkg {
                   public class PublicApi {
@@ -413,7 +413,7 @@ class StubsClassTest : AbstractStubsTest() {
                   }
                 }
                 """,
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
@@ -466,7 +466,7 @@ class StubsClassTest : AbstractStubsTest() {
                     """
                     )
                 ),
-            api =
+            expectedApiSignature =
                 """
                 package test.pkg {
                   public class PublicApi {
@@ -474,7 +474,7 @@ class StubsClassTest : AbstractStubsTest() {
                   }
                 }
                 """,
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """

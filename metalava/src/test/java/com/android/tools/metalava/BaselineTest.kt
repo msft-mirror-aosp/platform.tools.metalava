@@ -155,7 +155,7 @@ class BaselineTest : DriverTest() {
                 val git = File(file, ".git").toPath()
                 java.nio.file.Files.createSymbolicLink(git, dir.toPath())
             },
-            api =
+            expectedApiSignature =
                 """
                 package test.pkg {
                   public class Foo {
@@ -177,7 +177,7 @@ class BaselineTest : DriverTest() {
         // When using show annotations we should only reference errors that are present in the delta
         check(
             format = FileFormat.V2,
-            includeSystemApiAnnotations = SystemApiType.TEST,
+            apiSurface = KnownApiSurface.TEST,
             extraArguments = arrayOf(ARG_API_LINT),
             baselineTestInfo =
                 BaselineTestInfo(
@@ -215,22 +215,20 @@ class BaselineTest : DriverTest() {
                         public void registerOk1Callback(@Nullable Runnable r) { }
                         public void unregisterOk1Callback(@Nullable Runnable r) { }
 
-                        /** @hide */
                         @TestApi
                         public void registerOk2Callback(@Nullable Runnable r) { }
-                        /** @hide */
+
                         @TestApi
                         public void unregisterOk2Callback(@Nullable Runnable r) { }
 
                         // In the Test API, both methods are present
                         public void registerOk3Callback(@Nullable Runnable r) { }
-                        /** @hide */
+
                         @TestApi
                         public void unregisterOk3Callback(@Nullable Runnable r) { }
 
                         public void registerUnpaired1Callback(@Nullable Runnable r) { }
 
-                        /** @hide */
                         @TestApi
                         public void registerUnpaired2Callback(@Nullable Runnable r) { }
                     }
@@ -239,7 +237,7 @@ class BaselineTest : DriverTest() {
                     testApiSource,
                     KnownSourceFiles.androidxNullableJavaSource,
                 ),
-            api =
+            expectedApiSignature =
                 """
                 package android.pkg {
                   public class RegistrationMethods {

@@ -1107,4 +1107,39 @@ class SignatureInputOutputTest : Assertions {
                 """
         )
     }
+
+    @Test
+    fun `Test writing property context parameters`() {
+        runInputOutputTest(
+            signature =
+                """
+                // Signature format: 5.0
+                package test.pkg {
+                  public class Foo {
+                    property public int noContextParams;
+                    property public int oneContextParam(context String s);
+                    property public int twoContextParams(context String s, context int i);
+                    property public int unnamedContextParam(context String);
+                  }
+                }
+                """,
+            fileFormat = FileFormat.V5
+        )
+    }
+
+    @Test
+    fun `Test writing function context parameters`() {
+        runInputOutputTest(
+            signature =
+                """
+                // Signature format: 5.0
+                package test.pkg {
+                  public class Foo {
+                    method public void foo(context String c1, context int c2, String v1, int v2);
+                  }
+                }
+                """,
+            fileFormat = FileFormat.V5
+        )
+    }
 }

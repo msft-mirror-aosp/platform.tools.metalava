@@ -116,7 +116,7 @@ class RecordLintTest : DriverTest() {
                         """
                     ),
                 ),
-            api =
+            expectedApiSignature =
                 """
                     package test.pkg {
                       public record Test {
@@ -128,7 +128,7 @@ class RecordLintTest : DriverTest() {
                       }
                     }
                 """,
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
@@ -204,7 +204,7 @@ class RecordLintTest : DriverTest() {
                         """
                     ),
                 ),
-            api =
+            expectedApiSignature =
                 """
                     package test.pkg {
                       public record Test {
@@ -218,7 +218,7 @@ class RecordLintTest : DriverTest() {
                       }
                     }
                 """,
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
@@ -257,7 +257,7 @@ class RecordLintTest : DriverTest() {
                         """
                     ),
                 ),
-            api =
+            expectedApiSignature =
                 """
                     // Signature format: 6.0
                     // - style=java
@@ -271,7 +271,7 @@ class RecordLintTest : DriverTest() {
                       }
                     }
                 """,
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """

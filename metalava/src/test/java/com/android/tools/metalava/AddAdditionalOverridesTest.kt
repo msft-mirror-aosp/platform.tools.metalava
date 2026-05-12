@@ -37,7 +37,7 @@ class AddAdditionalOverridesTest : DriverTest() {
         check(
             format = format,
             sourceFiles = sourceFiles,
-            api = apiOriginal,
+            expectedApiSignature = apiOriginal,
             extraArguments = extraArguments,
         )
 
@@ -45,7 +45,7 @@ class AddAdditionalOverridesTest : DriverTest() {
         check(
             format = format.buildCopy { this[ADD_ADDITIONAL_OVERRIDES] = true },
             sourceFiles = sourceFiles,
-            api = apiWithAdditionalOverrides,
+            expectedApiSignature = apiWithAdditionalOverrides,
             extraArguments = extraArguments,
         )
     }
@@ -725,7 +725,7 @@ class AddAdditionalOverridesTest : DriverTest() {
                     ),
                 ),
             format = FileFormat.V2,
-            api =
+            expectedApiSignature =
                 """
                     // Signature format: 2.0
                     package test.pkg {

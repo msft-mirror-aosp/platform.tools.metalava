@@ -96,7 +96,7 @@ class UnhideApisTest : DriverTest() {
                     """
                     )
                 ),
-            api =
+            expectedApiSignature =
                 """
                 package test.pkg {
                   public class Foo<A extends test.pkg.Hidden1 & test.pkg.Hidden2, B extends test.pkg.Hidden3> {
@@ -166,7 +166,7 @@ class UnhideApisTest : DriverTest() {
                     src/test/pkg1/Usage.java:12: warning: Parameter myargs references hidden type test.pkg1.Class9. [HiddenTypeParameter]
                     src/test/pkg1/Usage.java:12: error: Class test.pkg1.Class9 is not public but was referenced (in parameter type) from public parameter myargs in test.pkg1.Usage.arrayType(test.pkg1.Class9[] myargs) [ReferencesHidden]
                     """,
-            api =
+            expectedApiSignature =
                 """
                     package test.pkg1 {
                       public abstract class Usage implements java.util.List<test.pkg1.Class1> {

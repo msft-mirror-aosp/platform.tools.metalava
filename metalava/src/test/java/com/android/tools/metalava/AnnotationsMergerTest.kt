@@ -62,7 +62,7 @@ class AnnotationsMergerTest : DriverTest() {
                         public @NonNull Number nullable;
                     }
                 """,
-            api =
+            expectedApiSignature =
                 """
                     // Signature format: 2.0
                     package test.pkg {
@@ -112,7 +112,7 @@ class AnnotationsMergerTest : DriverTest() {
                       </item>
                     </root>
                 """,
-            api =
+            expectedApiSignature =
                 """
                     // Signature format: 2.0
                     package test.pkg {
@@ -157,7 +157,7 @@ class AnnotationsMergerTest : DriverTest() {
                     KnownSourceFiles.androidxNonNullJavaSource,
                     KnownSourceFiles.androidxNullableJavaSource,
                 ),
-            api =
+            expectedApiSignature =
                 """
                 package test.pkg {
                   @UiThread public class MyTest {
@@ -218,7 +218,7 @@ class AnnotationsMergerTest : DriverTest() {
                   </item>
                   </root>
                 """,
-            api =
+            expectedApiSignature =
                 """
                 package test.pkg {
                   @UiThread public class MyTest {
@@ -262,7 +262,7 @@ class AnnotationsMergerTest : DriverTest() {
                   }
                 }
                 """,
-            api =
+            expectedApiSignature =
                 """
                 package test.pkg {
                   public interface Appendable {
@@ -311,7 +311,7 @@ class AnnotationsMergerTest : DriverTest() {
                     void notPresentWithoutAnnotations();
                 }
                 """,
-            api =
+            expectedApiSignature =
                 """
                 package test.pkg {
                   public interface Appendable {
@@ -335,7 +335,7 @@ class AnnotationsMergerTest : DriverTest() {
     fun `Merge qualifier annotations from Java stub files onto stubs that are not in the API signature file`() {
         check(
             format = FileFormat.V2,
-            includeSystemApiAnnotations = SystemApiType.TEST,
+            apiSurface = KnownApiSurface.TEST,
             sourceFiles =
                 arrayOf(
                     java(
@@ -351,7 +351,6 @@ class AnnotationsMergerTest : DriverTest() {
                         """
                     package test.pkg;
 
-                    /** @hide */
                     @android.annotation.TestApi
                     public interface ForTesting {
                         void foo();
@@ -372,7 +371,7 @@ class AnnotationsMergerTest : DriverTest() {
                     @NonNull Appendable append(@Nullable java.lang.CharSequence csq);
                 }
                 """,
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
@@ -387,7 +386,6 @@ class AnnotationsMergerTest : DriverTest() {
                     java(
                         """
                     package test.pkg;
-                    /** */
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public interface ForTesting {
                     public void foo();
@@ -395,7 +393,7 @@ class AnnotationsMergerTest : DriverTest() {
                     """
                     )
                 ),
-            api =
+            expectedApiSignature =
                 """
                 package test.pkg {
                   public interface ForTesting {
@@ -434,7 +432,7 @@ class AnnotationsMergerTest : DriverTest() {
                     public void foo(java.lang.@libcore.util.Nullable Object @libcore.util.NonNull ... args) { throw new RuntimeException("Stub!"); }
                 }
                 """,
-            api =
+            expectedApiSignature =
                 """
                 package test.pkg {
                   public class Test {
@@ -481,7 +479,7 @@ class AnnotationsMergerTest : DriverTest() {
                     @NonNull public String publicMethod(@Nullable Object object) {return "";}
                 }
                 """,
-            api =
+            expectedApiSignature =
                 """
                 package test.pkg {
                   public class PublicClass {
@@ -556,7 +554,7 @@ class AnnotationsMergerTest : DriverTest() {
                         """
                     ),
                 ),
-            api =
+            expectedApiSignature =
                 """
                 package test.pkg {
                   public interface Example {
@@ -635,7 +633,7 @@ class AnnotationsMergerTest : DriverTest() {
                         """
                     ),
                 ),
-            api =
+            expectedApiSignature =
                 """
                     package test.pkg {
                       public interface Example {
@@ -693,7 +691,7 @@ class AnnotationsMergerTest : DriverTest() {
                         """
                     ),
                 ),
-            api =
+            expectedApiSignature =
                 """
                     package test.pkg {
                       public interface Example {
@@ -746,7 +744,7 @@ class AnnotationsMergerTest : DriverTest() {
                         """
                     ),
                 ),
-            api =
+            expectedApiSignature =
                 """
                 package test.pkg {
                   public interface Example {
@@ -789,7 +787,7 @@ class AnnotationsMergerTest : DriverTest() {
                         """
                     ),
                 ),
-            api =
+            expectedApiSignature =
                 """
                 package java.net {
                   public class Example {
@@ -852,7 +850,7 @@ class AnnotationsMergerTest : DriverTest() {
                         """
                     ),
                 ),
-            api = "" // This test is checking that it doesn't crash
+            expectedApiSignature = "" // This test is checking that it doesn't crash
         )
     }
 
@@ -891,7 +889,7 @@ class AnnotationsMergerTest : DriverTest() {
                     }
                 }
                 """,
-            api =
+            expectedApiSignature =
                 """
                 package test.pkg {
                   public class Child extends test.pkg.Parent {
@@ -959,7 +957,7 @@ class AnnotationsMergerTest : DriverTest() {
                 </root>
                 """,
             format = FileFormat.V4,
-            api =
+            expectedApiSignature =
                 """
                 // Signature format: 4.0
                 package android.graphics {

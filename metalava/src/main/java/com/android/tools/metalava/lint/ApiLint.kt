@@ -18,6 +18,7 @@ package com.android.tools.metalava.lint
 
 import com.android.sdklib.SdkVersionInfo
 import com.android.tools.metalava.KotlinInteropChecks
+import com.android.tools.metalava.lint.ApiLint.PackageRank.Companion.INVALID_RANK
 import com.android.tools.metalava.lint.ResourceType.AAPT
 import com.android.tools.metalava.lint.ResourceType.ANIM
 import com.android.tools.metalava.lint.ResourceType.ANIMATOR
@@ -74,10 +75,12 @@ import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.MultipleTypeVisitor
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
+import com.android.tools.metalava.model.ParameterKind
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.PrimitiveTypeItem.Primitive
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.RecordComponentItem
+import com.android.tools.metalava.model.SourceLanguage
 import com.android.tools.metalava.model.TargetLanguageSet
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeNullability
@@ -111,6 +114,7 @@ import com.android.tools.metalava.reporter.Issues.CALLBACK_METHOD_NAME
 import com.android.tools.metalava.reporter.Issues.CALLBACK_NAME
 import com.android.tools.metalava.reporter.Issues.COMPILE_TIME_CONSTANT
 import com.android.tools.metalava.reporter.Issues.CONCRETE_COLLECTION
+import com.android.tools.metalava.reporter.Issues.CONCRETE_SEALED_CLASS
 import com.android.tools.metalava.reporter.Issues.CONFIG_FIELD_NAME
 import com.android.tools.metalava.reporter.Issues.CONTEXT_FIRST
 import com.android.tools.metalava.reporter.Issues.CONTEXT_NAME_SUFFIX
@@ -120,6 +124,7 @@ import com.android.tools.metalava.reporter.Issues.ENUM
 import com.android.tools.metalava.reporter.Issues.EQUALS_AND_HASH_CODE
 import com.android.tools.metalava.reporter.Issues.EXCEPTION_NAME
 import com.android.tools.metalava.reporter.Issues.EXECUTOR_REGISTRATION
+import com.android.tools.metalava.reporter.Issues.EXHAUSTIVE_SEALED_CLASS
 import com.android.tools.metalava.reporter.Issues.EXTENDS_ERROR
 import com.android.tools.metalava.reporter.Issues.FORBIDDEN_SUPER_CLASS
 import com.android.tools.metalava.reporter.Issues.FRACTION_FLOAT
@@ -462,6 +467,7 @@ private constructor(
         checkTypedef(cls)
         checkAccessorNullabilityMatches(methods)
         checkDataClass(cls)
+        checkSealedClass(cls)
         checkTypealias(cls)
 
         // Check class types.
@@ -1051,37 +1057,14 @@ private constructor(
     }
 
     private fun checkSynchronized(method: MethodItem) {
-
-        /**
-         * Report an error.
-         *
-         * @param synchronizedStatementLocation an optional [FileLocation] of the synchronized
-         *   statement that is the root of the problem.
-         */
-        fun reportError(synchronizedStatementLocation: FileLocation? = null) {
-            val message = StringBuilder("Internal locks must not be exposed")
-            if (synchronizedStatementLocation != null) {
-                message.append(" (synchronizing on this or class is still externally observable)")
-            }
-            message.append(": ")
-            message.append(method.describe())
-            val location = synchronizedStatementLocation ?: FileLocation.UNKNOWN
-            report(VISIBLY_SYNCHRONIZED, method, message.toString(), location)
-        }
-
         if (method.modifiers.isSynchronized()) {
             // The synchronizing is being done implicitly bny the method so there is no more
             // specific location to provide.
-            reportError()
-        } else {
-            // Find any visible synchronized statements in the method body.
-            val synchronizedLocations = method.body.findVisiblySynchronizedLocations()
-
-            for (location in synchronizedLocations) {
-                // Report the location of the synchronized statement that is synchronizing on
-                // `this` or the `class` object and causing the problem.
-                reportError(location)
-            }
+            val message = StringBuilder("Internal locks must not be exposed")
+            message.append(": ")
+            message.append(method.describe())
+            val location = FileLocation.UNKNOWN
+            report(VISIBLY_SYNCHRONIZED, method, message.toString(), location)
         }
     }
 
@@ -2141,8 +2124,8 @@ private constructor(
         } else {
             when (item) {
                 is ParameterItem -> {
-                    // We don't enforce this check on constructor params
-                    if (item.containingCallable().isConstructor()) return
+                    // We don't enforce this check on constructor params or property context params
+                    if (item.possibleContainingMethod() == null) return
                     if (type.modifiers.isNonNull) {
                         // TODO (b/344859664): Skip warning for inner type
                         if (supers.anyTypeHasNullability(TypeNullability.PLATFORM) && !isInner) {
@@ -2388,11 +2371,15 @@ private constructor(
 
     private fun checkContextFirst(callable: CallableItem) {
         val parameters = callable.parameters()
-        // The first parameter for a Kotlin extension method is the receiver
+        // Skip context and receiver parameters (
         val effectivelyFirstParameterPosition =
-            if (callable is MethodItem && callable.isExtensionMethod()) 1 else 0
+            callable.parameters().indexOfFirst { it.kind == ParameterKind.VALUE }
         val effectivelySecondParameterPosition = effectivelyFirstParameterPosition + 1
-        if (parameters.size <= effectivelySecondParameterPosition) return
+        if (
+            effectivelyFirstParameterPosition == -1 ||
+                parameters.size <= effectivelySecondParameterPosition
+        )
+            return
         val firstParameterTypeString =
             parameters[effectivelyFirstParameterPosition].type().toTypeString()
         if (firstParameterTypeString != "android.content.Context") {
@@ -3420,6 +3407,32 @@ private constructor(
                 cls,
                 "Exposing data classes as public API is discouraged because they are " +
                     "difficult to update while maintaining binary compatibility."
+            )
+        }
+    }
+
+    private fun checkSealedClass(cls: ClassItem) {
+        val modifiers = cls.modifiers
+        if (!modifiers.isSealed()) return
+
+        // Only report for Java to avoid breaking any existing Kotlin APIs.
+        if (cls.sourceLanguage != SourceLanguage.JAVA) return
+
+        // Exhaustive sealed classes cannot be extended.
+        if (modifiers.isExhaustive()) {
+            report(
+                EXHAUSTIVE_SEALED_CLASS,
+                cls,
+                "`exhaustive` sealed classes cannot be extended without breaking source compatibility; add a subclass that is not in the API to make it `non-exhaustive`"
+            )
+        }
+
+        // Sealed classes should be abstract.
+        if (!modifiers.isAbstract()) {
+            report(
+                CONCRETE_SEALED_CLASS,
+                cls,
+                "Concrete sealed classes are harder to use; make it `abstract` instead"
             )
         }
     }

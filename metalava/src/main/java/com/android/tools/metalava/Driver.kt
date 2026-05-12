@@ -207,11 +207,7 @@ class Driver(
             DefaultAnnotationManager.Config(
                 reporter = reporter,
                 passThroughAnnotations = apiSelectionOptions.passThroughAnnotations,
-                allShowAnnotations = apiSelectionOptions.allShowAnnotations,
-                showAnnotations = apiSelectionOptions.showAnnotations,
-                showSingleAnnotations = apiSelectionOptions.showSingleAnnotations,
-                showForStubPurposesAnnotations = apiSelectionOptions.showForStubPurposesAnnotations,
-                hideAnnotations = apiSelectionOptions.hideAnnotations,
+                apiSurfaceSelector = apiSelectionOptions.apiSurfaceSelector,
                 suppressCompatibilityMetaAnnotations =
                     apiSelectionOptions.suppressCompatibilityMetaAnnotations,
                 excludeAnnotations = apiSelectionOptions.excludeAnnotations,
@@ -235,6 +231,15 @@ class Driver(
                 apiFlags = apiFlags,
                 apiSurfaces = apiSelectionOptions.apiSurfaces,
                 reporter = reporter,
+
+                // Allow hiding when --api-surface is not provided to maintain backwards
+                // compatibility.
+                //
+                // This behavior is a workaround to support AndroidX which does preserve the
+                // RestrictTo annotation.
+                // TODO(b/510724278): Remove, or use something else when AndroidX uses
+                //  --api-surface.
+                hideItemsOnClassPath = apiSelectionOptions.apiSurface == null,
             )
         }
 
@@ -278,7 +283,7 @@ class Driver(
             skipEmitPackages = skipEmitPackages,
             mergeQualifierAnnotations = sourceOptions.mergeQualifierAnnotations,
             mergeInclusionAnnotations = sourceOptions.mergeInclusionAnnotations,
-            allShowAnnotations = apiSelectionOptions.allShowAnnotations,
+            apiSurface = apiSelectionOptions.apiSurface,
             apiPredicateConfig = apiPredicateConfig,
             annotationsMergerConfig =
                 AnnotationsMerger.Config(
@@ -290,6 +295,13 @@ class Driver(
                     nullabilityAnnotationsValidator =
                         nullabilityValidationOptions.validatorForMerging,
                 ),
+
+            // If the API surfaces are configured then any annotations that are used by related API
+            // surfaces but which are not needed to track the target API surface and all those that
+            // contribute to it are automatically treated as hidden. e.g. when generating the public
+            // API, @SystemApi is treated as a hide annotation. That means there is no need to
+            // perform the UnhiddenSystemApi check.
+            needUnhiddenSystemApiCheck = apiSelectionOptions.apiSurface == null,
         )
     }
 
@@ -325,18 +337,18 @@ class Driver(
 
         // Run operations on the regular codebase, if it exists.
         codebase?.let {
-            tracer.trace("runCodebaseChecks") { runCodebaseChecks(stopwatch, codebase) }
+            tracer.trace("runCodebaseOperations") { runCodebaseOperations(stopwatch, codebase) }
         }
 
         // Run additional operations on the multiplatform codebase, if it exists.
         multiplatformCodebase?.let {
-            tracer.trace("runMultiplatformCodebaseChecks") {
-                runMultiplatformCodebaseChecks(multiplatformCodebase)
+            tracer.trace("runMultiplatformCodebaseOperations") {
+                runMultiplatformCodebaseOperations(multiplatformCodebase)
             }
         }
     }
 
-    private fun runCodebaseChecks(stopwatch: Stopwatch, codebase: Codebase) {
+    private fun runCodebaseOperations(stopwatch: Stopwatch, codebase: Codebase) {
         generateApiHistoryFromOptions(codebase)
 
         // Generate signature files based on provided input flags (i.e. if api file locations were
@@ -574,13 +586,17 @@ class Driver(
         }
     }
 
-    private fun runMultiplatformCodebaseChecks(multiplatformCodebase: MultiplatformCodebase) {
+    private fun runMultiplatformCodebaseOperations(multiplatformCodebase: MultiplatformCodebase) {
         for (codebase in multiplatformCodebase.sourceSetToCodebase.values) {
-            ApiAnalyzer(sourceParser, codebase, reporter, apiAnalyzerConfig).computeApi()
+            tracer.trace("computeApi") {
+                ApiAnalyzer(sourceParser, codebase, reporter, apiAnalyzerConfig).computeApi()
+            }
         }
 
         if (apiLintOptions.apiLintEnabled) {
-            MultiplatformLint(reporter).check(multiplatformCodebase)
+            tracer.trace("MultiplatformLint.check") {
+                MultiplatformLint(reporter).check(multiplatformCodebase)
+            }
 
             // For the regular, non-multiplatform codebase operations, if they happened, either the
             // android or jvm source set would have been used. Find which one of these it was.
@@ -603,16 +619,18 @@ class Driver(
             // the checks below, and any lint issues in common will only be reported once here
             // instead of being duplicated.
             if (mainSourceSet == "commonMain") {
-                ApiLint.check(
-                    mainCodebase!!,
-                    null,
-                    reporter,
-                    apiPredicateConfig,
-                    ApiLint.Config(
-                        manifest = miscellaneousOptions.manifest,
-                        allowedAcronyms = apiLintOptions.allowedAcronyms,
-                    ),
-                )
+                tracer.trace("commonMain ApiLint.check") {
+                    ApiLint.check(
+                        mainCodebase!!,
+                        null,
+                        reporter,
+                        apiPredicateConfig,
+                        ApiLint.Config(
+                            manifest = miscellaneousOptions.manifest,
+                            allowedAcronyms = apiLintOptions.allowedAcronyms,
+                        ),
+                    )
+                }
             }
 
             // Run regular API lint checks for each source set.
@@ -621,20 +639,23 @@ class Driver(
                 // the non-multiplatform lint checks. Also skip checking common, since all APIs will
                 // be included in the checks for other source sets.
                 if (sourceSet == mainSourceSet || sourceSet == "commonMain") continue
-                runApiChecksFromOptions(codebase) { codebase, _ ->
-                    ApiLint.check(
-                        codebase,
-                        // By making the main android/jvm/common codebase the "oldCodebase", any
-                        // issues which have already been reported for the main codebase through the
-                        // non-multiplatform checks or the common check above will be skipped.
-                        oldCodebase = mainCodebase,
-                        reporter,
-                        apiPredicateConfig,
-                        ApiLint.Config(
-                            manifest = miscellaneousOptions.manifest,
-                            allowedAcronyms = apiLintOptions.allowedAcronyms,
-                        ),
-                    )
+                tracer.trace("$sourceSet ApiLint.check") {
+                    runApiChecksFromOptions(codebase) { codebase, _ ->
+                        ApiLint.check(
+                            codebase,
+                            // By making the main android/jvm/common codebase the "oldCodebase", any
+                            // issues which have already been reported for the main codebase through
+                            // the
+                            // non-multiplatform checks or the common check above will be skipped.
+                            oldCodebase = mainCodebase,
+                            reporter,
+                            apiPredicateConfig,
+                            ApiLint.Config(
+                                manifest = miscellaneousOptions.manifest,
+                                allowedAcronyms = apiLintOptions.allowedAcronyms,
+                            ),
+                        )
+                    }
                 }
             }
         }

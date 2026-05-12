@@ -36,7 +36,6 @@ Available Issues                             |  Category                        
   AbstractInner                              |  api_lint                             |   warning
   AcronymName                                |  api_lint                             |   warning
   ActionValue                                |  api_lint                             |   error
-  AddSealed                                  |  source_compatibility_only            |   error
   AddedAbstractMethod                        |  binary_and_source_compatibility      |   error
   AddedAbstractProperty                      |  source_compatibility_only            |   error
   AddedAnnotation                            |  other_compatibility                  |   error
@@ -50,6 +49,7 @@ Available Issues                             |  Category                        
   AddedProperty                              |  other_compatibility                  |   hidden
   AddedRecordComponent                       |  binary_and_source_compatibility      |   error
   AddedReified                               |  binary_compatibility_only            |   error
+  AddedSealed                                |  source_compatibility_only            |   error
   AddedSourceSet                             |  source_compatibility_only            |   info
   AddedSubclassToSealedClass                 |  source_compatibility_only            |   error
   AllUpper                                   |  api_lint                             |   error
@@ -84,6 +84,7 @@ Available Issues                             |  Category                        
   ChangedVolatile                            |  other_compatibility                  |   error
   CompileTimeConstant                        |  api_lint                             |   error
   ConcreteCollection                         |  api_lint                             |   error
+  ConcreteSealedClass                        |  api_lint                             |   warning
   ConditionalRequiresPermissionNotExplained  |  api_lint                             |   hidden
   ConfigFieldName                            |  api_lint                             |   error
   ContextFirst                               |  api_lint                             |   error
@@ -99,6 +100,7 @@ Available Issues                             |  Category                        
   EqualsAndHashCode                          |  api_lint                             |   error
   ExceptionName                              |  api_lint                             |   error
   ExecutorRegistration                       |  api_lint                             |   warning
+  ExhaustiveSealedClass                      |  api_lint                             |   warning
   ExtendsDeprecated                          |  api_lint                             |   hidden
   ExtendsError                               |  api_lint                             |   error
   FacadeClassJvmName                         |  api_lint                             |   hidden
@@ -114,6 +116,7 @@ Available Issues                             |  Category                        
   GetterSetterNullability                    |  api_lint                             |   warning_error_when_new
   HeavyBitSet                                |  api_lint                             |   error
   HiddenAbstractMethod                       |  api_lint                             |   error
+  HiddenShowAnnotation                       |  api_lint                             |   warning_error_when_new
   HiddenSuperclass                           |  documentation                        |   warning
   HiddenTypeParameter                        |  documentation                        |   warning
   HiddenTypedefConstant                      |  unknown                              |   error
@@ -191,6 +194,7 @@ Available Issues                             |  Category                        
   OverlappingConstants                       |  api_lint                             |   warning
   PackageLayering                            |  api_lint                             |   warning
   PairedRegistration                         |  api_lint                             |   error
+  ParameterKindChange                        |  source_compatibility_only            |   error
   ParameterNameChange                        |  source_compatibility_only            |   error
   ParcelConstructor                          |  api_lint                             |   error
   ParcelCreator                              |  api_lint                             |   error
@@ -224,6 +228,7 @@ Available Issues                             |  Category                        
   RemovedSourceSet                           |  source_compatibility_only            |   error
   RemovedTypeAlias                           |  source_compatibility_only            |   error
   RequiresPermission                         |  documentation                        |   error
+  RequiresSystemPermission                   |  documentation                        |   hidden
   ResourceFieldName                          |  api_lint                             |   error
   ResourceStyleFieldName                     |  api_lint                             |   error
   ResourceValueFieldName                     |  api_lint                             |   error
@@ -293,7 +298,7 @@ Available Issues                             |  Category                        
                 """
                 Aborting: Usage: metalava help issues <issue>?
 
-                Error: no such issue: "AdddFinal". (Possible issues: AddedFinal, AddedField, AddedFinalUninstantiable)
+                Error: no such issue: "AdddFinal". (Possible issues: AddedFinal, AddedField, AddedFinalUninstantiable, AddedSealed)
             """
                     .trimIndent()
         }

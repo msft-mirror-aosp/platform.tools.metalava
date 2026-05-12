@@ -78,7 +78,7 @@ class CoreApiTest : DriverTest() {
                     libcoreCoreApi,
                     libcoreCoreHidden
                 ),
-            api =
+            expectedApiSignature =
                 """
                 package libcore.api {
                   @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.SOURCE) @java.lang.annotation.Target({java.lang.annotation.ElementType.TYPE, java.lang.annotation.ElementType.FIELD, java.lang.annotation.ElementType.METHOD, java.lang.annotation.ElementType.CONSTRUCTOR, java.lang.annotation.ElementType.ANNOTATION_TYPE, java.lang.annotation.ElementType.PACKAGE}) @libcore.api.IntraCoreApi public @interface IntraCoreApi {
@@ -91,7 +91,7 @@ class CoreApiTest : DriverTest() {
                   }
                 }
                 """,
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
@@ -173,7 +173,7 @@ class CoreApiTest : DriverTest() {
                     libcoreCoreApi,
                     libcoreCoreHidden
                 ),
-            api =
+            expectedApiSignature =
                 """
                 package libcore.api {
                   @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.SOURCE) @java.lang.annotation.Target({java.lang.annotation.ElementType.TYPE, java.lang.annotation.ElementType.FIELD, java.lang.annotation.ElementType.METHOD, java.lang.annotation.ElementType.CONSTRUCTOR, java.lang.annotation.ElementType.ANNOTATION_TYPE, java.lang.annotation.ElementType.PACKAGE}) @libcore.api.IntraCoreApi public @interface IntraCoreApi {
@@ -185,7 +185,7 @@ class CoreApiTest : DriverTest() {
                   }
                 }
                 """,
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
@@ -260,7 +260,7 @@ class CoreApiTest : DriverTest() {
                     libcoreCoreApi,
                     libcoreCoreHidden
                 ),
-            api =
+            expectedApiSignature =
                 """
                 package libcore.api {
                   @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.SOURCE) @java.lang.annotation.Target({java.lang.annotation.ElementType.TYPE, java.lang.annotation.ElementType.FIELD, java.lang.annotation.ElementType.METHOD, java.lang.annotation.ElementType.CONSTRUCTOR, java.lang.annotation.ElementType.ANNOTATION_TYPE, java.lang.annotation.ElementType.PACKAGE}) @libcore.api.IntraCoreApi public @interface IntraCoreApi {

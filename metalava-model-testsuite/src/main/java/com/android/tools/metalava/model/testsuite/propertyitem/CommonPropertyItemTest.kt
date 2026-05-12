@@ -17,6 +17,7 @@
 package com.android.tools.metalava.model.testsuite.propertyitem
 
 import com.android.tools.lint.checks.infrastructure.TestFiles.base64gzip
+import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.VisibilityLevel
@@ -1455,6 +1456,252 @@ class CommonPropertyItemTest : BaseModelTest() {
             assertThat(intProperty.annotationNames()).containsExactly("test.pkg.Hide")
             val intValueProperty = fooClass.assertProperty("intValueProperty")
             assertThat(intValueProperty.annotationNames()).containsExactly("test.pkg.Hide")
+        }
+    }
+
+    @SupportedInputFormats(InputFormat.KOTLIN, InputFormat.SIGNATURE)
+    @Test
+    fun `Test context parameters on property`() {
+        runCodebaseTest(
+            kotlin(
+                """
+                package test.pkg
+                class Foo {
+                    val noContextParams: Int = 0
+
+                    context(s: String)
+                    val oneContextParam: Int get() = 1
+
+                    context(s: String, i: Int)
+                    val twoContextParams: Int get() = 2
+
+                    context(_: String)
+                    val unnamedContextParam: Int get() = 3
+                }
+                """
+            ),
+            signature(
+                """
+                // Signature format: 5.0
+                package test.pkg {
+                  public class Foo {
+                    property public int noContextParams;
+                    property public int oneContextParam(context String s);
+                    property public int twoContextParams(context String s, context int i);
+                    property public int unnamedContextParam(context String);
+                  }
+                }
+                """
+            )
+        ) {
+            fun ParameterItem.checkValues(
+                expectedParent: PropertyItem,
+                expectedName: String,
+                expectedIndex: Int,
+                expectedTypeString: String
+            ) {
+                assertThat(parent()).isEqualTo(expectedParent)
+                assertThat(containingCallable()).isNull()
+                assertThat(name()).isEqualTo(expectedName)
+                // "_" is used as a non-public name
+                assertThat(publicName()).isEqualTo(expectedName.takeUnless { it == "_" })
+                assertThat(parameterIndex).isEqualTo(expectedIndex)
+                assertThat(hasDefaultValue()).isFalse()
+                assertThat(type().toTypeString()).isEqualTo(expectedTypeString)
+            }
+
+            val fooClass = codebase.assertClass("test.pkg.Foo")
+
+            val noContextParams = fooClass.assertProperty("noContextParams")
+            assertThat(noContextParams.contextParameters).isEmpty()
+
+            val oneContextParam =
+                fooClass.assertProperty(
+                    "oneContextParam",
+                    contextParameterTypeStrings = listOf("java.lang.String")
+                )
+            assertThat(oneContextParam.contextParameters).hasSize(1)
+            oneContextParam.contextParameters[0].checkValues(
+                expectedParent = oneContextParam,
+                expectedName = "s",
+                expectedIndex = 0,
+                expectedTypeString = "java.lang.String"
+            )
+
+            val twoContextParams =
+                fooClass.assertProperty(
+                    "twoContextParams",
+                    contextParameterTypeStrings = listOf("java.lang.String", "int")
+                )
+            assertThat(twoContextParams.contextParameters).hasSize(2)
+            twoContextParams.contextParameters[0].checkValues(
+                expectedParent = twoContextParams,
+                expectedName = "s",
+                expectedIndex = 0,
+                expectedTypeString = "java.lang.String"
+            )
+            twoContextParams.contextParameters[1].checkValues(
+                expectedParent = twoContextParams,
+                expectedName = "i",
+                expectedIndex = 1,
+                expectedTypeString = "int"
+            )
+
+            val unnamedContextParam =
+                fooClass.assertProperty(
+                    "unnamedContextParam",
+                    contextParameterTypeStrings = listOf("java.lang.String")
+                )
+            assertThat(unnamedContextParam.contextParameters).hasSize(1)
+            unnamedContextParam.contextParameters[0].checkValues(
+                expectedParent = unnamedContextParam,
+                expectedName = "_",
+                expectedIndex = 0,
+                expectedTypeString = "java.lang.String"
+            )
+        }
+    }
+
+    @SupportedInputFormats(InputFormat.KOTLIN, InputFormat.SIGNATURE)
+    @Test
+    fun `Test toString, equals, and baseline ID for property with context parameters`() {
+        runCodebaseTest(
+            kotlin(
+                """
+                package test.pkg
+                class Foo {
+                    context(s: String)
+                    val oneContextParam: Int
+                        get() = 0
+
+                    context(s: String, i: Int)
+                    val twoContextParam: Int
+                        get() = 0
+
+                    val withAndWithoutContextParam: Int = 0
+                    context(_: String)
+                    val withAndWithoutContextParam: Int
+                        get() = 0
+                }
+                """
+            ),
+            signature(
+                """
+                // Signature format: 5.0
+                package test.pkg {
+                  public class Foo {
+                    property public int oneContextParam(context String s);
+                    property public int twoContextParam(context String s, context int i);
+                    property public int withAndWithoutContextParam(context String);
+                    property public int withAndWithoutContextParam;
+                  }
+                }
+                """
+            )
+        ) {
+            val fooClass = codebase.assertClass("test.pkg.Foo")
+
+            val oneContextParam =
+                fooClass.assertProperty(
+                    "oneContextParam",
+                    contextParameterTypeStrings = listOf("java.lang.String")
+                )
+            assertThat(oneContextParam.toString())
+                .isEqualTo("property test.pkg.Foo#oneContextParam(context java.lang.String)")
+            assertThat(oneContextParam.baselineElementId())
+                .isEqualTo("test.pkg.Foo#oneContextParam(context java.lang.String)")
+
+            val twoContextParam =
+                fooClass.assertProperty(
+                    "twoContextParam",
+                    contextParameterTypeStrings = listOf("java.lang.String", "int")
+                )
+            assertThat(twoContextParam.toString())
+                .isEqualTo(
+                    "property test.pkg.Foo#twoContextParam(context java.lang.String, context int)"
+                )
+            assertThat(twoContextParam.baselineElementId())
+                .isEqualTo("test.pkg.Foo#twoContextParam(context java.lang.String, context int)")
+
+            val withContextParam =
+                fooClass.assertProperty(
+                    "withAndWithoutContextParam",
+                    contextParameterTypeStrings = listOf("java.lang.String")
+                )
+            val withoutContextParam = fooClass.assertProperty("withAndWithoutContextParam")
+            assertThat(withContextParam).isNotEqualTo(withoutContextParam)
+            assertThat(withContextParam.hashCode()).isNotEqualTo(withoutContextParam.hashCode())
+        }
+    }
+
+    @SupportedInputFormats(InputFormat.KOTLIN, InputFormat.SIGNATURE)
+    @Test
+    fun `Test findCorrespondingItemIn for properties`() {
+        val kotlinFile =
+            kotlin(
+                """
+                package test.pkg
+                class Foo {
+                    val foo: Int = 0
+                    val String.foo: Int get() = 0
+                    context(s: String) val foo: Int get() = 0
+                }
+                """
+            )
+        val signatureFile =
+            signature(
+                """
+                // Signature format: 5.0
+                package test.pkg {
+                  public final class Foo {
+                    property public int foo;
+                    property public int String.foo;
+                    property public int foo(context String s);
+                  }
+                }
+                """
+            )
+        // Use `runCodebaseTest` twice to create two separate codebases for testing
+        runCodebaseTest(kotlinFile, signatureFile) {
+            // This is the codebase created by the first `runCodebaseTest`
+            val previousCodebase = codebase
+            runCodebaseTest(kotlinFile, signatureFile) {
+                // This is the codebase created by the second `runCodebaseTest`
+                val currentCodebase = codebase
+                // Verify that there are two separate codebases
+                assertThat(previousCodebase).isNotSameInstanceAs(currentCodebase)
+
+                val previousClass = previousCodebase.assertClass("test.pkg.Foo")
+                val currentClass = currentCodebase.assertClass("test.pkg.Foo")
+
+                val previousRegularVal = previousClass.assertProperty("foo")
+                val currentRegularVal = currentClass.assertProperty("foo")
+                assertThat(currentRegularVal.findCorrespondingItemIn(previousCodebase))
+                    .isSameInstanceAs(previousRegularVal)
+
+                val previousExtensionVal = previousClass.assertProperty("foo", "java.lang.String")
+                val currentExtensionVal = currentClass.assertProperty("foo", "java.lang.String")
+                assertThat(currentExtensionVal.findCorrespondingItemIn(previousCodebase))
+                    .isSameInstanceAs(previousExtensionVal)
+
+                val previousContextVal =
+                    previousClass.assertProperty(
+                        "foo",
+                        contextParameterTypeStrings = listOf("java.lang.String")
+                    )
+                val currentContextVal =
+                    currentClass.assertProperty(
+                        "foo",
+                        contextParameterTypeStrings = listOf("java.lang.String")
+                    )
+                assertThat(currentContextVal.findCorrespondingItemIn(previousCodebase))
+                    .isSameInstanceAs(previousContextVal)
+
+                val previousContextParam = previousContextVal.contextParameters[0]
+                val currentContextParam = currentContextVal.contextParameters[0]
+                assertThat(currentContextParam.findCorrespondingItemIn(previousCodebase))
+                    .isSameInstanceAs(previousContextParam)
+            }
         }
     }
 }

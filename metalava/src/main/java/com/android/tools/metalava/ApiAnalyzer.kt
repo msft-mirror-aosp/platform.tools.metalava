@@ -19,7 +19,6 @@ package com.android.tools.metalava
 import com.android.tools.metalava.manifest.Manifest
 import com.android.tools.metalava.manifest.emptyManifest
 import com.android.tools.metalava.model.ANDROIDX_REQUIRES_PERMISSION
-import com.android.tools.metalava.model.ANDROID_ANNOTATION_PREFIX
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.BaseItemVisitor
 import com.android.tools.metalava.model.BaseTypeVisitor
@@ -44,7 +43,6 @@ import com.android.tools.metalava.model.TargetLanguageSet
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.VariableTypeItem
-import com.android.tools.metalava.model.annotation.AnnotationFilter
 import com.android.tools.metalava.model.doc.DocContentPredicate
 import com.android.tools.metalava.model.source.SourceParser
 import com.android.tools.metalava.model.source.doc.DocContentPredicates
@@ -96,14 +94,17 @@ class ApiAnalyzer(
          */
         val mergeInclusionAnnotations: List<File> = emptyList(),
 
-        /** The filter for all the show annotations. */
-        val allShowAnnotations: AnnotationFilter = AnnotationFilter.emptyFilter(),
+        /** The API surface name. */
+        val apiSurface: String? = null,
 
         /** Configuration for any [ApiPredicate] instances this needs to create. */
         val apiPredicateConfig: ApiPredicate.Config = ApiPredicate.Config(),
 
         /** Configuration for [AnnotationsMerger] instances this needs to create. */
         val annotationsMergerConfig: AnnotationsMerger.Config = AnnotationsMerger.Config(),
+
+        /** Determines whether it is necessary to perform the [Issues.UNHIDDEN_SYSTEM_API] check. */
+        val needUnhiddenSystemApiCheck: Boolean = true,
     )
 
     /** All packages in the API */
@@ -553,7 +554,7 @@ class ApiAnalyzer(
                     }
 
                     reporter.report(
-                        Issues.REQUIRES_PERMISSION,
+                        Issues.REQUIRES_SYSTEM_PERMISSION,
                         method,
                         "Permission '$permission' is not defined by manifest ${config.manifest}."
                     )
@@ -571,7 +572,7 @@ class ApiAnalyzer(
             }
             if (any && missing.size == values.size) {
                 reporter.report(
-                    Issues.REQUIRES_PERMISSION,
+                    Issues.REQUIRES_SYSTEM_PERMISSION,
                     method,
                     "None of the permissions ${missing.joinToString()} are defined by manifest " +
                         "${config.manifest}."
@@ -582,7 +583,7 @@ class ApiAnalyzer(
                 hasAnnotation = false
             } else if (any && nonSystem.isNotEmpty() || !any && system.isEmpty()) {
                 reporter.report(
-                    Issues.REQUIRES_PERMISSION,
+                    Issues.REQUIRES_SYSTEM_PERMISSION,
                     method,
                     "Method '" +
                         method.name() +
@@ -595,7 +596,7 @@ class ApiAnalyzer(
 
         if (!hasAnnotation) {
             reporter.report(
-                Issues.REQUIRES_PERMISSION,
+                Issues.REQUIRES_SYSTEM_PERMISSION,
                 method,
                 "Method '" + method.name() + "' must be protected with a system permission."
             )
@@ -608,20 +609,14 @@ class ApiAnalyzer(
             return
         }
 
-        // Create a special annotation with no attributes. This will not work in Android but it will
-        // work in SystemServerCheckTest.
-        // TODO(b/412743564): Fix this so it works in Android.
-        val systemServiceCheckAnnotation =
-            AnnotationItem.createFromSource(codebase, "@$ANDROID_SYSTEM_SERVICE_CHECK")
-
-        val checkSystemApi =
-            !reporter.isSuppressed(Issues.REQUIRES_PERMISSION) &&
-                systemServiceCheckAnnotation != null &&
-                config.allShowAnnotations.matches(systemServiceCheckAnnotation) &&
+        val checkSystemPermissions =
+            !reporter.isSuppressed(Issues.REQUIRES_SYSTEM_PERMISSION) &&
+                config.apiSurface == "system" &&
                 !config.manifest.isEmpty()
+
+        // Only check for hidden show annotations if it is needed and it is not suppressed.
         val checkHiddenShowAnnotations =
-            !reporter.isSuppressed(Issues.UNHIDDEN_SYSTEM_API) &&
-                config.allShowAnnotations.isNotEmpty()
+            config.needUnhiddenSystemApiCheck && !reporter.isSuppressed(Issues.UNHIDDEN_SYSTEM_API)
 
         codebase.accept(
             object :
@@ -661,36 +656,15 @@ class ApiAnalyzer(
                         // TODO: Check opposite (doc tag but no annotation)
                     }
 
-                    if (
-                        checkHiddenShowAnnotations &&
-                            item.hasShowAnnotation() &&
-                            !item.originallyHidden &&
-                            !item.showability.showNonRecursive()
-                    ) {
-                        item.modifiers
-                            .annotations()
-                            // Find the first show annotation. Just because item.hasShowAnnotation()
-                            // is true does not mean that there must be one show annotation as a
-                            // revert annotation could be treated as a show annotation on one item
-                            // and a hide annotation on another but is neither a show or hide
-                            // annotation.
-                            .firstOrNull(AnnotationItem::isShowAnnotation)
-                            // All show annotations must have a non-null string otherwise they
-                            // would not have been matched.
-                            ?.qualifiedName
-                            ?.removePrefix(ANDROID_ANNOTATION_PREFIX)
-                            ?.let { annotationName ->
-                                reporter.report(
-                                    Issues.UNHIDDEN_SYSTEM_API,
-                                    item,
-                                    "@$annotationName APIs must also be marked @hide: ${item.describe()}"
-                                )
-                            }
+                    if (checkHiddenShowAnnotations) {
+                        checkEnsureShowAnnotationsAreExplicitlyHidden(item)
+                    } else {
+                        checkEnsureShowAnnotationsAreNotExplicitlyHidden(item)
                     }
                 }
 
                 override fun visitClass(cls: ClassItem) {
-                    if (checkSystemApi) {
+                    if (checkSystemPermissions) {
                         // Look for Android @SystemApi exposed outside the normal SDK; we require
                         // that they're protected with a system permission.
                         // Also flag @SystemApi apis not annotated with @hide.
@@ -746,6 +720,68 @@ class ApiAnalyzer(
                 }
             }
         )
+    }
+
+    /**
+     * Check to make sure that [item] does not have show annotations without being explicitly
+     * hidden.
+     *
+     * This is not called when the API surfaces are defined in the configuration file as that
+     * provides enough information to automatically hide items from a related but untracked surface.
+     */
+    private fun checkEnsureShowAnnotationsAreExplicitlyHidden(item: SelectableItem) {
+        if (
+            item.hasShowAnnotation() &&
+                !item.originallyHidden &&
+                !item.showability.showNonRecursive()
+        ) {
+            item.modifiers
+                .annotations()
+                // Find the first show annotation. Just because item.hasShowAnnotation() is true
+                // does not mean that there must be one show annotation as a revert annotation could
+                // be treated as a show annotation on one item and a hide annotation on another but
+                // is neither a show nor hide annotation.
+                .firstOrNull(AnnotationItem::isShowAnnotation)
+                ?.let { annotation ->
+                    val annotationName = annotation.qualifiedName
+                    reporter.report(
+                        Issues.UNHIDDEN_SYSTEM_API,
+                        item,
+                        "@$annotationName APIs must also be marked @hide: ${item.describe()}"
+                    )
+                }
+        }
+    }
+
+    /**
+     * Check to make sure that [item] does not have show annotations without being explicitly
+     * hidden.
+     */
+    private fun checkEnsureShowAnnotationsAreNotExplicitlyHidden(item: SelectableItem) {
+        if (
+            item.hasShowAnnotation() &&
+                // Only check for @hide doc tag. Testing for annotations would complicate this
+                // because
+                // it would be necessary to differentiate between
+                item.documentation?.isHidden == true &&
+                !item.showability.showNonRecursive()
+        ) {
+            item.modifiers
+                .annotations()
+                // Find the first show annotation. Just because item.hasShowAnnotation() is true
+                // does not mean that there must be one show annotation as a revert annotation could
+                // be treated as a show annotation on one item and a hide annotation on another but
+                // is neither a show nor hide annotation.
+                .firstOrNull(AnnotationItem::isShowAnnotation)
+                ?.let { annotation ->
+                    val annotationName = annotation.qualifiedName
+                    reporter.report(
+                        Issues.HIDDEN_SHOW_ANNOTATION,
+                        item,
+                        "@$annotationName APIs must not be marked @hide: ${item.describe()}"
+                    )
+                }
+        }
     }
 
     // TODO: Switch to visitor iteration
@@ -1166,9 +1202,3 @@ private fun MethodItemSet.removeMatchingMethods(method: MethodItem) {
         }
     }
 }
-
-/**
- * A special constant used to ensure that [ApiAnalyzer.checkSystemPermissions] is only called from
- * the SystemServiceCheckTest.
- */
-const val ANDROID_SYSTEM_SERVICE_CHECK = "android.annotation.SystemServiceCheck"

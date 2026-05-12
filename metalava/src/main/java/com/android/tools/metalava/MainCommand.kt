@@ -38,7 +38,6 @@ import com.android.tools.metalava.cli.compatibility.CompatibilityCheckOptions
 import com.android.tools.metalava.cli.lint.ApiLintOptions
 import com.android.tools.metalava.cli.multiplatform.MultiplatformOptions
 import com.android.tools.metalava.cli.signature.SignatureFormatOptions
-import com.android.tools.metalava.model.utils.extractSimpleName
 import com.android.tools.metalava.reporter.Baseline
 import com.android.tools.metalava.reporter.DEFAULT_BASELINE_NAME
 import com.android.tools.metalava.reporter.Reporter
@@ -48,7 +47,6 @@ import com.github.ajalt.clikt.parameters.arguments.argument
 import com.github.ajalt.clikt.parameters.arguments.multiple
 import com.github.ajalt.clikt.parameters.groups.provideDelegate
 import java.io.File
-import java.util.Locale
 
 /**
  * A command that is passed to [MetalavaCommand.defaultCommand] when the main metalava functionality
@@ -122,28 +120,6 @@ class MainCommand(
     private val apiSelectionOptions: ApiSelectionOptions by
         ApiSelectionOptions(
             apiSurfacesConfigProvider = { configFileOptions.config.apiSurfaces },
-            checkSurfaceConsistencyProvider = {
-                val sources = sourceOptions.sourceFiles
-                // The --show-unannotated and --show*-annotation options affect the ApiSurfaces that
-                // is used. As do the --api-surface and API surfaces defined in a config file. In
-                // the long term the former will be discarded in favor of the latter but during the
-                // transition it is important that they are consistent. Consistency is important
-                // when the --show* options are significant, i.e. affect the output of Metalava.
-                // Unfortunately, they can be significant even if they are not specified, i.e. if
-                // none of them are specified then it behaves as if --show-unannotated was specified
-                // and depending on other options they may be significant or not.
-                //
-                // The --show* options are always significant if sources are provided, and they are
-                // not signature files or jar files. If they are signature files then the --show*
-                // options are not significant because signature files are already pre-filtered. If
-                // they are jar files then they are almost certainly stubs and so the --show*
-                // options are not significant because stub jar files are are also already
-                // pre-filtered.
-                sources.isNotEmpty() &&
-                    sources[0].extension.let { extension ->
-                        extension != "jar" && extension != "txt"
-                    }
-            },
         )
 
     /** API lint options. */
@@ -282,15 +258,16 @@ class MainCommand(
     private fun getDefaultBaselineFile(): File? {
         val sourcePath = sourceOptions.sourcePath
         if (sourcePath.isNotEmpty() && sourcePath[0].path.isNotBlank()) {
-            fun annotationToPrefix(qualifiedName: String): String {
-                val name = qualifiedName.extractSimpleName()
-                return name.lowercase(Locale.US).removeSuffix("api") + "-"
+            // Create the file name.
+            val fileName = buildString {
+                // Prefix with the API surface name, if provided.
+                apiSelectionOptions.apiSurface?.let { apiSurface ->
+                    append(apiSurface)
+                    append("-")
+                }
+                append(DEFAULT_BASELINE_NAME)
             }
-            val sb = StringBuilder()
-            apiSelectionOptions.allShowAnnotations.getIncludedAnnotationNames().forEach {
-                sb.append(annotationToPrefix(it))
-            }
-            sb.append(DEFAULT_BASELINE_NAME)
+
             var base = sourcePath[0]
             // Convention: in AOSP, signature files are often in sourcepath/api: let's place
             // baseline files there too
@@ -298,7 +275,7 @@ class MainCommand(
             if (api.isDirectory) {
                 base = api
             }
-            return File(base, sb.toString())
+            return File(base, fileName)
         } else {
             return null
         }
