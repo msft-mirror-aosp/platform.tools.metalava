@@ -259,8 +259,12 @@ class ApiSelectionOptions(
         // If there is no configuration then they cannot be created.
         val surfacesConfig = apiSurfacesConfig ?: return null
 
+        // Get the main surface.
+        val main = apiSurfaces.main
+
         // Build a map from surface name to the [SurfaceSelectionRule]s that apply to that surface.
         val rulesBySurfaceName = buildMap {
+
             // Iterate over the surfaces, adding information from the --show-* and --hide-annotation
             // options.
             for (surface in apiSurfaces.all) {
@@ -268,6 +272,23 @@ class ApiSelectionOptions(
 
                 val name = surface.name
                 put(name, surfaceRules)
+            }
+
+            // Check to see if any related API surfaces need to be hidden. If so, add them to the
+            // narrowest surface.
+            val hideRules = surfacesConfig.createHideRulesForRelatedButUntrackedSurfaces(main.name)
+            if (hideRules.isNotEmpty()) {
+                val narrowestName = apiSurfaces.all.first().name
+                val existing = this[narrowestName]
+                this[narrowestName] =
+                    if (existing == null) {
+                        hideRules
+                    } else {
+                        buildList {
+                            addAll(existing)
+                            addAll(hideRules)
+                        }
+                    }
             }
         }
 
@@ -307,13 +328,6 @@ class ApiSelectionOptions(
                     )
                 )
             }
-
-            // If this is the narrowest API then see if any related API surfaces need to be
-            // hidden.
-            if (surface.extends == null) {
-                // Add hide rules for all the other related surfaces.
-                addHideRulesForAllOtherRelatedSurfaces(surface, this@createRulesForSurface)
-            }
         }
 
         return surfaceRules
@@ -322,18 +336,19 @@ class ApiSelectionOptions(
     /**
      * Add rules to this list that will hide related surfaces that are not currently being tracked.
      */
-    private fun MutableList<SurfaceSelectionRule>.addHideRulesForAllOtherRelatedSurfaces(
-        surface: ApiSurface,
-        surfacesConfig: ApiSurfacesConfig
-    ) {
+    private fun ApiSurfacesConfig.createHideRulesForRelatedButUntrackedSurfaces(
+        surfaceName: String,
+    ): List<SurfaceSelectionRule> {
         // Get the tracked surfaces by name.
         val trackedSurfaces = apiSurfaces.byName
 
         // Get the set of annotation rules that must be hidden.
         val rulesToHide =
-            surfacesConfig
+            this
                 // Get all API surfaces related to this one.
-                .relatedTo(surfacesConfig.byName[surface.name]!!)
+                .relatedTo(
+                    byName[surfaceName] ?: error("Cannot find $surfaceName in ${byName.keys}")
+                )
                 // Remove any that are being tracked.
                 .filter { it.name !in trackedSurfaces }
                 // Flatten all the rules.
@@ -343,10 +358,8 @@ class ApiSelectionOptions(
                 .toSet()
 
         // Hide all the rules that need to be hidden.
-        for (rule in rulesToHide) {
-            add(
-                SurfaceSelectionRule.createAnnotationRule(rule.pattern, Effect.HIDE, rule.recursive)
-            )
+        return rulesToHide.map { rule ->
+            SurfaceSelectionRule.createAnnotationRule(rule.pattern, Effect.HIDE, rule.recursive)
         }
     }
 
