@@ -64,8 +64,15 @@ class IssueReportingOptions(
                 .trimIndent()
     ) {
 
-    /** The [IssueConfiguration] that is configured by these options. */
-    val issueConfiguration = IssueConfiguration()
+    /** The internal [IssueConfiguration] that is configured by these options. */
+    private val internalIssueConfiguration = IssueConfiguration()
+
+    /** The [IssueConfiguration] that was configured by these options and is exported from this. */
+    val issueConfiguration by
+        lazy(LazyThreadSafetyMode.NONE) {
+            // Just return the internal configuration as is.
+            internalIssueConfiguration
+        }
 
     init {
         // Create a Clikt option for handling the issue options and updating them as a side effect.
@@ -102,7 +109,7 @@ class IssueReportingOptions(
                         // Update the configuration immediately
                         for (value in values) {
                             val trimmed = value.trim()
-                            label.setAspectForId(issueConfiguration, trimmed)
+                            label.setAspectForId(internalIssueConfiguration, trimmed)
                         }
                     }
                 }
@@ -126,7 +133,7 @@ class IssueReportingOptions(
             .flag()
             .validate { value ->
                 if (value) {
-                    issueConfiguration.severityMap =
+                    internalIssueConfiguration.severityMap =
                         mapOf(
                             Severity.WARNING to Severity.ERROR,
                             Severity.WARNING_ERROR_WHEN_NEW to Severity.ERROR,
@@ -149,7 +156,7 @@ class IssueReportingOptions(
             .validate { list ->
                 if (list.isNotEmpty()) {
                     val severityToError = list.associateBy({ it }) { Severity.ERROR }
-                    issueConfiguration.severityMap = severityToError
+                    internalIssueConfiguration.severityMap = severityToError
                 }
             }
 
