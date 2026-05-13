@@ -264,37 +264,9 @@ class ApiSelectionOptions(
             // Iterate over the surfaces, adding information from the --show-* and --hide-annotation
             // options.
             for (surface in apiSurfaces.all) {
+                val surfaceRules = surfacesConfig.createRulesForSurface(surface) ?: continue
+
                 val name = surface.name
-                val surfaceConfig = surfacesConfig.byName[name] ?: continue
-                val selectionCriteria = surfaceConfig.selectionCriteria
-
-                val surfaceRules = buildList {
-                    if (selectionCriteria.unannotated == EffectConfig.SHOW) {
-                        add(unannotated)
-                    }
-                    for (annotationRule in selectionCriteria.annotationRules) {
-                        val effect =
-                            when (annotationRule.effect) {
-                                EffectConfig.SHOW -> Effect.SHOW
-                                EffectConfig.HIDE -> Effect.HIDE
-                            }
-                        add(
-                            SurfaceSelectionRule.createAnnotationRule(
-                                annotationRule.pattern,
-                                effect,
-                                annotationRule.recursive
-                            )
-                        )
-                    }
-
-                    // If this is the narrowest API then see if any related API surfaces need to be
-                    // hidden.
-                    if (surface.extends == null) {
-                        // Add hide rules for all the other related surfaces.
-                        addHideRulesForAllOtherRelatedSurfaces(surface, surfacesConfig)
-                    }
-                }
-
                 put(name, surfaceRules)
             }
         }
@@ -307,6 +279,44 @@ class ApiSelectionOptions(
             apiSurfaces,
             rulesBySurfaceName,
         )
+    }
+
+    /** Create the [SurfaceSelectionRule]s for [surface] from this [ApiSurfacesConfig]. */
+    private fun ApiSurfacesConfig.createRulesForSurface(
+        surface: ApiSurface,
+    ): List<SurfaceSelectionRule>? {
+        val name = surface.name
+        val surfaceConfig = byName[name] ?: return null
+        val selectionCriteria = surfaceConfig.selectionCriteria
+
+        val surfaceRules = buildList {
+            if (selectionCriteria.unannotated == EffectConfig.SHOW) {
+                add(unannotated)
+            }
+            for (annotationRule in selectionCriteria.annotationRules) {
+                val effect =
+                    when (annotationRule.effect) {
+                        EffectConfig.SHOW -> Effect.SHOW
+                        EffectConfig.HIDE -> Effect.HIDE
+                    }
+                add(
+                    SurfaceSelectionRule.createAnnotationRule(
+                        annotationRule.pattern,
+                        effect,
+                        annotationRule.recursive
+                    )
+                )
+            }
+
+            // If this is the narrowest API then see if any related API surfaces need to be
+            // hidden.
+            if (surface.extends == null) {
+                // Add hide rules for all the other related surfaces.
+                addHideRulesForAllOtherRelatedSurfaces(surface, this@createRulesForSurface)
+            }
+        }
+
+        return surfaceRules
     }
 
     /**
