@@ -252,6 +252,10 @@ class ApiSelectionOptions(
 
     /** Create [ApiSurfaceRules] from the [apiSurfacesConfig], if available. */
     internal fun createApiSurfaceRulesFromConfig(): ApiSurfaceRules? {
+        // If --api-surface has not been specified then rules cannot be created even if there is
+        // configuration.
+        if (apiSurface == null) return null
+
         // If there is no configuration then they cannot be created.
         val surfacesConfig = apiSurfacesConfig ?: return null
 
