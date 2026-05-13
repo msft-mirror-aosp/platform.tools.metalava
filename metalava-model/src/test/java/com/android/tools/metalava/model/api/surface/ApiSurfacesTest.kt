@@ -145,4 +145,19 @@ class ApiSurfacesTest {
         val main = apiSurfaces.main
         assertEquals(setOf(base, main), main.includedSurfaces, message = "included in main")
     }
+
+    @Test
+    fun `Test defaultVariantSet`() {
+        val apiSurfaces =
+            ApiSurfaces.build {
+                createSurface(name = "public")
+                createSurface(name = "system", extends = "public", isMain = true)
+            }
+
+        assertEquals(
+            "ApiVariantSet[public(C)]",
+            apiSurfaces.byName["public"]?.defaultVariantSet.toString(),
+            message = "public ApiSurface.defaultVariantSet"
+        )
+    }
 }

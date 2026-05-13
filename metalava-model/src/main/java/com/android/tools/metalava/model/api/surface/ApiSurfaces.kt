@@ -250,6 +250,10 @@ private class DefaultApiSurface(
         // Create an ApiVariantSet that contains all ApiVariants in this surface.
         surfaces.createVariantSet(variants)
 
+    override val defaultVariantSet =
+        // Create an ApiVariantSet that contains all default ApiVariants in this surface.
+        surfaces.createVariantSet(variants.filter { it.type.isDefault })
+
     override val narrowerSurfaces: Set<ApiSurface> = extends?.includedSurfaces ?: emptySet()
 
     override val includedSurfaces = narrowerSurfaces + this
