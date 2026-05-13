@@ -31,6 +31,7 @@ import com.android.tools.metalava.model.api.SurfaceSelectionRule
 import com.android.tools.metalava.model.api.SurfaceSelectionRule.Companion.unannotated
 import com.android.tools.metalava.model.api.SurfaceSelectionRule.Effect
 import com.android.tools.metalava.model.api.surface.ApiSurface
+import com.android.tools.metalava.model.api.surface.ApiSurface.Contents
 import com.android.tools.metalava.model.api.surface.ApiSurfaces
 import com.github.ajalt.clikt.parameters.groups.OptionGroup
 import com.github.ajalt.clikt.parameters.options.default
@@ -80,8 +81,8 @@ class ApiSelectionOptions(
     private val apiSurfacesConfig by lazy(LazyThreadSafetyMode.NONE) { apiSurfacesConfigProvider() }
 
     /**
-     * Return true if at least one `--show*-annotation`, `--show-unanannotated` or
-     * `--hide-annotation` option was specified.
+     * Return true if at least one `--show*-annotation`, `--show-unannotated` or `--hide-annotation`
+     * option was specified.
      */
     private fun atLeastOneApiSelectionOptionWasSpecified() =
         optionalShowUnannotated == ShowUnannotated.SPECIFIED ||
@@ -583,6 +584,7 @@ internal fun apiSurfacesFromConfig(
             createSurface(
                 name = surfaceConfig.name,
                 extends = surfaceConfig.extends,
+                contents = surfaceConfig.contents?.surfaceContents ?: Contents.DELTA,
                 isMain = surfaceConfig.name == targetApiSurface,
             )
         }
