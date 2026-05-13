@@ -61,6 +61,13 @@
                         </xs:documentation>
                     </xs:annotation>
                 </xs:element>
+                <xs:element name="issues" type="config:IssuesType" minOccurs="0">
+                    <xs:annotation>
+                        <xs:documentation>
+                            The definitions of a set of issues.
+                        </xs:documentation>
+                    </xs:annotation>
+                </xs:element>
             </xs:choice>
         </xs:complexType>
 
@@ -455,6 +462,71 @@
             </xs:documentation>
         </xs:annotation>
         <xs:restriction base="xs:string">
+        </xs:restriction>
+    </xs:simpleType>
+
+    <xs:complexType name="IssuesType">
+        <xs:annotation>
+            <xs:documentation>
+                The type of the `issues` element defined inside `config`.
+            </xs:documentation>
+        </xs:annotation>
+        <xs:choice>
+            <xs:element name="issue" type="config:IssueType" minOccurs="0" maxOccurs="unbounded">
+                <xs:annotation>
+                    <xs:documentation>
+                        Issue configuration.
+                    </xs:documentation>
+                </xs:annotation>
+            </xs:element>
+        </xs:choice>
+    </xs:complexType>
+
+    <xs:complexType name="IssueType">
+        <xs:annotation>
+            <xs:documentation>
+                The type of the `issue` element defined inside `IssuesType`.
+            </xs:documentation>
+        </xs:annotation>
+        <xs:attribute name="name" type="config:IssueNameType" use="required">
+            <xs:annotation>
+                <xs:documentation>
+                    The required name of the issue.
+                </xs:documentation>
+            </xs:annotation>
+        </xs:attribute>
+        <xs:attribute name="severity" type="config:IssueSeverityType" use="required">
+            <xs:annotation>
+                <xs:documentation>
+                    The required severity of the issue.
+                </xs:documentation>
+            </xs:annotation>
+        </xs:attribute>
+    </xs:complexType>
+
+    <xs:simpleType name="IssueNameType">
+        <xs:annotation>
+            <xs:documentation>
+                The type of an issue name.
+            </xs:documentation>
+        </xs:annotation>
+        <xs:restriction base="xs:string">
+            <xs:pattern value="([A-Z][a-z0-9]*)+"/>
+        </xs:restriction>
+    </xs:simpleType>
+
+    <xs:simpleType name="IssueSeverityType">
+        <xs:annotation>
+            <xs:documentation>
+                The type of an issue severity.
+            </xs:documentation>
+        </xs:annotation>
+        <xs:restriction base="xs:string">
+            <xs:enumeration value="hidden"/>
+            <xs:enumeration value="info"/>
+            <xs:enumeration value="warning"/>
+            <xs:enumeration value="error-when-new"/>
+            <xs:enumeration value="error"/>
         </xs:restriction>
     </xs:simpleType>
 </xs:schema>
