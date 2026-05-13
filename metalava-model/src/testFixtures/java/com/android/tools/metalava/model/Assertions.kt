@@ -116,6 +116,7 @@ interface Assertions {
             object :
                 BaseItemVisitor(
                     preserveClassNesting = true,
+                    visitParameterItems = false,
                 ) {
                 private var indent = ""
 
