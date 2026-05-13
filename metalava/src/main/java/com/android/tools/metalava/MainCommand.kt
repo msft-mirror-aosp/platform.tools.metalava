@@ -99,7 +99,11 @@ class MainCommand(
         )
 
     /** Issue reporter configuration. */
-    private val issueReportingOptions by IssueReportingOptions(commonOptions)
+    private val issueReportingOptions by
+        IssueReportingOptions(
+            commonOptions,
+            issuesConfigProvider = { configFileOptions.config.issues },
+        )
 
     private val commonBaselineOptions by
         CommonBaselineOptions(

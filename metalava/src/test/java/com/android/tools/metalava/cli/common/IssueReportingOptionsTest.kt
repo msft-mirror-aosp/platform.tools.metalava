@@ -16,6 +16,9 @@
 
 package com.android.tools.metalava.cli.common
 
+import com.android.tools.metalava.config.IssueConfig
+import com.android.tools.metalava.config.IssueConfig.SeverityConfig
+import com.android.tools.metalava.config.IssuesConfig
 import com.android.tools.metalava.reporter.IssueConfiguration
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Issues.Issue
@@ -296,6 +299,47 @@ class IssueReportingOptionsTest :
             issueConfiguration.assertSeverity(
                 Issues.PARSE_ERROR,
                 expectedSeverity = Severity.ERROR,
+            )
+        }
+    }
+
+    @Test
+    fun `Test mixture of options and config file`() {
+        runTest(
+            ARG_HIDE,
+            Issues.REMOVED_METHOD.name,
+            ARG_HIDE,
+            Issues.REMOVED_CLASS.name,
+            optionGroup =
+                IssueReportingOptions(
+                    issuesConfigProvider = {
+                        IssuesConfig(
+                            listOf(
+                                IssueConfig(Issues.REMOVED_FIELD.name, SeverityConfig.WARNING),
+                                IssueConfig(Issues.REMOVED_CLASS.name, SeverityConfig.WARNING)
+                            ),
+                        )
+                    }
+                )
+        ) {
+            val issueConfiguration = options.issueConfiguration
+
+            // Conflict between options and config file is resolved in favor of options.
+            issueConfiguration.assertSeverity(
+                Issues.REMOVED_CLASS,
+                expectedSeverity = Severity.HIDDEN,
+            )
+
+            // Makes sure that config file setting can override the severity.
+            issueConfiguration.assertSeverity(
+                Issues.REMOVED_FIELD,
+                expectedSeverity = Severity.WARNING,
+            )
+
+            // Makes sure that options can override the severity.
+            issueConfiguration.assertSeverity(
+                Issues.REMOVED_METHOD,
+                expectedSeverity = Severity.HIDDEN,
             )
         }
     }
