@@ -263,23 +263,48 @@ class ApiSelectionOptions(
         // Get the main surface.
         val main = apiSurfaces.main
 
+        // Compute the actual surfaces to use.
+        val actualSurfaces =
+            when (main.contents) {
+                // Delta uses the full set of api surfaces.
+                Contents.DELTA -> apiSurfaces
+
+                // Standalone creates a new set of api surfaces that only contains a single
+                // surface.
+                Contents.STANDALONE -> ApiSurfaces.build { createSurface(main.name, isMain = true) }
+            }
+
         // Build a map from surface name to the [SurfaceSelectionRule]s that apply to that surface.
         val rulesBySurfaceName = buildMap {
+            when (main.contents) {
+                Contents.DELTA -> {
+                    // Iterate over the surfaces, adding information from the --show-* and
+                    // --hide-annotation options.
+                    for (surface in apiSurfaces.all) {
+                        val surfaceRules = surfacesConfig.createRulesForSurface(surface) ?: continue
 
-            // Iterate over the surfaces, adding information from the --show-* and --hide-annotation
-            // options.
-            for (surface in apiSurfaces.all) {
-                val surfaceRules = surfacesConfig.createRulesForSurface(surface) ?: continue
-
-                val name = surface.name
-                put(name, surfaceRules)
+                        val name = surface.name
+                        put(name, surfaceRules)
+                    }
+                }
+                Contents.STANDALONE -> {
+                    // Combine all the rules from each of the API surfaces into a single list which
+                    // is used for the standalone API surface.
+                    val allSurfaceRules =
+                        apiSurfaces.all.flatMap {
+                            surfacesConfig.createRulesForSurface(it) ?: emptyList()
+                        }
+                    val name = main.name
+                    put(name, allSurfaceRules)
+                }
             }
 
             // Check to see if any related API surfaces need to be hidden. If so, add them to the
             // narrowest surface.
             val hideRules = surfacesConfig.createHideRulesForRelatedButUntrackedSurfaces(main.name)
             if (hideRules.isNotEmpty()) {
-                val narrowestName = apiSurfaces.all.first().name
+                // Add the hide rules to the narrowest API in the actual surfaces.
+                val narrowestName = actualSurfaces.all.first().name
                 val existing = this[narrowestName]
                 this[narrowestName] =
                     if (existing == null) {
@@ -298,7 +323,7 @@ class ApiSelectionOptions(
 
         // Create and return the rules.
         return ApiSurfaceRules(
-            apiSurfaces,
+            actualSurfaces,
             rulesBySurfaceName,
         )
     }

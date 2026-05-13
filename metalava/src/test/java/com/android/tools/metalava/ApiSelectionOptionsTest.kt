@@ -312,7 +312,7 @@ class ApiSelectionOptionsTest :
                         AnnotationMatcher(
                             test.api.IntermediateApi -> {
                                 Entry(
-                                    result: SHOW_FOR_STUBS
+                                    result: SHOW
                                 )
                             }
                             test.api.OtherApi -> {
@@ -327,7 +327,7 @@ class ApiSelectionOptionsTest :
                             }
                         )
                     """,
-                expectedShowUnannotated = false,
+                expectedShowUnannotated = true,
             )
         }
     }
