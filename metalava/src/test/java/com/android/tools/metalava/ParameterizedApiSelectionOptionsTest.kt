@@ -17,11 +17,11 @@
 package com.android.tools.metalava
 
 import com.android.tools.metalava.cli.common.BaseOptionGroupTest
-import com.android.tools.metalava.config.AnnotationRule
+import com.android.tools.metalava.config.AnnotationRuleConfig
 import com.android.tools.metalava.config.ApiSurfaceConfig
 import com.android.tools.metalava.config.ApiSurfacesConfig
-import com.android.tools.metalava.config.SelectionCriteria
-import com.android.tools.metalava.config.SelectionCriteriaEffect
+import com.android.tools.metalava.config.EffectConfig
+import com.android.tools.metalava.config.SelectionCriteriaConfig
 import com.android.tools.metalava.model.api.ApiSurfaceRules
 import com.android.tools.metalava.model.api.ApiSurfaceSelector
 import com.android.tools.metalava.model.testing.api.assertState
@@ -152,13 +152,13 @@ class ParameterizedApiSelectionOptionsTest :
                             ApiSurfaceConfig(
                                 name = "public",
                                 selectionCriteria =
-                                    SelectionCriteria(
-                                        unannotated = SelectionCriteriaEffect.SHOW,
+                                    SelectionCriteriaConfig(
+                                        unannotated = EffectConfig.SHOW,
                                         annotationRules =
                                             listOf(
-                                                AnnotationRule(
+                                                AnnotationRuleConfig(
                                                     pattern = "android.annotation.Hide",
-                                                    effect = SelectionCriteriaEffect.HIDE,
+                                                    effect = EffectConfig.HIDE,
                                                 ),
                                             ),
                                     ),
@@ -216,15 +216,15 @@ class ParameterizedApiSelectionOptionsTest :
                             ApiSurfaceConfig(
                                 name = "public",
                                 selectionCriteria =
-                                    SelectionCriteria(
-                                        unannotated = SelectionCriteriaEffect.SHOW,
+                                    SelectionCriteriaConfig(
+                                        unannotated = EffectConfig.SHOW,
                                         annotationRules =
                                             listOf(
-                                                AnnotationRule(
+                                                AnnotationRuleConfig(
                                                     pattern = "android.annotation.Hide",
-                                                    effect = SelectionCriteriaEffect.HIDE,
+                                                    effect = EffectConfig.HIDE,
                                                 ),
-                                                AnnotationRule(
+                                                AnnotationRuleConfig(
                                                     pattern = "android.annotation.OtherApi",
                                                 ),
                                             ),
@@ -289,13 +289,13 @@ class ParameterizedApiSelectionOptionsTest :
                             ApiSurfaceConfig(
                                 name = "public",
                                 selectionCriteria =
-                                    SelectionCriteria(
-                                        unannotated = SelectionCriteriaEffect.SHOW,
+                                    SelectionCriteriaConfig(
+                                        unannotated = EffectConfig.SHOW,
                                         annotationRules =
                                             listOf(
-                                                AnnotationRule(
+                                                AnnotationRuleConfig(
                                                     pattern = "android.annotation.Hide",
-                                                    effect = SelectionCriteriaEffect.HIDE,
+                                                    effect = EffectConfig.HIDE,
                                                 ),
                                             ),
                                     ),
@@ -304,10 +304,10 @@ class ParameterizedApiSelectionOptionsTest :
                                 name = "system",
                                 extends = "public",
                                 selectionCriteria =
-                                    SelectionCriteria(
+                                    SelectionCriteriaConfig(
                                         annotationRules =
                                             listOf(
-                                                AnnotationRule(
+                                                AnnotationRuleConfig(
                                                     pattern =
                                                         "android.annotation.SystemApi(client=android.annotation.SystemApi.Client.PRIVILEGED_APPS)",
                                                 ),
@@ -380,13 +380,13 @@ class ParameterizedApiSelectionOptionsTest :
                             ApiSurfaceConfig(
                                 name = "public",
                                 selectionCriteria =
-                                    SelectionCriteria(
-                                        unannotated = SelectionCriteriaEffect.SHOW,
+                                    SelectionCriteriaConfig(
+                                        unannotated = EffectConfig.SHOW,
                                         annotationRules =
                                             listOf(
-                                                AnnotationRule(
+                                                AnnotationRuleConfig(
                                                     pattern = "android.annotation.Hide",
-                                                    effect = SelectionCriteriaEffect.HIDE,
+                                                    effect = EffectConfig.HIDE,
                                                 ),
                                             ),
                                     ),
@@ -395,10 +395,10 @@ class ParameterizedApiSelectionOptionsTest :
                                 name = "system",
                                 extends = "public",
                                 selectionCriteria =
-                                    SelectionCriteria(
+                                    SelectionCriteriaConfig(
                                         annotationRules =
                                             listOf(
-                                                AnnotationRule(
+                                                AnnotationRuleConfig(
                                                     pattern =
                                                         "android.annotation.SystemApi(client=android.annotation.SystemApi.Client.PRIVILEGED_APPS)",
                                                 ),
@@ -409,10 +409,10 @@ class ParameterizedApiSelectionOptionsTest :
                                 name = "module-lib",
                                 extends = "system",
                                 selectionCriteria =
-                                    SelectionCriteria(
+                                    SelectionCriteriaConfig(
                                         annotationRules =
                                             listOf(
-                                                AnnotationRule(
+                                                AnnotationRuleConfig(
                                                     pattern =
                                                         "android.annotation.SystemApi(client=android.annotation.SystemApi.Client.MODULE_LIBRARIES)",
                                                 ),
@@ -491,13 +491,13 @@ class ParameterizedApiSelectionOptionsTest :
                             ApiSurfaceConfig(
                                 name = "public",
                                 selectionCriteria =
-                                    SelectionCriteria(
-                                        unannotated = SelectionCriteriaEffect.SHOW,
+                                    SelectionCriteriaConfig(
+                                        unannotated = EffectConfig.SHOW,
                                         annotationRules =
                                             listOf(
-                                                AnnotationRule(
+                                                AnnotationRuleConfig(
                                                     pattern = "android.annotation.Hide",
-                                                    effect = SelectionCriteriaEffect.HIDE,
+                                                    effect = EffectConfig.HIDE,
                                                 ),
                                             ),
                                     ),
@@ -506,10 +506,10 @@ class ParameterizedApiSelectionOptionsTest :
                                 name = "system",
                                 extends = "public",
                                 selectionCriteria =
-                                    SelectionCriteria(
+                                    SelectionCriteriaConfig(
                                         annotationRules =
                                             listOf(
-                                                AnnotationRule(
+                                                AnnotationRuleConfig(
                                                     pattern =
                                                         "android.annotation.SystemApi(client=android.annotation.SystemApi.Client.PRIVILEGED_APPS)",
                                                     recursive = false,

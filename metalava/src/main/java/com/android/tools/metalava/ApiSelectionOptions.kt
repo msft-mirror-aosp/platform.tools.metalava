@@ -23,7 +23,7 @@ import com.android.tools.metalava.cli.common.map
 import com.android.tools.metalava.cli.common.splitMultiple
 import com.android.tools.metalava.config.ApiSurfaceConfig
 import com.android.tools.metalava.config.ApiSurfacesConfig
-import com.android.tools.metalava.config.SelectionCriteriaEffect
+import com.android.tools.metalava.config.EffectConfig
 import com.android.tools.metalava.model.TypedefMode
 import com.android.tools.metalava.model.api.ApiSurfaceRules
 import com.android.tools.metalava.model.api.ApiSurfaceSelector
@@ -265,14 +265,14 @@ class ApiSelectionOptions(
                 val selectionCriteria = surfaceConfig.selectionCriteria
 
                 val surfaceRules = buildList {
-                    if (selectionCriteria.unannotated == SelectionCriteriaEffect.SHOW) {
+                    if (selectionCriteria.unannotated == EffectConfig.SHOW) {
                         add(unannotated)
                     }
                     for (annotationRule in selectionCriteria.annotationRules) {
                         val effect =
                             when (annotationRule.effect) {
-                                SelectionCriteriaEffect.SHOW -> Effect.SHOW
-                                SelectionCriteriaEffect.HIDE -> Effect.HIDE
+                                EffectConfig.SHOW -> Effect.SHOW
+                                EffectConfig.HIDE -> Effect.HIDE
                             }
                         add(
                             SurfaceSelectionRule.createAnnotationRule(

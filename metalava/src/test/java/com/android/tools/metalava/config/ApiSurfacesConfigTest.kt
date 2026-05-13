@@ -49,10 +49,10 @@ class ApiSurfacesConfigTest : BaseConfigParserTest() {
                                     name = "system",
                                     extends = "public",
                                     selectionCriteria =
-                                        SelectionCriteria(
+                                        SelectionCriteriaConfig(
                                             annotationRules =
                                                 listOf(
-                                                    AnnotationRule(
+                                                    AnnotationRuleConfig(
                                                         pattern =
                                                             "android.annotation.SystemApi(client=android.annotation.SystemApi.Client.PRIVILEGED_APPS)"
                                                     )
@@ -484,13 +484,13 @@ class ApiSurfacesConfigTest : BaseConfigParserTest() {
                                 ApiSurfaceConfig(
                                     name = "public",
                                     selectionCriteria =
-                                        SelectionCriteria(
-                                            unannotated = SelectionCriteriaEffect.SHOW,
+                                        SelectionCriteriaConfig(
+                                            unannotated = EffectConfig.SHOW,
                                             annotationRules =
                                                 listOf(
-                                                    AnnotationRule(
+                                                    AnnotationRuleConfig(
                                                         pattern = "test.annotation.Hide",
-                                                        effect = SelectionCriteriaEffect.HIDE,
+                                                        effect = EffectConfig.HIDE,
                                                     )
                                                 ),
                                         ),
@@ -499,10 +499,10 @@ class ApiSurfacesConfigTest : BaseConfigParserTest() {
                                     name = "system",
                                     extends = "public",
                                     selectionCriteria =
-                                        SelectionCriteria(
+                                        SelectionCriteriaConfig(
                                             annotationRules =
                                                 listOf(
-                                                    AnnotationRule(
+                                                    AnnotationRuleConfig(
                                                         pattern = "test.annotation.Show",
                                                         recursive = false,
                                                     )

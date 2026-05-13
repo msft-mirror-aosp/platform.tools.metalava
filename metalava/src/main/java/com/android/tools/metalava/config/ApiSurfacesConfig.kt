@@ -254,12 +254,12 @@ data class ApiSurfaceConfig(
     /** The optional name of the API surface that this surface extends, e.g. `public`. */
     @field:JacksonXmlProperty(isAttribute = true) val extends: String? = null,
     @field:JacksonXmlProperty(localName = "selection-criteria", namespace = CONFIG_NAMESPACE)
-    val selectionCriteria: SelectionCriteria =
-        SelectionCriteria(unannotated = SelectionCriteriaEffect.SHOW),
+    val selectionCriteria: SelectionCriteriaConfig =
+        SelectionCriteriaConfig(unannotated = EffectConfig.SHOW),
 )
 
-/** Enumeration of the possible effects that [SelectionCriteria] may have an on an item. */
-enum class SelectionCriteriaEffect {
+/** Enumeration of the possible effects that [SelectionCriteriaConfig] may have an on an item. */
+enum class EffectConfig {
     /** Include the affected item in the API. */
     SHOW,
 
@@ -269,7 +269,7 @@ enum class SelectionCriteriaEffect {
     HIDE,
     ;
 
-    /** Name to use when serializing and deserializing this [SelectionCriteriaEffect] instance. */
+    /** Name to use when serializing and deserializing this [EffectConfig] instance. */
     @JsonValue fun forJackson() = name.lowercase()
 }
 
@@ -277,28 +277,27 @@ enum class SelectionCriteriaEffect {
  * The criteria that determine what belongs in the API surface represented by the referencing
  * [ApiSurfaceConfig].
  */
-data class SelectionCriteria(
+data class SelectionCriteriaConfig(
     /**
      * Determines what is done with items that are not annotated with one of the annotations in
      * [annotationRules].
      */
-    @field:JacksonXmlProperty(isAttribute = true) val unannotated: SelectionCriteriaEffect? = null,
+    @field:JacksonXmlProperty(isAttribute = true) val unannotated: EffectConfig? = null,
 
     /** Rules that determine what effect an annotation has on its annotated item. */
     @field:JacksonXmlProperty(localName = "annotation-rule", namespace = CONFIG_NAMESPACE)
-    val annotationRules: List<AnnotationRule> = emptyList(),
+    val annotationRules: List<AnnotationRuleConfig> = emptyList(),
 )
 
 /**
  * A rule that specifies the effect annotations have on annotated items and their enclosed items.
  */
-data class AnnotationRule(
+data class AnnotationRuleConfig(
     /** Determines which annotation instances are matched by this rule. */
     @field:JacksonXmlProperty(isAttribute = true) val pattern: String,
 
     /** The effect that the matching annotation has on its annotated item. */
-    @field:JacksonXmlProperty(isAttribute = true)
-    val effect: SelectionCriteriaEffect = SelectionCriteriaEffect.SHOW,
+    @field:JacksonXmlProperty(isAttribute = true) val effect: EffectConfig = EffectConfig.SHOW,
 
     /** Determines if [effect] also applies to an annotated item's enclosed items or not. */
     @field:JacksonXmlProperty(isAttribute = true) val recursive: Boolean = true,
