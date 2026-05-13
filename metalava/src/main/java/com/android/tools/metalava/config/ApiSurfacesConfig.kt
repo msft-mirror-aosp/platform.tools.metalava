@@ -253,10 +253,33 @@ data class ApiSurfaceConfig(
 
     /** The optional name of the API surface that this surface extends, e.g. `public`. */
     @field:JacksonXmlProperty(isAttribute = true) val extends: String? = null,
+
+    /**
+     * Specifies the contents of this surface.
+     *
+     * Is only of significance if [extends] is not `null`. It defaults to [ContentsConfig.DELTA] if
+     * unspecified.
+     */
+    @field:JacksonXmlProperty(isAttribute = true) val contents: ContentsConfig? = null,
+
+    /** The selection criteria that determines what is included in this API surface. */
     @field:JacksonXmlProperty(localName = "selection-criteria", namespace = CONFIG_NAMESPACE)
     val selectionCriteria: SelectionCriteriaConfig =
         SelectionCriteriaConfig(unannotated = EffectConfig.SHOW),
 )
+
+/** Enumeration of the possible contents of this surface. */
+enum class ContentsConfig {
+    /** It is a delta on a surface that it extends. */
+    DELTA,
+
+    /** It is a standalone surface that includes everything that its extended surfaces contain. */
+    STANDALONE,
+    ;
+
+    /** Name to use when serializing and deserializing this [ContentsConfig] instance. */
+    @JsonValue fun forJackson() = name.lowercase()
+}
 
 /** Enumeration of the possible effects that [SelectionCriteriaConfig] may have an on an item. */
 enum class EffectConfig {

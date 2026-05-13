@@ -530,4 +530,54 @@ class ApiSurfacesConfigTest : BaseConfigParserTest() {
             """
         )
     }
+
+    @Test
+    fun `api-surfaces standalone`() {
+        roundTrip(
+            Config(
+                apiSurfaces =
+                    ApiSurfacesConfig(
+                        apiSurfaceList =
+                            listOf(
+                                ApiSurfaceConfig(
+                                    name = "public",
+                                    selectionCriteria =
+                                        SelectionCriteriaConfig(
+                                            unannotated = EffectConfig.SHOW,
+                                        ),
+                                ),
+                                ApiSurfaceConfig(
+                                    name = "restricted",
+                                    extends = "public",
+                                    contents = ContentsConfig.STANDALONE,
+                                    selectionCriteria =
+                                        SelectionCriteriaConfig(
+                                            annotationRules =
+                                                listOf(
+                                                    AnnotationRuleConfig(
+                                                        pattern = "test.api.RestrictedApi",
+                                                        recursive = false,
+                                                    )
+                                                ),
+                                        ),
+                                ),
+                            ),
+                    )
+            ),
+            """
+                <config xmlns="http://www.google.com/tools/metalava/config">
+                  <api-surfaces>
+                    <api-surface name="public">
+                      <selection-criteria unannotated="show"/>
+                    </api-surface>
+                    <api-surface name="restricted" extends="public" contents="standalone">
+                      <selection-criteria>
+                        <annotation-rule pattern="test.api.RestrictedApi" effect="show" recursive="false"/>
+                      </selection-criteria>
+                    </api-surface>
+                  </api-surfaces>
+                </config>
+            """
+        )
+    }
 }

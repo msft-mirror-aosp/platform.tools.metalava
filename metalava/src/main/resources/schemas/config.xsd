@@ -164,6 +164,20 @@
                 </xs:documentation>
             </xs:annotation>
         </xs:attribute>
+        <xs:attribute name="contents">
+            <xs:annotation>
+                <xs:documentation>
+                    Determines whether this surface is represented as a delta on the one it extends or is a standalone
+                    API. Is only of significance if `extends` is set. Defaults to `delta` if unspecified.
+                </xs:documentation>
+            </xs:annotation>
+            <xs:simpleType>
+                <xs:restriction base="xs:string">
+                    <xs:enumeration value="delta"/>
+                    <xs:enumeration value="standalone"/>
+                </xs:restriction>
+            </xs:simpleType>
+        </xs:attribute>
     </xs:complexType>
 
     <xs:complexType name="ApiSelectionCriteria">
