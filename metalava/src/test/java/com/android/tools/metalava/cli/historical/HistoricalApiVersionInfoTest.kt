@@ -52,7 +52,7 @@ class HistoricalApiVersionInfoTest : BaseTemporaryFolderOwner() {
                     append(")\n")
                 }
             }
-            .let { replaceFileWithSymbol(it) }
+            .let { cleanupString(it) }
 
     private fun buildApiSurfacesFromConfig(configFile: TestFile): ApiSurfaces {
         val config = ConfigParser.parse(listOf(configFile.createFile(temporaryFolder.newFolder())))
@@ -156,6 +156,6 @@ class HistoricalApiVersionInfoTest : BaseTemporaryFolderOwner() {
                   SignatureFileFromFile(file=TESTROOT/2/system/api/api.txt, forMainApiSurface=true, apiVariantType=CORE)
             """
                 .trimIndent()
-        assertEquals(expected, replaceFileWithSymbol(contributingFiles), "contributing files")
+        assertEquals(expected, cleanupString(contributingFiles), "contributing files")
     }
 }

@@ -935,7 +935,7 @@ abstract class DriverTest :
         var stubsDir: File? = null
         val stubsArgs =
             if (expectedStubFiles.isNotEmpty() || stubPaths != null || checkCompilation) {
-                stubsDir = getOrCreateFolder("stubs")
+                stubsDir = getOrCreateFolder("stubs", testLabel = "STUBS")
                 if (docStubs) {
                     arrayOf(ARG_DOC_STUBS, stubsDir.path)
                 } else {
@@ -1654,7 +1654,11 @@ abstract class DriverTest :
             // Get a folder in which the additionalFiles, if any, will be created. Delete it and its
             // contents and then recreate it to ensure that it is empty so that multiple instances
             // of CompilationCheck do not collide.
-            val additionalDir = getOrCreateFolder("additional-compilation-files")
+            val additionalDir =
+                getOrCreateFolder(
+                    "additional-compilation-files",
+                    testLabel = "ADDITIONAL",
+                )
             additionalDir.deleteRecursively()
             additionalDir.mkdirs()
 
@@ -1685,14 +1689,7 @@ abstract class DriverTest :
                 }
             } catch (e: JavacCompilationError) {
                 // Process the output to remove any test specific paths.
-                val output =
-                    replaceFileWithSymbol(
-                        e.output.trim(),
-                        mapOf(
-                            stubsDir to "STUBS",
-                            additionalDir to "ADDITIONAL",
-                        ),
-                    )
+                val output = cleanupString(e.output.trim())
                 assertEquals("$label compilation failure", expectedFailure.trimIndent(), output)
             } finally {
                 // Delete the additional directory.
