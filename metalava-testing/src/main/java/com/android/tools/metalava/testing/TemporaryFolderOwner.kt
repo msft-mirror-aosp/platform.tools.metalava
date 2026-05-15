@@ -142,24 +142,33 @@ open class BaseTemporaryFolderOwner : TemporaryFolderOwner {
  * label that is used in [TemporaryFolderOwner.cleanupString].
  */
 class CustomTemporaryFolder : TemporaryFolder() {
+    /** Map from file to label to use in test expectations. */
+    internal val temporaryFileToTestLabel = mutableMapOf<File, String>()
+
+    override fun before() {
+        super.before()
+
+        // Map root to TESTROOT
+        temporaryFileToTestLabel[root] = "TESTROOT"
+    }
+
+    override fun after() {
+        super.after()
+
+        temporaryFileToTestLabel.clear()
+    }
+
     /**
      * Replaces temporary folders that can change from one test run to the next with fixed labels to
      * make it easier to test expectations.
      *
-     * First, if [project] is provided, this will replace any usages of its [File.getPath] or
-     * [File.getCanonicalPath] with `TESTROOT`.
-     *
-     * Finally, it will replace [TemporaryFolder.getRoot] with `TESTROOT`.
+     * Replaces all the mappings in [temporaryFileToTestLabel] plus an optional one from [project]
+     * to `TESTROOT`.
      */
     fun cleanupString(
         string: String,
         project: File?,
-    ) =
-        if (project == null) {
-            replaceFileWithSymbol(string, emptyMap())
-        } else {
-            replaceFileWithSymbol(string, mapOf(project to "TESTROOT"))
-        }
+    ) = replaceFileWithSymbol(string, temporaryFileToTestLabel, extraTestRoot = project)
 
     /**
      * Replaces temporary folders that can change from one test run to the next with fixed labels to
@@ -167,6 +176,7 @@ class CustomTemporaryFolder : TemporaryFolder() {
      *
      * Creates a set of mappings consisting of:
      * * All the mappings in [fileToSymbol].
+     * * An optional [extraTestRoot] to `TESTROOT` mapping if needed.
      * * A default mapping from [getRoot] to `TESTROOT`.
      *
      * It then applies those mappings in order from most specific (longest) to least specific
@@ -175,12 +185,18 @@ class CustomTemporaryFolder : TemporaryFolder() {
     internal fun replaceFileWithSymbol(
         string: String,
         fileToSymbol: Map<File, String>,
+        extraTestRoot: File? = null,
     ): String {
         // Create an ordered mappings from longest to shortest. That ensures that the most specific
         // mapping is applied to each file.
         val orderedMappings =
             TreeMap<File, String>(longestFileFirst).apply {
                 putAll(fileToSymbol)
+
+                // Add the extra test root, if provided.
+                if (extraTestRoot != null) {
+                    put(extraTestRoot, "TESTROOT")
+                }
 
                 // Include the default mapping for the root directory.
                 put(root, "TESTROOT")
