@@ -356,4 +356,38 @@ class ApiContentsTest : DriverTest() {
                 """,
         )
     }
+
+    @Test
+    fun `Reference to hidden nested class from source path`() {
+        check(
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            public interface Test<T extends Outer.Hidden> {
+                            }
+                        """
+                    ),
+                ),
+            additionalSourcePathFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            /** @hide */
+                            public interface Outer {
+                                interface Hidden {}
+                            }
+                        """
+                    ),
+                ),
+            expectedIssues =
+                """
+                    ADDITIONAL-SOURCE-PATH/test/pkg/Outer.java:4: error: Class test.pkg.Outer is hidden but was referenced (as containing class) from public class test.pkg.Outer.Hidden [ReferencesHidden]
+                    src/test/pkg/Test.java:2: error: Class test.pkg.Outer is hidden but was referenced (as type parameter) from public class test.pkg.Test [ReferencesHidden]
+                    src/test/pkg/Test.java:2: error: Class test.pkg.Outer.Hidden is hidden but was referenced (as type parameter) from public class test.pkg.Test [ReferencesHidden]
+                """,
+        )
+    }
 }
