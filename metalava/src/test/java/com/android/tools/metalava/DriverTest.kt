@@ -1102,7 +1102,7 @@ abstract class DriverTest :
         val multiplatformCompatibilityArgs =
             if (multiplatformCompatibilityApi != null) {
                 multiplatformCompatibilityApiDirectory =
-                    getOrCreateFolder("multiplatform-compatibility-api")
+                    getOrCreateFolder("multiplatform-compatibility-api", "MULTIPLATFORM-API-DIR")
                 for (file in multiplatformCompatibilityApi) {
                     file.createFile(multiplatformCompatibilityApiDirectory)
                 }
