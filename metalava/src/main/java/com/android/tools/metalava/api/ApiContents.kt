@@ -22,7 +22,6 @@ import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassOrigin
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.Codebase
-import com.android.tools.metalava.model.FilterPredicate
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.TargetLanguageSet
@@ -35,7 +34,7 @@ import com.android.tools.metalava.reporter.Issues
 /** Determines all the [ClassItem]s that are part of the API. */
 internal class ApiContents(
     private val codebase: Codebase,
-    private val apiPredicateConfig: ApiPredicate.Config,
+    apiPredicateConfig: ApiPredicate.Config,
 ) {
 
     private val reporter = codebase.reporter
@@ -48,11 +47,11 @@ internal class ApiContents(
     private val notStrippable = HashSet<ClassItem>(5000)
 
     /** The filter that determines which [SelectableItem]s are included in the API. */
-    private val filter = FilterPredicate { selectableItem ->
-        ApiPredicate(config = apiPredicateConfig.copy(ignoreShown = true)).test(selectableItem) &&
+    private val filter =
+        ApiPredicate(config = apiPredicateConfig.copy(ignoreShown = true)).and { selectableItem ->
             // Don't consider references from elements that only exist in bytecode.
             selectableItem.targetLanguages != TargetLanguageSet.BYTECODE_ONLY
-    }
+        }
 
     /**
      * Computes the transitive closure of the API surface.
