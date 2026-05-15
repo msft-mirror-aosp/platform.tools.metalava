@@ -187,7 +187,7 @@ abstract class DriverTest :
                     errorCollector.addError(AssertionError(message))
                 }
             } else {
-                val actualFailureMessage = cleanupString(sw.toString(), null).trim()
+                val actualFailureMessage = cleanupString(sw.toString()).trim()
                 if (expectedToFail) {
                     if (
                         expectedFailureMessage != null &&
@@ -730,7 +730,7 @@ abstract class DriverTest :
                 override val rootFolder = projectDir
 
                 override fun printReport(message: String, severity: Severity) {
-                    val cleanedUpMessage = cleanupString(message, rootFolder).trim()
+                    val cleanedUpMessage = cleanupString(message).trim()
                     if (severity == Severity.ERROR) {
                         errorSeverityReportedIssues.append(cleanedUpMessage).append('\n')
                     }

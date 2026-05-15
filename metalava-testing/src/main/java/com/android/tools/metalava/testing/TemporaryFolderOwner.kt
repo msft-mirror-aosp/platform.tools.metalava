@@ -51,16 +51,24 @@ interface TemporaryFolderOwner {
      * Use an existing folder, or create a new one if necessary. It is an error if a file exists but
      * is not a directory.
      */
-    fun getOrCreateFolder(relative: String = ""): File {
+    fun getOrCreateFolder(relative: String = "", testLabel: String? = null): File {
         val dir = temporaryFolder.root.resolve(relative)
         // If the directory exists and is a directory then use it, otherwise drop through to create
         // a new one. If the directory exists but is not a directory then attempting to create a new
         // one will report an issue.
-        return if (dir.isDirectory) {
-            dir
-        } else {
-            temporaryFolder.newFolder(relative)
+        val newFolder =
+            if (dir.isDirectory) {
+                dir
+            } else {
+                temporaryFolder.newFolder(relative)
+            }
+
+        // Add a mapping from the new folder to the test label if provided.
+        if (testLabel != null) {
+            temporaryFolder.addTestLabelForFile(newFolder, testLabel)
         }
+
+        return newFolder
     }
 
     /**
@@ -156,6 +164,17 @@ class CustomTemporaryFolder : TemporaryFolder() {
         super.after()
 
         temporaryFileToTestLabel.clear()
+    }
+
+    /** Add mapping from [file] to [testLabel]. */
+    fun addTestLabelForFile(file: File, testLabel: String) {
+        val existingLabel = temporaryFileToTestLabel[file]
+        if (existingLabel != null && existingLabel != testLabel) {
+            error(
+                "Inconsistent test labels provided for $file, existing: $existingLabel, new: $testLabel"
+            )
+        }
+        temporaryFileToTestLabel[file] = testLabel
     }
 
     /**
