@@ -22,7 +22,6 @@ import com.android.tools.metalava.model.ANDROIDX_REQUIRES_PERMISSION
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.BaseItemVisitor
 import com.android.tools.metalava.model.BaseTypeVisitor
-import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassOrigin
 import com.android.tools.metalava.model.ClassTypeItem
@@ -41,8 +40,6 @@ import com.android.tools.metalava.model.SUPPRESS_COMPATIBILITY_ANNOTATION_QUALIF
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.TargetLanguageSet
 import com.android.tools.metalava.model.TypeItem
-import com.android.tools.metalava.model.TypeParameterList
-import com.android.tools.metalava.model.VariableTypeItem
 import com.android.tools.metalava.model.doc.DocContentPredicate
 import com.android.tools.metalava.model.source.SourceParser
 import com.android.tools.metalava.model.source.doc.DocContentPredicates
@@ -784,9 +781,8 @@ class ApiAnalyzer(
         }
     }
 
-    // TODO: Switch to visitor iteration
     fun handleStripping() {
-        val notStrippable = computeTransitiveClosure()
+        val notStrippable = ApiContents.computeContents(codebase, config.apiPredicateConfig)
 
         // complain about anything that looks includeable but is not supposed to
         // be written, e.g. hidden things
@@ -856,193 +852,6 @@ class ApiAnalyzer(
                 reporter.report(Issues.DEPRECATED, cl, "Class ${cl.qualifiedName()} is deprecated")
             }
         }
-    }
-
-    /**
-     * Computes the transitive closure of the API surface.
-     *
-     * Starts with the set of all top level classes that are usable outside the package/module in
-     * which they are defined, currently marked as emitted and not hidden. It then proceeds to find
-     * any class referenced from those classes, directly or indirectly. Returning the set of all
-     * classes that were visited.
-     */
-    private fun computeTransitiveClosure(): Set<ClassItem> {
-        val notStrippable = HashSet<ClassItem>(5000)
-
-        val filter = FilterPredicate { selectableItem ->
-            ApiPredicate(config = config.apiPredicateConfig.copy(ignoreShown = true))
-                .test(selectableItem) &&
-                // Don't consider references from elements that only exist in bytecode.
-                selectableItem.targetLanguages != TargetLanguageSet.BYTECODE_ONLY
-        }
-
-        // If a class is public or protected, not hidden, not imported and marked as included,
-        // then we can't strip it
-        val allTopLevelClasses = codebase.getPackages().allTopLevelClasses().toList()
-        allTopLevelClasses
-            .filter { it.isApiCandidate() && it.emit && !it.hidden() }
-            .forEach { cantStripThis(it, filter, notStrippable, it, "self") }
-        return notStrippable
-    }
-
-    private fun cantStripThis(
-        cl: ClassItem,
-        filter: FilterPredicate,
-        notStrippable: MutableSet<ClassItem>,
-        from: Item,
-        usage: String
-    ) {
-        if (cl.origin == ClassOrigin.CLASS_PATH) {
-            return
-        }
-
-        if (cl.isHiddenOrRemoved() || cl.isPackagePrivate && !cl.isApiCandidate()) {
-            reporter.report(
-                Issues.REFERENCES_HIDDEN,
-                from,
-                "Class ${cl.qualifiedName()} is ${if (cl.isHiddenOrRemoved()) "hidden" else "not public"} but was referenced ($usage) from public ${from.describe()}"
-            )
-        }
-
-        if (!notStrippable.add(cl)) {
-            // slight optimization: if it already contains cl, it already contains
-            // all of cl's parents
-            return
-        }
-
-        // can't strip any public fields or their generics
-        for (field in cl.fields()) {
-            if (!filter.test(field)) {
-                continue
-            }
-            cantStripThis(field.type(), field, filter, notStrippable, "in field type")
-        }
-        // can't strip any of the type's generics
-        cantStripThis(cl.typeParameterList, filter, notStrippable, cl)
-        // can't strip any of the annotation elements
-        // cantStripThis(cl.annotationElements(), notStrippable);
-        // take care of methods
-        cantStripThis(cl.methods(), filter, notStrippable)
-        cantStripThis(cl.constructors(), filter, notStrippable)
-        // blow the outer class open if this is an inner class
-        val containingClass = cl.containingClass()
-        if (containingClass != null) {
-            cantStripThis(containingClass, filter, notStrippable, cl, "as containing class")
-        }
-        // all visible inner classes will be included in stubs
-        cl.nestedClasses()
-            .filter { it.isApiCandidate() }
-            .forEach { cantStripThis(it, filter, notStrippable, cl, "as nested class") }
-        // blow open super class and interfaces
-        // TODO: Consider using val superClass = cl.filteredSuperclass(filter)
-        val allSuperItems = cl.allInterfaces().toMutableSet()
-        val directSuperItems = cl.interfaceTypes().map { it.qualifiedName }.toMutableSet()
-        cl.superClass()?.let { superClass ->
-            allSuperItems.add(superClass)
-            directSuperItems.add(superClass.qualifiedName())
-        }
-
-        for (superItem in allSuperItems) {
-            // allInterfaces includes cl itself if cl is an interface
-            if (superItem.isHiddenOrRemoved() && superItem != cl) {
-                // cl is a public class declared as extending a hidden superclass or implementing
-                // a hidden interface.
-                // this is not a desired practice, but it's happened, so we deal
-                // with it by finding the first super class which passes checkLevel for purposes of
-                // generating the doc & stub information, and proceeding normally.
-                if (
-                    // Make sure the parent element is either the superclass or an interface
-                    // that cl is implementing directly (as opposed to indirectly via parent class)
-                    superItem.qualifiedName() in directSuperItems
-                ) {
-                    reporter.report(
-                        Issues.HIDDEN_SUPERCLASS,
-                        cl,
-                        "Public class " +
-                            cl.qualifiedName() +
-                            " stripped of unavailable superclass " +
-                            superItem.qualifiedName()
-                    )
-                }
-            } else {
-                // doclava would also mark the package private super classes as unhidden, but that's
-                // not
-                // right (this was just done for its stub handling)
-                //   cantStripThis(superClass, filter, notStrippable, stubImportPackages, cl, "as
-                // super class")
-
-                if (superItem.isPrivate && superItem.origin != ClassOrigin.CLASS_PATH) {
-                    reporter.report(
-                        Issues.PRIVATE_SUPERCLASS,
-                        cl,
-                        "Public class " +
-                            cl.qualifiedName() +
-                            " extends private class " +
-                            superItem.qualifiedName()
-                    )
-                }
-            }
-        }
-    }
-
-    private fun cantStripThis(
-        callables: List<CallableItem>,
-        filter: FilterPredicate,
-        notStrippable: MutableSet<ClassItem>,
-    ) {
-        // for each callable, blow open the parameters, throws and return types. also blow open
-        // their generics
-        for (callable in callables) {
-            if (!filter.test(callable)) {
-                continue
-            }
-            cantStripThis(callable.typeParameterList, filter, notStrippable, callable)
-            for (parameter in callable.parameters()) {
-                cantStripThis(
-                    parameter.type(),
-                    parameter,
-                    filter,
-                    notStrippable,
-                    "in parameter type"
-                )
-            }
-            for (thrown in callable.throwsTypes()) {
-                if (thrown is VariableTypeItem) continue
-                val classItem = thrown.asErasedClass(codebase) ?: continue
-                cantStripThis(classItem, filter, notStrippable, callable, "as exception")
-            }
-            cantStripThis(callable.returnType(), callable, filter, notStrippable, "in return type")
-        }
-    }
-
-    private fun cantStripThis(
-        typeParameterList: TypeParameterList,
-        filter: FilterPredicate,
-        notStrippable: MutableSet<ClassItem>,
-        context: Item
-    ) {
-        for (typeParameter in typeParameterList) {
-            for (bound in typeParameter.typeBounds()) {
-                cantStripThis(bound, context, filter, notStrippable, "as type parameter")
-            }
-        }
-    }
-
-    private fun cantStripThis(
-        type: TypeItem,
-        context: Item,
-        filter: FilterPredicate,
-        notStrippable: MutableSet<ClassItem>,
-        usage: String,
-    ) {
-        type.accept(
-            object : BaseTypeVisitor() {
-                override fun visitClassType(classType: ClassTypeItem) {
-                    val asClass = classType.resolveClass(codebase) ?: return
-                    cantStripThis(asClass, filter, notStrippable, context, usage)
-                }
-            }
-        )
     }
 
     /**
@@ -1130,11 +939,6 @@ private fun String.capitalize(): String {
             it.toString()
         }
     }
-}
-
-/** Returns true if this item is public or protected and so a candidate for inclusion in an API. */
-private fun SelectableItem.isApiCandidate(): Boolean {
-    return !isHiddenOrRemoved() && (modifiers.isPublic() || modifiers.isProtected())
 }
 
 /**
