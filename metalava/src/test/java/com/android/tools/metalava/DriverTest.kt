@@ -558,6 +558,11 @@ abstract class DriverTest :
         @Language("TEXT") apiLint: String? = null,
         /** The source files to pass to the analyzer */
         sourceFiles: Array<TestFile> = emptyArray(),
+        /**
+         * Additional source files that will be available on the source path but not included in the
+         * source files passed on the command line.
+         */
+        additionalSourcePathFiles: Array<TestFile> = emptyArray(),
         /** Lint project description */
         projectDescription: TestFile? = null,
         /** Jar file with the compiled sources loaded in addition to [sourceFiles]. */
@@ -657,6 +662,25 @@ abstract class DriverTest :
         // Make it easy to configure a source path with more than one source root: src and src2
         if (sourceFiles.any { it.targetPath.startsWith("src2") }) {
             sourcePath = sourcePath + File.pathSeparator + sourcePath + "2"
+        }
+
+        // Add any additional sources onto the source path.
+        if (additionalSourcePathFiles.isNotEmpty()) {
+            // Get the directory for the folder.
+            val dir = getOrCreateFolder("extra-source-files")
+
+            // Create the files. Note, that Java files are created in a `src` subdirectory of the
+            // dir passed in to createFiles(File).
+            additionalSourcePathFiles.createFiles(dir)
+
+            // Create a file for the `src` subdirectory.
+            val srcDir = dir.resolve("src")
+
+            // Add a label for it.
+            temporaryFolder.addTestLabelForFile(srcDir, "ADDITIONAL-SOURCE-PATH")
+
+            // Add it to the source path.
+            sourcePath = sourcePath + File.pathSeparator + srcDir
         }
 
         fun pathUnderProject(path: String): String = File(projectDir, path).path
