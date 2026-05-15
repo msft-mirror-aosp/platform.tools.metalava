@@ -22,6 +22,7 @@ import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassOrigin
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.Codebase
+import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.TargetLanguageSet
@@ -112,10 +113,7 @@ internal class ApiContents(
 
         // Check field types.
         for (field in cl.fields()) {
-            if (!filter.test(field)) {
-                continue
-            }
-            checkTypeReferences(field.type(), field, "in field type")
+            checkFieldReferences(field)
         }
 
         // Check method references.
@@ -173,6 +171,14 @@ internal class ApiContents(
                 }
             }
         }
+    }
+
+    /** Check all the references from [field] to [ClassItem]s. */
+    private fun checkFieldReferences(field: FieldItem) {
+        if (!filter.test(field)) {
+            return
+        }
+        checkTypeReferences(field.type(), field, "in field type")
     }
 
     /** Check all the references from [callables] to [ClassItem]s. */
