@@ -18,7 +18,7 @@ package com.android.tools.metalava.cli.common
 
 import com.android.tools.lint.checks.infrastructure.TestFile
 import com.android.tools.metalava.ProgressTracker
-import com.android.tools.metalava.testing.TemporaryFolderOwner
+import com.android.tools.metalava.testing.BaseTemporaryFolderOwner
 import com.android.tools.metalava.testing.getNoopTracer
 import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.core.subcommands
@@ -26,7 +26,6 @@ import java.io.File
 import org.junit.Assert
 import org.junit.Rule
 import org.junit.rules.ErrorCollector
-import org.junit.rules.TemporaryFolder
 
 /**
  * Base class for command related tests.
@@ -36,7 +35,7 @@ import org.junit.rules.TemporaryFolder
  */
 abstract class BaseCommandTest<C : CliktCommand>(
     internal val commandFactory: (ExecutionEnvironment) -> C
-) : TemporaryFolderOwner {
+) : BaseTemporaryFolderOwner() {
 
     /**
      * Collects errors during the running of the test and reports them at the end.
@@ -47,9 +46,6 @@ abstract class BaseCommandTest<C : CliktCommand>(
      * tests.
      */
     @get:Rule val errorCollector = ErrorCollector()
-
-    /** Provides access to temporary files. */
-    @get:Rule override val temporaryFolder = TemporaryFolder()
 
     /**
      * Type safe builder for configuring and running a command related test.

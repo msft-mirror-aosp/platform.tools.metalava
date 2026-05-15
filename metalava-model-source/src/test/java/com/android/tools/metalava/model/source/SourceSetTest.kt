@@ -17,20 +17,15 @@
 package com.android.tools.metalava.model.source
 
 import com.android.tools.metalava.reporter.RecordingReporter
-import com.android.tools.metalava.testing.TemporaryFolderOwner
+import com.android.tools.metalava.testing.BaseTemporaryFolderOwner
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
 import java.io.File
 import kotlin.test.assertEquals
 import org.junit.After
-import org.junit.Rule
 import org.junit.Test
-import org.junit.rules.TemporaryFolder
 
-class SourceSetTest : TemporaryFolderOwner {
-    /** Provides access to temporary files. */
-    @get:Rule override val temporaryFolder = TemporaryFolder()
-
+class SourceSetTest : BaseTemporaryFolderOwner() {
     private val reporter = RecordingReporter()
 
     private fun assertAndRemoveReportedIssues(expectedIssues: String) {

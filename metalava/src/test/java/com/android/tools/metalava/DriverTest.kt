@@ -80,11 +80,11 @@ import com.android.tools.metalava.model.text.prepareSignatureFileForTest
 import com.android.tools.metalava.reporter.ReporterEnvironment
 import com.android.tools.metalava.reporter.Severity
 import com.android.tools.metalava.reporter.ThrowingReporter
+import com.android.tools.metalava.testing.BaseTemporaryFolderOwner
 import com.android.tools.metalava.testing.JavacCompilationError
 import com.android.tools.metalava.testing.JavacHelper
 import com.android.tools.metalava.testing.KnownJarFiles
 import com.android.tools.metalava.testing.KnownSourceFiles
-import com.android.tools.metalava.testing.TemporaryFolderOwner
 import com.android.tools.metalava.testing.createFiles
 import com.android.tools.metalava.testing.findKotlinStdlibPaths
 import com.android.tools.metalava.testing.getAndroidJar
@@ -109,14 +109,11 @@ import org.junit.Assert.fail
 import org.junit.Before
 import org.junit.Rule
 import org.junit.rules.ErrorCollector
-import org.junit.rules.TemporaryFolder
 import org.junit.runner.RunWith
 
 @RunWith(DriverTestRunner::class)
 abstract class DriverTest :
-    CodebaseCreatorConfigAware<SourceModelProvider>, TemporaryFolderOwner, Assertions {
-    @get:Rule override val temporaryFolder = TemporaryFolder()
-
+    CodebaseCreatorConfigAware<SourceModelProvider>, BaseTemporaryFolderOwner(), Assertions {
     @get:Rule val errorCollector = ErrorCollector()
 
     /** The [CodebaseCreatorConfig] under which this test will be run. */

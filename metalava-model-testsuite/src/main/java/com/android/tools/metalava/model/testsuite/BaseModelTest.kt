@@ -37,12 +37,11 @@ import com.android.tools.metalava.model.testing.inheritedSupportedInputFormats
 import com.android.tools.metalava.model.testing.testTypeString
 import com.android.tools.metalava.reporter.Issues.Issue
 import com.android.tools.metalava.reporter.RecordingReporter
-import com.android.tools.metalava.testing.TemporaryFolderOwner
+import com.android.tools.metalava.testing.BaseTemporaryFolderOwner
 import java.io.File
 import javax.annotation.CheckReturnValue
 import kotlin.test.assertEquals
 import org.junit.Rule
-import org.junit.rules.TemporaryFolder
 import org.junit.rules.TestRule
 import org.junit.runner.Description
 import org.junit.runner.RunWith
@@ -63,9 +62,9 @@ import org.junit.runners.model.Statement
  * into the same project and run tests against them all at the same time.
  */
 @RunWith(ModelTestSuiteRunner::class)
-abstract class BaseModelTest() :
+abstract class BaseModelTest :
     CodebaseCreatorConfigAware<ModelSuiteRunner>,
-    TemporaryFolderOwner,
+    BaseTemporaryFolderOwner(),
     Assertions,
     InputSetFactory {
 
@@ -107,8 +106,6 @@ abstract class BaseModelTest() :
      */
     protected val inputFormat
         get() = codebaseCreatorConfig.inputFormat!!
-
-    @get:Rule override val temporaryFolder = TemporaryFolder()
 
     /**
      * A rule that checks to make sure that the [SupportedInputFormats] annotation that applies to a

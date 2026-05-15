@@ -17,16 +17,12 @@
 package com.android.tools.metalava.config
 
 import com.android.tools.lint.checks.infrastructure.TestFile
-import com.android.tools.metalava.testing.TemporaryFolderOwner
+import com.android.tools.metalava.testing.BaseTemporaryFolderOwner
 import com.google.common.truth.Truth.assertThat
 import org.intellij.lang.annotations.Language
-import org.junit.Rule
-import org.junit.rules.TemporaryFolder
 
 /** Base for tests for objects that are loaded from a configuration file. */
-open class BaseConfigParserTest : TemporaryFolderOwner {
-    @get:Rule override val temporaryFolder = TemporaryFolder()
-
+open class BaseConfigParserTest : BaseTemporaryFolderOwner() {
     /** Context for the tests. */
     data class TestContext(
         /** The created [Config] being tested. */
