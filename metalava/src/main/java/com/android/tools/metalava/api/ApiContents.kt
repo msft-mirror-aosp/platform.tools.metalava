@@ -68,19 +68,23 @@ internal class ApiContents(
         val allTopLevelClasses = codebase.getPackages().allTopLevelClasses().toList()
         allTopLevelClasses
             .filter { it.isApiCandidate() && it.emit && !it.hidden() }
-            .forEach { cantStripThis(it, it, "self") }
+            .forEach { checkClassReferences(it, it, "self") }
         return notStrippable
     }
 
-    private fun cantStripThis(
+    /** Check [cl]'s references to other [ClassItem]s. */
+    private fun checkClassReferences(
         cl: ClassItem,
         from: Item,
         usage: String,
     ) {
+        // Ignore any class from the class path.
         if (cl.origin == ClassOrigin.CLASS_PATH) {
             return
         }
 
+        // Report issues before checking to see if this class has been visited before so that it
+        // will report all references to the hidden class.
         if (cl.isHiddenOrRemoved() || cl.isPackagePrivate && !cl.isApiCandidate()) {
             reporter.report(
                 Issues.REFERENCES_HIDDEN,
@@ -89,36 +93,43 @@ internal class ApiContents(
             )
         }
 
+        // Only check each class one.
         if (!notStrippable.add(cl)) {
-            // slight optimization: if it already contains cl, it already contains
-            // all of cl's parents
             return
         }
 
-        // can't strip any public fields or their generics
+        // Check the containing class.
+        // This is not needed for classes checked directly from [computeTransitiveClosure] as that
+        // always starts with the outermost class. This is needed for type references to nested
+        // source classes that are found on the source path.
+        val containingClass = cl.containingClass()
+        if (containingClass != null) {
+            checkClassReferences(containingClass, cl, "as containing class")
+        }
+
+        // Check this class's type parameters.
+        checkTypeParameterListReferences(cl.typeParameterList, cl)
+
+        // Check field types.
         for (field in cl.fields()) {
             if (!filter.test(field)) {
                 continue
             }
-            cantStripThis(field.type(), field, "in field type")
+            checkTypeReferences(field.type(), field, "in field type")
         }
-        // can't strip any of the type's generics
-        cantStripThis(cl.typeParameterList, cl)
-        // can't strip any of the annotation elements
-        // cantStripThis(cl.annotationElements(), notStrippable);
-        // take care of methods
-        cantStripThis(cl.methods())
-        cantStripThis(cl.constructors())
-        // blow the outer class open if this is an inner class
-        val containingClass = cl.containingClass()
-        if (containingClass != null) {
-            cantStripThis(containingClass, cl, "as containing class")
-        }
-        // all visible inner classes will be included in stubs
+
+        // Check method references.
+        checkCallableItemReferences(cl.methods())
+
+        // Check constructor references.
+        checkCallableItemReferences(cl.constructors())
+
+        // Check nested class references.
         cl.nestedClasses()
             .filter { it.isApiCandidate() }
-            .forEach { cantStripThis(it, cl, "as nested class") }
-        // blow open super class and interfaces
+            .forEach { checkClassReferences(it, cl, "as nested class") }
+
+        // Check super type references.
         // TODO: Consider using val superClass = cl.filteredSuperclass(filter)
         val allSuperItems = cl.allInterfaces().toMutableSet()
         val directSuperItems = cl.interfaceTypes().map { it.qualifiedName }.toMutableSet()
@@ -164,38 +175,41 @@ internal class ApiContents(
         }
     }
 
-    private fun cantStripThis(callables: List<CallableItem>) {
+    /** Check all the references from [callables] to [ClassItem]s. */
+    private fun checkCallableItemReferences(callables: List<CallableItem>) {
         // for each callable, blow open the parameters, throws and return types. also blow open
         // their generics
         for (callable in callables) {
             if (!filter.test(callable)) {
                 continue
             }
-            cantStripThis(callable.typeParameterList, callable)
+            checkTypeParameterListReferences(callable.typeParameterList, callable)
             for (parameter in callable.parameters()) {
-                cantStripThis(parameter.type(), parameter, "in parameter type")
+                checkTypeReferences(parameter.type(), parameter, "in parameter type")
             }
             for (thrown in callable.throwsTypes()) {
                 if (thrown is VariableTypeItem) continue
                 val classItem = thrown.asErasedClass(codebase) ?: continue
-                cantStripThis(classItem, callable, "as exception")
+                checkClassReferences(classItem, callable, "as exception")
             }
-            cantStripThis(callable.returnType(), callable, "in return type")
+            checkTypeReferences(callable.returnType(), callable, "in return type")
         }
     }
 
-    private fun cantStripThis(
+    /** Check all the references from [typeParameterList] to [ClassItem]s. */
+    private fun checkTypeParameterListReferences(
         typeParameterList: TypeParameterList,
-        context: Item,
+        from: Item,
     ) {
         for (typeParameter in typeParameterList) {
             for (bound in typeParameter.typeBounds()) {
-                cantStripThis(bound, context, "as type parameter")
+                checkTypeReferences(bound, from, "as type parameter")
             }
         }
     }
 
-    private fun cantStripThis(
+    /** Check all the references from [type] to [ClassItem]s. */
+    private fun checkTypeReferences(
         type: TypeItem,
         context: Item,
         usage: String,
@@ -204,7 +218,7 @@ internal class ApiContents(
             object : BaseTypeVisitor() {
                 override fun visitClassType(classType: ClassTypeItem) {
                     val asClass = classType.resolveClass(codebase) ?: return
-                    cantStripThis(asClass, context, usage)
+                    checkClassReferences(asClass, context, usage)
                 }
             }
         )
