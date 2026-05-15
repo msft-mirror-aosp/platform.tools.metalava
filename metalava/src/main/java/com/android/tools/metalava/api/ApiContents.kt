@@ -180,20 +180,25 @@ internal class ApiContents(
         // for each callable, blow open the parameters, throws and return types. also blow open
         // their generics
         for (callable in callables) {
-            if (!filter.test(callable)) {
-                continue
-            }
-            checkTypeParameterListReferences(callable.typeParameterList, callable)
-            for (parameter in callable.parameters()) {
-                checkTypeReferences(parameter.type(), parameter, "in parameter type")
-            }
-            for (thrown in callable.throwsTypes()) {
-                if (thrown is VariableTypeItem) continue
-                val classItem = thrown.asErasedClass(codebase) ?: continue
-                checkClassReferences(classItem, callable, "as exception")
-            }
-            checkTypeReferences(callable.returnType(), callable, "in return type")
+            checkCallableItemReferences(callable)
         }
+    }
+
+    /** Check all the references from [callable] to [ClassItem]s. */
+    private fun checkCallableItemReferences(callable: CallableItem) {
+        if (!filter.test(callable)) {
+            return
+        }
+        checkTypeParameterListReferences(callable.typeParameterList, callable)
+        for (parameter in callable.parameters()) {
+            checkTypeReferences(parameter.type(), parameter, "in parameter type")
+        }
+        for (thrown in callable.throwsTypes()) {
+            if (thrown is VariableTypeItem) continue
+            val classItem = thrown.asErasedClass(codebase) ?: continue
+            checkClassReferences(classItem, callable, "as exception")
+        }
+        checkTypeReferences(callable.returnType(), callable, "in return type")
     }
 
     /** Check all the references from [typeParameterList] to [ClassItem]s. */
