@@ -183,14 +183,12 @@ abstract class BaseModelTest :
         override val optionalCodebase: Codebase?,
         override val optionalMultiplatformCodebase: MultiplatformCodebase?,
         override val inputSet: InputSet,
-        private val fileToSymbol: Map<File, String>,
         private val recordingReporter: RecordingReporter,
     ) : CodebaseContext {
 
         override val inputFormat = inputSet.inputFormat
 
-        override fun removeTestSpecificDirectories(string: String) =
-            replaceFileWithSymbol(string, fileToSymbol)
+        override fun removeTestSpecificDirectories(string: String) = cleanupString(string)
 
         override fun removeReportedIssues() =
             removeTestSpecificDirectories(recordingReporter.removeIssues())
@@ -309,10 +307,11 @@ abstract class BaseModelTest :
             )
         }
         for (inputSet in applicableInputSets) {
-            val mainSourceDir = sourceDir(inputSet)
+            val mainSourceDir = mainSourceDir(inputSet)
             val projectDescriptionFile = projectDescription?.createFile(mainSourceDir.dir)
 
-            val additionalSourceDir = inputSet.additionalTestFiles?.let { sourceDir(it) }
+            val additionalSourceDir =
+                inputSet.additionalTestFiles?.let { sourceDir(it, "ADDITIONAL_SRC") }
 
             val recordingReporter = testFixture.recordingReporter
 
@@ -333,12 +332,6 @@ abstract class BaseModelTest :
                             codebase,
                             multiplatformCodebase,
                             inputSet,
-                            buildMap {
-                                this[mainSourceDir.dir] = "MAIN_SRC"
-                                additionalSourceDir?.dir?.let { dir ->
-                                    this[dir] = "ADDITIONAL_SRC"
-                                }
-                            },
                             recordingReporter,
                         )
                     context.test()
@@ -353,12 +346,14 @@ abstract class BaseModelTest :
         }
     }
 
-    private fun sourceDir(inputSet: InputSet): ModelSuiteRunner.SourceDir {
-        return sourceDir(inputSet.testFiles)
-    }
+    private fun mainSourceDir(inputSet: InputSet) =
+        sourceDir(inputSet.testFiles, testLabel = "MAIN_SRC")
 
-    private fun sourceDir(testFiles: List<TestFile>): ModelSuiteRunner.SourceDir {
-        val tempDir = temporaryFolder.newFolder()
+    private fun sourceDir(
+        testFiles: List<TestFile>,
+        testLabel: String,
+    ): ModelSuiteRunner.SourceDir {
+        val tempDir = temporaryFolder.newFolderWithTestLabel(testLabel)
         return ModelSuiteRunner.SourceDir(dir = tempDir, contents = testFiles)
     }
 
