@@ -40,7 +40,11 @@ interface TemporaryFolderOwner {
      * write the files to the folder and then return the folder.
      */
     fun createProjectDir(files: Array<TestFile>): File {
-        val dir = getOrCreateFolder("project")
+        val dir =
+            getOrCreateFolder(
+                relative = "project",
+                testLabel = "TESTROOT",
+            )
         files.createFiles(dir)
         return dir
     }
