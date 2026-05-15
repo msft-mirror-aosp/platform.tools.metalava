@@ -198,7 +198,11 @@ internal class ApiContents(
             val classItem = thrown.asErasedClass(codebase) ?: continue
             checkClassReferences(classItem, callable, "as exception")
         }
-        checkTypeReferences(callable.returnType(), callable, "in return type")
+        // Constructor return types are the containing class which has already been checked so there
+        // is no point in checking that.
+        if (!callable.isConstructor()) {
+            checkTypeReferences(callable.returnType(), callable, "in return type")
+        }
     }
 
     /** Check all the references from [typeParameterList] to [ClassItem]s. */
