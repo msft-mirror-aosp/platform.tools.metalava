@@ -32,7 +32,7 @@ interface TemporaryFolderOwner {
      *     @get:Rule final override val temporaryFolder = createTestRule()
      * ```
      */
-    val temporaryFolder: TemporaryFolder
+    val temporaryFolder: CustomTemporaryFolder
 
     /**
      * Given an array of [TestFile] get a folder called "project" (creating it if it is empty),
@@ -101,34 +101,77 @@ interface TemporaryFolderOwner {
     }
 
     /**
-     * Hides path prefixes from /tmp folders used by the testing infrastructure.
+     * Replaces temporary folders that can change from one test run to the next with fixed labels to
+     * make it easier to test expectations.
      *
-     * First, if [project] is provided, this will replace any usages of its [File.getPath] or
-     * [File.getCanonicalPath] with `TESTROOT`.
-     *
-     * Finally, it will replace the [temporaryFolder]'s [TemporaryFolder.getRoot] with `TESTROOT`.
+     * @see CustomTemporaryFolder.cleanupString
      */
     fun cleanupString(
         string: String,
         project: File? = null,
+    ) = temporaryFolder.cleanupString(string, project)
+
+    /**
+     * Replaces temporary folders that can change from one test run to the next with fixed labels to
+     * make it easier to test expectations.
+     *
+     * @see CustomTemporaryFolder.replaceFileWithSymbol
+     */
+    fun replaceFileWithSymbol(
+        string: String,
+        fileToSymbol: Map<File, String> = emptyMap(),
+    ) = temporaryFolder.replaceFileWithSymbol(string, fileToSymbol)
+
+    /** Create a [File] from this [TestFile] in the root directory of the [temporaryFolder]. */
+    fun TestFile.toFile() = createFile(temporaryFolder.root)
+
+    companion object {
+        /** Create the [TemporaryFolder]. */
+        fun createTestRule(): CustomTemporaryFolder = CustomTemporaryFolder()
+    }
+}
+
+/** Base class for implementers of [TemporaryFolderOwner]. */
+open class BaseTemporaryFolderOwner : TemporaryFolderOwner {
+    @get:Rule final override val temporaryFolder = createTestRule()
+}
+
+/**
+ * Custom extension of [TemporaryFolder] that keeps track of mappings from temporary files to a
+ * label that is used in [TemporaryFolderOwner.cleanupString].
+ */
+class CustomTemporaryFolder : TemporaryFolder() {
+    /**
+     * Replaces temporary folders that can change from one test run to the next with fixed labels to
+     * make it easier to test expectations.
+     *
+     * First, if [project] is provided, this will replace any usages of its [File.getPath] or
+     * [File.getCanonicalPath] with `TESTROOT`.
+     *
+     * Finally, it will replace [TemporaryFolder.getRoot] with `TESTROOT`.
+     */
+    fun cleanupString(
+        string: String,
+        project: File?,
     ) =
         if (project == null) {
-            replaceFileWithSymbol(string)
+            replaceFileWithSymbol(string, emptyMap())
         } else {
             replaceFileWithSymbol(string, mapOf(project to "TESTROOT"))
         }
 
     /**
-     * Hides path prefixes from /tmp folders used by the testing infrastructure.
+     * Replaces temporary folders that can change from one test run to the next with fixed labels to
+     * make it easier to test expectations.
      *
      * First, for each [Map.Entry] in [fileToSymbol] it will replace any usages of its
      * [Map.Entry.key]'s [File.getPath] or [File.getCanonicalPath] with its [Map.Entry.value].
      *
-     * Finally, it will replace the [temporaryFolder]'s [TemporaryFolder.getRoot] with `TESTROOT`.
+     * Finally, it will replace [TemporaryFolder.getRoot] with `TESTROOT`.
      */
-    fun replaceFileWithSymbol(
+    internal fun replaceFileWithSymbol(
         string: String,
-        fileToSymbol: Map<File, String> = emptyMap(),
+        fileToSymbol: Map<File, String>,
     ): String {
         var s = string
 
@@ -137,23 +180,10 @@ interface TemporaryFolderOwner {
             s = s.replace(file.canonicalPath, symbol)
         }
 
-        s = s.replace(temporaryFolder.root.path, "TESTROOT")
+        s = s.replace(root.path, "TESTROOT")
 
         s = s.trim()
 
         return s
     }
-
-    /** Create a [File] from this [TestFile] in the root directory of the [temporaryFolder]. */
-    fun TestFile.toFile() = createFile(temporaryFolder.root)
-
-    companion object {
-        /** Create the [TemporaryFolder]. */
-        fun createTestRule(): TemporaryFolder = TemporaryFolder()
-    }
-}
-
-/** Base class for implementers of [TemporaryFolderOwner]. */
-open class BaseTemporaryFolderOwner : TemporaryFolderOwner {
-    @get:Rule final override val temporaryFolder = createTestRule()
 }
