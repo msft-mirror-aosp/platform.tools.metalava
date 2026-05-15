@@ -29,7 +29,7 @@ interface TemporaryFolderOwner {
      * Given an array of [TestFile] get a folder called "project" (creating it if it is empty),
      * write the files to the folder and then return the folder.
      */
-    fun createProject(files: Array<TestFile>): File {
+    fun createProjectDir(files: Array<TestFile>): File {
         val dir = getOrCreateFolder("project")
         files.createFiles(dir)
         return dir

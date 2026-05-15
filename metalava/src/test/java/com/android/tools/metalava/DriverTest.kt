@@ -647,9 +647,10 @@ abstract class DriverTest :
         // Unit test which checks that a signature file is as expected
         val androidJar = getAndroidJar()
 
-        val project = createProject(sourceFiles)
+        // Create the main project directory containing the source files.
+        val projectDir = createProjectDir(sourceFiles)
 
-        val sourcePathDir = File(project, "src")
+        val sourcePathDir = File(projectDir, "src")
         if (!sourcePathDir.isDirectory) {
             sourcePathDir.mkdirs()
         }
@@ -661,11 +662,11 @@ abstract class DriverTest :
             sourcePath = sourcePath + File.pathSeparator + sourcePath + "2"
         }
 
-        fun pathUnderProject(path: String): String = File(project, path).path
+        fun pathUnderProject(path: String): String = File(projectDir, path).path
 
-        val projectDescriptionFile = projectDescription?.createFile(project)
+        val projectDescriptionFile = projectDescription?.createFile(projectDir)
 
-        val compiledSourceJarFile = compiledSourceJar?.createFile(project)
+        val compiledSourceJarFile = compiledSourceJar?.createFile(projectDir)
         if (
             compiledSourceJarFile != null &&
                 Capability.JAR_WITH_SOURCES !in codebaseCreatorConfig.creator.capabilities
@@ -689,7 +690,7 @@ abstract class DriverTest :
                 val args = mutableListOf<String>()
                 sources.forEach { file ->
                     val signatureFile =
-                        File(project, "load-api${ if (++num == 1) "" else num.toString() }.txt")
+                        File(projectDir, "load-api${ if (++num == 1) "" else num.toString() }.txt")
                     signatureFile.writeSignatureText(file)
                     args.add(signatureFile.path)
                 }
@@ -716,7 +717,7 @@ abstract class DriverTest :
             if (classpath != null) {
                 val classpathString =
                     classpath
-                        .map { it.createFile(project) }
+                        .map { it.createFile(projectDir) }
                         .map { it.path }
                         .joinToString(separator = File.pathSeparator) { it }
 
@@ -729,7 +730,7 @@ abstract class DriverTest :
         val errorSeverityReportedIssues = StringBuilder()
         val reporterEnvironment =
             object : ReporterEnvironment {
-                override val rootFolder = project
+                override val rootFolder = projectDir
 
                 override fun printReport(message: String, severity: Severity) {
                     val cleanedUpMessage = cleanupString(message, rootFolder).trim()
@@ -742,12 +743,12 @@ abstract class DriverTest :
 
         val configFileArgs =
             configFiles
-                .flatMap { listOf(ARG_CONFIG_FILE, it.indented().createFile(project).path) }
+                .flatMap { listOf(ARG_CONFIG_FILE, it.indented().createFile(projectDir).path) }
                 .toTypedArray()
 
         val mergeAnnotationsArgs =
             if (mergeXmlAnnotations != null) {
-                val merged = File(project, "merged-annotations.xml")
+                val merged = File(projectDir, "merged-annotations.xml")
                 merged.writeText(mergeXmlAnnotations.trimIndent())
                 arrayOf(ARG_MERGE_QUALIFIER_ANNOTATIONS, merged.path)
             } else {
@@ -756,7 +757,7 @@ abstract class DriverTest :
 
         val signatureAnnotationsArgs =
             if (mergeSignatureAnnotations != null) {
-                val merged = File(project, "merged-annotations.txt")
+                val merged = File(projectDir, "merged-annotations.txt")
                 merged.writeText(mergeSignatureAnnotations.trimIndent())
                 arrayOf(ARG_MERGE_QUALIFIER_ANNOTATIONS, merged.path)
             } else {
@@ -770,7 +771,7 @@ abstract class DriverTest :
                 val cls = ClassName(mergeJavaStubAnnotations)
                 val pkg = cls.packageName
                 val relative = pkg?.replace('.', File.separatorChar) ?: "."
-                val merged = File(project, "qualifier/$relative/${cls.className}.java")
+                val merged = File(projectDir, "qualifier/$relative/${cls.className}.java")
                 merged.parentFile.mkdirs()
                 merged.writeText(mergeJavaStubAnnotations.trimIndent())
                 arrayOf(ARG_MERGE_QUALIFIER_ANNOTATIONS, merged.path)
@@ -784,7 +785,7 @@ abstract class DriverTest :
                 mergeInclusionAnnotations
                     .flatMapIndexed { i, testFile ->
                         val suffix = if (i == 0) "" else i.toString()
-                        val targetDir = File(project, "inclusion$suffix")
+                        val targetDir = File(projectDir, "inclusion$suffix")
                         targetDir.mkdirs()
                         testFile.createFile(targetDir)
                         listOf(ARG_MERGE_INCLUSION_ANNOTATIONS, targetDir.path)
@@ -799,7 +800,7 @@ abstract class DriverTest :
                 if (apiLint.isBlank()) {
                     arrayOf(ARG_API_LINT)
                 } else {
-                    val file = File(project, "prev-api-lint.txt")
+                    val file = File(projectDir, "prev-api-lint.txt")
                     file.writeSignatureText(apiLint)
                     arrayOf(ARG_API_LINT, ARG_API_LINT_PREVIOUS_API, file.path)
                 }
@@ -809,7 +810,7 @@ abstract class DriverTest :
 
         val manifestFileArgs =
             if (manifest != null) {
-                val file = File(project, "manifest.xml")
+                val file = File(projectDir, "manifest.xml")
                 file.writeText(manifest.trimIndent())
                 arrayOf(ARG_MANIFEST, file.path)
             } else {
@@ -818,7 +819,7 @@ abstract class DriverTest :
 
         val migrateNullsArguments =
             migrateNullsApiList.contentOrPathListToArgsArray(
-                project,
+                projectDir,
                 "stable-api.txt",
                 ARG_MIGRATE_NULLNESS
             )
@@ -846,7 +847,7 @@ abstract class DriverTest :
         var proguardFile: File? = null
         val proguardKeepArguments =
             if (proguard != null) {
-                proguardFile = File(project, "proguard.cfg")
+                proguardFile = File(projectDir, "proguard.cfg")
                 arrayOf(ARG_PROGUARD, proguardFile.path)
             } else {
                 emptyArray()
@@ -858,7 +859,7 @@ abstract class DriverTest :
                         ARG_API_SURFACE,
                         apiSurface.surface,
                         ARG_CONFIG_FILE,
-                        apiSurface.configFile.createFile(project).path,
+                        apiSurface.configFile.createFile(projectDir).path,
                     )
                     .toTypedArray()
             } else {
@@ -955,7 +956,11 @@ abstract class DriverTest :
                     .apply { isAccessible = true }
                     .invoke(null)
                 val applyApiLevelsXmlFile =
-                    useExistingFileOrCreateNewFile(project, applyApiLevelsXml, "api-versions.xml") {
+                    useExistingFileOrCreateNewFile(
+                        projectDir,
+                        applyApiLevelsXml,
+                        "api-versions.xml"
+                    ) {
                         it.trimIndent()
                     }
                 arrayOf(ARG_APPLY_API_LEVELS, applyApiLevelsXmlFile.path)
@@ -1003,7 +1008,7 @@ abstract class DriverTest :
                 sdkFeatures != null ||
                 sdkWidgets != null
         ) {
-            val dir = File(project, "sdk-files")
+            val dir = File(projectDir, "sdk-files")
             sdkFilesArgs = arrayOf(ARG_SDK_VALUES, dir.path)
             sdkFilesDir = dir
         } else {
@@ -1076,7 +1081,7 @@ abstract class DriverTest :
             if (multiplatformSignatureSource.isNotEmpty()) {
                 // Create each multiplatform signature file in a new subdirectory.
                 val multiplatformSignatureSourceDirectory =
-                    File(project, "multiplatform-signature-source")
+                    File(projectDir, "multiplatform-signature-source")
                 for (file in multiplatformSignatureSource) {
                     file.createFile(multiplatformSignatureSourceDirectory)
                 }
@@ -1115,7 +1120,7 @@ abstract class DriverTest :
         val traceFile: File?
         val tracingArguments =
             if (enableTracing) {
-                traceFile = File(project, "trace.perfetto-trace")
+                traceFile = File(projectDir, "trace.perfetto-trace")
                 arrayOf(ARG_TRACE_FILE, traceFile.path)
             } else {
                 traceFile = null
@@ -1123,7 +1128,7 @@ abstract class DriverTest :
             }
 
         // Run optional additional setup steps on the project directory
-        projectSetup?.invoke(project)
+        projectSetup?.invoke(projectDir)
 
         val sourceArgs =
             if (skipSourceArgs) {
@@ -1159,8 +1164,8 @@ abstract class DriverTest :
                 *javaStubAnnotationsArgs,
                 *inclusionAnnotationsArgs,
                 *migrateNullsArguments,
-                *releasedApiCheck.arguments(project),
-                *releasedRemovedApiCheck.arguments(project),
+                *releasedApiCheck.arguments(projectDir),
+                *releasedRemovedApiCheck.arguments(projectDir),
                 *proguardKeepArguments,
                 *manifestFileArgs,
                 *applyApiLevelsXmlArgs,
@@ -1384,7 +1389,7 @@ abstract class DriverTest :
             val checks = compilationChecks ?: listOf(CompilationCheck(label = "default"))
             for (check in checks) {
                 check.compileStubs(
-                    project,
+                    projectDir,
                     stubsDir,
                 )
             }
