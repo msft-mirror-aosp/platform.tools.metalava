@@ -42,7 +42,7 @@ open class BaseConfigParserTest : BaseTemporaryFolderOwner() {
         expectedFail: String = "",
         body: (TestContext.() -> Unit)? = null,
     ) {
-        val dir = temporaryFolder.newFolder()
+        val dir = temporaryFolder.newFolderWithTestLabel(testLabel = "TESTROOT")
         val expectingFailure = expectedFail != ""
         val hasBody = body != null
 
@@ -60,7 +60,7 @@ open class BaseConfigParserTest : BaseTemporaryFolderOwner() {
             val context = TestContext(config = config)
             if (body != null) context.body()
         } catch (e: Exception) {
-            errors = cleanupString(e.message ?: "", project = dir)
+            errors = cleanupString(e.message ?: "")
         }
         assertThat(errors.trimIndent()).isEqualTo(expectedFail.trimIndent())
     }

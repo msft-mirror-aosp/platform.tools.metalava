@@ -170,6 +170,10 @@ class CustomTemporaryFolder : TemporaryFolder() {
         temporaryFileToTestLabel.clear()
     }
 
+    /** Create a new folder and associate it with [testLabel]. */
+    fun newFolderWithTestLabel(testLabel: String): File =
+        newFolder().also { dir -> addTestLabelForFile(dir, testLabel) }
+
     /** Add mapping from [file] to [testLabel]. */
     fun addTestLabelForFile(file: File, testLabel: String) {
         val existingLabel = temporaryFileToTestLabel[file]
