@@ -75,11 +75,25 @@ internal class ApiContents(
             if (!classItem.isApiCandidate() || !classItem.emit || classItem.hidden()) continue
 
             // Check the class reference.
-            checkClassReferences(classItem, classItem, "self")
+            checkClassReferences(classItem)
         }
 
         // Return the set of classes that were found.
         return notStrippable
+    }
+
+    /**
+     * Check [cls]'s references to other [ClassItem]s.
+     *
+     * This is called both for top-level classes and nested classes.
+     */
+    private fun checkClassReferences(cls: ClassItem) {
+        val containingClass = cls.containingClass()
+        if (containingClass == null) {
+            checkClassReferences(cls, cls, "self")
+        } else {
+            checkClassReferences(cls, containingClass, "as nested class")
+        }
     }
 
     /** Check [cl]'s references to other [ClassItem]s. */
@@ -135,7 +149,7 @@ internal class ApiContents(
         for (nestedClassItem in cl.nestedClasses()) {
             if (!nestedClassItem.isApiCandidate()) continue
 
-            checkClassReferences(nestedClassItem, cl, "as nested class")
+            checkClassReferences(nestedClassItem)
         }
 
         // Check super type references.
