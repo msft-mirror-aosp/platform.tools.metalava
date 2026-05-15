@@ -14,11 +14,16 @@
  * limitations under the License.
  */
 
-package com.android.tools.metalava
+package com.android.tools.metalava.api
 
 import com.android.tools.lint.checks.infrastructure.TestFile
+import com.android.tools.metalava.ARG_API_SURFACE
+import com.android.tools.metalava.DriverTest
+import com.android.tools.metalava.KnownApiSurface
 import com.android.tools.metalava.cli.common.ARG_ERROR
 import com.android.tools.metalava.reporter.Issues
+import com.android.tools.metalava.requiresPermissionSource
+import com.android.tools.metalava.systemServiceSource
 import com.android.tools.metalava.testing.KnownSourceFiles
 import com.android.tools.metalava.testing.java
 import org.intellij.lang.annotations.Language

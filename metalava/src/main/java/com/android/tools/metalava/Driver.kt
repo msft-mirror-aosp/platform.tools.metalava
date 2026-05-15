@@ -18,6 +18,8 @@ package com.android.tools.metalava
 import androidx.tracing.Tracer
 import com.android.SdkConstants.DOT_JAR
 import com.android.SdkConstants.DOT_TXT
+import com.android.tools.metalava.api.AnnotationsMerger
+import com.android.tools.metalava.api.ApiAnalyzer
 import com.android.tools.metalava.apilevels.ApiGenerator
 import com.android.tools.metalava.cli.common.CheckerContext
 import com.android.tools.metalava.cli.common.DefaultSignatureFileLoader

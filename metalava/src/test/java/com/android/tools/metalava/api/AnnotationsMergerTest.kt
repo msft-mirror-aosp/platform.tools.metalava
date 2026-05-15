@@ -14,13 +14,21 @@
  * limitations under the License.
  */
 
-package com.android.tools.metalava
+package com.android.tools.metalava.api
 
+import com.android.tools.metalava.ARG_HIDE_ANNOTATION
+import com.android.tools.metalava.ARG_SHOW_SINGLE_ANNOTATION
+import com.android.tools.metalava.DriverTest
+import com.android.tools.metalava.KnownApiSurface
 import com.android.tools.metalava.cli.common.ARG_WARNING
+import com.android.tools.metalava.intRangeAnnotationSource
+import com.android.tools.metalava.libcoreNonNullSource
+import com.android.tools.metalava.libcoreNullableSource
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.testing.KnownSourceFiles
 import com.android.tools.metalava.testing.java
+import com.android.tools.metalava.uiThreadSource
 import org.junit.Test
 
 class AnnotationsMergerTest : DriverTest() {
