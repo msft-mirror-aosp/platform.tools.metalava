@@ -28,6 +28,43 @@ import org.junit.Test
 
 /** Integration tests for [ApiContents]. */
 class ApiContentsTest : DriverTest() {
+    @Test
+    fun `Test hidden nested class`() {
+        check(
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            public interface Outer {
+                                /** @hide */
+                                interface Nested {}
+                            }
+                        """
+                    ),
+                ),
+            expectedIssues = "",
+        )
+    }
+
+    @Test
+    fun `Accessible nested class inside inaccessible class`() {
+        check(
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            interface Outer {
+                                interface Nested {}
+                            }
+                        """
+                    ),
+                ),
+            expectedIssues = "",
+        )
+    }
+
     @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Don't flag indirect implementor of super-interface marked with RestrictTo(LIBRARY_GROUP_PREFIX)`() {
