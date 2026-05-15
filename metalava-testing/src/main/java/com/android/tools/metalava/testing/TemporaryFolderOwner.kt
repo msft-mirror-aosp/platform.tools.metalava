@@ -19,6 +19,7 @@ package com.android.tools.metalava.testing
 import com.android.tools.lint.checks.infrastructure.TestFile
 import com.android.tools.metalava.testing.TemporaryFolderOwner.Companion.createTestRule
 import java.io.File
+import java.util.TreeMap
 import org.junit.Rule
 import org.junit.rules.TemporaryFolder
 
@@ -164,26 +165,45 @@ class CustomTemporaryFolder : TemporaryFolder() {
      * Replaces temporary folders that can change from one test run to the next with fixed labels to
      * make it easier to test expectations.
      *
-     * First, for each [Map.Entry] in [fileToSymbol] it will replace any usages of its
-     * [Map.Entry.key]'s [File.getPath] or [File.getCanonicalPath] with its [Map.Entry.value].
+     * Creates a set of mappings consisting of:
+     * * All the mappings in [fileToSymbol].
+     * * A default mapping from [getRoot] to `TESTROOT`.
      *
-     * Finally, it will replace [TemporaryFolder.getRoot] with `TESTROOT`.
+     * It then applies those mappings in order from most specific (longest) to least specific
+     * (shortest).
      */
     internal fun replaceFileWithSymbol(
         string: String,
         fileToSymbol: Map<File, String>,
     ): String {
+        // Create an ordered mappings from longest to shortest. That ensures that the most specific
+        // mapping is applied to each file.
+        val orderedMappings =
+            TreeMap<File, String>(longestFileFirst).apply {
+                putAll(fileToSymbol)
+
+                // Include the default mapping for the root directory.
+                put(root, "TESTROOT")
+            }
+
         var s = string
 
-        for ((file, symbol) in fileToSymbol) {
+        // Iterate over all the mappings from longest to shortest.
+        for ((file, symbol) in orderedMappings) {
             s = s.replace(file.path, symbol)
             s = s.replace(file.canonicalPath, symbol)
         }
 
-        s = s.replace(root.path, "TESTROOT")
-
         s = s.trim()
 
         return s
+    }
+
+    companion object {
+        /**
+         * Define a total order over [File] from longest to shortest. It also does it in reverse
+         * alphabetical order but that should not matter.
+         */
+        private val longestFileFirst = compareByDescending<File> { it.path }
     }
 }
