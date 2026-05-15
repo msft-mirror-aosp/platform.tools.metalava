@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.api
 
+import com.android.tools.metalava.model.BaseItemVisitor
 import com.android.tools.metalava.model.BaseTypeVisitor
 import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
@@ -36,8 +37,18 @@ import com.android.tools.metalava.reporter.Issues
 internal class ApiContents(
     private val codebase: Codebase,
     apiPredicateConfig: ApiPredicate.Config,
-) {
+) :
+    BaseItemVisitor(
+        // Preserve class nesting as otherwise this requires that PackageItem visit method is called
+        // to flatten the classes. This does not visit packages because that could cause
+        // ConcurrentModificationException issues as this may cause additional ClassItems to be
+        // added to
+        // the PackageItem that is being visited.
+        preserveClassNesting = true,
 
+        // Parameter items are already visited by [visitCallable].
+        visitParameterItems = false,
+    ) {
     private val reporter = codebase.reporter
 
     /**
@@ -62,7 +73,6 @@ internal class ApiContents(
      * any class referenced from those classes, directly or indirectly. Returning the set of all
      * classes that were visited.
      */
-    // TODO: Switch to visitor iteration
     private fun computeTransitiveClosure(): Set<ClassItem> {
         // Create a list containing all top level classes to avoid a ConcurrentModificationException
         // when visiting.
@@ -71,7 +81,7 @@ internal class ApiContents(
         // Iterate over the list of classes.
         for (classItem in allTopLevelClasses) {
             // Check the class reference.
-            checkClassReferences(classItem)
+            classItem.accept(this)
         }
 
         // Return the set of classes that were found.
@@ -79,15 +89,25 @@ internal class ApiContents(
     }
 
     /**
+     * Override to ensure that when an outer class is skipped then its nested classes are not
+     * visited.
+     */
+    override fun skip(item: Item): Boolean {
+        if (item is ClassItem) {
+            // If a class is not public or protected, hidden, or not marked for emitting then it
+            // not part of the API and neither are its nested classes.
+            if (!item.isApiCandidate() || !item.emit) return true
+        }
+
+        return false
+    }
+
+    /**
      * Check [cls]'s references to other [ClassItem]s.
      *
      * This is called both for top-level classes and nested classes.
      */
-    private fun checkClassReferences(cls: ClassItem) {
-        // If a class is not public or protected, hidden, or not marked for emitting then it
-        // not part of the API.
-        if (!cls.isApiCandidate() || !cls.emit) return
-
+    override fun visitClass(cls: ClassItem) {
         val containingClass = cls.containingClass()
         if (containingClass == null) {
             checkClassReferences(cls, cls, "self")
@@ -133,23 +153,6 @@ internal class ApiContents(
 
         // Check this class's type parameters.
         checkTypeParameterListReferences(cl.typeParameterList, cl)
-
-        // Check field types.
-        for (field in cl.fields()) {
-            checkFieldReferences(field)
-        }
-
-        // Check method references.
-        checkCallableItemReferences(cl.methods())
-
-        // Check constructor references.
-        checkCallableItemReferences(cl.constructors())
-
-        // Check nested class references.
-        for (nestedClassItem in cl.nestedClasses()) {
-            // Check the class reference.
-            checkClassReferences(nestedClassItem)
-        }
 
         // Check super type references.
         // TODO: Consider using val superClass = cl.filteredSuperclass(filter)
@@ -198,24 +201,15 @@ internal class ApiContents(
     }
 
     /** Check all the references from [field] to [ClassItem]s. */
-    private fun checkFieldReferences(field: FieldItem) {
+    override fun visitField(field: FieldItem) {
         if (!filter.test(field)) {
             return
         }
         checkTypeReferences(field.type(), field, "in field type")
     }
 
-    /** Check all the references from [callables] to [ClassItem]s. */
-    private fun checkCallableItemReferences(callables: List<CallableItem>) {
-        // for each callable, blow open the parameters, throws and return types. also blow open
-        // their generics
-        for (callable in callables) {
-            checkCallableItemReferences(callable)
-        }
-    }
-
     /** Check all the references from [callable] to [ClassItem]s. */
-    private fun checkCallableItemReferences(callable: CallableItem) {
+    override fun visitCallable(callable: CallableItem) {
         if (!filter.test(callable)) {
             return
         }
