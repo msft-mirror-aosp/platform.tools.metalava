@@ -296,7 +296,13 @@ class MultiplatformPackageItem(
             childAccessor = {
                 topLevelClasses().filter { it.isFileFacade }.flatMap { it.properties() }
             },
-            childIdentifier = { MultiplatformPropertyItem.Identifier(name(), receiver) },
+            childIdentifier = {
+                MultiplatformPropertyItem.Identifier(
+                    name(),
+                    receiver,
+                    contextParameters.map { it.type() }
+                )
+            },
             multiplatformChildCreator = { identifier, sourceSetToPropertyItem ->
                 MultiplatformPropertyItem(this, identifier, sourceSetToPropertyItem)
             }
@@ -402,7 +408,13 @@ class MultiplatformClassItem(
     val properties: List<MultiplatformPropertyItem> =
         aggregateChildren(
             childAccessor = { properties() },
-            childIdentifier = { MultiplatformPropertyItem.Identifier(name(), receiver) },
+            childIdentifier = {
+                MultiplatformPropertyItem.Identifier(
+                    name(),
+                    receiver,
+                    contextParameters.map { it.type() }
+                )
+            },
             multiplatformChildCreator = { identifier, sourceSetToPropertyItem ->
                 MultiplatformPropertyItem(this, identifier, sourceSetToPropertyItem)
             }
@@ -488,6 +500,28 @@ private constructor(
     val receiver: TypeItem?
         get() = identifier.receiver
 
+    /**
+     * The types of the context parameters of this property, listed in order.
+     *
+     * The nullability of these types are significant, as it is possible to define two properties in
+     * Kotlin that differ only by context parameter nullability. However, other modifiers
+     * (annotations) on the type are not significant and may differ by source set.
+     */
+    val contextParameterTypes: List<TypeItem>
+        get() = identifier.contextParameters
+
+    /**
+     * The context parameters of the property, listed in order. All context parameters will exist in
+     * the same set of source sets as the containing property.
+     */
+    val contextParameters: List<MultiplatformParameterItem> =
+        aggregateIndexedChildren(
+            childAccessor = { contextParameters },
+            multiplatformChildCreator = { parameterIndex, sourceSetToParameter ->
+                MultiplatformParameterItem(this, parameterIndex, sourceSetToParameter)
+            }
+        )
+
     override fun accept(visitor: MultiplatformItemVisitor) {
         visitor.visit(this)
     }
@@ -496,7 +530,17 @@ private constructor(
         val receiverString =
             receiver?.let { it.toTypeString(TypeStringConfiguration.DEFAULT_KOTLIN_NULLS) + "." }
                 ?: ""
-        return "$containingItemQualifiedName#$receiverString$name"
+        val contextParametersString =
+            if (contextParameterTypes.isNotEmpty()) {
+                "(" +
+                    contextParameterTypes.joinToString(", ") {
+                        "context ${it.toTypeString(TypeStringConfiguration.DEFAULT_KOTLIN_NULLS)}"
+                    } +
+                    ")"
+            } else {
+                ""
+            }
+        return "$containingItemQualifiedName#$receiverString$name$contextParametersString"
     }
 
     override fun toString(): String {
@@ -514,22 +558,25 @@ private constructor(
     }
 
     /**
-     * The combination of [name] and [receiver] that uniquely identifies the [PropertyItem] within a
-     * class. The nullability of the [receiver] is significant but other modifiers (annotations) are
-     * not.
+     * The combination of [name], [receiver], and [contextParameters] that uniquely identifies the
+     * [PropertyItem] within a class. The nullability of the [receiver] and [contextParameters] is
+     * significant but other type modifiers (annotations) are not.
      */
-    class Identifier(val name: String, val receiver: TypeItem?) {
+    class Identifier(
+        val name: String,
+        val receiver: TypeItem?,
+        val contextParameters: List<TypeItem>
+    ) {
         override fun equals(other: Any?): Boolean {
             if (this === other) return true
             if (other !is Identifier) return false
             return name == other.name &&
-                ((receiver == null && other.receiver == null) ||
-                    (receiver != null &&
-                        receiver.equalToType(other.receiver, includeNullability = true)))
+                PropertyItem.equalReceivers(receiver, other.receiver) &&
+                PropertyItem.equalContextParameterTypes(contextParameters, other.contextParameters)
         }
 
         override fun hashCode(): Int {
-            return Objects.hash(name, receiver)
+            return Objects.hash(name, receiver, contextParameters)
         }
     }
 }
