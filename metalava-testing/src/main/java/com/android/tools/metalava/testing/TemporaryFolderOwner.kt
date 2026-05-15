@@ -18,7 +18,6 @@ package com.android.tools.metalava.testing
 
 import com.android.tools.lint.checks.infrastructure.TestFile
 import java.io.File
-import org.junit.Assert.assertNotNull
 import org.junit.rules.TemporaryFolder
 
 /** Provides helper functions for a test class that has a [TemporaryFolder] rule. */
@@ -32,9 +31,7 @@ interface TemporaryFolderOwner {
      */
     fun createProject(files: Array<TestFile>): File {
         val dir = getOrCreateFolder("project")
-
-        files.map { it.createFile(dir) }.forEach { assertNotNull(it) }
-
+        files.createFiles(dir)
         return dir
     }
 
