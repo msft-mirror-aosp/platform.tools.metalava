@@ -23,51 +23,30 @@ import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.value.FieldReferenceValue
-import com.android.tools.metalava.reporter.FileLocation
 import com.android.tools.metalava.reporter.Issues
 import com.intellij.psi.JavaRecursiveElementVisitor
-import com.intellij.psi.PsiClassObjectAccessExpression
 import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiField
+import com.intellij.psi.PsiMethod
 import com.intellij.psi.PsiModifier
 import com.intellij.psi.PsiReferenceExpression
 import com.intellij.psi.PsiReturnStatement
-import com.intellij.psi.PsiSynchronizedStatement
-import com.intellij.psi.PsiThisExpression
 import com.intellij.psi.PsiType
-import org.jetbrains.uast.UCallExpression
-import org.jetbrains.uast.UClassLiteralExpression
 import org.jetbrains.uast.UElement
 import org.jetbrains.uast.UMethod
-import org.jetbrains.uast.UQualifiedReferenceExpression
-import org.jetbrains.uast.UThisExpression
 import org.jetbrains.uast.UThrowExpression
 import org.jetbrains.uast.UTryExpression
 import org.jetbrains.uast.UastErrorType
 import org.jetbrains.uast.getParentOfType
 import org.jetbrains.uast.visitor.AbstractUastVisitor
 
-internal class PsiCallableBody(private val callable: PsiCallableItem) : CallableBody {
-
-    /**
-     * Access [psiCodebase] on demand as [callable] is not properly initialized during
-     * initialization of this class.
-     */
-    private val psiCodebase
-        get() = callable.psiCodebase
-
-    /**
-     * Access [psiMethod] on demand as [callable] is not properly initialized during initialization
-     * of this class.
-     */
-    private val psiMethod
-        get() = callable.psiMethod
-
-    override fun duplicate(callableItem: CallableItem): CallableBody {
-        // It is ok to cast here as `duplicate` will always be called with a `callableItem` from the
-        // same type of `Codebase` as this is.
-        return PsiCallableBody(callableItem as PsiCallableItem)
-    }
+internal class PsiCallableBody(
+    private val psiCodebase: PsiBasedCodebase,
+    private val callable: CallableItem,
+    private val psiMethod: PsiMethod,
+) : CallableBody {
+    override fun duplicate(callableItem: CallableItem) =
+        PsiCallableBody(psiCodebase, callableItem, psiMethod)
 
     // Cannot create a copy of this as callableItem cannot be cast to PsiCallableItem. There is no
     // easy way to capture the state of this sufficiently well to implement the necessary behavior
@@ -135,55 +114,6 @@ internal class PsiCallableBody(private val callable: PsiCallableItem) : Callable
     private fun thrownExceptionClassForPsiType(type: PsiType): ClassTypeItem? {
         val typeItemFactory = psiCodebase.globalTypeItemFactory.from(callable)
         return typeItemFactory.getType(type) as? ClassTypeItem
-    }
-
-    override fun findVisiblySynchronizedLocations(): List<FileLocation> {
-        return buildList {
-            val psiMethod = psiMethod
-            if (psiMethod is UMethod) {
-                psiMethod.accept(
-                    object : AbstractUastVisitor() {
-                        override fun afterVisitCallExpression(node: UCallExpression) {
-                            super.afterVisitCallExpression(node)
-
-                            if (node.methodName == "synchronized" && node.receiver == null) {
-                                val arg = node.valueArguments.firstOrNull()
-                                if (
-                                    arg is UThisExpression ||
-                                        arg is UClassLiteralExpression ||
-                                        arg is UQualifiedReferenceExpression &&
-                                            arg.receiver is UClassLiteralExpression
-                                ) {
-                                    val psi = arg.sourcePsi ?: node.sourcePsi ?: node.javaPsi
-                                    add(PsiFileLocation.fromPsiElement(psi))
-                                }
-                            }
-                        }
-                    }
-                )
-            } else {
-                psiMethod.body?.accept(
-                    object : JavaRecursiveElementVisitor() {
-                        override fun visitSynchronizedStatement(
-                            statement: PsiSynchronizedStatement
-                        ) {
-                            super.visitSynchronizedStatement(statement)
-
-                            val lock = statement.lockExpression
-                            if (
-                                lock == null ||
-                                    lock is PsiThisExpression ||
-                                    // locking on any class is visible
-                                    lock is PsiClassObjectAccessExpression
-                            ) {
-                                val psi = lock ?: statement
-                                add(PsiFileLocation.fromPsiElement(psi))
-                            }
-                        }
-                    }
-                )
-            }
-        }
     }
 
     /**

@@ -17,7 +17,6 @@
 package com.android.tools.metalava.model.snapshot
 
 import com.android.tools.metalava.model.ApiVariantSelectors
-import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.ClassTypeItem
@@ -25,27 +24,28 @@ import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.DelegatedVisitor
 import com.android.tools.metalava.model.FieldItem
-import com.android.tools.metalava.model.FilterPredicate
 import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.ItemDocumentationFactory
 import com.android.tools.metalava.model.ItemVisitor
+import com.android.tools.metalava.model.MemberItem
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ModifierList
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.PropertyItem
+import com.android.tools.metalava.model.RecordComponentItem
+import com.android.tools.metalava.model.RecordComponents
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.Showability
+import com.android.tools.metalava.model.SkeletonClassItem
 import com.android.tools.metalava.model.SourceFile
 import com.android.tools.metalava.model.SourceLanguage
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.item.AbstractSourceFile
-import com.android.tools.metalava.model.item.DefaultClassItem
 import com.android.tools.metalava.model.item.DefaultCodebase
 import com.android.tools.metalava.model.item.DefaultCodebaseAssembler
 import com.android.tools.metalava.model.item.DefaultItemFactory
-import com.android.tools.metalava.model.item.DefaultTypeParameterItem
 import com.android.tools.metalava.model.item.PackageInfo
 import com.android.tools.metalava.model.snapshottingFactory
 import com.android.tools.metalava.model.type.TypeParameterListAndFactory
@@ -55,8 +55,10 @@ import java.util.IdentityHashMap
 
 /** Constructs a [Codebase] by taking a snapshot of another [Codebase] that is being visited. */
 class CodebaseSnapshotTaker
-private constructor(referenceVisitorFactory: (DelegatedVisitor) -> ItemVisitor) :
-    DefaultCodebaseAssembler(), DelegatedVisitor {
+private constructor(
+    referenceVisitorFactory: (DelegatedVisitor) -> ItemVisitor,
+    private val includeDocumentation: Boolean,
+) : DefaultCodebaseAssembler(), DelegatedVisitor {
 
     /**
      * The [Codebase] that is under construction.
@@ -173,6 +175,9 @@ private constructor(referenceVisitorFactory: (DelegatedVisitor) -> ItemVisitor) 
         itemToSnapshot: SelectableItem,
         documentedItem: SelectableItem,
     ): ItemDocumentationFactory {
+        // Only snapshot documentation when required.
+        if (!includeDocumentation) return ItemDocumentation.NONE_FACTORY
+
         val documentation = documentedItem.documentation ?: return ItemDocumentation.NONE_FACTORY
 
         // The documentation does not need to be reverted if...
@@ -194,13 +199,45 @@ private constructor(referenceVisitorFactory: (DelegatedVisitor) -> ItemVisitor) 
     }
 
     /** Get the [ClassItem] corresponding to this [ClassItem] in the [snapshotCodebase]. */
-    private fun ClassItem.getSnapshotClass(): DefaultClassItem =
-        snapshotCodebase.resolveClass(qualifiedName()) as DefaultClassItem
+    private fun ClassItem.getSnapshotClass(): SkeletonClassItem =
+        snapshotCodebase.resolveClass(qualifiedName()) as SkeletonClassItem
 
     /** Copy [SelectableItem.selectedApiVariants] from [original] to this. */
     private fun <T : SelectableItem> T.copySelectedApiVariants(original: T) {
         selectedApiVariants = original.selectedApiVariants
     }
+
+    /**
+     * Take a snapshot of this [RecordComponentItem].
+     *
+     * @param containingClass the containing [ClassItem] for the snapshot.
+     * @param classTypeItemFactory the factory used to create the type, in case it references type
+     *   parameters in the new record class.
+     */
+    private fun RecordComponentItem.snapshot(
+        containingClass: ClassItem,
+        classTypeItemFactory: SnapshotTypeItemFactory
+    ) =
+        itemFactory.createRecordComponentItem(
+            fileLocation,
+            modifiers = modifiers.snapshot(snapshotCodebase),
+            name = name,
+            containingClass = containingClass,
+            type = classTypeItemFactory.getGeneralType(type),
+            recordComponentIndex = recordComponentIndex,
+        )
+
+    /**
+     * Take a snapshot of the [RecordComponentItem]s in this [RecordComponents].
+     *
+     * @param containingClass the containing [ClassItem] for the snapshots.
+     * @param classTypeItemFactory the factory used to create types, in case they reference type
+     *   parameters in the new record class.
+     */
+    private fun RecordComponents.snapshot(
+        containingClass: ClassItem,
+        classTypeItemFactory: SnapshotTypeItemFactory
+    ) = map { it.snapshot(containingClass, classTypeItemFactory) }
 
     override fun visitClass(cls: ClassItem) {
         val classToSnapshot = cls.actualItemToSnapshot
@@ -227,8 +264,12 @@ private constructor(referenceVisitorFactory: (DelegatedVisitor) -> ItemVisitor) 
         val snapshotInterfaceTypes =
             classToSnapshot.interfaceTypes().map { classTypeItemFactory.getInterfaceType(it) }
 
+        val snapshotPermitTypes =
+            classToSnapshot.permitTypes.map { classTypeItemFactory.getHierarchicalClassType(it) }
+
+        val classKind = classToSnapshot.classKind
         val optionalAliasedType =
-            if (classToSnapshot.classKind == ClassKind.TYPEALIAS) {
+            if (classKind == ClassKind.TYPEALIAS) {
                 classTypeItemFactory.getGeneralType(classToSnapshot.aliasedType)
             } else {
                 null
@@ -243,7 +284,7 @@ private constructor(referenceVisitorFactory: (DelegatedVisitor) -> ItemVisitor) 
                 modifiers = classToSnapshot.modifiers.snapshot(),
                 documentationFactory = snapshotDocumentation(classToSnapshot, cls),
                 source = sourceFileCache.snapshotSourceFile(cls.sourceFile()),
-                classKind = classToSnapshot.classKind,
+                classKind = classKind,
                 containingClass = containingClass,
                 containingPackage = containingPackage,
                 qualifiedName = classToSnapshot.qualifiedName(),
@@ -251,7 +292,19 @@ private constructor(referenceVisitorFactory: (DelegatedVisitor) -> ItemVisitor) 
                 origin = classToSnapshot.origin,
                 superClassType = snapshotSuperClassType,
                 interfaceTypes = snapshotInterfaceTypes,
-                optionalAliasedType = optionalAliasedType
+                permitTypes = snapshotPermitTypes,
+                optionalAliasedType = optionalAliasedType,
+                recordComponentItemsFactory =
+                    if (classKind == ClassKind.RECORD)
+                        { classItem ->
+                            classToSnapshot.recordComponents.snapshot(
+                                classItem,
+                                classTypeItemFactory
+                            )
+                        }
+                    else {
+                        null
+                    },
             )
         newClass.copySelectedApiVariants(classToSnapshot)
     }
@@ -288,7 +341,9 @@ private constructor(referenceVisitorFactory: (DelegatedVisitor) -> ItemVisitor) 
                     typeParameterList = typeParameterList,
                     returnType = constructorToSnapshot.returnType().snapshot(),
                     parameterItemsFactory = { containingCallable ->
-                        constructorToSnapshot.parameters().snapshot(containingCallable, constructor)
+                        constructorToSnapshot
+                            .parameters()
+                            .snapshot(containingCallable, constructor.parameters())
                     },
                     throwsTypes =
                         constructorToSnapshot.throwsTypes().map {
@@ -332,7 +387,9 @@ private constructor(referenceVisitorFactory: (DelegatedVisitor) -> ItemVisitor) 
                     typeParameterList = typeParameterList,
                     returnType = methodToSnapshot.returnType().snapshot(),
                     parameterItemsFactory = { containingCallable ->
-                        methodToSnapshot.parameters().snapshot(containingCallable, method)
+                        methodToSnapshot
+                            .parameters()
+                            .snapshot(containingCallable, method.parameters())
                     },
                     throwsTypes =
                         methodToSnapshot.throwsTypes().map { typeItemFactory.getExceptionType(it) },
@@ -402,6 +459,12 @@ private constructor(referenceVisitorFactory: (DelegatedVisitor) -> ItemVisitor) 
                     receiver = property.receiver?.snapshot(),
                     typeParameterList = typeParameterList,
                     setterVisibility = property.setterVisibility,
+                    contextParameterFactory = { containingProperty ->
+                        propertyToSnapshot.contextParameters.snapshot(
+                            containingProperty,
+                            property.contextParameters
+                        )
+                    },
                 )
             }
         newProperty.copySelectedApiVariants(propertyToSnapshot)
@@ -448,11 +511,12 @@ private constructor(referenceVisitorFactory: (DelegatedVisitor) -> ItemVisitor) 
             codebase: Codebase,
             definitionVisitorFactory: (DelegatedVisitor) -> ItemVisitor,
             referenceVisitorFactory: (DelegatedVisitor) -> ItemVisitor,
+            includeDocumentation: Boolean,
         ): Codebase {
             // Create a snapshot taker that will construct the snapshot. Pass in the
             // referenceVisitorFactory so it can create the reference visitor for use in creating
             // Items that are referenced from the snapshot.
-            val taker = CodebaseSnapshotTaker(referenceVisitorFactory)
+            val taker = CodebaseSnapshotTaker(referenceVisitorFactory, includeDocumentation)
 
             // Wrap it in a visitor that will determine which Items are defined in the snapshot and
             // then apply that visitor to the input codebase.
@@ -482,8 +546,7 @@ private constructor(referenceVisitorFactory: (DelegatedVisitor) -> ItemVisitor) 
                     description,
                     this,
                     { typeParameterItem ->
-                        DefaultTypeParameterItem(
-                            classResolver = snapshotCodebase,
+                        itemFactory.createTypeParameterItem(
                             modifiers = typeParameterItem.modifiers.snapshot(),
                             name = typeParameterItem.name(),
                             isReified = typeParameterItem.isReified()
@@ -504,8 +567,8 @@ private constructor(referenceVisitorFactory: (DelegatedVisitor) -> ItemVisitor) 
 
         /** Create a snapshot of this list of [ParameterItem]s. */
         internal fun List<ParameterItem>.snapshot(
-            containingCallable: CallableItem,
-            currentCallable: CallableItem
+            containingItem: MemberItem,
+            currentParameters: List<ParameterItem>,
         ): List<ParameterItem> {
             return map { parameterItem ->
                 // Retrieve the public name immediately to remove any dependencies on this in the
@@ -525,8 +588,7 @@ private constructor(referenceVisitorFactory: (DelegatedVisitor) -> ItemVisitor) 
                 val name =
                     if (publicName != null) parameterItem.name()
                     else {
-                        val namedParameter =
-                            currentCallable.parameters()[parameterItem.parameterIndex]
+                        val namedParameter = currentParameters[parameterItem.parameterIndex]
                         namedParameter.name()
                     }
 
@@ -536,10 +598,11 @@ private constructor(referenceVisitorFactory: (DelegatedVisitor) -> ItemVisitor) 
                     modifiers = parameterItem.modifiers.snapshot(),
                     name = name,
                     publicName = publicName,
-                    containingCallable = containingCallable,
+                    containingItem = containingItem,
                     parameterIndex = parameterItem.parameterIndex,
                     type = parameterItem.type().snapshot(),
                     hasDefaultValue = parameterItem.hasDefaultValue(),
+                    kind = parameterItem.kind,
                 )
             }
         }
@@ -603,18 +666,6 @@ internal class SourceFileSnapshot(
 
     /** Delegate to [originalSourceFile] as they are not changed by snapshotting. */
     override fun getHeaderComments(): String? = originalSourceFile.getHeaderComments()
-
-    /**
-     * Delegate to [originalSourceFile] as while they could contain references to classes which are
-     * not part of the snapshot they will be filtered when this is called.
-     */
-    override fun getImports() = originalSourceFile.getImports()
-
-    /**
-     * Delegate to [originalSourceFile] as while they could contain references to classes which are
-     * not part of the snapshot they will be filtered by [predicate] when this is called.
-     */
-    override fun getImports(predicate: FilterPredicate) = originalSourceFile.getImports(predicate)
 
     /**
      * Delegate to [originalSourceFile] as while they could contain references to classes which are

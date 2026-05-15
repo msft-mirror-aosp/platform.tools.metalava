@@ -16,6 +16,8 @@
 
 package com.android.tools.metalava.model.testsuite.documentation
 
+import com.android.tools.metalava.model.provider.InputFormat
+import com.android.tools.metalava.model.testing.SupportedInputFormats
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.model.testsuite.value.ValueExample
 import com.android.tools.metalava.testing.EntryPoint
@@ -28,6 +30,7 @@ import org.junit.Test
 import org.junit.runners.Parameterized
 
 /** Common tests for tags that handle all references. */
+@SupportedInputFormats(InputFormat.JAVA)
 class CommonParameterizedDocReferenceTest : BaseModelTest() {
 
     /** Set of tags that handle the references. */
@@ -52,20 +55,10 @@ class CommonParameterizedDocReferenceTest : BaseModelTest() {
                 "/** @see ${referenceAndLabel(reference, linkLabel)} */\n"
         };
 
-        /** Determine whether a link label is expected. */
-        private fun requiresLinkLabel(linkLabel: String?) =
-            when {
-                linkLabel == null -> false
-                // Ignore link labels for @see references. That matches the Psi specific resolving
-                // behavior.
-                this == SEE -> false
-                else -> true
-            }
-
         /** Combine [reference] and the optional [linkLabel]. */
         protected fun referenceAndLabel(reference: String, linkLabel: String?) = buildString {
             append(reference)
-            if (requiresLinkLabel(linkLabel)) {
+            if (linkLabel != null) {
                 append(" ")
                 append(linkLabel)
             }

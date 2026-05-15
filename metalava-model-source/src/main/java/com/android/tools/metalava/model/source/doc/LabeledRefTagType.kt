@@ -810,16 +810,6 @@ internal data class LabeledRefTagData(
     private val resolvedReference: ResolvedReference?,
 ) : TagData {
     /**
-     * Check whether the references could possibly rely on the [importedName].
-     *
-     * Returns `true` if the reference has not been fully resolved and the partially resolved parts
-     * contain [importedName] as a separate word.
-     */
-    fun referenceCouldRelyOnImportedName(importedName: String) =
-        resolvedReference?.referenceCouldRelyOnImportedName(importedName)
-            ?: sourceReference.containsWord(importedName)
-
-    /**
      * Print the tag contents which consists of the [sourceReference] and the [content] which is the
      * optional label.
      *
@@ -844,12 +834,6 @@ internal data class LabeledRefTagData(
             // Return immediately.
             return
         }
-
-        // Do not add custom labels to @see tags. This matches the behavior of the Psi reference
-        // resolution code and keeping them consistent simplifies migration to this reference
-        // resolving code.
-        // TODO(b/447588621): Remove once this replaces the Psi reference resolving code completely.
-        if (tagType == "see") return
 
         // Check to see whether it is necessary to add a label to try and preserve the developer's
         // original intent.

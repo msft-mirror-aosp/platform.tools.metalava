@@ -18,11 +18,12 @@ package com.android.tools.metalava.model.testsuite.packageitem
 
 import com.android.tools.lint.checks.infrastructure.TestFiles.source
 import com.android.tools.metalava.model.Item
-import com.android.tools.metalava.model.noOpAnnotationManager
 import com.android.tools.metalava.model.provider.Capability
+import com.android.tools.metalava.model.provider.InputFormat
 import com.android.tools.metalava.model.testing.RequiresCapabilities
+import com.android.tools.metalava.model.testing.SupportedInputFormats
 import com.android.tools.metalava.model.testsuite.BaseModelTest
-import com.android.tools.metalava.testing.KnownSourceFiles.nonNullSource
+import com.android.tools.metalava.testing.KnownSourceFiles
 import com.android.tools.metalava.testing.TestFileCache
 import com.android.tools.metalava.testing.TestFileCacheRule
 import com.android.tools.metalava.testing.cacheIn
@@ -36,6 +37,7 @@ import kotlin.test.assertNull
 import org.junit.ClassRule
 import org.junit.Test
 
+@SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.JAVA)
 class CommonPackageItemTest : BaseModelTest() {
     companion object {
         /** Create a [TestFileCache] whose lifespan encompasses all the tests in this class. */
@@ -66,6 +68,7 @@ class CommonPackageItemTest : BaseModelTest() {
     }
 
     @RequiresCapabilities(Capability.HIDDEN_ITEMS)
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `Test @hide in package html`() {
         runSourceCodebaseTest(
@@ -96,6 +99,7 @@ class CommonPackageItemTest : BaseModelTest() {
     }
 
     @RequiresCapabilities(Capability.HIDDEN_ITEMS)
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `Test @hide in package info processed first`() {
         runSourceCodebaseTest(
@@ -123,6 +127,7 @@ class CommonPackageItemTest : BaseModelTest() {
     }
 
     @RequiresCapabilities(Capability.HIDDEN_ITEMS)
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `Test @hide in package info processed last`() {
         runSourceCodebaseTest(
@@ -149,15 +154,15 @@ class CommonPackageItemTest : BaseModelTest() {
         }
     }
 
-    @RequiresCapabilities(Capability.JAVA)
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `Test nullability annotation in package info`() {
         runSourceCodebaseTest(
             inputSet(
-                nonNullSource,
+                KnownSourceFiles.androidxNonNullJavaSource,
                 java(
                     """
-                        @android.annotation.NonNull
+                        @androidx.annotation.NonNull
                         package test.pkg;
                     """
                 ),
@@ -169,16 +174,10 @@ class CommonPackageItemTest : BaseModelTest() {
                     """
                 ),
             ),
-            testFixture =
-                TestFixture(
-                    // Use the noOpAnnotationManager to avoid annotation name normalizing as the
-                    // annotation names are important for this test.
-                    annotationManager = noOpAnnotationManager,
-                ),
         ) {
             val packageItem = codebase.assertPackage("test.pkg")
             assertEquals(
-                "@android.annotation.NonNull",
+                "@androidx.annotation.NonNull",
                 packageItem.modifiers.annotations().single().toString()
             )
         }
@@ -233,9 +232,9 @@ class CommonPackageItemTest : BaseModelTest() {
         }
     }
 
-    @RequiresCapabilities(Capability.SIGNATURE)
+    @SupportedInputFormats(InputFormat.SIGNATURE)
     @Test
-    fun `Test package location (signature)`() {
+    fun `Test package location - signature`() {
         runCodebaseTest(
             signature(
                 """
@@ -257,9 +256,9 @@ class CommonPackageItemTest : BaseModelTest() {
         }
     }
 
-    @RequiresCapabilities(Capability.JAVA)
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
-    fun `Test package location (package-info)`() {
+    fun `Test package location - package-info`() {
         runCodebaseTest(
             inputSet(
                 java(
@@ -292,7 +291,7 @@ class CommonPackageItemTest : BaseModelTest() {
         }
     }
 
-    @RequiresCapabilities(Capability.JAVA)
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `Test package documentation (package-info) without header comment`() {
         runCodebaseTest(
@@ -314,11 +313,11 @@ class CommonPackageItemTest : BaseModelTest() {
             ),
         ) {
             val packageItem = codebase.assertPackage("test.pkg")
-            packageItem.assertDocumentationText("/** Some text. */")
+            packageItem.assertPrintedDocumentation(expectedOutput = "/** Some text. */")
         }
     }
 
-    @RequiresCapabilities(Capability.JAVA)
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `Test package documentation (package-info) with header comment`() {
         runCodebaseTest(
@@ -342,13 +341,13 @@ class CommonPackageItemTest : BaseModelTest() {
             ),
         ) {
             val packageItem = codebase.assertPackage("test.pkg")
-            packageItem.assertDocumentationText("/** Package comment. */")
+            packageItem.assertPrintedDocumentation(expectedOutput = "/** Package comment. */")
         }
     }
 
-    @RequiresCapabilities(Capability.JAVA)
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
-    fun `Test package location (package-html)`() {
+    fun `Test package location - package-html`() {
         runCodebaseTest(
             inputSet(
                 java(
@@ -384,9 +383,9 @@ class CommonPackageItemTest : BaseModelTest() {
         }
     }
 
-    @RequiresCapabilities(Capability.JAVA)
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
-    fun `Test package documentation (package-html)`() {
+    fun `Test package documentation - package-html`() {
         runCodebaseTest(
             inputSet(
                 java(
@@ -411,13 +410,13 @@ class CommonPackageItemTest : BaseModelTest() {
         ) {
             val packageItem = codebase.assertPackage("test.pkg")
 
-            packageItem.assertDocumentationText(expectedOutput = "/** Some text. */")
+            packageItem.assertPrintedDocumentation(expectedOutput = "/** Some text. */")
         }
     }
 
-    @RequiresCapabilities(Capability.JAVA)
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
-    fun `Test invalid package (package-html)`() {
+    fun `Test invalid package - package-html`() {
         runCodebaseTest(
             inputSet(
                 java(
@@ -428,16 +427,19 @@ class CommonPackageItemTest : BaseModelTest() {
                         }
                     """
                 ),
-                html(
-                    "src/other/pkg/package.html",
-                    """
-                        <HTML>
-                        <BODY>
-                        Some text.
-                        </BODY>
-                        </HTML>
-                    """
-                ),
+                sourcePathFiles =
+                    listOf(
+                        html(
+                            "src/other/pkg/package.html",
+                            """
+                                <HTML>
+                                <BODY>
+                                Some text.
+                                </BODY>
+                                </HTML>
+                            """
+                        ),
+                    ),
             ),
         ) {
             val packageItem = codebase.findPackage("other.pkg")
@@ -445,9 +447,9 @@ class CommonPackageItemTest : BaseModelTest() {
         }
     }
 
-    @RequiresCapabilities(Capability.JAVA)
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
-    fun `Test package documentation (overview-html)`() {
+    fun `Test package documentation - overview-html`() {
         runCodebaseTest(
             inputSet(
                 java(
@@ -486,7 +488,7 @@ class CommonPackageItemTest : BaseModelTest() {
         }
     }
 
-    @RequiresCapabilities(Capability.JAVA)
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `Test mismatching between package and directory`() {
         runCodebaseTest(
@@ -502,8 +504,8 @@ class CommonPackageItemTest : BaseModelTest() {
         ) {
             codebase.assertClass("test.pkg.Foo")
             // Make sure that if any errors are reported that they are included in this list of
-            // known errors. This is needed because K1 produces both errors, but K2 only produces
-            // the first error. This test is currently broken for Turbine.
+            // known errors. This is needed because psi produces both errors, but turbine only
+            // produces the first error
             assertContains(
                 """
                     MAIN_SRC/src/test/other/Foo.java: error: Unable to determine the package name. This usually means that a source file was where the directory does not seem to match the package declaration; we expected the path MAIN_SRC/src/test/other/Foo.java to end with /test/pkg/Foo.java [IoError]
@@ -515,7 +517,7 @@ class CommonPackageItemTest : BaseModelTest() {
         }
     }
 
-    @RequiresCapabilities(Capability.JAVA)
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `Test documentation on empty packages`() {
         runCodebaseTest(
@@ -539,7 +541,7 @@ class CommonPackageItemTest : BaseModelTest() {
             ),
         ) {
             val packageItem = codebase.assertPackage("test")
-            packageItem.assertDocumentationText(expectedOutput = "/** Some documentation. */")
+            packageItem.assertPrintedDocumentation(expectedOutput = "/** Some documentation. */")
         }
     }
 
@@ -566,7 +568,7 @@ class CommonPackageItemTest : BaseModelTest() {
             ),
             testFixture =
                 TestFixture(
-                    additionalClassPath = listOf(otherJarFile.createFile(temporaryFolder.root))
+                    additionalClassPath = listOf(otherJarFile.toFile()),
                 ),
         ) {
             val packageItem = codebase.assertResolvedPackage("other.pkg")
@@ -579,6 +581,7 @@ class CommonPackageItemTest : BaseModelTest() {
     }
 
     @RequiresCapabilities(Capability.PACKAGE_HTML_FILES)
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `Test conflicting comments in package-info java and package html`() {
         runCodebaseTest(
@@ -615,6 +618,49 @@ class CommonPackageItemTest : BaseModelTest() {
                         MAIN_SRC/src/test/pkg/package-info.java: warning: It is illegal to provide both a package-info.java file and a package.html file for the same package [BothPackageInfoAndHtml]
                     """
             )
+        }
+    }
+
+    @SupportedInputFormats(InputFormat.JAVA)
+    @Test
+    fun `Test overlapping source path dirs`() {
+        // Tests what happens when the source path contains overlapping source roots.
+        runCodebaseTest(
+            inputSet(
+                // Adds TEST-ROOT/src/a-really-long-dir-name on the source path.
+                java(
+                    "a-really-long-dir-name/test/pkg/Test.java",
+                    """
+                        package test.pkg;
+                        public class Test {}
+                    """
+                ),
+                // Adds TEST-ROOT/src/a-really-long-dir-name/shorter-dir-name on the source path.
+                java(
+                    "a-really-long-dir-name/shorter-dir-name/other/pkg/Other.java",
+                    """
+                        package other.pkg;
+                        public class Other {}
+                    """
+                ),
+                // Should be treated as being relative to the containing directory with the longest
+                // path, i.e. `TEST-ROOT/src/a-really-long-dir-name/shorter-dir-name` and so be
+                // applicable to the `other` package.
+                html(
+                    "a-really-long-dir-name/shorter-dir-name/other/package.html",
+                    """
+                        <HTML>
+                        <BODY>
+                        Some text
+                        </BODY>
+                        </HTML>
+                    """
+                ),
+            )
+        ) {
+            val packageItem = codebase.assertPackage("other")
+
+            packageItem.assertPrintedDocumentation(expectedOutput = "/** Some text */")
         }
     }
 }

@@ -17,9 +17,8 @@
 package com.android.tools.metalava.lint
 
 import com.android.tools.metalava.DriverTest
-import com.android.tools.metalava.androidxNonNullSource
-import com.android.tools.metalava.androidxNullableSource
 import com.android.tools.metalava.cli.common.ARG_HIDE
+import com.android.tools.metalava.testing.KnownSourceFiles
 import com.android.tools.metalava.testing.java
 import org.junit.Test
 
@@ -39,7 +38,6 @@ class ManagerCheckTest : DriverTest() {
                     src/android/pkg/MyFirstManager.java:15: error: Managers must always be obtained from Context (`error3`) [ManagerLookup]
                     src/android/pkg/MySecondManager.java:8: error: Managers must always be obtained from Context (`error1`) [ManagerLookup]
                 """,
-            expectedFail = DefaultLintErrorMessage,
             sourceFiles =
                 arrayOf(
                     java(
@@ -77,8 +75,8 @@ class ManagerCheckTest : DriverTest() {
                             }
                         """
                     ),
-                    androidxNonNullSource,
-                    androidxNullableSource,
+                    KnownSourceFiles.androidxNonNullJavaSource,
+                    KnownSourceFiles.androidxNullableJavaSource,
                 ),
         )
     }

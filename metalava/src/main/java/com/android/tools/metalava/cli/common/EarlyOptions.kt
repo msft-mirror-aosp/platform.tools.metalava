@@ -28,6 +28,7 @@ import com.github.ajalt.clikt.parameters.options.switch
 
 const val ARG_QUIET = "--quiet"
 const val ARG_VERBOSE = "--verbose"
+const val ARG_TRACE_FILE = "--trace-file"
 
 enum class Verbosity(val quiet: Boolean = false, val verbose: Boolean = false) {
     /** Whether to report warnings and other diagnostics along the way. */
@@ -64,6 +65,17 @@ open class EarlyOptions : OptionGroup() {
                 ARG_VERBOSE to Verbosity.VERBOSE,
             )
             .default(Verbosity.NORMAL, defaultForHelp = "Neither $ARG_QUIET or $ARG_VERBOSE")
+
+    // This argument needs to be in EarlyOptions to create it before MetalavaCommand
+    val traceFile: String? by
+        option(
+            ARG_TRACE_FILE,
+            help =
+                """
+            Set the location where the trace should be written to.
+        """
+                    .trimIndent()
+        )
 
     companion object {
         /**

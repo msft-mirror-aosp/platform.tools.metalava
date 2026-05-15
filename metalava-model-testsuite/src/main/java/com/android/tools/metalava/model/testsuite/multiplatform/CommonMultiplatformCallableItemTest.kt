@@ -16,9 +16,10 @@
 
 package com.android.tools.metalava.model.testsuite.multiplatform
 
+import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.multiplatform.transformValues
-import com.android.tools.metalava.model.testing.FilterAction.EXCLUDE
-import com.android.tools.metalava.model.testing.FilterByProvider
+import com.android.tools.metalava.model.provider.InputFormat
+import com.android.tools.metalava.model.testing.SupportedInputFormats
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.testing.createAndroidModuleDescription
 import com.android.tools.metalava.testing.createCommonModuleDescription
@@ -28,7 +29,7 @@ import com.android.tools.metalava.testing.kotlin
 import com.google.common.truth.Truth.assertThat
 import org.junit.Test
 
-@FilterByProvider("psi", "k1", action = EXCLUDE)
+@SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.KOTLIN)
 class CommonMultiplatformCallableItemTest : BaseModelTest() {
     @Test
     fun `Definition of expect actual constructor`() {
@@ -61,6 +62,36 @@ class CommonMultiplatformCallableItemTest : BaseModelTest() {
 
         runMultiplatformCodebaseTest(
             inputSet(commonSource, androidSource, nativeSource),
+            inputSet(
+                signature(
+                    "commonMain.txt",
+                    """
+                    // Signature format: 5.0
+                    package test.pkg {
+                      public final class Foo extends kotlin.Any {
+                        ctor public Foo(kotlin.Int i);
+                      }
+                    }
+                    """
+                ),
+                signature(
+                    "androidMain.txt",
+                    """
+                    // Signature format: 5.0
+                    """
+                ),
+                signature(
+                    "nativeMain.txt",
+                    """
+                    // Signature format: 5.0
+                    package test.pkg {
+                      public final class Foo extends kotlin.Any {
+                        ctor public Foo(kotlin.Int i1, kotlin.Int i2);
+                      }
+                    }
+                    """
+                )
+            ),
             projectDescription =
                 createProjectDescription(
                     createCommonModuleDescription(arrayOf(commonSource)),
@@ -121,6 +152,43 @@ class CommonMultiplatformCallableItemTest : BaseModelTest() {
 
         runMultiplatformCodebaseTest(
             inputSet(commonSource, androidSource, nativeSource),
+            inputSet(
+                signature(
+                    "commonMain.txt",
+                    """
+                    // Signature format: 5.0
+                    package test.pkg {
+                      public final class Foo extends kotlin.Any {
+                        method public void commonMethod(kotlin.String s);
+                      }
+                    }
+                    """
+                ),
+                signature(
+                    "androidMain.txt",
+                    """
+                    // Signature format: 5.0
+                    package test.pkg {
+                      public final class Foo extends kotlin.Any {
+                        ctor public Foo();
+                        method public void androidMethod(kotlin.String? s);
+                      }
+                    }
+                    """
+                ),
+                signature(
+                    "nativeMain.txt",
+                    """
+                    // Signature format: 5.0
+                    package test.pkg {
+                      public final class Foo extends kotlin.Any {
+                        ctor public Foo();
+                        method public void nativeMethod(kotlin.String s1, kotlin.String? s2);
+                      }
+                    }
+                    """
+                )
+            ),
             projectDescription =
                 createProjectDescription(
                     createCommonModuleDescription(arrayOf(commonSource)),
@@ -185,6 +253,42 @@ class CommonMultiplatformCallableItemTest : BaseModelTest() {
             )
         runMultiplatformCodebaseTest(
             inputSet(commonSource, androidMain, nativeMain),
+            inputSet(
+                signature(
+                    "commonMain.txt",
+                    """
+                    // Signature format: 5.0
+                    package test.pkg {
+                      public final class Foo extends kotlin.Any {
+                      }
+                    }
+                    """
+                ),
+                signature(
+                    "androidMain.txt",
+                    """
+                    // Signature format: 5.0
+                    package test.pkg {
+                      public final class Foo extends kotlin.Any {
+                        ctor public Foo(kotlin.Int i);
+                        method public void clashingMethod(kotlin.String s);
+                      }
+                    }
+                    """
+                ),
+                signature(
+                    "nativeMain.txt",
+                    """
+                    // Signature format: 5.0
+                    package test.pkg {
+                      public final class Foo extends kotlin.Any {
+                        ctor public Foo(kotlin.Int i);
+                        method public void clashingMethod(kotlin.String s);
+                      }
+                    }
+                    """
+                )
+            ),
             projectDescription =
                 createProjectDescription(
                     createCommonModuleDescription(arrayOf(commonSource)),
@@ -229,6 +333,31 @@ class CommonMultiplatformCallableItemTest : BaseModelTest() {
 
         runMultiplatformCodebaseTest(
             inputSet(commonSource, androidSource),
+            inputSet(
+                signature(
+                    "commonMain.txt",
+                    """
+                    // Signature format: 5.0
+                    package test.pkg {
+                      public final class Foo extends kotlin.Any {
+                        method public void foo(kotlin.String s);
+                      }
+                    }
+                    """
+                ),
+                signature(
+                    "androidMain.txt",
+                    """
+                    // Signature format: 5.0
+                    package test.pkg {
+                      public final class Foo extends kotlin.Any {
+                        ctor public Foo();
+                        method @kotlin.jvm.Throws(exceptionClasses={java.lang.IllegalStateException.class}) public void foo(kotlin.String s) throws java.lang.IllegalStateException;
+                      }
+                    }
+                    """
+                ),
+            ),
             projectDescription =
                 createProjectDescription(
                     createCommonModuleDescription(arrayOf(commonSource)),
@@ -290,6 +419,36 @@ class CommonMultiplatformCallableItemTest : BaseModelTest() {
 
         runMultiplatformCodebaseTest(
             inputSet(commonSource, androidSource, nativeSource),
+            inputSet(
+                signature(
+                    "commonMain.txt",
+                    """
+                    // Signature format: 5.0
+                    package test.pkg {
+                      public final class Foo extends kotlin.Any {
+                        method public void commonMethod(optional kotlin.String optionalString);
+                      }
+                    }
+                    """
+                ),
+                signature(
+                    "androidMain.txt",
+                    """
+                    // Signature format: 5.0
+                    """
+                ),
+                signature(
+                    "nativeMain.txt",
+                    """
+                    // Signature format: 5.0
+                    package test.pkg {
+                      public final class Foo extends kotlin.Any {
+                        method public void nativeMethod(kotlin.String s0, kotlin.String? s1, kotlin.String s2);
+                      }
+                    }
+                    """
+                )
+            ),
             projectDescription =
                 createProjectDescription(
                     createCommonModuleDescription(arrayOf(commonSource)),
@@ -313,11 +472,10 @@ class CommonMultiplatformCallableItemTest : BaseModelTest() {
                 "androidMain" to "optionalString",
                 "nativeMain" to "optionalString",
             )
-            // TODO(b/447420267): android and native should inherit the default value from common
             commonParameter.hasDefaultValue.assertSourceSetValues(
                 "commonMain" to true,
-                "androidMain" to false,
-                "nativeMain" to false,
+                "androidMain" to true,
+                "nativeMain" to true,
             )
 
             val nativeMethod =
@@ -366,6 +524,37 @@ class CommonMultiplatformCallableItemTest : BaseModelTest() {
             )
         runMultiplatformCodebaseTest(
             inputSet(commonSource, androidMain),
+            inputSet(
+                signature(
+                    "commonMain.txt",
+                    """
+                    // Signature format: 5.0
+                    package test.pkg {
+                      public @interface CommonAnnotation {
+                        ctor public CommonAnnotation();
+                      }
+                      public final class Foo extends kotlin.Any {
+                        method public void foo(@test.pkg.CommonAnnotation kotlin.String s);
+                      }
+                    }
+                    """
+                ),
+                signature(
+                    "androidMain.txt",
+                    """
+                    // Signature format: 5.0
+                    package test.pkg {
+                      public @interface AndroidAnnotation {
+                        ctor public AndroidAnnotation();
+                      }
+                      public final class Foo extends kotlin.Any {
+                        ctor public Foo();
+                        method public void foo(@test.pkg.AndroidAnnotation kotlin.String s);
+                      }
+                    }
+                    """
+                )
+            ),
             projectDescription =
                 createProjectDescription(
                     createCommonModuleDescription(arrayOf(commonSource)),
@@ -379,7 +568,13 @@ class CommonMultiplatformCallableItemTest : BaseModelTest() {
             assertThat(stringParameter.containingCallable).isEqualTo(fooMethod)
             assertThat(stringParameter.parameterIndex).isEqualTo(0)
             stringParameter.modifiers
-                .transformValues { modifiers -> modifiers.annotations().map { it.qualifiedName } }
+                .transformValues { modifiers ->
+                    modifiers
+                        .annotations()
+                        // The text model adds nullness annotations based on nullability suffixes.
+                        .filter { !it.isNullnessAnnotation() }
+                        .map { it.qualifiedName }
+                }
                 .assertSourceSetValues(
                     "commonMain" to listOf("test.pkg.CommonAnnotation"),
                     "androidMain" to listOf("test.pkg.AndroidAnnotation"),
@@ -419,6 +614,42 @@ class CommonMultiplatformCallableItemTest : BaseModelTest() {
             )
         runMultiplatformCodebaseTest(
             inputSet(commonSource, androidMain, nativeMain),
+            inputSet(
+                signature(
+                    "commonMain.txt",
+                    """
+                    // Signature format: 5.0
+                    package test.pkg {
+                      public final class Foo extends kotlin.Any {
+                      }
+                    }
+                    """
+                ),
+                signature(
+                    "androidMain.txt",
+                    """
+                    // Signature format: 5.0
+                    package test.pkg {
+                      public final class Foo extends kotlin.Any {
+                        ctor public Foo();
+                        method public void clashingMethod(kotlin.String android);
+                      }
+                    }
+                    """
+                ),
+                signature(
+                    "nativeMain.txt",
+                    """
+                    // Signature format: 5.0
+                    package test.pkg {
+                      public final class Foo extends kotlin.Any {
+                        ctor public Foo();
+                        method public void clashingMethod(optional kotlin.String native);
+                      }
+                    }
+                    """
+                )
+            ),
             projectDescription =
                 createProjectDescription(
                     createCommonModuleDescription(arrayOf(commonSource)),
@@ -474,6 +705,41 @@ class CommonMultiplatformCallableItemTest : BaseModelTest() {
 
         runMultiplatformCodebaseTest(
             inputSet(commonSource, androidSource, nativeSource),
+            inputSet(
+                signature(
+                    "commonMain.txt",
+                    """
+                        // Signature format: 5.0
+                        package test.pkg {
+                          public class ${'$'}TopLevelDeclarations {
+                            method public static final void foo(kotlin.Int int);
+                          }
+                        }
+                    """
+                ),
+                signature(
+                    "androidMain.txt",
+                    """
+                    // Signature format: 5.0
+                    package test.pkg {
+                      public class ${'$'}TopLevelDeclarations {
+                        method public static final void androidMethod(kotlin.String s);
+                      }
+                    }
+                    """
+                ),
+                signature(
+                    "nativeMain.txt",
+                    """
+                    // Signature format: 5.0
+                    package test.pkg {
+                      public class ${'$'}TopLevelDeclarations {
+                        method public static final void nativeMethod(kotlin.String s);
+                      }
+                    }
+                    """
+                )
+            ),
             projectDescription =
                 createProjectDescription(
                     createCommonModuleDescription(arrayOf(commonSource)),
@@ -516,6 +782,19 @@ class CommonMultiplatformCallableItemTest : BaseModelTest() {
             )
         runMultiplatformCodebaseTest(
             inputSet(commonSource),
+            inputSet(
+                signature(
+                    "commonMain.txt",
+                    """
+                    // Signature format: 5.0
+                    package test.pkg {
+                      public class ${'$'}TopLevelDeclarations {
+                        method public static final suspend void foo(kotlin.Int int);
+                      }
+                    }
+                    """
+                )
+            ),
             projectDescription =
                 createProjectDescription(createCommonModuleDescription(arrayOf(commonSource))),
         ) {
@@ -525,6 +804,53 @@ class CommonMultiplatformCallableItemTest : BaseModelTest() {
             fooFunction.modifiers
                 .transformValues { it.isSuspend() }
                 .assertSourceSetValues("commonMain" to true)
+        }
+    }
+
+    @Test
+    fun `Baseline id for top level regular MethodItem`() {
+        val commonSource =
+            kotlin(
+                "commonMain/src/test/pkg/Foo.kt",
+                """
+                package test.pkg
+                fun foo() = 0
+                fun String.foo() = 0
+                """
+            )
+        runMultiplatformCodebaseTest(
+            inputSet(commonSource),
+            inputSet(
+                signature(
+                    "commonMain.txt",
+                    """
+                        // Signature format: 5.0
+                        package test.pkg {
+                          public class ${'$'}TopLevelDeclarations {
+                            method public static final kotlin.Int foo();
+                            method public static final kotlin.Int foo(kotlin.String);
+                          }
+                        }
+                    """
+                )
+            ),
+            projectDescription =
+                createProjectDescription(
+                    createCommonModuleDescription(arrayOf(commonSource)),
+                )
+        ) {
+            val commonCodebase = multiplatformCodebase.sourceSetToCodebase["commonMain"]!!
+            val facadeClass =
+                commonCodebase.assertClass(
+                    "test.pkg.${ClassItem.TOP_LEVEL_DECLARATION_FACADE_NAME}"
+                )
+
+            val topLevelFun = facadeClass.assertMethod("foo", emptyList())
+            assertThat(topLevelFun.baselineElementId()).isEqualTo("test.pkg#foo()")
+
+            val topLevelExtensionFun = facadeClass.assertMethod("foo", listOf("kotlin.String"))
+            assertThat(topLevelExtensionFun.baselineElementId())
+                .isEqualTo("test.pkg#foo(kotlin.String)")
         }
     }
 }

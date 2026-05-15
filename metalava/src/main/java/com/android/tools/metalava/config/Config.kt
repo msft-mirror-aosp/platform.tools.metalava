@@ -31,6 +31,8 @@ data class Config(
     val apiSurfaces: ApiSurfacesConfig? = null,
     @field:JacksonXmlProperty(localName = "build-properties", namespace = CONFIG_NAMESPACE)
     val buildProperties: BuildPropertiesConfig? = null,
+    @field:JacksonXmlProperty(localName = "issues", namespace = CONFIG_NAMESPACE)
+    val issues: IssuesConfig? = null,
 ) : CombinableConfig<Config> {
 
     /** Combine this [Config] with another returning a [Config] object that combines them both. */
@@ -38,7 +40,8 @@ data class Config(
         Config(
             apiFlags = combine(apiFlags, other.apiFlags),
             apiSurfaces = combine(apiSurfaces, other.apiSurfaces),
-            buildProperties = combine(buildProperties, other.buildProperties)
+            buildProperties = combine(buildProperties, other.buildProperties),
+            issues = combine(issues, other.issues),
         )
 
     /**

@@ -17,7 +17,7 @@
 package com.android.tools.metalava.compatibility
 
 import com.android.tools.metalava.DriverTest
-import com.android.tools.metalava.SystemApiType
+import com.android.tools.metalava.KnownApiSurface
 import org.junit.Test
 
 class MultipleCompatibilityFilesTest : DriverTest() {
@@ -109,7 +109,7 @@ class MultipleCompatibilityFilesTest : DriverTest() {
     @Test
     fun `Test current system vs multiple released compatibility files`() {
         check(
-            includeSystemApiAnnotations = SystemApiType.PRIVILEGED_APPS,
+            apiSurface = KnownApiSurface.SYSTEM,
             checkCompatibilityApiReleasedList =
                 listOf(previouslyReleasedPublicApi, previouslyReleasedSystemApiDelta),
             signatureSource = currentCompleteSystemApi,
@@ -121,9 +121,9 @@ class MultipleCompatibilityFilesTest : DriverTest() {
     }
 
     @Test
-    fun `Test current system vs multiple released compatibility files (invalid first)`() {
+    fun `Test current system vs multiple released compatibility files - invalid first`() {
         check(
-            includeSystemApiAnnotations = SystemApiType.PRIVILEGED_APPS,
+            apiSurface = KnownApiSurface.SYSTEM,
             checkCompatibilityApiReleasedList =
                 listOf("Invalid Signature File", previouslyReleasedSystemApiDelta),
             signatureSource = currentCompleteSystemApi,
@@ -135,9 +135,9 @@ class MultipleCompatibilityFilesTest : DriverTest() {
     }
 
     @Test
-    fun `Test current public vs multiple removed compatibility files (invalid first)`() {
+    fun `Test current public vs multiple removed compatibility files - invalid first`() {
         check(
-            includeSystemApiAnnotations = SystemApiType.PRIVILEGED_APPS,
+            apiSurface = KnownApiSurface.SYSTEM,
             checkCompatibilityRemovedApiReleasedList =
                 listOf("Invalid Signature File", previouslyReleasedPublicApi),
             signatureSource = currentCompletePublicApi,

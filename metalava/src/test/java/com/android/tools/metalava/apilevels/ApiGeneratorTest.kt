@@ -16,7 +16,6 @@
 
 package com.android.tools.metalava.apilevels
 
-import com.android.tools.lint.checks.infrastructure.TestFiles
 import com.android.tools.metalava.ARG_ANDROID_JAR_PATTERN
 import com.android.tools.metalava.ARG_API_SURFACE
 import com.android.tools.metalava.ARG_API_VERSION_FOR_SDK_EXTENSION
@@ -30,6 +29,12 @@ import com.android.tools.metalava.ARG_REMOVE_MISSING_CLASS_REFERENCES_IN_API_LEV
 import com.android.tools.metalava.ARG_SDK_INFO_FILE
 import com.android.tools.metalava.DriverTest
 import com.android.tools.metalava.KnownConfigFiles
+import com.android.tools.metalava.model.provider.Capability
+import com.android.tools.metalava.model.testing.RequiresCapabilities
+import com.android.tools.metalava.testing.TestFileCache
+import com.android.tools.metalava.testing.TestFileCacheRule
+import com.android.tools.metalava.testing.cacheIn
+import com.android.tools.metalava.testing.jarFromSources
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
 import com.android.tools.metalava.testing.signature
@@ -41,6 +46,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Assert.fail
+import org.junit.ClassRule
 import org.junit.Test
 
 // Constants to avoid having to quote $ in expected XML contents.
@@ -49,6 +55,30 @@ const val R = "${'\$'}R"
 const val S = "${'\$'}S"
 
 class ApiGeneratorTest : DriverTest() {
+    companion object {
+        /** Create a [TestFileCache] whose lifespan encompasses all the tests in this class. */
+        @ClassRule @JvmField val testFileCacheRule = TestFileCacheRule()
+
+        private val doublyNestedTestJar =
+            jarFromSources(
+                    "doubly-nested-test.jar",
+                    java(
+                        """
+                            package test.pkg;
+                            public class Test {
+                                private Test() {}
+                                public class Nested {
+                                    private Nested() {}
+                                    public class DoublyNested {
+                                        private DoublyNested() {}
+                                    }
+                                }
+                            }
+                        """
+                    ),
+                )
+                .cacheIn(testFileCacheRule)
+    }
 
     /** Check this `api-versions.xml` file has the correct content. */
     private fun File.checkApiVersionsXmlContent(expectedContent: String) {
@@ -124,7 +154,7 @@ class ApiGeneratorTest : DriverTest() {
                     ),
                 ),
             docStubs = true,
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
@@ -299,6 +329,7 @@ class ApiGeneratorTest : DriverTest() {
         apiVersionsXml.checkApiVersionsXmlContent(expected)
     }
 
+    @RequiresCapabilities(Capability.LOAD_JAR)
     @Test
     fun `Generate API for system surface from jar`() {
         val apiVersionsXml = temporaryFolder.newFile("api-versions.xml")
@@ -314,16 +345,19 @@ class ApiGeneratorTest : DriverTest() {
                     ARG_API_VERSION_FOR_SOURCES,
                     "32",
                 ),
-            sourceFiles =
-                arrayOf(
-                    TestFiles.jar("test.jar"),
-                ),
+            sourceFiles = arrayOf(doublyNestedTestJar),
         )
 
         val expected =
             """
                 <?xml version="1.0" encoding="utf-8"?>
                 <api version="3" min="32">
+                    <class name="test/pkg/Test" since="32">
+                    </class>
+                    <class name="test/pkg/Test${'$'}Nested" since="32">
+                    </class>
+                    <class name="test/pkg/Test${'$'}Nested${'$'}DoublyNested" since="32">
+                    </class>
                 </api>
             """
 
@@ -764,6 +798,7 @@ class ApiGeneratorTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `APIs annotated with suppress-compatibility-meta-annotations appear in output`() {
         val apiVersionsJson = temporaryFolder.newFile("api-info.json")
@@ -845,8 +880,7 @@ class ApiGeneratorTest : DriverTest() {
         )
     }
 
-    private fun createTextFile(name: String, contents: String) =
-        signature(name, contents).createFile(temporaryFolder.root)
+    private fun createTextFile(name: String, contents: String) = signature(name, contents).toFile()
 
     @Test
     fun `Support major minor versions in generated api-versions xml file`() {

@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model
 
+import com.android.tools.metalava.model.annotation.AnnotationClass
 import com.android.tools.metalava.model.api.flags.ApiFlag
 import com.android.tools.metalava.model.api.flags.ApiFlags
 
@@ -49,12 +50,17 @@ interface AnnotationInfo {
      * The [ApiFlag] referenced by the annotation.
      *
      * This will be `null` if no [ApiFlags] have been provided or the annotation type is not
-     * [ANDROID_FLAGGED_API]. Otherwise, it will be one of the instances of [ApiFlag], e.g.
-     * [ApiFlag.REVERT_FLAGGED_API].
+     * [ANDROID_FLAGGED_API]. Otherwise, it will be an instance of [ApiFlag].
      */
     val apiFlag: ApiFlag?
 
     val suppressCompatibility: Boolean
+
+    /**
+     * The [AnnotationClass] that provides information about the annotation class of the
+     * [AnnotationItem] instance to which this corresponds.
+     */
+    val annotationClass: AnnotationClass?
 }
 
 /** Compute the [TypeNullability], if any, for the annotation with [qualifiedName]. */
@@ -177,6 +183,9 @@ data class Showability(
 
     /** The item to which this item should be reverted. Null if no such item exists. */
     val revertItem: SelectableItem? = null,
+
+    /** Optional name, makes it easier to understand while testing and debug. */
+    val name: String? = null,
 ) {
     /**
      * Check whether the annotated item should be considered part of the API or not.
@@ -258,6 +267,10 @@ data class Showability(
 
         return Showability(newShow, newRecursive, forStubsOnly)
     }
+
+    override fun toString() =
+        name
+            ?: "Showability(show=$show, recursive=$recursive, forStubsOnly=$forStubsOnly, revertItem=$revertItem)"
 
     companion object {
         /** The annotation does not affect whether an annotated item is shown. */

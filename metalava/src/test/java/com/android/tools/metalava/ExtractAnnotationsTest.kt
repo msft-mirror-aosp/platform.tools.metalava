@@ -439,7 +439,7 @@ class ExtractAnnotationsTest : DriverTest() {
                     intRangeAnnotationSource,
                     recentlyNullableSource
                 ),
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
@@ -470,6 +470,7 @@ class ExtractAnnotationsTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.METHOD_BODY)
     @Test
     fun `Check warning about unexpected returns from typedef method`() {
         check(
@@ -557,7 +558,7 @@ class ExtractAnnotationsTest : DriverTest() {
             extraArguments = arrayOf(ARG_TYPEDEFS_IN_SIGNATURES, "none"),
             format = FileFormat.V2,
             sourceFiles = sourceFiles1,
-            api =
+            expectedApiSignature =
                 """
                 // Signature format: 2.0
                 package test.pkg {
@@ -590,7 +591,7 @@ class ExtractAnnotationsTest : DriverTest() {
             extraArguments = arrayOf(ARG_TYPEDEFS_IN_SIGNATURES, "inline"),
             format = FileFormat.V2,
             sourceFiles = sourceFiles1,
-            api =
+            expectedApiSignature =
                 """
                 // Signature format: 2.0
                 package test.pkg {
@@ -623,7 +624,7 @@ class ExtractAnnotationsTest : DriverTest() {
             extraArguments = arrayOf(ARG_TYPEDEFS_IN_SIGNATURES, "ref"),
             format = FileFormat.V2,
             sourceFiles = sourceFiles1,
-            api =
+            expectedApiSignature =
                 """
                 // Signature format: 2.0
                 package test.pkg {
@@ -763,8 +764,6 @@ class ExtractAnnotationsTest : DriverTest() {
             extractAnnotations =
                 mapOf(
                     "test.pkg" to
-                        // TODO(b/329116156): One of the IntDef annotations should be on
-                        //  PublicNestedClassB
                         """
                             <?xml version="1.0" encoding="UTF-8"?>
                             <root>

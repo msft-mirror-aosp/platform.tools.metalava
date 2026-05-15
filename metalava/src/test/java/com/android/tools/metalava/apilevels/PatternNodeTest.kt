@@ -18,19 +18,15 @@ package com.android.tools.metalava.apilevels
 
 import com.android.tools.metalava.model.api.surface.ApiSurface
 import com.android.tools.metalava.model.api.surface.ApiSurfaces
+import com.android.tools.metalava.testing.BaseTemporaryFolderOwner
 import com.android.tools.metalava.testing.DirectoryBuilder
-import com.android.tools.metalava.testing.TemporaryFolderOwner
 import com.android.tools.metalava.testing.getAndroidDir
 import java.io.File
 import kotlin.test.assertEquals
 import org.junit.Assert.assertThrows
-import org.junit.Rule
 import org.junit.Test
-import org.junit.rules.TemporaryFolder
 
-class PatternNodeTest : TemporaryFolderOwner {
-    @get:Rule override val temporaryFolder = TemporaryFolder()
-
+class PatternNodeTest : BaseTemporaryFolderOwner() {
     private fun PatternNode.assertStructure(expected: String) {
         assertEquals(expected.trimIndent(), dump().trimIndent())
     }

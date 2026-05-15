@@ -18,7 +18,6 @@ package com.android.tools.metalava
 
 import com.android.tools.lint.checks.infrastructure.TestFile
 import com.android.tools.metalava.cli.common.ARG_ERROR
-import com.android.tools.metalava.lint.DefaultLintErrorMessage
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.testing.java
@@ -241,7 +240,7 @@ class ShowForStubPurposesAnnotationTest : DriverTest() {
             hideAnnotations = arrayOf(HIDE_ANNOTATION),
             showAnnotations = arrayOf(MODULE_API, SYSTEM_API),
             sourceFiles = SOURCE_FILES_1_2_3_4_5,
-            api =
+            expectedApiSignature =
                 """
                 // Signature format: 2.0
                 package test.pkg {
@@ -298,7 +297,7 @@ class ShowForStubPurposesAnnotationTest : DriverTest() {
             hideAnnotations = arrayOf(HIDE_ANNOTATION),
             showAnnotations = arrayOf(SYSTEM_API),
             sourceFiles = SOURCE_FILES_1_2_3_4_5,
-            api =
+            expectedApiSignature =
                 """
                 // Signature format: 2.0
                 package test.pkg {
@@ -336,7 +335,7 @@ class ShowForStubPurposesAnnotationTest : DriverTest() {
             showAnnotations = arrayOf(MODULE_API),
             showForStubPurposesAnnotations = arrayOf(SYSTEM_API),
             sourceFiles = SOURCE_FILES_1_2_3_4_5,
-            api =
+            expectedApiSignature =
                 """
                 // Signature format: 2.0
                 package test.pkg {
@@ -371,7 +370,7 @@ class ShowForStubPurposesAnnotationTest : DriverTest() {
                   }
                 }
                 """,
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
@@ -384,14 +383,12 @@ class ShowForStubPurposesAnnotationTest : DriverTest() {
                     public void noAnnotation() { throw new RuntimeException("Stub!"); }
                     public void referFromModuleToSystem(test.pkg.SystemClass2 arg) { throw new RuntimeException("Stub!"); }
                     public void system() { throw new RuntimeException("Stub!"); }
-                    @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public static class NestedDefault {
                     public NestedDefault() { throw new RuntimeException("Stub!"); }
                     public void module() { throw new RuntimeException("Stub!"); }
                     public void noAnnotation() { throw new RuntimeException("Stub!"); }
                     public void system() { throw new RuntimeException("Stub!"); }
                     }
-                    @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public static class NestedModule {
                     public NestedModule() { throw new RuntimeException("Stub!"); }
                     public void module() { throw new RuntimeException("Stub!"); }
@@ -409,14 +406,12 @@ class ShowForStubPurposesAnnotationTest : DriverTest() {
                     public void module() { throw new RuntimeException("Stub!"); }
                     public void noAnnotation() { throw new RuntimeException("Stub!"); }
                     public void system() { throw new RuntimeException("Stub!"); }
-                    @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public static class NestedDefault {
                     public NestedDefault() { throw new RuntimeException("Stub!"); }
                     public void module() { throw new RuntimeException("Stub!"); }
                     public void noAnnotation() { throw new RuntimeException("Stub!"); }
                     public void system() { throw new RuntimeException("Stub!"); }
                     }
-                    @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public static class NestedModule {
                     public NestedModule() { throw new RuntimeException("Stub!"); }
                     public void module() { throw new RuntimeException("Stub!"); }
@@ -487,7 +482,6 @@ class ShowForStubPurposesAnnotationTest : DriverTest() {
                 src/test/pkg/SystemClass.java:6: error: Class test.pkg.ModuleClass is hidden but was referenced (in parameter type) from public parameter arg in test.pkg.SystemClass.foo(test.pkg.ModuleClass arg) [ReferencesHidden]
                 src/test/pkg/SystemClass.java:6: error: Parameter of unavailable type test.pkg.ModuleClass in test.pkg.SystemClass.foo() [UnavailableSymbol]
                 """,
-            expectedFail = DefaultLintErrorMessage,
         )
     }
 
@@ -591,7 +585,7 @@ class ShowForStubPurposesAnnotationTest : DriverTest() {
             hideAnnotations = arrayOf(HIDE_ANNOTATION),
             showAnnotations = arrayOf(SYSTEM_API, MODULE_API),
             sourceFiles = SOURCE_FILES_6_7_8_9,
-            api =
+            expectedApiSignature =
                 """
                 // Signature format: 2.0
                 package test.pkg {
@@ -628,7 +622,7 @@ class ShowForStubPurposesAnnotationTest : DriverTest() {
             hideAnnotations = arrayOf(HIDE_ANNOTATION),
             showAnnotations = arrayOf(SYSTEM_API),
             sourceFiles = SOURCE_FILES_6_7_8_9,
-            api =
+            expectedApiSignature =
                 """
                 // Signature format: 2.0
                 package test.pkg {
@@ -658,7 +652,7 @@ class ShowForStubPurposesAnnotationTest : DriverTest() {
             showAnnotations = arrayOf(MODULE_API),
             showForStubPurposesAnnotations = arrayOf(SYSTEM_API),
             sourceFiles = SOURCE_FILES_6_7_8_9,
-            api =
+            expectedApiSignature =
                 """
                 // Signature format: 2.0
                 package test.pkg {
@@ -706,7 +700,7 @@ class ShowForStubPurposesAnnotationTest : DriverTest() {
             """
                     )
                 ),
-            api =
+            expectedApiSignature =
                 """
                 // Signature format: 2.0
                 package test.pkg {
@@ -716,7 +710,6 @@ class ShowForStubPurposesAnnotationTest : DriverTest() {
                 }
                 """,
             apiLint = "",
-            expectedFail = DefaultLintErrorMessage,
             expectedIssues =
                 """
                 src/test/pkg/ModuleClassExtendingPublic.java:11: error: Missing nullability on method `method2` return [MissingNullability]

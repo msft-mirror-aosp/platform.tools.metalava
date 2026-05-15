@@ -17,24 +17,30 @@
 package com.android.tools.metalava.testing
 
 import com.android.tools.lint.checks.infrastructure.TestFile
+import com.android.tools.metalava.testing.TemporaryFolderOwner.Companion.createTestRule
 import java.io.File
-import org.junit.Assert.assertNotNull
+import org.junit.Rule
 import org.junit.rules.TemporaryFolder
 
 /** Provides helper functions for a test class that has a [TemporaryFolder] rule. */
 interface TemporaryFolderOwner {
-
+    /**
+     * Provides access to temporary files.
+     *
+     * Must be defined as follows in subclasses:
+     * ```
+     *     @get:Rule final override val temporaryFolder = createTestRule()
+     * ```
+     */
     val temporaryFolder: TemporaryFolder
 
     /**
      * Given an array of [TestFile] get a folder called "project" (creating it if it is empty),
      * write the files to the folder and then return the folder.
      */
-    fun createProject(files: Array<TestFile>): File {
+    fun createProjectDir(files: Array<TestFile>): File {
         val dir = getOrCreateFolder("project")
-
-        files.map { it.createFile(dir) }.forEach { assertNotNull(it) }
-
+        files.createFiles(dir)
         return dir
     }
 
@@ -137,4 +143,17 @@ interface TemporaryFolderOwner {
 
         return s
     }
+
+    /** Create a [File] from this [TestFile] in the root directory of the [temporaryFolder]. */
+    fun TestFile.toFile() = createFile(temporaryFolder.root)
+
+    companion object {
+        /** Create the [TemporaryFolder]. */
+        fun createTestRule(): TemporaryFolder = TemporaryFolder()
+    }
+}
+
+/** Base class for implementers of [TemporaryFolderOwner]. */
+open class BaseTemporaryFolderOwner : TemporaryFolderOwner {
+    @get:Rule final override val temporaryFolder = createTestRule()
 }

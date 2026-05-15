@@ -19,6 +19,7 @@ package com.android.tools.metalava.model.psi.kotlin
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ArrayTypeItem
 import com.android.tools.metalava.model.BoundsTypeItem
+import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.KOTLIN_CONTINUATION
 import com.android.tools.metalava.model.LambdaTypeItem
@@ -30,7 +31,6 @@ import com.android.tools.metalava.model.TypeModifiers
 import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.TypeParameterScope
 import com.android.tools.metalava.model.WildcardTypeItem
-import com.android.tools.metalava.model.item.DefaultClassItem
 import com.android.tools.metalava.model.item.DefaultCodebase
 import com.android.tools.metalava.model.type.ContextNullability
 import com.android.tools.metalava.model.type.DefaultTypeItemFactory
@@ -41,6 +41,7 @@ import org.jetbrains.kotlin.analysis.api.symbols.KaClassSymbol
 import org.jetbrains.kotlin.analysis.api.symbols.KaNamedClassSymbol
 import org.jetbrains.kotlin.analysis.api.types.KaClassType
 import org.jetbrains.kotlin.analysis.api.types.KaDefinitelyNotNullType
+import org.jetbrains.kotlin.analysis.api.types.KaDynamicType
 import org.jetbrains.kotlin.analysis.api.types.KaErrorType
 import org.jetbrains.kotlin.analysis.api.types.KaFlexibleType
 import org.jetbrains.kotlin.analysis.api.types.KaFunctionType
@@ -70,7 +71,7 @@ internal class KaTypeItemFactory(
     constructor(
         codebase: DefaultCodebase,
         processor: KaModuleProcessor,
-        classItem: DefaultClassItem,
+        classItem: ClassItem,
         mapToJvmTypes: Boolean,
     ) : this(codebase, processor, TypeParameterScope.from(classItem), mapToJvmTypes)
 
@@ -105,12 +106,7 @@ internal class KaTypeItemFactory(
     }
 
     // Override to ensure primitives are boxed.
-    override fun getSuperClassType(underlyingType: KaType): ClassTypeItem {
-        return underlyingType.toTypeItem(mustBoxPrimitives = true) as ClassTypeItem
-    }
-
-    // Override to ensure primitives are boxed.
-    override fun getInterfaceType(underlyingType: KaType): ClassTypeItem {
+    override fun getHierarchicalClassType(underlyingType: KaType): ClassTypeItem {
         return underlyingType.toTypeItem(mustBoxPrimitives = true) as ClassTypeItem
     }
 
@@ -182,6 +178,17 @@ internal class KaTypeItemFactory(
                     .toTypeItem(mustBoxPrimitives)
                     // Ensure correct nullability.
                     .substitute(TypeNullability.NONNULL)
+            // Kotlin dynamic types can be used in code compiled to javascript (see
+            // https://kotlinlang.org/docs/dynamic-type.html).
+            // Currently, this is represented as a class type, if more robust support is needed in
+            // the future there would need to be a new TypeItem subclass introduced (b/495459207).
+            is KaDynamicType ->
+                TypeItem.createClassType(
+                    modifiers = modifiers,
+                    qualifiedName = "dynamic",
+                    arguments = emptyList(),
+                    outerClassType = null,
+                )
             // To avoid runtime errors, construct an invalid class type for error types.
             is KaErrorType ->
                 TypeItem.createClassType(
@@ -465,9 +472,6 @@ internal class KaTypeItemFactory(
                         recursivelyInlinedType
                     }
                 }
-            } else if (type.toTypeString() == "kotlin.ULong" && type.modifiers.isNonNull) {
-                // Even though ULong is a value class type, it doesn't appear as one when using K1
-                TypeItem.createPrimitiveType(type.modifiers, PrimitiveTypeItem.Primitive.LONG)
             } else {
                 type
             }

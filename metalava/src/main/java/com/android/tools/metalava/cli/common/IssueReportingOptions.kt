@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.cli.common
 
+import com.android.tools.metalava.config.IssuesConfig
 import com.android.tools.metalava.reporter.DefaultReporter
 import com.android.tools.metalava.reporter.ERROR_WHEN_NEW_SUFFIX
 import com.android.tools.metalava.reporter.IssueConfiguration
@@ -50,6 +51,7 @@ const val REPORTING_OPTIONS_GROUP = "Issue Reporting"
 
 class IssueReportingOptions(
     commonOptions: CommonOptions = CommonOptions(),
+    issuesConfigProvider: () -> IssuesConfig? = { null },
 ) :
     OptionGroup(
         name = REPORTING_OPTIONS_GROUP,
@@ -64,8 +66,48 @@ class IssueReportingOptions(
                 .trimIndent()
     ) {
 
-    /** The [IssueConfiguration] that is configured by these options. */
-    val issueConfiguration = IssueConfiguration()
+    /** The internal [IssueConfiguration] that is configured by these options. */
+    private val internalIssueConfiguration = IssueConfiguration()
+
+    /** The optional [IssuesConfig]. */
+    private val issuesConfig by
+        lazy(LazyThreadSafetyMode.NONE) {
+            try {
+                issuesConfigProvider()
+            } catch (_: Exception) {
+                // Ignore exceptions thrown when reading the configuration. That is because this may
+                // be accessed during exception handling in the command and throwing another
+                // exception
+                // then just causes confusion.
+                null
+            }
+        }
+
+    /**
+     * The [IssueConfiguration] that was configured by these options and incorporates configuration
+     * from [issuesConfigProvider].
+     */
+    val issueConfiguration by
+        lazy(LazyThreadSafetyMode.NONE) {
+            // Apply configuration, if available.
+            issuesConfig?.let { issuesConfig ->
+                for (issueConfig in issuesConfig.issues) {
+                    val issue =
+                        Issues.findIssueById(issueConfig.name)
+                            // Ignore unknown issues.
+                            ?: continue
+
+                    val severity = issueConfig.severity.issueSeverity
+
+                    // Only apply the configuration severity if it has not already been overridden
+                    // on the command line as the command line takes precedence over configuration.
+                    internalIssueConfiguration.setSeverityIfNotAlreadyOverridden(issue, severity)
+                }
+            }
+
+            // Return the internal configuration.
+            internalIssueConfiguration
+        }
 
     init {
         // Create a Clikt option for handling the issue options and updating them as a side effect.
@@ -102,7 +144,7 @@ class IssueReportingOptions(
                         // Update the configuration immediately
                         for (value in values) {
                             val trimmed = value.trim()
-                            label.setAspectForId(issueConfiguration, trimmed)
+                            label.setAspectForId(internalIssueConfiguration, trimmed)
                         }
                     }
                 }
@@ -126,7 +168,7 @@ class IssueReportingOptions(
             .flag()
             .validate { value ->
                 if (value) {
-                    issueConfiguration.severityMap =
+                    internalIssueConfiguration.severityMap =
                         mapOf(
                             Severity.WARNING to Severity.ERROR,
                             Severity.WARNING_ERROR_WHEN_NEW to Severity.ERROR,
@@ -149,7 +191,7 @@ class IssueReportingOptions(
             .validate { list ->
                 if (list.isNotEmpty()) {
                     val severityToError = list.associateBy({ it }) { Severity.ERROR }
-                    issueConfiguration.severityMap = severityToError
+                    internalIssueConfiguration.severityMap = severityToError
                 }
             }
 

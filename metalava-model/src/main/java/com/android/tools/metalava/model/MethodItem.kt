@@ -21,13 +21,14 @@ import com.android.tools.metalava.model.value.StringValue
 import com.android.tools.metalava.model.value.Value
 
 @MetalavaApi
-interface MethodItem : CallableItem, InheritableItem {
+interface MethodItem : CallableItem, InheritableItem, PossiblyPropertyRelated {
     /**
      * The property this method is an accessor for; inverse of [PropertyItem.getter] and
      * [PropertyItem.setter]
+     *
+     * Overridden to provide more specific documentation.
      */
-    val property: PropertyItem?
-        get() = null
+    override var property: PropertyItem?
 
     override val effectivelyDeprecated: Boolean
         get() =
@@ -254,8 +255,22 @@ interface MethodItem : CallableItem, InheritableItem {
      */
     val defaultValue: Value?
 
-    /** Whether this method is a getter/setter for an underlying Kotlin property (val/var) */
-    fun isKotlinProperty(): Boolean = false
+    /**
+     * Whether this method is a getter/setter for an underlying Kotlin property (val/var).
+     *
+     * This should be the same as `property != null` but this may be called before [property] has
+     * been initialized.
+     */
+    val isKotlinProperty: Boolean
+
+    /** Whether this method is a getter for a [RecordComponentItem]. */
+    val isRecordComponentGetter: Boolean
+
+    override val isRecordComponentRelated: Boolean
+        get() = isRecordComponentGetter
+
+    override val recordComponentRelationship: String?
+        get() = if (isRecordComponentRelated) "record component getter" else null
 
     /**
      * Determines if the method is a method that needs to be overridden in any child classes that
