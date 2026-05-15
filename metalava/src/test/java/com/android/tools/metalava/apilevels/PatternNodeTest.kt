@@ -24,6 +24,7 @@ import com.android.tools.metalava.testing.getAndroidDir
 import java.io.File
 import kotlin.test.assertEquals
 import org.junit.Assert.assertThrows
+import org.junit.Before
 import org.junit.Test
 
 class PatternNodeTest : BaseTemporaryFolderOwner() {
@@ -34,14 +35,18 @@ class PatternNodeTest : BaseTemporaryFolderOwner() {
     /** Assert that the [MatchedPatternFile]s */
     private fun List<MatchedPatternFile>.assertMatchedPatternFiles(expected: String) {
         val actual = joinToString("\n")
-        val cleaned =
-            replaceFileWithSymbol(
-                actual,
-                mapOf(
-                    getAndroidDir() to "ANDROID_ROOT",
-                )
-            )
+        val cleaned = cleanupString(actual)
         assertEquals(expected.trimIndent(), cleaned)
+    }
+
+    private lateinit var androidDir: File
+
+    @Before
+    fun initAndroidDir() {
+        androidDir = getAndroidDir()
+
+        // Replace the environment specific android directory with a constant label.
+        temporaryFolder.addTestLabelForFile(androidDir, "ANDROID_ROOT")
     }
 
     @Test
@@ -194,8 +199,6 @@ class PatternNodeTest : BaseTemporaryFolderOwner() {
 
     @Test
     fun `Scan public prebuilts`() {
-        val androidDir = getAndroidDir()
-
         val patterns =
             listOf(
                 "prebuilts/sdk/{version:level}/public/android.jar",
@@ -216,8 +219,6 @@ class PatternNodeTest : BaseTemporaryFolderOwner() {
 
     @Test
     fun `Scan system prebuilts`() {
-        val androidDir = getAndroidDir()
-
         val patterns =
             listOf(
                 // Check system first and then fall back to public. As there are both public and
@@ -240,8 +241,6 @@ class PatternNodeTest : BaseTemporaryFolderOwner() {
 
     @Test
     fun `Scan public prebuilts with unnecessary system pattern`() {
-        val androidDir = getAndroidDir()
-
         val patterns =
             listOf(
                 // Check the public first, this should never fall back to system as it will always
@@ -263,8 +262,6 @@ class PatternNodeTest : BaseTemporaryFolderOwner() {
 
     @Test
     fun `Scan version specific prebuilt directories`() {
-        val androidDir = getAndroidDir()
-
         val patterns =
             listOf(
                 "prebuilts/sdk/{version:level}",
@@ -283,8 +280,6 @@ class PatternNodeTest : BaseTemporaryFolderOwner() {
 
     @Test
     fun `Scan explicit list of version specific jars`() {
-        val androidDir = getAndroidDir()
-
         val patterns =
             listOf(
                 "prebuilts/sdk/{version:level}/public/android.jar",
