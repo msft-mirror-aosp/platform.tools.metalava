@@ -119,10 +119,7 @@ interface TemporaryFolderOwner {
      *
      * @see CustomTemporaryFolder.cleanupString
      */
-    fun cleanupString(
-        string: String,
-        project: File? = null,
-    ) = temporaryFolder.cleanupString(string, project)
+    fun cleanupString(string: String) = temporaryFolder.cleanupString(string)
 
     /**
      * Replaces temporary folders that can change from one test run to the next with fixed labels to
@@ -189,13 +186,9 @@ class CustomTemporaryFolder : TemporaryFolder() {
      * Replaces temporary folders that can change from one test run to the next with fixed labels to
      * make it easier to test expectations.
      *
-     * Replaces all the mappings in [temporaryFileToTestLabel] plus an optional one from [project]
-     * to `TESTROOT`.
+     * Replaces all the mappings in [temporaryFileToTestLabel].
      */
-    fun cleanupString(
-        string: String,
-        project: File?,
-    ) = replaceFileWithSymbol(string, temporaryFileToTestLabel, extraTestRoot = project)
+    fun cleanupString(string: String) = replaceFileWithSymbol(string, temporaryFileToTestLabel)
 
     /**
      * Replaces temporary folders that can change from one test run to the next with fixed labels to
@@ -203,7 +196,6 @@ class CustomTemporaryFolder : TemporaryFolder() {
      *
      * Creates a set of mappings consisting of:
      * * All the mappings in [fileToSymbol].
-     * * An optional [extraTestRoot] to `TESTROOT` mapping if needed.
      * * A default mapping from [getRoot] to `TESTROOT`.
      *
      * It then applies those mappings in order from most specific (longest) to least specific
@@ -212,18 +204,12 @@ class CustomTemporaryFolder : TemporaryFolder() {
     internal fun replaceFileWithSymbol(
         string: String,
         fileToSymbol: Map<File, String>,
-        extraTestRoot: File? = null,
     ): String {
         // Create an ordered mappings from longest to shortest. That ensures that the most specific
         // mapping is applied to each file.
         val orderedMappings =
             TreeMap<File, String>(longestFileFirst).apply {
                 putAll(fileToSymbol)
-
-                // Add the extra test root, if provided.
-                if (extraTestRoot != null) {
-                    put(extraTestRoot, "TESTROOT")
-                }
 
                 // Include the default mapping for the root directory.
                 put(root, "TESTROOT")
