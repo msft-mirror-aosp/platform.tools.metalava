@@ -64,12 +64,21 @@ internal class ApiContents(
      */
     // TODO: Switch to visitor iteration
     private fun computeTransitiveClosure(): Set<ClassItem> {
-        // If a class is public or protected, not hidden, not imported and marked as included,
-        // then we can't strip it
+        // Create a list containing all top level classes to avoid a ConcurrentModificationException
+        // when visiting.
         val allTopLevelClasses = codebase.getPackages().allTopLevelClasses().toList()
-        allTopLevelClasses
-            .filter { it.isApiCandidate() && it.emit && !it.hidden() }
-            .forEach { checkClassReferences(it, it, "self") }
+
+        // Iterate over the list of classes.
+        for (classItem in allTopLevelClasses) {
+            // If a class is not public or protected, hidden, or not marked for emitting then it
+            // not part of the API.
+            if (!classItem.isApiCandidate() || !classItem.emit || classItem.hidden()) continue
+
+            // Check the class reference.
+            checkClassReferences(classItem, classItem, "self")
+        }
+
+        // Return the set of classes that were found.
         return notStrippable
     }
 
@@ -123,9 +132,11 @@ internal class ApiContents(
         checkCallableItemReferences(cl.constructors())
 
         // Check nested class references.
-        cl.nestedClasses()
-            .filter { it.isApiCandidate() }
-            .forEach { checkClassReferences(it, cl, "as nested class") }
+        for (nestedClassItem in cl.nestedClasses()) {
+            if (!nestedClassItem.isApiCandidate()) continue
+
+            checkClassReferences(nestedClassItem, cl, "as nested class")
+        }
 
         // Check super type references.
         // TODO: Consider using val superClass = cl.filteredSuperclass(filter)
