@@ -699,9 +699,9 @@ class MultiplatformConstructorItem(
     }
 }
 
-/** A parameter of the [containingCallable], identified by [parameterIndex]. */
+/** A parameter of the [containingItem], identified by [parameterIndex]. */
 class MultiplatformParameterItem(
-    val containingCallable: MultiplatformCallableItem<*>,
+    val containingItem: MultiplatformItem<*>,
     val parameterIndex: Int,
     sourceSetToItem: SourceSetDependent<ParameterItem?>
 ) : MultiplatformItem<ParameterItem>(sourceSetToItem) {
@@ -730,22 +730,21 @@ class MultiplatformParameterItem(
     }
 
     override fun elementId(): String {
-        return "${containingCallable.elementId()} parameter #$parameterIndex"
+        return "${containingItem.elementId()} parameter #$parameterIndex"
     }
 
     override fun toString(): String {
-        return "multiplatform parameter #$parameterIndex of $containingCallable"
+        return "multiplatform parameter #$parameterIndex of $containingItem"
     }
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (other !is MultiplatformParameterItem) return false
-        return containingCallable == other.containingCallable &&
-            parameterIndex == other.parameterIndex
+        return containingItem == other.containingItem && parameterIndex == other.parameterIndex
     }
 
     override fun hashCode(): Int {
-        return Objects.hash(containingCallable, parameterIndex)
+        return Objects.hash(containingItem, parameterIndex)
     }
 }
 
