@@ -41,6 +41,20 @@ internal class ApiContents(
     private val reporter = codebase.reporter
 
     /**
+     * The set of [ClassItem]s that are part of the API.
+     *
+     * Populated by [computeTransitiveClosure].
+     */
+    private val notStrippable = HashSet<ClassItem>(5000)
+
+    /** The filter that determines which [SelectableItem]s are included in the API. */
+    private val filter = FilterPredicate { selectableItem ->
+        ApiPredicate(config = apiPredicateConfig.copy(ignoreShown = true)).test(selectableItem) &&
+            // Don't consider references from elements that only exist in bytecode.
+            selectableItem.targetLanguages != TargetLanguageSet.BYTECODE_ONLY
+    }
+
+    /**
      * Computes the transitive closure of the API surface.
      *
      * Starts with the set of all top level classes that are usable outside the package/module in
@@ -50,30 +64,19 @@ internal class ApiContents(
      */
     // TODO: Switch to visitor iteration
     private fun computeTransitiveClosure(): Set<ClassItem> {
-        val notStrippable = HashSet<ClassItem>(5000)
-
-        val filter = FilterPredicate { selectableItem ->
-            ApiPredicate(config = apiPredicateConfig.copy(ignoreShown = true))
-                .test(selectableItem) &&
-                // Don't consider references from elements that only exist in bytecode.
-                selectableItem.targetLanguages != TargetLanguageSet.BYTECODE_ONLY
-        }
-
         // If a class is public or protected, not hidden, not imported and marked as included,
         // then we can't strip it
         val allTopLevelClasses = codebase.getPackages().allTopLevelClasses().toList()
         allTopLevelClasses
             .filter { it.isApiCandidate() && it.emit && !it.hidden() }
-            .forEach { cantStripThis(it, filter, notStrippable, it, "self") }
+            .forEach { cantStripThis(it, it, "self") }
         return notStrippable
     }
 
     private fun cantStripThis(
         cl: ClassItem,
-        filter: FilterPredicate,
-        notStrippable: MutableSet<ClassItem>,
         from: Item,
-        usage: String
+        usage: String,
     ) {
         if (cl.origin == ClassOrigin.CLASS_PATH) {
             return
@@ -98,24 +101,24 @@ internal class ApiContents(
             if (!filter.test(field)) {
                 continue
             }
-            cantStripThis(field.type(), field, filter, notStrippable, "in field type")
+            cantStripThis(field.type(), field, "in field type")
         }
         // can't strip any of the type's generics
-        cantStripThis(cl.typeParameterList, filter, notStrippable, cl)
+        cantStripThis(cl.typeParameterList, cl)
         // can't strip any of the annotation elements
         // cantStripThis(cl.annotationElements(), notStrippable);
         // take care of methods
-        cantStripThis(cl.methods(), filter, notStrippable)
-        cantStripThis(cl.constructors(), filter, notStrippable)
+        cantStripThis(cl.methods())
+        cantStripThis(cl.constructors())
         // blow the outer class open if this is an inner class
         val containingClass = cl.containingClass()
         if (containingClass != null) {
-            cantStripThis(containingClass, filter, notStrippable, cl, "as containing class")
+            cantStripThis(containingClass, cl, "as containing class")
         }
         // all visible inner classes will be included in stubs
         cl.nestedClasses()
             .filter { it.isApiCandidate() }
-            .forEach { cantStripThis(it, filter, notStrippable, cl, "as nested class") }
+            .forEach { cantStripThis(it, cl, "as nested class") }
         // blow open super class and interfaces
         // TODO: Consider using val superClass = cl.filteredSuperclass(filter)
         val allSuperItems = cl.allInterfaces().toMutableSet()
@@ -162,45 +165,33 @@ internal class ApiContents(
         }
     }
 
-    private fun cantStripThis(
-        callables: List<CallableItem>,
-        filter: FilterPredicate,
-        notStrippable: MutableSet<ClassItem>,
-    ) {
+    private fun cantStripThis(callables: List<CallableItem>) {
         // for each callable, blow open the parameters, throws and return types. also blow open
         // their generics
         for (callable in callables) {
             if (!filter.test(callable)) {
                 continue
             }
-            cantStripThis(callable.typeParameterList, filter, notStrippable, callable)
+            cantStripThis(callable.typeParameterList, callable)
             for (parameter in callable.parameters()) {
-                cantStripThis(
-                    parameter.type(),
-                    parameter,
-                    filter,
-                    notStrippable,
-                    "in parameter type"
-                )
+                cantStripThis(parameter.type(), parameter, "in parameter type")
             }
             for (thrown in callable.throwsTypes()) {
                 if (thrown is VariableTypeItem) continue
                 val classItem = thrown.asErasedClass(codebase) ?: continue
-                cantStripThis(classItem, filter, notStrippable, callable, "as exception")
+                cantStripThis(classItem, callable, "as exception")
             }
-            cantStripThis(callable.returnType(), callable, filter, notStrippable, "in return type")
+            cantStripThis(callable.returnType(), callable, "in return type")
         }
     }
 
     private fun cantStripThis(
         typeParameterList: TypeParameterList,
-        filter: FilterPredicate,
-        notStrippable: MutableSet<ClassItem>,
-        context: Item
+        context: Item,
     ) {
         for (typeParameter in typeParameterList) {
             for (bound in typeParameter.typeBounds()) {
-                cantStripThis(bound, context, filter, notStrippable, "as type parameter")
+                cantStripThis(bound, context, "as type parameter")
             }
         }
     }
@@ -208,15 +199,13 @@ internal class ApiContents(
     private fun cantStripThis(
         type: TypeItem,
         context: Item,
-        filter: FilterPredicate,
-        notStrippable: MutableSet<ClassItem>,
         usage: String,
     ) {
         type.accept(
             object : BaseTypeVisitor() {
                 override fun visitClassType(classType: ClassTypeItem) {
                     val asClass = classType.resolveClass(codebase) ?: return
-                    cantStripThis(asClass, filter, notStrippable, context, usage)
+                    cantStripThis(asClass, context, usage)
                 }
             }
         )
