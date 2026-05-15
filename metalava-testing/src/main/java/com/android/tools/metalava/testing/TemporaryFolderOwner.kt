@@ -121,17 +121,6 @@ interface TemporaryFolderOwner {
      */
     fun cleanupString(string: String) = temporaryFolder.cleanupString(string)
 
-    /**
-     * Replaces temporary folders that can change from one test run to the next with fixed labels to
-     * make it easier to test expectations.
-     *
-     * @see CustomTemporaryFolder.replaceFileWithSymbol
-     */
-    fun replaceFileWithSymbol(
-        string: String,
-        fileToSymbol: Map<File, String> = emptyMap(),
-    ) = temporaryFolder.replaceFileWithSymbol(string, fileToSymbol)
-
     /** Create a [File] from this [TestFile] in the root directory of the [temporaryFolder]. */
     fun TestFile.toFile() = createFile(temporaryFolder.root)
 
