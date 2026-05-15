@@ -786,21 +786,7 @@ class ApiAnalyzer(
 
     // TODO: Switch to visitor iteration
     fun handleStripping() {
-        val notStrippable = HashSet<ClassItem>(5000)
-
-        val filter = FilterPredicate { selectableItem ->
-            ApiPredicate(config = config.apiPredicateConfig.copy(ignoreShown = true))
-                .test(selectableItem) &&
-                // Don't consider references from elements that only exist in bytecode.
-                selectableItem.targetLanguages != TargetLanguageSet.BYTECODE_ONLY
-        }
-
-        // If a class is public or protected, not hidden, not imported and marked as included,
-        // then we can't strip it
-        val allTopLevelClasses = codebase.getPackages().allTopLevelClasses().toList()
-        allTopLevelClasses
-            .filter { it.isApiCandidate() && it.emit && !it.hidden() }
-            .forEach { cantStripThis(it, filter, notStrippable, it, "self") }
+        val notStrippable = computeTransitiveClosure()
 
         // complain about anything that looks includeable but is not supposed to
         // be written, e.g. hidden things
@@ -870,6 +856,33 @@ class ApiAnalyzer(
                 reporter.report(Issues.DEPRECATED, cl, "Class ${cl.qualifiedName()} is deprecated")
             }
         }
+    }
+
+    /**
+     * Computes the transitive closure of the API surface.
+     *
+     * Starts with the set of all top level classes that are usable outside the package/module in
+     * which they are defined, currently marked as emitted and not hidden. It then proceeds to find
+     * any class referenced from those classes, directly or indirectly. Returning the set of all
+     * classes that were visited.
+     */
+    private fun computeTransitiveClosure(): Set<ClassItem> {
+        val notStrippable = HashSet<ClassItem>(5000)
+
+        val filter = FilterPredicate { selectableItem ->
+            ApiPredicate(config = config.apiPredicateConfig.copy(ignoreShown = true))
+                .test(selectableItem) &&
+                // Don't consider references from elements that only exist in bytecode.
+                selectableItem.targetLanguages != TargetLanguageSet.BYTECODE_ONLY
+        }
+
+        // If a class is public or protected, not hidden, not imported and marked as included,
+        // then we can't strip it
+        val allTopLevelClasses = codebase.getPackages().allTopLevelClasses().toList()
+        allTopLevelClasses
+            .filter { it.isApiCandidate() && it.emit && !it.hidden() }
+            .forEach { cantStripThis(it, filter, notStrippable, it, "self") }
+        return notStrippable
     }
 
     private fun cantStripThis(
