@@ -29,7 +29,7 @@ class SourceSetTest : BaseTemporaryFolderOwner() {
     private val reporter = RecordingReporter()
 
     private fun assertAndRemoveReportedIssues(expectedIssues: String) {
-        val issues = cleanupString(reporter.removeIssues())
+        val issues = removeTestSpecificDirectories(reporter.removeIssues())
         assertEquals(expectedIssues.trimIndent(), issues.trimIndent())
     }
 

@@ -60,7 +60,7 @@ open class BaseConfigParserTest : BaseTemporaryFolderOwner() {
             val context = TestContext(config = config)
             if (body != null) context.body()
         } catch (e: Exception) {
-            errors = cleanupString(e.message ?: "")
+            errors = removeTestSpecificDirectories(e.message ?: "")
         }
         assertThat(errors.trimIndent()).isEqualTo(expectedFail.trimIndent())
     }

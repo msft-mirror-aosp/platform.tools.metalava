@@ -251,8 +251,18 @@ class CommandTestConfig<C : CliktCommand>(private val test: BaseCommandTest<C>) 
         exitCode = runCommand(executionEnvironment, command)
 
         // Add checks of the expected stderr and stdout at the head of the list of verifiers.
-        verify(0) { Assert.assertEquals(expectedStderr, test.cleanupString(stderr.toString())) }
-        verify(1) { Assert.assertEquals(expectedStdout, test.cleanupString(stdout.toString())) }
+        verify(0) {
+            Assert.assertEquals(
+                expectedStderr,
+                test.removeTestSpecificDirectories(stderr.toString())
+            )
+        }
+        verify(1) {
+            Assert.assertEquals(
+                expectedStdout,
+                test.removeTestSpecificDirectories(stdout.toString())
+            )
+        }
 
         // Invoke all the verifiers.
         for (verifier in verifiers) {

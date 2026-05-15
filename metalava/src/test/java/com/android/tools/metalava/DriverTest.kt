@@ -187,7 +187,7 @@ abstract class DriverTest :
                     errorCollector.addError(AssertionError(message))
                 }
             } else {
-                val actualFailureMessage = cleanupString(sw.toString()).trim()
+                val actualFailureMessage = removeTestSpecificDirectories(sw.toString()).trim()
                 if (expectedToFail) {
                     if (
                         expectedFailureMessage != null &&
@@ -482,7 +482,7 @@ abstract class DriverTest :
          * Expected fail message and state, if any.
          *
          * If this is set to a non-empty string then this will expect the command to fail with that
-         * exact message (after [cleanupString] is called on it).
+         * exact message (after [removeTestSpecificDirectories] is called on it).
          *
          * This only needs to be set by tests that actually care about the failure message that is
          * output. Otherwise, leaving this unset will not check the failure message.
@@ -730,7 +730,7 @@ abstract class DriverTest :
                 override val rootFolder = projectDir
 
                 override fun printReport(message: String, severity: Severity) {
-                    val cleanedUpMessage = cleanupString(message).trim()
+                    val cleanedUpMessage = removeTestSpecificDirectories(message).trim()
                     if (severity == Severity.ERROR) {
                         errorSeverityReportedIssues.append(cleanedUpMessage).append('\n')
                     }
@@ -1689,7 +1689,7 @@ abstract class DriverTest :
                 }
             } catch (e: JavacCompilationError) {
                 // Process the output to remove any test specific paths.
-                val output = cleanupString(e.output.trim())
+                val output = removeTestSpecificDirectories(e.output.trim())
                 assertEquals("$label compilation failure", expectedFailure.trimIndent(), output)
             } finally {
                 // Delete the additional directory.

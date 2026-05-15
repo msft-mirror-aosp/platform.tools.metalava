@@ -119,7 +119,7 @@ interface TemporaryFolderOwner {
      *
      * @see CustomTemporaryFolder.cleanupString
      */
-    fun cleanupString(string: String) = temporaryFolder.cleanupString(string)
+    fun removeTestSpecificDirectories(string: String) = temporaryFolder.cleanupString(string)
 
     /** Create a [File] from this [TestFile] in the root directory of the [temporaryFolder]. */
     fun TestFile.toFile() = createFile(temporaryFolder.root)
@@ -137,7 +137,7 @@ open class BaseTemporaryFolderOwner : TemporaryFolderOwner {
 
 /**
  * Custom extension of [TemporaryFolder] that keeps track of mappings from temporary files to a
- * label that is used in [TemporaryFolderOwner.cleanupString].
+ * label that is used in [TemporaryFolderOwner.removeTestSpecificDirectories].
  */
 class CustomTemporaryFolder : TemporaryFolder() {
     /** Map from file to label to use in test expectations. */

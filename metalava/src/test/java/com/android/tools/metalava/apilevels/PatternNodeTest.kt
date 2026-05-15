@@ -35,7 +35,7 @@ class PatternNodeTest : BaseTemporaryFolderOwner() {
     /** Assert that the [MatchedPatternFile]s */
     private fun List<MatchedPatternFile>.assertMatchedPatternFiles(expected: String) {
         val actual = joinToString("\n")
-        val cleaned = cleanupString(actual)
+        val cleaned = removeTestSpecificDirectories(actual)
         assertEquals(expected.trimIndent(), cleaned)
     }
 

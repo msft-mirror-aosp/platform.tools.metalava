@@ -159,9 +159,6 @@ abstract class BaseModelTest :
         /** The [InputSet] from which [codebase] was created. */
         val inputSet: InputSet
 
-        /** Replace any test run specific directories in [string] with a placeholder string. */
-        fun removeTestSpecificDirectories(string: String): String
-
         /**
          * Remove any reported issues and returns them with any test specific directories replaced
          * with fixed symbols.
@@ -187,8 +184,6 @@ abstract class BaseModelTest :
     ) : CodebaseContext {
 
         override val inputFormat = inputSet.inputFormat
-
-        override fun removeTestSpecificDirectories(string: String) = cleanupString(string)
 
         override fun removeReportedIssues() =
             removeTestSpecificDirectories(recordingReporter.removeIssues())
