@@ -72,7 +72,7 @@ internal class ApiContents(
         for (classItem in allTopLevelClasses) {
             // If a class is not public or protected, hidden, or not marked for emitting then it
             // not part of the API.
-            if (!classItem.isApiCandidate() || !classItem.emit || classItem.hidden()) continue
+            if (!classItem.isApiCandidate() || !classItem.emit) continue
 
             // Check the class reference.
             checkClassReferences(classItem)
