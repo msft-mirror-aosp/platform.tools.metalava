@@ -1155,7 +1155,7 @@ class FlaggedApiLintTest : DriverTest() {
                 """
                     // Signature format: 5.0
                     package android.pkg {
-                      @androidx.annotation.RestrictedForEnvironment(environments=android.annotation.RestrictedForEnvironment.ENVIRONMENT_SDK_RUNTIME, from=34) public final class Foo {
+                      @androidx.annotation.RestrictedForEnvironment(environments="SDK Runtime", from=34) public final class Foo {
                         ctor public Foo();
                       }
                     }
@@ -1164,7 +1164,7 @@ class FlaggedApiLintTest : DriverTest() {
                 """
                 // Signature format: 5.0
                 package android.pkg {
-                  @RestrictedForEnvironment(environments=android.annotation.RestrictedForEnvironment.ENVIRONMENT_SDK_RUNTIME, from=34) public final class Foo {
+                  @RestrictedForEnvironment(environments="SDK Runtime", from=34) public final class Foo {
                     ctor public Foo();
                   }
                 }

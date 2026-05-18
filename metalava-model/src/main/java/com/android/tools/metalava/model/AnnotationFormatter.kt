@@ -128,7 +128,7 @@ sealed interface AnnotationFormatter {
     }
 
     /** An [AnnotationFormatter] used when normalizing annotations e.g. for comparisons */
-    private class NormalizingFormatter() : AnnotationFormatter {
+    private class NormalizingFormatter : AnnotationFormatter {
         /** The default [ValueStringConfiguration] for normalization */
         private val defaultConfiguration =
             ValueStringConfiguration(
@@ -145,15 +145,9 @@ sealed interface AnnotationFormatter {
             purpose: AnnotationPurpose,
             context: Item?
         ) {
-            var configuration = defaultConfiguration
-            // b/483372828 - attribute values are loaded inconsistently for RestrictedForEnvironment
-            // so they will be ignored for now.
-            if (annotationItem.qualifiedName.contains("RestrictedForEnvironment")) {
-                configuration = configuration.copy(inlineFieldReferenceChecker = null)
-            }
             annotationItem.appendAnnotationStringTo(
                 builder,
-                configuration,
+                defaultConfiguration,
                 purpose,
             )
         }

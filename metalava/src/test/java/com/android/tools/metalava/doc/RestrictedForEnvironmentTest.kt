@@ -55,7 +55,7 @@ class RestrictedForEnvironmentTest : DriverTest() {
             expectedApiSignature =
                 """
                     package test.pkg {
-                      @RestrictedForEnvironment(environments=$packageName.RestrictedForEnvironment.ENVIRONMENT_SDK_RUNTIME, from=14) public class MyClass1 {
+                      @RestrictedForEnvironment(environments="SDK Runtime", from=14) public class MyClass1 {
                         ctor public MyClass1();
                       }
                     }
