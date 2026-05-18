@@ -22,9 +22,8 @@ import com.android.tools.metalava.model.Item
  * The types of API variants.
  *
  * Each of these refers to a different variant of the API, where each variant has a unique set of
- * criteria that determines which [Item]s in the API are part of the variant. e.g. [DOCUMENTATION]
- * will be set for any [Item] that contributes to the documentation. An [Item] with `@doconly`
- * specified will only include this variant type. The intent is that every traversal of the API,
+ * criteria that determines which [Item]s in the API are part of the variant. e.g. [DOC_ONLY] only
+ * includes [Item]s that have `@doconly` specified. The intent is that every traversal of the API,
  * e.g. when generating output files, will just specify the set of variants that it needs to visit.
  *
  * e.g. When generating the public API it will visit [CORE] in [ApiSurfaces.main] and there will be
@@ -41,8 +40,8 @@ import com.android.tools.metalava.model.Item
  * generating the system stubs (which have to include the public stubs) it will visit [CORE] in both
  * [ApiSurfaces.main] and [ApiSurfaces.base].
  *
- * When generating documentation stubs it will visit the same set as for stubs plus [DOCUMENTATION]
- * for each of the [ApiSurface]s.
+ * When generating documentation stubs it will visit the same set as for stubs plus [DOC_ONLY] for
+ * each of the [ApiSurface]s.
  */
 enum class ApiVariantType(
     /**
@@ -57,6 +56,6 @@ enum class ApiVariantType(
     /** The removed API items. */
     REMOVED(shortCode = 'R'),
 
-    /** Documentation items. */
-    DOCUMENTATION(shortCode = 'D'),
+    /** Doc stub only items. */
+    DOC_ONLY(shortCode = 'D'),
 }
