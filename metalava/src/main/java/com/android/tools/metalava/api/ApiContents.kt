@@ -70,10 +70,6 @@ internal class ApiContents(
 
         // Iterate over the list of classes.
         for (classItem in allTopLevelClasses) {
-            // If a class is not public or protected, hidden, or not marked for emitting then it
-            // not part of the API.
-            if (!classItem.isApiCandidate() || !classItem.emit) continue
-
             // Check the class reference.
             checkClassReferences(classItem)
         }
@@ -88,6 +84,10 @@ internal class ApiContents(
      * This is called both for top-level classes and nested classes.
      */
     private fun checkClassReferences(cls: ClassItem) {
+        // If a class is not public or protected, hidden, or not marked for emitting then it
+        // not part of the API.
+        if (!cls.isApiCandidate() || !cls.emit) return
+
         val containingClass = cls.containingClass()
         if (containingClass == null) {
             checkClassReferences(cls, cls, "self")
@@ -147,8 +147,7 @@ internal class ApiContents(
 
         // Check nested class references.
         for (nestedClassItem in cl.nestedClasses()) {
-            if (!nestedClassItem.isApiCandidate()) continue
-
+            // Check the class reference.
             checkClassReferences(nestedClassItem)
         }
 
