@@ -223,7 +223,7 @@ class LegacyValueFormatter(
 
                     // The field should be inlined only when it is hidden or removed.
                     InlineFieldValue.WHEN_HIDDEN_OR_REMOVED ->
-                        if (field.resolve()?.isUninheritedHiddenOrRemoved() != true) field
+                        if (field.resolve()?.isHiddenOrRemoved() != true) field
                         else field.asLiteralValue()
                 }
             } ?: value
@@ -246,16 +246,7 @@ class LegacyValueFormatter(
     }
 
     /** True if this [FieldItem] is not-null, is not hidden or removed and is public. */
-    private fun FieldItem?.isAccessible() =
-        this != null && !isUninheritedHiddenOrRemoved() && isPublic
-
-    /**
-     * A legacy version of [SelectableItem.isHiddenOrRemoved] that does not check to see whether the
-     * enclosing parent is hidden.
-     *
-     * TODO(b/300211291): Replace with isHiddenOrRemoved()
-     */
-    internal fun FieldItem.isUninheritedHiddenOrRemoved() = hidden || removed
+    private fun FieldItem?.isAccessible() = this != null && !isHiddenOrRemoved() && isPublic
 
     /** Format the [annotationItem] name for [target] for [purpose]. */
     private fun formatAnnotationClassName(
