@@ -876,7 +876,12 @@ private constructor(
     private fun isEqualsMethod(method: MethodItem): Boolean {
         return method.name() == "equals" &&
             method.parameters().size == 1 &&
-            method.parameters()[0].type().isJavaLangObject() &&
+            (method.parameters()[0].type().isJavaLangObject() ||
+                // For a Kotlin-version of the equals method (which will be used in a multiplatform
+                // codebase, the parameter type will `Any`, which maps to `Object` for JVM.
+                (method.targetLanguages == TargetLanguageSet.KOTLIN_ONLY &&
+                    (method.parameters()[0].type() as? ClassTypeItem)?.qualifiedName ==
+                        "kotlin.Any")) &&
             !method.modifiers.isStatic()
     }
 
