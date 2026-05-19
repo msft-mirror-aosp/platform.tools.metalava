@@ -22,6 +22,10 @@ import com.android.tools.metalava.cli.common.ARG_HIDE
 import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.testing.RequiresCapabilities
 import com.android.tools.metalava.testing.KnownSourceFiles
+import com.android.tools.metalava.testing.createAndroidModuleDescription
+import com.android.tools.metalava.testing.createCommonModuleDescription
+import com.android.tools.metalava.testing.createNativeModuleDescription
+import com.android.tools.metalava.testing.createProjectDescription
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
 import org.junit.Test
@@ -1135,6 +1139,60 @@ class KotlinInteropChecksTest : DriverTest() {
                         "fKX5h6f8V9SPt0PyJ9Rp+v/H33/l/pglwZ+4VEz/fNN+pf2YF76faP3Mf8wz" +
                         "0pCW7ttvdIfz9eFxZFi+ff0Lt3GMRggOAAA="
                 )
+        )
+    }
+
+    @RequiresCapabilities(Capability.MULTIPLATFORM)
+    @Test
+    fun `Check interop checks for a multiplatform codebase`() {
+        val commonSource =
+            kotlin(
+                "commonMain/src/test/pkg/Common.kt",
+                """
+                package test.pkg
+                class Common {
+                    fun common(s: String = "", i: Int = 0) = Unit
+                }
+                """
+            )
+        val androidSource =
+            kotlin(
+                "androidMain/src/test/pkg/Android.kt",
+                """
+                package test.pkg
+                class Android {
+                    fun android(s: String = "", i: Int = 0) = Unit
+                }
+                """
+            )
+        val nativeSource =
+            kotlin(
+                "nativeMain/src/test/pkg/Native.kt",
+                """
+                package test.pkg
+                class Native {
+                    fun native(s: String = "", i: Int = 0) = Unit
+                }
+                """
+            )
+        check(
+            sourceFiles = arrayOf(commonSource, androidSource, nativeSource),
+            projectDescription =
+                createProjectDescription(
+                    createCommonModuleDescription(arrayOf(commonSource)),
+                    createAndroidModuleDescription(arrayOf(androidSource)),
+                    createNativeModuleDescription(arrayOf(nativeSource))
+                ),
+            apiLint = "",
+            enableMultiplatform = true,
+            // Interop issues should only be reported for source sets included in the android/jvm
+            // compilation (here commonMain and androidMain), which can be used by Java clients.
+            expectedIssues =
+                """
+                androidMain/src/test/pkg/Android.kt:3: warning: A Kotlin method with default parameter values should be annotated with @JvmOverloads for better Java interoperability; see https://android.github.io/kotlin-guides/interop.html#function-overloads-for-defaults [MissingJvmstatic]
+                commonMain/src/test/pkg/Common.kt:3: warning: A Kotlin method with default parameter values should be annotated with @JvmOverloads for better Java interoperability; see https://android.github.io/kotlin-guides/interop.html#function-overloads-for-defaults [MissingJvmstatic]
+                nativeMain/src/test/pkg/Native.kt:3: warning: A Kotlin method with default parameter values should be annotated with @JvmOverloads for better Java interoperability; see https://android.github.io/kotlin-guides/interop.html#function-overloads-for-defaults [MissingJvmstatic]
+                """,
         )
     }
 }
