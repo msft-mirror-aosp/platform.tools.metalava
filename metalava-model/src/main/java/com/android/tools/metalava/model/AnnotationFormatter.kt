@@ -92,8 +92,16 @@ sealed interface AnnotationFormatter {
                 annotationAttributeNameValueSeparator =
                     AnnotationAttributeNameValueSeparator.WITHOUT_SPACES,
                 annotationQualifiedNameGetter = { annotationItem, _ ->
+                    // @RequiresFlag replaces all occurrences of @FlaggedApi in stub files
+                    val qualifiedName =
+                        if (
+                            annotationItem.qualifiedName == ANDROID_FLAGGED_API &&
+                                target == AnnotationTarget.SDK_STUBS_FILE
+                        )
+                            ANDROID_REQUIRES_FLAG
+                        else annotationItem.qualifiedName
                     annotationItem.annotationContext.annotationManager.normalizeOutputName(
-                        annotationItem.qualifiedName,
+                        qualifiedName,
                         target
                     )
                 },

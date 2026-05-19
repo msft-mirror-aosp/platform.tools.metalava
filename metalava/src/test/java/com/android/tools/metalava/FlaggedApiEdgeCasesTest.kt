@@ -18,6 +18,7 @@ package com.android.tools.metalava
 
 import com.android.tools.metalava.cli.common.ARG_STUB_PACKAGES
 import com.android.tools.metalava.model.ANDROID_FLAGGED_API
+import com.android.tools.metalava.model.ANDROID_REQUIRES_FLAG
 import com.android.tools.metalava.model.ANDROID_SYSTEM_API
 import com.android.tools.metalava.model.FlaggedApiInheritance
 import com.android.tools.metalava.model.text.CustomizableProperty.Companion.FLAGGED_API_INHERITANCE
@@ -29,6 +30,40 @@ import org.junit.Test
  * Edge case tests of [ANDROID_FLAGGED_API] that cannot be tested in [ParameterizedFlaggedApiTest].
  */
 class FlaggedApiEdgeCasesTest : DriverTest() {
+    @Test
+    fun `Test FlaggedApi annotation is replaced by RequiresFlag annotation in stubs`() {
+        check(
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+
+                            public class Test {
+                                @$ANDROID_FLAGGED_API("flag.name")
+                                public void method();
+                            }
+                        """
+                    ),
+                    flaggedApiSource
+                ),
+            expectedStubFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            @SuppressWarnings({"unchecked", "deprecation", "all"})
+                            public class Test {
+                            public Test() { throw new RuntimeException("Stub!"); }
+                            @$ANDROID_REQUIRES_FLAG("flag.name")
+                            public void method() { throw new RuntimeException("Stub!"); }
+                            }
+                        """
+                    )
+                ),
+        )
+    }
+
     @Test
     fun `Test override flagged method from source path no previously released API`() {
         check(
@@ -339,12 +374,12 @@ class FlaggedApiEdgeCasesTest : DriverTest() {
                         """
                             package test.pkg;
                             @SuppressWarnings({"unchecked", "deprecation", "all"})
-                            @android.annotation.FlaggedApi("flag.name1")
+                            @$ANDROID_REQUIRES_FLAG("flag.name1")
                             public class Test {
                             Test() { throw new RuntimeException("Stub!"); }
                             public static final java.lang.String FLAG_NAME1 = "flag.name1";
                             public static final java.lang.String FLAG_NAME2 = "flag.name2";
-                            @android.annotation.FlaggedApi("flag.name2")
+                            @$ANDROID_REQUIRES_FLAG("flag.name2")
                             public class FlaggedNested {
                             FlaggedNested() { throw new RuntimeException("Stub!"); }
                             public class FlaggedNestedTwice {
