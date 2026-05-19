@@ -1902,9 +1902,6 @@ private fun restrictedForEnvironmentClass(packageName: String): TestFile =
             public @interface RestrictedForEnvironment {
               @Environment String[] environments();
               int from();
-              /**
-               * @hide Explicitly hide this to work around bug/300211291 in Metalava
-               */
               String ENVIRONMENT_SDK_RUNTIME = "SDK Runtime";
               /** @hide */
               @StringDef(prefix = "ENVIRONMENT_", value = {
