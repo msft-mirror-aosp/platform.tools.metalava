@@ -64,6 +64,7 @@ class StringPolicyAnnotationHandlerTest : DriverTest() {
                                 emptyStringAllowed = true,
                                 unprintableCharactersAllowed = true,
                                 pureWhitespaceAllowed = true,
+                                unstrippedStringAllowed = true,
                                 maxLength = 100
                             )
                             public static final String POLICY_FIELD = "";
@@ -108,6 +109,7 @@ class StringPolicyAnnotationHandlerTest : DriverTest() {
                          *   <li>Empty string: Allowed</li>
                          *   <li>Unprintable characters: Allowed</li>
                          *   <li>Pure whitespace: Allowed</li>
+                         *   <li>Unstripped string: Allowed</li>
                          *   <li>Max Length: 100</li>
                          * </ul>
                          */

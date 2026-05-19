@@ -155,6 +155,7 @@ object PolicyDefinitionAnnotationTestFiles {
                 boolean emptyStringAllowed() default false;
                 boolean unprintableCharactersAllowed() default false;
                 boolean pureWhitespaceAllowed() default false;
+                boolean unstrippedStringAllowed() default false;
                 ListResolutionMechanism resolutionMechanism();
             }
 
@@ -164,6 +165,7 @@ object PolicyDefinitionAnnotationTestFiles {
                 boolean emptyStringAllowed() default false;
                 boolean unprintableCharactersAllowed() default false;
                 boolean pureWhitespaceAllowed() default false;
+                boolean unstrippedStringAllowed() default false;
                 int maxLength() default Integer.MAX_VALUE;
             }
 

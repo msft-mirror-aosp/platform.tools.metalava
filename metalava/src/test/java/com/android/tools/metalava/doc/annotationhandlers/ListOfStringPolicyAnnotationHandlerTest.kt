@@ -67,6 +67,7 @@ class ListOfStringPolicyAnnotationHandlerTest : DriverTest() {
                                 emptyStringAllowed = true,
                                 unprintableCharactersAllowed = true,
                                 pureWhitespaceAllowed = true,
+                                unstrippedStringAllowed = true,
                                 resolutionMechanism = @ListResolutionMechanism(custom = true)
                             )
                             public static final String POLICY_FIELD = "";
@@ -113,6 +114,7 @@ class ListOfStringPolicyAnnotationHandlerTest : DriverTest() {
                          *   <li>Empty string: Allowed</li>
                          *   <li>Unprintable characters: Allowed</li>
                          *   <li>Pure whitespace: Allowed</li>
+                         *   <li>Unstripped string: Allowed</li>
                          * </ul>
                          */
                         public static final java.lang.String POLICY_FIELD = "";
@@ -196,6 +198,7 @@ class ListOfStringPolicyAnnotationHandlerTest : DriverTest() {
                          *   <li>Empty string: Not allowed</li>
                          *   <li>Unprintable characters: Not allowed</li>
                          *   <li>Pure whitespace: Not allowed</li>
+                         *   <li>Unstripped string: Not allowed</li>
                          * </ul>
                          */
                         public static final java.lang.String POLICY_FIELD = "";
