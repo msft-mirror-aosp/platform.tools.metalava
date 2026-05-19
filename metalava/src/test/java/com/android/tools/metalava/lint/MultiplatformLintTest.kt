@@ -886,4 +886,45 @@ class MultiplatformLintTest : DriverTest() {
             expectedIssues = null,
         )
     }
+
+    @Test
+    fun `Check equals and hashCode definitions`() {
+        checkLint(
+            commonSource =
+                arrayOf(
+                    kotlin(
+                        "commonMain/src/test/pkg/Foo.kt",
+                        """
+                        package test.pkg
+                        expect class Foo
+                        """
+                    )
+                ),
+            androidSource =
+                arrayOf(
+                    kotlin(
+                        "androidMain/src/test/pkg/Foo_android.kt",
+                        """
+                        package test.pkg
+                        actual class Foo
+                        """
+                    )
+                ),
+            nativeSource =
+                arrayOf(
+                    kotlin(
+                        "nativeMain/src/test/pkg/Foo_native.kt",
+                        """
+                        package test.pkg
+                        actual class Foo {
+                            override fun equals(other: Any?): Boolean = true
+                            override fun hashCode(): Int = 0
+                        }
+                        """
+                    )
+                ),
+            expectedIssues =
+                "nativeMain/src/test/pkg/Foo_native.kt:4: warning: Must override both equals and hashCode; missing one in test.pkg.Foo (ErrorWhenNew) [EqualsAndHashCode]",
+        )
+    }
 }
