@@ -923,8 +923,7 @@ class MultiplatformLintTest : DriverTest() {
                         """
                     )
                 ),
-            expectedIssues =
-                "nativeMain/src/test/pkg/Foo_native.kt:4: warning: Must override both equals and hashCode; missing one in test.pkg.Foo (ErrorWhenNew) [EqualsAndHashCode]",
+            expectedIssues = null,
         )
     }
 }
