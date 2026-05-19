@@ -1,7 +1,7 @@
 [versions]
 kotlin = "2.2.0"
 androidLint = "32.2.0-alpha02"
-tracing = "2.0.0-alpha06"
+tracing = "2.0.0-alpha08"
 
 [libraries]
 androidGradlePlugin = { module = "com.android.tools.build:gradle", version = "9.2.0-alpha02" }
