@@ -1191,7 +1191,6 @@ class KotlinInteropChecksTest : DriverTest() {
                 """
                 androidMain/src/test/pkg/Android.kt:3: warning: A Kotlin method with default parameter values should be annotated with @JvmOverloads for better Java interoperability; see https://android.github.io/kotlin-guides/interop.html#function-overloads-for-defaults [MissingJvmstatic]
                 commonMain/src/test/pkg/Common.kt:3: warning: A Kotlin method with default parameter values should be annotated with @JvmOverloads for better Java interoperability; see https://android.github.io/kotlin-guides/interop.html#function-overloads-for-defaults [MissingJvmstatic]
-                nativeMain/src/test/pkg/Native.kt:3: warning: A Kotlin method with default parameter values should be annotated with @JvmOverloads for better Java interoperability; see https://android.github.io/kotlin-guides/interop.html#function-overloads-for-defaults [MissingJvmstatic]
                 """,
         )
     }
