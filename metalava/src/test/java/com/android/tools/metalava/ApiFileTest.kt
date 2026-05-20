@@ -6295,6 +6295,7 @@ class ApiFileTest : DriverTest() {
     @Test
     fun `Partial signature files include affected subclass definitions in complex class hierarchy`() {
         check(
+            apiSurface = KnownApiSurface.TEST,
             format = FileFormat.V2,
             sourceFiles =
                 arrayOf(
@@ -6312,7 +6313,6 @@ class ApiFileTest : DriverTest() {
 
                         import android.annotation.SystemApi;
 
-                        /** @hide */
                         @SystemApi
                         public class SystemSubClass extends SomePublicClass {
                         }
@@ -6324,7 +6324,6 @@ class ApiFileTest : DriverTest() {
 
                         import android.annotation.TestApi;
 
-                        /** @hide */
                         @TestApi
                         public class TestSubClass extends SystemSubClass {
                         }
@@ -6336,7 +6335,6 @@ class ApiFileTest : DriverTest() {
 
                         import android.annotation.SystemApi;
 
-                        /** @hide */
                         @SystemApi
                         public class AnotherSystemSubClass extends TestSubClass {
                         }
@@ -6348,7 +6346,6 @@ class ApiFileTest : DriverTest() {
 
                         import android.annotation.TestApi;
 
-                        /** @hide */
                         @TestApi
                         public class AnotherTestSubClass extends AnotherSystemSubClass {
                         }
@@ -6379,13 +6376,6 @@ class ApiFileTest : DriverTest() {
                   }
                 }
             """,
-            extraArguments =
-                arrayOf(
-                    ARG_SHOW_ANNOTATION,
-                    "android.annotation.TestApi",
-                    ARG_SHOW_FOR_STUB_PURPOSES_ANNOTATION,
-                    "android.annotation.SystemApi",
-                )
         )
     }
 
