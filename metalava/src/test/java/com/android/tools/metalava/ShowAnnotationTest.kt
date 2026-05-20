@@ -838,7 +838,7 @@ class ShowAnnotationTest : DriverTest() {
     }
 
     @Test
-    fun `Mixing for stubs only and single show annotations`() {
+    fun `Mixing recursive and non-recursive annotations`() {
         check(
             sourceFiles =
                 arrayOf(
@@ -869,9 +869,9 @@ class ShowAnnotationTest : DriverTest() {
                 ),
             extraArguments =
                 arrayOf(
-                    ARG_SHOW_SINGLE_ANNOTATION,
-                    "android.annotation.SystemApi",
                     ARG_SHOW_FOR_STUB_PURPOSES_ANNOTATION,
+                    "android.annotation.SystemApi",
+                    ARG_SHOW_SINGLE_ANNOTATION,
                     "android.annotation.TestApi",
                 ),
             expectedApiSignature =
