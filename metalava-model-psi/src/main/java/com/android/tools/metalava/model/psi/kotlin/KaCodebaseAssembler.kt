@@ -535,7 +535,7 @@ private constructor(
             itemFactory.createClassItem(
                 fileLocation = PsiFileLocation.fromPsiElement(classifierSymbol.psi),
                 targetLanguages = TargetLanguageSet.KOTLIN_ONLY,
-                modifiers = kaModifierFactory.createForClass(classifierSymbol),
+                modifiers = kaModifierFactory.createForClass(classifierSymbol, containingClass),
                 source = null,
                 classKind = classifierSymbol.getClassKind(),
                 containingClass = containingClass,
