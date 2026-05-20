@@ -70,7 +70,7 @@ class RestrictedForEnvironmentTest : DriverTest() {
                             <root>
                               <item name="test.pkg.MyClass1">
                                 <annotation name="androidx.annotation.RestrictedForEnvironment">
-                                  <val name="environments" val="&quot;SDK Runtime&quot;" />
+                                  <val name="environments" val="{&quot;SDK Runtime&quot;}" />
                                   <val name="from" val="14" />
                                 </annotation>
                               </item>
@@ -163,11 +163,11 @@ class RestrictedForEnvironmentTest : DriverTest() {
                             <root>
                               <item name="test.pkg.MyClass1">
                                 <annotation name="androidx.annotation.RestrictedForEnvironment">
-                                  <val name="environments" val="&quot;SDK Runtime&quot;" />
+                                  <val name="environments" val="{&quot;SDK Runtime&quot;}" />
                                   <val name="from" val="14" />
                                 </annotation>
                                 <annotation name="androidx.annotation.RestrictedForEnvironment">
-                                  <val name="environments" val="&quot;SDK Runtime&quot;" />
+                                  <val name="environments" val="{&quot;SDK Runtime&quot;}" />
                                   <val name="from" val="16" />
                                 </annotation>
                               </item>

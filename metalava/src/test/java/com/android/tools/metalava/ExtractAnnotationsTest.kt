@@ -899,14 +899,12 @@ class ExtractAnnotationsTest : DriverTest() {
             extractAnnotations =
                 mapOf(
                     "test.pkg" to
-                        // TODO(b/514939076): Unwraps the single value which causes problems with
-                        //   lint.
                         """
                             <?xml version="1.0" encoding="UTF-8"?>
                             <root>
                               <item name="test.pkg.IntDefTest void setValue(int) 0">
                                 <annotation name="androidx.annotation.IntDef">
-                                  <val name="value" val="test.pkg.IntDefTest.SINGLE_VALUE" />
+                                  <val name="value" val="{test.pkg.IntDefTest.SINGLE_VALUE}" />
                                 </annotation>
                               </item>
                             </root>

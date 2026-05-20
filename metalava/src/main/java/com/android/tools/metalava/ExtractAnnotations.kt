@@ -487,7 +487,7 @@ class ExtractAnnotations(
          */
         private val EXTRACT_VALUE_STRING_CONFIGURATION =
             ValueStringConfiguration(
-                singleArrayElementFormat = SingleArrayElementFormat.UNWRAP,
+                singleArrayElementFormat = SingleArrayElementFormat.WRAP,
             )
     }
 }
