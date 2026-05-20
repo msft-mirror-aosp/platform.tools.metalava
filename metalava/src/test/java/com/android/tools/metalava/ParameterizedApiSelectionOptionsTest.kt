@@ -464,16 +464,11 @@ class ParameterizedApiSelectionOptionsTest :
     }
 
     @Test
-    fun `Test configuring api surface rules - single other`() {
+    fun `Test configuring api surface rules - non-recursive`() {
         checkApiSurfaceSelectorState(
             surface = "system",
-            ruleOptions =
-                listOf(
-                    ARG_HIDE_ANNOTATION,
-                    "android.annotation.Hide",
-                    ARG_SHOW_SINGLE_ANNOTATION,
-                    "android.annotation.SystemApi(client=android.annotation.SystemApi.Client.PRIVILEGED_APPS)",
-                ),
+            // Is not supported using command line options.
+            ruleOptions = null,
             apiSurfacesConfigWithRules =
                 ApiSurfacesConfig(
                     apiSurfaceList =
@@ -526,18 +521,8 @@ class ParameterizedApiSelectionOptionsTest :
                     )
                 """,
             expectedShowUnannotated = false,
-            expectedOptionSurfaceRules =
-                """
-                    ApiSurfaceRules(
-                        base -> {
-                            SelectUnannotated
-                            SelectAnnotated(annotationPattern=android.annotation.Hide, effect=HIDE, recursive=true)
-                        }
-                        main -> {
-                            SelectAnnotated(annotationPattern=android.annotation.SystemApi(client=android.annotation.SystemApi.Client.PRIVILEGED_APPS), effect=SHOW, recursive=false)
-                        }
-                    )
-                """,
+            // Is not supported using command line options.
+            expectedOptionSurfaceRules = null,
             expectedConfigSurfaceRules =
                 """
                     ApiSurfaceRules(
