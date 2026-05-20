@@ -2190,13 +2190,17 @@ val TYPE_USE_FORMAT =
  *
  * @param surface the name of the surface, adding as [ARG_API_SURFACE].
  * @param configFile the config file that will define [surface].
- * @param commandLineOptions the command line options that are equivalent to [surface].
+ * @param optionalCommandLineOptions the command line options that are equivalent to [surface].
  */
 data class KnownApiSurface(
     val surface: String,
     val configFile: TestFile,
-    val commandLineOptions: List<String> = emptyList(),
+    val optionalCommandLineOptions: List<String>? = null,
 ) {
+    val commandLineOptions: List<String>
+        get() =
+            optionalCommandLineOptions ?: error("$surface does not provide command line options")
+
     companion object {
         /** The public API as used by Android. */
         val PUBLIC =
@@ -2224,11 +2228,6 @@ data class KnownApiSurface(
             KnownApiSurface(
                 "system-with-public",
                 KnownConfigFiles.configSystemWithPublicSurface,
-                listOf(
-                    ARG_SHOW_UNANNOTATED,
-                    ARG_SHOW_ANNOTATION,
-                    "android.annotation.SystemApi(client=android.annotation.SystemApi.Client.PRIVILEGED_APPS)",
-                ),
             )
 
         /** The module-lib API as used by Android. */
@@ -2236,12 +2235,6 @@ data class KnownApiSurface(
             KnownApiSurface(
                 "module-lib",
                 KnownConfigFiles.configKnownTestSurfaces,
-                listOf(
-                    ARG_SHOW_FOR_STUB_PURPOSES_ANNOTATION,
-                    "android.annotation.SystemApi(client=android.annotation.SystemApi.Client.PRIVILEGED_APPS)",
-                    ARG_SHOW_ANNOTATION,
-                    "android.annotation.SystemApi(client=android.annotation.SystemApi.Client.MODULE_LIBRARIES)",
-                ),
             )
 
         /** The test API as used by Android. */
@@ -2249,12 +2242,6 @@ data class KnownApiSurface(
             KnownApiSurface(
                 "test",
                 KnownConfigFiles.configKnownTestSurfaces,
-                listOf(
-                    ARG_SHOW_FOR_STUB_PURPOSES_ANNOTATION,
-                    "android.annotation.SystemApi(client=android.annotation.SystemApi.Client.PRIVILEGED_APPS)",
-                    ARG_SHOW_ANNOTATION,
-                    "android.annotation.TestApi",
-                ),
             )
     }
 }
