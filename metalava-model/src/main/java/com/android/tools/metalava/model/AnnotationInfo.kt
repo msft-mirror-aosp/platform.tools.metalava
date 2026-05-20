@@ -17,6 +17,7 @@
 package com.android.tools.metalava.model
 
 import com.android.tools.metalava.model.annotation.AnnotationClass
+import com.android.tools.metalava.model.api.SurfaceAnnotationData
 import com.android.tools.metalava.model.api.flags.ApiFlag
 import com.android.tools.metalava.model.api.flags.ApiFlags
 
@@ -39,6 +40,12 @@ interface AnnotationInfo {
      * determines whether it is nullable or non-null.
      */
     val typeNullability: TypeNullability?
+
+    /**
+     * The [SurfaceAnnotationData] associated with this annotation, `null` if it is not a surface
+     * annotation.
+     */
+    val surfaceData: SurfaceAnnotationData?
 
     /**
      * Determines whether this annotation affects whether the annotated item is shown or hidden and
