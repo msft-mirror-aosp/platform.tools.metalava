@@ -20,7 +20,9 @@ package com.android.tools.metalava
 
 import com.android.tools.lint.checks.infrastructure.TestFile
 import com.android.tools.lint.checks.infrastructure.TestFiles
+import com.android.tools.metalava.model.ANDROID_HIDE
 import com.android.tools.metalava.model.text.FileFormat
+import com.android.tools.metalava.testing.KnownSourceFiles
 import com.android.tools.metalava.testing.java
 import org.junit.Test
 
@@ -37,7 +39,7 @@ class CoreApiTest : DriverTest() {
                       /**
                        * Hide everything in this package:
                        */
-                      @libcore.api.LibCoreHidden
+                      @android.annotation.Hide
                       package test.pkg;
                       """
                         )
@@ -59,7 +61,7 @@ class CoreApiTest : DriverTest() {
                     /**
                      * Included because it is annotated with a --show-single-annotation
                      */
-                    @libcore.api.LibCoreHidden
+                    @android.annotation.Hide
                     @IntraCoreApi
                     public class Exposed {
                         public void stillHidden() { }
@@ -76,7 +78,7 @@ class CoreApiTest : DriverTest() {
                         )
                         .indented(),
                     libcoreCoreApi,
-                    libcoreCoreHidden
+                    KnownSourceFiles.hideAnnotation,
                 ),
             expectedApiSignature =
                 """
@@ -117,7 +119,7 @@ class CoreApiTest : DriverTest() {
                     ARG_SHOW_SINGLE_ANNOTATION,
                     "libcore.api.IntraCoreApi",
                     ARG_HIDE_ANNOTATION,
-                    "libcore.api.LibCoreHidden"
+                    ANDROID_HIDE,
                 )
         )
     }
@@ -171,7 +173,7 @@ class CoreApiTest : DriverTest() {
                         )
                         .indented(),
                     libcoreCoreApi,
-                    libcoreCoreHidden
+                    KnownSourceFiles.hideAnnotation,
                 ),
             expectedApiSignature =
                 """
@@ -210,7 +212,7 @@ class CoreApiTest : DriverTest() {
                     ARG_SHOW_SINGLE_ANNOTATION,
                     "libcore.api.IntraCoreApi",
                     ARG_HIDE_ANNOTATION,
-                    "libcore.api.LibCoreHidden"
+                    ANDROID_HIDE,
                 ),
             docStubs = true
         )
@@ -258,7 +260,7 @@ class CoreApiTest : DriverTest() {
                         )
                         .indented(),
                     libcoreCoreApi,
-                    libcoreCoreHidden
+                    KnownSourceFiles.hideAnnotation,
                 ),
             expectedApiSignature =
                 """
@@ -272,7 +274,7 @@ class CoreApiTest : DriverTest() {
                     ARG_SHOW_SINGLE_ANNOTATION,
                     "libcore.api.IntraCoreApi",
                     ARG_HIDE_ANNOTATION,
-                    "libcore.api.LibCoreHidden"
+                    ANDROID_HIDE,
                 ),
             expectedIssues =
                 """
@@ -308,33 +310,6 @@ val libcoreCoreApi: TestFile =
     @Target({TYPE, FIELD, METHOD, CONSTRUCTOR, ANNOTATION_TYPE, PACKAGE})
     @Retention(RetentionPolicy.SOURCE)
     public @interface IntraCoreApi {
-    }
-    """
-        )
-        .indented()
-
-val libcoreCoreHidden: TestFile =
-    TestFiles.java(
-            """
-    package libcore.api;
-
-    import static java.lang.annotation.ElementType.ANNOTATION_TYPE;
-    import static java.lang.annotation.ElementType.CONSTRUCTOR;
-    import static java.lang.annotation.ElementType.FIELD;
-    import static java.lang.annotation.ElementType.METHOD;
-    import static java.lang.annotation.ElementType.PACKAGE;
-    import static java.lang.annotation.ElementType.TYPE;
-
-    import java.lang.annotation.Retention;
-    import java.lang.annotation.RetentionPolicy;
-    import java.lang.annotation.Target;
-
-    /**
-     * @hide
-     */
-    @Target({TYPE, FIELD, METHOD, CONSTRUCTOR, ANNOTATION_TYPE, PACKAGE})
-    @Retention(RetentionPolicy.SOURCE)
-    public @interface LibCoreHidden {
     }
     """
         )
