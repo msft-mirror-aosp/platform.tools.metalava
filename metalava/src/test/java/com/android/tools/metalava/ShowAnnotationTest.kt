@@ -23,6 +23,7 @@ import com.android.tools.metalava.model.testing.RequiresCapabilities
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
+import com.android.tools.metalava.testing.xml
 import org.junit.Test
 
 /** Tests for the --show-annotation functionality */
@@ -839,7 +840,38 @@ class ShowAnnotationTest : DriverTest() {
 
     @Test
     fun `Mixing recursive and non-recursive annotations`() {
+        val apiSurface =
+            KnownApiSurface(
+                surface = "test",
+                configFile =
+                    xml(
+                        "config-known-test-surfaces.xml",
+                        """
+                            <config xmlns="http://www.google.com/tools/metalava/config"
+                                xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                                xsi:schemaLocation="http://www.google.com/tools/metalava/config ../../../../../resources/schemas/config.xsd">
+                                <api-surfaces>
+                                    <api-surface name="public">
+                                        <selection-criteria unannotated="show"/>
+                                    </api-surface>
+                                    <api-surface name="system" extends="public">
+                                        <selection-criteria>
+                                            <annotation-rule pattern="android.annotation.SystemApi(client=android.annotation.SystemApi.Client.PRIVILEGED_APPS)"/>
+                                        </selection-criteria>
+                                    </api-surface>
+                                    <api-surface name="test" extends="system">
+                                        <selection-criteria>
+                                            <annotation-rule pattern="android.annotation.TestApi" recursive='false'/>
+                                        </selection-criteria>
+                                    </api-surface>
+                                </api-surfaces>
+                            </config>
+                        """
+                    ),
+            )
+
         check(
+            apiSurface = apiSurface,
             sourceFiles =
                 arrayOf(
                     java(
@@ -866,13 +898,6 @@ class ShowAnnotationTest : DriverTest() {
                     ),
                     systemApiSource,
                     testApiSource,
-                ),
-            extraArguments =
-                arrayOf(
-                    ARG_SHOW_FOR_STUB_PURPOSES_ANNOTATION,
-                    "android.annotation.SystemApi",
-                    ARG_SHOW_SINGLE_ANNOTATION,
-                    "android.annotation.TestApi",
                 ),
             expectedApiSignature =
                 """
