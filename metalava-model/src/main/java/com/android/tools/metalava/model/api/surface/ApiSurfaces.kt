@@ -243,6 +243,10 @@ private class DefaultApiSurface(
             }
         }
 
+    override val narrowerSurfaces: Set<ApiSurface> = extends?.includedSurfaces ?: emptySet()
+
+    override val includedSurfaces = narrowerSurfaces + this
+
     override fun variantFor(type: ApiVariantType): ApiVariant {
         return variants[type.ordinal]
     }
