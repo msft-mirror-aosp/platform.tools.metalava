@@ -252,8 +252,9 @@ class ShowAnnotationTest : DriverTest() {
     }
 
     @Test
-    fun `No UnhiddenSystemApi warning for --show-single-annotations`() {
+    fun `No UnhiddenSystemApi warning for non-recursive show annotation`() {
         check(
+            apiSurface = KnownApiSurface.NON_RECURSIVE_SYSTEM,
             expectedIssues = "",
             sourceFiles =
                 arrayOf(
@@ -289,11 +290,6 @@ class ShowAnnotationTest : DriverTest() {
                 """
                     ),
                     systemApiSource,
-                ),
-            extraArguments =
-                arrayOf(
-                    ARG_SHOW_SINGLE_ANNOTATION,
-                    "android.annotation.SystemApi",
                 ),
             expectedApiSignature =
                 """
