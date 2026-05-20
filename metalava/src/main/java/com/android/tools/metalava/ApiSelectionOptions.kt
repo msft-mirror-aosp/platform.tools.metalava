@@ -45,7 +45,6 @@ const val ARG_API_SURFACE = "--api-surface"
 const val ARG_SHOW_UNANNOTATED = "--show-unannotated"
 const val ARG_SHOW_ANNOTATION = "--show-annotation"
 const val ARG_SHOW_SINGLE_ANNOTATION = "--show-single-annotation"
-const val ARG_SHOW_FOR_STUB_PURPOSES_ANNOTATION = "--show-for-stub-purposes-annotation"
 
 const val ARG_HIDE_ANNOTATION = "--hide-annotation"
 
@@ -91,9 +90,7 @@ class ApiSelectionOptions(
 
     /** Return true if at least one `--show*-annotation` option was specified. */
     private fun atLeastOneShowAnnotationOptionWasSpecified() =
-        showAnnotationValues.isNotEmpty() ||
-            showSingleAnnotationValues.isNotEmpty() ||
-            showForStubPurposesAnnotationValues.isNotEmpty()
+        showAnnotationValues.isNotEmpty() || showSingleAnnotationValues.isNotEmpty()
 
     internal val apiSurface by
         option(
@@ -163,21 +160,6 @@ class ApiSelectionOptions(
                     """
                         Like $ARG_SHOW_ANNOTATION, but does not apply to members; these must also be
                         explicitly annotated.
-                    """
-                        .trimIndent(),
-                metavar = "<annotation-filter>",
-            )
-            .multiple()
-
-    private val showForStubPurposesAnnotationValues by
-        option(
-                ARG_SHOW_FOR_STUB_PURPOSES_ANNOTATION,
-                help =
-                    """
-                        Like $ARG_SHOW_ANNOTATION, but elements annotated with it are assumed to be
-                        "implicitly" included in the API surface, and they'll be included in certain
-                        kinds of output such as stubs, but not in others, such as the signature file
-                        and API lint.
                     """
                         .trimIndent(),
                 metavar = "<annotation-filter>",
@@ -422,15 +404,6 @@ class ApiSelectionOptions(
                         // main surface.
                         addAll(showAnnotationValues.map { it.toShowRule(recursive = true) })
                         addAll(showSingleAnnotationValues.map { it.toShowRule(recursive = false) })
-                    } else if (surface === base) {
-                        // The --show-for-stub-purposes-annotation could apply to any surface other
-                        // than the main one but as there is no way to differentiate between them on
-                        // the command line this just adds them all to the base surface.
-                        addAll(
-                            showForStubPurposesAnnotationValues.map {
-                                it.toShowRule(recursive = true)
-                            }
-                        )
                     }
                 }
 
@@ -506,7 +479,7 @@ class ApiSelectionOptions(
         lazy(LazyThreadSafetyMode.NONE) {
             if (apiSurface != null && atLeastOneApiSelectionOptionWasSpecified()) {
                 cliError(
-                    "$ARG_API_SURFACE is mutually exclusive with $ARG_SHOW_UNANNOTATED, $ARG_SHOW_ANNOTATION, $ARG_SHOW_SINGLE_ANNOTATION, $ARG_SHOW_FOR_STUB_PURPOSES_ANNOTATION and $ARG_HIDE_ANNOTATION"
+                    "$ARG_API_SURFACE is mutually exclusive with $ARG_SHOW_UNANNOTATED, $ARG_SHOW_ANNOTATION, $ARG_SHOW_SINGLE_ANNOTATION and $ARG_HIDE_ANNOTATION"
                 )
             }
 

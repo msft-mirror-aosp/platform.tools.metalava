@@ -46,11 +46,6 @@ Api Selection:
   --show-single-annotation <annotation-filter>
                                              Like --show-annotation, but does not apply to members; these must also be
                                              explicitly annotated.
-  --show-for-stub-purposes-annotation <annotation-filter>
-                                             Like --show-annotation, but elements annotated with it are assumed to be
-                                             "implicitly" included in the API surface, and they'll be included in
-                                             certain kinds of output such as stubs, but not in others, such as the
-                                             signature file and API lint.
   --hide-annotation <annotation-filter>      Treat any elements annotated with the given annotation as hidden.
   --exclude-annotation <annotation-classes>  A comma separated list of fully qualified names of annotation classes that
                                              must be stripped from metalava's outputs.
@@ -183,7 +178,7 @@ class ApiSelectionOptionsTest :
             ) + additionalArgs
         runTestWithConfig(*args) {
             assertThrowsCliError(
-                """--api-surface is mutually exclusive with --show-unannotated, --show-annotation, --show-single-annotation, --show-for-stub-purposes-annotation and --hide-annotation"""
+                """--api-surface is mutually exclusive with --show-unannotated, --show-annotation, --show-single-annotation and --hide-annotation"""
             ) {
                 options.apiSurfaces
             }
@@ -209,14 +204,6 @@ class ApiSelectionOptionsTest :
     fun `Test mixing --api-surface with --show-single-annotation`() {
         checkApiSurfaceMutuallyExclusive(
             ARG_SHOW_SINGLE_ANNOTATION,
-            ANDROID_SYSTEM_API,
-        )
-    }
-
-    @Test
-    fun `Test mixing --api-surface with --show-for-stub-purposes-annotation`() {
-        checkApiSurfaceMutuallyExclusive(
-            ARG_SHOW_FOR_STUB_PURPOSES_ANNOTATION,
             ANDROID_SYSTEM_API,
         )
     }
