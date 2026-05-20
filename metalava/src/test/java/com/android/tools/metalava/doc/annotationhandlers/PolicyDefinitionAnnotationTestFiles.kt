@@ -33,6 +33,7 @@ object PolicyDefinitionAnnotationTestFiles {
                     public static final String INTEGER_TEST = "android.permission.INTEGER_TEST";
                     public static final String LONG_TEST = "android.permission.LONG_TEST";
                     public static final String LIST_TEST = "android.permission.LIST_TEST";
+                    public static final String MANAGE_DEVICE_POLICY_ACROSS_USERS = "android.permission.MANAGE_DEVICE_POLICY_ACROSS_USERS";
                 }
             }
             """
