@@ -129,11 +129,11 @@ class ApiSurfaceSelector(
     val annotationNames = matcher.annotationNames
 
     /**
-     * Compute the [Showability] for [annotationItem], returns `null` if [annotationItem] does not
-     * affect API selection.
+     * Compute the [SurfaceAnnotationData] for [annotationItem], returns `null` if [annotationItem]
+     * does not affect API selection.
      */
-    fun showability(annotationItem: AnnotationItem) =
-        matcher.matchResult(annotationItem)?.showability
+    fun findSurfaceAnnotationData(annotationItem: AnnotationItem) =
+        matcher.matchResult(annotationItem)
 
     companion object {
         /**

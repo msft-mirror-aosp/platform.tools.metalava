@@ -693,9 +693,15 @@ private class LazyAnnotationInfo(
     override val typeNullability = computeTypeNullability(qualifiedName)
 
     /** Compute lazily to avoid doing any more work than strictly necessary. */
+    private val surfaceData by
+        lazy(LazyThreadSafetyMode.NONE) {
+            config.apiSurfaceSelector.findSurfaceAnnotationData(annotationItem)
+        }
+
+    /** Compute lazily to avoid doing any more work than strictly necessary. */
     override val showability by
         lazy(LazyThreadSafetyMode.NONE) {
-            config.apiSurfaceSelector.showability(annotationItem)
+            surfaceData?.showability
                 // Check flags before using default
                 ?: apiFlag?.showability
                 ?: Showability.NO_EFFECT
