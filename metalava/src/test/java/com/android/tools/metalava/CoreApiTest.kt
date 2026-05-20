@@ -19,7 +19,6 @@
 package com.android.tools.metalava
 
 import com.android.tools.lint.checks.infrastructure.TestFile
-import com.android.tools.lint.checks.infrastructure.TestFiles
 import com.android.tools.metalava.model.ANDROID_HIDE
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.testing.KnownSourceFiles
@@ -35,84 +34,81 @@ class CoreApiTest : DriverTest() {
             sourceFiles =
                 arrayOf(
                     java(
-                            """
-                      /**
-                       * Hide everything in this package:
-                       */
-                      @android.annotation.Hide
-                      package test.pkg;
-                      """
-                        )
-                        .indented(),
+                        """
+                            /**
+                             * Hide everything in this package:
+                             */
+                            @android.annotation.Hide
+                            package test.pkg;
+                        """
+                    ),
                     java(
-                            """
-                    package test.pkg;
-                    // Not included: hidden by default from package annotation
-                    public class NotExposed {
-                    }
-                    """
-                        )
-                        .indented(),
+                        """
+                            package test.pkg;
+                            // Not included: hidden by default from package annotation
+                            public class NotExposed {
+                            }
+                        """
+                    ),
                     java(
-                            """
-                    package test.pkg;
-                    import libcore.api.IntraCoreApi;
+                        """
+                            package test.pkg;
+                            import libcore.api.IntraCoreApi;
 
-                    /**
-                     * Included because it is annotated with a --show-single-annotation
-                     */
-                    @android.annotation.Hide
-                    @IntraCoreApi
-                    public class Exposed {
-                        public void stillHidden() { }
-                        public String stillHidden;
-                        @IntraCoreApi
-                        public void exposed() { }
-                        @IntraCoreApi
-                        public String exposed;
+                            /**
+                             * Included because it is annotated with a --show-single-annotation
+                             */
+                            @android.annotation.Hide
+                            @IntraCoreApi
+                            public class Exposed {
+                                public void stillHidden() { }
+                                public String stillHidden;
+                                @IntraCoreApi
+                                public void exposed() { }
+                                @IntraCoreApi
+                                public String exposed;
 
-                        public class StillHidden {
-                        }
-                    }
-                    """
-                        )
-                        .indented(),
+                                public class StillHidden {
+                                }
+                            }
+                        """
+                    ),
                     libcoreCoreApi,
                     KnownSourceFiles.hideAnnotation,
                 ),
             expectedApiSignature =
                 """
-                package libcore.api {
-                  @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.SOURCE) @java.lang.annotation.Target({java.lang.annotation.ElementType.TYPE, java.lang.annotation.ElementType.FIELD, java.lang.annotation.ElementType.METHOD, java.lang.annotation.ElementType.CONSTRUCTOR, java.lang.annotation.ElementType.ANNOTATION_TYPE, java.lang.annotation.ElementType.PACKAGE}) @libcore.api.IntraCoreApi public @interface IntraCoreApi {
-                  }
-                }
-                package test.pkg {
-                  @libcore.api.IntraCoreApi public class Exposed {
-                    method @libcore.api.IntraCoreApi public void exposed();
-                    field @libcore.api.IntraCoreApi public String exposed;
-                  }
-                }
+                    package libcore.api {
+                      @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.SOURCE) @java.lang.annotation.Target({java.lang.annotation.ElementType.TYPE, java.lang.annotation.ElementType.FIELD, java.lang.annotation.ElementType.METHOD, java.lang.annotation.ElementType.CONSTRUCTOR, java.lang.annotation.ElementType.ANNOTATION_TYPE, java.lang.annotation.ElementType.PACKAGE}) @libcore.api.IntraCoreApi public @interface IntraCoreApi {
+                      }
+                    }
+                    package test.pkg {
+                      @libcore.api.IntraCoreApi public class Exposed {
+                        method @libcore.api.IntraCoreApi public void exposed();
+                        field @libcore.api.IntraCoreApi public String exposed;
+                      }
+                    }
                 """,
             expectedStubFiles =
                 arrayOf(
                     java(
                         """
-                    /** Hide everything in this package: */
-                    package test.pkg;
-                    """
+                            /** Hide everything in this package: */
+                            package test.pkg;
+                        """
                     ),
                     java(
                         """
-                    package test.pkg;
-                    /** Included because it is annotated with a --show-single-annotation */
-                    @SuppressWarnings({"unchecked", "deprecation", "all"})
-                    public class Exposed {
-                    Exposed() { throw new RuntimeException("Stub!"); }
-                    public void exposed() { throw new RuntimeException("Stub!"); }
-                    public java.lang.String exposed;
-                    }
-                    """
-                    )
+                            package test.pkg;
+                            /** Included because it is annotated with a --show-single-annotation */
+                            @SuppressWarnings({"unchecked", "deprecation", "all"})
+                            public class Exposed {
+                            Exposed() { throw new RuntimeException("Stub!"); }
+                            public void exposed() { throw new RuntimeException("Stub!"); }
+                            public java.lang.String exposed;
+                            }
+                        """
+                    ),
                 ),
             extraArguments =
                 arrayOf(
@@ -120,7 +116,7 @@ class CoreApiTest : DriverTest() {
                     "libcore.api.IntraCoreApi",
                     ARG_HIDE_ANNOTATION,
                     ANDROID_HIDE,
-                )
+                ),
         )
     }
 
@@ -131,81 +127,78 @@ class CoreApiTest : DriverTest() {
             sourceFiles =
                 arrayOf(
                     java(
-                            """
-                      /**
-                       * Hide everything in this package:
-                       * @hide
-                       */
-                      package test.pkg;
-                      """
-                        )
-                        .indented(),
+                        """
+                            /**
+                             * Hide everything in this package:
+                             * @hide
+                             */
+                            package test.pkg;
+                        """
+                    ),
                     java(
-                            """
-                    package test.pkg;
-                    // Not included: hidden by default from package annotation
-                    public class NotExposed {
-                    }
-                    """
-                        )
-                        .indented(),
+                        """
+                            package test.pkg;
+                            // Not included: hidden by default from package annotation
+                            public class NotExposed {
+                            }
+                        """
+                    ),
                     java(
-                            """
-                    package test.pkg;
-                    import libcore.api.IntraCoreApi;
+                        """
+                            package test.pkg;
+                            import libcore.api.IntraCoreApi;
 
-                    /**
-                     * Included because it is annotated with a --show-single-annotation
-                     * @hide
-                     */
-                    @IntraCoreApi
-                    public class Exposed {
-                        /** @hide */
-                        public Exposed() { }
-                        public void stillHidden() { }
-                        @IntraCoreApi
-                        public void exposed() { }
+                            /**
+                             * Included because it is annotated with a --show-single-annotation
+                             * @hide
+                             */
+                            @IntraCoreApi
+                            public class Exposed {
+                                /** @hide */
+                                public Exposed() { }
+                                public void stillHidden() { }
+                                @IntraCoreApi
+                                public void exposed() { }
 
-                        public class StillHidden {
-                        }
-                    }
-                    """
-                        )
-                        .indented(),
+                                public class StillHidden {
+                                }
+                            }
+                        """
+                    ),
                     libcoreCoreApi,
                     KnownSourceFiles.hideAnnotation,
                 ),
             expectedApiSignature =
                 """
-                package libcore.api {
-                  @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.SOURCE) @java.lang.annotation.Target({java.lang.annotation.ElementType.TYPE, java.lang.annotation.ElementType.FIELD, java.lang.annotation.ElementType.METHOD, java.lang.annotation.ElementType.CONSTRUCTOR, java.lang.annotation.ElementType.ANNOTATION_TYPE, java.lang.annotation.ElementType.PACKAGE}) @libcore.api.IntraCoreApi public @interface IntraCoreApi {
-                  }
-                }
-                package test.pkg {
-                  @libcore.api.IntraCoreApi public class Exposed {
-                    method @libcore.api.IntraCoreApi public void exposed();
-                  }
-                }
+                    package libcore.api {
+                      @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.SOURCE) @java.lang.annotation.Target({java.lang.annotation.ElementType.TYPE, java.lang.annotation.ElementType.FIELD, java.lang.annotation.ElementType.METHOD, java.lang.annotation.ElementType.CONSTRUCTOR, java.lang.annotation.ElementType.ANNOTATION_TYPE, java.lang.annotation.ElementType.PACKAGE}) @libcore.api.IntraCoreApi public @interface IntraCoreApi {
+                      }
+                    }
+                    package test.pkg {
+                      @libcore.api.IntraCoreApi public class Exposed {
+                        method @libcore.api.IntraCoreApi public void exposed();
+                      }
+                    }
                 """,
             expectedStubFiles =
                 arrayOf(
                     java(
                         """
-                    /** Hide everything in this package: */
-                    package test.pkg;
-                    """
+                            /** Hide everything in this package: */
+                            package test.pkg;
+                        """
                     ),
                     java(
                         """
-                    package test.pkg;
-                    /** Included because it is annotated with a --show-single-annotation */
-                    @SuppressWarnings({"unchecked", "deprecation", "all"})
-                    public class Exposed {
-                    Exposed() { throw new RuntimeException("Stub!"); }
-                    public void exposed() { throw new RuntimeException("Stub!"); }
-                    }
-                    """
-                    )
+                            package test.pkg;
+                            /** Included because it is annotated with a --show-single-annotation */
+                            @SuppressWarnings({"unchecked", "deprecation", "all"})
+                            public class Exposed {
+                            Exposed() { throw new RuntimeException("Stub!"); }
+                            public void exposed() { throw new RuntimeException("Stub!"); }
+                            }
+                        """
+                    ),
                 ),
             extraArguments =
                 arrayOf(
@@ -214,7 +207,7 @@ class CoreApiTest : DriverTest() {
                     ARG_HIDE_ANNOTATION,
                     ANDROID_HIDE,
                 ),
-            docStubs = true
+            docStubs = true,
         )
     }
 
@@ -225,40 +218,38 @@ class CoreApiTest : DriverTest() {
             sourceFiles =
                 arrayOf(
                     java(
-                            """
-                      /**
-                       * Hide everything in this package:
-                       * @hide
-                       */
-                      package test.pkg;
-                      """
-                        )
-                        .indented(),
+                        """
+                            /**
+                             * Hide everything in this package:
+                             * @hide
+                             */
+                            package test.pkg;
+                        """
+                    ),
                     java(
-                            """
-                    package test.pkg;
-                    import libcore.api.IntraCoreApi;
+                        """
+                            package test.pkg;
+                            import libcore.api.IntraCoreApi;
 
-                    /**
-                    * Included because it is annotated with a --show-single-annotation
-                    * @hide
-                    */
-                    public class Exposed {
-                        public void stillHidden() { }
-                        public String stillHidden;
-                        @IntraCoreApi // error: can only expose methods in class also exposed
-                        public void exposed() { }
+                            /**
+                            * Included because it is annotated with a --show-single-annotation
+                            * @hide
+                            */
+                            public class Exposed {
+                                public void stillHidden() { }
+                                public String stillHidden;
+                                @IntraCoreApi // error: can only expose methods in class also exposed
+                                public void exposed() { }
 
-                        @IntraCoreApi
-                        public String exposed;
+                                @IntraCoreApi
+                                public String exposed;
 
-                        @IntraCoreApi // error: can only expose inner classes in exported outer class
-                        public class StillHidden {
-                        }
-                    }
-                    """
-                        )
-                        .indented(),
+                                @IntraCoreApi // error: can only expose inner classes in exported outer class
+                                public class StillHidden {
+                                }
+                            }
+                        """
+                    ),
                     libcoreCoreApi,
                     KnownSourceFiles.hideAnnotation,
                 ),
@@ -278,39 +269,38 @@ class CoreApiTest : DriverTest() {
                 ),
             expectedIssues =
                 """
-            src/test/pkg/Exposed.java:12: error: Attempting to unhide method test.pkg.Exposed.exposed(), but surrounding class test.pkg.Exposed is hidden and should also be annotated with @libcore.api.IntraCoreApi [ShowingMemberInHiddenClass]
-            src/test/pkg/Exposed.java:15: error: Attempting to unhide field test.pkg.Exposed.exposed, but surrounding class test.pkg.Exposed is hidden and should also be annotated with @libcore.api.IntraCoreApi [ShowingMemberInHiddenClass]
-            src/test/pkg/Exposed.java:18: error: Attempting to unhide class test.pkg.Exposed.StillHidden, but surrounding class test.pkg.Exposed is hidden and should also be annotated with @libcore.api.IntraCoreApi [ShowingMemberInHiddenClass]
-            """,
+                    src/test/pkg/Exposed.java:12: error: Attempting to unhide method test.pkg.Exposed.exposed(), but surrounding class test.pkg.Exposed is hidden and should also be annotated with @libcore.api.IntraCoreApi [ShowingMemberInHiddenClass]
+                    src/test/pkg/Exposed.java:15: error: Attempting to unhide field test.pkg.Exposed.exposed, but surrounding class test.pkg.Exposed is hidden and should also be annotated with @libcore.api.IntraCoreApi [ShowingMemberInHiddenClass]
+                    src/test/pkg/Exposed.java:18: error: Attempting to unhide class test.pkg.Exposed.StillHidden, but surrounding class test.pkg.Exposed is hidden and should also be annotated with @libcore.api.IntraCoreApi [ShowingMemberInHiddenClass]
+                """,
         )
     }
 }
 
 val libcoreCoreApi: TestFile =
-    TestFiles.java(
-            """
-    package libcore.api;
+    java(
+        """
+            package libcore.api;
 
-    import static java.lang.annotation.ElementType.ANNOTATION_TYPE;
-    import static java.lang.annotation.ElementType.CONSTRUCTOR;
-    import static java.lang.annotation.ElementType.FIELD;
-    import static java.lang.annotation.ElementType.METHOD;
-    import static java.lang.annotation.ElementType.PACKAGE;
-    import static java.lang.annotation.ElementType.TYPE;
+            import static java.lang.annotation.ElementType.ANNOTATION_TYPE;
+            import static java.lang.annotation.ElementType.CONSTRUCTOR;
+            import static java.lang.annotation.ElementType.FIELD;
+            import static java.lang.annotation.ElementType.METHOD;
+            import static java.lang.annotation.ElementType.PACKAGE;
+            import static java.lang.annotation.ElementType.TYPE;
 
-    import java.lang.annotation.Retention;
-    import java.lang.annotation.RetentionPolicy;
-    import java.lang.annotation.Target;
+            import java.lang.annotation.Retention;
+            import java.lang.annotation.RetentionPolicy;
+            import java.lang.annotation.Target;
 
-    /**
-     * @hide
-     */
-    @SuppressWarnings("ALL")
-    @IntraCoreApi // @IntraCoreApi is itself part of the intra-core API
-    @Target({TYPE, FIELD, METHOD, CONSTRUCTOR, ANNOTATION_TYPE, PACKAGE})
-    @Retention(RetentionPolicy.SOURCE)
-    public @interface IntraCoreApi {
-    }
-    """
-        )
-        .indented()
+            /**
+             * @hide
+             */
+            @SuppressWarnings("ALL")
+            @IntraCoreApi // @IntraCoreApi is itself part of the intra-core API
+            @Target({TYPE, FIELD, METHOD, CONSTRUCTOR, ANNOTATION_TYPE, PACKAGE})
+            @Retention(RetentionPolicy.SOURCE)
+            public @interface IntraCoreApi {
+            }
+        """
+    )
