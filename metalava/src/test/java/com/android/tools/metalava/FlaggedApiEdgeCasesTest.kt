@@ -184,7 +184,7 @@ class FlaggedApiEdgeCasesTest : DriverTest() {
                             public class Test {
                                 // A member of a class that is annotated with a show annotation but
                                 // is not marked as @hide. Usually, that would usually report an
-                                // error but the show annotation is a --show-single-annotation
+                                // error but the show annotation is a non-recursive show annotation
                                 // so the @hide is not required.
                                 @$ANDROID_SYSTEM_API
                                 public void method() {}

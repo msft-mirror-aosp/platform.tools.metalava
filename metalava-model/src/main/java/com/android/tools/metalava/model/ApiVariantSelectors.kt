@@ -738,8 +738,8 @@ private fun includeOnlyForStubPurposesRecursive(item: SelectableItem): Boolean {
         return membership == ApiMembership.BASE
     }
 
-    // If this item has neither --show-annotation nor --show-for-stub-purposes-annotation,
-    // Then defer to the "parent" item (i.e. the containing class or package).
+    // If this item has no show annotations then defer to the "parent" item (i.e. the containing
+    // class or package).
     return item.parent()?.let { includeOnlyForStubPurposesRecursive(it) } ?: false
 }
 

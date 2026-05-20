@@ -541,12 +541,10 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
     private fun couldRevertItems(): Boolean = config.apiFlags != null
 
     override fun hasAnyStubPurposesAnnotations(): Boolean {
-        // This checks if items can be reverted because they can behave like
-        // `--show-for-stub-purposes-annotation` if a reverted Item was added in an extended API.
+        // This checks if items can be reverted because they were added in an extended API.
         // e.g. if a change to item `X` from the public API was reverted then the
         // previously released version `X'` will need to be written out to the stubs for the system
-        // API, just as if it was annotated with an annotation from
-        // `--show-for-stub-purposes-annotation`.
+        // API, just as if it had been annotated with a show annotation for the API surface.
         return apiSurfaceSelector.hasAnyShowForStubPurposesAnnotations || couldRevertItems()
     }
 
