@@ -464,8 +464,6 @@ abstract class DriverTest :
         @Language("Proguard") proguard: String? = null,
         /** Show annotations (--show-annotation arguments) */
         showAnnotations: Array<String> = emptyArray(),
-        /** "Show for stub purposes" API annotation ([ARG_SHOW_FOR_STUB_PURPOSES_ANNOTATION]) */
-        showForStubPurposesAnnotations: Array<String> = emptyArray(),
         /** Hide annotations (--hide-annotation arguments) */
         hideAnnotations: Array<String> = emptyArray(),
         /** API Compatibility important annotations (--api-compat-annotation) */
@@ -912,18 +910,6 @@ abstract class DriverTest :
                 emptyArray()
             }
 
-        val showForStubPurposesAnnotationArguments =
-            if (showForStubPurposesAnnotations.isNotEmpty()) {
-                val args = mutableListOf<String>()
-                for (annotation in showForStubPurposesAnnotations) {
-                    args.add(ARG_SHOW_FOR_STUB_PURPOSES_ANNOTATION)
-                    args.add(annotation)
-                }
-                args.toTypedArray()
-            } else {
-                emptyArray()
-            }
-
         val suppressCompatMetaAnnotationArguments =
             if (suppressCompatibilityMetaAnnotations.isNotEmpty()) {
                 val args = mutableListOf<String>()
@@ -1198,7 +1184,6 @@ abstract class DriverTest :
                 *showAnnotationArguments,
                 *hideAnnotationArguments,
                 *suppressCompatMetaAnnotationArguments,
-                *showForStubPurposesAnnotationArguments,
                 *showUnannotatedArgs,
                 *sdkFilesArgs,
                 *importedPackageArgs.toTypedArray(),
