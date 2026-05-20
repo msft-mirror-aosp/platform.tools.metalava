@@ -44,7 +44,6 @@ import kotlin.collections.buildList
 const val ARG_API_SURFACE = "--api-surface"
 const val ARG_SHOW_UNANNOTATED = "--show-unannotated"
 const val ARG_SHOW_ANNOTATION = "--show-annotation"
-const val ARG_SHOW_SINGLE_ANNOTATION = "--show-single-annotation"
 
 const val ARG_HIDE_ANNOTATION = "--hide-annotation"
 
@@ -89,8 +88,7 @@ class ApiSelectionOptions(
             atLeastOneShowAnnotationOptionWasSpecified()
 
     /** Return true if at least one `--show*-annotation` option was specified. */
-    private fun atLeastOneShowAnnotationOptionWasSpecified() =
-        showAnnotationValues.isNotEmpty() || showSingleAnnotationValues.isNotEmpty()
+    private fun atLeastOneShowAnnotationOptionWasSpecified() = showAnnotationValues.isNotEmpty()
 
     internal val apiSurface by
         option(
@@ -147,19 +145,6 @@ class ApiSelectionOptions(
                     """
                         Unhide any hidden elements that are also annotated with the given
                         annotation.
-                    """
-                        .trimIndent(),
-                metavar = "<annotation-filter>",
-            )
-            .multiple()
-
-    private val showSingleAnnotationValues by
-        option(
-                ARG_SHOW_SINGLE_ANNOTATION,
-                help =
-                    """
-                        Like $ARG_SHOW_ANNOTATION, but does not apply to members; these must also be
-                        explicitly annotated.
                     """
                         .trimIndent(),
                 metavar = "<annotation-filter>",
@@ -400,10 +385,8 @@ class ApiSelectionOptions(
                     }
 
                     if (surface === main) {
-                        // The --show-annotation and --show-single-annotation only apply to the
-                        // main surface.
+                        // The --show-annotation only applies to the main surface.
                         addAll(showAnnotationValues.map { it.toShowRule(recursive = true) })
-                        addAll(showSingleAnnotationValues.map { it.toShowRule(recursive = false) })
                     }
                 }
 
@@ -479,7 +462,7 @@ class ApiSelectionOptions(
         lazy(LazyThreadSafetyMode.NONE) {
             if (apiSurface != null && atLeastOneApiSelectionOptionWasSpecified()) {
                 cliError(
-                    "$ARG_API_SURFACE is mutually exclusive with $ARG_SHOW_UNANNOTATED, $ARG_SHOW_ANNOTATION, $ARG_SHOW_SINGLE_ANNOTATION and $ARG_HIDE_ANNOTATION"
+                    "$ARG_API_SURFACE is mutually exclusive with $ARG_SHOW_UNANNOTATED, $ARG_SHOW_ANNOTATION and $ARG_HIDE_ANNOTATION"
                 )
             }
 

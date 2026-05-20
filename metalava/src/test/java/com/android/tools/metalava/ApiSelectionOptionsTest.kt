@@ -43,9 +43,6 @@ Api Selection:
                                              true if no --show*-annotation options specified)
   --show-annotation <annotation-filter>      Unhide any hidden elements that are also annotated with the given
                                              annotation.
-  --show-single-annotation <annotation-filter>
-                                             Like --show-annotation, but does not apply to members; these must also be
-                                             explicitly annotated.
   --hide-annotation <annotation-filter>      Treat any elements annotated with the given annotation as hidden.
   --exclude-annotation <annotation-classes>  A comma separated list of fully qualified names of annotation classes that
                                              must be stripped from metalava's outputs.
@@ -178,7 +175,7 @@ class ApiSelectionOptionsTest :
             ) + additionalArgs
         runTestWithConfig(*args) {
             assertThrowsCliError(
-                """--api-surface is mutually exclusive with --show-unannotated, --show-annotation, --show-single-annotation and --hide-annotation"""
+                """--api-surface is mutually exclusive with --show-unannotated, --show-annotation and --hide-annotation"""
             ) {
                 options.apiSurfaces
             }
@@ -196,14 +193,6 @@ class ApiSelectionOptionsTest :
     fun `Test mixing --api-surface with --show-annotation`() {
         checkApiSurfaceMutuallyExclusive(
             ARG_SHOW_ANNOTATION,
-            ANDROID_SYSTEM_API,
-        )
-    }
-
-    @Test
-    fun `Test mixing --api-surface with --show-single-annotation`() {
-        checkApiSurfaceMutuallyExclusive(
-            ARG_SHOW_SINGLE_ANNOTATION,
             ANDROID_SYSTEM_API,
         )
     }
