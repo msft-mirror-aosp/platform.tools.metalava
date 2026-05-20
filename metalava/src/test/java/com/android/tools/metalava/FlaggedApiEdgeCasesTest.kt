@@ -166,15 +166,11 @@ class FlaggedApiEdgeCasesTest : DriverTest() {
     }
 
     @Test
-    fun `Test reverting class with --show-single-annotation`() {
+    fun `Test reverting class with non-recursive annotation`() {
         check(
+            apiSurface = KnownApiSurface.NON_RECURSIVE_SYSTEM,
             // Use an empty api flags which defaults all flags to disabled.
             configFiles = arrayOf(KnownConfigFiles.configEmptyApiFlags),
-            extraArguments =
-                arrayOf(
-                    ARG_SHOW_SINGLE_ANNOTATION,
-                    "android.annotation.SystemApi",
-                ),
             sourceFiles =
                 arrayOf(
                     java(

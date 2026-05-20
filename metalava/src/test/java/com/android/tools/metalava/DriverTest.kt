@@ -88,6 +88,7 @@ import com.android.tools.metalava.testing.KnownSourceFiles
 import com.android.tools.metalava.testing.createFiles
 import com.android.tools.metalava.testing.findKotlinStdlibPaths
 import com.android.tools.metalava.testing.getAndroidJar
+import com.android.tools.metalava.testing.xml
 import com.android.utils.SdkUtils
 import com.google.common.io.Closeables
 import com.intellij.openapi.util.Disposer
@@ -2213,6 +2214,31 @@ data class KnownApiSurface(
             KnownApiSurface(
                 "system-with-public",
                 KnownConfigFiles.configSystemWithPublicSurface,
+            )
+
+        /** The system API with non-recursive annotation. */
+        val NON_RECURSIVE_SYSTEM =
+            KnownApiSurface(
+                "system",
+                xml(
+                    "non-recursive-system.xml",
+                    """
+                        <config xmlns="http://www.google.com/tools/metalava/config"
+                            xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                            xsi:schemaLocation="http://www.google.com/tools/metalava/config ../../../../../resources/schemas/config.xsd">
+                            <api-surfaces>
+                                <api-surface name="public">
+                                    <selection-criteria unannotated="show"/>
+                                </api-surface>
+                                <api-surface name="system" extends="public">
+                                    <selection-criteria>
+                                        <annotation-rule pattern="android.annotation.SystemApi(client=android.annotation.SystemApi.Client.PRIVILEGED_APPS)" recursive='false'/>
+                                    </selection-criteria>
+                                </api-surface>
+                            </api-surfaces>
+                        </config>
+                    """
+                ),
             )
 
         /** The module-lib API as used by Android. */
