@@ -887,6 +887,15 @@ class ShowAnnotationTest : DriverTest() {
                     systemApiSource,
                     testApiSource,
                 ),
+            extraArguments =
+                errorIssues(
+                    Issues.OVERLAPPING_API_SURFACES,
+                ),
+            expectedIssues =
+                """
+                    src/test/pkg/Foo.java:9: error: Remove @android.annotation.TestApi from method test.pkg.Foo.method1() as it is superseded by @android.annotation.SystemApi [OverlappingApiSurfaces]
+                    src/test/pkg/Foo.java:15: error: Remove @android.annotation.TestApi from method test.pkg.Foo.method2() as it is superseded by @android.annotation.SystemApi [OverlappingApiSurfaces]
+                """,
             expectedApiSignature =
                 """
                 package test.pkg {

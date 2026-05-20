@@ -191,6 +191,7 @@ Available Issues                             |  Category                        
   OnNameExpected                             |  api_lint                             |   warning
   OperatorRemoval                            |  source_compatibility_only            |   error
   OptionalBuilderConstructorArgument         |  api_lint                             |   warning
+  OverlappingApiSurfaces                     |  api_lint                             |   warning_error_when_new
   OverlappingConstants                       |  api_lint                             |   warning
   PackageLayering                            |  api_lint                             |   warning
   PairedRegistration                         |  api_lint                             |   error

@@ -35,7 +35,9 @@ class DeepApiSurfaceHierarchyTest : DriverTest() {
                 ARG_ERROR,
                 Issues.HIDDEN_TYPE_PARAMETER.name,
                 ARG_ERROR,
-                Issues.REFERENCES_HIDDEN.name
+                Issues.REFERENCES_HIDDEN.name,
+                ARG_ERROR,
+                Issues.OVERLAPPING_API_SURFACES.name,
             )
 
         private val SOURCE_FILES_A =
@@ -429,6 +431,10 @@ class DeepApiSurfaceHierarchyTest : DriverTest() {
             extraArguments = EXTRA_ARGS,
             format = FileFormat.V2,
             sourceFiles = SOURCE_FILES_A,
+            expectedIssues =
+                """
+                    src/test/pkg/SystemClass.java:24: error: Remove @test.annotation.ModuleApi from method test.pkg.SystemClass.moduleAndSystem() as it is superseded by @test.annotation.SystemApi [OverlappingApiSurfaces]
+                """,
             expectedApiSignature =
                 """
                     // Signature format: 2.0
@@ -534,7 +540,7 @@ class DeepApiSurfaceHierarchyTest : DriverTest() {
                             }
                         """
                     ),
-                )
+                ),
         )
     }
 

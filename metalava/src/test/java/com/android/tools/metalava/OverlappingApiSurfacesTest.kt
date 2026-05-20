@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava
 
+import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.testing.java
 import org.junit.Test
 
@@ -26,6 +27,10 @@ class OverlappingApiSurfacesTest : DriverTest() {
     ) {
         check(
             apiSurface = apiSurface,
+            extraArguments =
+                errorIssues(
+                    Issues.OVERLAPPING_API_SURFACES,
+                ),
             expectedIssues = expectedIssues,
             sourceFiles =
                 arrayOf(
@@ -72,10 +77,11 @@ class OverlappingApiSurfacesTest : DriverTest() {
     fun `Test overlap - module`() {
         checkOverlap(
             apiSurface = KnownApiSurface.TEST_MODULE_API_SURFACE,
-            // The module and test APIs do not extend each other so they cannot overlap.
-            // TODO(b/514715467): Should detect an overlap between module and system
+            // The module and test APIs do not extend each other so they cannot overlap. However,
+            // module and system do overlap.
             expectedIssues =
                 """
+                    src/test/pkg/Test.java:8: error: Remove @test.annotation.ModuleApi from method test.pkg.Test.systemAndModuleLib() as it is superseded by @test.annotation.SystemApi [OverlappingApiSurfaces]
                 """,
         )
     }
@@ -84,10 +90,11 @@ class OverlappingApiSurfacesTest : DriverTest() {
     fun `Test overlap - test`() {
         checkOverlap(
             apiSurface = KnownApiSurface.TEST_API_SURFACE,
-            // The module and test APIs do not extend each other so they cannot overlap.
-            // TODO(b/514715467): Should detect an overlap between test and system
+            // The module and test APIs do not extend each other so they cannot overlap. However,
+            // test and system do overlap.
             expectedIssues =
                 """
+                    src/test/pkg/Test.java:18: error: Remove @test.annotation.TestApi from method test.pkg.Test.testAndSystem() as it is superseded by @test.annotation.SystemApi [OverlappingApiSurfaces]
                 """,
         )
     }

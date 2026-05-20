@@ -64,6 +64,7 @@ import com.android.tools.metalava.model.api.ApiSurfaceSelector
 import com.android.tools.metalava.model.api.flags.ApiFlag
 import com.android.tools.metalava.model.api.flags.ApiFlags
 import com.android.tools.metalava.model.api.flags.optionalFlagName
+import com.android.tools.metalava.model.api.surface.ApiSurface
 import com.android.tools.metalava.model.canBeHidden
 import com.android.tools.metalava.model.computeTypeNullability
 import com.android.tools.metalava.model.hasAnnotation
@@ -577,7 +578,26 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
         // The resulting showability of the item.
         var itemShowability = Showability.NO_EFFECT
 
+        // The surface to which this item should belong, according to its annotations. This ignores
+        // the effects of flags.
+        var itemSurface: ApiSurface? = null
+
+        // Track whether the item has been shown in multiple different surfaces.
+        var overlappingSurfaces = false
+
         for (annotation in item.modifiers.annotations()) {
+            // Check for overlapping surfaces, i.e. multiple annotations that target the item at
+            // different surfaces.
+            annotation.surfaceData?.showSurface?.let { surface ->
+                if (itemSurface == null) {
+                    // The item is shown in a single API surface.
+                    itemSurface = surface
+                } else if (surface !== itemSurface) {
+                    // The item is to be shown in at least two separate API surfaces.
+                    overlappingSurfaces = true
+                }
+            }
+
             val showability = annotation.showability
             if (showability == Showability.NO_EFFECT) {
                 // NO_EFFECT has no effect on the result so just ignore it.
@@ -587,6 +607,12 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
                 continue
             }
             itemShowability = itemShowability.combineWith(showability)
+        }
+
+        // If the item is annotated with multiple show annotations for more than one surface then
+        // report an error.
+        if (overlappingSurfaces) {
+            reportOverlappingSurfaces(item)
         }
 
         if (item is MethodItem) {
@@ -644,6 +670,57 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
         }
 
         return itemShowability
+    }
+
+    /**
+     * Called when [item] is annotated with multiple show annotations for at least two separate API
+     * surfaces.
+     *
+     * Analyzes the annotations and reports issues instructing which of the annotations should be
+     * removed.
+     */
+    private fun reportOverlappingSurfaces(item: SelectableItem) {
+        val annotations = item.modifiers.annotations()
+
+        // Map from matched surface to matched annotations.
+        val surfaceToAnnotations =
+            annotations
+                .mapNotNull { annotationItem ->
+                    annotationItem.surfaceData?.showSurface?.let { surface ->
+                        surface to annotationItem
+                    }
+                }
+                .groupBy({ it.first }) { it.second }
+
+        // Consistency check to ensure that the caller has detected overlaps correctly.
+        if (surfaceToAnnotations.size < 2) {
+            error("expected $item to have at least two surfaces")
+        }
+
+        // Find the narrowest surface in all the annotations.
+        val narrowestSurface = surfaceToAnnotations.keys.min()
+
+        // Get the associated annotation. There must be at least one otherwise there would be no
+        // entry in surfaceToAnnotations.
+        val narrowestAnnotation = surfaceToAnnotations[narrowestSurface]!!.first()
+
+        // Iterate over all the surface/annotations reporting issues on all but the narrowest
+        // surface.
+        for ((surface, annotations) in surfaceToAnnotations) {
+            // Ignore the narrowest surface.
+            if (surface === narrowestSurface) continue
+
+            // Iterate over all the annotations that are for wider surfaces, instructing to remove
+            // the annotation.
+            for (annotationItem in annotations) {
+                config.reporter.report(
+                    Issues.OVERLAPPING_API_SURFACES,
+                    item,
+                    "Remove $annotationItem from ${item.describe()} as it is superseded by $narrowestAnnotation",
+                    annotationItem.fileLocation,
+                )
+            }
+        }
     }
 
     /**

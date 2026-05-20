@@ -349,5 +349,11 @@ data class SurfaceAnnotationData(
      */
     val recursive: Boolean,
 ) {
+    /**
+     * The [ApiSurface], if any, to which an annotated item will belong, ignoring the effects of
+     * flags.
+     */
+    val showSurface = surface.takeIf { show }
+
     override fun toString() = showability.toString()
 }
