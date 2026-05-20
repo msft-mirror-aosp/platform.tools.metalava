@@ -26,6 +26,7 @@ import com.android.tools.metalava.model.api.ApiSurfaceRules
 import com.android.tools.metalava.model.api.ApiSurfaceSelector
 import com.android.tools.metalava.model.testing.api.assertState
 import kotlin.test.assertEquals
+import org.junit.Assume.assumeTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
@@ -71,24 +72,31 @@ class ParameterizedApiSelectionOptionsTest :
     /**
      * Check the state of the [ApiSurfaceSelector] created by [ApiSelectionOptions].
      *
-     * @param ruleOptions the command line options that specify the API selection rules.
+     * @param ruleOptions the command line options that specify the API selection rules. If set to
+     *   `null` then this test will not be run for [SurfaceRuleSource.OPTIONS_ONLY].
      * @param apiSurfacesConfigWithRules the [ApiSurfaceConfig] to use.
      * @param expectedMatcherState see [assertState].
      * @param expectedShowUnannotated see [assertState].
      * @param expectedOptionSurfaceRules the expected option [ApiSurfaceRules] passed to
-     *   [ApiSurfaceSelector].
+     *   [ApiSurfaceSelector]. If set to `null` then this test will not be run for
+     *   [SurfaceRuleSource.OPTIONS_ONLY].
      * @param expectedConfigSurfaceRules the expected config [ApiSurfaceRules] passed to
      *   [ApiSurfaceSelector].
      */
     private fun checkApiSurfaceSelectorState(
         surface: String,
-        ruleOptions: List<String>,
+        ruleOptions: List<String>?,
         apiSurfacesConfigWithRules: ApiSurfacesConfig,
         expectedMatcherState: String,
         expectedShowUnannotated: Boolean,
-        expectedOptionSurfaceRules: String,
+        expectedOptionSurfaceRules: String?,
         expectedConfigSurfaceRules: String,
     ) {
+        // Ignore the test if it could not be replicated with options.
+        if (surfaceRuleSource.useOptions) {
+            assumeTrue(ruleOptions != null && expectedOptionSurfaceRules != null)
+        }
+
         val apiSurfacesConfig =
             if (surfaceRuleSource.useConfig) {
                 apiSurfacesConfigWithRules
@@ -106,7 +114,7 @@ class ParameterizedApiSelectionOptionsTest :
                 add(surface)
             }
             if (surfaceRuleSource.useOptions) {
-                addAll(ruleOptions)
+                addAll(ruleOptions!!)
             }
         }
         runTest(args = combinedArgs.toTypedArray(), optionGroup = optionGroup) {
@@ -119,7 +127,7 @@ class ParameterizedApiSelectionOptionsTest :
             if (surfaceRuleSource.useOptions) {
                 val rules = options.createApiSurfaceRulesFromOptions()
                 assertEquals(
-                    expectedOptionSurfaceRules.trimIndent(),
+                    expectedOptionSurfaceRules!!.trimIndent(),
                     rules.toString(),
                     message = "ApiSurfaceRules from options"
                 )
@@ -364,15 +372,8 @@ class ParameterizedApiSelectionOptionsTest :
     fun `Test configuring api surface rules - module-lib`() {
         checkApiSurfaceSelectorState(
             surface = "module-lib",
-            ruleOptions =
-                listOf(
-                    ARG_HIDE_ANNOTATION,
-                    "android.annotation.Hide",
-                    ARG_SHOW_FOR_STUB_PURPOSES_ANNOTATION,
-                    "android.annotation.SystemApi(client=android.annotation.SystemApi.Client.PRIVILEGED_APPS)",
-                    ARG_SHOW_ANNOTATION,
-                    "android.annotation.SystemApi(client=android.annotation.SystemApi.Client.MODULE_LIBRARIES)",
-                ),
+            // Is not supported using command line options.
+            ruleOptions = null,
             apiSurfacesConfigWithRules =
                 ApiSurfacesConfig(
                     apiSurfaceList =
@@ -442,19 +443,8 @@ class ParameterizedApiSelectionOptionsTest :
                     )
                 """,
             expectedShowUnannotated = false,
-            expectedOptionSurfaceRules =
-                """
-                    ApiSurfaceRules(
-                        base -> {
-                            SelectUnannotated
-                            SelectAnnotated(annotationPattern=android.annotation.Hide, effect=HIDE, recursive=true)
-                            SelectAnnotated(annotationPattern=android.annotation.SystemApi(client=android.annotation.SystemApi.Client.PRIVILEGED_APPS), effect=SHOW, recursive=true)
-                        }
-                        main -> {
-                            SelectAnnotated(annotationPattern=android.annotation.SystemApi(client=android.annotation.SystemApi.Client.MODULE_LIBRARIES), effect=SHOW, recursive=true)
-                        }
-                    )
-                """,
+            // Is not supported using command line options.
+            expectedOptionSurfaceRules = null,
             expectedConfigSurfaceRules =
                 """
                     ApiSurfaceRules(
