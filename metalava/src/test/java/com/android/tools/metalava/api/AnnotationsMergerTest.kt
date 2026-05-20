@@ -846,7 +846,11 @@ class AnnotationsMergerTest : DriverTest() {
                     """
                     )
                 ),
-            extraArguments = arrayOf(ARG_SHOW_SINGLE_ANNOTATION, "libcore.api.CorePlatformApi"),
+            extraArguments =
+                arrayOf(
+                    ARG_SHOW_SINGLE_ANNOTATION,
+                    "test.annotation.Show",
+                ),
             mergeInclusionAnnotations =
                 arrayOf(
                     java(
