@@ -2283,6 +2283,28 @@ data class KnownApiSurface(
         const val TEST_MODULE_API_ANNOTATION = "test.annotation.ModuleApi"
         const val TEST_SYSTEM_API_ANNOTATION = "test.annotation.SystemApi"
 
+        private val additionalTestSourceFiles =
+            listOf(
+                java(
+                    """
+                        package test.annotation;
+                        public @interface Hide {}
+                    """
+                ),
+                java(
+                    """
+                        package test.annotation;
+                        public @interface SystemApi {}
+                    """
+                ),
+                java(
+                    """
+                        package test.annotation;
+                        public @interface ModuleApi {}
+                    """
+                ),
+            )
+
         private val apiSurfacesConfig =
             xml(
                 "api-surfaces-config.xml",
@@ -2315,6 +2337,7 @@ data class KnownApiSurface(
             KnownApiSurface(
                 "module-lib",
                 apiSurfacesConfig,
+                additionalTestSourceFiles,
             )
     }
 }
