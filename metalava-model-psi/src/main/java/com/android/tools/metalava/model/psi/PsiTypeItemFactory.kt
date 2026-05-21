@@ -208,11 +208,18 @@ internal class PsiTypeItemFactory(
             return isJetBrainNotNull || isJetBrainNullable
         }
 
-    /** Create a [TypeItem]. */
+    /**
+     * Create a [TypeItem].
+     *
+     * If a [PrimitiveTypeItem] is not valid for the caller then it must set [mustBoxPrimitives] to
+     * `true`. In that case if the type is an alias for a primitive type it will be replaced with
+     * its boxed type.
+     */
     private fun createTypeItem(
         psiType: PsiType,
         kotlinType: KotlinTypeInfo?,
         contextNullability: ContextNullability = ContextNullability.none,
+        mustBoxPrimitives: Boolean = false,
     ): TypeItem {
         return when (psiType) {
             is PsiPrimitiveType ->
@@ -277,7 +284,16 @@ internal class PsiTypeItemFactory(
                                 kotlinType = kotlinType,
                                 contextNullability = contextNullability,
                             )
-                        checkForTypeAliasSubstitution(classType, contextNullability) ?: classType
+
+                        // If the type is a type alias then replace the class type with the aliased
+                        // type. The aliased type may be a primitive type which may not be valid,
+                        // e.g. as a generic type argument, or wildcard bound. In that case
+                        // mustBoxPrimitives will be `true`.
+                        checkForTypeAliasSubstitution(
+                            classType,
+                            contextNullability,
+                            mustBoxPrimitives,
+                        ) ?: classType
                     }
                 }
             }
@@ -305,10 +321,14 @@ internal class PsiTypeItemFactory(
      * converts the aliased type for this usage (mapping type parameters and adjusting nullability).
      *
      * If there is no matching type alias, returns null.
+     *
+     * If the aliased type is a [PrimitiveTypeItem] and [mustBoxPrimitives] is `true` then it will
+     * be replaced with its corresponding boxed type.
      */
     private fun checkForTypeAliasSubstitution(
         classTypeItem: ClassTypeItem,
-        contextNullability: ContextNullability
+        contextNullability: ContextNullability,
+        mustBoxPrimitives: Boolean = false,
     ): TypeItem? {
         // Don't bother checking for type aliases in non-KMP codebases because the substitution will
         // already have happened in the UAST representation. Substitution won't have happened for
@@ -329,6 +349,14 @@ internal class PsiTypeItemFactory(
                 typeAlias.aliasedType.convertType(typeParameterBindings)
             }
 
+        // If necessary, box the primitive type.
+        val possiblyBoxedType =
+            if (mustBoxPrimitives && convertedType is PrimitiveTypeItem) {
+                boxType(convertedType)
+            } else {
+                convertedType
+            }
+
         // Update type nullability: if the context requires a specific nullability, use that.
         // If the aliased type is nullable, that propagates to the usage. Otherwise, use the
         // nullability set by the usage site.
@@ -340,8 +368,17 @@ internal class PsiTypeItemFactory(
                     classTypeItem.modifiers.nullability
                 }
 
-        return convertedType.substitute(nullability)
+        return possiblyBoxedType.substitute(nullability)
     }
+
+    /** Converts the [primitiveTypeItem] to the boxed java class type. */
+    private fun boxType(primitiveTypeItem: PrimitiveTypeItem) =
+        TypeItem.createClassType(
+            modifiers = primitiveTypeItem.modifiers,
+            qualifiedName = primitiveTypeItem.kind.wrapperClass.canonicalName,
+            arguments = emptyList(),
+            outerClassType = null,
+        )
 
     /** Create a [PrimitiveTypeItem]. */
     private fun createPrimitiveTypeItem(
@@ -457,7 +494,13 @@ internal class PsiTypeItemFactory(
 
         return psiTypeArguments.mapIndexed { i, param ->
             val forTypeArgument = kotlinType?.forTypeArgument(i)
-            createTypeItem(param, forTypeArgument) as TypeArgumentTypeItem
+            createTypeItem(
+                param,
+                forTypeArgument,
+                // PrimitiveTypeItems are not a valid TypeArgumentTypeItem so box them.
+                mustBoxPrimitives = true,
+            )
+                as TypeArgumentTypeItem
         }
     }
 
@@ -706,7 +749,14 @@ internal class PsiTypeItemFactory(
             null
         } else {
             // Use the same Kotlin type, because the wildcard isn't its own level in the KtType.
-            createTypeItem(bound, kotlinType, contextNullability) as ReferenceTypeItem
+            createTypeItem(
+                bound,
+                kotlinType,
+                contextNullability,
+                // PrimitiveTypeItems are not a valid ReferenceTypeItem so box them.
+                mustBoxPrimitives = true,
+            )
+                as ReferenceTypeItem
         }
     }
 }

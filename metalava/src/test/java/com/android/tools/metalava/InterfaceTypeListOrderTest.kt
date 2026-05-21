@@ -108,7 +108,7 @@ class InterfaceTypeListOrderTest : DriverTest() {
                         """
                     ),
                 ),
-            api = api,
+            expectedApiSignature = api,
         )
     }
 

@@ -152,9 +152,69 @@ abstract class AbstractSourceParser(protected val reporter: Reporter) : SourcePa
                 classPath = inputs.classPath.map { it.absoluteFile },
             )
 
-        return processInputs(absoluteInputs)
+        return processInputs(absoluteInputs)?.also { codebase ->
+
+            // Determine sealed class exhaustivity.
+            codebase.determineIfInaccessibleClassesMakeSuperClassesNonExhaustive()
+        }
     }
 
     /** Process the [inputs] to produce a [Codebase], if possible. */
     protected abstract fun processInputs(inputs: SourceParser.Inputs): Codebase?
+
+    /**
+     * Determine if sealed classes make super classes non-exhaustive.
+     *
+     * Instances of sealed classes can be matched using `when` statements. If all the subclasses of
+     * a sealed class are available to API consumers, then new subclasses can't be added to the
+     * sealed class because doing so would be a breaking change (clients' `when` statements would no
+     * longer be exhaustive). In this case, we label the sealed class as exhaustive. If there is an
+     * inaccessible class that extends a sealed class, however, then the sealed class is not
+     * exhaustive. For more details, see b/447143803
+     */
+    private fun Codebase.determineIfInaccessibleClassesMakeSuperClassesNonExhaustive() {
+        // Iterate over all sealed classes.
+        for (classItem in getPackages().allClasses()) {
+            val modifiers = classItem.modifiers
+            if (!modifiers.isSealed()) continue
+
+            // At the point the sealed class must have exhaustive = true, set by the source model
+            // when creating the modifiers for a `sealed` class.
+            require(modifiers.isExhaustive())
+
+            // If any of its permitted subclasses are inaccessible then mark it as non-exhaustive.
+            val permitTypes = classItem.permitTypes
+            for (type in permitTypes) {
+                // Resolve the permitted type to a subclass.
+                val subclassTypeItem = type.resolveClass(this)
+
+                // If the subclass is inaccessible then mark the sealed class as `non-exhaustive`
+                // and exit. If the subclass could not be resolved then treat it as inaccessible.
+                if (subclassTypeItem?.isInaccessible() != false) {
+                    classItem.mutateModifiers { setExhaustive(false) }
+                    break
+                }
+            }
+        }
+    }
+
+    /**
+     * Determine whether this [ClassItem] is inaccessible.
+     *
+     * If this is a nested class then it is inaccessible if any of its enclosing [ClassItem]s are
+     * also inaccessible.
+     */
+    private fun ClassItem.isInaccessible(): Boolean {
+        var classItem: ClassItem? = this
+        while (classItem != null) {
+            val modifiers = classItem.modifiers
+            val inaccessible =
+                modifiers.annotations().any { it.showability.hide() } || !modifiers.hasApiVisibility
+            if (inaccessible) return true
+
+            classItem = classItem.containingClass()
+        }
+
+        return false
+    }
 }

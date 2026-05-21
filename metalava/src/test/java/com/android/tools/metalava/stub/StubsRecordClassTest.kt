@@ -50,7 +50,7 @@ class StubsRecordClassTest : AbstractStubsTest() {
                       }
                     }
                 """,
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
@@ -101,7 +101,7 @@ class StubsRecordClassTest : AbstractStubsTest() {
                       }
                     }
                 """,
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
@@ -154,7 +154,7 @@ class StubsRecordClassTest : AbstractStubsTest() {
                       }
                     }
                 """,
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
@@ -215,7 +215,7 @@ class StubsRecordClassTest : AbstractStubsTest() {
                 """,
             // Includes extra overrides that are not present in the signature file.
             checkTextStubEquivalence = false,
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
@@ -258,7 +258,7 @@ class StubsRecordClassTest : AbstractStubsTest() {
                       }
                     }
                """,
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
@@ -309,7 +309,7 @@ class StubsRecordClassTest : AbstractStubsTest() {
                       }
                     }
                """,
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """

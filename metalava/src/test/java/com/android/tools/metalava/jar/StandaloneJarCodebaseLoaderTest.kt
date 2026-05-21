@@ -21,6 +21,7 @@ import com.android.tools.metalava.ProgressTracker
 import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.testing.RequiresCapabilities
 import com.android.tools.metalava.reporter.ThrowingReporter
+import com.android.tools.metalava.testing.getNoopTracer
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.toTestFile
 import java.io.File
@@ -37,6 +38,7 @@ class StandaloneJarCodebaseLoaderTest : DriverTest() {
         StandaloneJarCodebaseLoader.create(
             disableStderrDumping = false,
             ProgressTracker(),
+            getNoopTracer(),
             ThrowingReporter.INSTANCE,
             sourceModelProvider = codebaseCreatorConfig.creator,
         )

@@ -15,8 +15,11 @@
  */
 package com.android.tools.metalava
 
+import androidx.tracing.Tracer
 import com.android.SdkConstants.DOT_JAR
 import com.android.SdkConstants.DOT_TXT
+import com.android.tools.metalava.api.AnnotationsMerger
+import com.android.tools.metalava.api.ApiAnalyzer
 import com.android.tools.metalava.apilevels.ApiGenerator
 import com.android.tools.metalava.cli.common.CheckerContext
 import com.android.tools.metalava.cli.common.DefaultSignatureFileLoader
@@ -62,6 +65,7 @@ import com.android.tools.metalava.model.source.SourceParser
 import com.android.tools.metalava.model.source.SourceSet
 import com.android.tools.metalava.model.text.CustomizableProperty.Companion.ADD_ADDITIONAL_OVERRIDES
 import com.android.tools.metalava.model.text.CustomizableProperty.Companion.JAVA_RECORD_CLASSES
+import com.android.tools.metalava.model.text.CustomizableProperty.Companion.JAVA_SEALED_CLASSES
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.model.text.MultiplatformSignatureWriter
 import com.android.tools.metalava.model.text.SignatureFile
@@ -91,6 +95,7 @@ const val PROGRAM_NAME = "metalava"
 class Driver(
     private val executionEnvironment: ExecutionEnvironment,
     private val progressTracker: ProgressTracker,
+    private val tracer: Tracer,
     private val environmentManager: EnvironmentManager,
     private val reporter: Reporter,
     private val verbosity: Verbosity,
@@ -145,13 +150,16 @@ class Driver(
 
             progressTracker.progress("$PROGRAM_NAME started\n")
 
+            val traceDriver = createTraceDriver(earlyOptions.traceFile)
             // Actual work begins here.
-            val command =
-                createMetalavaCommand(
-                    executionEnvironment,
-                    progressTracker,
-                )
-            val exitCode = command.process(args)
+            val exitCode =
+                traceDriver.use {
+                    val command =
+                        it.tracer.trace("createMetalavaCommand") {
+                            createMetalavaCommand(executionEnvironment, progressTracker, it.tracer)
+                        }
+                    it.tracer.trace("command.process") { command.process(args) }
+                }
 
             stdout.flush()
             stderr.flush()
@@ -163,13 +171,15 @@ class Driver(
 
         private fun createMetalavaCommand(
             executionEnvironment: ExecutionEnvironment,
-            progressTracker: ProgressTracker
+            progressTracker: ProgressTracker,
+            tracer: Tracer,
         ): MetalavaCommand {
             val command =
                 MetalavaCommand(
                     executionEnvironment = executionEnvironment,
                     progressTracker = progressTracker,
                     defaultCommandName = "main",
+                    tracer = tracer,
                 )
             command.subcommands(
                 MainCommand(command.commonOptions, executionEnvironment),
@@ -199,11 +209,7 @@ class Driver(
             DefaultAnnotationManager.Config(
                 reporter = reporter,
                 passThroughAnnotations = apiSelectionOptions.passThroughAnnotations,
-                allShowAnnotations = apiSelectionOptions.allShowAnnotations,
-                showAnnotations = apiSelectionOptions.showAnnotations,
-                showSingleAnnotations = apiSelectionOptions.showSingleAnnotations,
-                showForStubPurposesAnnotations = apiSelectionOptions.showForStubPurposesAnnotations,
-                hideAnnotations = apiSelectionOptions.hideAnnotations,
+                apiSurfaceSelector = apiSelectionOptions.apiSurfaceSelector,
                 suppressCompatibilityMetaAnnotations =
                     apiSelectionOptions.suppressCompatibilityMetaAnnotations,
                 excludeAnnotations = apiSelectionOptions.excludeAnnotations,
@@ -227,6 +233,15 @@ class Driver(
                 apiFlags = apiFlags,
                 apiSurfaces = apiSelectionOptions.apiSurfaces,
                 reporter = reporter,
+
+                // Allow hiding when --api-surface is not provided to maintain backwards
+                // compatibility.
+                //
+                // This behavior is a workaround to support AndroidX which does preserve the
+                // RestrictTo annotation.
+                // TODO(b/510724278): Remove, or use something else when AndroidX uses
+                //  --api-surface.
+                hideItemsOnClassPath = apiSelectionOptions.apiSurface == null,
             )
         }
 
@@ -235,6 +250,7 @@ class Driver(
             val modelOptions = sourceOptions.modelOptions
             environmentManager.createSourceParser(
                 codebaseConfig = codebaseConfig,
+                tracer = tracer,
                 javaLanguageLevel = sourceOptions.javaLanguageLevelAsString,
                 kotlinLanguageLevel = sourceOptions.kotlinLanguageLevelAsString,
                 modelOptions = modelOptions,
@@ -269,7 +285,7 @@ class Driver(
             skipEmitPackages = skipEmitPackages,
             mergeQualifierAnnotations = sourceOptions.mergeQualifierAnnotations,
             mergeInclusionAnnotations = sourceOptions.mergeInclusionAnnotations,
-            allShowAnnotations = apiSelectionOptions.allShowAnnotations,
+            apiSurface = apiSelectionOptions.apiSurface,
             apiPredicateConfig = apiPredicateConfig,
             annotationsMergerConfig =
                 AnnotationsMerger.Config(
@@ -281,6 +297,13 @@ class Driver(
                     nullabilityAnnotationsValidator =
                         nullabilityValidationOptions.validatorForMerging,
                 ),
+
+            // If the API surfaces are configured then any annotations that are used by related API
+            // surfaces but which are not needed to track the target API surface and all those that
+            // contribute to it are automatically treated as hidden. e.g. when generating the public
+            // API, @SystemApi is treated as a hide annotation. That means there is no need to
+            // perform the UnhiddenSystemApi check.
+            needUnhiddenSystemApiCheck = apiSelectionOptions.apiSurface == null,
         )
     }
 
@@ -294,10 +317,13 @@ class Driver(
     internal fun processFlags() {
         val stopwatch = Stopwatch.createStarted()
 
-        val codebase = createCodebaseFromOptions()
+        val codebase = tracer.trace("createCodebaseFromOptions") { createCodebaseFromOptions() }
 
         // Create a multiplatform codebase if requested.
-        val multiplatformCodebase = createOptionalMultiplatformCodebase()
+        val multiplatformCodebase =
+            tracer.trace("createOptionalMultiplatformCodebase") {
+                createOptionalMultiplatformCodebase()
+            }
 
         // If provided by a test, run some additional checks on the internal state of this.
         executionEnvironment.testEnvironment?.let { testEnvironment ->
@@ -312,13 +338,19 @@ class Driver(
         )
 
         // Run operations on the regular codebase, if it exists.
-        codebase?.let { runCodebaseChecks(stopwatch, codebase) }
+        codebase?.let {
+            tracer.trace("runCodebaseOperations") { runCodebaseOperations(stopwatch, codebase) }
+        }
 
         // Run additional operations on the multiplatform codebase, if it exists.
-        multiplatformCodebase?.let { runMultiplatformCodebaseChecks(multiplatformCodebase) }
+        multiplatformCodebase?.let {
+            tracer.trace("runMultiplatformCodebaseOperations") {
+                runMultiplatformCodebaseOperations(multiplatformCodebase)
+            }
+        }
     }
 
-    private fun runCodebaseChecks(stopwatch: Stopwatch, codebase: Codebase) {
+    private fun runCodebaseOperations(stopwatch: Stopwatch, codebase: Codebase) {
         generateApiHistoryFromOptions(codebase)
 
         // Generate signature files based on provided input flags (i.e. if api file locations were
@@ -374,6 +406,7 @@ class Driver(
         val generatorConfig =
             stubGenerationOptions.generatorConfig(
                 javaRecordClasses = signatureFormatOptions.fileFormat[JAVA_RECORD_CLASSES],
+                javaSealedClasses = signatureFormatOptions.fileFormat[JAVA_SEALED_CLASSES],
             )
         StubGenerator(
                 generatorConfig,
@@ -506,6 +539,7 @@ class Driver(
     private fun createCodebaseFromOptions(): Codebase? {
         val sources = sourceOptions.sourceFiles
         if (sources.isNotEmpty() && sources[0].path.endsWith(DOT_TXT)) {
+
             // Make sure all the source files have .txt extensions.
             sources
                 .firstOrNull { !it.path.endsWith(DOT_TXT) }
@@ -514,14 +548,16 @@ class Driver(
                         "Inconsistent input file types: The first file is of $DOT_TXT, but detected different extension in ${it.path}"
                     )
                 }
-            return signatureFileLoader.load(
-                SignatureFile.fromFiles(sources),
-                classPathResolver,
-            )
+            return tracer.trace("signatureFileLoader.load") {
+                signatureFileLoader.load(
+                    SignatureFile.fromFiles(sources),
+                    classPathResolver,
+                )
+            }
         } else if (sources.size == 1 && sources[0].path.endsWith(DOT_JAR)) {
-            return loadFromJarFile(sources[0])
+            return tracer.trace("loadFromJarFile") { loadFromJarFile(sources[0]) }
         } else if (sources.isNotEmpty() || sourceOptions.sourcePath.isNotEmpty()) {
-            return loadFromSources()
+            return tracer.trace("loadFromSources") { loadFromSources() }
         }
 
         return null
@@ -552,13 +588,17 @@ class Driver(
         }
     }
 
-    private fun runMultiplatformCodebaseChecks(multiplatformCodebase: MultiplatformCodebase) {
+    private fun runMultiplatformCodebaseOperations(multiplatformCodebase: MultiplatformCodebase) {
         for (codebase in multiplatformCodebase.sourceSetToCodebase.values) {
-            ApiAnalyzer(sourceParser, codebase, reporter, apiAnalyzerConfig).computeApi()
+            tracer.trace("computeApi") {
+                ApiAnalyzer(sourceParser, codebase, reporter, apiAnalyzerConfig).computeApi()
+            }
         }
 
         if (apiLintOptions.apiLintEnabled) {
-            MultiplatformLint(reporter).check(multiplatformCodebase)
+            tracer.trace("MultiplatformLint.check") {
+                MultiplatformLint(reporter).check(multiplatformCodebase)
+            }
 
             // For the regular, non-multiplatform codebase operations, if they happened, either the
             // android or jvm source set would have been used. Find which one of these it was.
@@ -581,16 +621,21 @@ class Driver(
             // the checks below, and any lint issues in common will only be reported once here
             // instead of being duplicated.
             if (mainSourceSet == "commonMain") {
-                ApiLint.check(
-                    mainCodebase!!,
-                    null,
-                    reporter,
-                    apiPredicateConfig,
-                    ApiLint.Config(
-                        manifest = miscellaneousOptions.manifest,
-                        allowedAcronyms = apiLintOptions.allowedAcronyms,
-                    ),
-                )
+                tracer.trace("commonMain ApiLint.check") {
+                    ApiLint.check(
+                        mainCodebase!!,
+                        null,
+                        reporter,
+                        apiPredicateConfig,
+                        ApiLint.Config(
+                            manifest = miscellaneousOptions.manifest,
+                            allowedAcronyms = apiLintOptions.allowedAcronyms,
+                            // Don't run Java interop checks because this code isn't meant to be
+                            // used from Java.
+                            enableInteropChecks = false,
+                        ),
+                    )
+                }
             }
 
             // Run regular API lint checks for each source set.
@@ -599,20 +644,26 @@ class Driver(
                 // the non-multiplatform lint checks. Also skip checking common, since all APIs will
                 // be included in the checks for other source sets.
                 if (sourceSet == mainSourceSet || sourceSet == "commonMain") continue
-                runApiChecksFromOptions(codebase) { codebase, _ ->
-                    ApiLint.check(
-                        codebase,
-                        // By making the main android/jvm/common codebase the "oldCodebase", any
-                        // issues which have already been reported for the main codebase through the
-                        // non-multiplatform checks or the common check above will be skipped.
-                        oldCodebase = mainCodebase,
-                        reporter,
-                        apiPredicateConfig,
-                        ApiLint.Config(
-                            manifest = miscellaneousOptions.manifest,
-                            allowedAcronyms = apiLintOptions.allowedAcronyms,
-                        ),
-                    )
+                tracer.trace("$sourceSet ApiLint.check") {
+                    runApiChecksFromOptions(codebase) { codebase, _ ->
+                        ApiLint.check(
+                            codebase,
+                            // By making the main android/jvm/common codebase the "oldCodebase", any
+                            // issues which have already been reported for the main codebase through
+                            // the
+                            // non-multiplatform checks or the common check above will be skipped.
+                            oldCodebase = mainCodebase,
+                            reporter,
+                            apiPredicateConfig,
+                            ApiLint.Config(
+                                manifest = miscellaneousOptions.manifest,
+                                allowedAcronyms = apiLintOptions.allowedAcronyms,
+                                // Don't run Java interop checks because this code isn't meant to be
+                                // used from Java.
+                                enableInteropChecks = false,
+                            )
+                        )
+                    }
                 }
             }
         }
@@ -811,15 +862,17 @@ class Driver(
         progressTracker.progress("Processing sources: ")
 
         val sourceSet =
-            if (sourceOptions.sourceFiles.isEmpty()) {
-                if (verbosity.verbose) {
-                    executionEnvironment.stdout.println(
-                        "No source files specified: recursively including all sources found in the source path (${sourceOptions.sourcePath.joinToString()}})"
-                    )
+            tracer.trace("createSourceSet") {
+                if (sourceOptions.sourceFiles.isEmpty()) {
+                    if (verbosity.verbose) {
+                        executionEnvironment.stdout.println(
+                            "No source files specified: recursively including all sources found in the source path (${sourceOptions.sourcePath.joinToString()}})"
+                        )
+                    }
+                    SourceSet.createFromSourcePath(reporter, sourceOptions.sourcePath)
+                } else {
+                    SourceSet(sourceOptions.sourceFiles, sourceOptions.sourcePath)
                 }
-                SourceSet.createFromSourcePath(reporter, sourceOptions.sourcePath)
-            } else {
-                SourceSet(sourceOptions.sourceFiles, sourceOptions.sourcePath)
             }
 
         progressTracker.progress("Reading Codebase: ")
@@ -834,27 +887,36 @@ class Driver(
                 compiledSourceJar = sourceOptions.compiledSourceJar,
             )
 
-        val codebase = sourceParser.parseSources(inputs) ?: return null
+        val codebase =
+            tracer.trace("parseSources") { sourceParser.parseSources(inputs) } ?: return null
 
         progressTracker.progress("Analyzing API: ")
 
         val analyzer = ApiAnalyzer(sourceParser, codebase, reporter, apiAnalyzerConfig)
-        analyzer.mergeExternalInclusionAnnotations()
+        tracer.trace("analyzer.mergeExternalInclusionAnnotations") {
+            analyzer.mergeExternalInclusionAnnotations()
+        }
 
-        analyzer.computeApi()
+        tracer.trace("analyzer.computeApi") { analyzer.computeApi() }
 
         val apiPredicateConfigIgnoreShown = apiPredicateConfig.copy(ignoreShown = true)
         val apiEmitAndReference = ApiPredicate(config = apiPredicateConfigIgnoreShown)
 
-        analyzer.handleFileFacadeClassesAndExperimentalPackages(apiEmitAndReference)
+        tracer.trace("analyzer.handleFileFacadeClassesAndExperimentalPackages") {
+            analyzer.handleFileFacadeClassesAndExperimentalPackages(apiEmitAndReference)
+        }
 
         // Copy methods from soon-to-be-hidden parents into descendant classes, when necessary. Do
         // this before merging annotations or performing checks on the API to ensure that these
         // methods can have annotations added and are checked properly.
         progressTracker.progress("Insert missing stubs methods: ")
-        analyzer.generateInheritedStubs(apiEmitAndReference, apiEmitAndReference)
+        tracer.trace("analyzer.generateInheritedStubs") {
+            analyzer.generateInheritedStubs(apiEmitAndReference, apiEmitAndReference)
+        }
 
-        analyzer.mergeExternalQualifierAnnotations()
+        tracer.trace("analyzer.mergeExternalQualifierAnnotations") {
+            analyzer.mergeExternalQualifierAnnotations()
+        }
 
         nullabilityValidationOptions.validatorForSources?.let { validator ->
             // Validate any explicitly specified classes.
@@ -868,7 +930,7 @@ class Driver(
         // Prevent the codebase from being mutated.
         codebase.freezeClasses()
 
-        analyzer.handleStripping()
+        tracer.trace("analyzer.handleStripping") { analyzer.handleStripping() }
 
         // General API documentation checks for Android APIs.
         // They are pointless if Javadoc comments are not being read.
@@ -877,20 +939,22 @@ class Driver(
         }
 
         runApiChecksFromOptions(codebase) { codebase, previouslyReleasedCodebase ->
-            ApiLint.check(
-                codebase,
-                previouslyReleasedCodebase,
-                reporter,
-                apiPredicateConfig,
-                ApiLint.Config(
-                    manifest = miscellaneousOptions.manifest,
-                    allowedAcronyms = apiLintOptions.allowedAcronyms,
-                ),
-            )
+            tracer.trace("ApiLint.check") {
+                ApiLint.check(
+                    codebase,
+                    previouslyReleasedCodebase,
+                    reporter,
+                    apiPredicateConfig,
+                    ApiLint.Config(
+                        manifest = miscellaneousOptions.manifest,
+                        allowedAcronyms = apiLintOptions.allowedAcronyms,
+                    ),
+                )
+            }
         }
 
         progressTracker.progress("Performing misc API checks: ")
-        analyzer.performChecks()
+        tracer.trace("analyzer.performChecks") { analyzer.performChecks() }
 
         return codebase
     }

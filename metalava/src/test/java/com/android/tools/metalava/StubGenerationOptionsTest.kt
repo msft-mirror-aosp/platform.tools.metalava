@@ -112,7 +112,7 @@ class StubGenerationOptionsTest :
 
             assertEquals(
                 "--apply-api-levels file 'TESTROOT/non-existent/api-versions.xml' does not exist or is not readable",
-                cleanupString(exception.message!!)
+                removeTestSpecificDirectories(exception.message!!)
             )
         }
     }

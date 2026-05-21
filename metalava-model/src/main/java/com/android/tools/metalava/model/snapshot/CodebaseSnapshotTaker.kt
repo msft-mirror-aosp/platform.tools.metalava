@@ -17,7 +17,6 @@
 package com.android.tools.metalava.model.snapshot
 
 import com.android.tools.metalava.model.ApiVariantSelectors
-import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.ClassTypeItem
@@ -28,6 +27,7 @@ import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.ItemDocumentationFactory
 import com.android.tools.metalava.model.ItemVisitor
+import com.android.tools.metalava.model.MemberItem
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ModifierList
 import com.android.tools.metalava.model.PackageItem
@@ -341,7 +341,9 @@ private constructor(
                     typeParameterList = typeParameterList,
                     returnType = constructorToSnapshot.returnType().snapshot(),
                     parameterItemsFactory = { containingCallable ->
-                        constructorToSnapshot.parameters().snapshot(containingCallable, constructor)
+                        constructorToSnapshot
+                            .parameters()
+                            .snapshot(containingCallable, constructor.parameters())
                     },
                     throwsTypes =
                         constructorToSnapshot.throwsTypes().map {
@@ -385,7 +387,9 @@ private constructor(
                     typeParameterList = typeParameterList,
                     returnType = methodToSnapshot.returnType().snapshot(),
                     parameterItemsFactory = { containingCallable ->
-                        methodToSnapshot.parameters().snapshot(containingCallable, method)
+                        methodToSnapshot
+                            .parameters()
+                            .snapshot(containingCallable, method.parameters())
                     },
                     throwsTypes =
                         methodToSnapshot.throwsTypes().map { typeItemFactory.getExceptionType(it) },
@@ -455,6 +459,12 @@ private constructor(
                     receiver = property.receiver?.snapshot(),
                     typeParameterList = typeParameterList,
                     setterVisibility = property.setterVisibility,
+                    contextParameterFactory = { containingProperty ->
+                        propertyToSnapshot.contextParameters.snapshot(
+                            containingProperty,
+                            property.contextParameters
+                        )
+                    },
                 )
             }
         newProperty.copySelectedApiVariants(propertyToSnapshot)
@@ -557,8 +567,8 @@ private constructor(
 
         /** Create a snapshot of this list of [ParameterItem]s. */
         internal fun List<ParameterItem>.snapshot(
-            containingCallable: CallableItem,
-            currentCallable: CallableItem
+            containingItem: MemberItem,
+            currentParameters: List<ParameterItem>,
         ): List<ParameterItem> {
             return map { parameterItem ->
                 // Retrieve the public name immediately to remove any dependencies on this in the
@@ -578,8 +588,7 @@ private constructor(
                 val name =
                     if (publicName != null) parameterItem.name()
                     else {
-                        val namedParameter =
-                            currentCallable.parameters()[parameterItem.parameterIndex]
+                        val namedParameter = currentParameters[parameterItem.parameterIndex]
                         namedParameter.name()
                     }
 
@@ -589,10 +598,11 @@ private constructor(
                     modifiers = parameterItem.modifiers.snapshot(),
                     name = name,
                     publicName = publicName,
-                    containingCallable = containingCallable,
+                    containingItem = containingItem,
                     parameterIndex = parameterItem.parameterIndex,
                     type = parameterItem.type().snapshot(),
                     hasDefaultValue = parameterItem.hasDefaultValue(),
+                    kind = parameterItem.kind,
                 )
             }
         }

@@ -110,7 +110,7 @@ class AndroidApiChecks(
                         "Parameter '" +
                             parameter.name() +
                             "' of '" +
-                            parameter.containingCallable().name() +
+                            parameter.parent().name() +
                             "'",
                         parameter.type()
                     )

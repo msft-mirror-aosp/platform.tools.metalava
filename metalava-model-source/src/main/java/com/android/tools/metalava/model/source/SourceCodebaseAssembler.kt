@@ -18,15 +18,17 @@ package com.android.tools.metalava.model.source
 
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.AnnotationUse
-import com.android.tools.metalava.model.AnnotationUse.TYPE_ONLY
 import com.android.tools.metalava.model.BaseItemVisitor
+import com.android.tools.metalava.model.BaseModifierList
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.ItemDocumentationFactory
+import com.android.tools.metalava.model.KOTLIN_PUBLISHED_API
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.SourceFile
+import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.item.CodebaseAssembler
 import com.android.tools.metalava.model.item.DefaultCodebaseAssembler
 import com.android.tools.metalava.model.item.PackageInfo
@@ -289,3 +291,19 @@ data class SourcePackageInfo(
             commentFactory ?: defaultCommentFactory,
         )
 }
+
+/**
+ * Check if the [BaseModifierList] is accessible as part of an API.
+ *
+ * If this has [VisibilityLevel.INTERNAL] then it is only accessible if it is annotated with the
+ * [PublishedApi] annotation.
+ */
+val BaseModifierList.hasApiVisibility
+    get() =
+        when (getVisibilityLevel()) {
+            VisibilityLevel.PUBLIC,
+            VisibilityLevel.PROTECTED -> true
+            VisibilityLevel.INTERNAL ->
+                annotations().any { it.qualifiedName == KOTLIN_PUBLISHED_API }
+            else -> false
+        }

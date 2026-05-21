@@ -23,10 +23,14 @@ import com.android.tools.metalava.model.BaseItemVisitor
 import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.PrimitiveTypeItem.Primitive
-import com.android.tools.metalava.model.annotation.AnnotationFilter
 import com.android.tools.metalava.model.annotation.DefaultAnnotationManager
+import com.android.tools.metalava.model.api.ApiSurfaceRules
+import com.android.tools.metalava.model.api.ApiSurfaceSelector
+import com.android.tools.metalava.model.api.SurfaceSelectionRule
+import com.android.tools.metalava.model.api.surface.ApiSurfaces
 import com.android.tools.metalava.model.noOpAnnotationManager
 import com.android.tools.metalava.model.provider.InputFormat
+import com.android.tools.metalava.model.source.hasApiVisibility
 import com.android.tools.metalava.model.testing.SupportedInputFormats
 import com.android.tools.metalava.model.testing.classTypeItem
 import com.android.tools.metalava.model.testing.testTypeString
@@ -47,8 +51,10 @@ import com.android.tools.metalava.testing.KnownSourceFiles
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertSame
+import kotlin.test.assertTrue
 import kotlin.test.fail
 import org.junit.Test
 
@@ -1581,12 +1587,19 @@ class CommonAnnotationItemTest : BaseModelTest() {
     @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `annotation on internal`() {
-        // Create a filter that will treat RestrictTo(Scope.LIBRARY) as a show annotation.
-        val showFilter =
-            AnnotationFilter.create(
-                listOf(
-                    "androidx.annotation.RestrictTo(androidx.annotation.RestrictTo.Scope.LIBRARY)",
-                )
+        // Treat RestrictTo(Scope.LIBRARY) as a show annotation.
+        val apiSurfaceRules =
+            ApiSurfaceRules(
+                apiSurfaces = ApiSurfaces.DEFAULT,
+                byName =
+                    mapOf(
+                        "main" to
+                            listOf(
+                                SurfaceSelectionRule.createAnnotationRule(
+                                    "androidx.annotation.RestrictTo(androidx.annotation.RestrictTo.Scope.LIBRARY)"
+                                )
+                            )
+                    ),
             )
 
         runCodebaseTest(
@@ -1598,18 +1611,18 @@ class CommonAnnotationItemTest : BaseModelTest() {
                         import androidx.annotation.RestrictTo
 
                         // Defined during codebase construction as it is accessible because while it
-                        // is internal it is annotated with a show annotation.
-                        @RestrictTo(RestrictTo.Scope.LIBRARY)
+                        // is internal it is annotated with PublishedApi.
+                        @PublishedApi
                         internal class Foo
 
                         // Not defined during codebase construction as it is inaccessible because it
-                        // is internal and while it has an annotation it is not a show annotation as
-                        // the scope is incorrect.
+                        // is internal and while it has a show annotation it is not annotated with
+                        // PublishedApi.
                         @RestrictTo(RestrictTo.Scope.LIBRARY_GROUP)
                         internal class Bar
 
                         // Not defined during codebase construction as it is inaccessible because it
-                        // is internal.
+                        // is internal and is not annotated with PublishedApi.
                         internal class Baz
                     """
                 ),
@@ -1621,20 +1634,30 @@ class CommonAnnotationItemTest : BaseModelTest() {
                         DefaultAnnotationManager(
                             config =
                                 DefaultAnnotationManager.Config(
-                                    allShowAnnotations = showFilter,
                                     apiFlags = apiFlags,
-                                    showAnnotations = showFilter,
+                                    apiSurfaceSelector =
+                                        ApiSurfaceSelector(
+                                            apiSurfaceRules = apiSurfaceRules,
+                                        ),
                                 )
                         )
                     }
                 ),
         ) {
-            // This should be defined.
-            codebase.assertClass("test.pkg.Foo")
-            // This should not be defined.
-            codebase.assertResolvedClass("test.pkg.Bar")
-            // This should not be defined.
-            codebase.assertResolvedClass("test.pkg.Baz")
+            // This should be defined and accessible.
+            codebase.assertClass("test.pkg.Foo").also { testClass ->
+                assertTrue(testClass.modifiers.hasApiVisibility, message = "Foo")
+            }
+
+            // This should be defined but not accessible.
+            codebase.assertClass("test.pkg.Bar").also { testClass ->
+                assertFalse(testClass.modifiers.hasApiVisibility, message = "Bar")
+            }
+
+            // This should be defined but not accessible.
+            codebase.assertClass("test.pkg.Baz").also { testClass ->
+                assertFalse(testClass.modifiers.hasApiVisibility, message = "Baz")
+            }
         }
     }
 

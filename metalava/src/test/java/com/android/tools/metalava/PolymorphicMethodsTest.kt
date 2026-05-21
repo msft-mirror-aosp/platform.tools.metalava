@@ -68,7 +68,7 @@ class PolymorphicMethodsTest : DriverTest() {
                         """
                     ),
                 ),
-            api =
+            expectedApiSignature =
                 """
                     // Signature format: 2.0
                     package java.lang.invoke {
@@ -107,7 +107,7 @@ class PolymorphicMethodsTest : DriverTest() {
                         """
                     ),
                 ),
-            api =
+            expectedApiSignature =
                 """
                     // Signature format: 2.0
                     package java.lang.invoke {
