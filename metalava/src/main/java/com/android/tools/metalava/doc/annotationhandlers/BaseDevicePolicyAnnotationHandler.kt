@@ -20,9 +20,6 @@ import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.SelectableItem
-import com.android.tools.metalava.model.value.AnnotationValue
-import com.android.tools.metalava.model.value.asBoolean
-import com.android.tools.metalava.model.value.asInt
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
 import java.util.function.Predicate
@@ -49,45 +46,6 @@ abstract class BaseDevicePolicyAnnotationHandler(
     ) {
         append("$leadingSpaces<li>$name: ${if (allowed) "Allowed" else "Not allowed"}</li>\n")
     }
-
-    /** Report missing required fields inside the annotation. */
-    // TODO(b/499055608): This should not be necessary once all subclasses have switched to using
-    //  bindTo(...). Remove once it is unused.
-    protected fun reportOnMissingFields(fieldName: String, item: Item) {
-        reporter.reportOnMissingFields(fieldName, item)
-    }
-
-    /** Extension to report an issue if the value is null. */
-    // TODO(b/499055608): This should not be necessary once all subclasses have switched to using
-    //  bindTo(...). Remove once it is unused.
-    protected fun <T> T?.elseReportMissing(item: Item, name: String): T? {
-        if (this == null) reportOnMissingFields(name, item)
-        return this
-    }
-}
-
-/**
- * Helper to retrieve integer type attribute's value of an annotation (e.g. {@link
- * android.processor.devicepolicy.PolicyDefinition#requiredPermission}).
- */
-fun AnnotationItem.getIntAttribute(name: String): Int? {
-    return findAttribute(name)?.value?.asInt()
-}
-
-/**
- * Helper to retrieve boolean type attribute's value of an annotation (e.g. {@link
- * android.processor.devicepolicy.EnumResolutionMechanism#custom}).
- */
-fun AnnotationItem.getBooleanAttribute(name: String): Boolean? {
-    return findAttribute(name)?.value?.asBoolean()
-}
-
-/**
- * Helper to retrieve the annotation item that corresponds to the PolicyDefinition typed field (e.g.
- * {@link android.processor.devicepolicy.EnumPolicyDefinition#base}).
- */
-fun AnnotationItem.getPolicyDefinitionAttribute(name: String): AnnotationItem? {
-    return (findAttribute(name)?.value as? AnnotationValue)?.annotationItem
 }
 
 /** Report missing required fields inside the annotation. */
@@ -97,4 +55,31 @@ fun Reporter.reportOnMissingFields(fieldName: String, item: Item) {
         item,
         "Missing required field '$fieldName' inside $item"
     )
+}
+
+/**
+ * Proxy class bound to an instance of the `android.processor.devicepolicy.ListResolutionMechanism`
+ * annotation class.
+ *
+ * @see bindTo
+ */
+data class ListResolutionMechanismProxy(
+    val custom: Boolean = false,
+    val union: Boolean = false,
+) {
+    // TODO(b/492421367): Enrich the doc for resolution mechanism.
+    fun generateDocs(item: Item): String {
+        if (custom) {
+            return "custom"
+        } else if (union) {
+            return "union"
+        } else {
+            item.codebase.reporter.report(
+                Issues.INVALID_DEVICE_POLICY_ANNOTATION,
+                item,
+                "ListResolutionMechanism must have either 'custom' or 'union' set to true."
+            )
+            return ""
+        }
+    }
 }

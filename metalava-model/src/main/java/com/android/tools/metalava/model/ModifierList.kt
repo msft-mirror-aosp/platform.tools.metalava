@@ -172,6 +172,14 @@ interface BaseModifierList {
     }
 
     /**
+     * Determines whether a class/interface with these modifiers could be a subtype of a sealed java
+     * type.
+     *
+     * Returns `true` if any of [isFinal], [isSealed] or [isNonSealed] return true.
+     */
+    fun mayBeSubtypeOfJavaSealedType(): Boolean
+
+    /**
      * Get a [MutableModifierList] from this.
      *
      * This will return the object on which it is called if that is already mutable, otherwise it
@@ -214,4 +222,58 @@ interface ModifierList : BaseModifierList {
      * @param targetCodebase The [Codebase] of which the snapshot will be part.
      */
     fun snapshot(targetCodebase: Codebase): ModifierList
+}
+
+/**
+ * Context within which modifiers will be processed.
+ *
+ * This ensures consistent creation of [ModifierList] instances across the different [ItemKind]s.
+ */
+class ModifierContext
+private constructor(
+    private val itemKind: ItemKind,
+    private val classKind: ClassKind?,
+) {
+    /**
+     * Normalize [flags] to make them suitable for this [ModifierContext].
+     *
+     * Where [flags] is a bit set containing values from [ModifierFlags].
+     *
+     * This ensures consistent handling of [flags] across the different [ItemKind]s.
+     */
+    fun normalizeFlags(flags: Int, sourceLanguage: SourceLanguage): Int {
+        // Remove any flags that are not appropriate for itemKind.
+        var normalizedFlags =
+            when (sourceLanguage) {
+                SourceLanguage.JAVA -> {
+                    flags and itemKind.javaModifierMask
+                }
+                else -> {
+                    flags
+                }
+            }
+
+        // Apply any ClassKind specific restrictions if appropriate.
+        if (itemKind == ItemKind.CLASS && classKind != null) {
+            normalizedFlags = normalizedFlags and classKind.javaModifierMask
+        }
+
+        return normalizedFlags
+    }
+
+    companion object {
+        /** List of [ModifierContext]s indexed by [ItemKind.ordinal]. */
+        private val modifierContextForItemKind =
+            ItemKind.entries.map { ModifierContext(it, classKind = null) }
+
+        /** List of [ModifierContext]s indexed by [ClassKind.ordinal]. */
+        private val modifierContextForClassKind =
+            ClassKind.entries.map { ModifierContext(ItemKind.CLASS, it) }
+
+        /** Get a [ModifierContext] instance for [itemKind]. */
+        fun forItemKind(itemKind: ItemKind) = modifierContextForItemKind[itemKind.ordinal]
+
+        /** Get a [ModifierContext] instance for [classKind]. */
+        fun forClassKind(classKind: ClassKind) = modifierContextForClassKind[classKind.ordinal]
+    }
 }

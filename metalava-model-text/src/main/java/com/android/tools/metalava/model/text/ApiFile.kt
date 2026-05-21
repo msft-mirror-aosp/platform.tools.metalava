@@ -38,7 +38,9 @@ import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.MutableModifierList
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
+import com.android.tools.metalava.model.ParameterKind
 import com.android.tools.metalava.model.PrimitiveTypeItem
+import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.SkeletonClassItem
 import com.android.tools.metalava.model.SkeletonTypeParameterItem
@@ -58,6 +60,7 @@ import com.android.tools.metalava.model.createImmutableModifiers
 import com.android.tools.metalava.model.createMutableModifiers
 import com.android.tools.metalava.model.item.DefaultCodebase
 import com.android.tools.metalava.model.item.PackageInfo
+import com.android.tools.metalava.model.item.SealedClassImplicitPermitTypesUpdater
 import com.android.tools.metalava.model.multiplatform.MultiplatformCodebase
 import com.android.tools.metalava.model.parser.FileLocationTracker
 import com.android.tools.metalava.model.parser.TokenPurpose
@@ -366,8 +369,13 @@ private constructor(
                 )
             parser.parseMultipleFiles(signatureFiles)
 
+            val codebase = parser.codebase
+
+            // Update implicit permit types in any sealed class that does not have one provided.
+            SealedClassImplicitPermitTypesUpdater.updateImplicitPermitTypes(codebase)
+
             apiStatsConsumer(parser.stats)
-            return parser.codebase
+            return codebase
         }
 
         /**
@@ -865,7 +873,7 @@ private constructor(
         if ("implements" == token || "extends" == token) {
             token = tokenizer.requireToken()
             while (true) {
-                if ("{" == token) {
+                if (token == "{" || token == "permits") {
                     break
                 } else if ("," != token) {
                     val interfaceTypeString = parseSuperTypeString(tokenizer)
@@ -876,6 +884,23 @@ private constructor(
                     token = tokenizer.requireToken()
                 }
             }
+        }
+
+        val permitTypes = mutableListOf<ClassTypeItem>()
+
+        if (token == "permits") {
+            token = tokenizer.requireToken()
+            while (true) {
+                if ("{" == token) {
+                    break
+                } else {
+                    val typeString = parseSuperTypeString(tokenizer)
+                    val permitsType = typeItemFactory.getHierarchicalClassType(typeString)
+                    permitTypes.add(permitsType)
+                    token = tokenizer.current
+                }
+            }
+            permitTypes.sortWith(TypeItem.qualifiedComparator)
         }
 
         if ("{" != token) {
@@ -939,6 +964,7 @@ private constructor(
                 origin = ClassOrigin.COMMAND_LINE,
                 superClassType = superClassType,
                 interfaceTypes = interfaceTypes.toList(),
+                permitTypes = permitTypes,
                 targetLanguages = targetLanguages,
                 // Classes with the placeholder name for top level declarations in a
                 // MultiplatformCodebase are definitely facade classes. There isn't enough
@@ -1726,121 +1752,101 @@ private constructor(
      */
     private fun parseKeywordModifiers(tokenizer: Tokenizer, modifiers: MutableModifierList) {
         var token = tokenizer.current
-        processModifiers@ while (true) {
-            token =
-                when (token) {
-                    "public" -> {
-                        modifiers.setVisibilityLevel(VisibilityLevel.PUBLIC)
-                        tokenizer.requireToken()
-                    }
-                    "protected" -> {
-                        modifiers.setVisibilityLevel(VisibilityLevel.PROTECTED)
-                        tokenizer.requireToken()
-                    }
-                    "private" -> {
-                        modifiers.setVisibilityLevel(VisibilityLevel.PRIVATE)
-                        tokenizer.requireToken()
-                    }
-                    "internal" -> {
-                        modifiers.setVisibilityLevel(VisibilityLevel.INTERNAL)
-                        tokenizer.requireToken()
-                    }
-                    "static" -> {
-                        modifiers.setStatic(true)
-                        tokenizer.requireToken()
-                    }
-                    "final" -> {
-                        modifiers.setFinal(true)
-                        tokenizer.requireToken()
-                    }
-                    "deprecated" -> {
-                        modifiers.setDeprecated(true)
-                        tokenizer.requireToken()
-                    }
-                    "abstract" -> {
-                        modifiers.setAbstract(true)
-                        tokenizer.requireToken()
-                    }
-                    "transient" -> {
-                        modifiers.setTransient(true)
-                        tokenizer.requireToken()
-                    }
-                    "volatile" -> {
-                        modifiers.setVolatile(true)
-                        tokenizer.requireToken()
-                    }
-                    "sealed" -> {
-                        modifiers.setSealed(true)
-                        // When reading in a sealed class, for backwards compatibility we want
-                        // to label it as non-exhaustive (for more details on what this means,
-                        // see b/447143803) in case the signature file doesn't have one of
-                        // "exhaustive" or "nonexhaustive" after the "sealed" modifier. This
-                        // allows compatibility checks to not raise unnecessary errors for
-                        // sealed classes without an exhaustivity modifier. If the class is indeed
-                        // labeled with an exhaustivity modifier in the signature file, the class's
-                        // exhaustivity will be adjusted accordingly in the following match
-                        // statements.
-                        modifiers.setExhaustive(false)
-                        tokenizer.requireToken()
-                    }
-                    "exhaustive" -> {
-                        modifiers.setExhaustive(true)
-                        tokenizer.requireToken()
-                    }
-                    "nonexhaustive" -> {
-                        modifiers.setExhaustive(false)
-                        tokenizer.requireToken()
-                    }
-                    "default" -> {
-                        modifiers.setDefault(true)
-                        tokenizer.requireToken()
-                    }
-                    "synchronized" -> {
-                        modifiers.setSynchronized(true)
-                        tokenizer.requireToken()
-                    }
-                    "native" -> {
-                        modifiers.setNative(true)
-                        tokenizer.requireToken()
-                    }
-                    "strictfp" -> {
-                        modifiers.setStrictFp(true)
-                        tokenizer.requireToken()
-                    }
-                    "infix" -> {
-                        modifiers.setInfix(true)
-                        tokenizer.requireToken()
-                    }
-                    "operator" -> {
-                        modifiers.setOperator(true)
-                        tokenizer.requireToken()
-                    }
-                    "inline" -> {
-                        modifiers.setInline(true)
-                        tokenizer.requireToken()
-                    }
-                    "value" -> {
-                        modifiers.setValue(true)
-                        tokenizer.requireToken()
-                    }
-                    "suspend" -> {
-                        modifiers.setSuspend(true)
-                        tokenizer.requireToken()
-                    }
-                    "vararg" -> {
-                        modifiers.setVarArg(true)
-                        tokenizer.requireToken()
-                    }
-                    "fun" -> {
-                        modifiers.setFunctional(true)
-                        tokenizer.requireToken()
-                    }
-                    "data" -> {
-                        modifiers.setData(true)
-                        tokenizer.requireToken()
-                    }
-                    else -> break@processModifiers
+        while (true) {
+            when (token) {
+                "public" -> {
+                    modifiers.setVisibilityLevel(VisibilityLevel.PUBLIC)
                 }
+                "protected" -> {
+                    modifiers.setVisibilityLevel(VisibilityLevel.PROTECTED)
+                }
+                "private" -> {
+                    modifiers.setVisibilityLevel(VisibilityLevel.PRIVATE)
+                }
+                "internal" -> {
+                    modifiers.setVisibilityLevel(VisibilityLevel.INTERNAL)
+                }
+                "static" -> {
+                    modifiers.setStatic(true)
+                }
+                "final" -> {
+                    modifiers.setFinal(true)
+                }
+                "deprecated" -> {
+                    modifiers.setDeprecated(true)
+                }
+                "abstract" -> {
+                    modifiers.setAbstract(true)
+                }
+                "transient" -> {
+                    modifiers.setTransient(true)
+                }
+                "volatile" -> {
+                    modifiers.setVolatile(true)
+                }
+                "sealed" -> {
+                    modifiers.setSealed(true)
+                    // When reading in a sealed class, for backwards compatibility we want
+                    // to label it as non-exhaustive (for more details on what this means,
+                    // see b/447143803) in case the signature file doesn't have one of
+                    // "exhaustive" or "nonexhaustive" after the "sealed" modifier. This
+                    // allows compatibility checks to not raise unnecessary errors for
+                    // sealed classes without an exhaustivity modifier. If the class is indeed
+                    // labeled with an exhaustivity modifier in the signature file, the class's
+                    // exhaustivity will be adjusted accordingly in the following match
+                    // statements.
+                    modifiers.setExhaustive(false)
+                }
+                "non-sealed" -> {
+                    modifiers.setNonSealed(true)
+                }
+                "exhaustive" -> {
+                    modifiers.setExhaustive(true)
+                }
+                "non-exhaustive",
+                "nonexhaustive" -> {
+                    modifiers.setExhaustive(false)
+                }
+                "default" -> {
+                    modifiers.setDefault(true)
+                }
+                "synchronized" -> {
+                    modifiers.setSynchronized(true)
+                }
+                "native" -> {
+                    modifiers.setNative(true)
+                }
+                "strictfp" -> {
+                    modifiers.setStrictFp(true)
+                }
+                "infix" -> {
+                    modifiers.setInfix(true)
+                }
+                "operator" -> {
+                    modifiers.setOperator(true)
+                }
+                "inline" -> {
+                    modifiers.setInline(true)
+                }
+                "value" -> {
+                    modifiers.setValue(true)
+                }
+                "suspend" -> {
+                    modifiers.setSuspend(true)
+                }
+                "vararg" -> {
+                    modifiers.setVarArg(true)
+                }
+                "fun" -> {
+                    modifiers.setFunctional(true)
+                }
+                "data" -> {
+                    modifiers.setData(true)
+                }
+                else -> break
+            }
+
+            token = tokenizer.requireToken()
         }
     }
 
@@ -1889,7 +1895,24 @@ private constructor(
         val type = typeItemFactory.getGeneralType(typeString)
         synchronizeNullability(type, modifiers)
 
-        val token = tokenizer.current
+        var token = tokenizer.current
+        val contextParameters =
+            if (token == "(") {
+                val params =
+                    parseParameterList(
+                        tokenizer = tokenizer,
+                        // The current token is already the "("
+                        startWithCurrentToken = true,
+                        useUnderscoreAsDefaultName = true,
+                    )
+                // `parseParameterList` ends with the tokenizer on the closing ")", skip to the next
+                // token to continue parsing
+                token = tokenizer.requireToken()
+                params
+            } else {
+                emptyList()
+            }
+
         if (";" != token) {
             throw ApiParseException("expected ; found $token", tokenizer)
         }
@@ -1905,6 +1928,9 @@ private constructor(
                 // There isn't any information about whether a setter exists or its visibility if it
                 // does in API files currently.
                 setterVisibility = null,
+                contextParameterFactory = { propertyItem ->
+                    contextParameters.map { it.create(propertyItem, typeItemFactory) }
+                },
             )
         property.markForMainApiSurface()
 
@@ -2177,17 +2203,30 @@ private constructor(
     }
 
     /**
-     * Parses a list of parameters. Before calling, [tokenizer] should point to the token *before*
-     * the opening `(` of the parameter list (the method starts by calling
+     * Parses a list of parameters.
+     *
+     * If [startWithCurrentToken] is true, before calling [tokenizer] should point to the opening
+     * `(` of the parameter list. If [startWithCurrentToken] is false, [tokenizer] should point to
+     * the token *before* the opening `(` (and the method will start by calling
      * [Tokenizer.requireToken]).
+     *
+     * If [useUnderscoreAsDefaultName] is true, parameters without a public name will have "_" as
+     * their name. If it is false, they will have "arg<index>" as their name.
      *
      * When the method returns, [tokenizer] will point to the closing `)` of the parameter list.
      */
     private fun parseParameterList(
         tokenizer: Tokenizer,
+        startWithCurrentToken: Boolean = false,
+        useUnderscoreAsDefaultName: Boolean = false,
     ): List<ParameterInfo> {
         val parameters = mutableListOf<ParameterInfo>()
-        var token: String = tokenizer.requireToken()
+        var token: String =
+            if (startWithCurrentToken) {
+                tokenizer.current
+            } else {
+                tokenizer.requireToken()
+            }
         if ("(" != token) {
             throw ApiParseException("expected (, was $token", tokenizer)
         }
@@ -2207,6 +2246,17 @@ private constructor(
             // default value
             val hasOptionalKeyword = token == "optional"
             if (hasOptionalKeyword) {
+                tokenizer.requireToken()
+            }
+
+            // The kind of the parameter might be specified.
+            val optionalKind =
+                when (token) {
+                    "context" -> ParameterKind.CONTEXT
+                    "receiver" -> ParameterKind.RECEIVER
+                    else -> null
+                }
+            if (optionalKind != null) {
                 tokenizer.requireToken()
             }
 
@@ -2253,7 +2303,7 @@ private constructor(
                 }
             }
 
-            val name = publicName ?: "arg${index + 1}"
+            val name = publicName ?: (if (useUnderscoreAsDefaultName) "_" else "arg${index + 1}")
             parameters.add(
                 ParameterInfo(
                     name,
@@ -2263,7 +2313,8 @@ private constructor(
                     typeString,
                     modifiers,
                     tokenizer.fileLocation(),
-                    index
+                    index,
+                    optionalKind,
                 )
             )
             index++
@@ -2283,9 +2334,13 @@ private constructor(
         val typeString: String,
         val modifiers: MutableModifierList,
         val location: FileLocation,
-        val index: Int
+        val index: Int,
+        val optionalKind: ParameterKind?,
     ) {
-        /** Turn this [ParameterInfo] into a [ParameterItem] by parsing the [typeString]. */
+        /**
+         * Turn this [ParameterInfo] into a [ParameterItem] of the [containingCallable] by parsing
+         * the [typeString].
+         */
         fun create(
             containingCallable: CallableItem,
             typeItemFactory: TextTypeItemFactory,
@@ -2301,19 +2356,55 @@ private constructor(
                 )
             synchronizeNullability(type, modifiers)
 
+            // The last parameter of a suspend function is the continuation parameter. If there was
+            // a parameter kind listed in the file, use that, otherwise this is a value parameter.
+            val kind =
+                if (
+                    containingCallable.modifiers.isSuspend() &&
+                        index == methodFingerprint.parameterCount - 1
+                ) {
+                    ParameterKind.CONTINUATION
+                } else {
+                    optionalKind ?: ParameterKind.VALUE
+                }
+
             val parameter =
                 itemFactory.createParameterItem(
                     fileLocation = location,
                     modifiers = modifiers,
                     name = name,
                     publicName = publicName,
-                    containingCallable = containingCallable,
+                    containingItem = containingCallable,
                     parameterIndex = index,
                     type = type,
                     hasDefaultValue = hasDefaultValue,
+                    kind = kind,
                 )
 
             return parameter
+        }
+
+        /**
+         * Turn this [ParameterInfo] into a context [ParameterItem] of the [containingProperty] by
+         * parsing the [typeString].
+         */
+        fun create(
+            containingProperty: PropertyItem,
+            typeItemFactory: TextTypeItemFactory
+        ): ParameterItem {
+            val type = typeItemFactory.getGeneralType(typeString)
+            synchronizeNullability(type, modifiers)
+            return itemFactory.createParameterItem(
+                fileLocation = location,
+                modifiers = modifiers,
+                name = name,
+                publicName = publicName,
+                containingItem = containingProperty,
+                parameterIndex = index,
+                type = type,
+                hasDefaultValue = hasDefaultValue,
+                kind = ParameterKind.CONTEXT, // All ParameterItems for a property are context
+            )
         }
     }
 

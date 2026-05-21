@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.android.tools.metalava
+package com.android.tools.metalava.api
 
 import com.android.tools.metalava.cli.common.cliError
 import com.android.tools.metalava.model.AnnotationItem
@@ -115,12 +115,14 @@ class NullabilityAnnotationsValidator(
                     }
 
                     override fun visitParameter(parameter: ParameterItem) {
-                        checkItem(
-                            parameter.containingCallable(),
-                            parameter.toString(),
-                            parameter.type(),
-                            parameter
-                        )
+                        parameter.containingCallable()?.let { containingCallable ->
+                            checkItem(
+                                containingCallable,
+                                parameter.toString(),
+                                parameter.type(),
+                                parameter
+                            )
+                        }
                     }
                 }
             )

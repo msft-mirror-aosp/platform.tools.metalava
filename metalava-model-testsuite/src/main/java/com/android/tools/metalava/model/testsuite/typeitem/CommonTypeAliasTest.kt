@@ -19,6 +19,7 @@ package com.android.tools.metalava.model.testsuite.typeitem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.provider.InputFormat
 import com.android.tools.metalava.model.testing.SupportedInputFormats
+import com.android.tools.metalava.model.testing.testTypeString
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.testing.createAndroidModuleDescription
 import com.android.tools.metalava.testing.createCommonModuleDescription
@@ -312,6 +313,50 @@ class CommonTypeAliasTest : BaseModelTest() {
             val commonChildClass = codebase.assertClass("test.pkg.CommonChildClass")
             assertThat(commonChildClass.superClassType()).isEqualTo(actualParentClassType)
             assertThat(commonChildClass.superClassType()!!.modifiers.isNullable).isFalse()
+        }
+    }
+
+    @Test
+    fun `Test typealias for primitive used as type argument`() {
+        val commonSource =
+            kotlin(
+                "commonMain/src/test/pkg/Foo.kt",
+                """
+                    package test.pkg
+                    class AliasContainer : Iterable<Foo>() {
+                        fun method(lambda: (Foo) -> Unit) {}
+                    }
+                    expect open class Foo
+                """
+            )
+        val androidSource =
+            kotlin(
+                "androidMain/src/test/pkg/Foo.android.kt",
+                """
+                    package test.pkg
+                    actual typealias Foo = Int
+                """
+            )
+        runCodebaseTest(
+            inputSet(
+                androidSource,
+                commonSource,
+            ),
+            projectDescription =
+                createProjectDescription(
+                    createAndroidModuleDescription(arrayOf(androidSource)),
+                    createCommonModuleDescription(arrayOf(commonSource)),
+                ),
+        ) {
+            val aliasContainerClass = codebase.assertClass("test.pkg.AliasContainer")
+            assertThat(aliasContainerClass.interfaceTypes().joinToString { it.testTypeString() })
+                .isEqualTo(
+                    "kotlin.collections.Iterable<java.lang.Integer>, java.lang.Iterable<java.lang.Integer>, kotlin.jvm.internal.markers.KMappedMarker"
+                )
+
+            val testMethod = aliasContainerClass.methods().single()
+            assertThat(testMethod.parameters().joinToString { it.type().testTypeString() })
+                .isEqualTo("kotlin.jvm.functions.Function1<? super java.lang.Integer,kotlin.Unit>")
         }
     }
 }

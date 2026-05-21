@@ -46,6 +46,7 @@ java_library_host {
     libs: [
         "metalava-model",
         "metalava-reporter",
+        "prebuilts-metalava-tracing",
     ],
     static_libs: [
         "prebuilts-metalava-antlr4-runtime",

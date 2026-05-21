@@ -102,4 +102,8 @@ internal sealed class DefaultSelectableItem(
 
     final override val showability: Showability
         get() = variantSelectors.showability
+
+    override fun includeOnlyForStubPurposes(): Boolean {
+        return variantSelectors.includeOnlyForStubPurposes
+    }
 }

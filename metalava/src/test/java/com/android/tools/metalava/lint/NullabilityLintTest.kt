@@ -17,9 +17,6 @@
 package com.android.tools.metalava.lint
 
 import com.android.tools.metalava.DriverTest
-import com.android.tools.metalava.cli.common.ARG_ERROR
-import com.android.tools.metalava.cli.common.ARG_HIDE
-import com.android.tools.metalava.cli.lint.ARG_API_LINT
 import com.android.tools.metalava.libcoreNonNullSource
 import com.android.tools.metalava.libcoreNullableSource
 import com.android.tools.metalava.model.provider.Capability
@@ -83,7 +80,10 @@ class NullabilityLintTest : DriverTest() {
     fun `Test no missing nullability errors for enums`() {
         check(
             apiLint = "", // enabled
-            extraArguments = arrayOf(ARG_HIDE, "Enum"),
+            extraArguments =
+                hiddenIssues(
+                    Issues.ENUM,
+                ),
             sourceFiles =
                 arrayOf(
                     java(
@@ -113,7 +113,10 @@ class NullabilityLintTest : DriverTest() {
     fun `Test no missing nullability errors for kotlin constructs`() {
         check(
             apiLint = "", // enabled
-            extraArguments = arrayOf(ARG_HIDE, "StaticUtils"),
+            extraArguments =
+                hiddenIssues(
+                    Issues.STATIC_UTILS,
+                ),
             sourceFiles =
                 arrayOf(
                     kotlin(
@@ -144,7 +147,10 @@ class NullabilityLintTest : DriverTest() {
     fun `Test type variable array requires nullability`() {
         check(
             apiLint = "", // enabled
-            extraArguments = arrayOf(ARG_API_LINT, ARG_HIDE, "ArrayReturn"),
+            extraArguments =
+                hiddenIssues(
+                    Issues.ARRAY_RETURN,
+                ),
             expectedIssues =
                 """
                 src/test/pkg/Foo.java:4: error: Missing nullability on method `badTypeVarArrayReturn` return [MissingNullability]
@@ -253,7 +259,10 @@ class NullabilityLintTest : DriverTest() {
                     KnownSourceFiles.androidxNullableJavaSource,
                     KnownSourceFiles.androidxNonNullJavaSource
                 ),
-            extraArguments = arrayOf(ARG_HIDE, Issues.INHERIT_CHANGES_SIGNATURE.name),
+            extraArguments =
+                hiddenIssues(
+                    Issues.INHERIT_CHANGES_SIGNATURE,
+                ),
         )
     }
 
@@ -538,7 +547,7 @@ class NullabilityLintTest : DriverTest() {
 
     @RequiresCapabilities(Capability.KOTLIN)
     @Test
-    fun `Nullability overrides in unbounded generics (Object to generic and back)`() {
+    fun `Nullability overrides in unbounded generics - Object to generic and back`() {
         check(
             apiLint = "",
             expectedIssues =
@@ -583,7 +592,7 @@ class NullabilityLintTest : DriverTest() {
 
     @RequiresCapabilities(Capability.KOTLIN)
     @Test
-    fun `Nullability overrides in unbounded generics (one super method lacks nullness info)`() {
+    fun `Nullability overrides in unbounded generics - one super method lacks nullness info`() {
         check(
             apiLint = "",
             sourceFiles =
@@ -666,7 +675,10 @@ class NullabilityLintTest : DriverTest() {
     fun `Missing inner nullability`() {
         check(
             apiLint = "",
-            extraArguments = arrayOf(ARG_ERROR, "MissingInnerNullability"),
+            extraArguments =
+                errorIssues(
+                    Issues.MISSING_INNER_NULLABILITY,
+                ),
             expectedIssues =
                 """
                     src/test/pkg/Foo.java:5: error: Missing nullability on inner type java.lang.String in method `getArray` return [MissingInnerNullability]
@@ -700,7 +712,10 @@ class NullabilityLintTest : DriverTest() {
     fun `Test inner type nullness overrides of defined nullness`() {
         check(
             apiLint = "",
-            extraArguments = arrayOf(ARG_HIDE, "NullableCollectionElement"),
+            extraArguments =
+                hiddenIssues(
+                    Issues.NULLABLE_COLLECTION_ELEMENT,
+                ),
             expectedIssues =
                 """
                     src/test/pkg/Foo.java:7: error: Invalid nullability on type java.lang.String in parameter `arg` in method `foo`. Parameter in method override cannot use a non-null type when the corresponding type from the super method is nullable. [InvalidNullabilityOverride]
@@ -742,7 +757,10 @@ class NullabilityLintTest : DriverTest() {
         // TODO (b/344859664): this case is ignored for now
         check(
             apiLint = "",
-            extraArguments = arrayOf(ARG_HIDE, "NullableCollectionElement"),
+            extraArguments =
+                hiddenIssues(
+                    Issues.NULLABLE_COLLECTION_ELEMENT,
+                ),
             sourceFiles =
                 arrayOf(
                     java(

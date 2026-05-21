@@ -758,6 +758,45 @@ class SnapshotDeltaMakerTest : BaseTextCodebaseTest() {
                         """,
                     checkMemberItemEquivalence = true,
                 ),
+                TestParams(
+                    name = "property context parameter modifiers",
+                    baseSignature =
+                        """
+                        // Signature format: 2.0
+                        package test.pkg {
+                          public @interface BaseAnnotation {
+                          }
+                          public class Foo {
+                            property public int foo(context @test.pkg.BaseAnnotation String s);
+                          }
+                        }
+                        """,
+                    extendsSignature =
+                        """
+                        // Signature format: 2.0
+                        package test.pkg {
+                          public @interface ExtendsAnnotation {
+                          }
+                          public class Foo {
+                            property public int foo(context @test.pkg.ExtendsAnnotation String s);
+                          }
+                        }
+                        """,
+                    combinedSignature =
+                        """
+                        // Signature format: 2.0
+                        package test.pkg {
+                          public @interface BaseAnnotation {
+                          }
+                          public @interface ExtendsAnnotation {
+                          }
+                          public class Foo {
+                            property public int foo(context @test.pkg.ExtendsAnnotation String s);
+                          }
+                        }
+                        """,
+                    checkMemberItemEquivalence = true,
+                )
             )
     }
 

@@ -16,8 +16,8 @@
 
 package com.android.tools.metalava.model
 
+import com.android.tools.metalava.model.CallableBody.Companion.UNAVAILABLE
 import com.android.tools.metalava.model.item.DefaultCodebase
-import com.android.tools.metalava.reporter.FileLocation
 
 /**
  * A lamda that given a [CallableItem] will create a [CallableBody] for it.
@@ -53,13 +53,6 @@ interface CallableBody {
     fun findThrownExceptions(): Set<ClassItem>
 
     /**
-     * Finds the locations within this where a `synchronized` statement may be visible because it
-     * locks either the instance on which the method is called or its class. e.g. `synchronized
-     * (this) {...}` or `synchronized (Class.class)`.
-     */
-    fun findVisiblySynchronizedLocations(): List<FileLocation>
-
-    /**
      * Called on a method whose return value is annotated with [typeDefAnnotation] of class
      * [typeDefClass].
      *
@@ -76,9 +69,6 @@ interface CallableBody {
                 override fun duplicate(callableItem: CallableItem) = this
 
                 override fun findThrownExceptions() = error("method body is unavailable")
-
-                /** Return an empty list as the method body is unavailable. */
-                override fun findVisiblySynchronizedLocations() = emptyList<FileLocation>()
 
                 /** Do nothing. */
                 override fun verifyReturnedConstants(
