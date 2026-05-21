@@ -612,9 +612,14 @@ abstract class DriverTest :
         // Ensure that lint infrastructure (for UAST) knows it's dealing with a test
         LintCliClient(LintClient.CLIENT_UNIT_TESTS)
 
+        // Add any additional source files from the apiSurface.
+        val allSourceFiles =
+            apiSurface?.let { apiSurface -> sourceFiles + apiSurface.additionalSourceFiles }
+                ?: sourceFiles
+
         // Verify that a test that provided kotlin code is only being run against a provider that
         // supports kotlin code.
-        val anyKotlin = sourceFiles.any { it.targetPath.endsWith(DOT_KT) }
+        val anyKotlin = allSourceFiles.any { it.targetPath.endsWith(DOT_KT) }
         if (anyKotlin) {
             if (Capability.KOTLIN !in codebaseCreatorConfig.creator.capabilities) {
                 error(
@@ -652,7 +657,7 @@ abstract class DriverTest :
         val androidJar = getAndroidJar()
 
         // Create the main project directory containing the source files.
-        val projectDir = createProjectDir(sourceFiles)
+        val projectDir = createProjectDir(allSourceFiles)
 
         val sourcePathDir = File(projectDir, "src")
         if (!sourcePathDir.isDirectory) {
@@ -662,7 +667,7 @@ abstract class DriverTest :
         var sourcePath = sourcePathDir.path
 
         // Make it easy to configure a source path with more than one source root: src and src2
-        if (sourceFiles.any { it.targetPath.startsWith("src2") }) {
+        if (allSourceFiles.any { it.targetPath.startsWith("src2") }) {
             sourcePath = sourcePath + File.pathSeparator + sourcePath + "2"
         }
 
@@ -724,12 +729,12 @@ abstract class DriverTest :
                 args.toTypedArray()
             } else if (apiJar != null) {
                 sourcePathDir.mkdirs()
-                assert(sourceFiles.isEmpty()) {
+                assert(allSourceFiles.isEmpty()) {
                     "Shouldn't combine sources with API jar file loads"
                 }
                 arrayOf(apiJar.path)
             } else {
-                sourceFiles
+                allSourceFiles
                     .asSequence()
                     .map { pathUnderProject(it.targetPath) }
                     .toList()
@@ -1380,7 +1385,7 @@ abstract class DriverTest :
                     )
                 }
                 val actualContents = readFile(actual)
-                val stubSource = if (sourceFiles.isEmpty()) "text" else "source"
+                val stubSource = if (allSourceFiles.isEmpty()) "text" else "source"
                 val message =
                     "Generated from-$stubSource stub contents does not match expected contents"
                 compareStubFileContent(
@@ -2180,10 +2185,12 @@ val TYPE_USE_FORMAT =
  * @param surface the name of the surface, adding as [ARG_API_SURFACE].
  * @param configFile the config file that will define [surface].
  * @param optionalCommandLineOptions the command line options that are equivalent to [surface].
+ * @param additionalSourceFiles additional source files to automatically add when this is used.
  */
 data class KnownApiSurface(
     val surface: String,
     val configFile: TestFile,
+    val additionalSourceFiles: List<TestFile> = emptyList(),
     val optionalCommandLineOptions: List<String>? = null,
 ) {
     val commandLineOptions: List<String>
@@ -2196,9 +2203,10 @@ data class KnownApiSurface(
             KnownApiSurface(
                 "public",
                 KnownConfigFiles.configKnownTestSurfaces,
-                listOf(
-                    ARG_SHOW_UNANNOTATED,
-                ),
+                optionalCommandLineOptions =
+                    listOf(
+                        ARG_SHOW_UNANNOTATED,
+                    ),
             )
 
         /** The system API as used by Android. */
@@ -2206,10 +2214,11 @@ data class KnownApiSurface(
             KnownApiSurface(
                 "system",
                 KnownConfigFiles.configKnownTestSurfaces,
-                listOf(
-                    ARG_SHOW_ANNOTATION,
-                    "android.annotation.SystemApi(client=android.annotation.SystemApi.Client.PRIVILEGED_APPS)",
-                ),
+                optionalCommandLineOptions =
+                    listOf(
+                        ARG_SHOW_ANNOTATION,
+                        "android.annotation.SystemApi(client=android.annotation.SystemApi.Client.PRIVILEGED_APPS)",
+                    ),
             )
 
         /** The system API plus public API. */
