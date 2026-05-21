@@ -22,7 +22,6 @@ import com.android.tools.metalava.ARG_SHOW_UNANNOTATED
 import com.android.tools.metalava.DriverTest
 import com.android.tools.metalava.KnownApiSurface
 import com.android.tools.metalava.cli.common.ARG_ERROR_CATEGORY
-import com.android.tools.metalava.cli.common.ARG_HIDE
 import com.android.tools.metalava.model.ANDROID_SYSTEM_API
 import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.testing.RequiresCapabilities
@@ -3001,14 +3000,11 @@ class CompatibilityCheckTest : DriverTest() {
                     )
                 ),
             extraArguments =
-                arrayOf(
-                    ARG_HIDE,
-                    "ReferencesHidden",
-                    ARG_HIDE,
-                    "UnavailableSymbol",
-                    ARG_HIDE,
-                    "HiddenTypeParameter"
-                )
+                hiddenIssues(
+                    Issues.REFERENCES_HIDDEN,
+                    Issues.UNAVAILABLE_SYMBOL,
+                    Issues.HIDDEN_TYPE_PARAMETER,
+                ),
         )
     }
 
@@ -3637,7 +3633,10 @@ class CompatibilityCheckTest : DriverTest() {
     @Test
     fun `configuring issue severity`() {
         check(
-            extraArguments = arrayOf(ARG_HIDE, Issues.REMOVED_METHOD.name),
+            extraArguments =
+                hiddenIssues(
+                    Issues.REMOVED_METHOD,
+                ),
             signatureSource =
                 """
                 package test.pkg {

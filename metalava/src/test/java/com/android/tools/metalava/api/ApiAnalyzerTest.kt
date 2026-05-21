@@ -18,8 +18,6 @@ package com.android.tools.metalava.api
 
 import com.android.tools.metalava.DriverTest
 import com.android.tools.metalava.KnownApiSurface
-import com.android.tools.metalava.cli.common.ARG_ERROR
-import com.android.tools.metalava.cli.common.ARG_HIDE
 import com.android.tools.metalava.cli.common.ARG_SKIP_READING_COMMENTS
 import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.testing.RequiresCapabilities
@@ -335,7 +333,10 @@ class ApiAnalyzerTest : DriverTest() {
                         """
                     ),
                 ),
-            extraArguments = arrayOf(ARG_HIDE, Issues.INHERIT_CHANGES_SIGNATURE.name),
+            extraArguments =
+                hiddenIssues(
+                    Issues.INHERIT_CHANGES_SIGNATURE,
+                ),
         )
     }
 
@@ -379,7 +380,11 @@ class ApiAnalyzerTest : DriverTest() {
     @Test
     fun `Deprecation when ignoring comments`() {
         check(
-            extraArguments = arrayOf(ARG_SKIP_READING_COMMENTS, ARG_ERROR, "ReferencesDeprecated"),
+            extraArguments =
+                arrayOf(ARG_SKIP_READING_COMMENTS) +
+                    errorIssues(
+                        Issues.REFERENCES_DEPRECATED,
+                    ),
             sourceFiles =
                 arrayOf(
                     kotlin(
@@ -514,7 +519,10 @@ class ApiAnalyzerTest : DriverTest() {
                     }
                 """,
             extraArguments =
-                arrayOf(ARG_ERROR, "ReferencesDeprecated", ARG_ERROR, "ExtendsDeprecated"),
+                errorIssues(
+                    Issues.REFERENCES_DEPRECATED,
+                    Issues.EXTENDS_DEPRECATED,
+                ),
             expectedIssues =
                 """
                     src/test/pkg/NotDeprecatedClass.java:2: error: Extending deprecated super class class test.pkg.DeprecatedOuterClass from test.pkg.NotDeprecatedClass: this class should also be deprecated [ExtendsDeprecated]
@@ -563,7 +571,10 @@ class ApiAnalyzerTest : DriverTest() {
                     }
                 """,
             extraArguments =
-                arrayOf(ARG_ERROR, "ReferencesDeprecated", ARG_ERROR, "ExtendsDeprecated"),
+                errorIssues(
+                    Issues.REFERENCES_DEPRECATED,
+                    Issues.EXTENDS_DEPRECATED,
+                ),
             expectedIssues =
                 """
                     src/test/pkg/NotDeprecatedClass.java:2: error: Extending deprecated super class class test.pkg.DeprecatedOuterClass.EffectivelyDeprecatedInnerClass from test.pkg.NotDeprecatedClass: this class should also be deprecated [ExtendsDeprecated]
@@ -610,7 +621,10 @@ class ApiAnalyzerTest : DriverTest() {
                       }
                     }
                 """,
-            extraArguments = arrayOf(ARG_ERROR, "ReferencesDeprecated"),
+            extraArguments =
+                errorIssues(
+                    Issues.REFERENCES_DEPRECATED,
+                ),
             expectedIssues =
                 """
                     src/test/pkg/NotDeprecatedClass.java:4: error: Parameter references deprecated type test.pkg.DeprecatedClass in test.pkg.NotDeprecatedClass.usesDeprecated(): this method should also be deprecated [ReferencesDeprecated]
@@ -750,7 +764,10 @@ class ApiAnalyzerTest : DriverTest() {
                         """
                     )
                 ),
-            extraArguments = arrayOf(ARG_ERROR, Issues.INHERIT_CHANGES_SIGNATURE.name)
+            extraArguments =
+                errorIssues(
+                    Issues.INHERIT_CHANGES_SIGNATURE,
+                )
         )
     }
 

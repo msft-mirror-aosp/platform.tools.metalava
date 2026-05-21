@@ -18,7 +18,6 @@ package com.android.tools.metalava.api
 
 import com.android.tools.metalava.DriverTest
 import com.android.tools.metalava.KnownApiSurface
-import com.android.tools.metalava.cli.common.ARG_WARNING
 import com.android.tools.metalava.intRangeAnnotationSource
 import com.android.tools.metalava.libcoreNonNullSource
 import com.android.tools.metalava.libcoreNullableSource
@@ -321,7 +320,10 @@ class AnnotationsMergerTest : DriverTest() {
                 merged-annotations.txt:6: warning: qualifier annotations were given for method test.pkg.Appendable.reverse(String) but no matching item was found [UnmatchedMergeAnnotation]
                 merged-annotations.txt:8: warning: qualifier annotations were given for class test.pkg.RandomClass but no matching item was found [UnmatchedMergeAnnotation]
             """,
-            extraArguments = arrayOf(ARG_WARNING, Issues.UNMATCHED_MERGE_ANNOTATION.name)
+            extraArguments =
+                warningIssues(
+                    Issues.UNMATCHED_MERGE_ANNOTATION,
+                )
         )
     }
 
@@ -365,9 +367,8 @@ class AnnotationsMergerTest : DriverTest() {
                 }
                 """,
             extraArguments =
-                arrayOf(
-                    ARG_WARNING,
-                    Issues.UNMATCHED_MERGE_ANNOTATION.name,
+                warningIssues(
+                    Issues.UNMATCHED_MERGE_ANNOTATION,
                 ),
             expectedIssues =
                 """
@@ -608,7 +609,10 @@ class AnnotationsMergerTest : DriverTest() {
                   }
                 }
                 """,
-            extraArguments = arrayOf(ARG_WARNING, Issues.UNMATCHED_MERGE_ANNOTATION.name),
+            extraArguments =
+                warningIssues(
+                    Issues.UNMATCHED_MERGE_ANNOTATION,
+                ),
         )
     }
 

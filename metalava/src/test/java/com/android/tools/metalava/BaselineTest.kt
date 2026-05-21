@@ -17,10 +17,9 @@
 package com.android.tools.metalava
 
 import com.android.tools.lint.checks.infrastructure.TestFiles.source
-import com.android.tools.metalava.cli.common.ARG_ERROR
-import com.android.tools.metalava.cli.common.ARG_HIDE
 import com.android.tools.metalava.cli.lint.ARG_API_LINT
 import com.android.tools.metalava.model.text.FileFormat
+import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.testing.KnownSourceFiles
 import com.android.tools.metalava.testing.java
 import java.io.File
@@ -32,16 +31,14 @@ class BaselineTest : DriverTest() {
         check(
             format = FileFormat.V2,
             extraArguments =
-                arrayOf(
-                    ARG_HIDE,
-                    "HiddenSuperclass",
-                    ARG_HIDE,
-                    "UnavailableSymbol",
-                    ARG_HIDE,
-                    "HiddenTypeParameter",
-                    ARG_ERROR,
-                    "ReferencesHidden"
-                ),
+                hiddenIssues(
+                    Issues.HIDDEN_SUPERCLASS,
+                    Issues.UNAVAILABLE_SYMBOL,
+                    Issues.HIDDEN_TYPE_PARAMETER,
+                ) +
+                    errorIssues(
+                        Issues.REFERENCES_HIDDEN,
+                    ),
             baselineTestInfo =
                 BaselineTestInfo(
                     inputContents =

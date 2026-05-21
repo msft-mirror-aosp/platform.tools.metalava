@@ -17,7 +17,6 @@
 package com.android.tools.metalava
 
 import com.android.tools.lint.checks.infrastructure.TestFile
-import com.android.tools.metalava.cli.common.ARG_HIDE
 import com.android.tools.metalava.config.ApiFlagActionConfig.Mutability.IMMUTABLE
 import com.android.tools.metalava.config.ApiFlagActionConfig.Status.ENABLED
 import com.android.tools.metalava.config.ApiFlagConfig
@@ -1385,9 +1384,8 @@ class ParameterizedFlaggedApiTest(private val config: Configuration) : DriverTes
                 """
             ),
             extraArguments =
-                arrayOf(
-                    ARG_HIDE,
-                    Issues.REMOVED_FINAL_STRICT.name,
+                hiddenIssues(
+                    Issues.REMOVED_FINAL_STRICT,
                 ),
             // The previously released public api.
             previouslyReleasedApi =

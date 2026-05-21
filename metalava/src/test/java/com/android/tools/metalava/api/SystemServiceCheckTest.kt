@@ -20,7 +20,6 @@ import com.android.tools.lint.checks.infrastructure.TestFile
 import com.android.tools.metalava.ARG_API_SURFACE
 import com.android.tools.metalava.DriverTest
 import com.android.tools.metalava.KnownApiSurface
-import com.android.tools.metalava.cli.common.ARG_ERROR
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.requiresPermissionSource
 import com.android.tools.metalava.systemServiceSource
@@ -43,9 +42,10 @@ class SystemServiceCheckTest : DriverTest() {
                 arrayOf(
                     ARG_API_SURFACE,
                     "system",
-                    ARG_ERROR,
-                    Issues.REQUIRES_SYSTEM_PERMISSION.name,
-                ),
+                ) +
+                    errorIssues(
+                        Issues.REQUIRES_SYSTEM_PERMISSION,
+                    ),
             sourceFiles = sourceFiles,
             manifest = manifest,
         )

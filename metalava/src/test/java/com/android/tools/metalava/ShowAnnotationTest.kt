@@ -17,10 +17,10 @@
 package com.android.tools.metalava
 
 import com.android.tools.lint.checks.infrastructure.TestFiles.base64gzip
-import com.android.tools.metalava.cli.common.ARG_HIDE
 import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.testing.RequiresCapabilities
 import com.android.tools.metalava.model.text.FileFormat
+import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
 import com.android.tools.metalava.testing.xml
@@ -701,13 +701,9 @@ class ShowAnnotationTest : DriverTest() {
                     )
                 ),
             extraArguments =
-                arrayOf(
-                    ARG_SHOW_ANNOTATION,
-                    "kotlin.PublishedApi",
-                    ARG_HIDE,
-                    "UnhiddenSystemApi",
-                    ARG_SHOW_UNANNOTATED
-                ),
+                hiddenIssues(
+                    Issues.UNHIDDEN_SYSTEM_API,
+                ) + arrayOf(ARG_SHOW_ANNOTATION, "kotlin.PublishedApi", ARG_SHOW_UNANNOTATED),
             expectedApiSignature =
                 """
                 package test.pkg {

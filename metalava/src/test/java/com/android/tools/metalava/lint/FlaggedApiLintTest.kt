@@ -20,8 +20,7 @@ import com.android.tools.metalava.ARG_PASS_THROUGH_ANNOTATION
 import com.android.tools.metalava.DriverTest
 import com.android.tools.metalava.androidRestrictedForEnvironment
 import com.android.tools.metalava.androidXRestrictedForEnvironment
-import com.android.tools.metalava.cli.common.ARG_HIDE
-import com.android.tools.metalava.cli.common.ARG_WARNING
+import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.requiresPermissionSource
 import com.android.tools.metalava.systemApiSource
 import com.android.tools.metalava.testing.KnownJarFiles
@@ -243,7 +242,13 @@ class FlaggedApiLintTest : DriverTest() {
                 ),
             // Access android.annotation.FlaggedApi
             classpath = arrayOf(KnownJarFiles.stubAnnotationsTestFile),
-            extraArguments = arrayOf(ARG_WARNING, "UnflaggedApi", ARG_HIDE, "HiddenSuperclass")
+            extraArguments =
+                warningIssues(
+                    Issues.UNFLAGGED_API,
+                ) +
+                    hiddenIssues(
+                        Issues.HIDDEN_SUPERCLASS,
+                    ),
         )
     }
 
@@ -457,7 +462,13 @@ class FlaggedApiLintTest : DriverTest() {
                 ),
             // Access android.annotation.FlaggedApi
             classpath = arrayOf(KnownJarFiles.stubAnnotationsTestFile),
-            extraArguments = arrayOf(ARG_WARNING, "UnflaggedApi", ARG_HIDE, "HiddenSuperclass"),
+            extraArguments =
+                warningIssues(
+                    Issues.UNFLAGGED_API,
+                ) +
+                    hiddenIssues(
+                        Issues.HIDDEN_SUPERCLASS,
+                    ),
             checkCompilation = true
         )
     }
@@ -566,7 +577,10 @@ class FlaggedApiLintTest : DriverTest() {
                 ),
             // Access android.annotation.FlaggedApi
             classpath = arrayOf(KnownJarFiles.stubAnnotationsTestFile),
-            extraArguments = arrayOf(ARG_WARNING, "UnflaggedApi"),
+            extraArguments =
+                warningIssues(
+                    Issues.UNFLAGGED_API,
+                ),
         )
     }
 
@@ -610,7 +624,10 @@ class FlaggedApiLintTest : DriverTest() {
                 ),
             // Access android.annotation.FlaggedApi
             classpath = arrayOf(KnownJarFiles.stubAnnotationsTestFile),
-            extraArguments = arrayOf(ARG_WARNING, "UnflaggedApi"),
+            extraArguments =
+                warningIssues(
+                    Issues.UNFLAGGED_API,
+                ),
         )
     }
 
@@ -648,7 +665,10 @@ class FlaggedApiLintTest : DriverTest() {
                 ),
             // Access android.annotation.FlaggedApi
             classpath = arrayOf(KnownJarFiles.stubAnnotationsTestFile),
-            extraArguments = arrayOf(ARG_WARNING, "UnflaggedApi"),
+            extraArguments =
+                warningIssues(
+                    Issues.UNFLAGGED_API,
+                ),
         )
     }
 
@@ -682,7 +702,10 @@ class FlaggedApiLintTest : DriverTest() {
                 ),
             // Access android.annotation.FlaggedApi
             classpath = arrayOf(KnownJarFiles.stubAnnotationsTestFile),
-            extraArguments = arrayOf(ARG_WARNING, "UnflaggedApi"),
+            extraArguments =
+                warningIssues(
+                    Issues.UNFLAGGED_API,
+                ),
         )
     }
 
@@ -748,7 +771,10 @@ class FlaggedApiLintTest : DriverTest() {
                 ),
             // Access android.annotation.FlaggedApi
             classpath = arrayOf(KnownJarFiles.stubAnnotationsTestFile),
-            extraArguments = arrayOf(ARG_WARNING, "UnflaggedApi"),
+            extraArguments =
+                warningIssues(
+                    Issues.UNFLAGGED_API,
+                ),
         )
     }
 
@@ -817,7 +843,10 @@ class FlaggedApiLintTest : DriverTest() {
                 ),
             // Access android.annotation.FlaggedApi
             classpath = arrayOf(KnownJarFiles.stubAnnotationsTestFile),
-            extraArguments = arrayOf(ARG_WARNING, "UnflaggedApi"),
+            extraArguments =
+                warningIssues(
+                    Issues.UNFLAGGED_API,
+                ),
         )
     }
 
@@ -898,12 +927,9 @@ class FlaggedApiLintTest : DriverTest() {
             // Access android.annotation.FlaggedApi
             classpath = arrayOf(KnownJarFiles.stubAnnotationsTestFile),
             extraArguments =
-                arrayOf(
-                    ARG_WARNING,
-                    "UnflaggedApi",
-                    ARG_PASS_THROUGH_ANNOTATION,
-                    "test.annotation.Custom"
-                ),
+                warningIssues(
+                    Issues.UNFLAGGED_API,
+                ) + arrayOf(ARG_PASS_THROUGH_ANNOTATION, "test.annotation.Custom"),
         )
     }
 
@@ -993,12 +1019,9 @@ class FlaggedApiLintTest : DriverTest() {
             // Access android.annotation.FlaggedApi
             classpath = arrayOf(KnownJarFiles.stubAnnotationsTestFile),
             extraArguments =
-                arrayOf(
-                    ARG_WARNING,
-                    "UnflaggedApi",
-                    ARG_PASS_THROUGH_ANNOTATION,
-                    "test.annotation.Custom"
-                ),
+                warningIssues(
+                    Issues.UNFLAGGED_API,
+                ) + arrayOf(ARG_PASS_THROUGH_ANNOTATION, "test.annotation.Custom"),
         )
     }
 
@@ -1075,12 +1098,9 @@ class FlaggedApiLintTest : DriverTest() {
             // Access android.annotation.FlaggedApi
             classpath = arrayOf(KnownJarFiles.stubAnnotationsTestFile),
             extraArguments =
-                arrayOf(
-                    ARG_WARNING,
-                    "UnflaggedApi",
-                    ARG_PASS_THROUGH_ANNOTATION,
-                    "test.annotation.Custom"
-                ),
+                warningIssues(
+                    Issues.UNFLAGGED_API,
+                ) + arrayOf(ARG_PASS_THROUGH_ANNOTATION, "test.annotation.Custom"),
         )
     }
 
@@ -1092,7 +1112,7 @@ class FlaggedApiLintTest : DriverTest() {
                 """
                 <config xmlns="http://www.google.com/tools/metalava/config"
                     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-                    xsi:schemaLocation="http://www.google.com/tools/metalava/config ../../../../../../../resources/schemas/config.xsd">
+                    xsi:schemaLocation="http://www.google.com/tools/metalava/config ../../../../../../resources/schemas/config.xsd">
                     <api-flags>
                         <api-flag package="test.pkg" name="unexported_flag" mutability="mutable" status="disabled" is-exported='false'/>
                         <api-flag package="test.pkg" name="exported_flag" mutability="mutable" status="disabled" is-exported='true'/>
@@ -1189,7 +1209,10 @@ class FlaggedApiLintTest : DriverTest() {
                 ),
             // Access android.annotation.FlaggedApi
             classpath = arrayOf(KnownJarFiles.stubAnnotationsTestFile),
-            extraArguments = arrayOf(ARG_WARNING, "UnflaggedApi"),
+            extraArguments =
+                warningIssues(
+                    Issues.UNFLAGGED_API,
+                ),
         )
     }
 }
