@@ -2058,19 +2058,7 @@ val systemServiceSource: TestFile =
 
 val systemApiSource = KnownSourceFiles.systemApiSource
 
-val testApiSource: TestFile =
-    java(
-            """
-    package android.annotation;
-    import static java.lang.annotation.ElementType.*;
-    import java.lang.annotation.*;
-    @Target({TYPE, FIELD, METHOD, CONSTRUCTOR, ANNOTATION_TYPE, PACKAGE})
-    @Retention(RetentionPolicy.SOURCE)
-    public @interface TestApi {
-    }
-    """
-        )
-        .indented()
+val testApiSource = KnownSourceFiles.testApiSource
 
 val widgetSource: TestFile =
     java(
