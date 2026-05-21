@@ -25,6 +25,7 @@ import com.android.tools.metalava.model.PackageFilter
 import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.annotation.DefaultAnnotationManager
 import com.android.tools.metalava.model.api.ApiSurfaceRules
+import com.android.tools.metalava.model.api.ApiSurfaceSelector
 import com.android.tools.metalava.model.api.flags.ApiFlags
 import com.android.tools.metalava.model.multiplatform.MultiplatformCodebase
 import com.android.tools.metalava.model.provider.Capability
@@ -253,8 +254,9 @@ abstract class BaseModelTest :
                             // Finally, create a default manager.
                             ?: DefaultAnnotationManager(
                                 DefaultAnnotationManager.Config(
-                                    apiFlags = apiFlags,
                                     reporter = recordingReporter,
+                                    apiSurfaceSelector = ApiSurfaceSelector(apiSurfaceRules),
+                                    apiFlags = apiFlags,
                                 )
                             ),
                     apiFlags = apiFlags,
