@@ -67,7 +67,7 @@ class MultiplatformCodebaseTest : DriverTest() {
                     createNativeModuleDescription(arrayOf(nativeSource)),
                 ),
             enableMultiplatform = true,
-            api =
+            expectedApiSignature =
                 """
                 package test.pkg {
                   public final class Foo {

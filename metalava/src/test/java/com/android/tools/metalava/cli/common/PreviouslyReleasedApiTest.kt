@@ -16,19 +16,14 @@
 
 package com.android.tools.metalava.cli.common
 
-import com.android.tools.metalava.testing.TemporaryFolderOwner
+import com.android.tools.metalava.testing.BaseTemporaryFolderOwner
 import com.android.tools.metalava.testing.signature
 import com.android.tools.metalava.testing.source
 import com.google.common.truth.Truth.assertThat
 import org.junit.Assert.assertThrows
-import org.junit.Rule
 import org.junit.Test
-import org.junit.rules.TemporaryFolder
 
-class PreviouslyReleasedApiTest : TemporaryFolderOwner {
-
-    @get:Rule override val temporaryFolder = TemporaryFolder()
-
+class PreviouslyReleasedApiTest : BaseTemporaryFolderOwner() {
     companion object {
         private const val OPTION_NAME = "--files"
     }

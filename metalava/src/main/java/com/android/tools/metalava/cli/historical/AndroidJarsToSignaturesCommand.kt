@@ -28,6 +28,7 @@ import com.android.tools.metalava.cli.common.map
 import com.android.tools.metalava.cli.common.progressTracker
 import com.android.tools.metalava.cli.common.stderr
 import com.android.tools.metalava.cli.common.stdout
+import com.android.tools.metalava.cli.common.tracer
 import com.android.tools.metalava.cli.signature.SignatureFormatOptions
 import com.android.tools.metalava.jar.StandaloneJarCodebaseLoader
 import com.android.tools.metalava.reporter.BasicReporter
@@ -136,6 +137,7 @@ class AndroidJarsToSignaturesCommand :
         StandaloneJarCodebaseLoader.create(
                 executionEnvironment.disableStderrDumping(),
                 progressTracker,
+                tracer,
                 BasicReporter(stderr),
             )
             .use { jarCodebaseLoader ->

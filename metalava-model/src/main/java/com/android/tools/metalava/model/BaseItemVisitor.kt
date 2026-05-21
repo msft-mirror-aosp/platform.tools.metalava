@@ -207,7 +207,15 @@ open class BaseItemVisitor(
             return
         }
 
-        wrapBodyWithCallsToVisitMethodsForSelectableItem(property) { visitProperty(property) }
+        wrapBodyWithCallsToVisitMethodsForSelectableItem(property) {
+            visitProperty(property)
+
+            if (visitParameterItems) {
+                for (parameter in property.contextParameters) {
+                    parameter.accept(this)
+                }
+            }
+        }
     }
 
     open fun skip(item: Item): Boolean = false

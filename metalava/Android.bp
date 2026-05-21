@@ -57,6 +57,7 @@ java_binary_host {
         "prebuilts-metalava-lint",
         "prebuilts-metalava-psi",
         "prebuilts-metalava-sdklib",
+        "prebuilts-metalava-tracing",
         "prebuilts-metalava-turbine",
     ],
     main_class: "com.android.tools.metalava.Driver",

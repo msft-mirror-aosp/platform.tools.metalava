@@ -30,4 +30,28 @@ class ModifierListTest {
         modifiers.setNonSealed(false)
         assertFalse(modifiers.isNonSealed(), message = "after setting to false")
     }
+
+    @Test
+    fun `Test mayBeSubtypeOfJavaSealedType - no flags`() {
+        val modifiers = createMutableModifiers(0)
+        assertFalse(modifiers.mayBeSubtypeOfJavaSealedType())
+    }
+
+    @Test
+    fun `Test mayBeSubtypeOfJavaSealedType - final`() {
+        val modifiers = createMutableModifiers(0).apply { setFinal(true) }
+        assertTrue(modifiers.mayBeSubtypeOfJavaSealedType())
+    }
+
+    @Test
+    fun `Test mayBeSubtypeOfJavaSealedType - sealed`() {
+        val modifiers = createMutableModifiers(0).apply { setSealed(true) }
+        assertTrue(modifiers.mayBeSubtypeOfJavaSealedType())
+    }
+
+    @Test
+    fun `Test mayBeSubtypeOfJavaSealedType - non-sealed`() {
+        val modifiers = createMutableModifiers(0).apply { setNonSealed(true) }
+        assertTrue(modifiers.mayBeSubtypeOfJavaSealedType())
+    }
 }

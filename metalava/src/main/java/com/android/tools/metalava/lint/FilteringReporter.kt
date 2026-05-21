@@ -76,7 +76,7 @@ class FilteringReporter(
 
             val testItem =
                 when (item) {
-                    is ParameterItem -> item.containingCallable()
+                    is ParameterItem -> item.parent()
                     is SelectableItem -> item
                     is RecordComponentItem -> item.containingClass()
                     else -> error("Unknown item $item")

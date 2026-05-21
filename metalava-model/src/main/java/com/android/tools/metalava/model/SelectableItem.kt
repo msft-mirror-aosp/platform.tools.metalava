@@ -92,10 +92,17 @@ interface SelectableItem : Item, ReferencableNameScope {
     val removed: Boolean
 
     /** True if this item is either hidden or removed */
-    fun isHiddenOrRemoved(): Boolean = hidden || removed
+    fun isHiddenOrRemoved(): Boolean = hidden() || removed
 
     /** Determines whether this item will be shown as part of the API or not. */
     val showability: Showability
+
+    /**
+     * Returns true, if an item should be included only for "stub" purposes; that is, the item does
+     * have at least one [AnnotationItem.isShowAnnotation] annotation and all those annotations are
+     * also an [AnnotationItem.isShowForStubPurposes] annotation.
+     */
+    fun includeOnlyForStubPurposes(): Boolean
 
     /**
      * Returns true if this item has any show annotations.
