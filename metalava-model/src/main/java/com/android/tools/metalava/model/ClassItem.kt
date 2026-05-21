@@ -27,7 +27,15 @@ import com.android.tools.metalava.model.scope.QualifiedNameScope
  */
 @MetalavaApi
 interface ClassItem :
-    ClassContentItem, SelectableItem, TypeParameterListOwner, ReferencableItem, QualifiedNameScope {
+    ClassContentItem,
+    SelectableItem,
+    TypeParameterListOwner,
+    ReferencableItem,
+    // This is implemented because constructors cannot usually be referenced directly, e.g. in
+    // imports of `new` expressions. Instead, the class is referenced giving access to its
+    // constructors. Having ClassItem extend ReferencableCallableItem models that behavior.
+    ReferencableCallableItem,
+    QualifiedNameScope {
     /**
      * The qualified name of a class. In class foo.bar.Outer.Inner, the qualified name is the whole
      * thing.
@@ -45,9 +53,6 @@ interface ClassItem :
 
     /** Is this a top level class? */
     fun isTopLevelClass(): Boolean = containingClass() == null
-
-    /** The origin of this class. */
-    override val origin: ClassOrigin
 
     /** This [ClassItem] and all of its nested classes, recursively */
     fun allClasses(): Sequence<ClassItem> {
@@ -96,15 +101,12 @@ interface ClassItem :
     fun superClassType(): ClassTypeItem?
 
     /**
-     * A class is effectively sealed if it is either explicitly marked sealed, is a non-public
-     * interface, or an abstract class with no publicly accessible constructors. For more
-     * information, see b/220960090
+     * A class is effectively sealed if it is either explicitly marked sealed, or is a class with no
+     * publicly accessible constructors. For more information, see b/220960090
      */
     fun isEffectivelySealed(): Boolean {
         return modifiers.isSealed() ||
-            (isInterface() && !isPublic) ||
-            ((isClass() && modifiers.isAbstract()) &&
-                (constructors().none { (it.isPublic || it.isProtected) && !it.hidden }))
+            (isClass() && (constructors().none { (it.isPublic || it.isProtected) && !it.hidden }))
     }
 
     /**
@@ -157,6 +159,9 @@ interface ClassItem :
     /** Any interfaces implemented by this class */
     @MetalavaApi fun interfaceTypes(): List<ClassTypeItem>
 
+    /** The list of subclasses/subinterfaces permitted to extend this class. */
+    val permitTypes: List<ClassTypeItem>
+
     /**
      * All classes and interfaces implemented (by this class and its super classes and the
      * interfaces themselves)
@@ -181,9 +186,13 @@ interface ClassItem :
     /** The fields in this class */
     @MetalavaApi fun fields(): List<FieldItem>
 
-    /** The members in this class: constructors, methods, fields/enum constants */
+    /** The members in this class: constructors, methods, fields/enum constants, properties */
     fun members(): Sequence<MemberItem> {
-        return fields().asSequence().plus(constructors().asSequence()).plus(methods().asSequence())
+        return fields()
+            .asSequence()
+            .plus(constructors().asSequence())
+            .plus(methods().asSequence())
+            .plus(properties().asSequence())
     }
 
     val classKind: ClassKind
@@ -210,7 +219,19 @@ interface ClassItem :
      * Whether this class is a multi-file facade class, generated from Kotlin files annotated with
      * [JvmMultifileClass]. This can only be true when [isFileFacade] is true.
      */
-    fun isMultiFileClass() = false
+    val isMultiFileClass: Boolean
+
+    /**
+     * The [RecordComponents] for this [ClassItem].
+     *
+     * A record class with no components and a non-record class will both have an empty
+     * [RecordComponents] instance. If it is necessary to differentiate between them then the caller
+     * must check whether [classKind] is [ClassKind.RECORD], or not.
+     *
+     * This is initialized on demand and must only be accessed after the [RecordComponentItem]s from
+     * which it is constructed have been added to the class.
+     */
+    val recordComponents: RecordComponents
 
     override fun describe(capitalize: Boolean): String {
         val descriptor =
@@ -273,10 +294,6 @@ interface ClassItem :
     // This replaces the interface types implemented by this class
     fun setInterfaceTypes(interfaceTypes: List<ClassTypeItem>)
 
-    /** The primary constructor for this class in Kotlin, if present. */
-    val primaryConstructor: ConstructorItem?
-        get() = constructors().singleOrNull { it.isPrimary }
-
     override fun baselineElementId() = qualifiedName()
 
     override fun accept(visitor: ItemVisitor) {
@@ -312,6 +329,12 @@ interface ClassItem :
             Comparator.comparing { it.qualifiedName() }
 
         fun classNameSorter(): Comparator<in ClassItem> = qualifiedComparator
+
+        /**
+         * The name used for a fake class which is a container for top level functions and
+         * properties in a non-JVM API surface.
+         */
+        const val TOP_LEVEL_DECLARATION_FACADE_NAME = "\$TopLevelDeclarations"
     }
 
     fun findMethod(
@@ -396,8 +419,8 @@ interface ClassItem :
     }
 
     /**
-     * Searches for a property with the [template]'s name and receiver in the class, including
-     * searching super classes and interfaces if specified.
+     * Searches for a property with the [template]'s name, receiver, and context parameters in the
+     * class, including searching super classes and interfaces if specified.
      */
     fun findProperty(
         template: PropertyItem,
@@ -407,7 +430,11 @@ interface ClassItem :
         properties()
             .firstOrNull {
                 it.name() == template.name() &&
-                    PropertyItem.equalReceivers(template.receiver, it.receiver)
+                    PropertyItem.equalReceivers(template.receiver, it.receiver) &&
+                    PropertyItem.equalContextParameters(
+                        template.contextParameters,
+                        it.contextParameters
+                    )
             }
             ?.let {
                 return it
@@ -750,6 +777,9 @@ interface ClassItem :
      * `{T->Y}`.
      */
     fun mapTypeVariables(target: ClassItem): TypeParameterBindings {
+        // Optimize trying to map variables from a class to its self.
+        if (this === target) return emptyMap()
+
         // Gather the supertypes to check for [target]. It is only possible for [target] to be found
         // in the class hierarchy through this class's interfaces if [target] is an interface.
         val candidates =
@@ -805,7 +835,7 @@ interface ClassItem :
     }
 
     /**
-     * Creates a default constructor in this class.
+     * Creates an implicit default constructor in this class.
      *
      * Default constructors that are added by Java have the same visibility as their class which is
      * the default behavior of this method if no [visibility] is provided. However, this is also
@@ -815,10 +845,11 @@ interface ClassItem :
      *
      * @param visibility the visibility of the constructor, defaults to the same as this class.
      */
-    fun createDefaultConstructor(
+    fun createImplicitDefaultConstructor(
         visibility: VisibilityLevel = modifiers.getVisibilityLevel()
     ): ConstructorItem
 
+    /** Add a method to this class. */
     fun addMethod(method: MethodItem)
 
     /**

@@ -26,8 +26,10 @@ import com.android.tools.metalava.model.MutableModifierList
 import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.createMutableModifiers
 import com.android.tools.metalava.model.hasAnnotation
+import org.jetbrains.kotlin.analysis.api.KaExperimentalApi
 import org.jetbrains.kotlin.analysis.api.symbols.KaCallableSymbol
 import org.jetbrains.kotlin.analysis.api.symbols.KaClassKind
+import org.jetbrains.kotlin.analysis.api.symbols.KaContextParameterSymbol
 import org.jetbrains.kotlin.analysis.api.symbols.KaDeclarationSymbol
 import org.jetbrains.kotlin.analysis.api.symbols.KaKotlinPropertySymbol
 import org.jetbrains.kotlin.analysis.api.symbols.KaNamedClassSymbol
@@ -77,6 +79,15 @@ internal class KaModifierFactory(private val processor: KaModuleProcessor) {
             modifiers.setDeprecated(true)
         }
 
+        // Apply getter annotations to the property as well. This is legacy metalava behavior that
+        // supports things like hiding properties through an annotation on the getter.
+        for (kaAnnotation in propertySymbol.getter?.annotations ?: emptyList()) {
+            val annotationItem = processor.createAnnotation(kaAnnotation)
+            if (annotationItem !in modifiers.annotations()) {
+                modifiers.addAnnotation(annotationItem)
+            }
+        }
+
         return modifiers
     }
 
@@ -93,7 +104,7 @@ internal class KaModifierFactory(private val processor: KaModuleProcessor) {
         setter: MethodItem?,
         backingField: FieldItem?,
     ) {
-        // Correct visibility of accessors (work around K2 bugs with value class type properties)
+        // Correct visibility of accessors (work around bugs with value class type properties)
         // https://youtrack.jetbrains.com/issue/KT-74205
         // The getter must have the same visibility as the property
         val propertyVisibility = modifiers.getVisibilityLevel()
@@ -145,12 +156,6 @@ internal class KaModifierFactory(private val processor: KaModuleProcessor) {
                 ) {
                     backingField.mutateModifiers { addAnnotation(annotationItem) }
                 }
-            }
-        }
-
-        for (annotationItem in getter?.modifiers?.annotations() ?: emptyList()) {
-            if (annotationItem !in modifiers.annotations()) {
-                modifiers.addAnnotation(annotationItem)
             }
         }
     }
@@ -296,6 +301,11 @@ internal class KaModifierFactory(private val processor: KaModuleProcessor) {
 
     /** Creates modifiers for a receiver parameter (just visibility and annotations). */
     fun createForReceiverParameter(symbol: KaReceiverParameterSymbol): MutableModifierList {
+        return createForParameter(symbol)
+    }
+
+    @OptIn(KaExperimentalApi::class)
+    fun createForContextParameter(symbol: KaContextParameterSymbol): MutableModifierList {
         return createForParameter(symbol)
     }
 

@@ -24,14 +24,12 @@ import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.DelegatedVisitor
 import com.android.tools.metalava.model.ExceptionTypeItem
 import com.android.tools.metalava.model.FieldItem
-import com.android.tools.metalava.model.FilterPredicate
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.ItemVisitor
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.PropertyItem
-import com.android.tools.metalava.model.SourceFile
 import com.android.tools.metalava.model.TargetLanguage
 import com.android.tools.metalava.model.TargetLanguageSet
 import com.android.tools.metalava.model.TypeItem
@@ -53,7 +51,6 @@ import com.android.tools.metalava.model.typeUseAnnotationFilter
 class FilteringApiVisitor(
     val delegate: DelegatedVisitor,
     inlineInheritedFields: Boolean = true,
-    callableComparator: Comparator<CallableItem> = CallableItem.comparator,
     /**
      * Optional lambda for sorting the filtered, list of interface types from a [ClassItem].
      *
@@ -90,7 +87,6 @@ class FilteringApiVisitor(
         // if and only if their containing method is included.
         visitParameterItems = false,
         inlineInheritedFields = inlineInheritedFields,
-        callableComparator = callableComparator,
         apiFilters = apiFilters,
         showUnannotated = showUnannotated,
         targetLanguages = targetLanguages,
@@ -175,26 +171,12 @@ class FilteringApiVisitor(
     }
 
     /**
-     * [SourceFile] that will filter out anything which is not to be written out by the
-     * [FilteringApiVisitor.delegate].
-     */
-    private inner class FilteringSourceFile(val delegate: SourceFile) : SourceFile by delegate {
-
-        override fun getImports() = delegate.getImports(filterReference)
-
-        override fun getImports(predicate: FilterPredicate) =
-            delegate.getImports(predicate.and(filterReference))
-    }
-
-    /**
      * [ClassItem] that will filter out anything which is not to be written out by the
      * [FilteringApiVisitor.delegate].
      */
     private inner class FilteringClassItem(
         val delegate: ClassItem,
     ) : ClassItem by delegate {
-
-        override fun sourceFile() = delegate.sourceFile()?.let { FilteringSourceFile(it) }
 
         override fun superClass() = superClassType()?.resolveClass(codebase)
 
@@ -254,6 +236,21 @@ class FilteringApiVisitor(
                     it.transform(typeAnnotationFilter)
                 }
         }
+
+        override val permitTypes: List<ClassTypeItem>
+            get() =
+                if (preFiltered) delegate.permitTypes
+                else
+                    delegate.permitTypes.filter { type ->
+                        val classItem = type.resolveClass(codebase) ?: return@filter false
+                        // Use `filterEmit` instead of `filterReference`. That is because
+                        // `filterEmit` will only match classes that will be emitted as part of the
+                        // same API surface as this class. However, `filterReference` will also
+                        // match classes that are defined in another API surface. The latter would
+                        // not work as sealed classes and their subclasses have to be defined within
+                        // the same API surface as they depend on each other.
+                        filterEmit.test(classItem)
+                    }
 
         override fun constructors() =
             delegate

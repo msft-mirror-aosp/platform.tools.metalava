@@ -20,15 +20,12 @@ import com.android.tools.lint.checks.infrastructure.TestFiles.base64gzip
 import com.android.tools.metalava.ARG_SHOW_ANNOTATION
 import com.android.tools.metalava.ARG_SHOW_UNANNOTATED
 import com.android.tools.metalava.DriverTest
-import com.android.tools.metalava.SystemApiType
-import com.android.tools.metalava.androidxNonNullSource
-import com.android.tools.metalava.androidxNullableSource
+import com.android.tools.metalava.KnownApiSurface
 import com.android.tools.metalava.cli.common.ARG_ERROR_CATEGORY
 import com.android.tools.metalava.cli.common.ARG_HIDE
 import com.android.tools.metalava.model.ANDROID_SYSTEM_API
 import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.testing.RequiresCapabilities
-import com.android.tools.metalava.model.text.ApiClassResolution
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.nonNullSource
 import com.android.tools.metalava.reporter.Issues
@@ -36,392 +33,12 @@ import com.android.tools.metalava.restrictToSource
 import com.android.tools.metalava.suppressLintSource
 import com.android.tools.metalava.systemApiSource
 import com.android.tools.metalava.testApiSource
+import com.android.tools.metalava.testing.KnownSourceFiles
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
 import org.junit.Test
 
 class CompatibilityCheckTest : DriverTest() {
-
-    @Test
-    fun `Should raise issue when adding abstract method to non-effectively final explicitly sealed class`() {
-        check(
-            expectedIssues =
-                """
-                    load-api.txt:6: error: Binary breaking change: Added method test.pkg.MyNonFinalSealedClassWithNonSealedChild.myFun() [AddedAbstractMethod]
-                    load-api.txt:9: error: Binary breaking change: Added method test.pkg.MyNonFinalSealedClassWithNonSealedGrandchild.myFun() [AddedAbstractMethod]
-                """
-                    .trimIndent(),
-            checkCompatibilityApiReleased =
-                """
-                package test.pkg {
-                  public abstract sealed exhaustive class DirectChildClass extends test.pkg.MyNonFinalSealedClassWithNonSealedGrandchild {
-                  }
-                  public abstract sealed exhaustive class MyNonFinalSealedClassWithNonSealedChild {
-                  }
-                  public abstract sealed exhaustive class MyNonFinalSealedClassWithNonSealedGrandchild {
-                  }
-                  public abstract class NonSealedGrandchildClass extends test.pkg.DirectChildClass {
-                    ctor public NonSealedGrandchildClass();
-                  }
-                  public abstract class NotEffectivelySealedChildClass extends test.pkg.MyNonFinalSealedClassWithNonSealedChild {
-                    ctor public NotEffectivelySealedChildClass();
-                  }
-                }
-                """,
-            signatureSource =
-                """
-                package test.pkg {
-                  public abstract sealed exhaustive class DirectChildClass extends test.pkg.MyNonFinalSealedClassWithNonSealedGrandchild {
-                  }
-                  public abstract sealed exhaustive class MyNonFinalSealedClassWithNonSealedChild {
-                    method public abstract void myFun();
-                  }
-                  public abstract sealed exhaustive class MyNonFinalSealedClassWithNonSealedGrandchild {
-                    method public abstract void myFun();
-                  }
-                  public abstract class NonSealedGrandchildClass extends test.pkg.DirectChildClass {
-                    ctor public NonSealedGrandchildClass();
-                  }
-                  public abstract class NotEffectivelySealedChildClass extends test.pkg.MyNonFinalSealedClassWithNonSealedChild {
-                    ctor public NotEffectivelySealedChildClass();
-                  }
-                }
-                """
-        )
-    }
-
-    @Test
-    fun `Should raise issue when adding abstract method to non-effectively final effectively sealed class`() {
-        check(
-            expectedIssues =
-                """
-                    load-api.txt:6: error: Binary breaking change: Added method test.pkg.NonFinalAbstractEffectivelySealedClassWithNonSealedChild.myFun() [AddedAbstractMethod]
-                    load-api.txt:9: error: Binary breaking change: Added method test.pkg.NonFinalAbstractEffectivelySealedClassWithNonSealedGrandchild.myFun() [AddedAbstractMethod]
-                """
-                    .trimIndent(),
-            checkCompatibilityApiReleased =
-                """
-                package test.pkg {
-                  public abstract sealed exhaustive class DirectChildClass extends test.pkg.NonFinalAbstractEffectivelySealedClassWithNonSealedGrandchild {
-                  }
-                  public abstract class NonFinalAbstractEffectivelySealedClassWithNonSealedChild {
-                  }
-                  public abstract class NonFinalAbstractEffectivelySealedClassWithNonSealedGrandchild {
-                  }
-                  public abstract class NonSealedGrandchildClass extends test.pkg.DirectChildClass {
-                    ctor public NonSealedGrandchildClass();
-                  }
-                  public abstract class NotEffectivelySealedChildClass extends test.pkg.NonFinalAbstractEffectivelySealedClassWithNonSealedChild {
-                    ctor public NotEffectivelySealedChildClass();
-                  }
-                }
-                """,
-            signatureSource =
-                """
-                package test.pkg {
-                  public abstract sealed exhaustive class DirectChildClass extends test.pkg.NonFinalAbstractEffectivelySealedClassWithNonSealedGrandchild {
-                  }
-                  public abstract class NonFinalAbstractEffectivelySealedClassWithNonSealedChild {
-                    method public abstract void myFun();
-                  }
-                  public abstract class NonFinalAbstractEffectivelySealedClassWithNonSealedGrandchild {
-                    method public abstract void myFun();
-                  }
-                  public abstract class NonSealedGrandchildClass extends test.pkg.DirectChildClass {
-                    ctor public NonSealedGrandchildClass();
-                  }
-                  public abstract class NotEffectivelySealedChildClass extends test.pkg.NonFinalAbstractEffectivelySealedClassWithNonSealedChild {
-                    ctor public NotEffectivelySealedChildClass();
-                  }
-                }
-                """
-        )
-    }
-
-    @Test
-    fun `Should not raise issue when adding abstract method to non-effectively final effectively sealed interface`() {
-        check(
-            expectedIssues = "",
-            checkCompatibilityApiReleased =
-                """
-                package test.pkg {
-                  public sealed exhaustive interface SealedEffectivelyFinalInterface {
-                  }
-                }
-                """,
-            signatureSource =
-                """
-                package test.pkg {
-                  public sealed exhaustive interface SealedEffectivelyFinalInterface {
-                    method public void myFun();
-                  }
-                }
-                """
-        )
-    }
-
-    @Test
-    fun `Should raise issue when adding private subclass to exhaustive sealed interface (sealed interface changes from exhaustive to nonexhaustive)`() {
-        check(
-            expectedIssues =
-                """
-                    load-api.txt:6: error: Sealed interface can no longer be exhaustively matched because an inaccessible subclass was added. [SealedClassExhaustivityChanged]
-                """
-                    .trimIndent(),
-            expectedFail = "",
-            checkCompatibilityApiReleased =
-                """
-                package test.pkg {
-                  public final class OriginalInterfaceImplementor implements test.pkg.SealedInterface {
-                    ctor public OriginalInterfaceImplementor();
-                  }
-                  public sealed exhaustive interface SealedInterface {
-                  }
-                }
-                """,
-            signatureSource =
-                """
-                package test.pkg {
-                  public final class OriginalInterfaceImplementor implements test.pkg.SealedInterface {
-                    ctor public OriginalInterfaceImplementor();
-                  }
-                  public sealed nonexhaustive interface SealedInterface {
-                  }
-                }
-                """
-        )
-    }
-
-    @Test
-    fun `Should raise issue when adding private subclass to exhaustive sealed class (sealed class changes from exhaustive to nonexhaustive)`() {
-        check(
-            expectedIssues =
-                """
-                load-api.txt:6: error: Sealed class can no longer be exhaustively matched because an inaccessible subclass was added. [SealedClassExhaustivityChanged]
-            """
-                    .trimIndent(),
-            expectedFail = "",
-            checkCompatibilityApiReleased =
-                """
-                package test.pkg {
-                  public final class MySubClass extends test.pkg.SealedClass {
-                    ctor public MySubClass();
-                  }
-                  public abstract sealed exhaustive class SealedClass {
-                  }
-                }
-                """,
-            signatureSource =
-                """
-                package test.pkg {
-                  public final class MySubClass extends test.pkg.SealedClass {
-                    ctor public MySubClass();
-                  }
-                  public abstract sealed nonexhaustive class SealedClass {
-                  }
-                }
-                """
-        )
-    }
-
-    @Test
-    fun `Don't raise issue when adding subclass to nonexhaustive sealed class`() {
-        check(
-            expectedIssues = "",
-            checkCompatibilityApiReleased =
-                """
-                package test.pkg {
-                  public final class OriginalSubclass extends test.pkg.SealedClass {
-                    ctor public OriginalSubclass();
-                  }
-                  public abstract sealed nonexhaustive class SealedClass {
-                  }
-                }
-                """,
-            signatureSource =
-                """
-                package test.pkg {
-                  public final class NewSubclass extends test.pkg.SealedClass {
-                    ctor public NewSubclass();
-                  }
-                  public final class OriginalSubclass extends test.pkg.SealedClass {
-                    ctor public OriginalSubclass();
-                  }
-                  public abstract sealed nonexhaustive class SealedClass {
-                  }
-                }
-                """
-        )
-    }
-
-    @Test
-    fun `Should raise issue when adding implementor to exhaustive sealed interface`() {
-        check(
-            expectedIssues =
-                """
-                    load-api.txt:3: error: Added a subclass to a sealed interface that can be exhaustively matched [AddedSubclassToSealedClass]
-                """
-                    .trimIndent(),
-            expectedFail = "",
-            checkCompatibilityApiReleased =
-                """
-                package test.pkg {
-                  public final class OriginalInterfaceImplementor implements test.pkg.SealedInterface {
-                    ctor public OriginalInterfaceImplementor();
-                  }
-                  public sealed exhaustive interface SealedInterface {
-                  }
-                }
-                """,
-            signatureSource =
-                """
-                package test.pkg {
-                  public final class NewInterfaceImplementor implements test.pkg.SealedInterface {
-                    ctor public NewInterfaceImplementor();
-                  }
-                  public final class OriginalInterfaceImplementor implements test.pkg.SealedInterface {
-                    ctor public OriginalInterfaceImplementor();
-                  }
-                  public sealed exhaustive interface SealedInterface {
-                  }
-                }
-                """
-        )
-    }
-
-    @Test
-    fun `Should raise issue when adding non-experimental subclass to exhaustive sealed class`() {
-        check(
-            expectedIssues =
-                """
-                load-api.txt:3: error: Added a subclass to a sealed class that can be exhaustively matched [AddedSubclassToSealedClass]
-            """
-                    .trimIndent(),
-            expectedFail = "",
-            checkCompatibilityApiReleased =
-                """
-                package test.pkg {
-                  public abstract sealed exhaustive class SealedClass {
-                  }
-                  public final class OriginalSubclass extends test.pkg.SealedClass {
-                    ctor public OriginalSubclass();
-                  }
-                }
-                """,
-            signatureSource =
-                """
-                package test.pkg {
-                  public final class NewSubclass extends test.pkg.SealedClass {
-                    ctor public NewSubclass();
-                  }
-                  public abstract sealed exhaustive class SealedClass {
-                  }
-                  public final class OriginalSubclass extends test.pkg.SealedClass {
-                    ctor public OriginalSubclass();
-                  }
-                }
-                """
-        )
-    }
-
-    @Test
-    fun `Should raise issue when adding experimental subclass to exhaustive sealed class`() {
-        check(
-            expectedIssues =
-                """
-                load-api.txt:3: error: Added a subclass to a sealed class that can be exhaustively matched [AddedSubclassToSealedClass]
-            """
-                    .trimIndent(),
-            expectedFail = "",
-            checkCompatibilityApiReleased =
-                """
-                package test.pkg {
-                  public abstract sealed exhaustive class SealedClass {
-                  }
-                  public final class OriginalSubclass extends test.pkg.SealedClass {
-                    ctor public OriginalSubclass();
-                  }
-                }
-                """,
-            signatureSource =
-                """
-                package test.pkg {
-                  @SuppressCompatibility @kotlin.RequiresOptIn public final class NewSubclass extends test.pkg.SealedClass {
-                    ctor public NewSubclass();
-                  }
-                  public abstract sealed exhaustive class SealedClass {
-                  }
-                  public final class OriginalSubclass extends test.pkg.SealedClass {
-                    ctor public OriginalSubclass();
-                  }
-                }
-                """,
-            suppressCompatibilityMetaAnnotations =
-                arrayOf("androidx.annotation.SuppressCompatibility")
-        )
-    }
-
-    @Test
-    fun `Should not raise issue when comparing against sealed interface without any exhaustivity modifier`() {
-        check(
-            expectedIssues = "",
-            checkCompatibilityApiReleased =
-                """
-                package test.pkg {
-                  public final class OriginalInterfaceImplementor implements test.pkg.SealedInterface {
-                    ctor public OriginalInterfaceImplementor();
-                  }
-                  public sealed interface SealedInterface {
-                  }
-                }
-                """,
-            signatureSource =
-                """
-                package test.pkg {
-                  public final class NewInterfaceImplementor implements test.pkg.SealedInterface {
-                    ctor public NewInterfaceImplementor();
-                  }
-                  public final class OriginalInterfaceImplementor implements test.pkg.SealedInterface {
-                    ctor public OriginalInterfaceImplementor();
-                  }
-                  public sealed exhaustive interface SealedInterface {
-                  }
-                }
-                """
-        )
-    }
-
-    @Test
-    fun `Should not raise issue when comparing against sealed class without any exhaustivity modifier`() {
-        check(
-            expectedIssues = "",
-            checkCompatibilityApiReleased =
-                """
-                package test.pkg {
-                  public abstract sealed class SealedClass {
-                  }
-                  public final class OriginalSubclass extends test.pkg.SealedClass {
-                    ctor public OriginalSubclass();
-                  }
-                }
-                """,
-            signatureSource =
-                """
-                package test.pkg {
-                  @SuppressCompatibility @kotlin.RequiresOptIn public final class NewSubclass extends test.pkg.SealedClass {
-                    ctor public NewSubclass();
-                  }
-                  public abstract sealed exhaustive class SealedClass {
-                  }
-                  public final class OriginalSubclass extends test.pkg.SealedClass {
-                    ctor public OriginalSubclass();
-                  }
-                }
-                """,
-            suppressCompatibilityMetaAnnotations =
-                arrayOf("androidx.annotation.SuppressCompatibility")
-        )
-    }
 
     @Test
     fun `Should not raise issue when experimental package is added`() {
@@ -456,8 +73,8 @@ class CompatibilityCheckTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                load-api.txt:3: error: Binary breaking change: Class test.pkg.MyTest1 changed class/interface declaration [ChangedClass]
-                load-api.txt:5: error: Binary breaking change: Class test.pkg.MyTest2 changed class/interface declaration [ChangedClass]
+                load-api.txt:3: error: Binary breaking change: test.pkg.MyTest1 changed from class to interface [ChangedClass]
+                load-api.txt:5: error: Binary breaking change: test.pkg.MyTest2 changed from interface to class [ChangedClass]
                 """,
             checkCompatibilityApiReleased =
                 """
@@ -495,8 +112,8 @@ class CompatibilityCheckTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                load-api.txt:3: error: Binary breaking change: Class test.pkg.MyTest1 changed class/interface declaration [ChangedClass]
-                load-api.txt:5: error: Binary breaking change: Class test.pkg.MyTest2 changed class/interface declaration [ChangedClass]
+                load-api.txt:3: error: Binary breaking change: test.pkg.MyTest1 changed from class to interface [ChangedClass]
+                load-api.txt:5: error: Binary breaking change: test.pkg.MyTest2 changed from interface to class [ChangedClass]
                 """,
             checkCompatibilityApiReleased =
                 """
@@ -633,7 +250,7 @@ class CompatibilityCheckTest : DriverTest() {
                         """
                     )
                 ),
-            api =
+            expectedApiSignature =
                 """
                 // Signature format: 5.0
                 package com.example {
@@ -740,7 +357,6 @@ class CompatibilityCheckTest : DriverTest() {
     @Test
     fun `Removed method from classpath`() {
         check(
-            apiClassResolution = ApiClassResolution.API_CLASSPATH,
             classpath =
                 arrayOf(
                     /* The following source file, compiled, then ran
@@ -1325,33 +941,6 @@ class CompatibilityCheckTest : DriverTest() {
 
     @RequiresCapabilities(Capability.KOTLIN)
     @Test
-    fun `Add seal`() {
-        check(
-            expectedIssues =
-                """
-                src/test/pkg/Foo.kt:2: error: Source breaking change: Cannot add 'sealed' modifier to class test.pkg.Foo: Incompatible change [AddSealed]
-                """,
-            checkCompatibilityApiReleased =
-                """
-                package test.pkg {
-                  public class Foo {
-                  }
-                }
-                """,
-            sourceFiles =
-                arrayOf(
-                    kotlin(
-                        """
-                    package test.pkg
-                    sealed class Foo
-                    """
-                    )
-                )
-        )
-    }
-
-    @RequiresCapabilities(Capability.KOTLIN)
-    @Test
     fun `Remove optional parameter`() {
         check(
             expectedIssues =
@@ -1562,7 +1151,7 @@ class CompatibilityCheckTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                src/test/pkg/Parent.java:3: error: Binary breaking change: Class test.pkg.Parent changed class/interface declaration [ChangedClass]
+                src/test/pkg/Parent.java:3: error: Binary breaking change: test.pkg.Parent changed from class to interface [ChangedClass]
                 """,
             checkCompatibilityApiReleased =
                 """
@@ -1595,7 +1184,7 @@ class CompatibilityCheckTest : DriverTest() {
             checkCompatibilityApiReleased =
                 """
                 package test.pkg {
-                  public abstract class Parent implements java.io.Closeable, java.util.Map {
+                  public abstract class Parent implements java.io.Closeable java.util.Map {
                   }
                 }
                 """,
@@ -2255,7 +1844,7 @@ class CompatibilityCheckTest : DriverTest() {
         // from the base API. When parsing these code bases we need to gracefully handle
         // references to inner classes.
         check(
-            includeSystemApiAnnotations = SystemApiType.PRIVILEGED_APPS,
+            apiSurface = KnownApiSurface.SYSTEM,
             expectedIssues =
                 """
                 released-api.txt:5: error: Binary breaking change: Removed method test.pkg.Bar.Inner1.Inner2.removedMethod() [RemovedMethod]
@@ -2286,15 +1875,9 @@ class CompatibilityCheckTest : DriverTest() {
                             public class Inner2 {
                                 private Inner2() { }
 
-                                /**
-                                 * @hide
-                                 */
                                 @SystemApi
                                 public void method() { }
 
-                                /**
-                                 * @hide
-                                 */
                                 @SystemApi
                                 public void addedMethod() { }
                             }
@@ -2317,15 +1900,15 @@ class CompatibilityCheckTest : DriverTest() {
     }
 
     @Test
-    fun `Incompatible Changes in Released System API `() {
+    fun `Incompatible Changes in Released System API`() {
         // Incompatible changes to a released System API should be detected
         // In this case removing final and changing value of constant
         check(
-            includeSystemApiAnnotations = SystemApiType.TEST,
+            apiSurface = KnownApiSurface.TEST,
             expectedIssues =
                 """
-                src/android/rolecontrollerservice/RoleControllerService.java:8: error: Method android.rolecontrollerservice.RoleControllerService.sendNetworkScore has removed 'final' qualifier [RemovedFinalStrict]
-                src/android/rolecontrollerservice/RoleControllerService.java:9: error: Binary breaking change: Field android.rolecontrollerservice.RoleControllerService.APP_RETURN_UNWANTED has changed value from 1 to 0 [ChangedValue]
+                src/android/rolecontrollerservice/RoleControllerService.java:7: error: Method android.rolecontrollerservice.RoleControllerService.sendNetworkScore has removed 'final' qualifier [RemovedFinalStrict]
+                src/android/rolecontrollerservice/RoleControllerService.java:8: error: Binary breaking change: Field android.rolecontrollerservice.RoleControllerService.APP_RETURN_UNWANTED has changed value from 1 to 0 [ChangedValue]
                 """,
             sourceFiles =
                 arrayOf(
@@ -2334,7 +1917,6 @@ class CompatibilityCheckTest : DriverTest() {
                     package android.rolecontrollerservice;
                     import android.annotation.SystemApi;
 
-                    /** @hide */
                     @SystemApi
                     public abstract class RoleControllerService {
                         public abstract void onGrantDefaultRoles();
@@ -2397,7 +1979,7 @@ class CompatibilityCheckTest : DriverTest() {
                         .indented(),
                     testApiSource,
                 ),
-            api =
+            expectedApiSignature =
                 """
                 package test.view {
                   public final class View {
@@ -2700,6 +2282,7 @@ class CompatibilityCheckTest : DriverTest() {
                 """
                 released-api.txt:4: error: Binary breaking change: method test.pkg.TestKt.add(T) has been removed from bytecode [RemovedFromBytecode]
                 released-api.txt:4: error: Source breaking change: method test.pkg.TestKt.add(T) can no longer be resolved from Java source [RemovedFromJava]
+                src/test/pkg/test.kt:5: error: Binary breaking change: Method test.pkg.TestKt.add made type variable T reified: incompatible change [AddedReified]
                 """,
             checkCompatibilityApiReleased =
                 """
@@ -3247,7 +2830,7 @@ class CompatibilityCheckTest : DriverTest() {
                     }
                     """
                     ),
-                    androidxNullableSource
+                    KnownSourceFiles.androidxNullableJavaSource
                 ),
             // The correct behavior would be for this test to fail, because of the removal of
             // nullability annotations on the child class. However, when we generate signature
@@ -3527,7 +3110,7 @@ class CompatibilityCheckTest : DriverTest() {
                     }
                     """
                     ),
-                    androidxNonNullSource,
+                    KnownSourceFiles.androidxNonNullJavaSource,
                 ),
         )
     }
@@ -3880,18 +3463,18 @@ class CompatibilityCheckTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                load-api.txt:3: error: Binary breaking change: Class test.pkg.ClassToEnum changed class/interface declaration [ChangedClass]
-                load-api.txt:4: error: Binary breaking change: Class test.pkg.ClassToInterface changed class/interface declaration [ChangedClass]
-                load-api.txt:5: error: Binary breaking change: Class test.pkg.ClassToAnnotation changed class/interface declaration [ChangedClass]
-                load-api.txt:6: error: Binary breaking change: Class test.pkg.EnumToClass changed class/interface declaration [ChangedClass]
-                load-api.txt:7: error: Binary breaking change: Class test.pkg.EnumToInterface changed class/interface declaration [ChangedClass]
-                load-api.txt:8: error: Binary breaking change: Class test.pkg.EnumToAnnotation changed class/interface declaration [ChangedClass]
-                load-api.txt:9: error: Binary breaking change: Class test.pkg.InterfaceToClass changed class/interface declaration [ChangedClass]
-                load-api.txt:10: error: Binary breaking change: Class test.pkg.InterfaceToEnum changed class/interface declaration [ChangedClass]
-                load-api.txt:11: error: Binary breaking change: Class test.pkg.InterfaceToAnnotation changed class/interface declaration [ChangedClass]
-                load-api.txt:12: error: Binary breaking change: Class test.pkg.AnnotationToClass changed class/interface declaration [ChangedClass]
-                load-api.txt:13: error: Binary breaking change: Class test.pkg.AnnotationToInterface changed class/interface declaration [ChangedClass]
-                load-api.txt:14: error: Binary breaking change: Class test.pkg.AnnotationToEnum changed class/interface declaration [ChangedClass]
+                load-api.txt:3: error: Binary breaking change: test.pkg.ClassToEnum changed from class to enum class [ChangedClass]
+                load-api.txt:4: error: Binary breaking change: test.pkg.ClassToInterface changed from class to interface [ChangedClass]
+                load-api.txt:5: error: Binary breaking change: test.pkg.ClassToAnnotation changed from class to annotation class [ChangedClass]
+                load-api.txt:6: error: Binary breaking change: test.pkg.EnumToClass changed from enum class to class [ChangedClass]
+                load-api.txt:7: error: Binary breaking change: test.pkg.EnumToInterface changed from enum class to interface [ChangedClass]
+                load-api.txt:8: error: Binary breaking change: test.pkg.EnumToAnnotation changed from enum class to annotation class [ChangedClass]
+                load-api.txt:9: error: Binary breaking change: test.pkg.InterfaceToClass changed from interface to class [ChangedClass]
+                load-api.txt:10: error: Binary breaking change: test.pkg.InterfaceToEnum changed from interface to enum class [ChangedClass]
+                load-api.txt:11: error: Binary breaking change: test.pkg.InterfaceToAnnotation changed from interface to annotation class [ChangedClass]
+                load-api.txt:12: error: Binary breaking change: test.pkg.AnnotationToClass changed from annotation class to class [ChangedClass]
+                load-api.txt:13: error: Binary breaking change: test.pkg.AnnotationToInterface changed from annotation class to interface [ChangedClass]
+                load-api.txt:14: error: Binary breaking change: test.pkg.AnnotationToEnum changed from annotation class to enum class [ChangedClass]
                 """,
             signatureSource =
                 """
@@ -4154,29 +3737,6 @@ class CompatibilityCheckTest : DriverTest() {
     }
 
     @Test
-    fun `Allow change from non-final to final in sealed class`() {
-        check(
-            signatureSource =
-                """
-                package test.pkg {
-                  sealed class Foo {
-                    method final public void bar(int);
-                  }
-                }
-            """,
-            format = FileFormat.V4,
-            checkCompatibilityApiReleased =
-                """
-                package test.pkg {
-                  sealed class Foo {
-                    method public void bar(int);
-                  }
-                }
-            """
-        )
-    }
-
-    @Test
     fun `unchanged self-referencing type parameter is compatible`() {
         check(
             checkCompatibilityApiReleased =
@@ -4393,7 +3953,6 @@ class CompatibilityCheckTest : DriverTest() {
     fun `Conversion from AutoCloseable to Closeable is not API-breaking`() {
         // Closeable implements AutoCloseable
         check(
-            apiClassResolution = ApiClassResolution.API_CLASSPATH,
             expectedIssues = "",
             checkCompatibilityApiReleased =
                 """
@@ -4448,7 +4007,6 @@ class CompatibilityCheckTest : DriverTest() {
     @Test
     fun `Conversion from MutableCollection to AbstractMutableCollection is not API-breaking`() {
         check(
-            apiClassResolution = ApiClassResolution.API_CLASSPATH,
             expectedIssues = "",
             checkCompatibilityApiReleased =
                 """
@@ -4489,7 +4047,6 @@ class CompatibilityCheckTest : DriverTest() {
     @Test
     fun `Expected API changes converting collections to Kotlin`() {
         check(
-            apiClassResolution = ApiClassResolution.API_CLASSPATH,
             // The parameter names are different between java.util.Collection and
             // kotlin.collections.Collection
             // Methods not defined in kotlin.collections.Collection appear abstract as they are not
@@ -4559,7 +4116,6 @@ class CompatibilityCheckTest : DriverTest() {
     @Test
     fun `No issues using the same classpath class twice`() {
         check(
-            apiClassResolution = ApiClassResolution.API_CLASSPATH,
             expectedIssues = "",
             checkCompatibilityApiReleased =
                 """
@@ -4913,7 +4469,7 @@ class CompatibilityCheckTest : DriverTest() {
                         """
                     )
                 ),
-            api =
+            expectedApiSignature =
                 """
                     package test.pkg {
                       public final class KeepNoArgsCtor {
@@ -4971,7 +4527,7 @@ class CompatibilityCheckTest : DriverTest() {
                         """
                     )
                 ),
-            api =
+            expectedApiSignature =
                 """
                 // Signature format: 5.0
                 package test.pkg {
@@ -5018,7 +4574,7 @@ class CompatibilityCheckTest : DriverTest() {
                   }
                 }
                 """,
-            api =
+            expectedApiSignature =
                 """
                 // Signature format: 5.0
                 package test.pkg {
@@ -5035,6 +4591,40 @@ class CompatibilityCheckTest : DriverTest() {
                   }
                 }
                 """,
+        )
+    }
+
+    @Test
+    fun `Change kind of method parameters`() {
+        check(
+            checkCompatibilityApiReleased =
+                """
+                // Signature format: 5.0
+                package test.pkg {
+                  public class Foo {
+                    method public void contextToReceiver(context String c);
+                    method public void receiverToValue(receiver String c);
+                    method public void valueToContext(String c);
+                  }
+                }
+                """,
+            signatureSource =
+                """
+                // Signature format: 5.0
+                package test.pkg {
+                  public class Foo {
+                    method public void contextToReceiver(receiver String c);
+                    method public void receiverToValue(String c);
+                    method public void valueToContext(context String c);
+                  }
+                }
+                """,
+            expectedIssues =
+                """
+                load-api.txt:4: error: Source breaking change: Parameter c in test.pkg.Foo.contextToReceiver(String c) has changed from CONTEXT to RECEIVER [ParameterKindChange]
+                load-api.txt:5: error: Source breaking change: Parameter c in test.pkg.Foo.receiverToValue(String c) has changed from RECEIVER to VALUE [ParameterKindChange]
+                load-api.txt:6: error: Source breaking change: Parameter c in test.pkg.Foo.valueToContext(String c) has changed from VALUE to CONTEXT [ParameterKindChange]
+                """
         )
     }
 

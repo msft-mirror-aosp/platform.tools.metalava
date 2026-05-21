@@ -17,8 +17,8 @@
 package com.android.tools.metalava.lint
 
 import com.android.tools.metalava.DriverTest
-import com.android.tools.metalava.androidxNonNullSource
 import com.android.tools.metalava.cli.common.ARG_HIDE
+import com.android.tools.metalava.testing.KnownSourceFiles
 import com.android.tools.metalava.testing.java
 import org.junit.Test
 
@@ -35,7 +35,6 @@ class GenericCallbacksTest : DriverTest() {
                     src/android/pkg/Cases.java:12: error: Cases.BadListener can be replaced with OutcomeReceiver<R,E> (platform) or suspend fun / ListenableFuture (AndroidX). [GenericCallbacks]
                     src/android/pkg/Cases.java:16: error: Cases.BadGenericListener can be replaced with OutcomeReceiver<R,E> (platform) or suspend fun / ListenableFuture (AndroidX). [GenericCallbacks]
                 """,
-            expectedFail = DefaultLintErrorMessage,
             sourceFiles =
                 arrayOf(
                     java(
@@ -83,7 +82,7 @@ class GenericCallbacksTest : DriverTest() {
                             }
                         """
                     ),
-                    androidxNonNullSource,
+                    KnownSourceFiles.androidxNonNullJavaSource,
                 )
         )
     }
