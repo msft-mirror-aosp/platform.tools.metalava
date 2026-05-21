@@ -2282,6 +2282,7 @@ data class KnownApiSurface(
         const val TEST_HIDE_ANNOTATION = "test.annotation.Hide"
         const val TEST_MODULE_API_ANNOTATION = "test.annotation.ModuleApi"
         const val TEST_SYSTEM_API_ANNOTATION = "test.annotation.SystemApi"
+        const val TEST_API_ANNOTATION = "test.annotation.TestApi"
 
         private val additionalTestSourceFiles =
             listOf(
@@ -2295,6 +2296,12 @@ data class KnownApiSurface(
                     """
                         package test.annotation;
                         public @interface SystemApi {}
+                    """
+                ),
+                java(
+                    """
+                        package test.annotation;
+                        public @interface TestApi {}
                     """
                 ),
                 java(
@@ -2323,6 +2330,11 @@ data class KnownApiSurface(
                                     <annotation-rule pattern="$TEST_SYSTEM_API_ANNOTATION"/>
                                 </selection-criteria>
                             </api-surface>
+                            <api-surface name="test" extends="system">
+                                <selection-criteria>
+                                    <annotation-rule pattern="$TEST_API_ANNOTATION"/>
+                                </selection-criteria>
+                            </api-surface>
                             <api-surface name="module-lib" extends="system">
                                 <selection-criteria>
                                     <annotation-rule pattern="$TEST_MODULE_API_ANNOTATION"/>
@@ -2331,6 +2343,20 @@ data class KnownApiSurface(
                         </api-surfaces>
                     </config>
                 """
+            )
+
+        val TEST_SYSTEM_API_SURFACE =
+            KnownApiSurface(
+                "system",
+                apiSurfacesConfig,
+                additionalTestSourceFiles,
+            )
+
+        val TEST_API_SURFACE =
+            KnownApiSurface(
+                "test",
+                apiSurfacesConfig,
+                additionalTestSourceFiles,
             )
 
         val TEST_MODULE_API_SURFACE =
