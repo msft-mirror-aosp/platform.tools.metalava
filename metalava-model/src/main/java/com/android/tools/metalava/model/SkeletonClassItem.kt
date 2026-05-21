@@ -32,6 +32,9 @@ interface SkeletonClassItem : ClassItem {
     /** Support changing after construction. */
     override var optionalAliasedType: TypeItem?
 
+    /** The list of subclasses/subinterfaces permitted to extend this class. */
+    override var permitTypes: List<ClassTypeItem>
+
     /** Set the super class [ClassTypeItem]. */
     fun setSuperClassType(superClassType: ClassTypeItem?)
 

@@ -20,7 +20,6 @@ import com.android.tools.metalava.model.ApiVariantSelectorsFactory
 import com.android.tools.metalava.model.BaseModifierList
 import com.android.tools.metalava.model.CallableBody
 import com.android.tools.metalava.model.CallableBodyFactory
-import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.ClassOrigin
@@ -31,9 +30,11 @@ import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.ItemDocumentationFactory
+import com.android.tools.metalava.model.MemberItem
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
+import com.android.tools.metalava.model.ParameterKind
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.RecordComponentItem
 import com.android.tools.metalava.model.RecordComponentItemsFactory
@@ -100,7 +101,7 @@ class DefaultItemFactory(
         classKind: ClassKind,
         containingClass: ClassItem?,
         containingPackage: PackageItem,
-        qualifiedName: String = "",
+        qualifiedName: String,
         typeParameterList: TypeParameterList,
         origin: ClassOrigin,
         superClassType: ClassTypeItem?,
@@ -244,10 +245,11 @@ class DefaultItemFactory(
         modifiers: BaseModifierList,
         name: String,
         publicName: String?,
-        containingCallable: CallableItem,
+        containingItem: MemberItem,
         parameterIndex: Int,
         type: TypeItem,
         hasDefaultValue: Boolean,
+        kind: ParameterKind,
     ): ParameterItem =
         DefaultParameterItem(
             codebase,
@@ -256,10 +258,11 @@ class DefaultItemFactory(
             modifiers,
             name,
             publicName,
-            containingCallable,
+            containingItem,
             parameterIndex,
             type,
             hasDefaultValue,
+            kind,
         )
 
     /** Create a [PropertyItem]. */
@@ -274,6 +277,7 @@ class DefaultItemFactory(
         receiver: TypeItem?,
         typeParameterList: TypeParameterList,
         setterVisibility: VisibilityLevel?,
+        contextParameterFactory: (PropertyItem) -> List<ParameterItem>,
         getter: MethodItem? = null,
         setter: MethodItem? = null,
         constructorParameter: ParameterItem? = null,
@@ -296,6 +300,7 @@ class DefaultItemFactory(
             receiver,
             typeParameterList,
             setterVisibility,
+            contextParameterFactory,
         )
 
     /** Create a [PropertyItem] for use as a record component. */

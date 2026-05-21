@@ -439,7 +439,7 @@ class ExtractAnnotationsTest : DriverTest() {
                     intRangeAnnotationSource,
                     recentlyNullableSource
                 ),
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
@@ -558,7 +558,7 @@ class ExtractAnnotationsTest : DriverTest() {
             extraArguments = arrayOf(ARG_TYPEDEFS_IN_SIGNATURES, "none"),
             format = FileFormat.V2,
             sourceFiles = sourceFiles1,
-            api =
+            expectedApiSignature =
                 """
                 // Signature format: 2.0
                 package test.pkg {
@@ -591,7 +591,7 @@ class ExtractAnnotationsTest : DriverTest() {
             extraArguments = arrayOf(ARG_TYPEDEFS_IN_SIGNATURES, "inline"),
             format = FileFormat.V2,
             sourceFiles = sourceFiles1,
-            api =
+            expectedApiSignature =
                 """
                 // Signature format: 2.0
                 package test.pkg {
@@ -624,7 +624,7 @@ class ExtractAnnotationsTest : DriverTest() {
             extraArguments = arrayOf(ARG_TYPEDEFS_IN_SIGNATURES, "ref"),
             format = FileFormat.V2,
             sourceFiles = sourceFiles1,
-            api =
+            expectedApiSignature =
                 """
                 // Signature format: 2.0
                 package test.pkg {
@@ -861,6 +861,51 @@ class ExtractAnnotationsTest : DriverTest() {
                               </item>
                               <item name="test.pkg.Test Test()">
                                 <annotation name="androidx.annotation.UiThread"/>
+                              </item>
+                            </root>
+                        """,
+                ),
+        )
+    }
+
+    @Test
+    fun `Extract int def with single value`() {
+        check(
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+
+                            import android.annotation.IntDef;
+
+                            import java.lang.annotation.Retention;
+                            import java.lang.annotation.RetentionPolicy;
+
+                            public class IntDefTest {
+                                @IntDef(SINGLE_VALUE)
+                                @Retention(RetentionPolicy.SOURCE)
+                                private @interface SingleAllowableValue {}
+
+                                public static final int SINGLE_VALUE = 0;
+
+                                public void setValue(@SingleAllowableValue int value) {
+                                }
+                            }
+                        """
+                    ),
+                    intDefAnnotationSource,
+                ),
+            extractAnnotations =
+                mapOf(
+                    "test.pkg" to
+                        """
+                            <?xml version="1.0" encoding="UTF-8"?>
+                            <root>
+                              <item name="test.pkg.IntDefTest void setValue(int) 0">
+                                <annotation name="androidx.annotation.IntDef">
+                                  <val name="value" val="{test.pkg.IntDefTest.SINGLE_VALUE}" />
+                                </annotation>
                               </item>
                             </root>
                         """,

@@ -25,16 +25,12 @@ import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.multiplatform.MultiplatformCodebase
 import com.android.tools.metalava.model.text.ApiFile
 import com.android.tools.metalava.model.text.SignatureFile
-import com.android.tools.metalava.testing.TemporaryFolderOwner
+import com.android.tools.metalava.testing.BaseTemporaryFolderOwner
 import com.android.tools.metalava.testing.signature
 import org.junit.Assert.assertEquals
-import org.junit.Rule
 import org.junit.Test
-import org.junit.rules.TemporaryFolder
 
-class ComparisonVisitorTest : TemporaryFolderOwner, Assertions {
-    @get:Rule override val temporaryFolder = TemporaryFolder()
-
+class ComparisonVisitorTest : BaseTemporaryFolderOwner(), Assertions {
     @Test
     fun `prefer first's real children even when first is only implied`() {
         val newSignatureFiles =

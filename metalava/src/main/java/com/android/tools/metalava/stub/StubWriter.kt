@@ -62,6 +62,7 @@ internal class StubWriter(
         return modifierListWriterConfig.copy(
             runtimeAnnotationsOnly = !generateAnnotations,
             javaRecordClasses = config.javaRecordClasses,
+            javaSealedClasses = config.javaSealedClasses,
         )
     }
 
@@ -193,6 +194,9 @@ internal class StubWriter(
 
     private var stubWriter: DelegatedVisitor? = null
 
+    private val inaccessibleSealedSubclassManager =
+        InaccessibleSealedSubclassManager(stubConstructorManager)
+
     override fun visitClass(cls: ClassItem) {
         if (cls.isTopLevelClass()) {
             val sourceFile = getClassFile(cls)
@@ -216,6 +220,7 @@ internal class StubWriter(
                     modifierListWriter,
                     config,
                     stubConstructorManager,
+                    inaccessibleSealedSubclassManager,
                 )
 
             // Copyright statements from the original file?

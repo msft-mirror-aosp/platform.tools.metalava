@@ -17,7 +17,7 @@
 package com.android.tools.metalava.compatibility
 
 import com.android.tools.metalava.DriverTest
-import com.android.tools.metalava.cli.common.ARG_HIDE
+import com.android.tools.metalava.reporter.Issues
 import org.junit.Test
 
 class TargetLanguageCompatibilityTest : DriverTest() {
@@ -330,7 +330,10 @@ class TargetLanguageCompatibilityTest : DriverTest() {
     fun `Test making a method deprecated level hidden impact on kotlin`() {
         check(
             // Impact on java source tested separately below.
-            extraArguments = arrayOf(ARG_HIDE, "RemovedFromJava"),
+            extraArguments =
+                hiddenIssues(
+                    Issues.REMOVED_FROM_JAVA,
+                ),
             expectedIssues =
                 """
                 released-api.txt:5: error: Source breaking change: method test.pkg.Foo.incompatibleOverloadDoesNotTargetKotlin(String,int) can no longer be resolved from Kotlin source [RemovedFromKotlin]

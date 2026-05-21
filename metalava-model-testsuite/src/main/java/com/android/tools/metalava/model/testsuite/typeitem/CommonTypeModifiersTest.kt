@@ -659,11 +659,11 @@ class CommonTypeModifiersTest : BaseModelTest() {
                 """
                     // Signature format: 4.0
                     package test.pkg {
-                      public class Foo implements test.pkg.@test.pkg.A Bar, test.pkg.Baz {
+                      public class Foo implements test.pkg.@test.pkg.A Bar test.pkg.Baz {
                       }
                     }
                 """
-            )
+            ),
         ) {
             val foo = codebase.assertClass("test.pkg.Foo")
             val interfaces = foo.interfaceTypes()

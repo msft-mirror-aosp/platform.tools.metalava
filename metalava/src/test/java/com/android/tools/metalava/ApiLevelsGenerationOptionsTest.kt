@@ -218,7 +218,7 @@ class ApiLevelsGenerationOptionsTest :
         ) {
             val exception =
                 assertThrows(MetalavaCliException::class.java) { options.fromFakeSignatureFiles() }
-            assertThat(cleanupString(exception.message!!))
+            assertThat(removeTestSpecificDirectories(exception.message!!))
                 .isEqualTo(
                     """
                         --api-version-signature-files: The following files were unmatched by a signature pattern:
@@ -250,7 +250,7 @@ class ApiLevelsGenerationOptionsTest :
         }
 
     /** Dump the contents of this list to a string. */
-    private fun List<VersionedApi>.dump() = cleanupString(joinToString("\n"))
+    private fun List<VersionedApi>.dump() = removeTestSpecificDirectories(joinToString("\n"))
 
     @Test
     fun `Test multiple jar files for version forAndroidConfig`() {

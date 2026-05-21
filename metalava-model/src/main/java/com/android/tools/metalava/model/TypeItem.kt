@@ -249,7 +249,7 @@ interface TypeItem {
             Comparator.comparing { @Suppress("DEPRECATION") it.fullName() }
 
         /** A total ordering over [ClassTypeItem] comparing [ClassTypeItem.qualifiedName]. */
-        private val qualifiedComparator: Comparator<ClassTypeItem> =
+        val qualifiedComparator: Comparator<ClassTypeItem> =
             Comparator.comparing { it.qualifiedName }
 
         /**

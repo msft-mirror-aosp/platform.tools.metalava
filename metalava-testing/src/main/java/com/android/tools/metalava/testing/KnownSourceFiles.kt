@@ -256,7 +256,7 @@ object KnownSourceFiles {
                 import static java.lang.annotation.ElementType.*;
                 import java.lang.annotation.*;
                 @Target({TYPE, FIELD, METHOD, CONSTRUCTOR, ANNOTATION_TYPE, PACKAGE})
-                @Retention(RetentionPolicy.SOURCE)
+                @Retention(RetentionPolicy.RUNTIME)
                 public @interface SystemApi {
                     enum Client {
                         /**
@@ -285,6 +285,19 @@ object KnownSourceFiles {
                      * The intended client of this SystemAPI.
                      */
                     Client client() default android.annotation.SystemApi.Client.PRIVILEGED_APPS;
+                }
+            """
+        )
+
+    val testApiSource: TestFile =
+        java(
+            """
+                package android.annotation;
+                import static java.lang.annotation.ElementType.*;
+                import java.lang.annotation.*;
+                @Target({TYPE, FIELD, METHOD, CONSTRUCTOR, ANNOTATION_TYPE, PACKAGE})
+                @Retention(RetentionPolicy.SOURCE)
+                public @interface TestApi {
                 }
             """
         )

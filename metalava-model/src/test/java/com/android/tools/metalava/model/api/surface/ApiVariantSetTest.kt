@@ -32,6 +32,10 @@ class ApiVariantSetTest {
     private val main = apiSurfaces.main
     private val base = apiSurfaces.base!!
 
+    private val mainCore = main.variantFor(ApiVariantType.CORE)
+    private val baseCore = base.variantFor(ApiVariantType.CORE)
+    private val baseRemoved = base.variantFor(ApiVariantType.REMOVED)
+
     @Test
     fun `Test creation`() {
         val mutable = MutableApiVariantSet.setOf(apiSurfaces)
@@ -49,9 +53,6 @@ class ApiVariantSetTest {
     @Test
     fun `Test mutations`() {
         val mutable = MutableApiVariantSet.setOf(apiSurfaces)
-
-        val mainCore = main.variantFor(ApiVariantType.CORE)
-        val baseRemoved = base.variantFor(ApiVariantType.REMOVED)
 
         mutable.add(mainCore)
 
@@ -85,9 +86,6 @@ class ApiVariantSetTest {
     fun `Test clear`() {
         val mutable = MutableApiVariantSet.setOf(apiSurfaces)
 
-        val mainCore = main.variantFor(ApiVariantType.CORE)
-        val baseCore = base.variantFor(ApiVariantType.CORE)
-
         mutable.add(mainCore)
         mutable.add(baseCore)
 
@@ -99,9 +97,6 @@ class ApiVariantSetTest {
     @Test
     fun `Test mutable and immutable`() {
         val mutable = MutableApiVariantSet.setOf(apiSurfaces)
-
-        val mainCore = main.variantFor(ApiVariantType.CORE)
-        val baseCore = base.variantFor(ApiVariantType.CORE)
 
         mutable.add(mainCore)
         mutable.add(baseCore)

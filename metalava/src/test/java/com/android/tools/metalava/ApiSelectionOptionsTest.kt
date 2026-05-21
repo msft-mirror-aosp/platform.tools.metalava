@@ -18,9 +18,15 @@ package com.android.tools.metalava
 
 import com.android.tools.metalava.cli.common.BaseOptionGroupTest
 import com.android.tools.metalava.cli.common.MetalavaCliException
+import com.android.tools.metalava.config.AnnotationRuleConfig
 import com.android.tools.metalava.config.ApiSurfaceConfig
 import com.android.tools.metalava.config.ApiSurfacesConfig
+import com.android.tools.metalava.config.ContentsConfig
+import com.android.tools.metalava.config.EffectConfig
+import com.android.tools.metalava.config.SelectionCriteriaConfig
 import com.android.tools.metalava.model.ANDROID_SYSTEM_API
+import com.android.tools.metalava.model.api.surface.ApiSurface.Contents
+import com.android.tools.metalava.model.testing.api.assertState
 import com.google.common.truth.Truth.assertThat
 import org.junit.Assert.assertThrows
 import org.junit.Test
@@ -37,14 +43,6 @@ Api Selection:
                                              true if no --show*-annotation options specified)
   --show-annotation <annotation-filter>      Unhide any hidden elements that are also annotated with the given
                                              annotation.
-  --show-single-annotation <annotation-filter>
-                                             Like --show-annotation, but does not apply to members; these must also be
-                                             explicitly annotated.
-  --show-for-stub-purposes-annotation <annotation-filter>
-                                             Like --show-annotation, but elements annotated with it are assumed to be
-                                             "implicitly" included in the API surface, and they'll be included in
-                                             certain kinds of output such as stubs, but not in others, such as the
-                                             signature file and API lint.
   --hide-annotation <annotation-filter>      Treat any elements annotated with the given annotation as hidden.
   --exclude-annotation <annotation-classes>  A comma separated list of fully qualified names of annotation classes that
                                              must be stripped from metalava's outputs.
@@ -84,7 +82,7 @@ class ApiSelectionOptionsTest :
     }
 
     /**
-     * Run the test, providing an optional [ApiSelectionOptions] to
+     * Run the test, providing an optional [ApiSurfacesConfig] to
      * [ApiSelectionOptions.apiSurfacesConfigProvider].
      */
     private fun runTestWithConfig(
@@ -95,6 +93,7 @@ class ApiSelectionOptionsTest :
                     listOf(
                         ApiSurfaceConfig(name = "public"),
                         ApiSurfaceConfig(name = "system", extends = "public"),
+                        ApiSurfaceConfig(name = "module-lib", extends = "system"),
                     )
             ),
         test: Result<ApiSelectionOptions>.() -> Unit,
@@ -146,53 +145,64 @@ class ApiSelectionOptionsTest :
             val exception = assertThrows(IllegalStateException::class.java) { options.apiSurfaces }
             assertThat(exception.message)
                 .isEqualTo(
-                    "--api-surface (`unknown`) does not match an <api-surface> in a --config-file, expected one of `public`, `system`"
+                    "--api-surface (`unknown`) does not match an <api-surface> in a --config-file, expected one of `public`, `system`, `module-lib`"
                 )
         }
     }
 
     @Test
-    fun `Test configuring extending surface without --show-annotation option`() {
+    fun `Test configuring extending surface without any show or hide options`() {
         runTestWithConfig(
             ARG_API_SURFACE,
             "system",
         ) {
-            assertThrowsCliError(
-                """Configuration of `<api-surface name="system">` is inconsistent with command line options because `system` extends public which requires that it not show unannotated items but --show-unannotated is true"""
-            ) {
-                options.apiSurfaces
-            }
-        }
-    }
-
-    @Test
-    fun `Test configuring extending surface with --show-annotation option`() {
-        runTestWithConfig(
-            ARG_API_SURFACE,
-            "system",
-            ARG_SHOW_ANNOTATION,
-            ANDROID_SYSTEM_API,
-        ) {
+            // This does not report an error because no command line arguments were provided abd
+            // that could happen because there is an inconsistency or because the caller is just
+            // using the configuration. As they cannot be differentiated the consistency check is
+            // not run and if the inconsistency is significant it will affect some of the output
+            // files.
             options.apiSurfaces.assertBaseWasCreated()
             assertThat(options.apiSurfaces.main.name).isEqualTo("system")
             assertThat(options.apiSurfaces.base?.name).isEqualTo("public")
         }
     }
 
-    @Test
-    fun `Test configuring non-extending surface with --show-annotation option`() {
-        runTestWithConfig(
-            ARG_API_SURFACE,
-            "public",
-            ARG_SHOW_ANNOTATION,
-            ANDROID_SYSTEM_API,
-        ) {
+    private fun checkApiSurfaceMutuallyExclusive(vararg additionalArgs: String) {
+        val args =
+            arrayOf(
+                ARG_API_SURFACE,
+                "system",
+            ) + additionalArgs
+        runTestWithConfig(*args) {
             assertThrowsCliError(
-                """Configuration of `<api-surface name="public">` is inconsistent with command line options because `public` does not extend another surface which requires that it show unannotated items but --show-unannotated is false"""
+                """--api-surface is mutually exclusive with --show-unannotated, --show-annotation and --hide-annotation"""
             ) {
                 options.apiSurfaces
             }
         }
+    }
+
+    @Test
+    fun `Test mixing --api-surface with --show-unannotated`() {
+        checkApiSurfaceMutuallyExclusive(
+            ARG_SHOW_UNANNOTATED,
+        )
+    }
+
+    @Test
+    fun `Test mixing --api-surface with --show-annotation`() {
+        checkApiSurfaceMutuallyExclusive(
+            ARG_SHOW_ANNOTATION,
+            ANDROID_SYSTEM_API,
+        )
+    }
+
+    @Test
+    fun `Test mixing --api-surface with --hide-annotation`() {
+        checkApiSurfaceMutuallyExclusive(
+            ARG_HIDE_ANNOTATION,
+            "android.annotation.Hide",
+        )
     }
 
     @Test
@@ -203,6 +213,98 @@ class ApiSelectionOptionsTest :
         ) {
             options.apiSurfaces.assertBaseWasNotCreated()
             assertThat(options.apiSurfaces.main.name).isEqualTo("public")
+        }
+    }
+
+    @Test
+    fun `Test configuring standalone surface`() {
+        runTestWithConfig(
+            ARG_API_SURFACE,
+            "restricted",
+            apiSurfacesConfig =
+                ApiSurfacesConfig(
+                    listOf(
+                        ApiSurfaceConfig(
+                            name = "public",
+                            selectionCriteria =
+                                SelectionCriteriaConfig(
+                                    unannotated = EffectConfig.SHOW,
+                                ),
+                        ),
+                        ApiSurfaceConfig(
+                            name = "intermediate",
+                            extends = "public",
+                            contents = ContentsConfig.STANDALONE,
+                            selectionCriteria =
+                                SelectionCriteriaConfig(
+                                    annotationRules =
+                                        listOf(
+                                            AnnotationRuleConfig(
+                                                pattern = "test.api.IntermediateApi",
+                                            ),
+                                        ),
+                                ),
+                        ),
+                        ApiSurfaceConfig(
+                            name = "restricted",
+                            extends = "intermediate",
+                            contents = ContentsConfig.STANDALONE,
+                            selectionCriteria =
+                                SelectionCriteriaConfig(
+                                    annotationRules =
+                                        listOf(
+                                            AnnotationRuleConfig(
+                                                pattern = "test.api.RestrictedApi",
+                                            ),
+                                        ),
+                                ),
+                        ),
+                        ApiSurfaceConfig(
+                            name = "other",
+                            extends = "intermediate",
+                            selectionCriteria =
+                                SelectionCriteriaConfig(
+                                    annotationRules =
+                                        listOf(
+                                            AnnotationRuleConfig(
+                                                pattern = "test.api.OtherApi",
+                                            ),
+                                        ),
+                                ),
+                        ),
+                    ),
+                )
+        ) {
+            assertThat(options.apiSurfaces.main.name).isEqualTo("restricted")
+            assertThat(options.apiSurfaces.main.contents).isEqualTo(Contents.STANDALONE)
+
+            // TODO(b/512837535): The restricted surface is supposed to include everything from the
+            //  public and intermediate surfaces. Currently, it does not. The @IntermediateApi
+            //  annotated items are in the `intermediate` API and unannotated items are in th
+            //  `public` API.
+            options.apiSurfaceSelector.assertState(
+                expectedMatcherState =
+                    """
+                        AnnotationMatcher(
+                            test.api.IntermediateApi -> {
+                                Entry(
+                                    result: SHOW
+                                )
+                            }
+                            test.api.OtherApi -> {
+                                Entry(
+                                    result: HIDE
+                                )
+                            }
+                            test.api.RestrictedApi -> {
+                                Entry(
+                                    result: SHOW
+                                )
+                            }
+                        )
+                    """,
+                expectedShowUnannotated = true,
+            )
         }
     }
 }
