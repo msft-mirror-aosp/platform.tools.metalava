@@ -2278,5 +2278,43 @@ data class KnownApiSurface(
                 KnownConfigFiles.configKnownTestSurfaces,
                 additionalAndroidSourceFiles,
             )
+
+        const val TEST_HIDE_ANNOTATION = "test.annotation.Hide"
+        const val TEST_MODULE_API_ANNOTATION = "test.annotation.ModuleApi"
+        const val TEST_SYSTEM_API_ANNOTATION = "test.annotation.SystemApi"
+
+        private val apiSurfacesConfig =
+            xml(
+                "api-surfaces-config.xml",
+                """
+                    <config xmlns="http://www.google.com/tools/metalava/config"
+                        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                        xsi:schemaLocation="http://www.google.com/tools/metalava/config ../../../../../resources/schemas/config.xsd">
+                        <api-surfaces>
+                            <api-surface name="public">
+                                <selection-criteria unannotated="show">
+                                    <annotation-rule pattern="$TEST_HIDE_ANNOTATION" effect='hide'/>
+                                </selection-criteria>
+                            </api-surface>
+                            <api-surface name="system" extends="public">
+                                <selection-criteria>
+                                    <annotation-rule pattern="$TEST_SYSTEM_API_ANNOTATION"/>
+                                </selection-criteria>
+                            </api-surface>
+                            <api-surface name="module-lib" extends="system">
+                                <selection-criteria>
+                                    <annotation-rule pattern="$TEST_MODULE_API_ANNOTATION"/>
+                                </selection-criteria>
+                            </api-surface>
+                        </api-surfaces>
+                    </config>
+                """
+            )
+
+        val TEST_MODULE_API_SURFACE =
+            KnownApiSurface(
+                "module-lib",
+                apiSurfacesConfig,
+            )
     }
 }

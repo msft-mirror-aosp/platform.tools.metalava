@@ -16,53 +16,18 @@
 
 package com.android.tools.metalava
 
+import com.android.tools.metalava.KnownApiSurface.Companion.TEST_HIDE_ANNOTATION
+import com.android.tools.metalava.KnownApiSurface.Companion.TEST_MODULE_API_ANNOTATION
+import com.android.tools.metalava.KnownApiSurface.Companion.TEST_MODULE_API_SURFACE
+import com.android.tools.metalava.KnownApiSurface.Companion.TEST_SYSTEM_API_ANNOTATION
 import com.android.tools.metalava.cli.common.ARG_ERROR
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.testing.java
-import com.android.tools.metalava.testing.xml
 import org.junit.Test
 
 class DeepApiSurfaceHierarchyTest : DriverTest() {
     companion object {
-        private const val HIDE_ANNOTATION = "test.annotation.Hide"
-        private const val MODULE_API = "test.annotation.ModuleApi"
-        private const val SYSTEM_API = "test.annotation.SystemApi"
-
-        private val apiSurfacesConfig =
-            xml(
-                "api-surfaces-config.xml",
-                """
-                    <config xmlns="http://www.google.com/tools/metalava/config"
-                        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-                        xsi:schemaLocation="http://www.google.com/tools/metalava/config ../../../../../resources/schemas/config.xsd">
-                        <api-surfaces>
-                            <api-surface name="public">
-                                <selection-criteria unannotated="show">
-                                    <annotation-rule pattern="$HIDE_ANNOTATION" effect='hide'/>
-                                </selection-criteria>
-                            </api-surface>
-                            <api-surface name="system" extends="public">
-                                <selection-criteria>
-                                    <annotation-rule pattern="$SYSTEM_API"/>
-                                </selection-criteria>
-                            </api-surface>
-                            <api-surface name="module-lib" extends="system">
-                                <selection-criteria>
-                                    <annotation-rule pattern="$MODULE_API"/>
-                                </selection-criteria>
-                            </api-surface>
-                        </api-surfaces>
-                    </config>
-                """
-            )
-
-        private val MODULE_API_SURFACE =
-            KnownApiSurface(
-                "module-lib",
-                apiSurfacesConfig,
-            )
-
         private val EXTRA_ARGS =
             arrayOf(
                 ARG_ERROR,
@@ -368,8 +333,8 @@ class DeepApiSurfaceHierarchyTest : DriverTest() {
         check(
             extraArguments = EXTRA_ARGS,
             format = FileFormat.V2,
-            hideAnnotations = arrayOf(HIDE_ANNOTATION),
-            showAnnotations = arrayOf(MODULE_API, SYSTEM_API),
+            hideAnnotations = arrayOf(TEST_HIDE_ANNOTATION),
+            showAnnotations = arrayOf(TEST_MODULE_API_ANNOTATION, TEST_SYSTEM_API_ANNOTATION),
             sourceFiles = SOURCE_FILES_A,
             expectedApiSignature =
                 """
@@ -425,8 +390,8 @@ class DeepApiSurfaceHierarchyTest : DriverTest() {
         check(
             extraArguments = EXTRA_ARGS,
             format = FileFormat.V2,
-            hideAnnotations = arrayOf(HIDE_ANNOTATION),
-            showAnnotations = arrayOf(SYSTEM_API),
+            hideAnnotations = arrayOf(TEST_HIDE_ANNOTATION),
+            showAnnotations = arrayOf(TEST_SYSTEM_API_ANNOTATION),
             sourceFiles = SOURCE_FILES_A,
             expectedApiSignature =
                 """
@@ -460,7 +425,7 @@ class DeepApiSurfaceHierarchyTest : DriverTest() {
     @Test
     fun `Hierarchy test - ModuleApi Only, also check the stub files`() {
         check(
-            apiSurface = MODULE_API_SURFACE,
+            apiSurface = TEST_MODULE_API_SURFACE,
             extraArguments = EXTRA_ARGS,
             format = FileFormat.V2,
             sourceFiles = SOURCE_FILES_A,
@@ -578,8 +543,8 @@ class DeepApiSurfaceHierarchyTest : DriverTest() {
         check(
             extraArguments = EXTRA_ARGS,
             format = FileFormat.V2,
-            hideAnnotations = arrayOf(HIDE_ANNOTATION),
-            showAnnotations = arrayOf(SYSTEM_API),
+            hideAnnotations = arrayOf(TEST_HIDE_ANNOTATION),
+            showAnnotations = arrayOf(TEST_SYSTEM_API_ANNOTATION),
             sourceFiles =
                 arrayOf(
                     java(
@@ -619,8 +584,8 @@ class DeepApiSurfaceHierarchyTest : DriverTest() {
         check(
             extraArguments = EXTRA_ARGS,
             format = FileFormat.V2,
-            hideAnnotations = arrayOf(HIDE_ANNOTATION),
-            showAnnotations = arrayOf(SYSTEM_API, MODULE_API),
+            hideAnnotations = arrayOf(TEST_HIDE_ANNOTATION),
+            showAnnotations = arrayOf(TEST_SYSTEM_API_ANNOTATION, TEST_MODULE_API_ANNOTATION),
             sourceFiles = SOURCE_FILES_B,
             expectedApiSignature =
                 """
@@ -656,8 +621,8 @@ class DeepApiSurfaceHierarchyTest : DriverTest() {
         check(
             extraArguments = EXTRA_ARGS,
             format = FileFormat.V2,
-            hideAnnotations = arrayOf(HIDE_ANNOTATION),
-            showAnnotations = arrayOf(SYSTEM_API),
+            hideAnnotations = arrayOf(TEST_HIDE_ANNOTATION),
+            showAnnotations = arrayOf(TEST_SYSTEM_API_ANNOTATION),
             sourceFiles = SOURCE_FILES_B,
             expectedApiSignature =
                 """
@@ -683,7 +648,7 @@ class DeepApiSurfaceHierarchyTest : DriverTest() {
     @Test
     fun `Hierarchy test - Module API only`() {
         check(
-            apiSurface = MODULE_API_SURFACE,
+            apiSurface = TEST_MODULE_API_SURFACE,
             extraArguments = EXTRA_ARGS,
             format = FileFormat.V2,
             sourceFiles = SOURCE_FILES_B,
@@ -707,7 +672,7 @@ class DeepApiSurfaceHierarchyTest : DriverTest() {
     @Test
     fun `Hierarchy test - Module API only with lint`() {
         check(
-            apiSurface = MODULE_API_SURFACE,
+            apiSurface = TEST_MODULE_API_SURFACE,
             extraArguments = EXTRA_ARGS,
             format = FileFormat.V2,
 
