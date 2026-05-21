@@ -62,7 +62,6 @@ class ShowAnnotationTest : DriverTest() {
                     }
                 """
                     ),
-                    systemApiSource,
                 ),
             expectedApiSignature =
                 """
@@ -110,7 +109,6 @@ class ShowAnnotationTest : DriverTest() {
                     }
                 """
                     ),
-                    systemApiSource,
                 ),
             expectedApiSignature =
                 """
@@ -165,7 +163,6 @@ class ShowAnnotationTest : DriverTest() {
                     }
                     """
                     ),
-                    testApiSource,
                 ),
             expectedApiSignature =
                 """
@@ -289,7 +286,6 @@ class ShowAnnotationTest : DriverTest() {
                     }
                 """
                     ),
-                    systemApiSource,
                 ),
             expectedApiSignature =
                 """

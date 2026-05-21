@@ -6362,8 +6362,6 @@ class ApiFileTest : DriverTest() {
                         }
                     """
                     ),
-                    systemApiSource,
-                    testApiSource,
                 ),
             expectedApiSignature =
                 """

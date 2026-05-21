@@ -2198,15 +2198,22 @@ data class KnownApiSurface(
             optionalCommandLineOptions ?: error("$surface does not provide command line options")
 
     companion object {
+        val additionalAndroidSourceFiles =
+            listOf(
+                KnownSourceFiles.systemApiSource,
+                KnownSourceFiles.testApiSource,
+            )
+
         /** The public API as used by Android. */
         val PUBLIC =
             KnownApiSurface(
                 "public",
                 KnownConfigFiles.configKnownTestSurfaces,
+                additionalAndroidSourceFiles,
                 optionalCommandLineOptions =
                     listOf(
                         ARG_SHOW_UNANNOTATED,
-                    ),
+                    )
             )
 
         /** The system API as used by Android. */
@@ -2214,11 +2221,12 @@ data class KnownApiSurface(
             KnownApiSurface(
                 "system",
                 KnownConfigFiles.configKnownTestSurfaces,
+                additionalAndroidSourceFiles,
                 optionalCommandLineOptions =
                     listOf(
                         ARG_SHOW_ANNOTATION,
                         "android.annotation.SystemApi(client=android.annotation.SystemApi.Client.PRIVILEGED_APPS)",
-                    ),
+                    )
             )
 
         /** The system API plus public API. */
@@ -2226,6 +2234,7 @@ data class KnownApiSurface(
             KnownApiSurface(
                 "system-with-public",
                 KnownConfigFiles.configSystemWithPublicSurface,
+                additionalAndroidSourceFiles,
             )
 
         /** The system API with non-recursive annotation. */
@@ -2251,6 +2260,7 @@ data class KnownApiSurface(
                         </config>
                     """
                 ),
+                additionalAndroidSourceFiles,
             )
 
         /** The module-lib API as used by Android. */
@@ -2258,6 +2268,7 @@ data class KnownApiSurface(
             KnownApiSurface(
                 "module-lib",
                 KnownConfigFiles.configKnownTestSurfaces,
+                additionalAndroidSourceFiles,
             )
 
         /** The test API as used by Android. */
@@ -2265,6 +2276,7 @@ data class KnownApiSurface(
             KnownApiSurface(
                 "test",
                 KnownConfigFiles.configKnownTestSurfaces,
+                additionalAndroidSourceFiles,
             )
     }
 }

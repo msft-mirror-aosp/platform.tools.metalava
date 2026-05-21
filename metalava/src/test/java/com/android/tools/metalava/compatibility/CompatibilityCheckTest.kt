@@ -1884,7 +1884,6 @@ class CompatibilityCheckTest : DriverTest() {
                     }
                     """
                     ),
-                    systemApiSource,
                 ),
             checkCompatibilityApiReleased =
                 """
@@ -1924,7 +1923,6 @@ class CompatibilityCheckTest : DriverTest() {
                     }
                     """
                     ),
-                    systemApiSource,
                 ),
             checkCompatibilityApiReleased =
                 """

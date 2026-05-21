@@ -28,7 +28,6 @@ import com.android.tools.metalava.model.testing.RequiresCapabilities
 import com.android.tools.metalava.nonNullSource
 import com.android.tools.metalava.nullableSource
 import com.android.tools.metalava.requiresPermissionSource
-import com.android.tools.metalava.systemApiSource
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
 import com.android.tools.metalava.uiThreadSource
@@ -894,7 +893,6 @@ class DocAnalyzerTest : DriverTest() {
                     }
                     """
                     ),
-                    systemApiSource
                 ),
             applyApiLevelsXml =
                 """

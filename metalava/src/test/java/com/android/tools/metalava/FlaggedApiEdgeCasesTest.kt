@@ -192,7 +192,6 @@ class FlaggedApiEdgeCasesTest : DriverTest() {
                         """
                     ),
                     flaggedApiSource,
-                    systemApiSource,
                 ),
             expectedStubFiles =
                 arrayOf(

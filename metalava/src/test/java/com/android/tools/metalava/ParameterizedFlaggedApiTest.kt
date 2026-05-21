@@ -35,7 +35,7 @@ import kotlin.test.assertEquals
 import org.junit.Test
 import org.junit.runners.Parameterized
 
-private val annotationsList = listOf(systemApiSource, nonNullSource)
+private val annotationsList = listOf(nonNullSource)
 
 /**
  * A parameterized test for the `android.annotation.FlaggedApi` annotation.

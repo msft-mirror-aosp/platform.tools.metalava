@@ -694,7 +694,6 @@ class ApiAnalyzerTest : DriverTest() {
                             public class C {}
                         """
                     ),
-                    KnownSourceFiles.systemApiSource,
                 ),
             expectedApiSignature =
                 """

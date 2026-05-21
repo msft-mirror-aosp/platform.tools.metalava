@@ -231,7 +231,6 @@ class BaselineTest : DriverTest() {
                     }
                     """
                     ),
-                    testApiSource,
                     KnownSourceFiles.androidxNullableJavaSource,
                 ),
             expectedApiSignature =

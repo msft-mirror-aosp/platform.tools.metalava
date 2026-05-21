@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava
 
+import com.android.tools.lint.checks.infrastructure.TestFile
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.testing.EntryPoint
 import com.android.tools.metalava.testing.EntryPointCallerRule
@@ -113,6 +114,7 @@ class ParameterizedUnhiddenSystemApiTest : DriverTest() {
 
     private fun checkUnhiddenSystemApi(
         apiSurface: KnownApiSurface? = null,
+        extraSourceFiles: Array<TestFile> = emptyArray(),
         extraArguments: Array<String> = emptyArray(),
         expectedIssues: String = "",
         expectedApi: String,
@@ -123,6 +125,7 @@ class ParameterizedUnhiddenSystemApiTest : DriverTest() {
             expectedIssues = expectedIssues,
             sourceFiles =
                 arrayOf(
+                    *extraSourceFiles,
                     java(
                         """
                             package test.pkg;
@@ -143,7 +146,6 @@ class ParameterizedUnhiddenSystemApiTest : DriverTest() {
                             }
                         """
                     ),
-                    systemApiSource,
                 ),
             expectedApiSignature = expectedApi,
         )
@@ -168,6 +170,7 @@ class ParameterizedUnhiddenSystemApiTest : DriverTest() {
                     "${knownApiSurface.surface} does not provide command line options"
                 )
         checkUnhiddenSystemApi(
+            extraSourceFiles = knownApiSurface.additionalSourceFiles.toTypedArray(),
             extraArguments = commandLineOptions.toTypedArray(),
             expectedIssues = params.expectedIssuesForOptions,
             expectedApi = params.expectedApiForOptions,

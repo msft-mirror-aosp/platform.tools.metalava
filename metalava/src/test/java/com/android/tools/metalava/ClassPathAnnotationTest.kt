@@ -165,7 +165,6 @@ class ClassPathAnnotationTest : DriverTest() {
             classpath = arrayOf(jar),
             sourceFiles =
                 arrayOf(
-                    KnownSourceFiles.systemApiSource,
                     java(
                         """
                             package test.pkg;

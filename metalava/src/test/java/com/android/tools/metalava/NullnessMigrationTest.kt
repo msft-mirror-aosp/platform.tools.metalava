@@ -726,7 +726,6 @@ class NullnessMigrationTest : DriverTest() {
                     ),
                     KnownSourceFiles.androidxNonNullJavaSource,
                     KnownSourceFiles.androidxNullableJavaSource,
-                    KnownSourceFiles.systemApiSource,
                 ),
             migrateNullsApiList =
                 listOf(

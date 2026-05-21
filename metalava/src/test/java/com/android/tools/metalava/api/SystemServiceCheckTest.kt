@@ -23,7 +23,6 @@ import com.android.tools.metalava.KnownApiSurface
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.requiresPermissionSource
 import com.android.tools.metalava.systemServiceSource
-import com.android.tools.metalava.testing.KnownSourceFiles
 import com.android.tools.metalava.testing.java
 import org.intellij.lang.annotations.Language
 import org.junit.Test
@@ -144,7 +143,6 @@ class SystemServiceCheckTest : DriverTest() {
                     ),
                     systemServiceSource,
                     requiresPermissionSource,
-                    KnownSourceFiles.systemApiSource,
                 ),
             manifest =
                 """<?xml version="1.0" encoding="UTF-8"?>
@@ -209,7 +207,6 @@ class SystemServiceCheckTest : DriverTest() {
                     ),
                     systemServiceSource,
                     requiresPermissionSource,
-                    KnownSourceFiles.systemApiSource,
                 ),
             manifest =
                 """<?xml version="1.0" encoding="UTF-8"?>
@@ -238,7 +235,6 @@ class SystemServiceCheckTest : DriverTest() {
                     ),
                     systemServiceSource,
                     requiresPermissionSource,
-                    KnownSourceFiles.systemApiSource,
                 ),
             manifest =
                 """<?xml version="1.0" encoding="UTF-8"?>
@@ -276,7 +272,6 @@ class SystemServiceCheckTest : DriverTest() {
                     ),
                     systemServiceSource,
                     requiresPermissionSource,
-                    KnownSourceFiles.systemApiSource,
                 ),
             manifest =
                 """<?xml version="1.0" encoding="UTF-8"?>
@@ -321,7 +316,6 @@ class SystemServiceCheckTest : DriverTest() {
                     ),
                     systemServiceSource,
                     requiresPermissionSource,
-                    KnownSourceFiles.systemApiSource,
                 ),
             manifest =
                 """<?xml version="1.0" encoding="UTF-8"?>
@@ -355,7 +349,6 @@ class SystemServiceCheckTest : DriverTest() {
                     ),
                     systemServiceSource,
                     requiresPermissionSource,
-                    KnownSourceFiles.systemApiSource,
                 ),
             manifest =
                 """<?xml version="1.0" encoding="UTF-8"?>
