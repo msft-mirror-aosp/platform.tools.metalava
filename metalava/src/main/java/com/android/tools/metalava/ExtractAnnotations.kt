@@ -149,7 +149,7 @@ class ExtractAnnotations(
             when (item) {
                 is ClassItem -> item.containingPackage()
                 is MemberItem -> item.containingClass().containingPackage()
-                is ParameterItem -> item.containingCallable().containingClass().containingPackage()
+                is ParameterItem -> item.containingClass().containingPackage()
                 else -> return
             }
 
@@ -298,9 +298,7 @@ class ExtractAnnotations(
                 return escapeXml(containingClass().qualifiedName()) + " " + name()
             }
             is ParameterItem -> {
-                return containingCallable().getExternalAnnotationSignature() +
-                    " " +
-                    this.parameterIndex
+                return parent().getExternalAnnotationSignature() + " " + this.parameterIndex
             }
         }
 
@@ -489,7 +487,7 @@ class ExtractAnnotations(
          */
         private val EXTRACT_VALUE_STRING_CONFIGURATION =
             ValueStringConfiguration(
-                singleArrayElementFormat = SingleArrayElementFormat.UNWRAP,
+                singleArrayElementFormat = SingleArrayElementFormat.WRAP,
             )
     }
 }

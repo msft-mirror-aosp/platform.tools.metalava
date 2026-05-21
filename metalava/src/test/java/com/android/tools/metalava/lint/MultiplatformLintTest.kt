@@ -19,9 +19,9 @@ package com.android.tools.metalava.lint
 import com.android.tools.lint.checks.infrastructure.TestFile
 import com.android.tools.lint.checks.infrastructure.TestFiles.base64gzip
 import com.android.tools.metalava.DriverTest
-import com.android.tools.metalava.cli.common.ARG_HIDE
 import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.testing.RequiresCapabilities
+import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.testing.createAndroidModuleDescription
 import com.android.tools.metalava.testing.createCommonModuleDescription
 import com.android.tools.metalava.testing.createModuleDescription
@@ -314,7 +314,10 @@ class MultiplatformLintTest : DriverTest() {
                 ),
             showAnnotations = arrayOf("kotlin.PublishedApi"),
             hideAnnotations = arrayOf("test.pkg.Hide"),
-            extraArguments = arrayOf(ARG_HIDE, "UnhiddenSystemApi"),
+            extraArguments =
+                hiddenIssues(
+                    Issues.UNHIDDEN_SYSTEM_API,
+                ),
             expectedIssues =
                 """
                 commonMain/src/test/pkg/Foo.kt:3: error: multiplatform property test.pkg.Foo#hiddenInCommon is hidden with an annotation in source sets [commonMain] but not hidden with an annotation in source sets [androidMain, nativeMain] [KmpHideShowAnnotationMismatch]
@@ -472,6 +475,10 @@ class MultiplatformLintTest : DriverTest() {
                     )
                 ),
             expectedIssues = null,
+            extraArguments =
+                hiddenIssues(
+                    Issues.TYPEALIAS_DEFINITION,
+                ),
         )
     }
 
@@ -878,6 +885,46 @@ class MultiplatformLintTest : DriverTest() {
                         package test.pkg
                         actual class Outer {
                             private inner class Inner
+                        }
+                        """
+                    )
+                ),
+            expectedIssues = null,
+        )
+    }
+
+    @Test
+    fun `Check equals and hashCode definitions`() {
+        checkLint(
+            commonSource =
+                arrayOf(
+                    kotlin(
+                        "commonMain/src/test/pkg/Foo.kt",
+                        """
+                        package test.pkg
+                        expect class Foo
+                        """
+                    )
+                ),
+            androidSource =
+                arrayOf(
+                    kotlin(
+                        "androidMain/src/test/pkg/Foo_android.kt",
+                        """
+                        package test.pkg
+                        actual class Foo
+                        """
+                    )
+                ),
+            nativeSource =
+                arrayOf(
+                    kotlin(
+                        "nativeMain/src/test/pkg/Foo_native.kt",
+                        """
+                        package test.pkg
+                        actual class Foo {
+                            override fun equals(other: Any?): Boolean = true
+                            override fun hashCode(): Int = 0
                         }
                         """
                     )

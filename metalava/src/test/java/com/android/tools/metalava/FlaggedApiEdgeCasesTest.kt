@@ -18,6 +18,7 @@ package com.android.tools.metalava
 
 import com.android.tools.metalava.cli.common.ARG_STUB_PACKAGES
 import com.android.tools.metalava.model.ANDROID_FLAGGED_API
+import com.android.tools.metalava.model.ANDROID_REQUIRES_FLAG
 import com.android.tools.metalava.model.ANDROID_SYSTEM_API
 import com.android.tools.metalava.model.FlaggedApiInheritance
 import com.android.tools.metalava.model.text.CustomizableProperty.Companion.FLAGGED_API_INHERITANCE
@@ -29,6 +30,40 @@ import org.junit.Test
  * Edge case tests of [ANDROID_FLAGGED_API] that cannot be tested in [ParameterizedFlaggedApiTest].
  */
 class FlaggedApiEdgeCasesTest : DriverTest() {
+    @Test
+    fun `Test FlaggedApi annotation is replaced by RequiresFlag annotation in stubs`() {
+        check(
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+
+                            public class Test {
+                                @$ANDROID_FLAGGED_API("flag.name")
+                                public void method();
+                            }
+                        """
+                    ),
+                    flaggedApiSource
+                ),
+            expectedStubFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            @SuppressWarnings({"unchecked", "deprecation", "all"})
+                            public class Test {
+                            public Test() { throw new RuntimeException("Stub!"); }
+                            @$ANDROID_REQUIRES_FLAG("flag.name")
+                            public void method() { throw new RuntimeException("Stub!"); }
+                            }
+                        """
+                    )
+                ),
+        )
+    }
+
     @Test
     fun `Test override flagged method from source path no previously released API`() {
         check(
@@ -115,7 +150,7 @@ class FlaggedApiEdgeCasesTest : DriverTest() {
                       }
                     }
                 """,
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
@@ -131,15 +166,11 @@ class FlaggedApiEdgeCasesTest : DriverTest() {
     }
 
     @Test
-    fun `Test reverting class with --show-single-annotation`() {
+    fun `Test reverting class with non-recursive annotation`() {
         check(
+            apiSurface = KnownApiSurface.NON_RECURSIVE_SYSTEM,
             // Use an empty api flags which defaults all flags to disabled.
             configFiles = arrayOf(KnownConfigFiles.configEmptyApiFlags),
-            extraArguments =
-                arrayOf(
-                    ARG_SHOW_SINGLE_ANNOTATION,
-                    "android.annotation.SystemApi",
-                ),
             sourceFiles =
                 arrayOf(
                     java(
@@ -153,7 +184,7 @@ class FlaggedApiEdgeCasesTest : DriverTest() {
                             public class Test {
                                 // A member of a class that is annotated with a show annotation but
                                 // is not marked as @hide. Usually, that would usually report an
-                                // error but the show annotation is a --show-single-annotation
+                                // error but the show annotation is a non-recursive show annotation
                                 // so the @hide is not required.
                                 @$ANDROID_SYSTEM_API
                                 public void method() {}
@@ -161,9 +192,8 @@ class FlaggedApiEdgeCasesTest : DriverTest() {
                         """
                     ),
                     flaggedApiSource,
-                    systemApiSource,
                 ),
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
@@ -217,7 +247,7 @@ class FlaggedApiEdgeCasesTest : DriverTest() {
                       </class>
                     </api>
                 """,
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
@@ -260,7 +290,7 @@ class FlaggedApiEdgeCasesTest : DriverTest() {
                     ),
                     flaggedApiSource
                 ),
-            api =
+            expectedApiSignature =
                 """
                     // Signature format: 5.0
                     package test.pkg {
@@ -268,7 +298,7 @@ class FlaggedApiEdgeCasesTest : DriverTest() {
                       }
                     }
                 """,
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
@@ -294,7 +324,7 @@ class FlaggedApiEdgeCasesTest : DriverTest() {
     /** Check [flaggedApiInheritance] behavior. */
     private fun checkFlaggedApiInheritance(
         flaggedApiInheritance: FlaggedApiInheritance,
-        expectedApi: String,
+        expectedApiSignature: String,
     ) {
         check(
             format =
@@ -332,31 +362,27 @@ class FlaggedApiEdgeCasesTest : DriverTest() {
                     ),
                     flaggedApiSource
                 ),
-            api = expectedApi,
-            stubFiles =
+            expectedApiSignature = expectedApiSignature,
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
                             package test.pkg;
                             @SuppressWarnings({"unchecked", "deprecation", "all"})
-                            @android.annotation.FlaggedApi("flag.name1")
+                            @$ANDROID_REQUIRES_FLAG("flag.name1")
                             public class Test {
                             Test() { throw new RuntimeException("Stub!"); }
                             public static final java.lang.String FLAG_NAME1 = "flag.name1";
                             public static final java.lang.String FLAG_NAME2 = "flag.name2";
-                            @SuppressWarnings({"unchecked", "deprecation", "all"})
-                            @android.annotation.FlaggedApi("flag.name2")
+                            @$ANDROID_REQUIRES_FLAG("flag.name2")
                             public class FlaggedNested {
                             FlaggedNested() { throw new RuntimeException("Stub!"); }
-                            @SuppressWarnings({"unchecked", "deprecation", "all"})
                             public class FlaggedNestedTwice {
                             FlaggedNestedTwice() { throw new RuntimeException("Stub!"); }
                             }
                             }
-                            @SuppressWarnings({"unchecked", "deprecation", "all"})
                             public class Nested {
                             Nested() { throw new RuntimeException("Stub!"); }
-                            @SuppressWarnings({"unchecked", "deprecation", "all"})
                             public class NestedTwice {
                             NestedTwice() { throw new RuntimeException("Stub!"); }
                             }
@@ -372,7 +398,7 @@ class FlaggedApiEdgeCasesTest : DriverTest() {
     fun `Test flagged API inheritance in signature files - no inheritance`() {
         checkFlaggedApiInheritance(
             flaggedApiInheritance = FlaggedApiInheritance.NONE,
-            expectedApi =
+            expectedApiSignature =
                 """
                     // Signature format: 6.0
                     // - flagged-api-inheritance=none
@@ -399,7 +425,7 @@ class FlaggedApiEdgeCasesTest : DriverTest() {
         checkFlaggedApiInheritance(
             flaggedApiInheritance = FlaggedApiInheritance.NESTED_CLASSES,
             // TODO(b/362253909): Should be added to nested classes.
-            expectedApi =
+            expectedApiSignature =
                 """
                     // Signature format: 6.0
                     package test.pkg {

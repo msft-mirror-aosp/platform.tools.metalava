@@ -101,15 +101,12 @@ interface ClassItem :
     fun superClassType(): ClassTypeItem?
 
     /**
-     * A class is effectively sealed if it is either explicitly marked sealed, is a non-public
-     * interface, or an abstract class with no publicly accessible constructors. For more
-     * information, see b/220960090
+     * A class is effectively sealed if it is either explicitly marked sealed, or is a class with no
+     * publicly accessible constructors. For more information, see b/220960090
      */
     fun isEffectivelySealed(): Boolean {
         return modifiers.isSealed() ||
-            (isInterface() && !isPublic) ||
-            ((isClass() && modifiers.isAbstract()) &&
-                (constructors().none { (it.isPublic || it.isProtected) && !it.hidden }))
+            (isClass() && (constructors().none { (it.isPublic || it.isProtected) && !it.hidden }))
     }
 
     /**
@@ -422,8 +419,8 @@ interface ClassItem :
     }
 
     /**
-     * Searches for a property with the [template]'s name and receiver in the class, including
-     * searching super classes and interfaces if specified.
+     * Searches for a property with the [template]'s name, receiver, and context parameters in the
+     * class, including searching super classes and interfaces if specified.
      */
     fun findProperty(
         template: PropertyItem,
@@ -433,7 +430,11 @@ interface ClassItem :
         properties()
             .firstOrNull {
                 it.name() == template.name() &&
-                    PropertyItem.equalReceivers(template.receiver, it.receiver)
+                    PropertyItem.equalReceivers(template.receiver, it.receiver) &&
+                    PropertyItem.equalContextParameters(
+                        template.contextParameters,
+                        it.contextParameters
+                    )
             }
             ?.let {
                 return it

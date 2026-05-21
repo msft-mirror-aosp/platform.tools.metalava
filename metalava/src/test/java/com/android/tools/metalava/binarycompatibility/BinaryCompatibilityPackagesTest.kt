@@ -25,7 +25,7 @@ import org.junit.Test
 
 class BinaryCompatibilityPackagesTest : DriverTest() {
     @Test
-    fun `Add API Package (Compatible)`() {
+    fun `Add API Package - Compatible`() {
         check(
             signatureSource =
                 """
@@ -49,7 +49,7 @@ class BinaryCompatibilityPackagesTest : DriverTest() {
     }
 
     @Test
-    fun `Delete API Package (Incompatible)`() {
+    fun `Delete API Package - Incompatible`() {
         check(
             expectedIssues =
                 """
@@ -77,7 +77,7 @@ class BinaryCompatibilityPackagesTest : DriverTest() {
     }
 
     @Test
-    fun `Add API Type to API Package (Compatible)`() {
+    fun `Add API Type to API Package - Compatible`() {
         check(
             signatureSource =
                 """
@@ -99,7 +99,7 @@ class BinaryCompatibilityPackagesTest : DriverTest() {
     }
 
     @Test
-    fun `Delete API Type from API Package (Incompatible)`() {
+    fun `Delete API Type from API Package - Incompatible`() {
         check(
             expectedIssues =
                 """
@@ -150,7 +150,7 @@ class BinaryCompatibilityPackagesTest : DriverTest() {
     }
 
     @Test
-    fun `Change public type in API package to make non-public (Incompatible)`() {
+    fun `Change public type in API package to make non-public - Incompatible`() {
         check(
             expectedIssues =
                 """

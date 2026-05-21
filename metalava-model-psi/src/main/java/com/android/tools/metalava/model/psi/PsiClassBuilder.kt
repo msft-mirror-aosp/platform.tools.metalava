@@ -28,10 +28,13 @@ import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.ExceptionTypeItem
 import com.android.tools.metalava.model.FieldItem
+import com.android.tools.metalava.model.ItemKind
 import com.android.tools.metalava.model.JVM_NAME
 import com.android.tools.metalava.model.MethodItem
+import com.android.tools.metalava.model.ModifierContext
 import com.android.tools.metalava.model.MutableModifierList
 import com.android.tools.metalava.model.ParameterItem
+import com.android.tools.metalava.model.ParameterKind
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.SkeletonClassItem
 import com.android.tools.metalava.model.SkeletonTypeParameterItem
@@ -86,6 +89,8 @@ import org.jetbrains.uast.UAnnotation
 import org.jetbrains.uast.UClass
 import org.jetbrains.uast.UField
 import org.jetbrains.uast.UMethod
+import org.jetbrains.uast.UParameter
+import org.jetbrains.uast.UReceiverParameter
 import org.jetbrains.uast.kotlin.KotlinUMethodWithFakeLightDelegateBase
 import org.jetbrains.uast.kotlin.psi.UastFakeSourceLightMethod
 import org.jetbrains.uast.toUElementOfType
@@ -114,13 +119,10 @@ internal class PsiClassBuilder(
      *   belong, if any.
      * @param enclosingClassTypeItemFactory the [PsiTypeItemFactory] that is used to create
      *   [TypeItem]s and tracks the in scope type parameters.
-     * @param modifiers the [MutableModifierList] for [psiClass]. May be created outside to filter
-     *   classes that do not need creating. Passed in to avoid the work to recreate them.
      */
     internal fun createClass(
         containingClassItem: ClassItem?,
         enclosingClassTypeItemFactory: PsiTypeItemFactory,
-        modifiers: MutableModifierList = createModifiers(this@PsiClassBuilder.psiClass),
     ): SkeletonClassItem {
         val packageName = psiClass.packageName
 
@@ -148,6 +150,13 @@ internal class PsiClassBuilder(
         val qualifiedName = psiClass.classQualifiedName
         val classKind = getClassKind(psiClass)
         val isKotlin = psiClass.isKotlin()
+
+        val modifiers =
+            createModifiers(
+                ModifierContext.forClassKind(classKind),
+                psiClass,
+            )
+
         if (classKind == ClassKind.ANNOTATION_TYPE && !hasExplicitRetention(modifiers, isKotlin)) {
             modifiers.addDefaultRetentionPolicyAnnotation(codebase, isKotlin)
         }
@@ -161,6 +170,12 @@ internal class PsiClassBuilder(
             )
         val (superClassType, interfaceTypes) =
             computeSuperTypes(psiClass, classKind, classTypeItemFactory)
+
+        // The sorted permits list.
+        val permitTypes =
+            psiClass.permitsListTypes
+                .map { classTypeItemFactory.getHierarchicalClassType(PsiTypeInfo(it, psiClass)) }
+                .sortedWith(TypeItem.qualifiedComparator)
 
         // Get the SourceFile, using the one from the containing class if this is nested.
         val sourceFile =
@@ -186,6 +201,7 @@ internal class PsiClassBuilder(
                 origin = origin,
                 superClassType = superClassType,
                 interfaceTypes = interfaceTypes,
+                permitTypes = permitTypes,
                 isFileFacade = psiClass.isFileFacade(),
                 optionalAliasedType = null,
                 isMultiFileClass = psiClass.isMultiFileClass(),
@@ -244,7 +260,11 @@ internal class PsiClassBuilder(
         classTypeItemFactory: PsiTypeItemFactory
     ) =
         components.mapIndexed { index, component ->
-            val modifiers = createModifiers(component)
+            val modifiers =
+                createModifiers(
+                    ModifierContext.forItemKind(ItemKind.RECORD_COMPONENT),
+                    component,
+                )
             modifiers.setVisibilityLevel(VisibilityLevel.PUBLIC)
             modifiers.setFinal(false)
 
@@ -261,8 +281,10 @@ internal class PsiClassBuilder(
         }
 
     /** Create [MutableModifierList] for [psiModifierListOwner] in [psiCodebase]. */
-    private fun createModifiers(psiModifierListOwner: PsiModifierListOwner) =
-        PsiModifierItem.create(psiCodebase, psiModifierListOwner)
+    private fun createModifiers(
+        modifierContext: ModifierContext,
+        psiModifierListOwner: PsiModifierListOwner,
+    ) = PsiModifierItem.create(modifierContext, psiCodebase, psiModifierListOwner)
 
     /**
      * Get the [PsiSourceFile] for [psiClass].
@@ -514,7 +536,11 @@ internal class PsiClassBuilder(
         enclosingClassTypeItemFactory: PsiTypeItemFactory,
     ): FieldItem? {
         val name = psiField.name
-        val modifiers = createModifiers(psiField)
+        val modifiers =
+            createModifiers(
+                ModifierContext.forItemKind(ItemKind.FIELD),
+                psiField,
+            )
 
         // Ignore private member fields in records.
         if (
@@ -625,7 +651,11 @@ internal class PsiClassBuilder(
             } else {
                 psiMethod.name
             }
-        val modifiers = createModifiers(psiMethod)
+        val modifiers =
+            createModifiers(
+                ModifierContext.forItemKind(ItemKind.METHOD),
+                psiMethod,
+            )
 
         if (containingClass.classKind == ClassKind.INTERFACE) {
             // All interface methods are implicitly public (except in Java 1.9, where they can
@@ -696,6 +726,16 @@ internal class PsiClassBuilder(
         return method
     }
 
+    /**
+     * Determine whether to treat constructors of [containingClass] as [VisibilityLevel.PRIVATE].
+     *
+     * Sealed abstract classes cannot be instantiated directly to treat them as being private.
+     */
+    private fun treatConstructorAsPrivate(containingClass: ClassItem): Boolean {
+        val modifiers = containingClass.modifiers
+        return modifiers.isSealed() && modifiers.isAbstract()
+    }
+
     /** Create a [ConstructorItem]. */
     internal fun createConstructor(
         containingClass: ClassItem,
@@ -706,17 +746,14 @@ internal class PsiClassBuilder(
     ): ConstructorItem {
         assert(psiMethod.isConstructor)
         val name = psiMethod.name
-        val modifiers = createModifiers(psiMethod)
+        val modifiers =
+            createModifiers(
+                ModifierContext.forItemKind(ItemKind.CONSTRUCTOR),
+                psiMethod,
+            )
 
-        // After KT-13495, "all constructors of `sealed` classes now have `protected` visibility by
-        // default," and (S|U)LC follows that (hence the same in UAST). However, that change was
-        // made to allow more flexible class hierarchy and nesting. If they're compiled to JVM
-        // bytecode, sealed class's ctor is still technically `private` to block instantiation from
-        // outside class hierarchy. Another synthetic constructor, along with an internal ctor
-        // marker, is added for subclasses of a sealed class. Therefore, from Metalava's
-        // perspective, it is not necessary to track such semantically protected ctor. Here we force
-        // set the visibility to `private` back to ignore it during signature writing.
-        if (containingClass.modifiers.isSealed()) {
+        // Make the constructor private if necessary.
+        if (treatConstructorAsPrivate(containingClass)) {
             modifiers.setVisibilityLevel(VisibilityLevel.PRIVATE)
         }
 
@@ -826,6 +863,8 @@ internal class PsiClassBuilder(
                 parameterIndex = parameterIndex,
                 isVarArg = psiParameter.type is PsiEllipsisType,
             )
+        val kind =
+            computeParameterKind(psiParameter, containingCallable, parameterIndex, fingerprint)
         val parameter =
             itemFactory.createParameterItem(
                 fileLocation = PsiFileLocation.fromPsiElement(psiParameter),
@@ -840,17 +879,23 @@ internal class PsiClassBuilder(
                         psiMethod,
                         containingCallableModifiers,
                     ),
-                containingCallable = containingCallable,
+                containingItem = containingCallable,
                 parameterIndex = parameterIndex,
                 type = type,
-                hasDefaultValue = PsiParameterDefaultValue.compute(psiParameter, parameterIndex),
+                hasDefaultValue =
+                    PsiParameterDefaultValue.compute(psiParameter, parameterIndex, kind),
+                kind = kind,
             )
         return parameter
     }
 
     /** Create [MutableModifierList] from [psiParameter] for a [ParameterItem]. */
     private fun createParameterModifiers(psiParameter: PsiParameter): MutableModifierList {
-        val modifiers = createModifiers(psiParameter)
+        val modifiers =
+            createModifiers(
+                ModifierContext.forItemKind(ItemKind.PARAMETER),
+                psiParameter,
+            )
         // Method parameters don't have a visibility level; they are visible to anyone that can
         // call their method. However, Kotlin constructors sometimes appear to specify the
         // visibility of a constructor parameter by putting visibility inside the constructor
@@ -904,6 +949,29 @@ internal class PsiClassBuilder(
         }
 
         return null
+    }
+
+    /** Determines the [ParameterKind] of the [psiParameter]. */
+    private fun computeParameterKind(
+        psiParameter: PsiParameter,
+        containingCallable: CallableItem,
+        parameterIndex: Int,
+        fingerprint: MethodFingerprint,
+    ): ParameterKind {
+        return when {
+            // Any Java parameter or parameter loaded from a jar is a value parameter
+            !psiParameter.isKotlin() -> ParameterKind.VALUE
+            // The final parameter of a suspend function is the continuation parameter
+            (containingCallable.modifiers.isSuspend() &&
+                parameterIndex == fingerprint.parameterCount - 1) -> ParameterKind.CONTINUATION
+            // Receiver parameters have a specific UAST type
+            psiParameter is UReceiverParameter -> ParameterKind.RECEIVER
+            // The source psi has information about context parameters
+            ((psiParameter as? UParameter)?.sourcePsi as? KtParameter)?.isContextParameter ==
+                true -> ParameterKind.CONTEXT
+            // Not any special kotlin parameter kind, must be a value parameter
+            else -> ParameterKind.VALUE
+        }
     }
 
     private fun throwsTypes(
@@ -964,7 +1032,11 @@ internal class PsiClassBuilder(
         psiTypeParameter: PsiTypeParameter
     ): SkeletonTypeParameterItem {
         val simpleName = psiTypeParameter.name!!
-        val modifiers = createModifiers(psiTypeParameter)
+        val modifiers =
+            createModifiers(
+                ModifierContext.forItemKind(ItemKind.TYPE_PARAMETER),
+                psiTypeParameter,
+            )
 
         return itemFactory.createTypeParameterItem(
             modifiers = modifiers,

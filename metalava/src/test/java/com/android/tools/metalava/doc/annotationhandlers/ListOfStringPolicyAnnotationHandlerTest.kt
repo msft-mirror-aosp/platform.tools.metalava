@@ -54,7 +54,8 @@ class ListOfStringPolicyAnnotationHandlerTest : DriverTest() {
                                 base = @PolicyDefinition(
                                     allowedScopes = {SCOPE_USER},
                                     affectedResource = RESOURCE_DEVICE_WIDE,
-                                    requiredPermission = "android.permission.TEST",
+                                    requiredPermission = android.Manifest.permission.TEST,
+                                    requiredCrossUserPermission = android.Manifest.permission.MANAGE_DEVICE_POLICY_ACROSS_USERS,
                                     allowedDpcTypes = @AllowedDpcTypes(
                                         deviceOwner = ALLOWED,
                                         managedProfileOwnerOfOrganizationOwnedDevice = ALLOWED,
@@ -66,6 +67,8 @@ class ListOfStringPolicyAnnotationHandlerTest : DriverTest() {
                                 emptyListAllowed = true,
                                 emptyStringAllowed = true,
                                 unprintableCharactersAllowed = true,
+                                pureWhitespaceAllowed = true,
+                                unstrippedStringAllowed = true,
                                 resolutionMechanism = @ListResolutionMechanism(custom = true)
                             )
                             public static final String POLICY_FIELD = "";
@@ -75,7 +78,7 @@ class ListOfStringPolicyAnnotationHandlerTest : DriverTest() {
                 ),
             checkCompilation = true,
             docStubs = true,
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
@@ -92,11 +95,21 @@ class ListOfStringPolicyAnnotationHandlerTest : DriverTest() {
                          * <ul>
                          *   <li>Allowed Scopes:
                          *    <ul>
-                         *       <li>User</li>
+                         *       <li>User. Settable by:
+                         *         <ul>
+                         *           <li>Device Owner</li>
+                         *           <li>Managed Profile Owner (Of Organization Owned Device)</li>
+                         *           <li>Managed Profile Owner (Of Personally Owned Device)</li>
+                         *           <li>Unaffiliated Full User Profile Owner</li>
+                         *           <li>Profile Owner on User 0</li>
+                         *           <li>Affiliated Full User Profile Owner</li>
+                         *         </ul>
+                         *       </li>
                          *     </ul>
                          *   </li>
                          *   <li>Affected Resource: Device Wide</li>
                          *   <li>Required Permission: {@link android.Manifest.permission#TEST android.permission.TEST}</li>
+                         *   <li>Required Cross User Permission: {@link android.Manifest.permission#MANAGE_DEVICE_POLICY_ACROSS_USERS android.permission.MANAGE_DEVICE_POLICY_ACROSS_USERS}</li>
                          *   <li>Allowed DPC Types:
                          *    <ul>
                          *       <li>Device Owner</li>
@@ -111,6 +124,8 @@ class ListOfStringPolicyAnnotationHandlerTest : DriverTest() {
                          *   <li>Empty list: Allowed</li>
                          *   <li>Empty string: Allowed</li>
                          *   <li>Unprintable characters: Allowed</li>
+                         *   <li>Pure whitespace: Allowed</li>
+                         *   <li>Unstripped string: Allowed</li>
                          * </ul>
                          */
                         public static final java.lang.String POLICY_FIELD = "";
@@ -144,7 +159,8 @@ class ListOfStringPolicyAnnotationHandlerTest : DriverTest() {
                                 base = @PolicyDefinition(
                                     allowedScopes = {SCOPE_USER},
                                     affectedResource = RESOURCE_DEVICE_WIDE,
-                                    requiredPermission = "android.permission.TEST",
+                                    requiredPermission = android.Manifest.permission.TEST,
+                                    requiredCrossUserPermission = android.Manifest.permission.MANAGE_DEVICE_POLICY_ACROSS_USERS,
                                     allowedDpcTypes = @AllowedDpcTypes(
                                         deviceOwner = ALLOWED,
                                         managedProfileOwnerOfOrganizationOwnedDevice = ALLOWED,
@@ -162,7 +178,7 @@ class ListOfStringPolicyAnnotationHandlerTest : DriverTest() {
                 ),
             checkCompilation = true,
             docStubs = true,
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
@@ -175,11 +191,21 @@ class ListOfStringPolicyAnnotationHandlerTest : DriverTest() {
                          * <ul>
                          *   <li>Allowed Scopes:
                          *    <ul>
-                         *       <li>User</li>
+                         *       <li>User. Settable by:
+                         *         <ul>
+                         *           <li>Device Owner</li>
+                         *           <li>Managed Profile Owner (Of Organization Owned Device)</li>
+                         *           <li>Managed Profile Owner (Of Personally Owned Device)</li>
+                         *           <li>Unaffiliated Full User Profile Owner</li>
+                         *           <li>Profile Owner on User 0</li>
+                         *           <li>Affiliated Full User Profile Owner</li>
+                         *         </ul>
+                         *       </li>
                          *     </ul>
                          *   </li>
                          *   <li>Affected Resource: Device Wide</li>
                          *   <li>Required Permission: {@link android.Manifest.permission#TEST android.permission.TEST}</li>
+                         *   <li>Required Cross User Permission: {@link android.Manifest.permission#MANAGE_DEVICE_POLICY_ACROSS_USERS android.permission.MANAGE_DEVICE_POLICY_ACROSS_USERS}</li>
                          *   <li>Allowed DPC Types:
                          *    <ul>
                          *       <li>Device Owner</li>
@@ -193,6 +219,8 @@ class ListOfStringPolicyAnnotationHandlerTest : DriverTest() {
                          *   <li>Empty list: Not allowed</li>
                          *   <li>Empty string: Not allowed</li>
                          *   <li>Unprintable characters: Not allowed</li>
+                         *   <li>Pure whitespace: Not allowed</li>
+                         *   <li>Unstripped string: Not allowed</li>
                          * </ul>
                          */
                         public static final java.lang.String POLICY_FIELD = "";
@@ -202,7 +230,7 @@ class ListOfStringPolicyAnnotationHandlerTest : DriverTest() {
                 ),
             expectedIssues =
                 """
-                src/test/pkg/TestPolicy.java:26: error: ListResolutionMechanism must have either 'custom' or 'union' set to true. [InvalidDevicePolicyAnnotation]
+                src/test/pkg/TestPolicy.java:27: error: ListResolutionMechanism must have either 'custom' or 'union' set to true. [InvalidDevicePolicyAnnotation]
                 """
         )
     }

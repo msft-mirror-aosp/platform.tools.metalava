@@ -124,7 +124,7 @@ class AllowedDpcTypesProxy(
  */
 class PolicyDefinitionProxy(
     /** The item on which this was annotated. */
-    private val item: Item,
+    val item: Item,
     private val allowedScopes: List<Int>,
     private val affectedResource: Int,
     private val requiredPermission: String?,
@@ -169,13 +169,85 @@ class PolicyDefinitionProxy(
         return value
     }
 
+    /**
+     * Which DPCs have which cross-user permission granted. Scraped from
+     * frameworks/base/services/devicepolicy/java/com/android/server/devicepolicy/PermissionChecker.java
+     * Keep it in sync with:
+     * cts/tools/cts-policy-tests-generator/src/com/android/cts/policytestsgenerator/AppliedByGenerator.kt
+     */
+    private fun getDpcTypesWithCrossUserPermission(crossUserPermission: String) =
+        when (crossUserPermission) {
+            "" -> AllowedDpcType.entries.toList()
+            "android.permission.MANAGE_DEVICE_POLICY_ACROSS_USERS" ->
+                listOf(
+                    AllowedDpcType.DEVICE_OWNER,
+                    AllowedDpcType.FINANCED_DEVICE_OWNER,
+                    AllowedDpcType.MANAGED_PROFILE_OWNER_OF_ORGANIZATION_OWNED_DEVICE,
+                )
+            "android.permission.MANAGE_DEVICE_POLICY_ACROSS_USERS_FULL" ->
+                listOf(
+                    AllowedDpcType.DEVICE_OWNER,
+                    AllowedDpcType.FINANCED_DEVICE_OWNER,
+                )
+            "android.permission.MANAGE_DEVICE_POLICY_ACROSS_USERS_SECURITY_CRITICAL" ->
+                listOf(
+                    AllowedDpcType.DEVICE_OWNER,
+                    AllowedDpcType.FINANCED_DEVICE_OWNER,
+                    AllowedDpcType.MANAGED_PROFILE_OWNER_OF_ORGANIZATION_OWNED_DEVICE,
+                    AllowedDpcType.PROFILE_OWNER_ON_USER_0,
+                    AllowedDpcType.MANAGED_PROFILE_OWNER_OF_PERSONAL_OWNED_DEVICE,
+                    AllowedDpcType.UNAFFILIATED_FULL_USER_PROFILE_OWNER,
+                    AllowedDpcType.AFFILIATED_FULL_USER_PROFILE_OWNER,
+                )
+            else -> {
+                reporter.report(
+                    Issues.INVALID_DEVICE_POLICY_ANNOTATION,
+                    item,
+                    "Unknown cross-user permission: $crossUserPermission"
+                )
+                emptyList()
+            }
+        }
+
+    private fun getAllowedDPCTypesForScope(
+        crossUserPermission: String,
+        scope: Int
+    ): List<AllowedDpcType> {
+        val allowedDpcs = AllowedDpcType.entries.filter { it.isAllowed(allowedDpcTypes) }
+        return if (scope == PolicyScope.USER.id) {
+            allowedDpcs
+        } else if (scope == PolicyScope.DEVICE.id || scope == PolicyScope.PARENT_USER.id) {
+            val crossUserDpcs = getDpcTypesWithCrossUserPermission(crossUserPermission)
+            allowedDpcs.filter { it in crossUserDpcs }
+        } else {
+            reporter.report(Issues.INVALID_DEVICE_POLICY_ANNOTATION, item, "Invalid scope: $scope")
+            emptyList()
+        }
+    }
+
     /** Generates documentation for the base policy definition. */
     fun generateDocs() = buildString {
         allowedScopes
             .takeIf { it.isNotEmpty() }
             ?.let { scopes ->
                 append("   <li>Allowed Scopes:\n    <ul>\n")
-                scopes.joinTo(this, separator = "") { "       <li>${getScopeName(it)}</li>\n" }
+                scopes.joinTo(this, separator = "") { scope ->
+                    val dpcTypes =
+                        getAllowedDPCTypesForScope(requiredCrossUserPermission ?: "", scope)
+                    buildString {
+                        if (dpcTypes.isEmpty()) {
+                            append(
+                                "       <li>${getScopeName(scope)}. Not settable by any DPC type.</li>\n"
+                            )
+                        } else {
+                            append("       <li>${getScopeName(scope)}. Settable by:\n")
+                            append("         <ul>\n")
+                            dpcTypes.forEach { append("           <li>${it.description}</li>\n") }
+                            append("         </ul>\n")
+                            append("       </li>\n")
+                        }
+                    }
+                }
                 append("     </ul>\n   </li>\n")
             }
 

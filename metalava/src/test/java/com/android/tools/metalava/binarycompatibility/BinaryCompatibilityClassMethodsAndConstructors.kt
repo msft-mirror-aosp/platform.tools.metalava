@@ -47,7 +47,7 @@ class BinaryCompatibilityClassMethodsAndConstructors : DriverTest() {
     }
 
     @Test
-    fun `Add or delete formal parameter (Incompatible)`() {
+    fun `Add or delete formal parameter - Incompatible`() {
         check(
             expectedIssues =
                 """
@@ -73,7 +73,7 @@ class BinaryCompatibilityClassMethodsAndConstructors : DriverTest() {
     }
 
     @Test
-    fun `Change type of a formal parameter (Incompatible)`() {
+    fun `Change type of a formal parameter - Incompatible`() {
         check(
             expectedIssues =
                 """
@@ -125,7 +125,7 @@ class BinaryCompatibilityClassMethodsAndConstructors : DriverTest() {
     }
 
     @Test
-    fun `Add checked exceptions thrown (Incompatible)`() {
+    fun `Add checked exceptions thrown - Incompatible`() {
         check(
             expectedIssues =
                 """
@@ -151,7 +151,7 @@ class BinaryCompatibilityClassMethodsAndConstructors : DriverTest() {
     }
 
     @Test
-    fun `Delete checked exceptions thrown (Incompatible)`() {
+    fun `Delete checked exceptions thrown - Incompatible`() {
         check(
             expectedIssues =
                 """
@@ -177,7 +177,7 @@ class BinaryCompatibilityClassMethodsAndConstructors : DriverTest() {
     }
 
     @Test
-    fun `Re-order list of exceptions thrown (Compatible)`() {
+    fun `Re-order list of exceptions thrown - Compatible`() {
         check(
             signatureSource =
                 """
@@ -229,7 +229,7 @@ class BinaryCompatibilityClassMethodsAndConstructors : DriverTest() {
     }
 
     @Test
-    fun `Increase access, that is, from protected access to public access (Compatible)`() {
+    fun `Increase access, that is, from protected access to public access - Compatible`() {
         check(
             signatureSource =
                 """
@@ -251,7 +251,7 @@ class BinaryCompatibilityClassMethodsAndConstructors : DriverTest() {
     }
 
     @Test
-    fun `Change abstract to non-abstract (Compatible)`() {
+    fun `Change abstract to non-abstract - Compatible`() {
         check(
             signatureSource =
                 """
@@ -273,7 +273,7 @@ class BinaryCompatibilityClassMethodsAndConstructors : DriverTest() {
     }
 
     @Test
-    fun `Change non-abstract to abstract (Incompatible)`() {
+    fun `Change non-abstract to abstract - Incompatible`() {
         check(
             expectedIssues =
                 """
@@ -299,7 +299,7 @@ class BinaryCompatibilityClassMethodsAndConstructors : DriverTest() {
     }
 
     @Test
-    fun `Change final to non-final (Compatible but Disallowed)`() {
+    fun `Change final to non-final - Compatible but Disallowed`() {
         check(
             expectedIssues =
                 """
@@ -375,7 +375,7 @@ class BinaryCompatibilityClassMethodsAndConstructors : DriverTest() {
     }
 
     @Test
-    fun `Change static to non-static (Incompatible)`() {
+    fun `Change static to non-static - Incompatible`() {
         check(
             expectedIssues =
                 """
@@ -401,7 +401,7 @@ class BinaryCompatibilityClassMethodsAndConstructors : DriverTest() {
     }
 
     @Test
-    fun `Change non-static to static (Incompatible)`() {
+    fun `Change non-static to static - Incompatible`() {
         check(
             expectedIssues =
                 """
@@ -427,7 +427,7 @@ class BinaryCompatibilityClassMethodsAndConstructors : DriverTest() {
     }
 
     @Test
-    fun `Change native to non-native (Compatible)`() {
+    fun `Change native to non-native - Compatible`() {
         check(
             signatureSource =
                 """
@@ -449,7 +449,7 @@ class BinaryCompatibilityClassMethodsAndConstructors : DriverTest() {
     }
 
     @Test
-    fun `Change non-native to native (Compatible)`() {
+    fun `Change non-native to native - Compatible`() {
         check(
             signatureSource =
                 """
@@ -471,7 +471,7 @@ class BinaryCompatibilityClassMethodsAndConstructors : DriverTest() {
     }
 
     @Test
-    fun `Change synchronized to non-synchronized (Compatible)`() {
+    fun `Change synchronized to non-synchronized - Compatible`() {
         check(
             signatureSource =
                 """
@@ -493,7 +493,7 @@ class BinaryCompatibilityClassMethodsAndConstructors : DriverTest() {
     }
 
     @Test
-    fun `Change non-synchronized to synchronized (Compatible)`() {
+    fun `Change non-synchronized to synchronized - Compatible`() {
         check(
             signatureSource =
                 """
@@ -556,7 +556,7 @@ class BinaryCompatibilityClassMethodsAndConstructors : DriverTest() {
         )
     }
     @Test
-    fun `Delete type parameter (Incompatible)`() {
+    fun `Delete type parameter - Incompatible`() {
         check(
             signatureSource = """
                 package test.pkg {
@@ -575,7 +575,7 @@ class BinaryCompatibilityClassMethodsAndConstructors : DriverTest() {
         )
     }
     @Test
-    fun `Re-order type parameters (Incompatible)`() {
+    fun `Re-order type parameters - Incompatible`() {
         check(
             signatureSource = """
                 package test.pkg {
@@ -594,7 +594,7 @@ class BinaryCompatibilityClassMethodsAndConstructors : DriverTest() {
         )
     }
     @Test
-    fun `Rename type parameter (Compatible)`() {
+    fun `Rename type parameter - Compatible`() {
         check(
             signatureSource = """
                 package test.pkg {
@@ -613,7 +613,7 @@ class BinaryCompatibilityClassMethodsAndConstructors : DriverTest() {
         )
     }
     @Test
-    fun `Add, delete, or change type bounds of parameter (Incompatible)`() {
+    fun `Add, delete, or change type bounds of parameter - Incompatible`() {
         check(
             signatureSource = """
                 package test.pkg {

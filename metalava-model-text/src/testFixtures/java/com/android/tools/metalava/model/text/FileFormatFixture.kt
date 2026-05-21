@@ -19,6 +19,7 @@
 package com.android.tools.metalava.model.text
 
 import com.android.tools.metalava.model.text.CustomizableProperty.Companion.JAVA_RECORD_CLASSES
+import com.android.tools.metalava.model.text.CustomizableProperty.Companion.JAVA_SEALED_CLASSES
 import com.android.tools.metalava.model.text.CustomizableProperty.Companion.STYLE
 
 private val FILE_FORMAT_PROPERTY_NAMES =
@@ -51,3 +52,9 @@ val FORMAT_V6_WITH_JAVA_STYLE = FileFormat.V6.buildCopy { this[STYLE] = FileForm
 
 val FORMAT_V6_WITHOUT_JAVA_RECORD_CLASSES =
     FORMAT_V6_WITH_JAVA_STYLE.buildCopy { this[JAVA_RECORD_CLASSES] = false }
+
+val FORMAT_V6_WITH_JAVA_SEALED_CLASSES =
+    FORMAT_V6_WITH_JAVA_STYLE.buildCopy { this[JAVA_SEALED_CLASSES] = true }
+
+val FORMAT_V6_WITHOUT_JAVA_SEALED_CLASSES =
+    FORMAT_V6_WITH_JAVA_STYLE.buildCopy { this[JAVA_SEALED_CLASSES] = false }

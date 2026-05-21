@@ -20,6 +20,8 @@ import com.android.tools.metalava.model.ModifierFlags.Companion.ABSTRACT
 import com.android.tools.metalava.model.ModifierFlags.Companion.DEFAULT
 import com.android.tools.metalava.model.ModifierFlags.Companion.FINAL
 import com.android.tools.metalava.model.ModifierFlags.Companion.NATIVE
+import com.android.tools.metalava.model.ModifierFlags.Companion.NON_SEALED
+import com.android.tools.metalava.model.ModifierFlags.Companion.SEALED
 import com.android.tools.metalava.model.ModifierFlags.Companion.STATIC
 import com.android.tools.metalava.model.ModifierFlags.Companion.SYNCHRONIZED
 import com.android.tools.metalava.model.ModifierFlags.Companion.TRANSIENT
@@ -34,22 +36,24 @@ import com.android.tools.metalava.model.ModifierFlags.Companion.VOLATILE
  * [Item] interface.
  */
 enum class ItemKind(
-    /** The set of java flags that are allowed on each [ItemKind]. */
-    javaFlags: Int,
+    /** The set of [ModifierFlags] that are allowed on this [ItemKind]. */
+    internal val javaModifierMask: Int,
 ) {
     CLASS(
-        javaFlags =
+        javaModifierMask =
             flagBits(
                 ABSTRACT,
                 FINAL,
+                NON_SEALED,
+                SEALED,
                 STATIC,
             ),
     ),
     CONSTRUCTOR(
-        javaFlags = flagBits(),
+        javaModifierMask = flagBits(),
     ),
     FIELD(
-        javaFlags =
+        javaModifierMask =
             flagBits(
                 FINAL,
                 STATIC,
@@ -58,7 +62,7 @@ enum class ItemKind(
             ),
     ),
     METHOD(
-        javaFlags =
+        javaModifierMask =
             flagBits(
                 ABSTRACT,
                 DEFAULT,
@@ -69,46 +73,30 @@ enum class ItemKind(
             ),
     ),
     PACKAGE(
-        javaFlags = flagBits(),
+        javaModifierMask = flagBits(),
     ),
     PARAMETER(
-        javaFlags =
+        javaModifierMask =
             flagBits(
                 VARARG,
             ),
     ),
     PROPERTY(
-        javaFlags = flagBits(),
+        javaModifierMask = flagBits(),
     ),
     RECORD_COMPONENT(
-        javaFlags = flagBits(),
+        javaModifierMask = flagBits(),
     ),
     TYPE_PARAMETER(
-        javaFlags = flagBits(),
+        javaModifierMask = flagBits(),
     ),
-    ;
-
-    /**
-     * When given a set of [ModifierFlags] will remove any that do not apply to this [ItemKind].
-     *
-     * This is needed because the Java Specification uses the same bit value to have different
-     * meaning depending on the associated item kind. e.g. `ACC_TRANSIENT` and `ACC_VARARGS` have
-     * the same bit value but the former only applies to fields and the latter to methods. Each flag
-     * in [ModifierFlags] has a unique value so is not dependent on the item kind.
-     *
-     * However, mapping from the former to the latter does and this provides a simple way to ignore
-     * [ModifierFlags] that do not apply.
-     */
-    fun normalizeJavaFlags(flags: Int) = flags and javaModifierMask
-
-    /** The set of [ModifierFlags] that are allowed on this [ItemKind]. */
-    private val javaModifierMask: Int = VISIBILITY_MASK or javaFlags
 }
 
 /**
- * Compute a bit mask consisting of all [bits] ORed together, or `0` if [bits] is empty.
+ * Compute a bit mask consisting of all [bits] ORed together, or `0` if [bits] is empty, ORed with
+ * [VISIBILITY_MASK].
  *
  * Used instead of just using `b1 or b2 or b3 ...` as it provides more consistent formatting.
  */
-private fun flagBits(vararg bits: Int) =
-    if (bits.isEmpty()) 0 else bits.reduce { b1, b2 -> b1 or b2 }
+internal fun flagBits(vararg bits: Int) =
+    if (bits.isEmpty()) VISIBILITY_MASK else bits.reduce { b1, b2 -> b1 or b2 } or VISIBILITY_MASK

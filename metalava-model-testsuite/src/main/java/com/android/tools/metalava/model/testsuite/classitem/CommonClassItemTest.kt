@@ -380,7 +380,7 @@ class CommonClassItemTest : BaseModelTest() {
                       }
                       public interface C {
                       }
-                      public interface Foo extends test.pkg.A, test.pkg.B, test.pkg.C {
+                      public interface Foo extends test.pkg.A test.pkg.B test.pkg.C {
                       }
                     }
                 """
@@ -525,7 +525,7 @@ class CommonClassItemTest : BaseModelTest() {
                       }
                       public interface C {
                       }
-                      public class Foo implements test.pkg.A, test.pkg.B, test.pkg.C {
+                      public class Foo implements test.pkg.A test.pkg.B test.pkg.C {
                       }
                     }
                 """
@@ -587,7 +587,7 @@ class CommonClassItemTest : BaseModelTest() {
                       }
                       public interface C {
                       }
-                      public class Foo extends test.pkg.Bar implements test.pkg.A, test.pkg.B, test.pkg.C {
+                      public class Foo extends test.pkg.Bar implements test.pkg.A test.pkg.B test.pkg.C {
                       }
                     }
                 """
@@ -955,7 +955,7 @@ class CommonClassItemTest : BaseModelTest() {
                 ),
             ),
         ) {
-            val hiddenClass = codebase.assertResolvedClass("test.pkg.HiddenClass")
+            val hiddenClass = codebase.assertClass("test.pkg.HiddenClass")
             val hiddenClassMethod = hiddenClass.methods().single()
             val publicClass = codebase.assertClass("test.pkg.PublicClass")
 
@@ -1060,7 +1060,7 @@ class CommonClassItemTest : BaseModelTest() {
                 ),
             ),
         ) {
-            val hiddenClass = codebase.assertResolvedClass("test.pkg.HiddenClass")
+            val hiddenClass = codebase.assertClass("test.pkg.HiddenClass")
 
             /**
              * Append the result of duplicating `hiddenClass` into [destinationClassName] to this
@@ -1167,7 +1167,7 @@ class CommonClassItemTest : BaseModelTest() {
                 ),
             ),
         ) {
-            val hiddenClass = codebase.assertResolvedClass("test.pkg.HiddenClass")
+            val hiddenClass = codebase.assertClass("test.pkg.HiddenClass")
             val publicClass = codebase.assertClass("test.pkg.PublicClass")
 
             val expectedTypesAndNullability =
@@ -1221,7 +1221,7 @@ class CommonClassItemTest : BaseModelTest() {
                 ),
             ),
         ) {
-            val hiddenClass = codebase.assertResolvedClass("test.pkg.HiddenClass")
+            val hiddenClass = codebase.assertClass("test.pkg.HiddenClass")
             val publicClass = codebase.assertClass("test.pkg.PublicClass")
 
             val hiddenMethod = hiddenClass.methods().single()

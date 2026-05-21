@@ -49,6 +49,7 @@ dependencies {
     implementation(libs.gson)
     implementation(libs.jacksonDataformatXml)
     implementation(libs.jacksonModuleKotlin)
+    implementation(libs.tracingWire)
 
     testImplementation(project(":metalava-model-turbine"))
     testImplementation(project(":metalava-testing"))

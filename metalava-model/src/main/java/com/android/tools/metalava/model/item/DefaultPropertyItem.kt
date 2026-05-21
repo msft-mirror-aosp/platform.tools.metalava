@@ -53,6 +53,7 @@ internal class DefaultPropertyItem(
     override val receiver: TypeItem?,
     override val typeParameterList: TypeParameterList,
     override val setterVisibility: VisibilityLevel?,
+    contextParameterFactory: (PropertyItem) -> List<ParameterItem>,
 ) :
     DefaultMemberItem(
         codebase,
@@ -68,6 +69,8 @@ internal class DefaultPropertyItem(
         containingClass,
     ),
     PropertyItem {
+
+    override val contextParameters: List<ParameterItem> = contextParameterFactory(this)
 
     override fun type(): TypeItem = type
 
@@ -108,6 +111,11 @@ internal class DefaultPropertyItem(
                 receiver = receiver,
                 typeParameterList = typeParameterList,
                 setterVisibility = setterVisibility,
+                contextParameterFactory = { containingProperty ->
+                    contextParameters.map {
+                        it.duplicate(containingProperty, typeConverter = { type -> type })
+                    }
+                },
             )
             .also { duplicated -> duplicated.inheritedFrom = containingClass() }
     }

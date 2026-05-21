@@ -19,6 +19,7 @@ package com.android.tools.metalava.model
 import com.android.tools.metalava.model.annotation.AnnotationClass
 import com.android.tools.metalava.model.annotation.AnnotationDefaults
 import com.android.tools.metalava.model.annotation.binding.AnnotationBindingFactory
+import com.android.tools.metalava.model.api.SurfaceAnnotationData
 import com.android.tools.metalava.model.api.flags.ApiFlag
 import com.android.tools.metalava.model.api.flags.ApiFlags
 import com.android.tools.metalava.model.type.TypeItemParser
@@ -88,6 +89,12 @@ sealed interface AnnotationItem {
     val originalName: String
 
     /**
+     * The [SurfaceAnnotationData] associated with this annotation, `null` if it is not a surface
+     * annotation.
+     */
+    val surfaceData: SurfaceAnnotationData?
+
+    /**
      * Determines the effect that this will have on whether an item annotated with this annotation
      * will be shown as part of the API or not.
      */
@@ -97,8 +104,7 @@ sealed interface AnnotationItem {
      * The [ApiFlag] referenced by this [AnnotationItem].
      *
      * This will be `null` if no [ApiFlags] have been provided or this [AnnotationItem]'s type is
-     * not [ANDROID_FLAGGED_API]. Otherwise, it will be one of the instances of [ApiFlag], e.g.
-     * [ApiFlag.REVERT_FLAGGED_API].
+     * not [ANDROID_FLAGGED_API]. Otherwise, it will be an instance of [ApiFlag].
      */
     val apiFlag: ApiFlag?
 
@@ -547,6 +553,9 @@ internal abstract class BaseAnnotationItem(
     override fun isNonNull(): Boolean {
         return info.typeNullability == TypeNullability.NONNULL
     }
+
+    override val surfaceData
+        get() = info.surfaceData
 
     override val showability: Showability
         get() = info.showability

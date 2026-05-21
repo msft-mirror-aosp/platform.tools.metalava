@@ -26,7 +26,8 @@ pluginManagement {
             google()
         } else {
             // Use custom repo path if provided (necessary for androidx_with_metalava).
-            maven(System.getenv("METALAVA_PREBUILTS_REPO") ?: "../../prebuilts/metalava")
+            val repos = System.getenv("METALAVA_PREBUILTS_REPOS")?.split(",") ?: listOf("../../prebuilts/metalava")
+            repos.forEach { maven(it) }
         }
     }
 }
@@ -38,7 +39,8 @@ dependencyResolutionManagement {
             mavenCentral()
         } else {
             // Use custom repo path if provided (necessary for androidx_with_metalava).
-            maven(System.getenv("METALAVA_PREBUILTS_REPO") ?: "../../prebuilts/metalava")
+            val repos = System.getenv("METALAVA_PREBUILTS_REPOS")?.split(",") ?: listOf("../../prebuilts/metalava")
+            repos.forEach { maven(it) }
         }
         val customLintRepo = System.getenv("LINT_REPO")
         if (customLintRepo != null) {
