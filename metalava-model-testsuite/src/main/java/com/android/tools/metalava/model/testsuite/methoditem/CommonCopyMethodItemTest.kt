@@ -38,6 +38,30 @@ class CommonCopyMethodItemTest : CommonCopyInheritableItemTest<MethodItem>() {
     override fun copyMember(sourceMemberItem: MethodItem, targetClassItem: ClassItem) =
         sourceMemberItem.duplicate(targetClassItem)
 
+    @SupportedInputFormats(InputFormat.JAVA)
+    @Test
+    fun `test duplicate creates item in same codebase as target class`() {
+        checkDuplicateUsesTargetCodebase(
+            sourceFile =
+                java(
+                    """
+                        package test.pkg;
+                        public class Source {
+                            public void method() {}
+                        }
+                    """
+                ),
+            targetFile =
+                java(
+                    """
+                        package test.pkg;
+                        public class Target {
+                        }
+                    """
+                ),
+        )
+    }
+
     @Test
     fun `test copy method from interface to class uses public visibility`() {
         runCopyTest(

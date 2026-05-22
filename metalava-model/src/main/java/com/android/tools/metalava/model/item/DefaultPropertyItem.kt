@@ -94,7 +94,8 @@ internal class DefaultPropertyItem(
 
     override fun duplicate(targetContainingClass: ClassItem): PropertyItem {
         return DefaultPropertyItem(
-                codebase = codebase,
+                // Create it in the same codebase as targetContainingClass.
+                codebase = targetContainingClass.codebase,
                 fileLocation = fileLocation,
                 sourceLanguage = sourceLanguage,
                 documentationFactory = documentation.duplicatingFactory(),

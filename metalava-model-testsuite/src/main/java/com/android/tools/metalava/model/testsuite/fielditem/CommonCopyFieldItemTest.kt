@@ -35,6 +35,30 @@ class CommonCopyFieldItemTest : CommonCopyInheritableItemTest<FieldItem>() {
     override fun copyMember(sourceMemberItem: FieldItem, targetClassItem: ClassItem) =
         sourceMemberItem.duplicate(targetClassItem)
 
+    @SupportedInputFormats(InputFormat.JAVA)
+    @Test
+    fun `test duplicate creates item in same codebase as target class`() {
+        checkDuplicateUsesTargetCodebase(
+            sourceFile =
+                java(
+                    """
+                        package test.pkg;
+                        public class Source {
+                            public int field;
+                        }
+                    """
+                ),
+            targetFile =
+                java(
+                    """
+                        package test.pkg;
+                        public class Target {
+                        }
+                    """
+                ),
+        )
+    }
+
     @SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.JAVA)
     @Test
     fun `test copy field from interface to class uses public visibility`() {

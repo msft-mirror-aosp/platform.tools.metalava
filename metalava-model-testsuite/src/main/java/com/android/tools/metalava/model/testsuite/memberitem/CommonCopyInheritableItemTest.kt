@@ -16,11 +16,14 @@
 
 package com.android.tools.metalava.model.testsuite.memberitem
 
+import com.android.tools.lint.checks.infrastructure.TestFile
 import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.InheritableItem
 import com.android.tools.metalava.model.MemberItem
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.model.testsuite.InputSet
+import kotlin.test.assertSame
 
 /** Base class for tests for [InheritableItem.duplicate]. */
 abstract class CommonCopyInheritableItemTest<M : InheritableItem> : BaseModelTest() {
@@ -68,6 +71,33 @@ abstract class CommonCopyInheritableItemTest<M : InheritableItem> : BaseModelTes
                 )
 
             context.test()
+        }
+    }
+
+    /**
+     * Check that an [InheritableItem] copied from a [Codebase] created from [sourceFile] to a
+     * [Codebase] created from [targetFile] that the resulting [InheritableItem] will be in the
+     * target [Codebase].
+     */
+    protected fun checkDuplicateUsesTargetCodebase(
+        sourceFile: TestFile,
+        targetFile: TestFile,
+    ) {
+        runCodebaseTest(
+            sourceFile,
+        ) {
+            val sourceClassItem = codebase.assertClass("test.pkg.Source")
+
+            runCodebaseTest(
+                targetFile,
+            ) {
+                val targetClassItem = codebase.assertClass("test.pkg.Target")
+
+                val original = getMember(sourceClassItem)
+                val duplicate = original.duplicate(targetClassItem)
+
+                assertSame(targetClassItem.codebase, duplicate.codebase)
+            }
         }
     }
 }
