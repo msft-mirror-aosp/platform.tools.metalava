@@ -25,6 +25,7 @@ import com.android.tools.metalava.model.ANDROID_ANNOTATION_PREFIX
 import com.android.tools.metalava.model.ANDROID_FLAGGED_API
 import com.android.tools.metalava.model.ANDROID_NONNULL
 import com.android.tools.metalava.model.ANDROID_NULLABLE
+import com.android.tools.metalava.model.ANDROID_REQUIRES_FLAG
 import com.android.tools.metalava.model.ANDROID_SYSTEM_API
 import com.android.tools.metalava.model.ANDROID_TEST_API
 import com.android.tools.metalava.model.ANNOTATION_EXTERNAL
@@ -413,6 +414,7 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
             ANDROID_FLAGGED_API -> {
                 return annotation.apiFlag?.annotationTargets ?: ANNOTATION_IN_ALL_STUBS
             }
+            ANDROID_REQUIRES_FLAG -> return ANNOTATION_IN_ALL_STUBS
 
             // Skip known annotations that we (a) never want in external annotations and (b) we
             // are

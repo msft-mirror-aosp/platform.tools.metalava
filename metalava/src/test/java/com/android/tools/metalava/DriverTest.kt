@@ -1893,6 +1893,33 @@ val flaggedApiSource: TestFile =
         )
         .indented()
 
+val requiresFlagSource: TestFile =
+    java(
+            """
+        package android.annotation;
+        import static java.lang.annotation.ElementType.ANNOTATION_TYPE;
+        import static java.lang.annotation.ElementType.CONSTRUCTOR;
+        import static java.lang.annotation.ElementType.FIELD;
+        import static java.lang.annotation.ElementType.METHOD;
+        import static java.lang.annotation.ElementType.TYPE;
+
+        import java.lang.annotation.Retention;
+        import java.lang.annotation.RetentionPolicy;
+        import java.lang.annotation.Target;
+
+        @Target({TYPE, METHOD, CONSTRUCTOR, FIELD, ANNOTATION_TYPE})
+        @Retention(RetentionPolicy.CLASS)
+        public @interface RequiresFlag {
+            /**
+             * The aconfig flag used to guard the functionality of the annotated element. Use the aconfig
+             * auto-generated constant to refer to the flag, e.g. {@code @RequiresFlag(Flags.FLAG_FOOBAR)}.
+             */
+            String value();
+        }
+    """
+        )
+        .indented()
+
 private fun restrictedForEnvironmentClass(packageName: String): TestFile =
     java(
             """

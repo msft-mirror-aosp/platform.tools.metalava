@@ -65,6 +65,42 @@ class FlaggedApiEdgeCasesTest : DriverTest() {
     }
 
     @Test
+    fun `Test RequiresFlag annotation is removed from stubs if the element already has FlaggedApi`() {
+        check(
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+
+                            public class Test {
+                                @$ANDROID_FLAGGED_API("flag.name")
+                                @$ANDROID_REQUIRES_FLAG("another.flag")
+                                public void method();
+                            }
+                        """
+                    ),
+                    requiresFlagSource,
+                    flaggedApiSource
+                ),
+            expectedStubFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            @SuppressWarnings({"unchecked", "deprecation", "all"})
+                            public class Test {
+                            public Test() { throw new RuntimeException("Stub!"); }
+                            @$ANDROID_REQUIRES_FLAG("flag.name")
+                            public void method() { throw new RuntimeException("Stub!"); }
+                            }
+                        """
+                    )
+                ),
+        )
+    }
+
+    @Test
     fun `Test override flagged method from source path no previously released API`() {
         check(
             // Revert all FlaggedApi annotations.
@@ -443,6 +479,40 @@ class FlaggedApiEdgeCasesTest : DriverTest() {
                       }
                     }
                 """,
+        )
+    }
+
+    @Test
+    fun `Test RequiresFlag annotation in source appears in stubs`() {
+        check(
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+
+                            public class Test {
+                                @$ANDROID_REQUIRES_FLAG("flag.name")
+                                public void method();
+                            }
+                        """
+                    ),
+                    requiresFlagSource,
+                ),
+            expectedStubFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            @SuppressWarnings({"unchecked", "deprecation", "all"})
+                            public class Test {
+                            public Test() { throw new RuntimeException("Stub!"); }
+                            @$ANDROID_REQUIRES_FLAG("flag.name")
+                            public void method() { throw new RuntimeException("Stub!"); }
+                            }
+                        """
+                    )
+                ),
         )
     }
 }
