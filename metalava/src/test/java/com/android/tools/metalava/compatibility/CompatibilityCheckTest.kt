@@ -4058,7 +4058,6 @@ class CompatibilityCheckTest : DriverTest() {
                 error: Binary breaking change: Method test.pkg.MyCollection.retainAll has changed 'abstract' qualifier [ChangedAbstract]
                 error: Binary breaking change: Method test.pkg.MyCollection.size has changed 'abstract' qualifier [ChangedAbstract]
                 error: Binary breaking change: Method test.pkg.MyCollection.toArray has changed 'abstract' qualifier [ChangedAbstract]
-                error: Binary breaking change: Method test.pkg.MyCollection.toArray has changed 'abstract' qualifier [ChangedAbstract]
                 error: Source breaking change: Attempted to remove parameter name from parameter p in test.pkg.MyCollection.add(E p) [ParameterNameChange]
                 error: Source breaking change: Attempted to remove parameter name from parameter p in test.pkg.MyCollection.addAll(java.util.Collection<? extends E> p) [ParameterNameChange]
                 error: Source breaking change: Attempted to remove parameter name from parameter p in test.pkg.MyCollection.remove(Object p) [ParameterNameChange]
@@ -4066,8 +4065,6 @@ class CompatibilityCheckTest : DriverTest() {
                 error: Source breaking change: Attempted to remove parameter name from parameter p in test.pkg.MyCollection.retainAll(java.util.Collection<?> p) [ParameterNameChange]
                 error: Source breaking change: Attempted to remove parameter name from parameter p in test.pkg.MyCollection.toArray(T[] p) [ParameterNameChange]
                 load-api.txt:5: error: Source breaking change: Attempted to change parameter name from o to element in method test.pkg.MyCollection.contains [ParameterNameChange]
-                load-api.txt:5: error: Source breaking change: Attempted to change parameter name from o to element in method test.pkg.MyCollection.contains [ParameterNameChange]
-                load-api.txt:6: error: Source breaking change: Attempted to change parameter name from c to elements in method test.pkg.MyCollection.containsAll [ParameterNameChange]
                 load-api.txt:6: error: Source breaking change: Attempted to change parameter name from c to elements in method test.pkg.MyCollection.containsAll [ParameterNameChange]
                 """,
             checkCompatibilityApiReleased =
