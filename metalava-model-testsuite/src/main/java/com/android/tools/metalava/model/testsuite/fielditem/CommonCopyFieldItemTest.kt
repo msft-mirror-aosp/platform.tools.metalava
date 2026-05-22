@@ -21,14 +21,14 @@ import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.provider.InputFormat
 import com.android.tools.metalava.model.testing.SupportedInputFormats
-import com.android.tools.metalava.model.testsuite.memberitem.CommonCopyMemberItemTest
+import com.android.tools.metalava.model.testsuite.memberitem.CommonCopyInheritableItemTest
 import com.android.tools.metalava.testing.java
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 import org.junit.Test
 
 /** Common tests for [FieldItem.duplicate]. */
-class CommonCopyFieldItemTest : CommonCopyMemberItemTest<FieldItem>() {
+class CommonCopyFieldItemTest : CommonCopyInheritableItemTest<FieldItem>() {
 
     override fun getMember(sourceClassItem: ClassItem) = sourceClassItem.assertField("field")
 

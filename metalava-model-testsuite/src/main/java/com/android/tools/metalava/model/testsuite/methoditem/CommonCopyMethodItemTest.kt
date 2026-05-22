@@ -21,7 +21,7 @@ import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.provider.InputFormat
 import com.android.tools.metalava.model.testing.SupportedInputFormats
-import com.android.tools.metalava.model.testsuite.memberitem.CommonCopyMemberItemTest
+import com.android.tools.metalava.model.testsuite.memberitem.CommonCopyInheritableItemTest
 import com.android.tools.metalava.testing.java
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -30,7 +30,7 @@ import org.junit.Test
 
 /** Common tests for [MethodItem.duplicate]. */
 @SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.JAVA)
-class CommonCopyMethodItemTest : CommonCopyMemberItemTest<MethodItem>() {
+class CommonCopyMethodItemTest : CommonCopyInheritableItemTest<MethodItem>() {
 
     override fun getMember(sourceClassItem: ClassItem) =
         sourceClassItem.assertMethod("method", emptyList())

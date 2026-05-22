@@ -17,14 +17,13 @@
 package com.android.tools.metalava.model.testsuite.memberitem
 
 import com.android.tools.metalava.model.ClassItem
-import com.android.tools.metalava.model.FieldItem
+import com.android.tools.metalava.model.InheritableItem
 import com.android.tools.metalava.model.MemberItem
-import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.model.testsuite.InputSet
 
-/** Base class for tests for [MethodItem.duplicate] and [FieldItem.duplicate]. */
-abstract class CommonCopyMemberItemTest<M : MemberItem> : BaseModelTest() {
+/** Base class for tests for [InheritableItem.duplicate]. */
+abstract class CommonCopyInheritableItemTest<M : InheritableItem> : BaseModelTest() {
 
     /** Check to see if this test supports the [inputFormat]. */
     protected open fun supportsInputFormat() = true
