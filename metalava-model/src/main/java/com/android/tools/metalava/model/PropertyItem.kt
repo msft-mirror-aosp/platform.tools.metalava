@@ -91,6 +91,13 @@ interface PropertyItem : MemberItem, TypeParameterListOwner, InheritableItem {
         append(contextString())
     }
 
+    /**
+     * Duplicates this property item.
+     *
+     * Override to specialize the return type.
+     */
+    override fun duplicate(targetContainingClass: ClassItem): PropertyItem
+
     override fun accept(visitor: ItemVisitor) {
         visitor.visit(this)
     }
