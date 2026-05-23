@@ -814,7 +814,6 @@ class Driver(
             when (apiType) {
                 ApiType.PUBLIC_API -> signatureFileOptions.apiFile
                 ApiType.REMOVED -> signatureFileOptions.removedApiFile
-                else -> error("unsupported $apiType")
             }
 
         // Fast path: if we've already generated a signature file, and it's identical to the
