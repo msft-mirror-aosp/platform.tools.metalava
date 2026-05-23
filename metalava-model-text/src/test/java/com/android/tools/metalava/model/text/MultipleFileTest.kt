@@ -148,10 +148,12 @@ class MultipleFileTest : BaseTextCodebaseTest() {
             val testClass = codebase.assertClass("test.pkg.Test")
             val fields = testClass.fields()
 
-            // TODO(b/512093496): Should only be one field and it should have the Extra annotation.
-            assertEquals(2, fields.size)
+            assertEquals(1, fields.size)
             val testField = testClass.assertField("FIELD")
-            assertEquals("[]", testField.modifiers.annotations().toString())
+            assertEquals(
+                "[@androidx.annotation.Extra]",
+                testField.modifiers.annotations().toString()
+            )
         }
     }
 }

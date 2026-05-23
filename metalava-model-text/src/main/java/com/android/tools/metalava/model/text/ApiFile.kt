@@ -1706,7 +1706,14 @@ private constructor(
                 targetLanguages = targetLanguages,
             )
         field.markForMainApiSurface()
-        containingClass.addField(field)
+        if (appending) {
+            // If the field already exists in the class item because it was defined in a previous
+            // signature file then replace it with this one, otherwise just add this field.
+            containingClass.replaceOrAddField(field)
+        } else {
+            // Just add the field to the class.
+            containingClass.addField(field)
+        }
     }
 
     /**
