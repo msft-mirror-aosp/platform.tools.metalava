@@ -451,11 +451,12 @@ class Driver(
     /** write api signature to files specified by option flags (e.g. current.txt) */
     private fun createApiSignatureFilesFromOptions(codebase: Codebase) {
         val fileFormat = signatureFormatOptions.fileFormat
+
         val codebaseFragment =
             createSignatureFileFragment(
                 codebase,
                 fileFormat = fileFormat,
-                apiType = ApiType.PUBLIC_API,
+                apiFilters = ApiType.PUBLIC_API.getApiFilters(apiPredicateConfig),
                 preFiltered = codebase.preFiltered,
             )
 
@@ -484,7 +485,7 @@ class Driver(
                 createSignatureFileFragment(
                     codebase,
                     fileFormat = fileFormat,
-                    apiType = ApiType.REMOVED,
+                    apiFilters = ApiType.REMOVED.getApiFilters(apiPredicateConfig),
                     preFiltered = false,
                 )
 
@@ -507,17 +508,16 @@ class Driver(
     private fun createSignatureFileFragment(
         codebase: Codebase,
         fileFormat: FileFormat,
-        apiType: ApiType,
+        apiFilters: ApiFilters,
         preFiltered: Boolean,
     ): CodebaseFragment {
         var codebaseFragment =
             createCodebaseFragmentForSignatureFile(
                 codebase,
                 fileFormat = fileFormat,
-                apiType = apiType,
+                apiFilters = apiFilters,
                 preFiltered = preFiltered,
                 showUnannotated = apiSelectionOptions.showUnannotated,
-                apiPredicateConfig = apiPredicateConfig,
             )
 
         // If reverting some changes then create a snapshot that combines the items from the sources
@@ -679,7 +679,7 @@ class Driver(
                     createSignatureFileFragment(
                         sourceSetCodebase,
                         fileFormat = format,
-                        apiType = ApiType.PUBLIC_API,
+                        apiFilters = ApiType.PUBLIC_API.getApiFilters(apiPredicateConfig),
                         preFiltered = sourceSetCodebase.preFiltered,
                     )
                 },

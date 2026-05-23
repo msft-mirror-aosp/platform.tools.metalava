@@ -34,8 +34,7 @@ import com.android.tools.metalava.model.text.CustomizableProperty.Companion.STRI
 import com.android.tools.metalava.model.text.CustomizableProperty.Companion.TYPE_ARGUMENT_SPACING
 import com.android.tools.metalava.model.text.FileFormat.TypeArgumentSpacing
 import com.android.tools.metalava.model.value.asString
-import com.android.tools.metalava.model.visitors.ApiPredicate
-import com.android.tools.metalava.model.visitors.ApiType
+import com.android.tools.metalava.model.visitors.ApiFilters
 import com.google.common.truth.Truth.assertThat
 import java.io.PrintWriter
 import java.io.StringWriter
@@ -115,10 +114,9 @@ class SignatureInputOutputTest : Assertions {
             createCodebaseFragmentForSignatureFile(
                 codebase,
                 fileFormat = fileFormat,
-                apiType = ApiType.ALL,
+                apiFilters = ApiFilters.ALL,
                 preFiltered = true,
                 showUnannotated = false,
-                apiPredicateConfig = ApiPredicate.Config()
             )
 
         val fragment = codebaseKind.transformFragment(baseFragment)

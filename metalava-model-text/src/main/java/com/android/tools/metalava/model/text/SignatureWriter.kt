@@ -58,8 +58,7 @@ import com.android.tools.metalava.model.text.CustomizableProperty.Companion.SORT
 import com.android.tools.metalava.model.text.CustomizableProperty.Companion.STRIP_JAVA_LANG_PREFIX
 import com.android.tools.metalava.model.text.CustomizableProperty.Companion.TYPE_ARGUMENT_SPACING
 import com.android.tools.metalava.model.text.FileFormat.TypeArgumentSpacing
-import com.android.tools.metalava.model.visitors.ApiPredicate
-import com.android.tools.metalava.model.visitors.ApiType
+import com.android.tools.metalava.model.visitors.ApiFilters
 import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.android.tools.metalava.model.visitors.FilteringApiVisitor
 import java.io.PrintWriter
@@ -575,10 +574,9 @@ private fun getInterfacesInOrder(
 fun createCodebaseFragmentForSignatureFile(
     codebase: Codebase,
     fileFormat: FileFormat,
-    apiType: ApiType,
+    apiFilters: ApiFilters,
     preFiltered: Boolean,
     showUnannotated: Boolean,
-    apiPredicateConfig: ApiPredicate.Config,
 ) =
     CodebaseFragment.create(
         codebase,
@@ -587,10 +585,9 @@ fun createCodebaseFragmentForSignatureFile(
         createFilteringVisitorForSignatures(
             delegate,
             fileFormat,
-            apiType,
+            apiFilters,
             preFiltered,
             showUnannotated,
-            apiPredicateConfig,
         )
     }
 
@@ -602,13 +599,10 @@ fun createCodebaseFragmentForSignatureFile(
 private fun createFilteringVisitorForSignatures(
     delegate: DelegatedVisitor,
     fileFormat: FileFormat,
-    apiType: ApiType,
+    apiFilters: ApiFilters,
     preFiltered: Boolean,
     showUnannotated: Boolean,
-    apiPredicateConfig: ApiPredicate.Config,
 ): ApiVisitor {
-    val apiFilters = apiType.getApiFilters(apiPredicateConfig)
-
     val (interfaceListSorter, interfaceListComparator) =
         if (fileFormat[SORT_WHOLE_EXTENDS_LIST]) Pair(null, TypeItem.totalComparator)
         else Pair(::getInterfacesInOrder, null)
