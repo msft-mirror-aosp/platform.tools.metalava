@@ -628,29 +628,16 @@ interface ClassItem :
         predicate: FilterPredicate,
         inlineInheritedFields: Boolean
     ): List<FieldItem> {
-        val fields = LinkedHashSet<FieldItem>()
-        if (inlineInheritedFields) {
-            for (clazz in allInterfaces()) {
-                // If this class is an interface then it will be included in allInterfaces(). If it
-                // is a class then it will not be included. Either way, this class' fields will be
-                // handled below so there is no point in processing the fields here.
-                if (clazz == this) {
-                    continue
-                }
-                if (!clazz.isInterface()) {
-                    continue
-                }
-                for (field in clazz.fields()) {
-                    if (!predicate.test(field)) {
-                        val duplicated = field.duplicate(this)
-                        if (predicate.test(duplicated)) {
-                            fields.remove(duplicated)
-                            fields.add(duplicated)
-                        }
-                    }
-                }
-            }
+        val fields = mutableSetOf<FieldItem>()
 
+        // Add this class's fields first as they have the highest priority.
+        for (field in fields()) {
+            if (predicate.test(field)) {
+                fields.add(field)
+            }
+        }
+        if (inlineInheritedFields) {
+            // Then add the super class's fields as they take priority over interfaces.
             val superClass = superClass()
             if (superClass != null && !predicate.test(superClass) && predicate.test(this)) {
                 // Include constants from hidden super classes.
@@ -666,17 +653,35 @@ interface ClassItem :
                     if (!field.originallyHidden) {
                         val duplicated = field.duplicate(this)
                         if (predicate.test(duplicated)) {
-                            fields.remove(duplicated)
                             fields.add(duplicated)
                         }
                     }
                 }
             }
-        }
-        for (field in fields()) {
-            if (predicate.test(field)) {
-                fields.remove(field)
-                fields.add(field)
+
+            // Finally, add fields from the interfaces.
+            for (clazz in allInterfaces()) {
+                // If this class is an interface then it will be included in allInterfaces(). If it
+                // is a class then it will not be included. Either way, this class' fields will be
+                // handled above so there is no point in processing the fields here.
+                if (clazz == this) {
+                    continue
+                }
+
+                // Despite its name allInterfaces can return super classes too but the super class's
+                // fields have been handled above so ignore them here.
+                if (!clazz.isInterface()) {
+                    continue
+                }
+
+                for (field in clazz.fields()) {
+                    if (!predicate.test(field)) {
+                        val duplicated = field.duplicate(this)
+                        if (predicate.test(duplicated)) {
+                            fields.add(duplicated)
+                        }
+                    }
+                }
             }
         }
         if (fields.isEmpty()) {
