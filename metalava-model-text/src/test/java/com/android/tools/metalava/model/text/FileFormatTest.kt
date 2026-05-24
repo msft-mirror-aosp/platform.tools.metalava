@@ -826,7 +826,7 @@ class FileFormatTest {
             """
                 add-additional-overrides=no
                 flagged-api-inheritance=none
-                hidden-member-inheritance=legacy
+                hidden-member-inheritance=consistent
                 include-default-parameter-values=no
                 include-type-use-annotations=no
                 java-record-classes=no

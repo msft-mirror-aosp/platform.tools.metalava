@@ -3293,9 +3293,6 @@ class ApiFileTest : DriverTest() {
                     package test.pkg2 {
                       public class MyChild extends test.pkg1.MyParent {
                         ctor public MyChild();
-                        field public static final long CONSTANT1 = 12345L; // 0x3039L
-                        field public static final long CONSTANT2 = 67890L; // 0x10932L
-                        field public static final long CONSTANT3 = 42L; // 0x2aL
                       }
                     }
                 """

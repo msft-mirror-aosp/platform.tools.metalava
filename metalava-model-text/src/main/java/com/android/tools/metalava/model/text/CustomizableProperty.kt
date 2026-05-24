@@ -252,7 +252,7 @@ private constructor(
         val HIDDEN_MEMBER_INHERITANCE by
             enumProperty<HiddenMemberInheritance>(
                 defaultable = true,
-                defaultValue = HiddenMemberInheritance.LEGACY,
+                defaultValue = HiddenMemberInheritance.CONSISTENT,
                 help =
                     """
                         Specifies when members of hidden classes are inherited in signature files.

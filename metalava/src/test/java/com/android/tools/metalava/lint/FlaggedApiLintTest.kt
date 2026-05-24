@@ -295,6 +295,7 @@ class FlaggedApiLintTest : DriverTest() {
             showAnnotations = arrayOf("android.annotation.SystemApi"),
             expectedIssues =
                 """
+                    src/android/foobar/BadHiddenSuperClass.java:4: warning: New API must be flagged with @FlaggedApi: field android.foobar.Bad.BAD_INHERITED [UnflaggedApi]
                     src/android/foobar/BadHiddenSuperClass.java:5: warning: New API must be flagged with @FlaggedApi: method android.foobar.Bad.badInherited() [UnflaggedApi]
                 """,
             apiLint =
@@ -313,16 +314,12 @@ class FlaggedApiLintTest : DriverTest() {
                       }
                     }
                 """,
-
-            // TODO b/448620194 : currently android.foobar.Bad.BAD_INHERITED is not written to the
-            // api signature file.
-            // This inconsistency will be resolved in later Cls where the signature writer
-            // should write fields in this edge case
             expectedApiSignature =
                 """
                 package android.foobar {
                   public class Bad {
                     method public void badInherited();
+                    field public static final String BAD_INHERITED = "foo";
                   }
                   public class Existing extends android.foobar.ExistingPublicSuperClass implements android.foobar.ExistingPublicInterface {
                   }
