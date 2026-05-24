@@ -624,9 +624,12 @@ interface ClassItem :
      * Return fields matching the given predicate. Also clones fields from ancestors that would
      * match had they been defined in this class.
      */
-    fun filteredFields(predicate: FilterPredicate, showUnannotated: Boolean): List<FieldItem> {
+    fun filteredFields(
+        predicate: FilterPredicate,
+        inlineInheritedFields: Boolean
+    ): List<FieldItem> {
         val fields = LinkedHashSet<FieldItem>()
-        if (showUnannotated) {
+        if (inlineInheritedFields) {
             for (clazz in allInterfaces()) {
                 // If this class is an interface then it will be included in allInterfaces(). If it
                 // is a class then it will not be included. Either way, this class' fields will be

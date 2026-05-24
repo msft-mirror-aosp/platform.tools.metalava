@@ -95,7 +95,7 @@ open class ApiVisitor(
     fun ClassItem.allFilteredFields(predicate: FilterPredicate) =
         filteredFields(
             predicate,
-            showUnannotated,
+            inlineInheritedFields,
         )
 
     companion object {
