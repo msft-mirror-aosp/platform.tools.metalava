@@ -636,10 +636,10 @@ interface ClassItem :
                 fields.add(field)
             }
         }
-        if (inlineInheritedFields) {
+        if (inlineInheritedFields && predicate.test(this)) {
             // Then add the super class's fields as they take priority over interfaces.
             val superClass = superClass()
-            if (superClass != null && !predicate.test(superClass) && predicate.test(this)) {
+            if (superClass != null && !predicate.test(superClass)) {
                 // Include constants from hidden super classes.
                 for (field in superClass.fields()) {
                     val fieldModifiers = field.modifiers
