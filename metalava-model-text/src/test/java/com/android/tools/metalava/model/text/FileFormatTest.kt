@@ -39,6 +39,7 @@ val DEFAULTABLE_PROPERTY_NAMES =
     listOf(
         "add-additional-overrides",
         "flagged-api-inheritance",
+        "hidden-member-inheritance",
         "java-record-classes",
         "java-sealed-classes",
         "normalize-abstract-modifier",
@@ -825,6 +826,7 @@ class FileFormatTest {
             """
                 add-additional-overrides=no
                 flagged-api-inheritance=none
+                hidden-member-inheritance=legacy
                 include-default-parameter-values=no
                 include-type-use-annotations=no
                 java-record-classes=no
