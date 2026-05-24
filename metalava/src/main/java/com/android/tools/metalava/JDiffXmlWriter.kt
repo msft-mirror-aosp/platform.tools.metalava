@@ -298,7 +298,6 @@ fun createFilteringVisitorForJDiffWriter(
     delegate: DelegatedVisitor,
     apiFilters: ApiFilters,
     preFiltered: Boolean,
-    showUnannotated: Boolean,
     filterSuperClassType: Boolean = true,
 ): ApiVisitor =
     FilteringApiVisitor(
@@ -307,5 +306,5 @@ fun createFilteringVisitorForJDiffWriter(
         apiFilters = apiFilters,
         preFiltered = preFiltered,
         filterSuperClassType = filterSuperClassType,
-        showUnannotated = showUnannotated,
+        showUnannotated = false,
     )
