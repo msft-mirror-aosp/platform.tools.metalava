@@ -59,6 +59,16 @@ open class ApiVisitor(
     targetLanguages: Set<TargetLanguage> = TargetLanguageSet.ALL,
 ) : BaseItemVisitor(preserveClassNesting, visitParameterItems) {
 
+    // A temporary check that ensures that showUnannotated and inlineInheritedFields are consistent.
+    // TODO(b/516155488): Remove this when they can be different.
+    init {
+        if (showUnannotated != inlineInheritedFields) {
+            error(
+                "showUnannotated = $showUnannotated and inlineInheritedFields = $inlineInheritedFields"
+            )
+        }
+    }
+
     constructor(
         /** @see BaseItemVisitor.visitParameterItems */
         visitParameterItems: Boolean = true,
