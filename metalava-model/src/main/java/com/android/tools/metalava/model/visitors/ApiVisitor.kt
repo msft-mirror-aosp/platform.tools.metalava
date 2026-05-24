@@ -19,6 +19,7 @@ package com.android.tools.metalava.model.visitors
 import com.android.tools.metalava.model.BaseItemVisitor
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassKind
+import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.FilterPredicate
 import com.android.tools.metalava.model.ItemVisitor
 import com.android.tools.metalava.model.MemberItem
@@ -89,6 +90,13 @@ open class ApiVisitor(
 
     /** The filter to use to determine if we should emit a reference to an item */
     protected val filterReference = addTargetLanguageCheck(apiFilters.reference, targetLanguages)
+
+    /** Get all the [FieldItem]s from this class, possibly including inherited fields. */
+    fun ClassItem.allFilteredFields(predicate: FilterPredicate) =
+        filteredFields(
+            predicate,
+            showUnannotated,
+        )
 
     companion object {
         /** Get the default [ApiFilters] to use with [ApiVisitor]. */
@@ -254,7 +262,7 @@ open class ApiVisitor(
                         cls.properties().filterTo(this) { filterEmit.test(it) }
 
                         if (inlineInheritedFields) {
-                            addAll(cls.filteredFields(filterEmit, showUnannotated))
+                            addAll(cls.allFilteredFields(filterEmit))
                         } else {
                             cls.fields().filterTo(this) { filterEmit.test(it) }
                         }
