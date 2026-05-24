@@ -303,7 +303,6 @@ fun createFilteringVisitorForJDiffWriter(
 ): ApiVisitor =
     FilteringApiVisitor(
         delegate,
-        inlineInheritedFields = true,
         interfaceListComparator = TypeItem.totalComparator,
         apiFilters = apiFilters,
         preFiltered = preFiltered,

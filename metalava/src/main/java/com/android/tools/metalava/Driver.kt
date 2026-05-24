@@ -369,7 +369,6 @@ class Driver(
                 CodebaseFragment.create(codebase) { delegatedVisitor ->
                     FilteringApiVisitor(
                         delegatedVisitor,
-                        inlineInheritedFields = true,
                         apiFilters = apiFilters,
                         preFiltered = codebase.preFiltered,
                     )

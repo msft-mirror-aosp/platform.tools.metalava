@@ -318,7 +318,6 @@ fun createFilteringVisitorForStubs(
         )
     return FilteringApiVisitor(
         delegate = delegate,
-        inlineInheritedFields = true,
         apiFilters = apiFilters,
         preFiltered = preFiltered,
         ignoreEmit = ignoreEmit,

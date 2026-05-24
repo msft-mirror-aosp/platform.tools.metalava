@@ -64,7 +64,6 @@ class SignatureToDexCommand :
             CodebaseFragment.create(signatureApi) { delegatedVisitor ->
                 FilteringApiVisitor(
                     delegatedVisitor,
-                    inlineInheritedFields = true,
                     apiFilters = ApiFilters.ALL,
                     preFiltered = signatureApi.preFiltered,
                 )
