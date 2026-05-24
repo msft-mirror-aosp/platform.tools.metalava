@@ -674,6 +674,11 @@ interface ClassItem :
                     continue
                 }
 
+                // Only copy fields from inaccessible interfaces.
+                if (predicate.test(clazz)) {
+                    continue
+                }
+
                 for (field in clazz.fields()) {
                     if (!predicate.test(field)) {
                         val duplicated = field.duplicate(this)
