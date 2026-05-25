@@ -625,6 +625,35 @@ interface ClassItem :
         modifiers.isStatic() && modifiers.isFinal() && modifiers.isPublic()
 
     /**
+     * Inherit fields from [superTypeItem] that fail [predicate] but pass when they are duplicated
+     * into this [ClassItem].
+     *
+     * Add those fields to this [MutableSet].
+     */
+    private fun MutableSet<FieldItem>.addInheritedFieldsFrom(
+        superTypeItem: ClassItem,
+        predicate: FilterPredicate,
+    ) {
+        // Do not inherit fields from classes that are in the API.
+        if (predicate.test(superTypeItem)) return
+
+        // Include constants from hidden super type.
+        for (field in superTypeItem.fields()) {
+            // If the field is a public constant and not hidden then try and inherit it into this
+            // class.
+            if (field.isPublicConstant() && !field.originallyHidden) {
+                // Create a duplicate of the field in this class.
+                val duplicate = field.duplicate(this@ClassItem)
+
+                // Only add it if it is going to be part of the API.
+                if (predicate.test(duplicate)) {
+                    add(duplicate)
+                }
+            }
+        }
+    }
+
+    /**
      * Return fields matching the given predicate. Also clones fields from ancestors that would
      * match had they been defined in this class.
      */
@@ -642,17 +671,11 @@ interface ClassItem :
         }
         if (inlineInheritedFields && predicate.test(this)) {
             // Then add the super class's fields as they take priority over interfaces.
-            val superClass = superClass()
-            if (superClass != null && !predicate.test(superClass)) {
-                // Include constants from hidden super classes.
-                for (field in superClass.fields()) {
-                    if (field.isPublicConstant() && !field.originallyHidden) {
-                        val duplicated = field.duplicate(this)
-                        if (predicate.test(duplicated)) {
-                            fields.add(duplicated)
-                        }
-                    }
-                }
+            superClass()?.let { superClass ->
+                fields.addInheritedFieldsFrom(
+                    superClass,
+                    predicate,
+                )
             }
 
             // Finally, add fields from the interfaces.
@@ -670,19 +693,10 @@ interface ClassItem :
                     continue
                 }
 
-                // Only copy fields from inaccessible interfaces.
-                if (predicate.test(clazz)) {
-                    continue
-                }
-
-                for (field in clazz.fields()) {
-                    if (!field.originallyHidden) {
-                        val duplicated = field.duplicate(this)
-                        if (predicate.test(duplicated)) {
-                            fields.add(duplicated)
-                        }
-                    }
-                }
+                fields.addInheritedFieldsFrom(
+                    clazz,
+                    predicate,
+                )
             }
         }
         if (fields.isEmpty()) {
