@@ -680,7 +680,7 @@ interface ClassItem :
                 }
 
                 for (field in clazz.fields()) {
-                    if (!predicate.test(field)) {
+                    if (!field.originallyHidden) {
                         val duplicated = field.duplicate(this)
                         if (predicate.test(duplicated)) {
                             fields.add(duplicated)
