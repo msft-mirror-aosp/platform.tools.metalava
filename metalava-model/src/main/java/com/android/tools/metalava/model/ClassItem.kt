@@ -620,6 +620,10 @@ interface ClassItem :
         return constructors().asSequence().filter { predicate.test(it) }
     }
 
+    /** Return true if this is a public constant. */
+    private fun FieldItem.isPublicConstant() =
+        modifiers.isStatic() && modifiers.isFinal() && modifiers.isPublic()
+
     /**
      * Return fields matching the given predicate. Also clones fields from ancestors that would
      * match had they been defined in this class.
@@ -642,15 +646,7 @@ interface ClassItem :
             if (superClass != null && !predicate.test(superClass)) {
                 // Include constants from hidden super classes.
                 for (field in superClass.fields()) {
-                    val fieldModifiers = field.modifiers
-                    if (
-                        !fieldModifiers.isStatic() ||
-                            !fieldModifiers.isFinal() ||
-                            !fieldModifiers.isPublic()
-                    ) {
-                        continue
-                    }
-                    if (!field.originallyHidden) {
+                    if (field.isPublicConstant() && !field.originallyHidden) {
                         val duplicated = field.duplicate(this)
                         if (predicate.test(duplicated)) {
                             fields.add(duplicated)
