@@ -225,7 +225,6 @@ class ParameterizedHiddenConstantInheritanceTest : DriverTest() {
                     package test.pkg;
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public interface PublicInterface {
-                    public static final java.lang.String HIDDEN_INTERFACE_CONSTANT = "HiddenInterface";
                     public static final java.lang.String OVERLAPPING_CONSTANT = "PublicInterface";
                     public static final java.lang.String PUBLIC_INTERFACE_CONSTANT = "PublicInterface";
                     }
@@ -257,7 +256,6 @@ class ParameterizedHiddenConstantInheritanceTest : DriverTest() {
                     package test.pkg;
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public interface SystemInterface extends test.pkg.PublicInterface {
-                    public static final java.lang.String HIDDEN_INTERFACE_CONSTANT = "HiddenInterface";
                     public static final java.lang.String OVERLAPPING_CONSTANT = "SystemInterface";
                     public static final java.lang.String SYSTEM_INTERFACE_CONSTANT = "SystemInterface";
                     }
@@ -288,7 +286,6 @@ class ParameterizedHiddenConstantInheritanceTest : DriverTest() {
                     package test.pkg;
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public interface ModuleInterface extends test.pkg.SystemInterface {
-                    public static final java.lang.String HIDDEN_INTERFACE_CONSTANT = "HiddenInterface";
                     public static final java.lang.String MODULE_INTERFACE_CONSTANT = "ModuleInterface";
                     public static final java.lang.String OVERLAPPING_CONSTANT = "ModuleInterface";
                     }
@@ -314,7 +311,6 @@ class ParameterizedHiddenConstantInheritanceTest : DriverTest() {
                                 field public static final String PUBLIC_CLASS_CONSTANT = "PublicClass";
                               }
                               public interface PublicInterface {
-                                field public static final String HIDDEN_INTERFACE_CONSTANT = "HiddenInterface";
                                 field public static final String OVERLAPPING_CONSTANT = "PublicInterface";
                                 field public static final String PUBLIC_INTERFACE_CONSTANT = "PublicInterface";
                               }

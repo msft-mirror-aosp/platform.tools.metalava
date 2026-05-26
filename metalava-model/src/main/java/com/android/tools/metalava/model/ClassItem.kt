@@ -669,7 +669,16 @@ interface ClassItem :
                 fields.add(field)
             }
         }
-        if (inlineInheritedFields && predicate.test(this)) {
+        // Only inherit fields into this class under the following conditions.
+        if (
+            // It was requested by the caller.
+            inlineInheritedFields &&
+                // This is a class, i.e. not an interface.
+                isClass() &&
+                // This is part of the API, either in the target surface or a surface that it
+                // extends.
+                predicate.test(this)
+        ) {
             // Then add the super class's fields as they take priority over interfaces.
             superClass()?.let { superClass ->
                 fields.addInheritedFieldsFrom(
