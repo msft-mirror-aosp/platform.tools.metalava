@@ -34,6 +34,8 @@ import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ModifierListWriter
 import com.android.tools.metalava.model.MutableModifierList
 import com.android.tools.metalava.model.PackageItem
+import com.android.tools.metalava.model.ParameterItem
+import com.android.tools.metalava.model.ParameterKind
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.RecordComponentItem
 import com.android.tools.metalava.model.SelectableItem
@@ -56,8 +58,7 @@ import com.android.tools.metalava.model.text.CustomizableProperty.Companion.SORT
 import com.android.tools.metalava.model.text.CustomizableProperty.Companion.STRIP_JAVA_LANG_PREFIX
 import com.android.tools.metalava.model.text.CustomizableProperty.Companion.TYPE_ARGUMENT_SPACING
 import com.android.tools.metalava.model.text.FileFormat.TypeArgumentSpacing
-import com.android.tools.metalava.model.visitors.ApiPredicate
-import com.android.tools.metalava.model.visitors.ApiType
+import com.android.tools.metalava.model.visitors.ApiFilters
 import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.android.tools.metalava.model.visitors.FilteringApiVisitor
 import java.io.PrintWriter
@@ -136,7 +137,7 @@ class SignatureWriter(
         writeModifiers(constructor)
         writeTypeParameterList(constructor.typeParameterList, addSpace = true)
         write(constructor.containingClass().fullName())
-        writeParameterList(constructor)
+        writeParameterList(constructor.parameters())
         writeThrowsList(constructor)
         write(";\n")
     }
@@ -187,6 +188,10 @@ class SignatureWriter(
             }
             write(property.name())
         }
+        // Don't write an empty parameter list "()" if there are no context parameters.
+        if (property.contextParameters.isNotEmpty()) {
+            writeParameterList(property.contextParameters)
+        }
         write(";\n")
     }
 
@@ -213,7 +218,7 @@ class SignatureWriter(
         if (kotlinNameTypeOrder) {
             // Kotlin style: write the name of the method and the parameters, then the type.
             write(method.name())
-            writeParameterList(method)
+            writeParameterList(method.parameters())
             write(": ")
             writeType(method.returnType())
         } else {
@@ -221,7 +226,7 @@ class SignatureWriter(
             writeType(method.returnType())
             write(" ")
             write(method.name())
-            writeParameterList(method)
+            writeParameterList(method.parameters())
         }
 
         writeThrowsList(method)
@@ -426,16 +431,22 @@ class SignatureWriter(
         }
     }
 
-    private fun writeParameterList(callable: CallableItem) {
+    private fun writeParameterList(parameters: List<ParameterItem>) {
         write("(")
         var writtenParams = 0
-        callable.parameters().asSequence().forEach { parameter ->
+        parameters.asSequence().forEach { parameter ->
             if (writtenParams > 0) {
                 write(", ")
             }
             if (parameter.hasDefaultValue() && includeDefaultParameterValues) {
                 // Indicate the parameter has a default.
                 write("optional ")
+            }
+            // Write special parameter kinds.
+            when (parameter.kind) {
+                ParameterKind.CONTEXT -> write("context ")
+                // TODO(b/508307067): write receiver
+                else -> {}
             }
             writeModifiers(parameter)
 
@@ -563,10 +574,9 @@ private fun getInterfacesInOrder(
 fun createCodebaseFragmentForSignatureFile(
     codebase: Codebase,
     fileFormat: FileFormat,
-    apiType: ApiType,
+    apiFilters: ApiFilters,
     preFiltered: Boolean,
     showUnannotated: Boolean,
-    apiPredicateConfig: ApiPredicate.Config,
 ) =
     CodebaseFragment.create(
         codebase,
@@ -575,10 +585,9 @@ fun createCodebaseFragmentForSignatureFile(
         createFilteringVisitorForSignatures(
             delegate,
             fileFormat,
-            apiType,
+            apiFilters,
             preFiltered,
             showUnannotated,
-            apiPredicateConfig,
         )
     }
 
@@ -590,19 +599,16 @@ fun createCodebaseFragmentForSignatureFile(
 private fun createFilteringVisitorForSignatures(
     delegate: DelegatedVisitor,
     fileFormat: FileFormat,
-    apiType: ApiType,
+    apiFilters: ApiFilters,
     preFiltered: Boolean,
     showUnannotated: Boolean,
-    apiPredicateConfig: ApiPredicate.Config,
 ): ApiVisitor {
-    val apiFilters = apiType.getApiFilters(apiPredicateConfig)
-
     val (interfaceListSorter, interfaceListComparator) =
         if (fileFormat[SORT_WHOLE_EXTENDS_LIST]) Pair(null, TypeItem.totalComparator)
         else Pair(::getInterfacesInOrder, null)
     return FilteringApiVisitor(
         delegate = delegate,
-        inlineInheritedFields = true,
+        inlineInheritedFields = showUnannotated,
         interfaceListSorter = interfaceListSorter,
         interfaceListComparator = interfaceListComparator,
         apiFilters = apiFilters,

@@ -44,7 +44,7 @@ internal fun createTraceDriver(traceFile: String?): TraceDriver {
 
                 override fun close() {}
             }
-    return TraceDriver(sink = traceSink, isEnabled = traceFile != null)
+    return TraceDriver(sink = traceSink, isCategoryEnabled = { traceFile != null })
 }
 
 internal inline fun <T> Tracer.trace(

@@ -154,7 +154,7 @@ class ApiGeneratorTest : DriverTest() {
                     ),
                 ),
             docStubs = true,
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """

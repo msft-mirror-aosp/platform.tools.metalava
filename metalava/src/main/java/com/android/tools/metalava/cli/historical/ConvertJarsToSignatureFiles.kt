@@ -194,17 +194,19 @@ class ConvertJarsToSignatureFiles(
             throw IllegalStateException("Could not load existing signature file: ${e.message}", e)
         }
 
+        val apiPredicateConfig =
+            ApiPredicate.Config(
+                addAdditionalOverrides = fileFormat[ADD_ADDITIONAL_OVERRIDES],
+            )
+        val apiFilters = ApiType.PUBLIC_API.getApiFilters(apiPredicateConfig)
+
         val jarCodebaseFragment =
             createCodebaseFragmentForSignatureFile(
                 jarCodebase,
                 fileFormat = fileFormat,
-                apiType = ApiType.PUBLIC_API,
+                apiFilters = apiFilters,
                 preFiltered = jarCodebase.preFiltered,
                 showUnannotated = false,
-                apiPredicateConfig =
-                    ApiPredicate.Config(
-                        addAdditionalOverrides = fileFormat[ADD_ADDITIONAL_OVERRIDES],
-                    ),
             )
 
         val extendsInfo = surfaceInfo.extends

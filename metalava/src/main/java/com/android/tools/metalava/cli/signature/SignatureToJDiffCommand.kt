@@ -146,7 +146,6 @@ class SignatureToJDiffCommand :
                     delegate,
                     apiFilters = apiFilters,
                     preFiltered = signatureApi.preFiltered && !strip,
-                    showUnannotated = false,
                     // Historically, the super class type has not been filtered when generating
                     // JDiff files, so do not filter here even though it could result in undefined
                     // types being included in the JDiff file.

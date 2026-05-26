@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model
 
+import com.android.tools.metalava.reporter.Issues
 import java.io.Writer
 
 class ModifierListWriter(
@@ -81,6 +82,16 @@ class ModifierListWriter(
     private val flaggedApiInheritance = config.flaggedApiInheritance
     private val javaRecordClasses: Boolean = config.javaRecordClasses
     private val javaSealedClasses = config.javaSealedClasses
+
+    /**
+     * Whether the `abstract` modifier should only be disallowed on interface methods.
+     *
+     * Signature files only disallow `abstract` on interfaces when not normalizing abstract. All
+     * other files disallow `abstract` on methods iff it is disallowed on the method's containing
+     * class.
+     */
+    private val onlyDisallowAbstractOnInterfaceMethods =
+        target == AnnotationTarget.SIGNATURE_FILE && !normalizeAbstract
 
     companion object {
         /**
@@ -175,18 +186,27 @@ class ModifierListWriter(
             if (list.isSealed()) {
                 writer.write("sealed ")
 
-                if (list.isExhaustive()) {
-                    writer.write("exhaustive ")
-                } else if (javaSealedClasses) {
-                    writer.write("non-exhaustive ")
-                } else {
-                    writer.write("nonexhaustive ")
+                // Only write exhaustive to signature files.
+                if (target == AnnotationTarget.SIGNATURE_FILE) {
+                    if (list.isExhaustive()) {
+                        writer.write("exhaustive ")
+                    } else if (javaSealedClasses) {
+                        writer.write("non-exhaustive ")
+                    } else {
+                        writer.write("nonexhaustive ")
+                    }
                 }
             }
 
             if (list.isNonSealed()) {
                 writer.write("non-sealed ")
             }
+        } else if (list.isSealed()) {
+            item.codebase.reporter.report(
+                Issues.ADDED_SEALED,
+                item,
+                "`sealed` is not currently supported, see b/482391240 for more details.",
+            )
         }
 
         if (list.isSuspend()) {
@@ -253,15 +273,12 @@ class ModifierListWriter(
      */
     private fun MethodItem.allowAbstract(): Boolean {
         val containingClassKind = containingClass().classKind
-        return when {
-            target == AnnotationTarget.SIGNATURE_FILE && !normalizeAbstract ->
-                // Signature files only disallow `abstract` on interfaces when not normalizing
-                // abstract.
-                containingClassKind != ClassKind.INTERFACE
-            else ->
-                // All other files disallow `abstract` on methods iff it is disallowed on the
-                // method's containing class.
-                containingClassKind.allowAbstract
+        return if (onlyDisallowAbstractOnInterfaceMethods) {
+            containingClassKind != ClassKind.INTERFACE
+        } else {
+            // Otherwise, disallow it on the methods iff it is disallowed on the method's containing
+            // class.
+            containingClassKind.allowAbstract
         }
     }
 
@@ -333,6 +350,23 @@ class ModifierListWriter(
         // does add it to this list. It will be sorted into the correct position below.
         flaggedApiAnnotationToInherit(item, annotations)?.let { flaggedApiAnnotation ->
             annotations = annotations + flaggedApiAnnotation
+        }
+
+        // @FlaggedApi annotations are always converted to @RequiresFlag in stub files.
+        // Developers are not allowed to add @RequiresFlag to flagged APIs to avoid duplicate
+        // @RequiresFlag compilation errors in stubs
+        if (
+            target.isStubsFile() &&
+                annotations.any { it.qualifiedName == ANDROID_FLAGGED_API } &&
+                annotations.any { it.qualifiedName == ANDROID_REQUIRES_FLAG }
+        ) {
+            item.codebase.reporter.report(
+                Issues.MULTIPLE_FLAGGING,
+                item,
+                "@RequiresFlag can not be placed on APIs that are already flagged.",
+            )
+
+            annotations = annotations.filter { it.qualifiedName != ANDROID_REQUIRES_FLAG }
         }
 
         if (annotations.isEmpty()) {

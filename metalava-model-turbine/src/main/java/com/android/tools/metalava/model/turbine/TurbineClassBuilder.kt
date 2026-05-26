@@ -45,6 +45,7 @@ import com.android.tools.metalava.model.ModifierFlags.Companion.VARARG
 import com.android.tools.metalava.model.ModifierFlags.Companion.VOLATILE
 import com.android.tools.metalava.model.MutableModifierList
 import com.android.tools.metalava.model.ParameterItem
+import com.android.tools.metalava.model.ParameterKind
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.SkeletonClassItem
 import com.android.tools.metalava.model.SkeletonTypeParameterItem
@@ -259,7 +260,7 @@ internal class TurbineClassBuilder(
             }
         modifiers.setDeprecated(isDeprecated(annotations))
 
-        // Set exhaustivity as true until proven otherwise either by an inaccessible subclass.
+        // Set exhaustivity as true until proven otherwise by an inaccessible subclass.
         if (modifiers.isSealed()) {
             modifiers.setExhaustive(true)
         }
@@ -640,11 +641,13 @@ internal class TurbineClassBuilder(
                         modifiers = parametermodifiers,
                         name = parameter.name(),
                         publicName = null,
-                        containingCallable = containingCallable,
+                        containingItem = containingCallable,
                         parameterIndex = parameterIndex,
                         type = type,
                         // Java parameters can't have default values
                         hasDefaultValue = false,
+                        // Java only has value parameters
+                        kind = ParameterKind.VALUE,
                     )
                 add(parameterItem)
                 parameterIndex += 1
@@ -657,17 +660,25 @@ internal class TurbineClassBuilder(
         methods: List<MethodInfo>,
         enclosingClassTypeItemFactory: TurbineTypeItemFactory,
     ) {
+        // An abstract sealed class cannot be instantiated directly so treat its constructors as if
+        // they were private.
+        val treatConstructorsAsPrivate =
+            classItem.modifiers.let { modifiers -> modifiers.isSealed() && modifiers.isAbstract() }
+
         for (constructor in methods) {
             // Skip real methods.
             if (constructor.sym().name() != "<init>") continue
 
             val decl: MethDecl? = constructor.decl()
-            val constructormodifiers =
+            val modifiers =
                 createModifiers(
                     ModifierContext.forItemKind(ItemKind.CONSTRUCTOR),
                     constructor.access(),
                     constructor.annotations(),
                 )
+            if (treatConstructorsAsPrivate) {
+                modifiers.setVisibilityLevel(VisibilityLevel.PRIVATE)
+            }
             val (typeParams, constructorTypeItemFactory) =
                 createTypeParameters(
                     constructor.tyParams(),
@@ -680,7 +691,7 @@ internal class TurbineClassBuilder(
             val constructorItem =
                 itemFactory.createConstructorItem(
                     fileLocation = TurbineFileLocation.forTree(classItem, decl),
-                    modifiers = constructormodifiers,
+                    modifiers = modifiers,
                     documentationFactory = itemDocumentationFactoryForDecl(classItem, decl),
                     // Turbine's Binder gives return type of constructors as void but the
                     // model expects it to the type of object being created. So, use the

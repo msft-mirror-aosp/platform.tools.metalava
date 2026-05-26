@@ -53,6 +53,9 @@ data class ListOfStringPolicyDefinitionProxy(
     val emptyListAllowed: Boolean,
     val emptyStringAllowed: Boolean,
     val unprintableCharactersAllowed: Boolean,
+    val pureWhitespaceAllowed: Boolean,
+    val unstrippedStringAllowed: Boolean,
+    val maxListLength: Int,
 ) {
     fun generateDocs() = buildString {
         append("\n<p>Policy Type: List Of String</p>\n <ul>\n")
@@ -67,6 +70,15 @@ data class ListOfStringPolicyDefinitionProxy(
         )
         append(
             "   <li>Unprintable characters: ${if (unprintableCharactersAllowed) "Allowed" else "Not allowed"}</li>\n"
+        )
+        append(
+            "   <li>Pure whitespace: ${if (pureWhitespaceAllowed) "Allowed" else "Not allowed"}</li>\n"
+        )
+        append(
+            "   <li>Unstripped string: ${if (unstrippedStringAllowed) "Allowed" else "Not allowed"}</li>\n"
+        )
+        append(
+            "   <li>Max list length: ${if (maxListLength == Int.MAX_VALUE) "No limit" else maxListLength}</li>\n"
         )
         append(" </ul>\n")
     }

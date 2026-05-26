@@ -419,8 +419,8 @@ interface ClassItem :
     }
 
     /**
-     * Searches for a property with the [template]'s name and receiver in the class, including
-     * searching super classes and interfaces if specified.
+     * Searches for a property with the [template]'s name, receiver, and context parameters in the
+     * class, including searching super classes and interfaces if specified.
      */
     fun findProperty(
         template: PropertyItem,
@@ -430,7 +430,11 @@ interface ClassItem :
         properties()
             .firstOrNull {
                 it.name() == template.name() &&
-                    PropertyItem.equalReceivers(template.receiver, it.receiver)
+                    PropertyItem.equalReceivers(template.receiver, it.receiver) &&
+                    PropertyItem.equalContextParameters(
+                        template.contextParameters,
+                        it.contextParameters
+                    )
             }
             ?.let {
                 return it
@@ -616,60 +620,83 @@ interface ClassItem :
         return constructors().asSequence().filter { predicate.test(it) }
     }
 
+    /** Return true if this is a public constant. */
+    private fun FieldItem.isPublicConstant() =
+        modifiers.isStatic() && modifiers.isFinal() && modifiers.isPublic()
+
+    /**
+     * Inherit fields from [superTypeItem] that fail [predicate] but pass when they are duplicated
+     * into this [ClassItem].
+     *
+     * Add those fields to this [MutableSet].
+     */
+    private fun MutableSet<FieldItem>.addInheritedFieldsFrom(
+        superTypeItem: ClassItem,
+        predicate: FilterPredicate,
+    ) {
+        // Do not inherit fields from classes that are in the API.
+        if (predicate.test(superTypeItem)) return
+
+        // Include constants from hidden super type.
+        for (field in superTypeItem.fields()) {
+            // If the field is a public constant and not hidden then try and inherit it into this
+            // class.
+            if (field.isPublicConstant() && !field.originallyHidden) {
+                // Create a duplicate of the field in this class.
+                val duplicate = field.duplicate(this@ClassItem)
+
+                // Only add it if it is going to be part of the API.
+                if (predicate.test(duplicate)) {
+                    add(duplicate)
+                }
+            }
+        }
+    }
+
     /**
      * Return fields matching the given predicate. Also clones fields from ancestors that would
      * match had they been defined in this class.
      */
-    fun filteredFields(predicate: FilterPredicate, showUnannotated: Boolean): List<FieldItem> {
-        val fields = LinkedHashSet<FieldItem>()
-        if (showUnannotated) {
+    fun filteredFields(
+        predicate: FilterPredicate,
+        inlineInheritedFields: Boolean
+    ): List<FieldItem> {
+        val fields = mutableSetOf<FieldItem>()
+
+        // Add this class's fields first as they have the highest priority.
+        for (field in fields()) {
+            if (predicate.test(field)) {
+                fields.add(field)
+            }
+        }
+        if (inlineInheritedFields && predicate.test(this)) {
+            // Then add the super class's fields as they take priority over interfaces.
+            superClass()?.let { superClass ->
+                fields.addInheritedFieldsFrom(
+                    superClass,
+                    predicate,
+                )
+            }
+
+            // Finally, add fields from the interfaces.
             for (clazz in allInterfaces()) {
                 // If this class is an interface then it will be included in allInterfaces(). If it
                 // is a class then it will not be included. Either way, this class' fields will be
-                // handled below so there is no point in processing the fields here.
+                // handled above so there is no point in processing the fields here.
                 if (clazz == this) {
                     continue
                 }
+
+                // Despite its name allInterfaces can return super classes too but the super class's
+                // fields have been handled above so ignore them here.
                 if (!clazz.isInterface()) {
                     continue
                 }
-                for (field in clazz.fields()) {
-                    if (!predicate.test(field)) {
-                        val duplicated = field.duplicate(this)
-                        if (predicate.test(duplicated)) {
-                            fields.remove(duplicated)
-                            fields.add(duplicated)
-                        }
-                    }
-                }
-            }
 
-            val superClass = superClass()
-            if (superClass != null && !predicate.test(superClass) && predicate.test(this)) {
-                // Include constants from hidden super classes.
-                for (field in superClass.fields()) {
-                    val fieldModifiers = field.modifiers
-                    if (
-                        !fieldModifiers.isStatic() ||
-                            !fieldModifiers.isFinal() ||
-                            !fieldModifiers.isPublic()
-                    ) {
-                        continue
-                    }
-                    if (!field.originallyHidden) {
-                        val duplicated = field.duplicate(this)
-                        if (predicate.test(duplicated)) {
-                            fields.remove(duplicated)
-                            fields.add(duplicated)
-                        }
-                    }
-                }
-            }
-        }
-        for (field in fields()) {
-            if (predicate.test(field)) {
-                fields.remove(field)
-                fields.add(field)
+                fields.addInheritedFieldsFrom(
+                    clazz,
+                    predicate,
+                )
             }
         }
         if (fields.isEmpty()) {

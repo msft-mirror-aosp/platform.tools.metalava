@@ -34,6 +34,7 @@ import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ModifierContext
 import com.android.tools.metalava.model.MutableModifierList
 import com.android.tools.metalava.model.ParameterItem
+import com.android.tools.metalava.model.ParameterKind
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.SkeletonClassItem
 import com.android.tools.metalava.model.SkeletonTypeParameterItem
@@ -88,6 +89,8 @@ import org.jetbrains.uast.UAnnotation
 import org.jetbrains.uast.UClass
 import org.jetbrains.uast.UField
 import org.jetbrains.uast.UMethod
+import org.jetbrains.uast.UParameter
+import org.jetbrains.uast.UReceiverParameter
 import org.jetbrains.uast.kotlin.KotlinUMethodWithFakeLightDelegateBase
 import org.jetbrains.uast.kotlin.psi.UastFakeSourceLightMethod
 import org.jetbrains.uast.toUElementOfType
@@ -723,6 +726,16 @@ internal class PsiClassBuilder(
         return method
     }
 
+    /**
+     * Determine whether to treat constructors of [containingClass] as [VisibilityLevel.PRIVATE].
+     *
+     * Sealed abstract classes cannot be instantiated directly to treat them as being private.
+     */
+    private fun treatConstructorAsPrivate(containingClass: ClassItem): Boolean {
+        val modifiers = containingClass.modifiers
+        return modifiers.isSealed() && modifiers.isAbstract()
+    }
+
     /** Create a [ConstructorItem]. */
     internal fun createConstructor(
         containingClass: ClassItem,
@@ -739,15 +752,8 @@ internal class PsiClassBuilder(
                 psiMethod,
             )
 
-        // After KT-13495, "all constructors of `sealed` classes now have `protected` visibility by
-        // default," and (S|U)LC follows that (hence the same in UAST). However, that change was
-        // made to allow more flexible class hierarchy and nesting. If they're compiled to JVM
-        // bytecode, sealed class's ctor is still technically `private` to block instantiation from
-        // outside class hierarchy. Another synthetic constructor, along with an internal ctor
-        // marker, is added for subclasses of a sealed class. Therefore, from Metalava's
-        // perspective, it is not necessary to track such semantically protected ctor. Here we force
-        // set the visibility to `private` back to ignore it during signature writing.
-        if (containingClass.modifiers.isSealed()) {
+        // Make the constructor private if necessary.
+        if (treatConstructorAsPrivate(containingClass)) {
             modifiers.setVisibilityLevel(VisibilityLevel.PRIVATE)
         }
 
@@ -857,6 +863,8 @@ internal class PsiClassBuilder(
                 parameterIndex = parameterIndex,
                 isVarArg = psiParameter.type is PsiEllipsisType,
             )
+        val kind =
+            computeParameterKind(psiParameter, containingCallable, parameterIndex, fingerprint)
         val parameter =
             itemFactory.createParameterItem(
                 fileLocation = PsiFileLocation.fromPsiElement(psiParameter),
@@ -871,10 +879,12 @@ internal class PsiClassBuilder(
                         psiMethod,
                         containingCallableModifiers,
                     ),
-                containingCallable = containingCallable,
+                containingItem = containingCallable,
                 parameterIndex = parameterIndex,
                 type = type,
-                hasDefaultValue = PsiParameterDefaultValue.compute(psiParameter, parameterIndex),
+                hasDefaultValue =
+                    PsiParameterDefaultValue.compute(psiParameter, parameterIndex, kind),
+                kind = kind,
             )
         return parameter
     }
@@ -939,6 +949,29 @@ internal class PsiClassBuilder(
         }
 
         return null
+    }
+
+    /** Determines the [ParameterKind] of the [psiParameter]. */
+    private fun computeParameterKind(
+        psiParameter: PsiParameter,
+        containingCallable: CallableItem,
+        parameterIndex: Int,
+        fingerprint: MethodFingerprint,
+    ): ParameterKind {
+        return when {
+            // Any Java parameter or parameter loaded from a jar is a value parameter
+            !psiParameter.isKotlin() -> ParameterKind.VALUE
+            // The final parameter of a suspend function is the continuation parameter
+            (containingCallable.modifiers.isSuspend() &&
+                parameterIndex == fingerprint.parameterCount - 1) -> ParameterKind.CONTINUATION
+            // Receiver parameters have a specific UAST type
+            psiParameter is UReceiverParameter -> ParameterKind.RECEIVER
+            // The source psi has information about context parameters
+            ((psiParameter as? UParameter)?.sourcePsi as? KtParameter)?.isContextParameter ==
+                true -> ParameterKind.CONTEXT
+            // Not any special kotlin parameter kind, must be a value parameter
+            else -> ParameterKind.VALUE
+        }
     }
 
     private fun throwsTypes(

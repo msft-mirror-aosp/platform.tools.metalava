@@ -34,8 +34,7 @@ import com.android.tools.metalava.model.text.CustomizableProperty.Companion.STRI
 import com.android.tools.metalava.model.text.CustomizableProperty.Companion.TYPE_ARGUMENT_SPACING
 import com.android.tools.metalava.model.text.FileFormat.TypeArgumentSpacing
 import com.android.tools.metalava.model.value.asString
-import com.android.tools.metalava.model.visitors.ApiPredicate
-import com.android.tools.metalava.model.visitors.ApiType
+import com.android.tools.metalava.model.visitors.ApiFilters
 import com.google.common.truth.Truth.assertThat
 import java.io.PrintWriter
 import java.io.StringWriter
@@ -115,10 +114,9 @@ class SignatureInputOutputTest : Assertions {
             createCodebaseFragmentForSignatureFile(
                 codebase,
                 fileFormat = fileFormat,
-                apiType = ApiType.ALL,
+                apiFilters = ApiFilters.ALL,
                 preFiltered = true,
                 showUnannotated = false,
-                apiPredicateConfig = ApiPredicate.Config()
             )
 
         val fragment = codebaseKind.transformFragment(baseFragment)
@@ -1105,6 +1103,41 @@ class SignatureInputOutputTest : Assertions {
                   }
                 }
                 """
+        )
+    }
+
+    @Test
+    fun `Test writing property context parameters`() {
+        runInputOutputTest(
+            signature =
+                """
+                // Signature format: 5.0
+                package test.pkg {
+                  public class Foo {
+                    property public int noContextParams;
+                    property public int oneContextParam(context String s);
+                    property public int twoContextParams(context String s, context int i);
+                    property public int unnamedContextParam(context String);
+                  }
+                }
+                """,
+            fileFormat = FileFormat.V5
+        )
+    }
+
+    @Test
+    fun `Test writing function context parameters`() {
+        runInputOutputTest(
+            signature =
+                """
+                // Signature format: 5.0
+                package test.pkg {
+                  public class Foo {
+                    method public void foo(context String c1, context int c2, String v1, int v2);
+                  }
+                }
+                """,
+            fileFormat = FileFormat.V5
         )
     }
 }

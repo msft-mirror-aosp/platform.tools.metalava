@@ -33,6 +33,7 @@ object PolicyDefinitionAnnotationTestFiles {
                     public static final String INTEGER_TEST = "android.permission.INTEGER_TEST";
                     public static final String LONG_TEST = "android.permission.LONG_TEST";
                     public static final String LIST_TEST = "android.permission.LIST_TEST";
+                    public static final String MANAGE_DEVICE_POLICY_ACROSS_USERS = "android.permission.MANAGE_DEVICE_POLICY_ACROSS_USERS";
                 }
             }
             """
@@ -154,7 +155,10 @@ object PolicyDefinitionAnnotationTestFiles {
                 boolean emptyListAllowed() default false;
                 boolean emptyStringAllowed() default false;
                 boolean unprintableCharactersAllowed() default false;
+                boolean pureWhitespaceAllowed() default false;
+                boolean unstrippedStringAllowed() default false;
                 ListResolutionMechanism resolutionMechanism();
+                int maxListLength() default 10000;
             }
 
             @Retention(RetentionPolicy.SOURCE)
@@ -162,6 +166,8 @@ object PolicyDefinitionAnnotationTestFiles {
                 PolicyDefinition base();
                 boolean emptyStringAllowed() default false;
                 boolean unprintableCharactersAllowed() default false;
+                boolean pureWhitespaceAllowed() default false;
+                boolean unstrippedStringAllowed() default false;
                 int maxLength() default Integer.MAX_VALUE;
             }
 
@@ -175,7 +181,7 @@ object PolicyDefinitionAnnotationTestFiles {
                 PolicyDefinition base();
                 boolean emptyListAllowed() default false;
                 ListResolutionMechanism resolutionMechanism();
-                int maxListLength() default Integer.MAX_VALUE;
+                int maxListLength() default 10000;
             }
             """
         )

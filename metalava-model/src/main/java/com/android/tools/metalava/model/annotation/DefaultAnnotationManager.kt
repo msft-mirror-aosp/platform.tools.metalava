@@ -25,6 +25,7 @@ import com.android.tools.metalava.model.ANDROID_ANNOTATION_PREFIX
 import com.android.tools.metalava.model.ANDROID_FLAGGED_API
 import com.android.tools.metalava.model.ANDROID_NONNULL
 import com.android.tools.metalava.model.ANDROID_NULLABLE
+import com.android.tools.metalava.model.ANDROID_REQUIRES_FLAG
 import com.android.tools.metalava.model.ANDROID_SYSTEM_API
 import com.android.tools.metalava.model.ANDROID_TEST_API
 import com.android.tools.metalava.model.ANNOTATION_EXTERNAL
@@ -60,9 +61,12 @@ import com.android.tools.metalava.model.Showability
 import com.android.tools.metalava.model.Showability.Companion.REVERT_UNSTABLE_API
 import com.android.tools.metalava.model.TypedefMode
 import com.android.tools.metalava.model.annotation.DefaultAnnotationManager.Config
+import com.android.tools.metalava.model.api.ApiSurfaceSelector
 import com.android.tools.metalava.model.api.flags.ApiFlag
 import com.android.tools.metalava.model.api.flags.ApiFlags
 import com.android.tools.metalava.model.api.flags.optionalFlagName
+import com.android.tools.metalava.model.api.surface.ApiSurface
+import com.android.tools.metalava.model.canBeHidden
 import com.android.tools.metalava.model.computeTypeNullability
 import com.android.tools.metalava.model.hasAnnotation
 import com.android.tools.metalava.model.isNonNullAnnotation
@@ -80,11 +84,7 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
     data class Config(
         val reporter: Reporter = ThrowingReporter.INSTANCE,
         val passThroughAnnotations: Set<String> = emptySet(),
-        val allShowAnnotations: AnnotationFilter = AnnotationFilter.emptyFilter(),
-        val showAnnotations: AnnotationFilter = AnnotationFilter.emptyFilter(),
-        val showSingleAnnotations: AnnotationFilter = AnnotationFilter.emptyFilter(),
-        val showForStubPurposesAnnotations: AnnotationFilter = AnnotationFilter.emptyFilter(),
-        val hideAnnotations: AnnotationFilter = AnnotationFilter.emptyFilter(),
+        val apiSurfaceSelector: ApiSurfaceSelector = ApiSurfaceSelector(),
         val suppressCompatibilityMetaAnnotations: Set<String> = emptySet(),
         val excludeAnnotations: Set<String> = emptySet(),
         val typedefMode: TypedefMode = TypedefMode.NONE,
@@ -98,11 +98,21 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
          * The set of available [ApiFlag]s.
          *
          * If this is `null` then no [ApiFlag]s have been provided, otherwise it contains an
-         * [ApiFlag] for every provided flag. Flags that are not provided will default to
-         * [ApiFlag.REVERT_FLAGGED_API].
+         * [ApiFlag] for every provided flag and will use a default for any others.
          */
         val apiFlags: ApiFlags? = null,
     )
+
+    private val apiSurfaceSelector = config.apiSurfaceSelector
+
+    /** The set of all annotation names that should be preserved during normalization. */
+    private val annotationNamesToPreserveDuringNormalization = buildSet {
+        // Add all the annotations specifically configured to be passed through.
+        addAll(config.passThroughAnnotations)
+
+        // Add all the annotations used for API surface selection.
+        addAll(apiSurfaceSelector.annotationNames)
+    }
 
     /**
      * Map from annotation name to the [KeyFactory] to use to create a key.
@@ -132,25 +142,12 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
             }
         }
 
-        // The list of all filters.
-        val filters =
-            listOf(
-                config.allShowAnnotations,
-                config.showSingleAnnotations,
-                config.showForStubPurposesAnnotations,
-                config.hideAnnotations,
-            )
-
         // Build a list of the names of annotations whose AnnotationInfo could be dependent on an
         // annotation attributes and not just its name.
         val annotationNames = buildList {
-            // Iterate over all the annotation names matched by all the filters currently used by
-            // [LazyAnnotationInfo] and associate them with a [KeyFactory] that will use the
-            // complete source representation of the annotation as the key. This is needed because
-            // filters can match on attribute values as well as the name.
-            for (filter in filters) {
-                addAll(filter.getIncludedAnnotationNames())
-            }
+            // Add all the annotation names matched by all the API surface selection filters as they
+            // can match on attribute values as well as the annotation name.
+            addAll(apiSurfaceSelector.annotationNames)
 
             // ApiFlags have been provided so the flag name specified on an
             // `android.annotation.FlaggedApi` will affect the state of the associated
@@ -182,7 +179,7 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
     }
 
     override fun normalizeInputName(qualifiedName: String): String? {
-        if (passThroughAnnotation(qualifiedName)) {
+        if (preserveAnnotationDuringNormalization(qualifiedName)) {
             return qualifiedName
         }
 
@@ -320,16 +317,16 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
 
                     // AndroidX annotations are all included, as is the built-in stuff like
                     // @Retention
-                    qualifiedName.startsWith(ANDROIDX_ANNOTATION_PREFIX) -> return qualifiedName
-                    qualifiedName.startsWith(JAVA_LANG_PREFIX) -> return qualifiedName
+                    qualifiedName.startsWith(ANDROIDX_ANNOTATION_PREFIX) -> qualifiedName
+                    qualifiedName.startsWith(JAVA_LANG_PREFIX) -> qualifiedName
 
                     // Unknown Android platform annotations
                     qualifiedName.startsWith(ANDROID_ANNOTATION_PREFIX) -> {
-                        return qualifiedName
+                        qualifiedName
                     }
 
                     // Ravenwood annotations are meaningless to Metalava.
-                    qualifiedName.startsWith("android.ravenwood.") -> return null
+                    qualifiedName.startsWith("android.ravenwood.") -> null
 
                     // Keep any other unknown annotations.
                     else -> qualifiedName
@@ -339,7 +336,7 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
     }
 
     override fun normalizeOutputName(qualifiedName: String, target: AnnotationTarget): String {
-        if (passThroughAnnotation(qualifiedName)) {
+        if (preserveAnnotationDuringNormalization(qualifiedName)) {
             return qualifiedName
         }
 
@@ -361,10 +358,12 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
         return qualifiedName
     }
 
-    private fun passThroughAnnotation(qualifiedName: String) =
-        config.passThroughAnnotations.contains(qualifiedName) ||
-            config.allShowAnnotations.matchesAnnotationName(qualifiedName) ||
-            config.hideAnnotations.matchesAnnotationName(qualifiedName)
+    /**
+     * Returns `true` if [qualifiedName] should be preserved unchanged by [normalizeInputName] and
+     * [normalizeOutputName].
+     */
+    private fun preserveAnnotationDuringNormalization(qualifiedName: String) =
+        annotationNamesToPreserveDuringNormalization.contains(qualifiedName)
 
     /**
      * Targets for type def annotations, i.e. `@IntDef` and `@StringDef` annotated annotations.
@@ -393,8 +392,7 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
         when (qualifiedName) {
             // The typedef annotations are special: they should not be in the signature
             // files, but we want to include them in the external annotations file such that
-            // tools
-            // can enforce them.
+            // tools can enforce them.
             "android.annotation.IntDef",
             "androidx.annotation.IntDef",
             "android.annotation.StringDef",
@@ -408,17 +406,15 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
             "android.view.ViewDebug.CapturedViewProperty" -> return ANNOTATION_STUBS_ONLY
 
             // Retained in the sdk/jar stub source code so that SdkConstant files can be
-            // extracted
-            // from those. This is useful for modularizing the main SDK stubs without having to
-            // add a separate module SDK artifact for sdk constants.
+            // extracted from those. This is useful for modularizing the main SDK stubs without
+            // having to add a separate module SDK artifact for sdk constants.
             "android.annotation.SdkConstant" -> return ANNOTATION_SDK_STUBS_ONLY
+            ANDROID_REQUIRES_FLAG,
             ANDROID_FLAGGED_API -> {
                 return annotation.apiFlag?.annotationTargets ?: ANNOTATION_IN_ALL_STUBS
             }
-
             // Skip known annotations that we (a) never want in external annotations and (b) we
-            // are
-            // specially overwriting anyway in the stubs (and which are (c) not API significant)
+            // are specially overwriting anyway in the stubs (and which are (c) not API significant)
             "com.android.modules.annotation.MinSdk",
             "java.lang.annotation.Native",
             "java.lang.SuppressWarnings",
@@ -442,8 +438,7 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
             JAVA_LANG_DEPRECATED, // tracked separately as a pseudo-modifier
 
             // Below this when-statement we perform the correct lookup: check API predicate, and
-            // check
-            // that retention is class or runtime, but we've hardcoded the answers here
+            // check that retention is class or runtime, but we've hardcoded the answers here
             // for some common annotations.
 
             "android.widget.RemoteViews.RemoteView",
@@ -462,8 +457,7 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
             "java.lang.annotation.Retention",
             "java.lang.annotation.Target" -> return ANNOTATION_IN_ALL_STUBS
 
-            // Metalava already tracks all the methods that get generated due to these
-            // annotations.
+            // Metalava already tracks all the methods that get generated due to these  annotations.
             "kotlin.jvm.JvmOverloads",
             JVM_FIELD,
             JVM_STATIC,
@@ -472,8 +466,7 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
         }
 
         // @android.annotation.Nullable and NonNullable specially recognized annotations by the
-        // Kotlin
-        // compiler 1.3 and above: they always go in the stubs.
+        // Kotlin compiler 1.3 and above: they always go in the stubs.
         if (
             qualifiedName == ANDROID_NULLABLE ||
                 qualifiedName == ANDROID_NONNULL ||
@@ -497,8 +490,7 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
         }
 
         // @RecentlyNullable and @RecentlyNonNull are specially recognized annotations by the
-        // Kotlin
-        // compiler: they always go in the stubs.
+        // Kotlin compiler: they always go in the stubs.
         if (qualifiedName == RECENTLY_NULLABLE || qualifiedName == RECENTLY_NONNULL) {
             return ANNOTATION_IN_ALL_STUBS
         }
@@ -544,19 +536,17 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
     private fun couldRevertItems(): Boolean = config.apiFlags != null
 
     override fun hasAnyStubPurposesAnnotations(): Boolean {
-        // This checks if items can be reverted because they can behave like
-        // `--show-for-stub-purposes-annotation` if a reverted Item was added in an extended API.
+        // This checks if items can be reverted because they were added in an extended API.
         // e.g. if a change to item `X` from the public API was reverted then the
         // previously released version `X'` will need to be written out to the stubs for the system
-        // API, just as if it was annotated with an annotation from
-        // `--show-for-stub-purposes-annotation`.
-        return config.showForStubPurposesAnnotations.isNotEmpty() || couldRevertItems()
+        // API, just as if it had been annotated with a show annotation for the API surface.
+        return apiSurfaceSelector.hasAnyShowForStubPurposesAnnotations || couldRevertItems()
     }
 
     override fun hasHideAnnotations(modifiers: ModifierList): Boolean {
         // If there are no hide annotations and items cannot be reverted then this can never return
         // true. Reverted items can behave as if they are hidden it they are newly added.
-        if (config.hideAnnotations.isEmpty() && !couldRevertItems()) {
+        if (!apiSurfaceSelector.hasAnyHideAnnotations && !couldRevertItems()) {
             return false
         }
         return modifiers.hasAnnotation(AnnotationItem::isHideAnnotation)
@@ -576,16 +566,47 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
         // * `recurse=true` beats `recurse=false`
         // * `forStubsOnly=false` beats `forStubsOnly=true`
 
+        // Check whether this item can be hidden.
+        val cannotBeHidden = !item.canBeHidden()
+
         // The resulting showability of the item.
         var itemShowability = Showability.NO_EFFECT
 
+        // The surface to which this item should belong, according to its annotations. This ignores
+        // the effects of flags.
+        var itemSurface: ApiSurface? = null
+
+        // Track whether the item has been shown in multiple different surfaces.
+        var overlappingSurfaces = false
+
         for (annotation in item.modifiers.annotations()) {
+            // Check for overlapping surfaces, i.e. multiple annotations that target the item at
+            // different surfaces.
+            annotation.surfaceData?.showSurface?.let { surface ->
+                if (itemSurface == null) {
+                    // The item is shown in a single API surface.
+                    itemSurface = surface
+                } else if (surface !== itemSurface) {
+                    // The item is to be shown in at least two separate API surfaces.
+                    overlappingSurfaces = true
+                }
+            }
+
             val showability = annotation.showability
             if (showability == Showability.NO_EFFECT) {
                 // NO_EFFECT has no effect on the result so just ignore it.
                 continue
+            } else if (cannotBeHidden && showability.hide()) {
+                // Hide is ignored as the item cannot be hidden.
+                continue
             }
             itemShowability = itemShowability.combineWith(showability)
+        }
+
+        // If the item is annotated with multiple show annotations for more than one surface then
+        // report an error.
+        if (overlappingSurfaces) {
+            reportOverlappingSurfaces(item)
         }
 
         if (item is MethodItem) {
@@ -646,6 +667,57 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
     }
 
     /**
+     * Called when [item] is annotated with multiple show annotations for at least two separate API
+     * surfaces.
+     *
+     * Analyzes the annotations and reports issues instructing which of the annotations should be
+     * removed.
+     */
+    private fun reportOverlappingSurfaces(item: SelectableItem) {
+        val annotations = item.modifiers.annotations()
+
+        // Map from matched surface to matched annotations.
+        val surfaceToAnnotations =
+            annotations
+                .mapNotNull { annotationItem ->
+                    annotationItem.surfaceData?.showSurface?.let { surface ->
+                        surface to annotationItem
+                    }
+                }
+                .groupBy({ it.first }) { it.second }
+
+        // Consistency check to ensure that the caller has detected overlaps correctly.
+        if (surfaceToAnnotations.size < 2) {
+            error("expected $item to have at least two surfaces")
+        }
+
+        // Find the narrowest surface in all the annotations.
+        val narrowestSurface = surfaceToAnnotations.keys.min()
+
+        // Get the associated annotation. There must be at least one otherwise there would be no
+        // entry in surfaceToAnnotations.
+        val narrowestAnnotation = surfaceToAnnotations[narrowestSurface]!!.first()
+
+        // Iterate over all the surface/annotations reporting issues on all but the narrowest
+        // surface.
+        for ((surface, annotations) in surfaceToAnnotations) {
+            // Ignore the narrowest surface.
+            if (surface === narrowestSurface) continue
+
+            // Iterate over all the annotations that are for wider surfaces, instructing to remove
+            // the annotation.
+            for (annotationItem in annotations) {
+                config.reporter.report(
+                    Issues.OVERLAPPING_API_SURFACES,
+                    item,
+                    "Remove $annotationItem from ${item.describe()} as it is superseded by $narrowestAnnotation",
+                    annotationItem.fileLocation,
+                )
+            }
+        }
+    }
+
+    /**
      * Local cache of the previously released codebase to avoid calling the provider for every
      * affected item.
      */
@@ -692,27 +764,18 @@ private class LazyAnnotationInfo(
     override val typeNullability = computeTypeNullability(qualifiedName)
 
     /** Compute lazily to avoid doing any more work than strictly necessary. */
+    override val surfaceData by
+        lazy(LazyThreadSafetyMode.NONE) {
+            config.apiSurfaceSelector.findSurfaceAnnotationData(annotationItem)
+        }
+
+    /** Compute lazily to avoid doing any more work than strictly necessary. */
     override val showability by
         lazy(LazyThreadSafetyMode.NONE) {
-            // The showAnnotations filter includes all the annotation patterns that are matched by
-            // the first two filters plus 0 or more additional patterns. Excluding the patterns that
-            // are purposely duplicated in showAnnotations the filters should not overlap, i.e. an
-            // AnnotationItem should not be matched by multiple filters. However, the filters could
-            // use the same annotation class (with different attributes). e.g. showAnnotations could
-            // match `@SystemApi(client=MODULE_LIBRARIES)` and showForStubPurposesAnnotations could
-            // match `@SystemApi(client=PRIVILEGED_APPS)`.
-            //
-            // Compare from most likely to match to least likely to match.
-            when {
-                config.showAnnotations.matches(annotationItem) -> SHOW
-                config.showForStubPurposesAnnotations.matches(annotationItem) -> SHOW_FOR_STUBS
-                config.showSingleAnnotations.matches(annotationItem) -> SHOW_SINGLE
-                config.hideAnnotations.matches(annotationItem) -> HIDE
-                else -> {
-                    // Check flags before using default
-                    apiFlag?.showability ?: Showability.NO_EFFECT
-                }
-            }
+            surfaceData?.showability
+                // Check flags before using default
+                ?: apiFlag?.showability
+                ?: Showability.NO_EFFECT
         }
 
     override val apiFlag by lazy(LazyThreadSafetyMode.NONE) { getFlagForAnnotation(annotationItem) }
@@ -725,49 +788,6 @@ private class LazyAnnotationInfo(
 
     override val annotationClass
         get() = annotationClassItem?.annotationClass
-
-    companion object {
-        /**
-         * The annotation will cause the annotated item (and any enclosed items unless overridden by
-         * a closer annotation) to be shown.
-         */
-        val SHOW =
-            Showability(
-                show = ShowOrHide.SHOW,
-                recursive = ShowOrHide.SHOW,
-                forStubsOnly = ShowOrHide.NO_EFFECT,
-            )
-
-        /**
-         * The annotation will cause the annotated item (and any enclosed items unless overridden by
-         * a closer annotation) to be shown in the stubs only.
-         */
-        val SHOW_FOR_STUBS =
-            Showability(
-                show = ShowOrHide.NO_EFFECT,
-                recursive = ShowOrHide.NO_EFFECT,
-                forStubsOnly = ShowOrHide.SHOW,
-            )
-
-        /** The annotation will cause the annotated item (but not enclosed items) to be shown. */
-        val SHOW_SINGLE =
-            Showability(
-                show = ShowOrHide.SHOW,
-                recursive = ShowOrHide.NO_EFFECT,
-                forStubsOnly = ShowOrHide.NO_EFFECT,
-            )
-
-        /**
-         * The annotation will cause the annotated item (and any enclosed items unless overridden by
-         * a closer annotation) to not be shown.
-         */
-        val HIDE =
-            Showability(
-                show = ShowOrHide.HIDE,
-                recursive = ShowOrHide.HIDE,
-                forStubsOnly = ShowOrHide.NO_EFFECT,
-            )
-    }
 
     /** Resolve the [AnnotationItem] to a [ClassItem] lazily. */
     private val annotationClassItem by lazy(LazyThreadSafetyMode.NONE, annotationItem::resolve)

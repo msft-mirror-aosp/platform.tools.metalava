@@ -321,6 +321,10 @@ internal class DefaultClassItem(
         mutableFields += field
     }
 
+    override fun replaceOrAddField(field: FieldItem) {
+        replaceOrAddItem(field, mutableFields)
+    }
+
     override fun fields(): List<FieldItem> = mutableFields
 
     /** The mutable list of [PropertyItem] that backs [properties]. */

@@ -43,9 +43,6 @@ object Issues {
     val ADDED_ANNOTATION by Issue(Severity.ERROR, Category.OTHER_COMPATIBILITY)
     val ADDED_PACKAGE by Issue(Severity.HIDDEN, Category.OTHER_COMPATIBILITY)
     val ADDED_CLASS by Issue(Severity.HIDDEN, Category.OTHER_COMPATIBILITY)
-    val ADDED_SUBCLASS_TO_SEALED_CLASS by Issue(Severity.ERROR, Category.SOURCE_COMPATIBILITY_ONLY)
-    val SEALED_CLASS_EXHAUSTIVITY_CHANGED by
-        Issue(Severity.ERROR, Category.SOURCE_COMPATIBILITY_ONLY)
     // Adding an abstract method is breaking, but that is a separate issue.
     val ADDED_METHOD by Issue(Severity.HIDDEN, Category.OTHER_COMPATIBILITY)
     // Note that this may be breaking if the class/interface can be implemented, but the reporter
@@ -117,6 +114,7 @@ object Issues {
     val NULLABLE by Issue(Severity.HIDDEN, Category.DOCUMENTATION)
     val INT_DEF by Issue(Severity.HIDDEN, Category.DOCUMENTATION)
     val REQUIRES_PERMISSION by Issue(Severity.ERROR, Category.DOCUMENTATION)
+    val REQUIRES_SYSTEM_PERMISSION by Issue(Severity.HIDDEN, Category.DOCUMENTATION)
     val BROADCAST_BEHAVIOR by Issue(Severity.ERROR, Category.DOCUMENTATION)
     val SDK_CONSTANT by Issue(Severity.ERROR, Category.DOCUMENTATION)
     val TODO by Issue(Severity.ERROR, Category.DOCUMENTATION)
@@ -130,6 +128,14 @@ object Issues {
     val REMOVED_RECORD_COMPONENT by Issue(Severity.ERROR, Category.BINARY_AND_SOURCE_COMPATIBILITY)
     val CHANGED_RECORD_COMPONENT by Issue(Severity.ERROR, Category.BINARY_AND_SOURCE_COMPATIBILITY)
 
+    // Sealed related issues (in alphabetical order).
+    val ADDED_SEALED by Issue(Severity.ERROR, Category.SOURCE_COMPATIBILITY_ONLY)
+    val ADDED_SUBCLASS_TO_SEALED_CLASS by Issue(Severity.ERROR, Category.SOURCE_COMPATIBILITY_ONLY)
+    val CONCRETE_SEALED_CLASS by Issue(Severity.WARNING, Category.API_LINT)
+    val EXHAUSTIVE_SEALED_CLASS by Issue(Severity.WARNING, Category.API_LINT)
+    val SEALED_CLASS_EXHAUSTIVITY_CHANGED by
+        Issue(Severity.ERROR, Category.SOURCE_COMPATIBILITY_ONLY)
+
     // Metalava warnings (not from doclava)
     val INVALID_ANNOTATION_BINDING by Issue(Severity.ERROR, Category.API_LINT)
     val MISSING_REQUIRED_ATTRIBUTE by Issue(Severity.ERROR, Category.API_LINT)
@@ -140,10 +146,10 @@ object Issues {
     val MULTIPLE_THREAD_ANNOTATIONS by Issue(Severity.ERROR, Category.DOCUMENTATION)
     val INVALID_NULL_CONVERSION by Issue(Severity.ERROR, Category.SOURCE_COMPATIBILITY_ONLY)
     val PARAMETER_NAME_CHANGE by Issue(Severity.ERROR, Category.SOURCE_COMPATIBILITY_ONLY)
+    val PARAMETER_KIND_CHANGE by Issue(Severity.ERROR, Category.SOURCE_COMPATIBILITY_ONLY)
     val OPERATOR_REMOVAL by Issue(Severity.ERROR, Category.SOURCE_COMPATIBILITY_ONLY)
     val INFIX_REMOVAL by Issue(Severity.ERROR, Category.SOURCE_COMPATIBILITY_ONLY)
     val VARARG_REMOVAL by Issue(Severity.ERROR, Category.BINARY_AND_SOURCE_COMPATIBILITY)
-    val ADD_SEALED by Issue(Severity.ERROR, Category.SOURCE_COMPATIBILITY_ONLY)
     val FUN_REMOVAL by Issue(Severity.ERROR, Category.SOURCE_COMPATIBILITY_ONLY)
     // Removing an API from the checked surface isn't itself breaking, but it could allow both
     // binary and source breaking changes to be made to the API in the future.
@@ -162,7 +168,11 @@ object Issues {
     // The plan is for this to be set as an error once (1) existing code is marked as @deprecated
     // and (2) the principle is adopted by the API council
     val REFERENCES_DEPRECATED by Issue(Severity.HIDDEN, Category.API_LINT)
+
     val UNHIDDEN_SYSTEM_API by Issue(Severity.ERROR, Category.API_LINT)
+    val HIDDEN_SHOW_ANNOTATION by Issue(Severity.WARNING_ERROR_WHEN_NEW, Category.API_LINT)
+    val OVERLAPPING_API_SURFACES by Issue(Severity.WARNING_ERROR_WHEN_NEW, Category.API_LINT)
+
     val SHOWING_MEMBER_IN_HIDDEN_CLASS by Issue(Severity.ERROR, Category.API_LINT)
     val INVALID_NULLABILITY_ANNOTATION by Issue(Severity.ERROR)
     val REFERENCES_HIDDEN by Issue(Severity.ERROR, Category.API_LINT)
@@ -284,6 +294,7 @@ object Issues {
     val UNFLAGGED_API by Issue(Severity.HIDDEN, Category.API_LINT)
     val FLAGGED_API_LITERAL by Issue(Severity.ERROR, Category.API_LINT)
     val UNEXPORTED_FLAGGED_API by Issue(Severity.WARNING_ERROR_WHEN_NEW, Category.API_LINT)
+    val MULTIPLE_FLAGGING by Issue(Severity.ERROR, Category.API_LINT)
 
     val NO_PREVIOUSLY_RELEASED_API by Issue(Severity.ERROR, Category.API_LINT)
 

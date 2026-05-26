@@ -48,6 +48,8 @@ data class StringPolicyDefinitionProxy(
     val base: PolicyDefinitionProxy,
     val emptyStringAllowed: Boolean,
     val unprintableCharactersAllowed: Boolean,
+    val pureWhitespaceAllowed: Boolean,
+    val unstrippedStringAllowed: Boolean,
     val maxLength: Int,
 ) {
     fun generateDocs() = buildString {
@@ -58,6 +60,12 @@ data class StringPolicyDefinitionProxy(
         )
         append(
             "   <li>Unprintable characters: ${if (unprintableCharactersAllowed) "Allowed" else "Not allowed"}</li>\n"
+        )
+        append(
+            "   <li>Pure whitespace: ${if (pureWhitespaceAllowed) "Allowed" else "Not allowed"}</li>\n"
+        )
+        append(
+            "   <li>Unstripped string: ${if (unstrippedStringAllowed) "Allowed" else "Not allowed"}</li>\n"
         )
         append(
             "   <li>Max Length: ${if (maxLength == Integer.MAX_VALUE) "No limit" else maxLength}</li>\n"

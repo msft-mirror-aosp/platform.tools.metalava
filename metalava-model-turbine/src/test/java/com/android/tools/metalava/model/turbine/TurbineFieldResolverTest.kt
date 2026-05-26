@@ -17,7 +17,7 @@
 package com.android.tools.metalava.model.turbine
 
 import com.android.tools.lint.checks.infrastructure.TestFile
-import com.android.tools.metalava.testing.TemporaryFolderOwner
+import com.android.tools.metalava.testing.BaseTemporaryFolderOwner
 import com.android.tools.metalava.testing.java
 import com.google.common.collect.ImmutableList
 import com.google.turbine.binder.Binder
@@ -34,13 +34,9 @@ import com.google.turbine.tree.Tree
 import com.google.turbine.tree.Tree.Ident
 import java.util.Optional
 import kotlin.test.fail
-import org.junit.Rule
 import org.junit.Test
-import org.junit.rules.TemporaryFolder
 
-class TurbineFieldResolverTest : TemporaryFolderOwner {
-    @get:Rule override val temporaryFolder = TemporaryFolder()
-
+class TurbineFieldResolverTest : BaseTemporaryFolderOwner() {
     /** Parse and bind [sources] into a [CompoundEnv]. */
     private fun bind(sources: List<TestFile>): CompoundEnv<ClassSymbol, TypeBoundClass> {
         val srcDir = temporaryFolder.newFolder("src")

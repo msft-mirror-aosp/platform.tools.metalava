@@ -237,6 +237,21 @@ class FilteringApiVisitor(
                 }
         }
 
+        override val permitTypes: List<ClassTypeItem>
+            get() =
+                if (preFiltered) delegate.permitTypes
+                else
+                    delegate.permitTypes.filter { type ->
+                        val classItem = type.resolveClass(codebase) ?: return@filter false
+                        // Use `filterEmit` instead of `filterReference`. That is because
+                        // `filterEmit` will only match classes that will be emitted as part of the
+                        // same API surface as this class. However, `filterReference` will also
+                        // match classes that are defined in another API surface. The latter would
+                        // not work as sealed classes and their subclasses have to be defined within
+                        // the same API surface as they depend on each other.
+                        filterEmit.test(classItem)
+                    }
+
         override fun constructors() =
             delegate
                 .filteredConstructors(filterReference)
@@ -244,7 +259,7 @@ class FilteringApiVisitor(
                 .toList()
 
         override fun fields(): List<FieldItem> =
-            delegate.filteredFields(filterReference, showUnannotated).map { FilteringFieldItem(it) }
+            delegate.allFilteredFields(filterReference).map { FilteringFieldItem(it) }
 
         override val aliasedType: TypeItem
             get() = delegate.aliasedType.transform(typeAnnotationFilter)

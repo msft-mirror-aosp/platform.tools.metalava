@@ -115,8 +115,7 @@ internal object PsiModifierItem {
             } else {
                 createFromPsiElement(codebase, flags, element)
             }
-        // Set exhaustivity as true until proven otherwise either by an inaccessible subclass
-        // or by a "nonexhaustive" keyword when parsing signature files.
+        // Set exhaustivity as true until proven otherwise by an inaccessible subclass.
         if (modifiers.isSealed()) {
             modifiers.setExhaustive(true)
         }
