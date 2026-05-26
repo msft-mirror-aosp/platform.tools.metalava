@@ -269,9 +269,6 @@ class ApiAnalyzer(
                         interfaceTypes = cls.interfaceTypes().toMutableList()
                         interfaceTypeClasses =
                             interfaceTypes.mapNotNull { it.resolveClass(codebase) }.toMutableList()
-                        if (cls.isInterface()) {
-                            cls.superClass()?.let { interfaceTypeClasses.add(it) }
-                        }
                         cls.setInterfaceTypes(interfaceTypes)
                     }
                     if (interfaceTypeClasses!!.any { it == hiddenInterfaceClass }) {
