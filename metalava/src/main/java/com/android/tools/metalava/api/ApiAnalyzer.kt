@@ -50,6 +50,7 @@ import com.android.tools.metalava.permission.getRequiresPermissionProxy
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
 import java.io.File
+import java.util.IdentityHashMap
 import java.util.Locale
 
 /**
@@ -228,7 +229,7 @@ class ApiAnalyzer(
 
         // Visit all the concrete classes checking to see whether it should inherit any hidden
         // methods or interfaces.
-        val visited = mutableSetOf<ClassItem>()
+        val visited = UniqueClassItemSet()
         for (classItem in allClasses) {
             // If it is not a class, i.e. an interface, etc., then ignore it.
             if (!classItem.isClass()) continue
@@ -250,11 +251,11 @@ class ApiAnalyzer(
         cls: ClassItem,
         filterEmit: FilterPredicate,
         filterReference: FilterPredicate,
-        visited: MutableSet<ClassItem>,
+        visited: UniqueClassItemSet,
     ) {
         // If already visited this class then ignore it. Otherwise, remember that this was visited.
         if (cls in visited) return
-        visited += cls
+        visited.add(cls)
 
         // If it has no super class then ignore it.
         val superClass = cls.superClass() ?: return
@@ -1065,4 +1066,15 @@ private fun MethodItemSet.removeMatchingMethods(method: MethodItem) {
             iterator.remove()
         }
     }
+}
+
+/** A set of unique [ClassItem]s matched by their identity. */
+private typealias UniqueClassItemSet = IdentityHashMap<ClassItem, Unit>
+
+/** Check to see if this [UniqueClassItemSet] contains [element]. */
+private operator fun UniqueClassItemSet.contains(element: ClassItem): Boolean = containsKey(element)
+
+/** Add [element] to this [UniqueClassItemSet]. */
+private fun UniqueClassItemSet.add(element: ClassItem) {
+    put(element, Unit)
 }
