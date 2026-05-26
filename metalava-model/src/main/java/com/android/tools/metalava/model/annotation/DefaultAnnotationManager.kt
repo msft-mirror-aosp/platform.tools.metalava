@@ -409,11 +409,10 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
             // extracted from those. This is useful for modularizing the main SDK stubs without
             // having to add a separate module SDK artifact for sdk constants.
             "android.annotation.SdkConstant" -> return ANNOTATION_SDK_STUBS_ONLY
+            ANDROID_REQUIRES_FLAG,
             ANDROID_FLAGGED_API -> {
                 return annotation.apiFlag?.annotationTargets ?: ANNOTATION_IN_ALL_STUBS
             }
-            ANDROID_REQUIRES_FLAG -> return ANNOTATION_IN_ALL_STUBS
-
             // Skip known annotations that we (a) never want in external annotations and (b) we
             // are specially overwriting anyway in the stubs (and which are (c) not API significant)
             "com.android.modules.annotation.MinSdk",
