@@ -4686,9 +4686,6 @@ class CompatibilityCheckTest : DriverTest() {
                  }
                }
                 """,
-            // TODO(b/515725381): there shouldn't be an error
-            expectedIssues =
-                "src/test/pkg/Child.kt:1: error: Source breaking change: Parameter \$completion in test.pkg.Child.foo(kotlin.coroutines.Continuation<? super kotlin.Unit> \$completion) has changed from VALUE to CONTINUATION [ParameterKindChange]"
         )
     }
 

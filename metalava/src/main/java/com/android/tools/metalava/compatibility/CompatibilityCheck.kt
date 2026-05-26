@@ -454,7 +454,12 @@ class CompatibilityCheck(
     }
 
     override fun compareParameterItems(old: ParameterItem, new: ParameterItem) {
-        if (new.kind != old.kind) {
+        // Check that parameter kind matches, but if the old version is a superclass method from the
+        // classpath, don't bother checking because all parameters from a jar file will be VALUE.
+        if (
+            new.kind != old.kind &&
+                old.possibleContainingMethod()?.inheritedFrom?.origin != ClassOrigin.CLASS_PATH
+        ) {
             report(
                 Issues.PARAMETER_KIND_CHANGE,
                 new,
