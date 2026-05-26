@@ -65,7 +65,7 @@ class FlaggedApiEdgeCasesTest : DriverTest() {
     }
 
     @Test
-    fun `Test RequiresFlag annotation is removed from stubs if the element already has FlaggedApi`() {
+    fun `Test combining FlaggedApi and RequiresFlag annotations results in a multipleFlagging error`() {
         check(
             sourceFiles =
                 arrayOf(
@@ -97,6 +97,11 @@ class FlaggedApiEdgeCasesTest : DriverTest() {
                         """
                     )
                 ),
+            checkCompilation = true,
+            expectedIssues =
+                """
+                    src/test/pkg/Test.java:6: error: @RequiresFlag can not be placed on APIs that are already flagged. [MultipleFlagging]
+                """,
         )
     }
 

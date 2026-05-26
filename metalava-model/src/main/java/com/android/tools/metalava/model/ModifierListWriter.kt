@@ -355,7 +355,17 @@ class ModifierListWriter(
         // @FlaggedApi annotations are always converted to @RequiresFlag in stub files.
         // Developers are not allowed to add @RequiresFlag to flagged APIs to avoid duplicate
         // @RequiresFlag compilation errors in stubs
-        if (target.isStubsFile() && annotations.any { it.qualifiedName == ANDROID_FLAGGED_API }) {
+        if (
+            target.isStubsFile() &&
+                annotations.any { it.qualifiedName == ANDROID_FLAGGED_API } &&
+                annotations.any { it.qualifiedName == ANDROID_REQUIRES_FLAG }
+        ) {
+            item.codebase.reporter.report(
+                Issues.MULTIPLE_FLAGGING,
+                item,
+                "@RequiresFlag can not be placed on APIs that are already flagged.",
+            )
+
             annotations = annotations.filter { it.qualifiedName != ANDROID_REQUIRES_FLAG }
         }
 
