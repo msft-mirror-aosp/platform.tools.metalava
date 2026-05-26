@@ -134,6 +134,107 @@ class EnumPolicyAnnotationHandlerTest : DriverTest() {
     }
 
     @Test
+    fun `Test EnumPolicyDefinition with most restrictive resolution mechanism generates docs with code references`() {
+        check(
+            sourceFiles =
+                arrayOf(
+                    ANDROID_MANIFEST_SOURCE,
+                    POLICY_DEFINITION_SOURCE,
+                    ENUM_POLICY_DEFINITION_SOURCE,
+                    intDefAnnotationSource,
+                    java(
+                        """
+                        package test.pkg;
+                        import android.processor.devicepolicy.EnumPolicyDefinition;
+                        import android.processor.devicepolicy.EnumPolicyValues.EnumPolicyValue;
+                        import android.processor.devicepolicy.PolicyDefinition;
+                        import android.processor.devicepolicy.EnumResolutionMechanism;
+                        import android.processor.devicepolicy.AllowedDpcTypes;
+                        import static android.processor.devicepolicy.AllowedDpcTypes.ALLOWED;
+                        import static android.processor.devicepolicy.AllowedDpcTypes.DISALLOWED;
+
+                        @Retention(RetentionPolicy.SOURCE)
+                        public class TestPolicy {
+                            private static final int SCOPE_USER = 1;
+                            private static final int RESOURCE_DEVICE_WIDE = 1;
+                            private static final int DEFAULT_VALUE = 1;
+                            @EnumPolicyDefinition(
+                                base = @PolicyDefinition(
+                                    allowedScopes = {SCOPE_USER},
+                                    affectedResource = RESOURCE_DEVICE_WIDE,
+                                    requiredPermission = android.Manifest.permission.ENUM_TEST,
+                                    requiredCrossUserPermission = android.Manifest.permission.MANAGE_DEVICE_POLICY_ACROSS_USERS,
+                                    allowedDpcTypes = @AllowedDpcTypes(
+                                        deviceOwner = ALLOWED,
+                                        managedProfileOwnerOfOrganizationOwnedDevice = ALLOWED,
+                                        managedProfileOwnerOfPersonalOwnedDevice = DISALLOWED,
+                                        profileOwnerOnUser0 = DISALLOWED,
+                                        fullUserProfileOwner = ALLOWED
+                                    )
+                                ),
+                                intDef = EnumPolicyValue.class,
+                                resolutionMechanism = @EnumResolutionMechanism(mostRestrictive = {1, 2}),
+                                defaultValue = DEFAULT_VALUE
+                            )
+                            public static final int POLICY_FIELD = 1;
+                        }
+                        """
+                    )
+                ),
+            checkCompilation = true,
+            docStubs = true,
+            expectedStubFiles =
+                arrayOf(
+                    java(
+                        """
+                        package test.pkg;
+                        @SuppressWarnings({"unchecked", "deprecation", "all"})
+                        public class TestPolicy {
+                        public TestPolicy() { throw new RuntimeException("Stub!"); }
+                        /**
+                         * <p>Policy Type: Enum</p>
+                         * <ul>
+                         *   <li>Allowed Scopes:
+                         *    <ul>
+                         *       <li>User. Settable by:
+                         *         <ul>
+                         *           <li>Device Owner</li>
+                         *           <li>Managed Profile Owner (Of Organization Owned Device)</li>
+                         *           <li>Unaffiliated Full User Profile Owner</li>
+                         *           <li>Affiliated Full User Profile Owner</li>
+                         *         </ul>
+                         *       </li>
+                         *     </ul>
+                         *   </li>
+                         *   <li>Affected Resource: Device Wide</li>
+                         *   <li>Required Permission: {@link android.Manifest.permission#ENUM_TEST android.permission.ENUM_TEST}</li>
+                         *   <li>Required Cross User Permission: {@link android.Manifest.permission#MANAGE_DEVICE_POLICY_ACROSS_USERS android.permission.MANAGE_DEVICE_POLICY_ACROSS_USERS}</li>
+                         *   <li>Allowed DPC Types:
+                         *    <ul>
+                         *       <li>Device Owner</li>
+                         *       <li>Managed Profile Owner (Of Organization Owned Device)</li>
+                         *       <li>Unaffiliated Full User Profile Owner</li>
+                         *       <li>Affiliated Full User Profile Owner</li>
+                         *     </ul>
+                         *   </li>
+                         *   <li>Resolution Mechanism: most restrictive: [{@link android.processor.devicepolicy.EnumPolicyValues#ENUM_POLICY_VALUE_1}, {@link android.processor.devicepolicy.EnumPolicyValues#ENUM_POLICY_VALUE_2}]</li>
+                         *   <li>Enum policy values:
+                         *     <ul>
+                         *        <li>{@link android.processor.devicepolicy.EnumPolicyValues#ENUM_POLICY_VALUE_1} (default)</li>
+                         *        <li>{@link android.processor.devicepolicy.EnumPolicyValues#ENUM_POLICY_VALUE_2}</li>
+                         *     </ul>
+                         *   </li>
+                         * </ul>
+                         */
+                        public static final int POLICY_FIELD = 1;
+                        }
+                        """
+                    )
+                )
+        )
+    }
+
+    @Test
     fun `Test EnumPolicyDefinition with invalid links outputs plain text and reports issues`() {
         check(
             sourceFiles =
