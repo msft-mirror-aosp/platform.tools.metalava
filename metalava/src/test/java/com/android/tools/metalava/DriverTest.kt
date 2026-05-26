@@ -2372,6 +2372,13 @@ data class KnownApiSurface(
                 """
             )
 
+        val TEST_PUBLIC_API_SURFACE =
+            KnownApiSurface(
+                "public",
+                apiSurfacesConfig,
+                additionalTestSourceFiles,
+            )
+
         val TEST_SYSTEM_API_SURFACE =
             KnownApiSurface(
                 "system",
