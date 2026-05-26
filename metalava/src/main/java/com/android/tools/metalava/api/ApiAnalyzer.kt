@@ -297,11 +297,7 @@ class ApiAnalyzer(
     ) {
         // Keep track of the interface types. If any new interfaces are added then this will be
         // stored in [cls].
-        var interfaceTypes: MutableList<ClassTypeItem>? = null
-
-        // Keep track of the interface classes that have been added. It avoids adding the same
-        // interface type multiple times.
-        var interfaceTypeClasses: MutableList<ClassItem>? = null
+        var interfaceTypes: MutableSet<ClassTypeItem>? = null
 
         // Iterate over all the hidden super classes.
         for (hiddenSuperClass in hiddenSuperClasses) {
@@ -313,24 +309,10 @@ class ApiAnalyzer(
                 // Ignore interfaces that are not part of the API.
                 if (!filterReference.test(interfaceClass)) continue
 
-                // Initialize the collections of interface type and classes, if needed.
+                // Initialize the collections of interface types.
                 if (interfaceTypes == null) {
-                    interfaceTypes = cls.interfaceTypes().toMutableList()
-                    interfaceTypeClasses =
-                        interfaceTypes.mapNotNull { it.resolveClass(codebase) }.toMutableList()
-
-                    // Store the mutable list of interface types in the class. Changes to the list
-                    // will affect the class.
-                    cls.setInterfaceTypes(interfaceTypes)
+                    interfaceTypes = cls.interfaceTypes().toMutableSet()
                 }
-
-                // If the interface class has already been added then ignore it.
-                if (interfaceTypeClasses!!.any { it == interfaceClass }) {
-                    continue
-                }
-
-                // Track that the interface class has been seen.
-                interfaceTypeClasses.add(interfaceClass)
 
                 // If necessary rewrite a generic interface type to use the correct type parameters.
                 // e.g. given:
@@ -352,9 +334,14 @@ class ApiAnalyzer(
                     }
                 }
 
-                // Add the interface type to the list owned by the class.
+                // Add the interface type to the set owned by the class.
                 interfaceTypes.add(interfaceType)
             }
+        }
+
+        if (interfaceTypes != null) {
+            // Store the mutable list of interface types in the class.
+            cls.setInterfaceTypes(interfaceTypes.toList())
         }
     }
 
