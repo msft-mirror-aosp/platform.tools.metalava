@@ -673,6 +673,8 @@ interface ClassItem :
         if (
             // It was requested by the caller.
             inlineInheritedFields &&
+                // It was not disabled when the Codebase was created.
+                codebase.config.honorInlineInheritedFieldsInFilteredFields &&
                 // This is a class, i.e. not an interface.
                 isClass() &&
                 // This is part of the API, either in the target surface or a surface that it
