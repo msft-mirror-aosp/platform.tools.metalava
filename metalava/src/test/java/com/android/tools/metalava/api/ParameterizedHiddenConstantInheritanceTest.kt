@@ -51,6 +51,8 @@ class ParameterizedHiddenConstantInheritanceTest : DriverTest() {
         val sources: List<TestFile>,
         val expectedLegacyApiSignature: String,
         val expectedLegacyStubFiles: List<TestFile>,
+        val expectedConsistentApiSignature: String,
+        val expectedConsistentStubFiles: List<TestFile>,
     ) {
         /**
          * Record the stack trace of the creation of this which can be used to provide a stack trace
@@ -218,8 +220,8 @@ class ParameterizedHiddenConstantInheritanceTest : DriverTest() {
                 """
             )
 
-        /** The expected PublicInterface stub for legacy behavior. */
-        private val legacyExpectedPublicInterfaceStub =
+        /** The expected PublicInterface stub for common interface behavior. */
+        private val commonExpectedPublicInterfaceStub =
             java(
                 """
                     package test.pkg;
@@ -249,8 +251,8 @@ class ParameterizedHiddenConstantInheritanceTest : DriverTest() {
                 """
             )
 
-        /** The expected SystemInterface stub for legacy behavior. */
-        private val legacyExpectedSystemInterfaceStub =
+        /** The expected SystemInterface stub for common interface behavior. */
+        private val commonExpectedSystemInterfaceStub =
             java(
                 """
                     package test.pkg;
@@ -279,8 +281,8 @@ class ParameterizedHiddenConstantInheritanceTest : DriverTest() {
                 """
             )
 
-        /** The expected ModuleInterface stub for legacy behavior. */
-        private val legacyExpectedModuleInterfaceStub =
+        /** The expected ModuleInterface stub for common interface behavior. */
+        private val commonExpectedModuleInterfaceStub =
             java(
                 """
                     package test.pkg;
@@ -288,6 +290,57 @@ class ParameterizedHiddenConstantInheritanceTest : DriverTest() {
                     public interface ModuleInterface extends test.pkg.SystemInterface {
                     public static final java.lang.String MODULE_INTERFACE_CONSTANT = "ModuleInterface";
                     public static final java.lang.String OVERLAPPING_CONSTANT = "ModuleInterface";
+                    }
+                """
+            )
+
+        /** The expected PublicClass stub for consistent behavior. */
+        private val consistentExpectedPublicClassStub =
+            java(
+                """
+                    package test.pkg;
+                    @SuppressWarnings({"unchecked", "deprecation", "all"})
+                    public class PublicClass implements test.pkg.PublicInterface {
+                    PublicClass() { throw new RuntimeException("Stub!"); }
+                    public static final java.lang.String HIDDEN_CLASS_CONSTANT = "HiddenClass";
+                    public static final java.lang.String HIDDEN_INTERFACE_CONSTANT = "HiddenInterface";
+                    public static final java.lang.String OVERLAPPING_CONSTANT = "PublicClass";
+                    public static final java.lang.String PUBLIC_CLASS_CONSTANT = "PublicClass";
+                    }
+                """
+            )
+
+        /** The expected SystemClass stub for consistent behavior. */
+        private val consistentExpectedSystemClassStub =
+            java(
+                """
+                    package test.pkg;
+                    @SuppressWarnings({"unchecked", "deprecation", "all"})
+                    public class SystemClass extends test.pkg.PublicClass implements test.pkg.SystemInterface {
+                    SystemClass() { throw new RuntimeException("Stub!"); }
+                    public static final java.lang.String HIDDEN_INTERFACE_CONSTANT = "HiddenInterface";
+                    public static final java.lang.String OVERLAPPING_CONSTANT = "SystemClass";
+                    public static final java.lang.String OVERLAPPING_PUBLIC_SYSTEM_BRIDGE_CONSTANT = "PublicSystemBridgeClass";
+                    public static final java.lang.String PUBLIC_SYSTEM_BRIDGE_CLASS_CONSTANT = "PublicSystemBridgeClass";
+                    public static final java.lang.String PUBLIC_SYSTEM_BRIDGE_INTERFACE_CONSTANT = "PublicSystemBridgeInterface";
+                    public static final java.lang.String SYSTEM_CLASS_CONSTANT = "SystemClass";
+                    }
+                """
+            )
+
+        /** The expected ModuleClass stub for consistent behavior. */
+        private val consistentExpectedModuleClassStub =
+            java(
+                """
+                    package test.pkg;
+                    @SuppressWarnings({"unchecked", "deprecation", "all"})
+                    public class ModuleClass extends test.pkg.SystemClass implements test.pkg.ModuleInterface, test.pkg.SystemInterface {
+                    ModuleClass() { throw new RuntimeException("Stub!"); }
+                    public static final java.lang.String HIDDEN_INTERFACE_CONSTANT = "HiddenInterface";
+                    public static final java.lang.String MODULE_CLASS_CONSTANT = "ModuleClass";
+                    public static final java.lang.String OVERLAPPING_CONSTANT = "ModuleClass";
+                    public static final java.lang.String OVERLAPPING_PUBLIC_SYSTEM_BRIDGE_CONSTANT = "PublicSystemBridgeInterface";
+                    public static final java.lang.String PUBLIC_SYSTEM_BRIDGE_INTERFACE_CONSTANT = "PublicSystemBridgeInterface";
                     }
                 """
             )
@@ -319,7 +372,29 @@ class ParameterizedHiddenConstantInheritanceTest : DriverTest() {
                     expectedLegacyStubFiles =
                         listOf(
                             legacyExpectedPublicClassStub,
-                            legacyExpectedPublicInterfaceStub,
+                            commonExpectedPublicInterfaceStub,
+                        ),
+
+                    // Consistent expectations.
+                    expectedConsistentApiSignature =
+                        """
+                            package test.pkg {
+                              public class PublicClass implements test.pkg.PublicInterface {
+                                field public static final String HIDDEN_CLASS_CONSTANT = "HiddenClass";
+                                field public static final String HIDDEN_INTERFACE_CONSTANT = "HiddenInterface";
+                                field public static final String OVERLAPPING_CONSTANT = "PublicClass";
+                                field public static final String PUBLIC_CLASS_CONSTANT = "PublicClass";
+                              }
+                              public interface PublicInterface {
+                                field public static final String OVERLAPPING_CONSTANT = "PublicInterface";
+                                field public static final String PUBLIC_INTERFACE_CONSTANT = "PublicInterface";
+                              }
+                            }
+                        """,
+                    expectedConsistentStubFiles =
+                        listOf(
+                            consistentExpectedPublicClassStub,
+                            commonExpectedPublicInterfaceStub,
                         ),
                 ),
                 TestParams(
@@ -343,9 +418,31 @@ class ParameterizedHiddenConstantInheritanceTest : DriverTest() {
                     expectedLegacyStubFiles =
                         listOf(
                             legacyExpectedPublicClassStub,
-                            legacyExpectedPublicInterfaceStub,
+                            commonExpectedPublicInterfaceStub,
                             legacyExpectedSystemClassStub,
-                            legacyExpectedSystemInterfaceStub,
+                            commonExpectedSystemInterfaceStub,
+                        ),
+
+                    // Consistent expectations.
+                    expectedConsistentApiSignature =
+                        """
+                            package test.pkg {
+                              public class SystemClass extends test.pkg.PublicClass implements test.pkg.SystemInterface {
+                                field public static final String OVERLAPPING_CONSTANT = "SystemClass";
+                                field public static final String SYSTEM_CLASS_CONSTANT = "SystemClass";
+                              }
+                              public interface SystemInterface extends test.pkg.PublicInterface {
+                                field public static final String OVERLAPPING_CONSTANT = "SystemInterface";
+                                field public static final String SYSTEM_INTERFACE_CONSTANT = "SystemInterface";
+                              }
+                            }
+                        """,
+                    expectedConsistentStubFiles =
+                        listOf(
+                            consistentExpectedPublicClassStub,
+                            commonExpectedPublicInterfaceStub,
+                            consistentExpectedSystemClassStub,
+                            commonExpectedSystemInterfaceStub,
                         ),
                 ),
                 TestParams(
@@ -369,11 +466,35 @@ class ParameterizedHiddenConstantInheritanceTest : DriverTest() {
                     expectedLegacyStubFiles =
                         listOf(
                             legacyExpectedPublicClassStub,
-                            legacyExpectedPublicInterfaceStub,
+                            commonExpectedPublicInterfaceStub,
                             legacyExpectedSystemClassStub,
-                            legacyExpectedSystemInterfaceStub,
+                            commonExpectedSystemInterfaceStub,
                             legacyExpectedModuleClassStub,
-                            legacyExpectedModuleInterfaceStub,
+                            commonExpectedModuleInterfaceStub,
+                        ),
+
+                    // Consistent expectations.
+                    expectedConsistentApiSignature =
+                        """
+                            package test.pkg {
+                              public class ModuleClass extends test.pkg.SystemClass implements test.pkg.ModuleInterface test.pkg.SystemInterface {
+                                field public static final String MODULE_CLASS_CONSTANT = "ModuleClass";
+                                field public static final String OVERLAPPING_CONSTANT = "ModuleClass";
+                              }
+                              public interface ModuleInterface extends test.pkg.SystemInterface {
+                                field public static final String MODULE_INTERFACE_CONSTANT = "ModuleInterface";
+                                field public static final String OVERLAPPING_CONSTANT = "ModuleInterface";
+                              }
+                            }
+                        """,
+                    expectedConsistentStubFiles =
+                        listOf(
+                            consistentExpectedPublicClassStub,
+                            commonExpectedPublicInterfaceStub,
+                            consistentExpectedSystemClassStub,
+                            commonExpectedSystemInterfaceStub,
+                            consistentExpectedModuleClassStub,
+                            commonExpectedModuleInterfaceStub,
                         ),
                 ),
             )
@@ -409,6 +530,16 @@ class ParameterizedHiddenConstantInheritanceTest : DriverTest() {
             hiddenMemberInheritance = HiddenMemberInheritance.LEGACY,
             expectedApiSignature = params.expectedLegacyApiSignature,
             expectedStubFiles = params.expectedLegacyStubFiles,
+        )
+    }
+
+    @Test
+    fun `field inheritance - consistent`() {
+        checkFieldInheritance(
+            apiSurface = params.apiSurface,
+            hiddenMemberInheritance = HiddenMemberInheritance.CONSISTENT,
+            expectedApiSignature = params.expectedConsistentApiSignature,
+            expectedStubFiles = params.expectedConsistentStubFiles,
         )
     }
 }
