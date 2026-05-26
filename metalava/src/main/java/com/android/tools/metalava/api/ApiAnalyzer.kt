@@ -952,16 +952,9 @@ private fun SelectableItem.documentationContainsDeprecated(): Boolean {
     return false
 }
 
-/**
- * Check for an `inheritDoc`.
- *
- * Strictly speaking it should not check for a block `inheritDoc` but the previous code would match
- * that and there is some code downstream which uses that.
- *
- * TODO(b/450228132): Remove check for block tag.
- */
+/** Check for an `inheritDoc`. */
 private fun ItemDocumentation.containsInheritDocTag(): Boolean =
-    hasBlockTagOfType("inheritDoc") || check(CONTAINS_INHERIT_DOC_TAG_PREDICATE)
+    check(CONTAINS_INHERIT_DOC_TAG_PREDICATE)
 
 /**
  * A [DocContentPredicate] that will check for the presence of `{@inheritDoc}` in the documentation.
