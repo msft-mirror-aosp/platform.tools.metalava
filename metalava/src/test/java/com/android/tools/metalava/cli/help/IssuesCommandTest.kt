@@ -178,6 +178,7 @@ Available Issues                             |  Category                        
   MissingNullability                         |  api_lint                             |   error
   MissingPermission                          |  documentation                        |   error
   MissingRequiredAttribute                   |  api_lint                             |   error
+  MultipleFlagging                           |  api_lint                             |   error
   MultipleThreadAnnotations                  |  documentation                        |   error
   MutableBareField                           |  api_lint                             |   error
   NoByteOrShort                              |  api_lint                             |   warning
