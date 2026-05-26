@@ -105,13 +105,6 @@ Usage: metalava help signature-file-formats
 
   `nested-classes` - they are inherited onto nested classes that do not have their own `@FlaggedApi` annotation.
 
-  * `hidden-member-inheritance = legacy|consistent` - Specifies when members of hidden classes are inherited in
-  signature files.
-
-  `legacy` (default) - legacy behavior that is inconsistent.
-
-  `consistent` - consistent inheritance.
-
   * `include-default-parameter-values = yes|no` - If `no` then the signature file will not include any information about
   default parameter values. If `yes` then it will use the pseudo modifier `optional` to indicate a parameter that has a
   default value.

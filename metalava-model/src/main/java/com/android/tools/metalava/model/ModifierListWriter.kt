@@ -517,12 +517,3 @@ enum class FlaggedApiInheritance {
      */
     NESTED_CLASSES,
 }
-
-/** Determines how members of hidden classes are inherited in signature files. */
-enum class HiddenMemberInheritance {
-    /** Inconsistent legacy behavior. */
-    LEGACY,
-
-    /** Consistent inheritance of hidden members. */
-    CONSISTENT,
-}

@@ -26,7 +26,6 @@ private val FILE_FORMAT_PROPERTY_NAMES =
     listOf(
         "add-additional-overrides",
         "flagged-api-inheritance",
-        "hidden-member-inheritance",
         "include-default-parameter-values",
         "include-type-use-annotations",
         "java-record-classes",

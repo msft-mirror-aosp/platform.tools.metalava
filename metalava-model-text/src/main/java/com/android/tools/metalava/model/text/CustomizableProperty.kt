@@ -17,7 +17,6 @@
 package com.android.tools.metalava.model.text
 
 import com.android.tools.metalava.model.FlaggedApiInheritance
-import com.android.tools.metalava.model.HiddenMemberInheritance
 import com.android.tools.metalava.model.StripJavaLangPrefix
 import com.android.tools.metalava.model.text.FileFormat.Builder
 import com.android.tools.metalava.model.text.FileFormat.Companion.parseSpecifier
@@ -246,20 +245,6 @@ private constructor(
 
                         `nested-classes` - they are inherited onto nested classes that do not have
                         their own `@FlaggedApi` annotation.
-                    """,
-            )
-
-        val HIDDEN_MEMBER_INHERITANCE by
-            enumProperty<HiddenMemberInheritance>(
-                defaultable = true,
-                defaultValue = HiddenMemberInheritance.CONSISTENT,
-                help =
-                    """
-                        Specifies when members of hidden classes are inherited in signature files.
-
-                        `legacy` (default) - legacy behavior that is inconsistent.
-
-                        `consistent` - consistent inheritance.
                     """,
             )
 
