@@ -57,6 +57,7 @@ import com.android.tools.metalava.model.ClassPathResolver
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.CodebaseFragment
 import com.android.tools.metalava.model.DelegatedVisitor
+import com.android.tools.metalava.model.HiddenMemberInheritance
 import com.android.tools.metalava.model.annotation.DefaultAnnotationManager
 import com.android.tools.metalava.model.multiplatform.MultiplatformCodebase
 import com.android.tools.metalava.model.snapshot.NonFilteringDelegatingVisitor
@@ -64,6 +65,7 @@ import com.android.tools.metalava.model.source.EnvironmentManager
 import com.android.tools.metalava.model.source.SourceParser
 import com.android.tools.metalava.model.source.SourceSet
 import com.android.tools.metalava.model.text.CustomizableProperty.Companion.ADD_ADDITIONAL_OVERRIDES
+import com.android.tools.metalava.model.text.CustomizableProperty.Companion.HIDDEN_MEMBER_INHERITANCE
 import com.android.tools.metalava.model.text.CustomizableProperty.Companion.JAVA_RECORD_CLASSES
 import com.android.tools.metalava.model.text.CustomizableProperty.Companion.JAVA_SEALED_CLASSES
 import com.android.tools.metalava.model.text.FileFormat
@@ -242,6 +244,14 @@ class Driver(
                 // TODO(b/510724278): Remove, or use something else when AndroidX uses
                 //  --api-surface.
                 hideItemsOnClassPath = apiSelectionOptions.apiSurface == null,
+
+                // If hidden-member-inheritance=consistent then do not inherit fields in
+                // ClassItem.filteredFields(...) irrespective of the value of the
+                // `inlineInheritedFields` parameter as it will be done in
+                // ApiAnalyzer.inheritHiddenAspects().
+                honorInlineInheritedFieldsInFilteredFields =
+                    signatureFormatOptions.fileFormat[HIDDEN_MEMBER_INHERITANCE] !=
+                        HiddenMemberInheritance.CONSISTENT,
             )
         }
 

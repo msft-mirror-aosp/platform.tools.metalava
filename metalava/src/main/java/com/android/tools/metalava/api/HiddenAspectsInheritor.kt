@@ -19,9 +19,11 @@ package com.android.tools.metalava.api
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.Codebase
+import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.FilterPredicate
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.SelectableItem
+import com.android.tools.metalava.model.SkeletonClassItem
 import com.android.tools.metalava.reporter.Issues
 import java.util.IdentityHashMap
 
@@ -41,7 +43,8 @@ import java.util.IdentityHashMap
 class HiddenAspectsInheritor(
     private val codebase: Codebase,
     private val filterEmit: FilterPredicate,
-    private val filterReference: FilterPredicate
+    private val filterReference: FilterPredicate,
+    private val inheritHiddenConstants: Boolean,
 ) {
     private val reporter = codebase.reporter
 
@@ -56,6 +59,10 @@ class HiddenAspectsInheritor(
         val allClasses = packages.allClasses().toList()
 
         inheritHiddenInterfacesAndConcreteClasses(allClasses)
+
+        if (inheritHiddenConstants) {
+            inheritHiddenConstants(allClasses)
+        }
     }
 
     /**
@@ -321,6 +328,96 @@ class HiddenAspectsInheritor(
             existingMethods.add(method)
         }
     }
+
+    /**
+     * For each [ClassItem] in [allClasses], inherit hidden interfaces and concrete methods that
+     * implement public interface methods from any of their hidden super types.
+     */
+    private fun inheritHiddenConstants(allClasses: List<ClassItem>) {
+        // Visit all the concrete classes checking to see whether it should inherit any hidden
+        // methods or interfaces.
+        for (classItem in allClasses) {
+            // If it is not a class, i.e. an interface, etc., then ignore it.
+            if (!classItem.isClass()) continue
+
+            inheritHiddenConstants(classItem)
+        }
+    }
+
+    /** Return true if this is a public constant. */
+    private fun FieldItem.isPublicConstant() =
+        modifiers.isStatic() && modifiers.isFinal() && modifiers.isPublic()
+
+    /** Add inherited hidden constants, if any, from [superTypeClass] to [targetClassItem]. */
+    private fun FieldItemSet.addInheritedHiddenConstantsFromSuperType(
+        targetClassItem: ClassItem,
+        superTypeClass: ClassItem,
+    ) {
+        // Do not inherit fields from classes that are in the API.
+        if (filterReference.test(superTypeClass)) return
+
+        for (fieldItem in superTypeClass.fields()) {
+            // If the field is a public constant and not hidden then try and inherit it into this
+            // class.
+            if (fieldItem.isPublicConstant() && !fieldItem.originallyHidden) {
+                // Create a duplicate of the field in this class.
+                val duplicate = fieldItem.duplicate(targetClassItem)
+
+                // Only add it if it is going to be part of the API.
+                if (filterReference.test(duplicate)) {
+                    add(duplicate)
+                }
+            }
+        }
+    }
+
+    /** Inherit hidden constants into [cls], if necessary. */
+    private fun inheritHiddenConstants(cls: ClassItem) {
+        // Do not inherit fields into classes that are not in the API.
+        if (!filterReference.test(cls)) return
+
+        // Find the first super class of this class which is not hidden. This class should not
+        // add any fields that will be added to that class. If there is no such super class then
+        // there is nothing to do.
+        val closestNonHiddenAncestor =
+            generateSequence(cls.superClass()) { it.superClass() }
+                .firstOrNull { filterReference.test(it) } ?: return
+
+        // Compute the set of fields to be inherited.
+        val inheritedFields =
+            FieldItemSet()
+                .apply {
+                    // Compute the set of interfaces from which this class could inherit constants.
+                    // That is all the interfaces this class implements (directly, or indirectly)
+                    // minus those implemented (directly or indirectly) by its closest, non-hidden
+                    // ancestor.
+                    val extraInterfaces =
+                        cls.allInterfaces().toSet() -
+                            closestNonHiddenAncestor.allInterfaces().toSet()
+
+                    // Add fields from the interfaces first so they can be overridden by those from
+                    // the super class if necessary.
+                    for (interfaceClass in extraInterfaces) {
+                        addInheritedHiddenConstantsFromSuperType(cls, interfaceClass)
+                    }
+
+                    // Super class fields override interface fields.
+                    cls.superClass()?.let { superClass ->
+                        addInheritedHiddenConstantsFromSuperType(cls, superClass)
+                    }
+
+                    // Remove any fields that conflict with the current class fields.
+                    for (fieldItem in cls.fields()) {
+                        remove(fieldItem)
+                    }
+                }
+                .values
+
+        // Add the inherited fields to this class.
+        for (fieldItem in inheritedFields) {
+            (cls as SkeletonClassItem).addField(fieldItem)
+        }
+    }
 }
 
 /**
@@ -369,6 +466,29 @@ private fun MethodItemSet.removeMatchingMethods(method: MethodItem) {
             iterator.remove()
         }
     }
+}
+
+/**
+ * A set of [FieldItem]s.
+ *
+ * This is implemented as a [MutableMap] from the [FieldItem.name] to the [FieldItem] with that
+ * name.
+ */
+private typealias FieldItemSet = HashMap<String, FieldItem>
+
+/**
+ * Add a field to the set.
+ *
+ * This does not check to see if the [FieldItem] exists already so it is possible that it will
+ * replace an existing field.
+ */
+private fun FieldItemSet.add(field: FieldItem) {
+    this[field.name()] = field
+}
+
+/** Remove a field from the set. */
+private fun FieldItemSet.remove(field: FieldItem) {
+    remove(field.name())
 }
 
 /** A set of unique [ClassItem]s matched by their identity. */

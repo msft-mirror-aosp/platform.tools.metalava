@@ -225,6 +225,10 @@ class ApiAnalyzer(
                 codebase,
                 filterEmit,
                 filterReference,
+                // Inline hidden constants in HiddenAspectsInheritor if it is not supported in
+                // ClassItem.filteredFields(...).
+                inheritHiddenConstants =
+                    !codebase.config.honorInlineInheritedFieldsInFilteredFields,
             )
         hiddenAspectsInheritor.inheritHiddenAspects()
     }

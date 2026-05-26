@@ -318,7 +318,6 @@ class ParameterizedHiddenConstantInheritanceTest : DriverTest() {
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class SystemClass extends test.pkg.PublicClass implements test.pkg.SystemInterface {
                     SystemClass() { throw new RuntimeException("Stub!"); }
-                    public static final java.lang.String HIDDEN_INTERFACE_CONSTANT = "HiddenInterface";
                     public static final java.lang.String OVERLAPPING_CONSTANT = "SystemClass";
                     public static final java.lang.String OVERLAPPING_PUBLIC_SYSTEM_BRIDGE_CONSTANT = "PublicSystemBridgeClass";
                     public static final java.lang.String PUBLIC_SYSTEM_BRIDGE_CLASS_CONSTANT = "PublicSystemBridgeClass";
@@ -336,11 +335,8 @@ class ParameterizedHiddenConstantInheritanceTest : DriverTest() {
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class ModuleClass extends test.pkg.SystemClass implements test.pkg.ModuleInterface, test.pkg.SystemInterface {
                     ModuleClass() { throw new RuntimeException("Stub!"); }
-                    public static final java.lang.String HIDDEN_INTERFACE_CONSTANT = "HiddenInterface";
                     public static final java.lang.String MODULE_CLASS_CONSTANT = "ModuleClass";
                     public static final java.lang.String OVERLAPPING_CONSTANT = "ModuleClass";
-                    public static final java.lang.String OVERLAPPING_PUBLIC_SYSTEM_BRIDGE_CONSTANT = "PublicSystemBridgeInterface";
-                    public static final java.lang.String PUBLIC_SYSTEM_BRIDGE_INTERFACE_CONSTANT = "PublicSystemBridgeInterface";
                     }
                 """
             )
@@ -429,6 +425,9 @@ class ParameterizedHiddenConstantInheritanceTest : DriverTest() {
                             package test.pkg {
                               public class SystemClass extends test.pkg.PublicClass implements test.pkg.SystemInterface {
                                 field public static final String OVERLAPPING_CONSTANT = "SystemClass";
+                                field public static final String OVERLAPPING_PUBLIC_SYSTEM_BRIDGE_CONSTANT = "PublicSystemBridgeClass";
+                                field public static final String PUBLIC_SYSTEM_BRIDGE_CLASS_CONSTANT = "PublicSystemBridgeClass";
+                                field public static final String PUBLIC_SYSTEM_BRIDGE_INTERFACE_CONSTANT = "PublicSystemBridgeInterface";
                                 field public static final String SYSTEM_CLASS_CONSTANT = "SystemClass";
                               }
                               public interface SystemInterface extends test.pkg.PublicInterface {
