@@ -909,7 +909,10 @@ class Driver(
         // methods can have annotations added and are checked properly.
         progressTracker.progress("Insert missing stubs methods: ")
         tracer.trace("analyzer.generateInheritedStubs") {
-            analyzer.generateInheritedStubs(apiEmitAndReference, apiEmitAndReference)
+            analyzer.inheritHiddenAspects(
+                apiEmitAndReference,
+                apiEmitAndReference,
+            )
         }
 
         tracer.trace("analyzer.mergeExternalQualifierAnnotations") {

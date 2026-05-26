@@ -209,26 +209,49 @@ class ApiAnalyzer(
             }
     }
 
-    fun generateInheritedStubs(filterEmit: FilterPredicate, filterReference: FilterPredicate) {
+    /**
+     * Inherit hidden aspects of the API.
+     *
+     * @param filterEmit determines which [SelectableItem] are part of the target API surface.
+     * @param filterReference determines which [SelectableItem]s are part of the target API surface
+     *   or any API surface it extends.
+     */
+    fun inheritHiddenAspects(
+        filterEmit: FilterPredicate,
+        filterReference: FilterPredicate,
+    ) {
         // When analyzing libraries we may discover some new classes during traversal; these aren't
         // part of the API but may be super classes or interfaces; these will then be added into the
         // package class lists, which could trigger a concurrent modification, so create a snapshot
         // of the class list and iterate over it:
         val allClasses = packages.allClasses().toList()
 
+        // Visit all the concrete classes checking to see whether it should inherit any hidden
+        // methods or interfaces.
         val visited = mutableSetOf<ClassItem>()
-        allClasses.forEach { generateInheritedStubs(it, filterEmit, filterReference, visited) }
+        for (classItem in allClasses) {
+            // If it is not a class, i.e. an interface, etc., then ignore it.
+            if (!classItem.isClass()) continue
+
+            inheritHiddenInterfacesAndConcreteMethods(
+                classItem,
+                filterEmit,
+                filterReference,
+                visited,
+            )
+        }
     }
 
-    private fun generateInheritedStubs(
+    /**
+     * For [ClassItem], inherit hidden interfaces and concrete methods that implement public
+     * interface methods from any of its hidden super types.
+     */
+    private fun inheritHiddenInterfacesAndConcreteMethods(
         cls: ClassItem,
         filterEmit: FilterPredicate,
         filterReference: FilterPredicate,
         visited: MutableSet<ClassItem>,
     ) {
-        // If it is not a class, i.e. an interface, etc., then return.
-        if (!cls.isClass()) return
-
         // If already visited this class then ignore it. Otherwise, remember that this was visited.
         if (cls in visited) return
         visited += cls
@@ -239,8 +262,8 @@ class ApiAnalyzer(
         // If the class is not going to be emitted then do not inherit any methods into it.
         if (!filterEmit.test(cls)) return
 
-        // Make sure that the super class has inherited the stubs and interfaces.
-        generateInheritedStubs(superClass, filterEmit, filterReference, visited)
+        // Make sure that the super class has inherited the methods and interfaces.
+        inheritHiddenInterfacesAndConcreteMethods(superClass, filterEmit, filterReference, visited)
 
         val allSuperClasses = cls.allSuperClasses()
         val hiddenSuperClasses =
@@ -250,49 +273,96 @@ class ApiAnalyzer(
             return
         }
 
-        addInheritedStubsFrom(cls, hiddenSuperClasses, allSuperClasses, filterEmit, filterReference)
-        addInheritedInterfacesFrom(cls, hiddenSuperClasses, filterReference)
+        inheritConcreteMethodsFromHiddenClasses(
+            cls,
+            hiddenSuperClasses,
+            allSuperClasses,
+            filterEmit,
+            filterReference
+        )
+        inheritInterfacesFromHiddenSuperClasses(cls, hiddenSuperClasses, filterReference)
     }
 
-    private fun addInheritedInterfacesFrom(
+    /**
+     * Add any interfaces in the API (as determined by [filterReference]) from [hiddenSuperClasses]
+     * to [cls].
+     *
+     * e.g. if `PublicClass` class extends `HiddenClass` and `HiddenClass` implements
+     * `PublicInterface` then it will make `PublicClass` implement `PublicInterface`.
+     */
+    private fun inheritInterfacesFromHiddenSuperClasses(
         cls: ClassItem,
         hiddenSuperClasses: Sequence<ClassItem>,
         filterReference: FilterPredicate
     ) {
+        // Keep track of the interface types. If any new interfaces are added then this will be
+        // stored in [cls].
         var interfaceTypes: MutableList<ClassTypeItem>? = null
+
+        // Keep track of the interface classes that have been added. It avoids adding the same
+        // interface type multiple times.
         var interfaceTypeClasses: MutableList<ClassItem>? = null
+
+        // Iterate over all the hidden super classes.
         for (hiddenSuperClass in hiddenSuperClasses) {
-            for (hiddenInterface in hiddenSuperClass.interfaceTypes()) {
-                val hiddenInterfaceClass = hiddenInterface.resolveClass(codebase)
-                if (filterReference.test(hiddenInterfaceClass ?: continue)) {
-                    if (interfaceTypes == null) {
-                        interfaceTypes = cls.interfaceTypes().toMutableList()
-                        interfaceTypeClasses =
-                            interfaceTypes.mapNotNull { it.resolveClass(codebase) }.toMutableList()
-                        cls.setInterfaceTypes(interfaceTypes)
-                    }
-                    if (interfaceTypeClasses!!.any { it == hiddenInterfaceClass }) {
+            // For each hidden super class iterate over its interfaces.
+            for (interfaceType in hiddenSuperClass.interfaceTypes()) {
+                // For each interface type resolve it, ignoring it if it cannot be resolved.
+                val interfaceClass = interfaceType.resolveClass(codebase) ?: continue
+
+                // Ignore interfaces that are not part of the API.
+                if (!filterReference.test(interfaceClass)) continue
+
+                // Initialize the collections of interface type and classes, if needed.
+                if (interfaceTypes == null) {
+                    interfaceTypes = cls.interfaceTypes().toMutableList()
+                    interfaceTypeClasses =
+                        interfaceTypes.mapNotNull { it.resolveClass(codebase) }.toMutableList()
+
+                    // Store the mutable list of interface types in the class. Changes to the list
+                    // will affect the class.
+                    cls.setInterfaceTypes(interfaceTypes)
+                }
+
+                // If the interface class has already been added then ignore it.
+                if (interfaceTypeClasses!!.any { it == interfaceClass }) {
+                    continue
+                }
+
+                // Track that the interface class has been seen.
+                interfaceTypeClasses.add(interfaceClass)
+
+                // If necessary rewrite a generic interface type to use the correct type parameters.
+                // e.g. given:
+                //     public class StringContainer extends HiddenContainer<String> { ... }
+                //     @Hide public interface HiddenContainer<T> implements Container<T> { ... }
+                //     public interface Container<T> { ... }
+                //
+                // Then this will result in:
+                //     public class StringContainer
+                //         extends HiddenContainer<String>
+                //         implements Container>String> { ... }
+                //
+                if (interfaceClass.hasTypeVariables()) {
+                    val mapping = cls.mapTypeVariables(hiddenSuperClass)
+                    if (mapping.isNotEmpty()) {
+                        val mappedType = interfaceType.convertType(mapping)
+                        interfaceTypes.add(mappedType)
                         continue
                     }
-
-                    interfaceTypeClasses.add(hiddenInterfaceClass)
-
-                    if (hiddenInterfaceClass.hasTypeVariables()) {
-                        val mapping = cls.mapTypeVariables(hiddenSuperClass)
-                        if (mapping.isNotEmpty()) {
-                            val mappedType = hiddenInterface.convertType(mapping)
-                            interfaceTypes.add(mappedType)
-                            continue
-                        }
-                    }
-
-                    interfaceTypes.add(hiddenInterface)
                 }
+
+                // Add the interface type to the list owned by the class.
+                interfaceTypes.add(interfaceType)
             }
         }
     }
 
-    private fun addInheritedStubsFrom(
+    /**
+     * Inherit concrete method implementations of public interface methods that are implemented in
+     * hidden classes and so will not otherwise be included in the API.
+     */
+    private fun inheritConcreteMethodsFromHiddenClasses(
         cls: ClassItem,
         hiddenSuperClasses: Sequence<ClassItem>,
         superClasses: Sequence<ClassItem>,
