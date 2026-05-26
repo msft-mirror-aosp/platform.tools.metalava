@@ -44,7 +44,6 @@ class HiddenAspectsInheritor(
     private val codebase: Codebase,
     private val filterEmit: FilterPredicate,
     private val filterReference: FilterPredicate,
-    private val inheritHiddenConstants: Boolean,
 ) {
     private val reporter = codebase.reporter
 
@@ -60,9 +59,7 @@ class HiddenAspectsInheritor(
 
         inheritHiddenInterfacesAndConcreteClasses(allClasses)
 
-        if (inheritHiddenConstants) {
-            inheritHiddenConstants(allClasses)
-        }
+        inheritHiddenConstants(allClasses)
     }
 
     /**
