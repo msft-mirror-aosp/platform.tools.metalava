@@ -30,7 +30,9 @@ import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.CodebaseFragment
 import com.android.tools.metalava.model.FilterPredicate
 import com.android.tools.metalava.model.PackageFilter
+import com.android.tools.metalava.model.visitors.ApiFilters
 import com.android.tools.metalava.model.visitors.ApiPredicate
+import com.android.tools.metalava.model.visitors.MatchOverridingMethodPredicate
 import com.android.tools.metalava.reporter.Reporter
 import com.google.common.base.Stopwatch
 import java.io.File
@@ -146,13 +148,28 @@ internal class StubGenerator(
 
         val localTimer = Stopwatch.createStarted()
 
+        val apiFilters =
+            if (codebase.preFiltered) {
+                null
+            } else {
+                val filterReference =
+                    ApiPredicate(
+                        includeDocOnly = isDocStubs,
+                        config = apiPredicateConfig.copy(ignoreShown = true),
+                    )
+                val filterEmit = MatchOverridingMethodPredicate(filterReference)
+
+                ApiFilters(
+                    emit = filterEmit,
+                    reference = filterReference,
+                )
+            }
+
         var codebaseFragment =
             CodebaseFragment.create(codebase) { delegate ->
                 createFilteringVisitorForStubs(
                     delegate = delegate,
-                    isDocStubs = isDocStubs,
-                    preFiltered = codebase.preFiltered,
-                    apiPredicateConfig = apiPredicateConfig,
+                    apiFilters = apiFilters,
                 )
             }
 
@@ -165,9 +182,7 @@ internal class StubGenerator(
                     referenceVisitorFactory = { delegate ->
                         createFilteringVisitorForStubs(
                             delegate = delegate,
-                            isDocStubs = isDocStubs,
-                            preFiltered = codebase.preFiltered,
-                            apiPredicateConfig = apiPredicateConfig,
+                            apiFilters = apiFilters,
                             ignoreEmit = true,
                         )
                     },

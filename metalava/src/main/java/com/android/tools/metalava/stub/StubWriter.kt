@@ -30,10 +30,8 @@ import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.item.ResourceFile
 import com.android.tools.metalava.model.visitors.ApiFilters
-import com.android.tools.metalava.model.visitors.ApiPredicate
 import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.android.tools.metalava.model.visitors.FilteringApiVisitor
-import com.android.tools.metalava.model.visitors.MatchOverridingMethodPredicate
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
 import java.io.BufferedWriter
@@ -300,26 +298,13 @@ internal class StubWriter(
  */
 fun createFilteringVisitorForStubs(
     delegate: DelegatedVisitor,
-    isDocStubs: Boolean,
-    preFiltered: Boolean,
-    apiPredicateConfig: ApiPredicate.Config,
+    apiFilters: ApiFilters?,
     ignoreEmit: Boolean = false,
 ): ItemVisitor {
-    val filterReference =
-        ApiPredicate(
-            includeDocOnly = isDocStubs,
-            config = apiPredicateConfig.copy(ignoreShown = true),
-        )
-    val filterEmit = MatchOverridingMethodPredicate(filterReference)
-    val apiFilters =
-        ApiFilters(
-            emit = filterEmit,
-            reference = filterReference,
-        )
     return FilteringApiVisitor(
         delegate = delegate,
-        apiFilters = apiFilters,
-        preFiltered = preFiltered,
+        apiFilters = apiFilters ?: ApiFilters.ALL,
+        preFiltered = apiFilters == null,
         ignoreEmit = ignoreEmit,
     )
 }
