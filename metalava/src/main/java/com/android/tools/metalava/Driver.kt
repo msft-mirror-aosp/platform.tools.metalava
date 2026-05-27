@@ -451,12 +451,14 @@ class Driver(
     private fun createApiSignatureFilesFromOptions(codebase: Codebase) {
         val fileFormat = signatureFormatOptions.fileFormat
 
+        val preFiltered = codebase.preFiltered
+
         val codebaseFragment =
             createSignatureFileFragment(
                 codebase,
                 fileFormat = fileFormat,
                 apiFilters = ApiType.PUBLIC_API.getApiFilters(apiPredicateConfig),
-                preFiltered = codebase.preFiltered,
+                preFiltered = preFiltered,
             )
 
         runApiChecksFromOptions(codebase) { _, previouslyReleasedCodebase ->
@@ -485,7 +487,7 @@ class Driver(
                     codebase,
                     fileFormat = fileFormat,
                     apiFilters = ApiType.REMOVED.getApiFilters(apiPredicateConfig),
-                    preFiltered = false,
+                    preFiltered = preFiltered,
                 )
 
             createOutputFileFromCodebaseFragment(
