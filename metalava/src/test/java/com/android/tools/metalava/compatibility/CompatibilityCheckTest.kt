@@ -4622,6 +4622,73 @@ class CompatibilityCheckTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
+    @Test
+    fun `Parameter kind check with super method loaded from classpath`() {
+        check(
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
+                        package test.pkg
+                        import test.other.Parent
+                        class Child: Parent() {
+                            override suspend fun foo() = Unit
+                        }
+                        """
+                    )
+                ),
+            /*
+             Generated from the following Kotlin file:
+             ```
+             package test.other
+             open class Parent {
+                 open suspend fun foo() = Unit
+             }
+             ````
+            */
+            classpath =
+                arrayOf(
+                    base64gzip(
+                        "classpath.jar",
+                        // kotlinc version info: kotlinc-jvm 2.3.20 (JRE 21.0.9+10-b1163.91)
+                        "" +
+                            "H4sIAAAAAAAA/wvwZmYRYeDg4GBg4FBkQAYiDCwMvq4hjrqefm76vo5+nm6u" +
+                            "wSF6vm7/TjEwfPY9c9rHW1fvIq+3rta5M+c3BxlcMX7wtEjPy1fH0/di6aot" +
+                            "QR+8dAu1vM6c0Q77cE7/5Mkzj58+esrEEODNzrFeWHO9JdACcyAOwGm9OBCX" +
+                            "pBaX6OeXZKQW6QckFqXmlegl5yQWF88Nvh0k7Chgu3n3zlwmloAnj3g7pRxu" +
+                            "NNhEsLo2VkRru3kLyFfMahEUmySbVT7tk2H8Q/YfrC+6p/GHdbnbn9qULuyV" +
+                            "pyrGf7t42+8vL1/euxe/v/4Pi0G7ZVucqtNTj626TM95+VvWByXw/JTdd36u" +
+                            "1fftc65flQ1UXn9yQsyHGn9doxlHP36VEfK4tWFC0oYr28SNvkw/v+Ks8M/m" +
+                            "KTzFRz+tCyk9X55lNGHipxpBK+1L6gKFTz3r6/bU7NJQtd+pkZv4quND3zuz" +
+                            "/RX7fBbqNOumu6/IOmBrX7Ljvbfo83Y/1VXXK7fqdZh9058VMstzjVzWCgG3" +
+                            "h/M+mN89Fjf3YeXHOef0L+bzVX65ZXDh+ATdKyqd3GdTd9ROlDr82zvm0f9l" +
+                            "022PeT6Ucr61ds063fCweUYlcwVOJHIcluRJalEMzMh3fS/4eGpAzWRtvy63" +
+                            "5PtLRE22GG5lZL59tWHa+R8vMkOUtlge3nAh69vNYwsSpX+GXTa7pMZ4OM/0" +
+                            "MnPz2mdrApP6g9vnTw67dWK2/u7P1zYEeu2x+LPFxU55/hWpzT6n028Jz7wX" +
+                            "umW9dlHwhXadyw5agYu1mkz3MvLUpkY+/loqV/Fr7+Mza6qi7cIDHSqe5Lpc" +
+                            "zua4fv+7U/+h0/XhLdfelEzJ+tQWoGThuDk8VeTKEWP/1fylRdfOv0icYnbw" +
+                            "0uFGT94L792+Me61rIoqUVPbp/jX9bxgcMrkjZcPmNyMmd3A86ZiR+SniMJP" +
+                            "JoY8Z+fN+NP3r9lilTHbrXt+bW7hBVOT/NbcbA1a7mQ+1/jLki+yVQ01Ufq6" +
+                            "gVt+KH/KlHytvU5+zq4ZlWt6WqXnGl3rNLKykl7sabOkuFPJfGVvtLRB7J0y" +
+                            "w1eP+I7FiBRcP2p75z4Dd+CRH2xBim8EhBWFFCcpbjI895cRlKQniegv6GNi" +
+                            "YHjDgi9JSwMxPEflJmbm6WXnl+Rk5sXn5qeU5qQmJyQkpAFxUsOFhAVHFhxl" +
+                            "AOeWcPnKK0JAjRLg3MLIJMKAMBw5J4GyKyrAlXnRTUF2vDiKCfW48yC6IcjO" +
+                            "lEYxJIgZr68DvFnZQMqYgfAKkF7LDOIBAJwTmgmXBAAA"
+                    )
+                ),
+            checkCompatibilityApiReleased =
+                """
+               // Signature format: 5.0
+               package test.pkg {
+                 public final class Child extends test.other.Parent {
+                   ctor public Child();
+                 }
+               }
+                """,
+        )
+    }
+
     // TODO: Check method signatures changing incompatibly (look especially out for adding new
     // overloaded methods and comparator getting confused!)
     //   ..equals on the method items should actually be very useful!
