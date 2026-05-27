@@ -652,19 +652,15 @@ interface ClassItem :
         includeParents: Boolean,
         target: ClassItem
     ): Set<ClassTypeItem> {
-        val superClassType = superClassType()
-        if (superClassType != null) {
-            val superClass = superClassType.resolveClass(codebase)
-            if (superClass != null) {
-                if (!predicate.test(superClass)) {
-                    superClass.filteredInterfaceTypes(
-                        predicate,
-                        types,
-                        true,
-                        includeParents,
-                        target
-                    )
-                }
+        superClass()?.let { superClass ->
+            if (!predicate.test(superClass)) {
+                superClass.filteredInterfaceTypes(
+                    predicate,
+                    types,
+                    true,
+                    includeParents,
+                    target,
+                )
             }
         }
         for (type in interfaceTypes()) {
