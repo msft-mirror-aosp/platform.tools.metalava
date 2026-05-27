@@ -664,17 +664,6 @@ interface ClassItem :
                         includeParents,
                         target
                     )
-                } else if (includeSelf && superClass.isInterface()) {
-                    types.add(superClassType)
-                    if (includeParents) {
-                        superClass.filteredInterfaceTypes(
-                            predicate,
-                            types,
-                            true,
-                            includeParents,
-                            target
-                        )
-                    }
                 }
             }
         }
