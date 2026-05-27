@@ -83,7 +83,6 @@ class JarToJDiffCommand :
                         createFilteringVisitorForJDiffWriter(
                             delegate,
                             apiFilters = apiFilters,
-                            preFiltered = false,
                         )
                     }
 

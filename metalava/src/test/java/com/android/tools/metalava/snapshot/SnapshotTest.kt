@@ -37,7 +37,6 @@ class SnapshotTest : DriverTest() {
         val factory: (DelegatedVisitor) -> ItemVisitor = {
             FilteringApiVisitor(
                 delegate = it,
-                preFiltered = false,
                 apiFilters = apiFilters,
             )
         }

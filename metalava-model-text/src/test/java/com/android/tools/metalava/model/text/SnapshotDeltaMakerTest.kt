@@ -19,7 +19,6 @@ package com.android.tools.metalava.model.text
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.CodebaseFragment
 import com.android.tools.metalava.model.snapshot.NonFilteringDelegatingVisitor
-import com.android.tools.metalava.model.visitors.ApiFilters
 import java.io.PrintWriter
 import java.io.StringWriter
 import kotlin.test.assertEquals
@@ -820,8 +819,8 @@ class SnapshotDeltaMakerTest : BaseTextCodebaseTest() {
                 createCodebaseFragmentForSignatureFile(
                     deltaCodebase,
                     fileFormat,
-                    apiFilters = ApiFilters.ALL,
-                    preFiltered = true,
+                    // Pre-filtered so does not need any filters.
+                    apiFilters = null,
                     showUnannotated = true,
                 )
             deltaFragment.accept(signatureWriter)

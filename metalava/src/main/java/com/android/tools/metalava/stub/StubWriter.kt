@@ -303,8 +303,7 @@ fun createFilteringVisitorForStubs(
 ): ItemVisitor {
     return FilteringApiVisitor(
         delegate = delegate,
-        apiFilters = apiFilters ?: ApiFilters.ALL,
-        preFiltered = apiFilters == null,
+        apiFilters = apiFilters,
         ignoreEmit = ignoreEmit,
     )
 }

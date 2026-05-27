@@ -138,7 +138,8 @@ class SignatureToJDiffCommand :
         val preFiltered = signatureApi.preFiltered && !strip
         val apiFilters =
             if (preFiltered) {
-                ApiFilters.ALL
+                // Pre-filtered so does not need any filters.
+                null
             } else {
                 val apiEmit = FilterPredicate { it.emit }
                 val apiReference = if (strip) apiEmit else FilterPredicate { true }
@@ -152,7 +153,6 @@ class SignatureToJDiffCommand :
                 createFilteringVisitorForJDiffWriter(
                     delegate,
                     apiFilters = apiFilters,
-                    preFiltered = preFiltered,
                     // Historically, the super class type has not been filtered when generating
                     // JDiff files, so do not filter here even though it could result in undefined
                     // types being included in the JDiff file.

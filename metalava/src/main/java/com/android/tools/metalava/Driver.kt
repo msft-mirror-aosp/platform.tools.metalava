@@ -363,7 +363,8 @@ class Driver(
         miscellaneousOptions.proguardFile?.let { proguard ->
             val apiFilters =
                 if (codebase.preFiltered) {
-                    ApiFilters.ALL
+                    // Pre-filtered so does not need any filters.
+                    null
                 } else {
                     val apiPredicateConfigIgnoreShown = apiPredicateConfig.copy(ignoreShown = true)
                     val apiReferenceIgnoreShown =
@@ -378,7 +379,6 @@ class Driver(
                     FilteringApiVisitor(
                         delegatedVisitor,
                         apiFilters = apiFilters,
-                        preFiltered = codebase.preFiltered,
                     )
                 }
 
@@ -462,7 +462,8 @@ class Driver(
         val preFiltered = codebase.preFiltered
         val apiFilters =
             if (preFiltered) {
-                ApiFilters.ALL
+                // Pre-filtered so does not need any filters.
+                null
             } else {
                 ApiType.PUBLIC_API.getApiFilters(apiPredicateConfig)
             }
@@ -472,7 +473,6 @@ class Driver(
                 codebase,
                 fileFormat = fileFormat,
                 apiFilters = apiFilters,
-                preFiltered = preFiltered,
             )
 
         runApiChecksFromOptions(codebase) { _, previouslyReleasedCodebase ->
@@ -498,7 +498,8 @@ class Driver(
         signatureFileOptions.removedApiFile?.let { apiSignatureFile ->
             val apiFilters =
                 if (preFiltered) {
-                    ApiFilters.ALL
+                    // Pre-filtered so does not need any filters.
+                    null
                 } else {
                     ApiType.REMOVED.getApiFilters(apiPredicateConfig)
                 }
@@ -508,7 +509,6 @@ class Driver(
                     codebase,
                     fileFormat = fileFormat,
                     apiFilters = apiFilters,
-                    preFiltered = preFiltered,
                 )
 
             createOutputFileFromCodebaseFragment(
@@ -530,15 +530,13 @@ class Driver(
     private fun createSignatureFileFragment(
         codebase: Codebase,
         fileFormat: FileFormat,
-        apiFilters: ApiFilters,
-        preFiltered: Boolean,
+        apiFilters: ApiFilters?,
     ): CodebaseFragment {
         var codebaseFragment =
             createCodebaseFragmentForSignatureFile(
                 codebase,
                 fileFormat = fileFormat,
                 apiFilters = apiFilters,
-                preFiltered = preFiltered,
                 showUnannotated = apiSelectionOptions.showUnannotated,
             )
 
@@ -700,7 +698,8 @@ class Driver(
                 fragmentCreator = { sourceSetCodebase ->
                     val apiFilters =
                         if (sourceSetCodebase.preFiltered) {
-                            ApiFilters.ALL
+                            // Pre-filtered so does not need any filters.
+                            null
                         } else {
                             ApiType.PUBLIC_API.getApiFilters(apiPredicateConfig)
                         }
@@ -709,7 +708,6 @@ class Driver(
                         sourceSetCodebase,
                         fileFormat = format,
                         apiFilters = apiFilters,
-                        preFiltered = sourceSetCodebase.preFiltered,
                     )
                 },
                 // Write the signature file for a [sourceSetCodebase] to the [outputFile].
@@ -760,7 +758,6 @@ class Driver(
                     FilteringApiVisitor(
                         delegate = delegatedVisitor,
                         apiFilters = ApiVisitor.defaultFilters(apiPredicateConfig),
-                        preFiltered = false,
                     )
                 }
 
@@ -790,7 +787,6 @@ class Driver(
                 FilteringApiVisitor(
                     delegate = delegatedVisitor,
                     apiFilters = apiFilters,
-                    preFiltered = false,
                 )
             }
         }

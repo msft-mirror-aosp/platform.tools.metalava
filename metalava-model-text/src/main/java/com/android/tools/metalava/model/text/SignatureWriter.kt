@@ -574,8 +574,7 @@ private fun getInterfacesInOrder(
 fun createCodebaseFragmentForSignatureFile(
     codebase: Codebase,
     fileFormat: FileFormat,
-    apiFilters: ApiFilters,
-    preFiltered: Boolean,
+    apiFilters: ApiFilters?,
     showUnannotated: Boolean,
 ) =
     CodebaseFragment.create(
@@ -586,7 +585,6 @@ fun createCodebaseFragmentForSignatureFile(
             delegate,
             fileFormat,
             apiFilters,
-            preFiltered,
             showUnannotated,
         )
     }
@@ -599,8 +597,7 @@ fun createCodebaseFragmentForSignatureFile(
 private fun createFilteringVisitorForSignatures(
     delegate: DelegatedVisitor,
     fileFormat: FileFormat,
-    apiFilters: ApiFilters,
-    preFiltered: Boolean,
+    apiFilters: ApiFilters?,
     showUnannotated: Boolean,
 ): ApiVisitor {
     val (interfaceListSorter, interfaceListComparator) =
@@ -611,7 +608,6 @@ private fun createFilteringVisitorForSignatures(
         interfaceListSorter = interfaceListSorter,
         interfaceListComparator = interfaceListComparator,
         apiFilters = apiFilters,
-        preFiltered = preFiltered,
         showUnannotated = showUnannotated,
     )
 }

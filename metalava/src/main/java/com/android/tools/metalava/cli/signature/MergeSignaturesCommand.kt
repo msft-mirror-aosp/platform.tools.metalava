@@ -27,7 +27,6 @@ import com.android.tools.metalava.model.text.ApiParseException
 import com.android.tools.metalava.model.text.SignatureFile
 import com.android.tools.metalava.model.text.SignatureWriter
 import com.android.tools.metalava.model.text.createCodebaseFragmentForSignatureFile
-import com.android.tools.metalava.model.visitors.ApiFilters
 import com.github.ajalt.clikt.parameters.arguments.argument
 import com.github.ajalt.clikt.parameters.arguments.multiple
 import com.github.ajalt.clikt.parameters.groups.provideDelegate
@@ -85,8 +84,8 @@ class MergeSignaturesCommand :
                 createCodebaseFragmentForSignatureFile(
                     codebase,
                     fileFormat = fileFormat,
-                    apiFilters = ApiFilters.ALL,
-                    preFiltered = true,
+                    // Pre-filtered so does not need any filters.
+                    apiFilters = null,
                     showUnannotated = false,
                 )
             createOutputFileFromCodebaseFragment(

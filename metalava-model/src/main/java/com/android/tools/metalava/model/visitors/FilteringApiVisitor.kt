@@ -73,8 +73,7 @@ class FilteringApiVisitor(
      * This is mutually exclusive with [interfaceListSorter].
      */
     private val interfaceListComparator: Comparator<TypeItem>? = null,
-    apiFilters: ApiFilters,
-    private val preFiltered: Boolean,
+    apiFilters: ApiFilters?,
     private val filterSuperClassType: Boolean = true,
     showUnannotated: Boolean = true,
     private val ignoreEmit: Boolean = false,
@@ -85,11 +84,14 @@ class FilteringApiVisitor(
         // Only `SelectableItem`s can be filtered separately, i.e. `ParameterItem`s will be included
         // if and only if their containing method is included.
         visitParameterItems = false,
-        apiFilters = apiFilters,
+        apiFilters = apiFilters ?: ApiFilters.ALL,
         showUnannotated = showUnannotated,
         targetLanguages = targetLanguages,
     ),
     ItemVisitor {
+
+    /** If no [apiFilters] have been provided then it has already been filtered. */
+    private val preFiltered = apiFilters == null
 
     /**
      * A [TypeTransformer] that will remove any type annotations for which [filterReference] returns
