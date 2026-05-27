@@ -26,8 +26,10 @@ import com.android.tools.metalava.model.MutableModifierList
 import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.createMutableModifiers
 import com.android.tools.metalava.model.hasAnnotation
+import org.jetbrains.kotlin.analysis.api.KaExperimentalApi
 import org.jetbrains.kotlin.analysis.api.symbols.KaCallableSymbol
 import org.jetbrains.kotlin.analysis.api.symbols.KaClassKind
+import org.jetbrains.kotlin.analysis.api.symbols.KaContextParameterSymbol
 import org.jetbrains.kotlin.analysis.api.symbols.KaDeclarationSymbol
 import org.jetbrains.kotlin.analysis.api.symbols.KaKotlinPropertySymbol
 import org.jetbrains.kotlin.analysis.api.symbols.KaNamedClassSymbol
@@ -216,7 +218,10 @@ internal class KaModifierFactory(private val processor: KaModuleProcessor) {
     }
 
     /** Creates modifiers for a class [symbol]. */
-    fun createForClass(symbol: KaNamedClassSymbol): MutableModifierList {
+    fun createForClass(
+        symbol: KaNamedClassSymbol,
+        containingClass: ClassItem?
+    ): MutableModifierList {
         val modifiers = createForDeclaration(symbol)
 
         if (symbol.isData) {
@@ -241,6 +246,12 @@ internal class KaModifierFactory(private val processor: KaModuleProcessor) {
             }
             KaSymbolModality.ABSTRACT -> modifiers.setAbstract(true)
             KaSymbolModality.OPEN -> modifiers.setFinal(false)
+        }
+
+        // In Java, a static class is a nested which does not have an instance of the outer class.
+        // The equivalent in Kotlin is a non-inner nested class.
+        if (!symbol.isInner && containingClass != null) {
+            modifiers.setStatic(true)
         }
 
         return modifiers
@@ -299,6 +310,11 @@ internal class KaModifierFactory(private val processor: KaModuleProcessor) {
 
     /** Creates modifiers for a receiver parameter (just visibility and annotations). */
     fun createForReceiverParameter(symbol: KaReceiverParameterSymbol): MutableModifierList {
+        return createForParameter(symbol)
+    }
+
+    @OptIn(KaExperimentalApi::class)
+    fun createForContextParameter(symbol: KaContextParameterSymbol): MutableModifierList {
         return createForParameter(symbol)
     }
 

@@ -72,7 +72,7 @@ class InlineAnnotationDocTest : DriverTest() {
                     )
                 ),
             docStubs = true,
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
@@ -122,7 +122,7 @@ class InlineAnnotationDocTest : DriverTest() {
                     )
                 ),
             docStubs = true,
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
@@ -198,7 +198,7 @@ class InlineAnnotationDocTest : DriverTest() {
                     ),
                 ),
             docStubs = true,
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """

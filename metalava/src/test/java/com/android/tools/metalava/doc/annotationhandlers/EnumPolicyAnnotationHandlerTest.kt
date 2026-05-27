@@ -44,6 +44,7 @@ class EnumPolicyAnnotationHandlerTest : DriverTest() {
                         import android.processor.devicepolicy.PolicyDefinition;
                         import android.processor.devicepolicy.EnumResolutionMechanism;
                         import android.processor.devicepolicy.AllowedDpcTypes;
+                        import android.processor.devicepolicy.AllowedRoles;
                         import static android.processor.devicepolicy.AllowedDpcTypes.ALLOWED;
                         import static android.processor.devicepolicy.AllowedDpcTypes.DISALLOWED;
 
@@ -56,13 +57,17 @@ class EnumPolicyAnnotationHandlerTest : DriverTest() {
                                 base = @PolicyDefinition(
                                     allowedScopes = {SCOPE_USER},
                                     affectedResource = RESOURCE_DEVICE_WIDE,
-                                    requiredPermission = "android.permission.ENUM_TEST",
+                                    requiredPermission = android.Manifest.permission.ENUM_TEST,
+                                    requiredCrossUserPermission = android.Manifest.permission.MANAGE_DEVICE_POLICY_ACROSS_USERS,
                                     allowedDpcTypes = @AllowedDpcTypes(
                                         deviceOwner = ALLOWED,
                                         managedProfileOwnerOfOrganizationOwnedDevice = ALLOWED,
                                         managedProfileOwnerOfPersonalOwnedDevice = DISALLOWED,
                                         profileOwnerOnUser0 = DISALLOWED,
                                         fullUserProfileOwner = ALLOWED
+                                    ),
+                                    allowedRoles = @AllowedRoles(
+                                        deviceController = AllowedRoles.ALLOWED
                                     )
                                 ),
                                 intDef = EnumPolicyValue.class,
@@ -76,7 +81,7 @@ class EnumPolicyAnnotationHandlerTest : DriverTest() {
                 ),
             checkCompilation = true,
             docStubs = true,
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
@@ -89,11 +94,19 @@ class EnumPolicyAnnotationHandlerTest : DriverTest() {
                          * <ul>
                          *   <li>Allowed Scopes:
                          *    <ul>
-                         *       <li>User</li>
+                         *       <li>User. Settable by:
+                         *         <ul>
+                         *           <li>Device Owner</li>
+                         *           <li>Managed Profile Owner (Of Organization Owned Device)</li>
+                         *           <li>Unaffiliated Full User Profile Owner</li>
+                         *           <li>Affiliated Full User Profile Owner</li>
+                         *         </ul>
+                         *       </li>
                          *     </ul>
                          *   </li>
                          *   <li>Affected Resource: Device Wide</li>
                          *   <li>Required Permission: {@link android.Manifest.permission#ENUM_TEST android.permission.ENUM_TEST}</li>
+                         *   <li>Required Cross User Permission: {@link android.Manifest.permission#MANAGE_DEVICE_POLICY_ACROSS_USERS android.permission.MANAGE_DEVICE_POLICY_ACROSS_USERS}</li>
                          *   <li>Allowed DPC Types:
                          *    <ul>
                          *       <li>Device Owner</li>
@@ -102,7 +115,109 @@ class EnumPolicyAnnotationHandlerTest : DriverTest() {
                          *       <li>Affiliated Full User Profile Owner</li>
                          *     </ul>
                          *   </li>
+                         *   <li>This policy can be set by holders of the device controller role</li>
                          *   <li>Resolution Mechanism: custom</li>
+                         *   <li>Enum policy values:
+                         *     <ul>
+                         *        <li>{@link android.processor.devicepolicy.EnumPolicyValues#ENUM_POLICY_VALUE_1} (default)</li>
+                         *        <li>{@link android.processor.devicepolicy.EnumPolicyValues#ENUM_POLICY_VALUE_2}</li>
+                         *     </ul>
+                         *   </li>
+                         * </ul>
+                         */
+                        public static final int POLICY_FIELD = 1;
+                        }
+                        """
+                    )
+                )
+        )
+    }
+
+    @Test
+    fun `Test EnumPolicyDefinition with most restrictive resolution mechanism generates docs with code references`() {
+        check(
+            sourceFiles =
+                arrayOf(
+                    ANDROID_MANIFEST_SOURCE,
+                    POLICY_DEFINITION_SOURCE,
+                    ENUM_POLICY_DEFINITION_SOURCE,
+                    intDefAnnotationSource,
+                    java(
+                        """
+                        package test.pkg;
+                        import android.processor.devicepolicy.EnumPolicyDefinition;
+                        import android.processor.devicepolicy.EnumPolicyValues.EnumPolicyValue;
+                        import android.processor.devicepolicy.PolicyDefinition;
+                        import android.processor.devicepolicy.EnumResolutionMechanism;
+                        import android.processor.devicepolicy.AllowedDpcTypes;
+                        import static android.processor.devicepolicy.AllowedDpcTypes.ALLOWED;
+                        import static android.processor.devicepolicy.AllowedDpcTypes.DISALLOWED;
+
+                        @Retention(RetentionPolicy.SOURCE)
+                        public class TestPolicy {
+                            private static final int SCOPE_USER = 1;
+                            private static final int RESOURCE_DEVICE_WIDE = 1;
+                            private static final int DEFAULT_VALUE = 1;
+                            @EnumPolicyDefinition(
+                                base = @PolicyDefinition(
+                                    allowedScopes = {SCOPE_USER},
+                                    affectedResource = RESOURCE_DEVICE_WIDE,
+                                    requiredPermission = android.Manifest.permission.ENUM_TEST,
+                                    requiredCrossUserPermission = android.Manifest.permission.MANAGE_DEVICE_POLICY_ACROSS_USERS,
+                                    allowedDpcTypes = @AllowedDpcTypes(
+                                        deviceOwner = ALLOWED,
+                                        managedProfileOwnerOfOrganizationOwnedDevice = ALLOWED,
+                                        managedProfileOwnerOfPersonalOwnedDevice = DISALLOWED,
+                                        profileOwnerOnUser0 = DISALLOWED,
+                                        fullUserProfileOwner = ALLOWED
+                                    )
+                                ),
+                                intDef = EnumPolicyValue.class,
+                                resolutionMechanism = @EnumResolutionMechanism(mostRestrictive = {1, 2}),
+                                defaultValue = DEFAULT_VALUE
+                            )
+                            public static final int POLICY_FIELD = 1;
+                        }
+                        """
+                    )
+                ),
+            checkCompilation = true,
+            docStubs = true,
+            expectedStubFiles =
+                arrayOf(
+                    java(
+                        """
+                        package test.pkg;
+                        @SuppressWarnings({"unchecked", "deprecation", "all"})
+                        public class TestPolicy {
+                        public TestPolicy() { throw new RuntimeException("Stub!"); }
+                        /**
+                         * <p>Policy Type: Enum</p>
+                         * <ul>
+                         *   <li>Allowed Scopes:
+                         *    <ul>
+                         *       <li>User. Settable by:
+                         *         <ul>
+                         *           <li>Device Owner</li>
+                         *           <li>Managed Profile Owner (Of Organization Owned Device)</li>
+                         *           <li>Unaffiliated Full User Profile Owner</li>
+                         *           <li>Affiliated Full User Profile Owner</li>
+                         *         </ul>
+                         *       </li>
+                         *     </ul>
+                         *   </li>
+                         *   <li>Affected Resource: Device Wide</li>
+                         *   <li>Required Permission: {@link android.Manifest.permission#ENUM_TEST android.permission.ENUM_TEST}</li>
+                         *   <li>Required Cross User Permission: {@link android.Manifest.permission#MANAGE_DEVICE_POLICY_ACROSS_USERS android.permission.MANAGE_DEVICE_POLICY_ACROSS_USERS}</li>
+                         *   <li>Allowed DPC Types:
+                         *    <ul>
+                         *       <li>Device Owner</li>
+                         *       <li>Managed Profile Owner (Of Organization Owned Device)</li>
+                         *       <li>Unaffiliated Full User Profile Owner</li>
+                         *       <li>Affiliated Full User Profile Owner</li>
+                         *     </ul>
+                         *   </li>
+                         *   <li>Resolution Mechanism: most restrictive: [{@link android.processor.devicepolicy.EnumPolicyValues#ENUM_POLICY_VALUE_1}, {@link android.processor.devicepolicy.EnumPolicyValues#ENUM_POLICY_VALUE_2}]</li>
                          *   <li>Enum policy values:
                          *     <ul>
                          *        <li>{@link android.processor.devicepolicy.EnumPolicyValues#ENUM_POLICY_VALUE_1} (default)</li>
@@ -124,6 +239,7 @@ class EnumPolicyAnnotationHandlerTest : DriverTest() {
         check(
             sourceFiles =
                 arrayOf(
+                    ANDROID_MANIFEST_SOURCE,
                     POLICY_DEFINITION_SOURCE,
                     ENUM_POLICY_DEFINITION_SOURCE,
                     intDefAnnotationSource,
@@ -147,6 +263,7 @@ class EnumPolicyAnnotationHandlerTest : DriverTest() {
                                     allowedScopes = {SCOPE_USER},
                                     affectedResource = RESOURCE_PER_USER,
                                     requiredPermission = "android.permission.DOES_NOT_EXIST",
+                                    requiredCrossUserPermission = android.Manifest.permission.MANAGE_DEVICE_POLICY_ACROSS_USERS,
                                     allowedDpcTypes = @AllowedDpcTypes(
                                         deviceOwner = ALLOWED,
                                         managedProfileOwnerOfOrganizationOwnedDevice = ALLOWED,
@@ -169,10 +286,10 @@ class EnumPolicyAnnotationHandlerTest : DriverTest() {
             expectedFail = DefaultLintErrorMessage,
             expectedIssues =
                 """
-                    src/test/pkg/TestPolicy.java:31: error: Cannot find permission field for android.permission.DOES_NOT_EXIST required by field TestPolicy.POLICY_FIELD (may be hidden or removed) [InvalidDevicePolicyAnnotation]
-                    src/test/pkg/TestPolicy.java:31: error: Missing required field 'resolutionMechanism' inside field TestPolicy.POLICY_FIELD [InvalidDevicePolicyAnnotation]
+                    src/test/pkg/TestPolicy.java:32: error: Cannot find permission field for android.permission.DOES_NOT_EXIST required by field TestPolicy.POLICY_FIELD (may be hidden or removed) [InvalidDevicePolicyAnnotation]
+                    src/test/pkg/TestPolicy.java:32: error: Missing required field 'resolutionMechanism' inside field TestPolicy.POLICY_FIELD [InvalidDevicePolicyAnnotation]
                 """,
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
@@ -185,11 +302,21 @@ class EnumPolicyAnnotationHandlerTest : DriverTest() {
                          * <ul>
                          *   <li>Allowed Scopes:
                          *    <ul>
-                         *       <li>User</li>
+                         *       <li>User. Settable by:
+                         *         <ul>
+                         *           <li>Device Owner</li>
+                         *           <li>Managed Profile Owner (Of Organization Owned Device)</li>
+                         *           <li>Managed Profile Owner (Of Personally Owned Device)</li>
+                         *           <li>Unaffiliated Full User Profile Owner</li>
+                         *           <li>Profile Owner on User 0</li>
+                         *           <li>Affiliated Full User Profile Owner</li>
+                         *         </ul>
+                         *       </li>
                          *     </ul>
                          *   </li>
                          *   <li>Affected Resource: Per User</li>
                          *   <li>Required Permission: android.permission.DOES_NOT_EXIST</li>
+                         *   <li>Required Cross User Permission: {@link android.Manifest.permission#MANAGE_DEVICE_POLICY_ACROSS_USERS android.permission.MANAGE_DEVICE_POLICY_ACROSS_USERS}</li>
                          *   <li>Allowed DPC Types:
                          *    <ul>
                          *       <li>Device Owner</li>

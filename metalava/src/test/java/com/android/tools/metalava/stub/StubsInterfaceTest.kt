@@ -441,7 +441,7 @@ class StubsInterfaceTest : AbstractStubsTest() {
                     """
                     )
                 ),
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
@@ -522,7 +522,7 @@ class StubsInterfaceTest : AbstractStubsTest() {
                     """
                     )
                 ),
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2023 The Android Open Source Project
+ * Copyright (C) 2026 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.android.tools.metalava.model.testsuite.methoditem
+package com.android.tools.metalava.model.testsuite.parameteritem
 
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.provider.InputFormat
@@ -24,6 +24,7 @@ import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.testing.KnownSourceFiles
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
+import com.google.common.truth.Truth.assertThat
 import com.google.common.truth.Truth.assertWithMessage
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -680,6 +681,99 @@ class CommonParameterItemTest : BaseModelTest() {
             val parameter =
                 codebase.assertClass("test.pkg.Foo").methods().single().parameters().single()
             assertEquals("hasDefaultValue", true, parameter.hasDefaultValue())
+        }
+    }
+
+    @SupportedInputFormats(InputFormat.KOTLIN)
+    @Test
+    fun `Test hasDefaultValue on function with receiver param`() {
+        runCodebaseTest(
+            kotlin(
+                """
+                package test.pkg
+                class Foo {
+                    fun String.withReceiver(v1: String = "", v2: String) = Unit
+                }
+                """
+            )
+        ) {
+            val fooClass = codebase.assertClass("test.pkg.Foo")
+            val withReceiverParameters =
+                fooClass
+                    .assertMethod(
+                        "withReceiver",
+                        listOf("java.lang.String", "java.lang.String", "java.lang.String")
+                    )
+                    .parameters()
+            // receiver parameter
+            assertThat(withReceiverParameters[0].hasDefaultValue()).isFalse()
+            // value parameters
+            assertThat(withReceiverParameters[1].hasDefaultValue()).isTrue()
+            assertThat(withReceiverParameters[2].hasDefaultValue()).isFalse()
+        }
+    }
+
+    @SupportedInputFormats(InputFormat.KOTLIN)
+    @Test
+    fun `Test hasDefaultValue on function with contination param`() {
+        runCodebaseTest(
+            kotlin(
+                """
+                package test.pkg
+                class Foo {
+                    suspend fun withContinuation(v1: String = "", v2: String) = Unit
+                }
+                """
+            )
+        ) {
+            val fooClass = codebase.assertClass("test.pkg.Foo")
+            val withContinuationParameters =
+                fooClass
+                    .assertMethod(
+                        "withContinuation",
+                        listOf(
+                            "java.lang.String",
+                            "java.lang.String",
+                            "kotlin.coroutines.Continuation<? super kotlin.Unit>"
+                        )
+                    )
+                    .parameters()
+            // value parameters
+            assertThat(withContinuationParameters[0].hasDefaultValue()).isTrue()
+            assertThat(withContinuationParameters[1].hasDefaultValue()).isFalse()
+            // continuation parameter
+            assertThat(withContinuationParameters[2].hasDefaultValue()).isFalse()
+        }
+    }
+
+    @SupportedInputFormats(InputFormat.KOTLIN)
+    @Test
+    fun `Test hasDefaultValue on function with context params`() {
+        runCodebaseTest(
+            kotlin(
+                """
+                package test.pkg
+                class Foo {
+                    context(c1: String, c2: Int)
+                    fun withContext(v1: String = "", v2: String) = Unit
+                }
+                """
+            )
+        ) {
+            val fooClass = codebase.assertClass("test.pkg.Foo")
+            val withContextParameters =
+                fooClass
+                    .assertMethod(
+                        "withContext",
+                        listOf("java.lang.String", "int", "java.lang.String", "java.lang.String")
+                    )
+                    .parameters()
+            // context parameters
+            assertThat(withContextParameters[0].hasDefaultValue()).isFalse()
+            assertThat(withContextParameters[1].hasDefaultValue()).isFalse()
+            // value parameters
+            assertThat(withContextParameters[2].hasDefaultValue()).isTrue()
+            assertThat(withContextParameters[3].hasDefaultValue()).isFalse()
         }
     }
 

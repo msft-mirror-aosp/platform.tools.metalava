@@ -38,6 +38,7 @@ class ListOfPackagePolicyAnnotationHandlerTest : DriverTest() {
                         import android.processor.devicepolicy.ListResolutionMechanism;
                         import android.processor.devicepolicy.PolicyDefinition;
                         import android.processor.devicepolicy.AllowedDpcTypes;
+                        import android.processor.devicepolicy.AllowedRoles;
                         import static android.processor.devicepolicy.AllowedDpcTypes.ALLOWED;
 
                         @Retention(RetentionPolicy.SOURCE)
@@ -61,6 +62,9 @@ class ListOfPackagePolicyAnnotationHandlerTest : DriverTest() {
                                         managedProfileOwnerOfPersonalOwnedDevice = ALLOWED,
                                         profileOwnerOnUser0 = ALLOWED,
                                         fullUserProfileOwner = ALLOWED
+                                    ),
+                                    allowedRoles = @AllowedRoles(
+                                        deviceController = AllowedRoles.ALLOWED
                                     )
                                 ),
                                 emptyListAllowed = true,
@@ -74,7 +78,7 @@ class ListOfPackagePolicyAnnotationHandlerTest : DriverTest() {
                 ),
             checkCompilation = true,
             docStubs = true,
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
@@ -91,7 +95,16 @@ class ListOfPackagePolicyAnnotationHandlerTest : DriverTest() {
                          * <ul>
                          *   <li>Allowed Scopes:
                          *    <ul>
-                         *       <li>User</li>
+                         *       <li>User. Settable by:
+                         *         <ul>
+                         *           <li>Device Owner</li>
+                         *           <li>Managed Profile Owner (Of Organization Owned Device)</li>
+                         *           <li>Managed Profile Owner (Of Personally Owned Device)</li>
+                         *           <li>Unaffiliated Full User Profile Owner</li>
+                         *           <li>Profile Owner on User 0</li>
+                         *           <li>Affiliated Full User Profile Owner</li>
+                         *         </ul>
+                         *       </li>
                          *     </ul>
                          *   </li>
                          *   <li>Affected Resource: Device Wide</li>
@@ -106,6 +119,7 @@ class ListOfPackagePolicyAnnotationHandlerTest : DriverTest() {
                          *       <li>Affiliated Full User Profile Owner</li>
                          *     </ul>
                          *   </li>
+                         *   <li>This policy can be set by holders of the device controller role</li>
                          *   <li>Resolution Mechanism: custom</li>
                          *   <li>Empty list: Allowed</li>
                          *   <li>Max list length: 10</li>
@@ -160,7 +174,7 @@ class ListOfPackagePolicyAnnotationHandlerTest : DriverTest() {
                 ),
             checkCompilation = true,
             docStubs = true,
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
@@ -173,7 +187,16 @@ class ListOfPackagePolicyAnnotationHandlerTest : DriverTest() {
                          * <ul>
                          *   <li>Allowed Scopes:
                          *    <ul>
-                         *       <li>User</li>
+                         *       <li>User. Settable by:
+                         *         <ul>
+                         *           <li>Device Owner</li>
+                         *           <li>Managed Profile Owner (Of Organization Owned Device)</li>
+                         *           <li>Managed Profile Owner (Of Personally Owned Device)</li>
+                         *           <li>Unaffiliated Full User Profile Owner</li>
+                         *           <li>Profile Owner on User 0</li>
+                         *           <li>Affiliated Full User Profile Owner</li>
+                         *         </ul>
+                         *       </li>
                          *     </ul>
                          *   </li>
                          *   <li>Affected Resource: Device Wide</li>
@@ -189,7 +212,7 @@ class ListOfPackagePolicyAnnotationHandlerTest : DriverTest() {
                          *     </ul>
                          *   </li>
                          *   <li>Empty list: Not allowed</li>
-                         *   <li>Max list length: No limit</li>
+                         *   <li>Max list length: 10000</li>
                          * </ul>
                          */
                         public static final java.lang.String POLICY_FIELD = "";

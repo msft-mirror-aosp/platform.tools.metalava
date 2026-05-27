@@ -86,7 +86,6 @@ class JarToJDiffCommand :
                             delegate,
                             apiFilters = apiFilters,
                             preFiltered = false,
-                            showUnannotated = false,
                         )
                     }
 

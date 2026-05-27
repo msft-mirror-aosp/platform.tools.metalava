@@ -49,6 +49,7 @@ Signature Format Output:
                                              `<property>` is one of the following:
                                              * `add-additional-overrides`
                                              * `flagged-api-inheritance`
+                                             * `hidden-member-inheritance`
                                              * `java-record-classes`
                                              * `java-sealed-classes`
                                              * `normalize-abstract-modifier`
@@ -299,7 +300,7 @@ class SignatureFormatOptionsTest :
     }
 
     @Test
-    fun `--format specifier unknown value (include-default-parameter-values)`() {
+    fun `--format specifier unknown value - include-default-parameter-values`() {
         runTest("--format", "2.0:include-default-parameter-values=barf") {
             assertEquals(
                 """Invalid value for "--format": unexpected value for include-default-parameter-values, found 'barf', expected one of 'yes' or 'no'""",
@@ -309,7 +310,7 @@ class SignatureFormatOptionsTest :
     }
 
     @Test
-    fun `--format specifier unknown value (kotlin-style-nulls)`() {
+    fun `--format specifier unknown value - kotlin-style-nulls`() {
         runTest("--format", "2.0:kotlin-style-nulls=barf") {
             assertEquals(
                 """Invalid value for "--format": unexpected value for kotlin-style-nulls, found 'barf', expected one of 'yes' or 'no'""",
@@ -319,7 +320,7 @@ class SignatureFormatOptionsTest :
     }
 
     @Test
-    fun `--format specifier unknown value (overloaded-method-order)`() {
+    fun `--format specifier unknown value - overloaded-method-order`() {
         runTest("--format", "2.0:overloaded-method-order=barf") {
             assertEquals(
                 """Invalid value for "--format": unexpected value for overloaded-method-order, found 'barf', expected one of 'source' or 'signature'""",

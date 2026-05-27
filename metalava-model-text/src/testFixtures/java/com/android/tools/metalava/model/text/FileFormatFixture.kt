@@ -26,6 +26,7 @@ private val FILE_FORMAT_PROPERTY_NAMES =
     listOf(
         "add-additional-overrides",
         "flagged-api-inheritance",
+        "hidden-member-inheritance",
         "include-default-parameter-values",
         "include-type-use-annotations",
         "java-record-classes",
@@ -55,3 +56,6 @@ val FORMAT_V6_WITHOUT_JAVA_RECORD_CLASSES =
 
 val FORMAT_V6_WITH_JAVA_SEALED_CLASSES =
     FORMAT_V6_WITH_JAVA_STYLE.buildCopy { this[JAVA_SEALED_CLASSES] = true }
+
+val FORMAT_V6_WITHOUT_JAVA_SEALED_CLASSES =
+    FORMAT_V6_WITH_JAVA_STYLE.buildCopy { this[JAVA_SEALED_CLASSES] = false }

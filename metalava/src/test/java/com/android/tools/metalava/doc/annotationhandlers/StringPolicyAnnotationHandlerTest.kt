@@ -36,34 +36,39 @@ class StringPolicyAnnotationHandlerTest : DriverTest() {
                         import android.processor.devicepolicy.StringPolicyDefinition;
                         import android.processor.devicepolicy.PolicyDefinition;
                         import android.processor.devicepolicy.AllowedDpcTypes;
+                        import android.processor.devicepolicy.AllowedRoles;
                         import static android.processor.devicepolicy.AllowedDpcTypes.ALLOWED;
+                        import static android.processor.devicepolicy.AllowedDpcTypes.DISALLOWED;
 
                         @Retention(RetentionPolicy.SOURCE)
                         public class TestPolicy {
                             private static final int SCOPE_USER = 1;
+                            private static final int SCOPE_DEVICE = 2;
                             private static final int RESOURCE_DEVICE_WIDE = 1;
-                            private static final int DEFAULT_VALUE = 1;
                           /**
-                           * A test policy for string policy definition.
-                           *
-                           * Some other human handwritten comments.
+                           * A test policy for string policy definition with multiple scopes.
                            */
                             @StringPolicyDefinition(
                                 base = @PolicyDefinition(
                                     allowedScopes = {SCOPE_USER},
                                     affectedResource = RESOURCE_DEVICE_WIDE,
-                                    requiredPermission = "android.permission.TEST",
+                                    requiredPermission = android.Manifest.permission.TEST,
+                                    requiredCrossUserPermission = android.Manifest.permission.MANAGE_DEVICE_POLICY_ACROSS_USERS,
                                     allowedDpcTypes = @AllowedDpcTypes(
-                                        deviceOwner = ALLOWED,
-                                        managedProfileOwnerOfOrganizationOwnedDevice = ALLOWED,
-                                        managedProfileOwnerOfPersonalOwnedDevice = ALLOWED,
+                                        deviceOwner = DISALLOWED,
+                                        managedProfileOwnerOfOrganizationOwnedDevice = DISALLOWED,
+                                        managedProfileOwnerOfPersonalOwnedDevice = DISALLOWED,
                                         profileOwnerOnUser0 = ALLOWED,
-                                        fullUserProfileOwner = ALLOWED
+                                        fullUserProfileOwner = DISALLOWED
+                                    ),
+                                    allowedRoles = @AllowedRoles(
+                                        deviceController = AllowedRoles.ALLOWED
                                     )
                                 ),
                                 emptyStringAllowed = true,
                                 unprintableCharactersAllowed = true,
                                 pureWhitespaceAllowed = true,
+                                unstrippedStringAllowed = true,
                                 maxLength = 100
                             )
                             public static final String POLICY_FIELD = "";
@@ -73,7 +78,7 @@ class StringPolicyAnnotationHandlerTest : DriverTest() {
                 ),
             checkCompilation = true,
             docStubs = true,
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
@@ -82,32 +87,127 @@ class StringPolicyAnnotationHandlerTest : DriverTest() {
                         public class TestPolicy {
                         public TestPolicy() { throw new RuntimeException("Stub!"); }
                         /**
-                         * A test policy for string policy definition.
-                         *
-                         * Some other human handwritten comments.
+                         * A test policy for string policy definition with multiple scopes.
                          * <br>
                          * <p>Policy Type: String</p>
                          * <ul>
                          *   <li>Allowed Scopes:
                          *    <ul>
-                         *       <li>User</li>
+                         *       <li>User. Settable by:
+                         *         <ul>
+                         *           <li>Profile Owner on User 0</li>
+                         *         </ul>
+                         *       </li>
                          *     </ul>
                          *   </li>
                          *   <li>Affected Resource: Device Wide</li>
                          *   <li>Required Permission: {@link android.Manifest.permission#TEST android.permission.TEST}</li>
+                         *   <li>Required Cross User Permission: {@link android.Manifest.permission#MANAGE_DEVICE_POLICY_ACROSS_USERS android.permission.MANAGE_DEVICE_POLICY_ACROSS_USERS}</li>
                          *   <li>Allowed DPC Types:
                          *    <ul>
-                         *       <li>Device Owner</li>
-                         *       <li>Managed Profile Owner (Of Organization Owned Device)</li>
-                         *       <li>Managed Profile Owner (Of Personally Owned Device)</li>
-                         *       <li>Unaffiliated Full User Profile Owner</li>
                          *       <li>Profile Owner on User 0</li>
-                         *       <li>Affiliated Full User Profile Owner</li>
+                         *     </ul>
+                         *   </li>
+                         *   <li>This policy can be set by holders of the device controller role</li>
+                         *   <li>Empty string: Allowed</li>
+                         *   <li>Unprintable characters: Allowed</li>
+                         *   <li>Pure whitespace: Allowed</li>
+                         *   <li>Unstripped string: Allowed</li>
+                         *   <li>Max Length: 100</li>
+                         * </ul>
+                         */
+                        public static final java.lang.String POLICY_FIELD = "";
+                        }
+                        """
+                    )
+                )
+        )
+    }
+
+    @Test
+    fun `Test StringPolicyDefinition with scope not settable by any DPC type generates docs`() {
+        check(
+            sourceFiles =
+                arrayOf(
+                    ANDROID_MANIFEST_SOURCE,
+                    POLICY_DEFINITION_SOURCE,
+                    java(
+                        """
+                        package test.pkg;
+                        import android.processor.devicepolicy.StringPolicyDefinition;
+                        import android.processor.devicepolicy.PolicyDefinition;
+                        import android.processor.devicepolicy.AllowedDpcTypes;
+                        import static android.processor.devicepolicy.AllowedDpcTypes.ALLOWED;
+                        import static android.processor.devicepolicy.AllowedDpcTypes.DISALLOWED;
+
+                        @Retention(RetentionPolicy.SOURCE)
+                        public class TestPolicy {
+                            private static final int SCOPE_USER = 1;
+                            private static final int SCOPE_PARENT_USER = 3;
+                            private static final int RESOURCE_DEVICE_WIDE = 1;
+                          /**
+                           * A test policy for string policy definition with a scope not settable by any DPC.
+                           */
+                            @StringPolicyDefinition(
+                                base = @PolicyDefinition(
+                                    allowedScopes = {SCOPE_USER, SCOPE_PARENT_USER},
+                                    affectedResource = RESOURCE_DEVICE_WIDE,
+                                    requiredPermission = android.Manifest.permission.TEST,
+                                    requiredCrossUserPermission = android.Manifest.permission.MANAGE_DEVICE_POLICY_ACROSS_USERS,
+                                    allowedDpcTypes = @AllowedDpcTypes(
+                                        deviceOwner = DISALLOWED,
+                                        managedProfileOwnerOfOrganizationOwnedDevice = DISALLOWED,
+                                        managedProfileOwnerOfPersonalOwnedDevice = DISALLOWED,
+                                        profileOwnerOnUser0 = ALLOWED,
+                                        fullUserProfileOwner = DISALLOWED
+                                    )
+                                ),
+                                emptyStringAllowed = true,
+                                unprintableCharactersAllowed = true,
+                                maxLength = 100
+                            )
+                            public static final String POLICY_FIELD = "";
+                        }
+                        """
+                    )
+                ),
+            checkCompilation = true,
+            docStubs = true,
+            expectedStubFiles =
+                arrayOf(
+                    java(
+                        """
+                        package test.pkg;
+                        @SuppressWarnings({"unchecked", "deprecation", "all"})
+                        public class TestPolicy {
+                        public TestPolicy() { throw new RuntimeException("Stub!"); }
+                        /**
+                         * A test policy for string policy definition with a scope not settable by any DPC.
+                         * <br>
+                         * <p>Policy Type: String</p>
+                         * <ul>
+                         *   <li>Allowed Scopes:
+                         *    <ul>
+                         *       <li>User. Settable by:
+                         *         <ul>
+                         *           <li>Profile Owner on User 0</li>
+                         *         </ul>
+                         *       </li>
+                         *       <li>Parent User. Not settable by any DPC type.</li>
+                         *     </ul>
+                         *   </li>
+                         *   <li>Affected Resource: Device Wide</li>
+                         *   <li>Required Permission: {@link android.Manifest.permission#TEST android.permission.TEST}</li>
+                         *   <li>Required Cross User Permission: {@link android.Manifest.permission#MANAGE_DEVICE_POLICY_ACROSS_USERS android.permission.MANAGE_DEVICE_POLICY_ACROSS_USERS}</li>
+                         *   <li>Allowed DPC Types:
+                         *    <ul>
+                         *       <li>Profile Owner on User 0</li>
                          *     </ul>
                          *   </li>
                          *   <li>Empty string: Allowed</li>
                          *   <li>Unprintable characters: Allowed</li>
-                         *   <li>Pure whitespace: Allowed</li>
+                         *   <li>Pure whitespace: Not allowed</li>
+                         *   <li>Unstripped string: Not allowed</li>
                          *   <li>Max Length: 100</li>
                          * </ul>
                          */

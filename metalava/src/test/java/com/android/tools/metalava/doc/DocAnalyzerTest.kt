@@ -21,14 +21,13 @@ import com.android.tools.metalava.ARG_API_VERSION_FOR_SOURCES
 import com.android.tools.metalava.ARG_API_VERSION_LABEL
 import com.android.tools.metalava.ARG_ENHANCE_DOCUMENTATION
 import com.android.tools.metalava.DriverTest
-import com.android.tools.metalava.SystemApiType
+import com.android.tools.metalava.KnownApiSurface
 import com.android.tools.metalava.columnSource
 import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.testing.RequiresCapabilities
 import com.android.tools.metalava.nonNullSource
 import com.android.tools.metalava.nullableSource
 import com.android.tools.metalava.requiresPermissionSource
-import com.android.tools.metalava.systemApiSource
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
 import com.android.tools.metalava.uiThreadSource
@@ -68,7 +67,7 @@ class DocAnalyzerTest : DriverTest() {
                 ),
             checkCompilation = false, // needs androidx.annotations in classpath
             docStubs = true,
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
@@ -144,7 +143,7 @@ class DocAnalyzerTest : DriverTest() {
                         </class>
                     </api>
                 """,
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
@@ -193,7 +192,7 @@ class DocAnalyzerTest : DriverTest() {
                         </class>
                     </api>
                 """,
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
@@ -241,7 +240,7 @@ class DocAnalyzerTest : DriverTest() {
             skipEmitPackages = emptyList(),
             checkCompilation = true,
             docStubs = true,
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
@@ -326,7 +325,7 @@ class DocAnalyzerTest : DriverTest() {
             checkCompilation = false, // needs androidx.annotations in classpath
             expectedIssues =
                 "src/test/pkg/PermissionTest.java:33: error: Unrecognized permission `carier priviliges`; did you mean `carrier privileges`? [MissingPermission]", // NOTYPO
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     // common_typos_disable
                     java(
@@ -390,7 +389,7 @@ class DocAnalyzerTest : DriverTest() {
                     requiresPermissionSource
                 ),
             checkCompilation = false, // needs androidx.annotations in classpath
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
@@ -428,7 +427,7 @@ class DocAnalyzerTest : DriverTest() {
                 ),
             checkCompilation = true,
             docStubs = true,
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
@@ -476,7 +475,7 @@ class DocAnalyzerTest : DriverTest() {
             expectedIssues =
                 "src/test/pkg/RangeTest.java:6: error: Found more than one threading annotation on method test.pkg.RangeTest.test1(); the auto-doc feature does not handle this correctly [MultipleThreadAnnotations]",
             docStubs = true,
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
@@ -550,7 +549,7 @@ class DocAnalyzerTest : DriverTest() {
                         </class>
                     </api>
                     """,
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
@@ -604,7 +603,7 @@ class DocAnalyzerTest : DriverTest() {
                 ),
             checkCompilation = true,
             docStubs = true,
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
@@ -644,7 +643,7 @@ class DocAnalyzerTest : DriverTest() {
             docStubs = true,
             expectedIssues =
                 "src/test/pkg/RangeTest.java:5: error: Cannot find permission field for \"MyPermission\" required by method test.pkg.RangeTest.test1() (may be hidden or removed) [MissingPermission]",
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
@@ -683,7 +682,7 @@ class DocAnalyzerTest : DriverTest() {
                 ),
             checkCompilation = true,
             docStubs = true,
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
@@ -730,7 +729,7 @@ class DocAnalyzerTest : DriverTest() {
                 ),
             checkCompilation = true,
             docStubs = true,
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
@@ -781,7 +780,7 @@ class DocAnalyzerTest : DriverTest() {
                 ),
             docStubs = true,
             checkCompilation = true,
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
@@ -844,7 +843,7 @@ class DocAnalyzerTest : DriverTest() {
                     """,
             checkCompilation = true,
             docStubs = true,
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
@@ -880,7 +879,7 @@ class DocAnalyzerTest : DriverTest() {
         check(
             extraArguments =
                 arrayOf(ARG_API_VERSION_FOR_SOURCES, "36", ARG_API_VERSION_LABEL, "36:FOO"),
-            includeSystemApiAnnotations = SystemApiType.PRIVILEGED_APPS,
+            apiSurface = KnownApiSurface.SYSTEM,
             sourceFiles =
                 arrayOf(
                     java(
@@ -889,15 +888,11 @@ class DocAnalyzerTest : DriverTest() {
                     import android.annotation.SystemApi;
                     public class Test {
                        public static final String UNIT_TEST_1 = "unit.test.1";
-                       /**
-                         * @hide
-                         */
                         @SystemApi
                        public static final String UNIT_TEST_2 = "unit.test.2";
                     }
                     """
                     ),
-                    systemApiSource
                 ),
             applyApiLevelsXml =
                 """
@@ -911,7 +906,7 @@ class DocAnalyzerTest : DriverTest() {
                     """,
             checkCompilation = true,
             docStubs = true,
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
@@ -959,7 +954,7 @@ class DocAnalyzerTest : DriverTest() {
                 """,
             checkCompilation = true,
             docStubs = true,
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
@@ -1014,7 +1009,7 @@ class DocAnalyzerTest : DriverTest() {
                     """,
             checkCompilation = true,
             docStubs = true,
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
@@ -1105,7 +1100,7 @@ class DocAnalyzerTest : DriverTest() {
                     """,
             checkCompilation = true,
             docStubs = true,
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
@@ -1192,7 +1187,7 @@ class DocAnalyzerTest : DriverTest() {
     }
 
     @Test
-    fun `@sdkExtSince (finalized)`() {
+    fun `@sdkExtSince - finalized`() {
         check(
             extraArguments =
                 arrayOf(
@@ -1203,7 +1198,7 @@ class DocAnalyzerTest : DriverTest() {
             applyApiLevelsXml = SdkExtSinceConstants.apiVersionsXml,
             checkCompilation = true,
             docStubs = true,
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
@@ -1263,13 +1258,13 @@ class DocAnalyzerTest : DriverTest() {
     }
 
     @Test
-    fun `@sdkExtSince (not finalized)`() {
+    fun `@sdkExtSince - not finalized`() {
         check(
             sourceFiles = SdkExtSinceConstants.sourceFiles,
             applyApiLevelsXml = SdkExtSinceConstants.apiVersionsXml,
             checkCompilation = true,
             docStubs = true,
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
@@ -1413,7 +1408,7 @@ class DocAnalyzerTest : DriverTest() {
             docStubs = true,
             // Make sure we expose exactly what we intend (so @hide via javadocs and
             // via package-info.java works)
-            api =
+            expectedApiSignature =
                 """
                 package test.visible {
                   public class MyClass {
@@ -1425,7 +1420,7 @@ class DocAnalyzerTest : DriverTest() {
             // Make sure the stubs are generated correctly; in particular, that we've
             // pulled docs from overview.html into javadoc on package-info.java instead
             // (removing all the content surrounding <body>, etc)
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     TestFiles.source("overview.html", "<html>My overview docs</html>"),
                     java(
@@ -1484,7 +1479,7 @@ class DocAnalyzerTest : DriverTest() {
                 ),
             checkCompilation = true,
             docStubs = true,
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
@@ -1552,7 +1547,7 @@ class DocAnalyzerTest : DriverTest() {
                     )
                 ),
             checkCompilation = true,
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
@@ -1611,7 +1606,7 @@ class DocAnalyzerTest : DriverTest() {
                     )
                 ),
             checkCompilation = true,
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
@@ -1683,7 +1678,7 @@ class DocAnalyzerTest : DriverTest() {
                 src/test/pkg/ColumnTest.java:13: warning: Cannot find feature field for Cursor.NONEXISTENT required by field ColumnTest.BOGUS (may be hidden or removed) [MissingColumn]
                 """,
             docStubs = true,
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """

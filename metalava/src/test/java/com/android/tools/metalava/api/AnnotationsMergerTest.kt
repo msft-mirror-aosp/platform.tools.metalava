@@ -14,16 +14,60 @@
  * limitations under the License.
  */
 
-package com.android.tools.metalava
+package com.android.tools.metalava.api
 
-import com.android.tools.metalava.cli.common.ARG_WARNING
+import com.android.tools.metalava.DriverTest
+import com.android.tools.metalava.KnownApiSurface
+import com.android.tools.metalava.intRangeAnnotationSource
+import com.android.tools.metalava.libcoreNonNullSource
+import com.android.tools.metalava.libcoreNullableSource
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.testing.KnownSourceFiles
 import com.android.tools.metalava.testing.java
+import com.android.tools.metalava.testing.xml
+import com.android.tools.metalava.uiThreadSource
 import org.junit.Test
 
 class AnnotationsMergerTest : DriverTest() {
+    companion object {
+        private val nonRecursiveConfigFile =
+            xml(
+                "non-recursive.xml",
+                """
+                    <config xmlns="http://www.google.com/tools/metalava/config"
+                        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                        xsi:schemaLocation="http://www.google.com/tools/metalava/config ../../../../../../resources/schemas/config.xsd">
+                        <api-surfaces>
+                            <api-surface name="non-recursive">
+                                <selection-criteria>
+                                    <annotation-rule pattern="test.annotation.Hide" effect="hide"/>
+                                    <annotation-rule pattern="test.annotation.Show" recursive="false"/>
+                                </selection-criteria>
+                            </api-surface>
+                            <api-surface name="non-recursive-plus-unannotated">
+                                <selection-criteria>
+                                    <annotation-rule pattern="test.annotation.Hide" effect="hide"/>
+                                    <annotation-rule pattern="test.annotation.Show" recursive="false"/>
+                                </selection-criteria>
+                            </api-surface>
+                        </api-surfaces>
+                    </config>
+                """
+            )
+
+        private val NON_RECURSIVE_SHOW =
+            KnownApiSurface(
+                "non-recursive",
+                nonRecursiveConfigFile,
+            )
+
+        private val NON_RECURSIVE_SHOW_PLUS_UNANNOTATED =
+            KnownApiSurface(
+                "non-recursive-plus-unannotated",
+                nonRecursiveConfigFile,
+            )
+    }
 
     // TODO: Test what happens when we have conflicting data
     //   - NULLABLE_SOURCE on one non null on the other
@@ -62,7 +106,7 @@ class AnnotationsMergerTest : DriverTest() {
                         public @NonNull Number nullable;
                     }
                 """,
-            api =
+            expectedApiSignature =
                 """
                     // Signature format: 2.0
                     package test.pkg {
@@ -112,7 +156,7 @@ class AnnotationsMergerTest : DriverTest() {
                       </item>
                     </root>
                 """,
-            api =
+            expectedApiSignature =
                 """
                     // Signature format: 2.0
                     package test.pkg {
@@ -157,7 +201,7 @@ class AnnotationsMergerTest : DriverTest() {
                     KnownSourceFiles.androidxNonNullJavaSource,
                     KnownSourceFiles.androidxNullableJavaSource,
                 ),
-            api =
+            expectedApiSignature =
                 """
                 package test.pkg {
                   @UiThread public class MyTest {
@@ -218,7 +262,7 @@ class AnnotationsMergerTest : DriverTest() {
                   </item>
                   </root>
                 """,
-            api =
+            expectedApiSignature =
                 """
                 package test.pkg {
                   @UiThread public class MyTest {
@@ -262,7 +306,7 @@ class AnnotationsMergerTest : DriverTest() {
                   }
                 }
                 """,
-            api =
+            expectedApiSignature =
                 """
                 package test.pkg {
                   public interface Appendable {
@@ -276,7 +320,10 @@ class AnnotationsMergerTest : DriverTest() {
                 merged-annotations.txt:6: warning: qualifier annotations were given for method test.pkg.Appendable.reverse(String) but no matching item was found [UnmatchedMergeAnnotation]
                 merged-annotations.txt:8: warning: qualifier annotations were given for class test.pkg.RandomClass but no matching item was found [UnmatchedMergeAnnotation]
             """,
-            extraArguments = arrayOf(ARG_WARNING, Issues.UNMATCHED_MERGE_ANNOTATION.name)
+            extraArguments =
+                warningIssues(
+                    Issues.UNMATCHED_MERGE_ANNOTATION,
+                )
         )
     }
 
@@ -311,7 +358,7 @@ class AnnotationsMergerTest : DriverTest() {
                     void notPresentWithoutAnnotations();
                 }
                 """,
-            api =
+            expectedApiSignature =
                 """
                 package test.pkg {
                   public interface Appendable {
@@ -320,9 +367,8 @@ class AnnotationsMergerTest : DriverTest() {
                 }
                 """,
             extraArguments =
-                arrayOf(
-                    ARG_WARNING,
-                    Issues.UNMATCHED_MERGE_ANNOTATION.name,
+                warningIssues(
+                    Issues.UNMATCHED_MERGE_ANNOTATION,
                 ),
             expectedIssues =
                 """
@@ -335,7 +381,7 @@ class AnnotationsMergerTest : DriverTest() {
     fun `Merge qualifier annotations from Java stub files onto stubs that are not in the API signature file`() {
         check(
             format = FileFormat.V2,
-            includeSystemApiAnnotations = SystemApiType.TEST,
+            apiSurface = KnownApiSurface.TEST,
             sourceFiles =
                 arrayOf(
                     java(
@@ -351,7 +397,6 @@ class AnnotationsMergerTest : DriverTest() {
                         """
                     package test.pkg;
 
-                    /** @hide */
                     @android.annotation.TestApi
                     public interface ForTesting {
                         void foo();
@@ -372,7 +417,7 @@ class AnnotationsMergerTest : DriverTest() {
                     @NonNull Appendable append(@Nullable java.lang.CharSequence csq);
                 }
                 """,
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
@@ -387,7 +432,6 @@ class AnnotationsMergerTest : DriverTest() {
                     java(
                         """
                     package test.pkg;
-                    /** */
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public interface ForTesting {
                     public void foo();
@@ -395,7 +439,7 @@ class AnnotationsMergerTest : DriverTest() {
                     """
                     )
                 ),
-            api =
+            expectedApiSignature =
                 """
                 package test.pkg {
                   public interface ForTesting {
@@ -434,7 +478,7 @@ class AnnotationsMergerTest : DriverTest() {
                     public void foo(java.lang.@libcore.util.Nullable Object @libcore.util.NonNull ... args) { throw new RuntimeException("Stub!"); }
                 }
                 """,
-            api =
+            expectedApiSignature =
                 """
                 package test.pkg {
                   public class Test {
@@ -481,7 +525,7 @@ class AnnotationsMergerTest : DriverTest() {
                     @NonNull public String publicMethod(@Nullable Object object) {return "";}
                 }
                 """,
-            api =
+            expectedApiSignature =
                 """
                 package test.pkg {
                   public class PublicClass {
@@ -556,7 +600,7 @@ class AnnotationsMergerTest : DriverTest() {
                         """
                     ),
                 ),
-            api =
+            expectedApiSignature =
                 """
                 package test.pkg {
                   public interface Example {
@@ -565,7 +609,10 @@ class AnnotationsMergerTest : DriverTest() {
                   }
                 }
                 """,
-            extraArguments = arrayOf(ARG_WARNING, Issues.UNMATCHED_MERGE_ANNOTATION.name),
+            extraArguments =
+                warningIssues(
+                    Issues.UNMATCHED_MERGE_ANNOTATION,
+                ),
         )
     }
 
@@ -635,7 +682,7 @@ class AnnotationsMergerTest : DriverTest() {
                         """
                     ),
                 ),
-            api =
+            expectedApiSignature =
                 """
                     package test.pkg {
                       public interface Example {
@@ -693,7 +740,7 @@ class AnnotationsMergerTest : DriverTest() {
                         """
                     ),
                 ),
-            api =
+            expectedApiSignature =
                 """
                     package test.pkg {
                       public interface Example {
@@ -706,8 +753,9 @@ class AnnotationsMergerTest : DriverTest() {
     }
 
     @Test
-    fun `Merge inclusion annotations from Java stub files using --show-single-annotation`() {
+    fun `Merge inclusion annotations from Java stub files using non-recursive show annotation`() {
         check(
+            apiSurface = NON_RECURSIVE_SHOW_PLUS_UNANNOTATED,
             format = FileFormat.V2,
             sourceFiles =
                 arrayOf(
@@ -723,14 +771,6 @@ class AnnotationsMergerTest : DriverTest() {
                     """
                     )
                 ),
-            extraArguments =
-                arrayOf(
-                    ARG_HIDE_ANNOTATION,
-                    "test.annotation.Hide",
-                    ARG_SHOW_SINGLE_ANNOTATION,
-                    "test.annotation.Show"
-                ),
-            showUnannotated = true,
             mergeInclusionAnnotations =
                 arrayOf(
                     java(
@@ -746,7 +786,7 @@ class AnnotationsMergerTest : DriverTest() {
                         """
                     ),
                 ),
-            api =
+            expectedApiSignature =
                 """
                 package test.pkg {
                   public interface Example {
@@ -760,6 +800,7 @@ class AnnotationsMergerTest : DriverTest() {
     @Test
     fun `Merge inclusion annotations on api in java namespace`() {
         check(
+            apiSurface = NON_RECURSIVE_SHOW,
             format = FileFormat.V2,
             sourceFiles =
                 arrayOf(
@@ -775,7 +816,6 @@ class AnnotationsMergerTest : DriverTest() {
                     """
                     )
                 ),
-            extraArguments = arrayOf(ARG_SHOW_SINGLE_ANNOTATION, "test.annotation.Show"),
             mergeInclusionAnnotations =
                 arrayOf(
                     java(
@@ -789,7 +829,7 @@ class AnnotationsMergerTest : DriverTest() {
                         """
                     ),
                 ),
-            api =
+            expectedApiSignature =
                 """
                 package java.net {
                   public class Example {
@@ -803,6 +843,7 @@ class AnnotationsMergerTest : DriverTest() {
     @Test
     fun `Redefining java lang object plus using some internal classes`() {
         check(
+            apiSurface = NON_RECURSIVE_SHOW,
             sourceFiles =
                 arrayOf(
                     java(
@@ -840,7 +881,6 @@ class AnnotationsMergerTest : DriverTest() {
                     """
                     )
                 ),
-            extraArguments = arrayOf(ARG_SHOW_SINGLE_ANNOTATION, "libcore.api.CorePlatformApi"),
             mergeInclusionAnnotations =
                 arrayOf(
                     java(
@@ -852,7 +892,7 @@ class AnnotationsMergerTest : DriverTest() {
                         """
                     ),
                 ),
-            api = "" // This test is checking that it doesn't crash
+            expectedApiSignature = "" // This test is checking that it doesn't crash
         )
     }
 
@@ -891,7 +931,7 @@ class AnnotationsMergerTest : DriverTest() {
                     }
                 }
                 """,
-            api =
+            expectedApiSignature =
                 """
                 package test.pkg {
                   public class Child extends test.pkg.Parent {
@@ -959,7 +999,7 @@ class AnnotationsMergerTest : DriverTest() {
                 </root>
                 """,
             format = FileFormat.V4,
-            api =
+            expectedApiSignature =
                 """
                 // Signature format: 4.0
                 package android.graphics {

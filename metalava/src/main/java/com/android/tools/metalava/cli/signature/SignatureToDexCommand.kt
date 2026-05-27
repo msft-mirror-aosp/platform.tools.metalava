@@ -25,8 +25,7 @@ import com.android.tools.metalava.createOutputFileFromCodebaseFragment
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.CodebaseFragment
 import com.android.tools.metalava.model.text.SignatureFile
-import com.android.tools.metalava.model.visitors.ApiPredicate
-import com.android.tools.metalava.model.visitors.ApiType
+import com.android.tools.metalava.model.visitors.ApiFilters
 import com.android.tools.metalava.model.visitors.FilteringApiVisitor
 import com.github.ajalt.clikt.parameters.arguments.argument
 import com.github.ajalt.clikt.parameters.arguments.multiple
@@ -61,16 +60,11 @@ class SignatureToDexCommand :
         val signatureFileLoader = DefaultSignatureFileLoader(codebaseConfig)
         val signatureApi = signatureFileLoader.load(SignatureFile.fromFiles(apiFiles))
 
-        val apiPredicateConfig = ApiPredicate.Config()
-        val apiType = ApiType.ALL
-        val apiFilters = apiType.getApiFilters(apiPredicateConfig)
-
         val codebaseFragment =
             CodebaseFragment.create(signatureApi) { delegatedVisitor ->
                 FilteringApiVisitor(
                     delegatedVisitor,
-                    inlineInheritedFields = true,
-                    apiFilters = apiFilters,
+                    apiFilters = ApiFilters.ALL,
                     preFiltered = signatureApi.preFiltered,
                 )
             }

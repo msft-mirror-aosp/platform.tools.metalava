@@ -35,7 +35,7 @@ fun getNoopTracer(): Tracer {
 
                     override fun close() {}
                 },
-            isEnabled = false
+            isCategoryEnabled = { false }
         )
         .tracer
 }

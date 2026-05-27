@@ -38,6 +38,7 @@ class LongPolicyAnnotationHandlerTest : DriverTest() {
                         import android.processor.devicepolicy.LongResolutionMechanism;
                         import android.processor.devicepolicy.PolicyDefinition;
                         import android.processor.devicepolicy.AllowedDpcTypes;
+                        import android.processor.devicepolicy.AllowedRoles;
                         import static android.processor.devicepolicy.AllowedDpcTypes.ALLOWED;
 
                         @Retention(RetentionPolicy.SOURCE)
@@ -53,13 +54,17 @@ class LongPolicyAnnotationHandlerTest : DriverTest() {
                                 base = @PolicyDefinition(
                                     allowedScopes = {SCOPE_USER},
                                     affectedResource = RESOURCE_DEVICE_WIDE,
-                                    requiredPermission = "android.permission.TEST",
+                                    requiredPermission = android.Manifest.permission.TEST,
+                                    requiredCrossUserPermission = android.Manifest.permission.MANAGE_DEVICE_POLICY_ACROSS_USERS,
                                     allowedDpcTypes = @AllowedDpcTypes(
                                         deviceOwner = ALLOWED,
                                         managedProfileOwnerOfOrganizationOwnedDevice = ALLOWED,
                                         managedProfileOwnerOfPersonalOwnedDevice = ALLOWED,
                                         profileOwnerOnUser0 = ALLOWED,
                                         fullUserProfileOwner = ALLOWED
+                                    ),
+                                    allowedRoles = @AllowedRoles(
+                                        deviceController = AllowedRoles.ALLOWED
                                     )
                                 ),
                                 minValue = 10L,
@@ -73,7 +78,7 @@ class LongPolicyAnnotationHandlerTest : DriverTest() {
                 ),
             checkCompilation = true,
             docStubs = true,
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
@@ -90,11 +95,21 @@ class LongPolicyAnnotationHandlerTest : DriverTest() {
                          * <ul>
                          *   <li>Allowed Scopes:
                          *    <ul>
-                         *       <li>User</li>
+                         *       <li>User. Settable by:
+                         *         <ul>
+                         *           <li>Device Owner</li>
+                         *           <li>Managed Profile Owner (Of Organization Owned Device)</li>
+                         *           <li>Managed Profile Owner (Of Personally Owned Device)</li>
+                         *           <li>Unaffiliated Full User Profile Owner</li>
+                         *           <li>Profile Owner on User 0</li>
+                         *           <li>Affiliated Full User Profile Owner</li>
+                         *         </ul>
+                         *       </li>
                          *     </ul>
                          *   </li>
                          *   <li>Affected Resource: Device Wide</li>
                          *   <li>Required Permission: {@link android.Manifest.permission#TEST android.permission.TEST}</li>
+                         *   <li>Required Cross User Permission: {@link android.Manifest.permission#MANAGE_DEVICE_POLICY_ACROSS_USERS android.permission.MANAGE_DEVICE_POLICY_ACROSS_USERS}</li>
                          *   <li>Allowed DPC Types:
                          *    <ul>
                          *       <li>Device Owner</li>
@@ -105,6 +120,7 @@ class LongPolicyAnnotationHandlerTest : DriverTest() {
                          *       <li>Affiliated Full User Profile Owner</li>
                          *     </ul>
                          *   </li>
+                         *   <li>This policy can be set by holders of the device controller role</li>
                          *   <li>Resolution Mechanism: custom</li>
                          *   <li>Min Value: 10</li>
                          *   <li>Max Value: 100</li>

@@ -18,6 +18,7 @@ package com.android.tools.metalava.model.visitors
 
 import com.android.tools.metalava.model.FilterPredicate
 import com.android.tools.metalava.model.Item
+import com.android.tools.metalava.model.SelectableItem
 
 /** Encapsulates filters needed by [ApiVisitor]. */
 class ApiFilters(
@@ -29,4 +30,16 @@ class ApiFilters(
      * [Item]s that can be emitted.
      */
     val reference: FilterPredicate,
-)
+) {
+    companion object {
+        /**
+         * Emits all [SelectableItem]s whose [SelectableItem.emit] is `true` and references any
+         * [SelectableItem].
+         */
+        val ALL =
+            ApiFilters(
+                emit = { it.emit },
+                reference = { true },
+            )
+    }
+}

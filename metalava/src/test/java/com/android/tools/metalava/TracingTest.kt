@@ -35,7 +35,7 @@ class TracingTest : DriverTest() {
                     ),
                 ),
             format = FileFormat.V5,
-            api =
+            expectedApiSignature =
                 """
                     package test.pkg {
                       public class ClassMcClassface {

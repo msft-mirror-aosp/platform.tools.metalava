@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model
 
+import com.android.tools.metalava.reporter.Issues
 import java.io.Writer
 
 class ModifierListWriter(
@@ -200,6 +201,12 @@ class ModifierListWriter(
             if (list.isNonSealed()) {
                 writer.write("non-sealed ")
             }
+        } else if (list.isSealed()) {
+            item.codebase.reporter.report(
+                Issues.ADDED_SEALED,
+                item,
+                "`sealed` is not currently supported, see b/482391240 for more details.",
+            )
         }
 
         if (list.isSuspend()) {
@@ -343,6 +350,23 @@ class ModifierListWriter(
         // does add it to this list. It will be sorted into the correct position below.
         flaggedApiAnnotationToInherit(item, annotations)?.let { flaggedApiAnnotation ->
             annotations = annotations + flaggedApiAnnotation
+        }
+
+        // @FlaggedApi annotations are always converted to @RequiresFlag in stub files.
+        // Developers are not allowed to add @RequiresFlag to flagged APIs to avoid duplicate
+        // @RequiresFlag compilation errors in stubs
+        if (
+            target.isStubsFile() &&
+                annotations.any { it.qualifiedName == ANDROID_FLAGGED_API } &&
+                annotations.any { it.qualifiedName == ANDROID_REQUIRES_FLAG }
+        ) {
+            item.codebase.reporter.report(
+                Issues.MULTIPLE_FLAGGING,
+                item,
+                "@RequiresFlag can not be placed on APIs that are already flagged.",
+            )
+
+            annotations = annotations.filter { it.qualifiedName != ANDROID_REQUIRES_FLAG }
         }
 
         if (annotations.isEmpty()) {
@@ -492,4 +516,13 @@ enum class FlaggedApiInheritance {
      *   annotation.
      */
     NESTED_CLASSES,
+}
+
+/** Determines how members of hidden classes are inherited in signature files. */
+enum class HiddenMemberInheritance {
+    /** Inconsistent legacy behavior. */
+    LEGACY,
+
+    /** Consistent inheritance of hidden members. */
+    CONSISTENT,
 }

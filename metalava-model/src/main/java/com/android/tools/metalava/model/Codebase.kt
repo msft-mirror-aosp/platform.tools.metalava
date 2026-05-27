@@ -151,6 +151,17 @@ interface Codebase : ClassPathResolver, AnnotationContext {
 
         /** The reporter to use for issues found during processing of the [Codebase]. */
         val reporter: Reporter = ThrowingReporter.INSTANCE,
+
+        /** Whether items on the class path can be hidden, e.g. by a --hide-annotation. */
+        val hideItemsOnClassPath: Boolean = true,
+
+        /**
+         * Controls whether the `inlineInheritedFields` parameter of [ClassItem.filteredFields] has
+         * any effect.
+         *
+         * If this is `true` then it does, otherwise it does not.
+         */
+        val honorInlineInheritedFieldsInFilteredFields: Boolean = true,
     ) {
         companion object {
             /**

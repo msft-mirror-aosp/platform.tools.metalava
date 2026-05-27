@@ -35,6 +35,8 @@ import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.MutableModifierList
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
+import com.android.tools.metalava.model.ParameterKind
+import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.SkeletonClassItem
 import com.android.tools.metalava.model.SourceLanguage
 import com.android.tools.metalava.model.TargetLanguage
@@ -82,6 +84,7 @@ import org.jetbrains.kotlin.analysis.api.symbols.KaCallableSymbol
 import org.jetbrains.kotlin.analysis.api.symbols.KaClassKind
 import org.jetbrains.kotlin.analysis.api.symbols.KaClassifierSymbol
 import org.jetbrains.kotlin.analysis.api.symbols.KaConstructorSymbol
+import org.jetbrains.kotlin.analysis.api.symbols.KaContextParameterSymbol
 import org.jetbrains.kotlin.analysis.api.symbols.KaDeclarationSymbol
 import org.jetbrains.kotlin.analysis.api.symbols.KaFunctionSymbol
 import org.jetbrains.kotlin.analysis.api.symbols.KaNamedClassSymbol
@@ -96,6 +99,7 @@ import org.jetbrains.kotlin.analysis.api.symbols.KaSymbolVisibility
 import org.jetbrains.kotlin.analysis.api.symbols.KaTypeAliasSymbol
 import org.jetbrains.kotlin.analysis.api.symbols.KaTypeParameterSymbol
 import org.jetbrains.kotlin.analysis.api.symbols.KaValueParameterSymbol
+import org.jetbrains.kotlin.analysis.api.symbols.contextParameters
 import org.jetbrains.kotlin.analysis.api.symbols.receiverType
 import org.jetbrains.kotlin.analysis.api.types.KaType
 import org.jetbrains.kotlin.asJava.toLightElements
@@ -198,7 +202,12 @@ internal class KaCodebaseAssembler(
                                     assembler = assembler,
                                 )
                             }
-                        tracer.trace("processor.assemble") { processor.assemble(allPackages) }
+                        tracer.trace(
+                            "processor.assemble",
+                            metadataBlock = { addMetadataEntry("moduleName", kaModule.name) }
+                        ) {
+                            processor.assemble(allPackages)
+                        }
                         processor.codebase
                     }
                 ),
@@ -526,7 +535,7 @@ private constructor(
             itemFactory.createClassItem(
                 fileLocation = PsiFileLocation.fromPsiElement(classifierSymbol.psi),
                 targetLanguages = TargetLanguageSet.KOTLIN_ONLY,
-                modifiers = kaModifierFactory.createForClass(classifierSymbol),
+                modifiers = kaModifierFactory.createForClass(classifierSymbol, containingClass),
                 source = null,
                 classKind = classifierSymbol.getClassKind(),
                 containingClass = containingClass,
@@ -690,17 +699,20 @@ private constructor(
                 typeParameterList = typeParameterListAndFactory.typeParameterList,
                 returnType = containingClass.type(),
                 parameterItemsFactory = { callableItem ->
+                    @OptIn(KaExperimentalApi::class) // for context parameters
                     parameterList(
-                        constructorSymbol.valueParameters,
-                        callableItem,
-                        typeParameterListAndFactory.factory,
-                        kaReceiverParameter = null,
-                        isSuspend = false,
+                        kaParameters = constructorSymbol.valueParameters,
+                        containingCallable = callableItem,
+                        enclosingTypeItemFactory = typeParameterListAndFactory.factory,
+                        kaContextParameters = emptyList(), // Constructors can't have context params
+                        kaReceiverParameter = null, // Constructors can't have receivers
+                        isSuspend = false, // Constructors can't be suspend
                         returnType = containingClass.type(),
-                        MethodFingerprint(
-                            containingClass.simpleName(),
-                            constructorSymbol.valueParameters.count()
-                        )
+                        fingerprint =
+                            MethodFingerprint(
+                                containingClass.simpleName(),
+                                constructorSymbol.valueParameters.count()
+                            )
                     )
                 },
                 throwsTypes = throwsTypesFromModifiers(modifiers),
@@ -841,14 +853,16 @@ private constructor(
                 typeParameterList = typeParameterListAndFactory.typeParameterList,
                 returnType = returnType,
                 parameterItemsFactory = { callableItem ->
+                    @OptIn(KaExperimentalApi::class) // for context parameters
                     parameterList(
-                        functionSymbol.valueParameters,
-                        callableItem,
-                        typeParameterListAndFactory.factory,
-                        functionSymbol.receiverParameter,
-                        functionSymbol.isSuspend,
-                        originalReturnType,
-                        fingerprint,
+                        kaParameters = functionSymbol.valueParameters,
+                        containingCallable = callableItem,
+                        enclosingTypeItemFactory = typeParameterListAndFactory.factory,
+                        kaContextParameters = functionSymbol.contextParameters,
+                        kaReceiverParameter = functionSymbol.receiverParameter,
+                        isSuspend = functionSymbol.isSuspend,
+                        returnType = originalReturnType,
+                        fingerprint = fingerprint,
                     )
                 },
                 throwsTypes = throwsTypesFromModifiers(modifiers),
@@ -950,6 +964,10 @@ private constructor(
             )
 
         val receiverType = propertySymbol.receiverType?.let { typeFactory.getGeneralType(it) }
+        // Context parameter types need to be computed to help find accessors.
+        @OptIn(KaExperimentalApi::class)
+        val contextParameterTypes =
+            propertySymbol.contextParameters.map { typeFactory.getGeneralType(it.returnType) }
 
         val getter =
             propertySymbol.getter?.let {
@@ -969,6 +987,7 @@ private constructor(
                     containingClass,
                     type,
                     receiverType,
+                    contextParameterTypes,
                     isGetter = true,
                     it.visibility,
                 )
@@ -983,6 +1002,7 @@ private constructor(
                     containingClass,
                     type,
                     receiverType,
+                    contextParameterTypes,
                     isGetter = false,
                     it.visibility,
                 )
@@ -1018,6 +1038,26 @@ private constructor(
                 null
             }
 
+        @OptIn(KaExperimentalApi::class)
+        val contextParameterFactory = { propertyItem: PropertyItem ->
+            propertySymbol.contextParameters.mapIndexed { index, parameterSymbol ->
+                val name = parameterSymbol.name.identifierOrNullIfSpecial
+                itemFactory.createParameterItem(
+                    fileLocation = PsiFileLocation.fromPsiElement(parameterSymbol.psi),
+                    modifiers = kaModifierFactory.createForContextParameter(parameterSymbol),
+                    // If no name is available, "_" was used in source, which is not a public name.
+                    name = name ?: "_",
+                    publicName = name,
+                    containingItem = propertyItem,
+                    parameterIndex = index,
+                    // Use the types computed above
+                    type = contextParameterTypes[index],
+                    hasDefaultValue = false,
+                    kind = ParameterKind.CONTEXT
+                )
+            }
+        }
+
         val modifiers =
             kaModifierFactory.createForProperty(
                 propertySymbol,
@@ -1039,7 +1079,8 @@ private constructor(
                 receiver = receiverType,
                 typeParameterList = typeParameterListAndFactory.typeParameterList,
                 setterVisibility =
-                    propertySymbol.setter?.let { kaModifierFactory.getVisibilityLevel(it) }
+                    propertySymbol.setter?.let { kaModifierFactory.getVisibilityLevel(it) },
+                contextParameterFactory = contextParameterFactory,
             )
         getter?.property = propertyItem
         setter?.property = propertyItem
@@ -1049,24 +1090,52 @@ private constructor(
     }
 
     /** Converts the [kaParameters] to [ParameterItem]s for the [containingCallable]. */
+    @OptIn(KaExperimentalApi::class) // For context parameters
     private fun parameterList(
         kaParameters: List<KaValueParameterSymbol>,
         containingCallable: CallableItem,
         enclosingTypeItemFactory: KaTypeItemFactory,
+        kaContextParameters: List<KaContextParameterSymbol>,
         kaReceiverParameter: KaReceiverParameterSymbol?,
         isSuspend: Boolean,
         returnType: TypeItem,
         fingerprint: MethodFingerprint,
     ): List<ParameterItem> {
+        val contextParameters =
+            kaContextParameters.mapIndexed { sourceIndex, parameterSymbol ->
+                val type =
+                    enclosingTypeItemFactory.getMethodParameterType(
+                        underlyingParameterType = parameterSymbol.returnType,
+                        itemAnnotations = containingCallable.modifiers.annotations(),
+                        fingerprint = fingerprint,
+                        parameterIndex = sourceIndex,
+                        isVarArg = false,
+                    )
+                val sourceName = parameterSymbol.name.identifierOrNullIfSpecial
+                itemFactory.createParameterItem(
+                    fileLocation = PsiFileLocation.fromPsiElement(parameterSymbol.psi),
+                    modifiers = kaModifierFactory.createForContextParameter(parameterSymbol),
+                    // If no name is available, "_" was used in source, which is not a public name.
+                    name = sourceName ?: "_",
+                    publicName = sourceName,
+                    containingItem = containingCallable,
+                    parameterIndex = sourceIndex,
+                    type = type,
+                    hasDefaultValue = false,
+                    kind = ParameterKind.CONTEXT
+                )
+            }
+
         // If there is a receiver, convert it to a parameter item.
         val receiverParameter =
             kaReceiverParameter?.let {
+                val index = contextParameters.size
                 val type =
                     enclosingTypeItemFactory.getMethodParameterType(
                         underlyingParameterType = it.returnType,
                         itemAnnotations = containingCallable.modifiers.annotations(),
                         fingerprint = fingerprint,
-                        parameterIndex = 0,
+                        parameterIndex = index,
                         isVarArg = false,
                     )
 
@@ -1075,17 +1144,20 @@ private constructor(
                     modifiers = kaModifierFactory.createForReceiverParameter(it),
                     name = "receiver",
                     publicName = null,
-                    containingCallable = containingCallable,
-                    parameterIndex = 0,
+                    containingItem = containingCallable,
+                    parameterIndex = index,
                     type = type,
                     hasDefaultValue = false,
+                    kind = ParameterKind.RECEIVER,
                 )
             }
-        val regularParameters =
+        val receiverParameterCount = (receiverParameter?.let { 1 } ?: 0)
+
+        val valueParameters =
             kaParameters.mapIndexed { sourceIndex, parameterSymbol ->
                 // If there is a receiver, it becomes the first parameter, so shift the index of all
                 // other parameters
-                val index = if (receiverParameter != null) 1 + sourceIndex else sourceIndex
+                val index = contextParameters.size + receiverParameterCount + sourceIndex
                 val type =
                     enclosingTypeItemFactory.getMethodParameterType(
                         underlyingParameterType = parameterSymbol.returnType,
@@ -1100,10 +1172,11 @@ private constructor(
                     modifiers = kaModifierFactory.createForValueParameter(parameterSymbol),
                     name = parameterSymbol.name.identifier,
                     publicName = parameterSymbol.name.identifierOrNullIfSpecial,
-                    containingCallable = containingCallable,
+                    containingItem = containingCallable,
                     parameterIndex = index,
                     type = type,
                     hasDefaultValue = parameterSymbol.hasDefaultValue,
+                    kind = ParameterKind.VALUE,
                 )
             }
 
@@ -1111,25 +1184,29 @@ private constructor(
         // for the jvm signature (which is used when adding to a psi codebase).
         val continuationParameter =
             if (addingToPsiCodebase && isSuspend) {
-                val index = regularParameters.size + (receiverParameter?.let { 1 } ?: 0)
+                val index = valueParameters.size + receiverParameterCount + contextParameters.size
                 itemFactory.createParameterItem(
                     fileLocation = FileLocation.UNKNOWN,
                     modifiers =
                         createImmutableModifiers(VisibilityLevel.PACKAGE_PRIVATE, emptyList()),
                     name = "\$completion",
                     publicName = null,
-                    containingCallable = containingCallable,
+                    containingItem = containingCallable,
                     parameterIndex = index,
                     type = enclosingTypeItemFactory.createContinuationType(returnType),
                     hasDefaultValue = false,
+                    kind = ParameterKind.CONTINUATION,
                 )
             } else {
                 null
             }
 
-        return listOfNotNull(receiverParameter) +
-            regularParameters +
-            listOfNotNull(continuationParameter)
+        return buildList {
+            addAll(contextParameters)
+            receiverParameter?.let { add(it) }
+            addAll(valueParameters)
+            continuationParameter?.let { add(it) }
+        }
     }
 
     /** Finds any exception types listed with the @Throws annotation. */
@@ -1177,7 +1254,7 @@ private constructor(
 
     /**
      * Finds a property accessor with the given [name] in the [containingClass], based on the
-     * [propertyType] and [receiverType].
+     * [propertyType], [receiverType], and [contextParameterTypes].
      */
     private fun findAccessor(
         property: KaPropertySymbol,
@@ -1187,40 +1264,56 @@ private constructor(
         containingClass: ClassItem,
         propertyType: TypeItem,
         receiverType: TypeItem?,
+        contextParameterTypes: List<TypeItem>,
         isGetter: Boolean,
         visibility: KaSymbolVisibility,
     ): MethodItem? {
         // Generally, properties using a value class type cannot be accessed from Java. However, if
-        // JvmName is used, they can be, but the inlined type needs to be used to find the accessor
-        // instead of the value class type.
-        val (possiblyInlinedPropertyType, possiblyInlinedReceiverType) =
-            if (propertyType.isValueClassType || receiverType?.isValueClassType == true) {
-                if (accessor.annotations.any { it.classId?.asFqNameString() == JVM_NAME }) {
-                    typeItemFactory.inlineTypeIfNeeded(property.returnType, propertyType) to
-                        receiverType?.let {
-                            typeItemFactory.inlineTypeIfNeeded(
-                                property.receiverType!!,
-                                receiverType
-                            )
-                        }
-                } else {
-                    return null
-                }
+        // JvmName is used, they can be, but the inlined types need to be used to find the accessor
+        // instead of the value class types.
+        val possiblyInlinedPropertyType: TypeItem
+        val possiblyInlinedReceiverType: TypeItem?
+        val possiblyInlinedContextParameterTypes: List<TypeItem>
+        if (
+            propertyType.isValueClassType ||
+                receiverType?.isValueClassType == true ||
+                contextParameterTypes.any { it.isValueClassType }
+        ) {
+            if (accessor.annotations.any { it.classId?.asFqNameString() == JVM_NAME }) {
+                possiblyInlinedPropertyType =
+                    typeItemFactory.inlineTypeIfNeeded(property.returnType, propertyType)
+                possiblyInlinedReceiverType =
+                    receiverType?.let {
+                        typeItemFactory.inlineTypeIfNeeded(property.receiverType!!, receiverType)
+                    }
+                @OptIn(KaExperimentalApi::class)
+                possiblyInlinedContextParameterTypes =
+                    contextParameterTypes.mapIndexed { index, type ->
+                        typeItemFactory.inlineTypeIfNeeded(
+                            property.contextParameters[index].returnType,
+                            type
+                        )
+                    }
             } else {
-                propertyType to receiverType
+                return null
             }
+        } else {
+            possiblyInlinedPropertyType = propertyType
+            possiblyInlinedReceiverType = receiverType
+            possiblyInlinedContextParameterTypes = contextParameterTypes
+        }
 
         val parameters =
-            listOfNotNull(
-                    // Both the getter and setter have the receiver as the first parameter
-                    possiblyInlinedReceiverType,
+            buildList {
+                    // Both the getter and setter have the context parameters and receiver as the
+                    // first parameters, if they exist
+                    addAll(possiblyInlinedContextParameterTypes)
+                    possiblyInlinedReceiverType?.let { add(it) }
                     // The setter also has the property type as a parameter
-                    if (isGetter) {
-                        null
-                    } else {
-                        possiblyInlinedPropertyType
+                    if (!isGetter) {
+                        add(possiblyInlinedPropertyType)
                     }
-                )
+                }
                 // Compare types by erased string to work around differences like `List<String>` vs
                 // `List<? extends String>` that can exist in the two representations.
                 .map { it.toErasedTypeString() }

@@ -27,7 +27,7 @@ import org.junit.Test
 class StubsConstructorTest : AbstractStubsTest() {
 
     @Test
-    fun `Generate stubs for class that should not get default constructor (has other constructors)`() {
+    fun `Generate stubs for class that should not get default constructor - has other constructors`() {
         // Class without explicit constructors (shouldn't insert default constructor)
         checkStubs(
             sourceFiles =
@@ -289,7 +289,7 @@ class StubsConstructorTest : AbstractStubsTest() {
                     )
                 ),
             expectedIssues = "",
-            api =
+            expectedApiSignature =
                 """
                     package test.pkg {
                       public class MyClass1 {
@@ -303,7 +303,7 @@ class StubsConstructorTest : AbstractStubsTest() {
                       }
                     }
                     """,
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
@@ -740,7 +740,7 @@ class StubsConstructorTest : AbstractStubsTest() {
                     """
                     )
                 ),
-            api =
+            expectedApiSignature =
                 """
                 package test.pkg {
                   public class BasicPoolEntry {
@@ -755,7 +755,7 @@ class StubsConstructorTest : AbstractStubsTest() {
                   }
                 }
                 """,
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
@@ -803,7 +803,7 @@ class StubsConstructorTest : AbstractStubsTest() {
                     """
                     ),
                 ),
-            api =
+            expectedApiSignature =
                 """
                 package test.pkg {
                   public class Bar<T extends java.lang.Number> {
@@ -815,7 +815,7 @@ class StubsConstructorTest : AbstractStubsTest() {
                   }
                 }
                 """,
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
@@ -863,7 +863,7 @@ class StubsConstructorTest : AbstractStubsTest() {
                     """
                     ),
                 ),
-            api =
+            expectedApiSignature =
                 """
                 package test.pkg {
                   public class Child extends test.pkg.Parent {
@@ -876,7 +876,7 @@ class StubsConstructorTest : AbstractStubsTest() {
                   }
                 }
                 """,
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
@@ -908,7 +908,7 @@ class StubsConstructorTest : AbstractStubsTest() {
                         """
                     ),
                 ),
-            api =
+            expectedApiSignature =
                 """
                     package test.pkg {
                       public final class ConstantsKt {
@@ -918,7 +918,7 @@ class StubsConstructorTest : AbstractStubsTest() {
                     }
                 """,
             stubPaths = arrayOf("test/pkg/ConstantsKt.java"),
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """

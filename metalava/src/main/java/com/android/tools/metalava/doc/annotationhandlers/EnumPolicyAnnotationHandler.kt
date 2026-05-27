@@ -65,7 +65,7 @@ data class EnumPolicyDefinitionProxy(
         return buildString {
             append("\n<p>Policy Type: Enum</p>\n <ul>\n")
             append(base.generateDocs())
-            val resolutionMechanismDoc = resolutionMechanism.generateDocs()
+            val resolutionMechanismDoc = resolutionMechanism.generateDocs(enumValueToCodeReference)
             append("   <li>Resolution Mechanism: $resolutionMechanismDoc</li>\n")
             if (enumValueToCodeReference.isNotEmpty()) {
                 append("   <li>Enum policy values:\n     <ul>\n")
@@ -166,13 +166,15 @@ data class EnumResolutionMechanismProxy(
     val mostRestrictive: List<Int>,
     val notCoexistable: Boolean,
 ) {
-    fun generateDocs() =
+    fun generateDocs(enumValueToCodeReference: Map<Int, String>) =
         if (custom) {
             "custom"
         } else if (notCoexistable) {
             "not coexistable"
         } else if (mostRestrictive.isNotEmpty()) {
-            "most restrictive: [${mostRestrictive.joinToString(", ")}]"
+            val mostRestrictiveDocs =
+                mostRestrictive.map { enumValueToCodeReference[it] ?: it.toString() }
+            "most restrictive: [${mostRestrictiveDocs.joinToString(", ")}]"
         } else {
             item.codebase.reporter.reportOnMissingFields("resolutionMechanism", item)
             ""

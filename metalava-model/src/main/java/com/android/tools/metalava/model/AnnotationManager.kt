@@ -176,6 +176,9 @@ internal class NoOpAnnotationInfo(
 
     override val typeNullability = computeTypeNullability(qualifiedName)
 
+    override val surfaceData
+        get() = null
+
     override val showability
         get() = Showability.NO_EFFECT
 

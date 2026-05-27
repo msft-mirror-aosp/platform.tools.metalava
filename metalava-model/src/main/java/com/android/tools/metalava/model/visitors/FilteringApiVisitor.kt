@@ -259,7 +259,7 @@ class FilteringApiVisitor(
                 .toList()
 
         override fun fields(): List<FieldItem> =
-            delegate.filteredFields(filterReference, showUnannotated).map { FilteringFieldItem(it) }
+            delegate.allFilteredFields(filterReference).map { FilteringFieldItem(it) }
 
         override val aliasedType: TypeItem
             get() = delegate.aliasedType.transform(typeAnnotationFilter)

@@ -117,7 +117,8 @@ internal class DefaultMethodItem(
         val typeConverter = typeVariableMap.toTypeConverter()
 
         return DefaultMethodItem(
-                codebase = codebase,
+                // Create it in the same codebase as targetContainingClass.
+                codebase = targetContainingClass.codebase,
                 fileLocation = fileLocation,
                 sourceLanguage = sourceLanguage,
                 targetLanguages = targetLanguages,

@@ -368,15 +368,19 @@ internal class PsiCodebaseAssembler(
         }
 
         // Copy type use only nullness annotations to items.
-        copyTypeUseOnlyNullnessAnnotationsToItems()
+        tracer.trace("copyTypeUseOnlyNullnessAnnotationsToItems") {
+            copyTypeUseOnlyNullnessAnnotationsToItems()
+        }
 
         // Psi does not correctly track annotations in some cases so fix them up. Done here as it
         // cannot fix them up earlier because it requires resolving annotation classes and doing it
         // earlier would result in annotation classes being loaded multiple times.
-        correctIncorrectlyAppliedAnnotations()
+        tracer.trace("correctIncorrectlyAppliedAnnotations") {
+            correctIncorrectlyAppliedAnnotations()
+        }
 
         // Add kotlin-only APIs.
-        kaCodebaseAssembler?.assemble()
+        tracer.trace("kaCodebaseAssembler?.assemble()") { kaCodebaseAssembler?.assemble() }
     }
 
     /**

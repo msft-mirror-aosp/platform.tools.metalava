@@ -622,11 +622,32 @@ object CodebaseComparator {
                             // If the properties have the same name, additionally check the receiver
                             // types.
                             delta =
-                                item1.receiver?.let { receiver1 ->
-                                    item2.receiver?.let { receiver2 ->
-                                        receiver1.toTypeString().compareTo(receiver2.toTypeString())
-                                    } ?: -1
-                                } ?: 1
+                                when (val receiver1 = item1.receiver) {
+                                    null ->
+                                        when (item2.receiver) {
+                                            null -> 0
+                                            else -> 1
+                                        }
+                                    else ->
+                                        when (val receiver2 = item2.receiver) {
+                                            null -> -1
+                                            else ->
+                                                receiver1
+                                                    .toTypeString()
+                                                    .compareTo(receiver2.toTypeString())
+                                        }
+                                }
+                        }
+                        if (delta == 0) {
+                            delta = item1.contextParameters.size - item2.contextParameters.size
+                            if (delta == 0) {
+                                for ((p1, p2) in
+                                    item1.contextParameters.zip(item2.contextParameters)) {
+                                    delta =
+                                        p1.type().toTypeString().compareTo(p2.type().toTypeString())
+                                    if (delta != 0) break
+                                }
+                            }
                         }
                         delta
                     }
@@ -708,7 +729,6 @@ object CodebaseComparator {
                         // Do not visit [ParameterItem]s, as they will be compared in
                         // [dispatchToCompare].
                         visitParameterItems = false,
-                        inlineInheritedFields = true,
                         apiFilters = apiFilters,
                         // Whenever a caller passes arguments of "--show-annotation 'SomeAnnotation'
                         // --check-compatibility:api:released $oldApi",
