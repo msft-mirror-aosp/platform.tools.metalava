@@ -608,7 +608,6 @@ private fun createFilteringVisitorForSignatures(
         else Pair(::getInterfacesInOrder, null)
     return FilteringApiVisitor(
         delegate = delegate,
-        inlineInheritedFields = showUnannotated,
         interfaceListSorter = interfaceListSorter,
         interfaceListComparator = interfaceListComparator,
         apiFilters = apiFilters,

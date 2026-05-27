@@ -50,7 +50,6 @@ import com.android.tools.metalava.model.typeUseAnnotationFilter
  */
 class FilteringApiVisitor(
     val delegate: DelegatedVisitor,
-    inlineInheritedFields: Boolean = true,
     /**
      * Optional lambda for sorting the filtered, list of interface types from a [ClassItem].
      *
@@ -86,7 +85,6 @@ class FilteringApiVisitor(
         // Only `SelectableItem`s can be filtered separately, i.e. `ParameterItem`s will be included
         // if and only if their containing method is included.
         visitParameterItems = false,
-        inlineInheritedFields = inlineInheritedFields,
         apiFilters = apiFilters,
         showUnannotated = showUnannotated,
         targetLanguages = targetLanguages,
@@ -259,7 +257,7 @@ class FilteringApiVisitor(
                 .toList()
 
         override fun fields(): List<FieldItem> =
-            delegate.allFilteredFields(filterReference).map { FilteringFieldItem(it) }
+            delegate.filteredFields(filterReference).map { FilteringFieldItem(it) }.toList()
 
         override val aliasedType: TypeItem
             get() = delegate.aliasedType.transform(typeAnnotationFilter)

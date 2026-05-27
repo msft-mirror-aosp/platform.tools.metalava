@@ -19,7 +19,6 @@ package com.android.tools.metalava.model.visitors
 import com.android.tools.metalava.model.BaseItemVisitor
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassKind
-import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.FilterPredicate
 import com.android.tools.metalava.model.ItemVisitor
 import com.android.tools.metalava.model.MemberItem
@@ -39,9 +38,6 @@ open class ApiVisitor(
     /** Whether to visit typealiases in a package after all other [ClassItem]s have been visited. */
     private val sortTypeAliasesLast: Boolean = true,
 
-    /** Whether to include inherited fields too */
-    private val inlineInheritedFields: Boolean = true,
-
     /** The filters to use to determine what parts of the API will be visited. */
     private val apiFilters: ApiFilters,
 
@@ -59,17 +55,6 @@ open class ApiVisitor(
      */
     targetLanguages: Set<TargetLanguage> = TargetLanguageSet.ALL,
 ) : BaseItemVisitor(preserveClassNesting, visitParameterItems) {
-
-    // A temporary check that ensures that showUnannotated and inlineInheritedFields are consistent.
-    // TODO(b/516155488): Remove this when they can be different.
-    init {
-        if (showUnannotated != inlineInheritedFields) {
-            error(
-                "showUnannotated = $showUnannotated and inlineInheritedFields = $inlineInheritedFields"
-            )
-        }
-    }
-
     constructor(
         /** @see BaseItemVisitor.visitParameterItems */
         visitParameterItems: Boolean = true,
@@ -90,13 +75,6 @@ open class ApiVisitor(
 
     /** The filter to use to determine if we should emit a reference to an item */
     protected val filterReference = addTargetLanguageCheck(apiFilters.reference, targetLanguages)
-
-    /** Get all the [FieldItem]s from this class, possibly including inherited fields. */
-    fun ClassItem.allFilteredFields(predicate: FilterPredicate) =
-        filteredFields(
-            predicate,
-            inlineInheritedFields,
-        )
 
     companion object {
         /** Get the default [ApiFilters] to use with [ApiVisitor]. */
@@ -260,12 +238,7 @@ open class ApiVisitor(
                         cls.constructors().filterTo(this) { filterEmit.test(it) }
                         cls.methods().filterTo(this) { filterEmit.test(it) }
                         cls.properties().filterTo(this) { filterEmit.test(it) }
-
-                        if (inlineInheritedFields) {
-                            addAll(cls.allFilteredFields(filterEmit))
-                        } else {
-                            cls.fields().filterTo(this) { filterEmit.test(it) }
-                        }
+                        cls.fields().filterTo(this) { filterEmit.test(it) }
                     }
                 }
 
