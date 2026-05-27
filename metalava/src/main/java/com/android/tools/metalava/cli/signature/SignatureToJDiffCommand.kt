@@ -135,9 +135,16 @@ class SignatureToJDiffCommand :
         val signatureApi = signatureFileLoader.load(SignatureFile.fromFiles(apiFile))
 
         val strip = strip
-        val apiEmit = FilterPredicate { it.emit }
-        val apiReference = if (strip) apiEmit else FilterPredicate { true }
-        val apiFilters = ApiFilters(emit = apiEmit, reference = apiReference)
+        val preFiltered = signatureApi.preFiltered && !strip
+        val apiFilters =
+            if (preFiltered) {
+                ApiFilters.ALL
+            } else {
+                val apiEmit = FilterPredicate { it.emit }
+                val apiReference = if (strip) apiEmit else FilterPredicate { true }
+                ApiFilters(emit = apiEmit, reference = apiReference)
+            }
+
         val baseFile = baseApiFile
 
         val signatureFragment =
@@ -145,7 +152,7 @@ class SignatureToJDiffCommand :
                 createFilteringVisitorForJDiffWriter(
                     delegate,
                     apiFilters = apiFilters,
-                    preFiltered = signatureApi.preFiltered && !strip,
+                    preFiltered = preFiltered,
                     // Historically, the super class type has not been filtered when generating
                     // JDiff files, so do not filter here even though it could result in undefined
                     // types being included in the JDiff file.

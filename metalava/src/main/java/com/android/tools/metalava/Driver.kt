@@ -361,10 +361,18 @@ class Driver(
         )
 
         miscellaneousOptions.proguardFile?.let { proguard ->
-            val apiPredicateConfigIgnoreShown = apiPredicateConfig.copy(ignoreShown = true)
-            val apiReferenceIgnoreShown = ApiPredicate(config = apiPredicateConfigIgnoreShown)
-            val apiEmit = MatchOverridingMethodPredicate(ApiPredicate(config = apiPredicateConfig))
-            val apiFilters = ApiFilters(emit = apiEmit, reference = apiReferenceIgnoreShown)
+            val apiFilters =
+                if (codebase.preFiltered) {
+                    ApiFilters.ALL
+                } else {
+                    val apiPredicateConfigIgnoreShown = apiPredicateConfig.copy(ignoreShown = true)
+                    val apiReferenceIgnoreShown =
+                        ApiPredicate(config = apiPredicateConfigIgnoreShown)
+                    val apiEmit =
+                        MatchOverridingMethodPredicate(ApiPredicate(config = apiPredicateConfig))
+                    ApiFilters(emit = apiEmit, reference = apiReferenceIgnoreShown)
+                }
+
             val codebaseFragment =
                 CodebaseFragment.create(codebase) { delegatedVisitor ->
                     FilteringApiVisitor(
@@ -452,12 +460,18 @@ class Driver(
         val fileFormat = signatureFormatOptions.fileFormat
 
         val preFiltered = codebase.preFiltered
+        val apiFilters =
+            if (preFiltered) {
+                ApiFilters.ALL
+            } else {
+                ApiType.PUBLIC_API.getApiFilters(apiPredicateConfig)
+            }
 
         val codebaseFragment =
             createSignatureFileFragment(
                 codebase,
                 fileFormat = fileFormat,
-                apiFilters = ApiType.PUBLIC_API.getApiFilters(apiPredicateConfig),
+                apiFilters = apiFilters,
                 preFiltered = preFiltered,
             )
 
@@ -482,11 +496,18 @@ class Driver(
         }
 
         signatureFileOptions.removedApiFile?.let { apiSignatureFile ->
+            val apiFilters =
+                if (preFiltered) {
+                    ApiFilters.ALL
+                } else {
+                    ApiType.REMOVED.getApiFilters(apiPredicateConfig)
+                }
+
             val removedApiCodebaseFragment =
                 createSignatureFileFragment(
                     codebase,
                     fileFormat = fileFormat,
-                    apiFilters = ApiType.REMOVED.getApiFilters(apiPredicateConfig),
+                    apiFilters = apiFilters,
                     preFiltered = preFiltered,
                 )
 
@@ -677,10 +698,17 @@ class Driver(
                 outputDirectory = outputDirectory,
                 // Convert a [Codebase] to a [CodebaseFragment].
                 fragmentCreator = { sourceSetCodebase ->
+                    val apiFilters =
+                        if (sourceSetCodebase.preFiltered) {
+                            ApiFilters.ALL
+                        } else {
+                            ApiType.PUBLIC_API.getApiFilters(apiPredicateConfig)
+                        }
+
                     createSignatureFileFragment(
                         sourceSetCodebase,
                         fileFormat = format,
-                        apiFilters = ApiType.PUBLIC_API.getApiFilters(apiPredicateConfig),
+                        apiFilters = apiFilters,
                         preFiltered = sourceSetCodebase.preFiltered,
                     )
                 },

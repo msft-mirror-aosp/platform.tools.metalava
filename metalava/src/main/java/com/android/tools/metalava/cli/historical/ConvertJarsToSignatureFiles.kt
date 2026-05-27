@@ -47,6 +47,7 @@ import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.model.text.SignatureWriter
 import com.android.tools.metalava.model.text.SnapshotDeltaMaker
 import com.android.tools.metalava.model.text.createCodebaseFragmentForSignatureFile
+import com.android.tools.metalava.model.visitors.ApiFilters
 import com.android.tools.metalava.model.visitors.ApiPredicate
 import com.android.tools.metalava.model.visitors.ApiType
 import com.android.tools.metalava.model.visitors.ApiVisitor
@@ -198,7 +199,12 @@ class ConvertJarsToSignatureFiles(
             ApiPredicate.Config(
                 addAdditionalOverrides = fileFormat[ADD_ADDITIONAL_OVERRIDES],
             )
-        val apiFilters = ApiType.PUBLIC_API.getApiFilters(apiPredicateConfig)
+        val apiFilters =
+            if (jarCodebase.preFiltered) {
+                ApiFilters.ALL
+            } else {
+                ApiType.PUBLIC_API.getApiFilters(apiPredicateConfig)
+            }
 
         val jarCodebaseFragment =
             createCodebaseFragmentForSignatureFile(
