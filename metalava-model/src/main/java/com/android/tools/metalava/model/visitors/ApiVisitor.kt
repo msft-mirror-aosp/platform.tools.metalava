@@ -26,7 +26,7 @@ import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.TargetLanguage
 import com.android.tools.metalava.model.TargetLanguageSet
-import java.util.function.Predicate
+import com.android.tools.metalava.model.andNullable
 
 open class ApiVisitor(
     /** @see BaseItemVisitor.preserveClassNesting */
@@ -71,10 +71,20 @@ open class ApiVisitor(
     )
 
     /** The filter to use to determine if we should emit an item */
-    protected val filterEmit = addTargetLanguageCheck(apiFilters.emit, targetLanguages)
+    protected val filterEmit: FilterPredicate
 
     /** The filter to use to determine if we should emit a reference to an item */
-    protected val filterReference = addTargetLanguageCheck(apiFilters.reference, targetLanguages)
+    protected val filterReference: FilterPredicate
+
+    init {
+        // Create an optional [FilterPredicate] that will ignore any items that do not target at
+        // least one language in targetLanguages.
+        val targetLanguagesInclusionFilter = targetLanguages.inclusionFilter()
+
+        // Combine the filters with the target language filter.
+        filterEmit = apiFilters.emit.andNullable(targetLanguagesInclusionFilter)
+        filterReference = apiFilters.reference.andNullable(targetLanguagesInclusionFilter)
+    }
 
     companion object {
         /** Get the default [ApiFilters] to use with [ApiVisitor]. */
@@ -98,19 +108,6 @@ open class ApiVisitor(
                 includeApisForStubPurposes = true,
                 config = apiPredicateConfig.copy(ignoreShown = true),
             )
-
-        /**
-         * Updates the [filter] to also check that the [SelectableItem] has at least one of the
-         * [targetLanguages].
-         */
-        fun addTargetLanguageCheck(
-            filter: FilterPredicate,
-            targetLanguages: Set<TargetLanguage>
-        ): FilterPredicate {
-            return Predicate { item: SelectableItem ->
-                filter.test(item) && item.targetLanguages.intersect(targetLanguages).isNotEmpty()
-            }
-        }
     }
 
     /**
@@ -277,3 +274,13 @@ open class ApiVisitor(
         }
     }
 }
+
+/**
+ * Get a [FilterPredicate] that will return `true` if the [SelectableItem] on which it is called
+ * is for at least one of this set's [TargetLanguage].
+ *
+ * If this set is all [TargetLanguage]s then it returns `null` to avoid any filtering.
+ */
+private fun Set<TargetLanguage>.inclusionFilter() =
+    if (this == TargetLanguageSet.ALL) null
+    else FilterPredicate { item -> item.targetLanguages.intersect(this).isNotEmpty() }
