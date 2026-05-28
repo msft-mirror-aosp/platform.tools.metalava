@@ -31,15 +31,12 @@ import com.android.tools.metalava.model.JAVA_LANG_DEPRECATED
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ModifierListWriter
 import com.android.tools.metalava.model.SelectableItem
-import com.android.tools.metalava.model.TargetLanguage
-import com.android.tools.metalava.model.TargetLanguageSet
 import com.android.tools.metalava.model.api.flags.optionalFlagName
 import com.android.tools.metalava.model.findAnnotation
 import com.android.tools.metalava.model.hasAnnotation
 import com.android.tools.metalava.model.value.ValueKind
 import com.android.tools.metalava.model.value.asString
 import com.android.tools.metalava.model.visitors.ApiFilters
-import com.android.tools.metalava.model.visitors.ApiVisitor.Companion.addTargetLanguageCheck
 import com.android.tools.metalava.reporter.FileLocation
 import com.android.tools.metalava.reporter.Issues.FLAGGED_API_LITERAL
 import com.android.tools.metalava.reporter.Issues.Issue
@@ -58,14 +55,11 @@ class FlaggedApiLint(
     reporter: Reporter,
     apiFilters: ApiFilters,
 ) : DelegatedVisitor {
-    /** The set of [TargetLanguage]s that should be used, only cares about items from the source. */
-    private val targetLanguages = TargetLanguageSet.SOURCE
-
     /** Predicate that checks if the item appears in the signature file. */
-    private val filterEmit = addTargetLanguageCheck(apiFilters.emit, targetLanguages)
+    private val filterEmit = apiFilters.emit
 
     /** The filter to use to determine if we should emit a reference to an item */
-    private val filterReference = addTargetLanguageCheck(apiFilters.reference, targetLanguages)
+    private val filterReference = apiFilters.reference
 
     /** Filter out issues that are not for items being emitted. */
     private val filteredReporter = FilteringReporter(reporter, oldCodebase, filterEmit)
