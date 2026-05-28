@@ -19,27 +19,26 @@ package com.android.tools.metalava.doc.annotationhandlers
 import com.android.tools.metalava.model.ANDROIDX_INT_DEF
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ClassItem
-import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.annotation.binding.bindTo
 import com.android.tools.metalava.model.value.FieldReferenceValue
 import com.android.tools.metalava.model.value.asAny
 import com.android.tools.metalava.reporter.Issues
-import com.android.tools.metalava.reporter.Reporter
 import java.util.function.Predicate
 
 /** Handles @android.processor.devicepolicy.EnumPolicyDefinition annotation. */
 class EnumPolicyAnnotationHandler(
-    codebase: Codebase,
-    reporter: Reporter,
-    filterReference: Predicate<SelectableItem>
-) : BaseDevicePolicyAnnotationHandler(codebase, reporter, filterReference) {
+    context: DevicePolicyContext,
+) : BaseDevicePolicyAnnotationHandler(context) {
 
     /** Processes a policy annotation and returns a documentation string. */
-    override fun processPolicyAnnotation(annotation: AnnotationItem, item: Item): String {
+    override fun processPolicyAnnotation(
+        annotation: AnnotationItem,
+        item: Item,
+    ): String {
         val proxy = annotation.bindTo<EnumPolicyDefinitionProxy>(item)
-        return proxy?.generateDocs(filterReference) ?: ""
+        return proxy?.generateDocs(context) ?: ""
     }
 }
 
@@ -58,8 +57,8 @@ data class EnumPolicyDefinitionProxy(
 ) {
     val reporter = item.codebase.reporter
 
-    fun generateDocs(filterReference: Predicate<SelectableItem>): String {
-        val enumValueToCodeReference = buildEnumValueToCodeReferenceMap(filterReference)
+    fun generateDocs(context: DevicePolicyContext): String {
+        val enumValueToCodeReference = buildEnumValueToCodeReferenceMap(context.filterReference)
         val defaultValue = defaultValue
 
         return buildString {

@@ -17,20 +17,14 @@
 package com.android.tools.metalava.doc.annotationhandlers
 
 import com.android.tools.metalava.model.AnnotationItem
-import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.Item
-import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.annotation.binding.bindTo
 import com.android.tools.metalava.reporter.Issues
-import com.android.tools.metalava.reporter.Reporter
-import java.util.function.Predicate
 
 /** Handles @android.processor.devicepolicy.LongPolicyDefinition annotation. */
 class LongPolicyAnnotationHandler(
-    codebase: Codebase,
-    reporter: Reporter,
-    filterReference: Predicate<SelectableItem>
-) : BaseDevicePolicyAnnotationHandler(codebase, reporter, filterReference) {
+    context: DevicePolicyContext,
+) : BaseDevicePolicyAnnotationHandler(context) {
     /** Processes the [LongPolicyDefinitionProxy] and returns the documentation for the policy. */
     override fun processPolicyAnnotation(annotation: AnnotationItem, item: Item): String {
         val proxy = annotation.bindTo<LongPolicyDefinitionProxy>(item)

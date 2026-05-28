@@ -17,26 +17,22 @@
 package com.android.tools.metalava.doc.annotationhandlers
 
 import com.android.tools.metalava.model.AnnotationItem
-import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.Item
-import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.annotation.binding.bindTo
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
-import java.util.function.Predicate
 
 /**
  * Base class for Device Policy Annotation Handlers.
  *
  * Contains shared utilities for parsing attributes and reporting issues.
  */
-abstract class BaseDevicePolicyAnnotationHandler(
-    protected val codebase: Codebase,
-    protected val reporter: Reporter,
-    protected val filterReference: Predicate<SelectableItem>
-) {
+abstract class BaseDevicePolicyAnnotationHandler(protected val context: DevicePolicyContext) {
     /** Processes a policy annotation and returns a documentation string. */
-    abstract fun processPolicyAnnotation(annotation: AnnotationItem, item: Item): String
+    abstract fun processPolicyAnnotation(
+        annotation: AnnotationItem,
+        item: Item,
+    ): String
 }
 
 /** Report missing required fields inside the annotation. */

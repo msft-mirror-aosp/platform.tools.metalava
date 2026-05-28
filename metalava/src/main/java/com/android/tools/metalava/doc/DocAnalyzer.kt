@@ -26,6 +26,8 @@ import com.android.tools.metalava.apilevels.ApiToExtensionsMap.Companion.ANDROID
 import com.android.tools.metalava.apilevels.ApiVersion
 import com.android.tools.metalava.cli.common.ExecutionEnvironment
 import com.android.tools.metalava.containsNullWord
+import com.android.tools.metalava.doc.annotationhandlers.BaseDevicePolicyAnnotationHandler
+import com.android.tools.metalava.doc.annotationhandlers.DevicePolicyContext
 import com.android.tools.metalava.doc.annotationhandlers.EnumPolicyAnnotationHandler
 import com.android.tools.metalava.doc.annotationhandlers.IntegerPolicyAnnotationHandler
 import com.android.tools.metalava.doc.annotationhandlers.ListOfPackagePolicyAnnotationHandler
@@ -153,6 +155,9 @@ class DocAnalyzer(
 
         codebase.accept(
             object : ApiVisitor(apiPredicateConfig = apiPredicateConfig) {
+                /** Contextual information for [BaseDevicePolicyAnnotationHandler]s. */
+                private val devicePolicyContext = DevicePolicyContext(filterReference)
+
                 override fun visitItem(item: Item) {
                     val annotations = item.modifiers.annotations()
                     if (annotations.isEmpty()) {
@@ -211,6 +216,18 @@ class DocAnalyzer(
                     return permClass?.fields()?.firstOrNull { it.constantValue?.asString() == perm }
                 }
 
+                /**
+                 * Handle the device policy [annotation] by generating some documentation and
+                 * appending it to [item].
+                 */
+                private fun BaseDevicePolicyAnnotationHandler.handlePolicyAnnotation(
+                    annotation: AnnotationItem,
+                    item: Item,
+                ) {
+                    val doc = processPolicyAnnotation(annotation, item)
+                    appendDocumentation(doc, item, returnValue = false)
+                }
+
                 private fun handleAnnotation(
                     annotation: AnnotationItem,
                     item: Item,
@@ -236,37 +253,26 @@ class DocAnalyzer(
 
                     when (name) {
                         "android.processor.devicepolicy.EnumPolicyDefinition" ->
-                            EnumPolicyAnnotationHandler(codebase, reporter, filterReference)
-                                .processPolicyAnnotation(annotation, item)
-                                .let { appendDocumentation(it, item, returnValue = false) }
+                            EnumPolicyAnnotationHandler(devicePolicyContext)
+                                .handlePolicyAnnotation(annotation, item)
                         "android.processor.devicepolicy.StringPolicyDefinition" ->
-                            StringPolicyAnnotationHandler(codebase, reporter, filterReference)
-                                .processPolicyAnnotation(annotation, item)
-                                .let { appendDocumentation(it, item, returnValue = false) }
+                            StringPolicyAnnotationHandler(devicePolicyContext)
+                                .handlePolicyAnnotation(annotation, item)
                         "android.processor.devicepolicy.IntegerPolicyDefinition" ->
-                            IntegerPolicyAnnotationHandler(codebase, reporter, filterReference)
-                                .processPolicyAnnotation(annotation, item)
-                                .let { appendDocumentation(it, item, returnValue = false) }
+                            IntegerPolicyAnnotationHandler(devicePolicyContext)
+                                .handlePolicyAnnotation(annotation, item)
                         "android.processor.devicepolicy.LongPolicyDefinition" ->
-                            LongPolicyAnnotationHandler(codebase, reporter, filterReference)
-                                .processPolicyAnnotation(annotation, item)
-                                .let { appendDocumentation(it, item, returnValue = false) }
+                            LongPolicyAnnotationHandler(devicePolicyContext)
+                                .handlePolicyAnnotation(annotation, item)
                         "android.processor.devicepolicy.ListOfStringPolicyDefinition" ->
-                            ListOfStringPolicyAnnotationHandler(codebase, reporter, filterReference)
-                                .processPolicyAnnotation(annotation, item)
-                                .let { appendDocumentation(it, item, returnValue = false) }
+                            ListOfStringPolicyAnnotationHandler(devicePolicyContext)
+                                .handlePolicyAnnotation(annotation, item)
                         "android.processor.devicepolicy.ListOfPackagePolicyDefinition" ->
-                            ListOfPackagePolicyAnnotationHandler(
-                                    codebase,
-                                    reporter,
-                                    filterReference
-                                )
-                                .processPolicyAnnotation(annotation, item)
-                                .let { appendDocumentation(it, item, returnValue = false) }
+                            ListOfPackagePolicyAnnotationHandler(devicePolicyContext)
+                                .handlePolicyAnnotation(annotation, item)
                         "android.processor.devicepolicy.PackagePolicyDefinition" ->
-                            PackagePolicyAnnotationHandler(codebase, reporter, filterReference)
-                                .processPolicyAnnotation(annotation, item)
-                                .let { appendDocumentation(it, item, returnValue = false) }
+                            PackagePolicyAnnotationHandler(devicePolicyContext)
+                                .handlePolicyAnnotation(annotation, item)
                         "androidx.annotation.RequiresPermission" ->
                             handleRequiresPermission(annotation, item)
                         ANDROIDX_INT_RANGE,
