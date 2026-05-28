@@ -29,6 +29,7 @@ import com.android.tools.metalava.cli.common.ARG_CLASS_PATH
 import com.android.tools.metalava.cli.common.ARG_COMPILED_SOURCES
 import com.android.tools.metalava.cli.common.ARG_ERROR
 import com.android.tools.metalava.cli.common.ARG_HIDE
+import com.android.tools.metalava.cli.common.ARG_JAVA_SOURCE
 import com.android.tools.metalava.cli.common.ARG_MERGE_INCLUSION_ANNOTATIONS
 import com.android.tools.metalava.cli.common.ARG_MERGE_QUALIFIER_ANNOTATIONS
 import com.android.tools.metalava.cli.common.ARG_NO_COLOR
@@ -590,6 +591,11 @@ abstract class DriverTest :
         multiplatformCompatibilityApi: List<TestFile>? = null,
         /** Whether tracing should be enabled */
         enableTracing: Boolean = false,
+        /**
+         * Language level of the Java source files. If not specified
+         * [com.android.tools.metalava.model.source.DEFAULT_JAVA_LANGUAGE_LEVEL] is used.
+         */
+        javaLanguageLevel: String? = null,
         /**
          * Called on a [CheckerContext] after the analysis phase in the metalava main command.
          *
@@ -1157,6 +1163,13 @@ abstract class DriverTest :
                 )
             }
 
+        val languageLevelArgs =
+            if (javaLanguageLevel != null) {
+                arrayOf(ARG_JAVA_SOURCE, javaLanguageLevel)
+            } else {
+                emptyArray()
+            }
+
         val args =
             arrayOf(
                 // Common options.
@@ -1209,6 +1222,7 @@ abstract class DriverTest :
                 *multiplatformApiArgs,
                 *multiplatformSignatureSourceOptions,
                 *multiplatformCompatibilityArgs,
+                *languageLevelArgs,
             ) +
                 buildList {
                         if (projectDescriptionFile != null) {
