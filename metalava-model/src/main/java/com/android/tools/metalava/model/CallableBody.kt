@@ -47,12 +47,6 @@ interface CallableBody {
     fun snapshot(callableItem: CallableItem) = duplicate(callableItem)
 
     /**
-     * Finds uncaught exceptions actually thrown inside this body (as opposed to ones declared in
-     * the signature)
-     */
-    fun findThrownExceptions(): Set<ClassItem>
-
-    /**
      * Called on a method whose return value is annotated with [typeDefAnnotation] of class
      * [typeDefClass].
      *
@@ -67,8 +61,6 @@ interface CallableBody {
         val UNAVAILABLE =
             object : CallableBody {
                 override fun duplicate(callableItem: CallableItem) = this
-
-                override fun findThrownExceptions() = error("method body is unavailable")
 
                 /** Do nothing. */
                 override fun verifyReturnedConstants(

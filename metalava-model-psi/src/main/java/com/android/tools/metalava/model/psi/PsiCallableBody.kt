@@ -21,7 +21,6 @@ import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.CallableBody
 import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
-import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.value.FieldReferenceValue
 import com.android.tools.metalava.reporter.Issues
 import com.intellij.psi.JavaRecursiveElementVisitor
@@ -31,14 +30,6 @@ import com.intellij.psi.PsiMethod
 import com.intellij.psi.PsiModifier
 import com.intellij.psi.PsiReferenceExpression
 import com.intellij.psi.PsiReturnStatement
-import com.intellij.psi.PsiType
-import org.jetbrains.uast.UElement
-import org.jetbrains.uast.UMethod
-import org.jetbrains.uast.UThrowExpression
-import org.jetbrains.uast.UTryExpression
-import org.jetbrains.uast.UastErrorType
-import org.jetbrains.uast.getParentOfType
-import org.jetbrains.uast.visitor.AbstractUastVisitor
 
 internal class PsiCallableBody(
     private val psiCodebase: PsiBasedCodebase,
@@ -53,67 +44,6 @@ internal class PsiCallableBody(
     // so just pretend it is unavailable for now.
     override fun snapshot(callableItem: CallableItem): CallableBody {
         return CallableBody.UNAVAILABLE
-    }
-
-    override fun findThrownExceptions(): Set<ClassItem> {
-        if (!callable.isKotlin()) {
-            return emptySet()
-        }
-
-        val exceptions = mutableSetOf<ClassItem>()
-
-        val method = psiMethod as? UMethod ?: return emptySet()
-        method.accept(
-            object : AbstractUastVisitor() {
-                override fun visitThrowExpression(node: UThrowExpression): Boolean {
-                    val type = node.thrownExpression.getExpressionType()
-                    // TODO: after KTIJ-31242, go back to null check only
-                    if (type != null && type != UastErrorType) {
-                        val exceptionClass =
-                            thrownExceptionClassForPsiType(type)?.resolveClass(callable.codebase)
-                        if (exceptionClass != null && !isCaught(exceptionClass, node)) {
-                            exceptions.add(exceptionClass)
-                        }
-                    }
-                    return super.visitThrowExpression(node)
-                }
-
-                private fun isCaught(exceptionClass: ClassItem, node: UThrowExpression): Boolean {
-                    var current: UElement = node
-                    while (true) {
-                        val tryExpression =
-                            current.getParentOfType<UTryExpression>(
-                                UTryExpression::class.java,
-                                true,
-                                UMethod::class.java
-                            ) ?: return false
-
-                        for (catchClause in tryExpression.catchClauses) {
-                            for (type in catchClause.types) {
-                                val qualifiedName = type.canonicalText
-                                if (exceptionClass.extends(qualifiedName)) {
-                                    return true
-                                }
-                            }
-                        }
-
-                        current = tryExpression
-                    }
-                }
-            }
-        )
-
-        return exceptions
-    }
-
-    /**
-     * Get the exception [ClassTypeItem] for the thrown exception [type].
-     *
-     * It must return a [ClassTypeItem] as only concrete exception classes can be thrown.
-     */
-    private fun thrownExceptionClassForPsiType(type: PsiType): ClassTypeItem? {
-        val typeItemFactory = psiCodebase.globalTypeItemFactory.from(callable)
-        return typeItemFactory.getType(type) as? ClassTypeItem
     }
 
     /**

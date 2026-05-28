@@ -93,7 +93,6 @@ Available Issues                             |  Category                        
   DefaultValueChange                         |  source_compatibility_only            |   error
   Deprecated                                 |  documentation                        |   hidden
   DeprecationMismatch                        |  documentation                        |   error
-  DocumentExceptions                         |  api_lint                             |   error
   DuplicateSourceClass                       |  unknown                              |   warning
   EndsWithImpl                               |  api_lint                             |   error
   Enum                                       |  api_lint                             |   error
