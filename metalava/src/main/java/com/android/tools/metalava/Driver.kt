@@ -658,6 +658,7 @@ class Driver(
                 }
             }
 
+            val commonCodebase = multiplatformCodebase.sourceSetToCodebase["commonMain"]
             // Run regular API lint checks for each source set.
             for ((sourceSet, codebase) in multiplatformCodebase.sourceSetToCodebase) {
                 // Skip checking the main source set, which will already have been checked through
@@ -668,11 +669,13 @@ class Driver(
                     runApiChecksFromOptions(codebase) { codebase, _ ->
                         ApiLint.check(
                             codebase,
-                            // By making the main android/jvm/common codebase the "oldCodebase", any
-                            // issues which have already been reported for the main codebase through
-                            // the
+                            // By making the common codebase the "oldCodebase", any issues which
+                            // have already been reported for common APIs through the
                             // non-multiplatform checks or the common check above will be skipped.
-                            oldCodebase = mainCodebase,
+                            // Actual items will be rechecked, which may lead to some duplicate
+                            // issues but prevents skipping issues that come up only on the expect
+                            // but not the actual.
+                            oldCodebase = commonCodebase,
                             reporter,
                             apiPredicateConfig,
                             ApiLint.Config(
