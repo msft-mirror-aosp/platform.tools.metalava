@@ -556,21 +556,21 @@ interface ClassItem :
      * Return superclass matching the given predicate. When a superclass doesn't match, we'll keep
      * crawling up the tree until we find someone who matches.
      */
-    fun filteredSuperclass(predicate: FilterPredicate): ClassItem? {
+    fun filteredSuperclass(predicate: FilterPredicate?): ClassItem? {
         val superClass = superClass() ?: return null
-        return if (predicate.test(superClass)) {
+        return if (predicate.testOrTrue(superClass)) {
             superClass
         } else {
             superClass.filteredSuperclass(predicate)
         }
     }
 
-    fun filteredSuperClassType(predicate: FilterPredicate): ClassTypeItem? {
+    fun filteredSuperClassType(predicate: FilterPredicate?): ClassTypeItem? {
         var superClassType: ClassTypeItem? = superClassType() ?: return null
         var prev: ClassItem? = null
         while (superClassType != null) {
             val superClass = superClassType.resolveClass(codebase) ?: return null
-            if (predicate.test(superClass)) {
+            if (predicate.testOrTrue(superClass)) {
                 if (prev == null || superClass == superClass()) {
                     // Direct reference; no need to map type variables
                     return superClassType
@@ -595,14 +595,16 @@ interface ClassItem :
      * matching method in an ancestor class.
      */
     fun filteredMethods(
-        predicate: FilterPredicate,
+        predicate: FilterPredicate?,
         includeSuperClassMethods: Boolean = false
     ): Collection<MethodItem> {
+        if (predicate == null && !includeSuperClassMethods) return methods()
+
         val methods = LinkedHashSet<MethodItem>()
         for (method in methods()) {
-            if (predicate.test(method) || method.findPredicateSuperMethod(predicate) != null) {
-                // val duplicated = method.duplicate(this)
-                // methods.add(duplicated)
+            if (
+                predicate.testOrTrue(method) || method.findPredicateSuperMethod(predicate) != null
+            ) {
                 methods.remove(method)
                 methods.add(method)
             }
@@ -615,19 +617,27 @@ interface ClassItem :
         return methods
     }
 
+    /**
+     * Apply [predicate] to filter this [Sequence].
+     *
+     * If [predicate] is `null` then this method just returns this [Sequence], otherwise it passes
+     * [predicate] to [Sequence.filter].
+     */
+    private fun <T : SelectableItem> Sequence<T>.selectableItemFilter(predicate: FilterPredicate?) =
+        if (predicate == null) this else filter { predicate.test(it) }
+
     /** Returns the constructors that match the given predicate */
-    fun filteredConstructors(predicate: FilterPredicate): Sequence<ConstructorItem> {
-        return constructors().asSequence().filter { predicate.test(it) }
-    }
+    fun filteredConstructors(predicate: FilterPredicate?) =
+        constructors().asSequence().selectableItemFilter(predicate)
 
     /**
      * Return fields matching the given predicate. Also clones fields from ancestors that would
      * match had they been defined in this class.
      */
-    fun filteredFields(predicate: FilterPredicate) =
-        fields().asSequence().filter { predicate.test(it) }
+    fun filteredFields(predicate: FilterPredicate?) =
+        fields().asSequence().selectableItemFilter(predicate)
 
-    fun filteredInterfaceTypes(predicate: FilterPredicate) =
+    fun filteredInterfaceTypes(predicate: FilterPredicate?) =
         filteredInterfaceTypes(
             predicate,
             LinkedHashSet(),
@@ -646,26 +656,28 @@ interface ClassItem :
         )
 
     private fun filteredInterfaceTypes(
-        predicate: FilterPredicate,
+        predicate: FilterPredicate?,
         types: LinkedHashSet<ClassTypeItem>,
         includeSelf: Boolean,
         includeParents: Boolean,
         target: ClassItem
     ): Set<ClassTypeItem> {
-        superClass()?.let { superClass ->
-            if (!predicate.test(superClass)) {
-                superClass.filteredInterfaceTypes(
-                    predicate,
-                    types,
-                    true,
-                    includeParents,
-                    target,
-                )
+        if (predicate != null) {
+            superClass()?.let { superClass ->
+                if (!predicate.test(superClass)) {
+                    superClass.filteredInterfaceTypes(
+                        predicate,
+                        types,
+                        true,
+                        includeParents,
+                        target,
+                    )
+                }
             }
         }
         for (type in interfaceTypes()) {
             val cls = type.resolveClass(codebase) ?: continue
-            if (predicate.test(cls)) {
+            if (predicate.testOrTrue(cls)) {
                 if (hasTypeVariables() && type.hasTypeArguments()) {
                     val replacementMap = target.mapTypeVariables(this)
                     if (replacementMap.isNotEmpty()) {

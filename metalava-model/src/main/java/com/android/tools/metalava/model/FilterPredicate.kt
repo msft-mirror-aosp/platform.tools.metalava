@@ -23,3 +23,11 @@ import java.util.function.Predicate
  * in the API, or can be referenced from the API.
  */
 typealias FilterPredicate = Predicate<SelectableItem>
+
+/**
+ * Invoked this optional [FilterPredicate].
+ *
+ * If this [FilterPredicate] is `null` then this returns `true`, otherwise it returns the result of
+ * invoking [Predicate.test] on [item].
+ */
+fun FilterPredicate?.testOrTrue(item: SelectableItem) = this?.test(item) ?: true

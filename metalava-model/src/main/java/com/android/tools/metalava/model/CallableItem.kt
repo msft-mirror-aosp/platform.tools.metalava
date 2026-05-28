@@ -109,11 +109,12 @@ interface CallableItem : MemberItem, TypeParameterListOwner, PossiblyRecordCompo
         return false
     }
 
-    fun filteredThrowsTypes(predicate: FilterPredicate): Collection<ExceptionTypeItem> {
+    fun filteredThrowsTypes(predicate: FilterPredicate?): Collection<ExceptionTypeItem> {
         if (throwsTypes().isEmpty()) {
             return emptyList()
         }
-        return filteredThrowsTypes(predicate, LinkedHashSet())
+        return if (predicate == null) throwsTypes()
+        else filteredThrowsTypes(predicate, LinkedHashSet())
     }
 
     private fun filteredThrowsTypes(
