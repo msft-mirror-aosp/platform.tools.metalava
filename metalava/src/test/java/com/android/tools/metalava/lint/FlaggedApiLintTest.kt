@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.lint
 
+import com.android.tools.lint.checks.infrastructure.TestFile
 import com.android.tools.metalava.ARG_PASS_THROUGH_ANNOTATION
 import com.android.tools.metalava.DriverTest
 import com.android.tools.metalava.KnownApiSurface
@@ -43,9 +44,40 @@ class FlaggedApiLintTest : DriverTest() {
             """
         )
 
+    /** Check the behavior of the `@FlaggedApi` linter. */
+    private fun checkFlaggedApiLint(
+        apiSurface: KnownApiSurface? = null,
+        apiFlagsConfig: TestFile? = null,
+        expectedIssues: String,
+        apiLint: String,
+        sourceFiles: Array<TestFile>,
+        extraArguments: Array<String> = emptyArray(),
+        expectedApiSignature: String? = null,
+        checkCompilation: Boolean = false,
+        checkCompatibilityApiReleased: String? = null,
+    ) {
+        check(
+            apiSurface = apiSurface,
+            configFiles = listOfNotNull(apiFlagsConfig).toTypedArray(),
+            apiLint = apiLint,
+            sourceFiles = sourceFiles,
+            // Access android.annotation.FlaggedApi
+            classpath = arrayOf(KnownJarFiles.stubAnnotationsTestFile),
+            extraArguments =
+                extraArguments +
+                    warningIssues(
+                        Issues.UNFLAGGED_API,
+                    ),
+            expectedIssues = expectedIssues,
+            expectedApiSignature = expectedApiSignature,
+            checkCompatibilityApiReleased = checkCompatibilityApiReleased,
+            checkCompilation = checkCompilation,
+        )
+    }
+
     @Test
     fun `Dont require @FlaggedApi on methods that get elided from signature files`() {
-        check(
+        checkFlaggedApiLint(
             apiSurface = KnownApiSurface.SYSTEM,
             expectedIssues = "",
             apiLint =
@@ -99,15 +131,12 @@ class FlaggedApiLintTest : DriverTest() {
                         """
                     ),
                 ),
-            // Access android.annotation.FlaggedApi
-            classpath = arrayOf(KnownJarFiles.stubAnnotationsTestFile),
-            extraArguments = arrayOf("--warning", "UnflaggedApi")
         )
     }
 
     @Test
     fun `Require @FlaggedApi on new APIs`() {
-        check(
+        checkFlaggedApiLint(
             expectedIssues =
                 """
                     src/android/foobar/Bad.java:3: warning: New API must be flagged with @FlaggedApi: class android.foobar.Bad [UnflaggedApi]
@@ -237,21 +266,16 @@ class FlaggedApiLintTest : DriverTest() {
                     ),
                     flagsFile,
                 ),
-            // Access android.annotation.FlaggedApi
-            classpath = arrayOf(KnownJarFiles.stubAnnotationsTestFile),
             extraArguments =
-                warningIssues(
-                    Issues.UNFLAGGED_API,
-                ) +
-                    hiddenIssues(
-                        Issues.HIDDEN_SUPERCLASS,
-                    ),
+                hiddenIssues(
+                    Issues.HIDDEN_SUPERCLASS,
+                ),
         )
     }
 
     @Test
     fun `Dont require @FlaggedApi on existing items in nested SystemApi classes`() {
-        check(
+        checkFlaggedApiLint(
             apiSurface = KnownApiSurface.SYSTEM,
             expectedIssues = "",
             apiLint =
@@ -278,15 +302,13 @@ class FlaggedApiLintTest : DriverTest() {
                         """
                     ),
                 ),
-            // Access android.annotation.FlaggedApi
-            classpath = arrayOf(KnownJarFiles.stubAnnotationsTestFile),
-            extraArguments = arrayOf("--warning", "UnflaggedApi")
+            extraArguments = arrayOf("--warning", "UnflaggedApi"),
         )
     }
 
     @Test
     fun `Dont require @FlaggedApi on existing items inherited into new SystemApi classes`() {
-        check(
+        checkFlaggedApiLint(
             apiSurface = KnownApiSurface.SYSTEM,
             expectedIssues =
                 """
@@ -445,22 +467,17 @@ class FlaggedApiLintTest : DriverTest() {
                         """
                     ),
                 ),
-            // Access android.annotation.FlaggedApi
-            classpath = arrayOf(KnownJarFiles.stubAnnotationsTestFile),
             extraArguments =
-                warningIssues(
-                    Issues.UNFLAGGED_API,
-                ) +
-                    hiddenIssues(
-                        Issues.HIDDEN_SUPERCLASS,
-                    ),
-            checkCompilation = true
+                hiddenIssues(
+                    Issues.HIDDEN_SUPERCLASS,
+                ),
+            checkCompilation = true,
         )
     }
 
     @Test
     fun `Require @FlaggedApi to reference generated fields`() {
-        check(
+        checkFlaggedApiLint(
             expectedIssues =
                 """
                     src/android/foobar/Bad.java:5: error: @FlaggedApi contains a string literal, but should reference the field generated by aconfig (android.foobar.Flags.FLAG_MY_FEATURE). [FlaggedApiLiteral]
@@ -522,14 +539,12 @@ class FlaggedApiLintTest : DriverTest() {
                     ),
                     flagsFile,
                 ),
-            // Access android.annotation.FlaggedApi
-            classpath = arrayOf(KnownJarFiles.stubAnnotationsTestFile),
         )
     }
 
     @Test
     fun `Require @FlaggedApi on APIs whose modifiers have changed`() {
-        check(
+        checkFlaggedApiLint(
             expectedIssues =
                 """
                     src/test/pkg/Foo.java:3: warning: Changes to modifiers, from 'public abstract' to 'public' must be flagged with @FlaggedApi: class test.pkg.Foo [UnflaggedApi]
@@ -560,18 +575,12 @@ class FlaggedApiLintTest : DriverTest() {
                     ),
                     flagsFile,
                 ),
-            // Access android.annotation.FlaggedApi
-            classpath = arrayOf(KnownJarFiles.stubAnnotationsTestFile),
-            extraArguments =
-                warningIssues(
-                    Issues.UNFLAGGED_API,
-                ),
         )
     }
 
     @Test
     fun `Do not require @FlaggedApi on concrete class methods that override a default interface method`() {
-        check(
+        checkFlaggedApiLint(
             expectedIssues = "",
             apiLint =
                 """
@@ -607,18 +616,12 @@ class FlaggedApiLintTest : DriverTest() {
                     ),
                     flagsFile,
                 ),
-            // Access android.annotation.FlaggedApi
-            classpath = arrayOf(KnownJarFiles.stubAnnotationsTestFile),
-            extraArguments =
-                warningIssues(
-                    Issues.UNFLAGGED_API,
-                ),
         )
     }
 
     @Test
     fun `Require @FlaggedApi on APIs whose deprecated status has changed to deprecated`() {
-        check(
+        checkFlaggedApiLint(
             expectedIssues =
                 """
                     src/test/pkg/Foo.java:6: warning: Changes from not deprecated to deprecated must be flagged with @FlaggedApi: class test.pkg.Foo [UnflaggedApi]
@@ -648,18 +651,12 @@ class FlaggedApiLintTest : DriverTest() {
                     ),
                     flagsFile,
                 ),
-            // Access android.annotation.FlaggedApi
-            classpath = arrayOf(KnownJarFiles.stubAnnotationsTestFile),
-            extraArguments =
-                warningIssues(
-                    Issues.UNFLAGGED_API,
-                ),
         )
     }
 
     @Test
     fun `Require @FlaggedApi on APIs whose deprecated status has changed to not deprecated`() {
-        check(
+        checkFlaggedApiLint(
             expectedIssues =
                 """
                     src/test/pkg/Foo.java:3: warning: Changes from deprecated to not deprecated must be flagged with @FlaggedApi: class test.pkg.Foo [UnflaggedApi]
@@ -685,18 +682,12 @@ class FlaggedApiLintTest : DriverTest() {
                     ),
                     flagsFile,
                 ),
-            // Access android.annotation.FlaggedApi
-            classpath = arrayOf(KnownJarFiles.stubAnnotationsTestFile),
-            extraArguments =
-                warningIssues(
-                    Issues.UNFLAGGED_API,
-                ),
         )
     }
 
     @Test
     fun `Require @FlaggedApi on RequiresPermission changes`() {
-        check(
+        checkFlaggedApiLint(
             expectedIssues =
                 "src/test/pkg/Foo.java:5: warning: Changes to modifiers, from '@androidx.annotation.RequiresPermission(\"android.permission.MY_PERMISSION_STRING\") public' to 'public' must be flagged with @FlaggedApi: class test.pkg.Foo [UnflaggedApi]",
             apiLint =
@@ -754,12 +745,6 @@ class FlaggedApiLintTest : DriverTest() {
                     flagsFile,
                     requiresPermissionSource
                 ),
-            // Access android.annotation.FlaggedApi
-            classpath = arrayOf(KnownJarFiles.stubAnnotationsTestFile),
-            extraArguments =
-                warningIssues(
-                    Issues.UNFLAGGED_API,
-                ),
         )
     }
 
@@ -768,7 +753,7 @@ class FlaggedApiLintTest : DriverTest() {
     // api).
     @Test
     fun `Do not require @FlaggedApi on RequiresPermission annotations that resolve to the same value`() {
-        check(
+        checkFlaggedApiLint(
             expectedIssues = "",
             apiLint =
                 """
@@ -794,7 +779,7 @@ class FlaggedApiLintTest : DriverTest() {
                       field public static final String MY_PERMISSION = "android.permission.MY_PERMISSION_STRING";
                     }
                   }
-            """,
+                """,
             sourceFiles =
                 arrayOf(
                     java(
@@ -826,12 +811,6 @@ class FlaggedApiLintTest : DriverTest() {
                     flagsFile,
                     requiresPermissionSource
                 ),
-            // Access android.annotation.FlaggedApi
-            classpath = arrayOf(KnownJarFiles.stubAnnotationsTestFile),
-            extraArguments =
-                warningIssues(
-                    Issues.UNFLAGGED_API,
-                ),
         )
     }
 
@@ -839,7 +818,7 @@ class FlaggedApiLintTest : DriverTest() {
     // inheritance
     @Test
     fun `Do not require @FlaggedApi on concrete class methods that override an annotated method`() {
-        check(
+        checkFlaggedApiLint(
             expectedIssues = "",
             apiLint =
                 """
@@ -909,18 +888,17 @@ class FlaggedApiLintTest : DriverTest() {
                     ),
                     flagsFile,
                 ),
-            // Access android.annotation.FlaggedApi
-            classpath = arrayOf(KnownJarFiles.stubAnnotationsTestFile),
             extraArguments =
-                warningIssues(
-                    Issues.UNFLAGGED_API,
-                ) + arrayOf(ARG_PASS_THROUGH_ANNOTATION, "test.annotation.Custom"),
+                arrayOf(
+                    ARG_PASS_THROUGH_ANNOTATION,
+                    "test.annotation.Custom",
+                ),
         )
     }
 
     @Test
     fun `Require @FlaggedApi on API that modify annotations`() {
-        check(
+        checkFlaggedApiLint(
             expectedIssues =
                 """
                 src/test/pkg/Foo.java:10: warning: Changes to modifiers, from 'public' to '@test.annotation.Custom(1) public' must be flagged with @FlaggedApi: constructor test.pkg.Foo() [UnflaggedApi]
@@ -1001,18 +979,17 @@ class FlaggedApiLintTest : DriverTest() {
                     ),
                     flagsFile,
                 ),
-            // Access android.annotation.FlaggedApi
-            classpath = arrayOf(KnownJarFiles.stubAnnotationsTestFile),
             extraArguments =
-                warningIssues(
-                    Issues.UNFLAGGED_API,
-                ) + arrayOf(ARG_PASS_THROUGH_ANNOTATION, "test.annotation.Custom"),
+                arrayOf(
+                    ARG_PASS_THROUGH_ANNOTATION,
+                    "test.annotation.Custom",
+                ),
         )
     }
 
     @Test
     fun `Do not require @FlaggedApi on annotations changes that involve attribute fields that resolve to the same value`() {
-        check(
+        checkFlaggedApiLint(
             expectedIssues = "",
             apiLint =
                 """
@@ -1080,12 +1057,11 @@ class FlaggedApiLintTest : DriverTest() {
                     ),
                     flagsFile,
                 ),
-            // Access android.annotation.FlaggedApi
-            classpath = arrayOf(KnownJarFiles.stubAnnotationsTestFile),
             extraArguments =
-                warningIssues(
-                    Issues.UNFLAGGED_API,
-                ) + arrayOf(ARG_PASS_THROUGH_ANNOTATION, "test.annotation.Custom"),
+                arrayOf(
+                    ARG_PASS_THROUGH_ANNOTATION,
+                    "test.annotation.Custom",
+                ),
         )
     }
 
@@ -1117,8 +1093,8 @@ class FlaggedApiLintTest : DriverTest() {
                 }
             """
 
-        check(
-            configFiles = arrayOf(apiFlagsXmlFile),
+        checkFlaggedApiLint(
+            apiFlagsConfig = apiFlagsXmlFile,
             expectedIssues =
                 """
                     src/test/pkg/Foo.java:6: warning: @FlaggedApi flag test.pkg.unexported_flag is not exported (ErrorWhenNew) [UnexportedFlaggedApi]
@@ -1143,8 +1119,6 @@ class FlaggedApiLintTest : DriverTest() {
                     ),
                 ),
             checkCompatibilityApiReleased = previouslyReleasedApi,
-            // Access android.annotation.FlaggedApi
-            classpath = arrayOf(KnownJarFiles.stubAnnotationsTestFile),
         )
     }
 
@@ -1154,7 +1128,7 @@ class FlaggedApiLintTest : DriverTest() {
     // prebuilts signature file (previous api). Testing around this can be improved in the future.
     @Test
     fun `Do not require @FlaggedApi for @RestrictedForEnvironment with no changes`() {
-        check(
+        checkFlaggedApiLint(
             expectedIssues = "",
             apiLint =
                 """
@@ -1191,12 +1165,6 @@ class FlaggedApiLintTest : DriverTest() {
                     androidXRestrictedForEnvironment,
                     KnownSourceFiles.stringDefSource,
                     flagsFile,
-                ),
-            // Access android.annotation.FlaggedApi
-            classpath = arrayOf(KnownJarFiles.stubAnnotationsTestFile),
-            extraArguments =
-                warningIssues(
-                    Issues.UNFLAGGED_API,
                 ),
         )
     }
