@@ -18,11 +18,11 @@ package com.android.tools.metalava.lint
 
 import com.android.tools.metalava.ARG_PASS_THROUGH_ANNOTATION
 import com.android.tools.metalava.DriverTest
+import com.android.tools.metalava.KnownApiSurface
 import com.android.tools.metalava.androidRestrictedForEnvironment
 import com.android.tools.metalava.androidXRestrictedForEnvironment
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.requiresPermissionSource
-import com.android.tools.metalava.systemApiSource
 import com.android.tools.metalava.testing.KnownJarFiles
 import com.android.tools.metalava.testing.KnownSourceFiles
 import com.android.tools.metalava.testing.java
@@ -46,7 +46,7 @@ class FlaggedApiLintTest : DriverTest() {
     @Test
     fun `Dont require @FlaggedApi on methods that get elided from signature files`() {
         check(
-            showAnnotations = arrayOf("android.annotation.SystemApi"),
+            apiSurface = KnownApiSurface.SYSTEM,
             expectedIssues = "",
             apiLint =
                 """
@@ -68,7 +68,6 @@ class FlaggedApiLintTest : DriverTest() {
                             import android.annotation.SystemApi;
                             import android.annotation.FlaggedApi;
 
-                            /** @hide */
                             @SystemApi
                             public class ExistingSystemApi extends Existing {
                                 /** exactly matches Object.equals, not emitted */
@@ -94,13 +93,11 @@ class FlaggedApiLintTest : DriverTest() {
 
                             public class Existing {
                                 public int existingPublicApi() { return 0; }
-                                /** @hide */
                                 @SystemApi
                                 public int existingSystemApi() { return 0; }
                             }
                         """
                     ),
-                    systemApiSource,
                 ),
             // Access android.annotation.FlaggedApi
             classpath = arrayOf(KnownJarFiles.stubAnnotationsTestFile),
@@ -255,7 +252,7 @@ class FlaggedApiLintTest : DriverTest() {
     @Test
     fun `Dont require @FlaggedApi on existing items in nested SystemApi classes`() {
         check(
-            showAnnotations = arrayOf("android.annotation.SystemApi"),
+            apiSurface = KnownApiSurface.SYSTEM,
             expectedIssues = "",
             apiLint =
                 """
@@ -274,14 +271,12 @@ class FlaggedApiLintTest : DriverTest() {
                             import android.annotation.SystemApi;
                             public class Existing {
                                 public class Inner {
-                                    /** @hide */
                                     @SystemApi
                                     public int existing() {}
                                 }
                             }
                         """
                     ),
-                    systemApiSource,
                 ),
             // Access android.annotation.FlaggedApi
             classpath = arrayOf(KnownJarFiles.stubAnnotationsTestFile),
@@ -292,7 +287,7 @@ class FlaggedApiLintTest : DriverTest() {
     @Test
     fun `Dont require @FlaggedApi on existing items inherited into new SystemApi classes`() {
         check(
-            showAnnotations = arrayOf("android.annotation.SystemApi"),
+            apiSurface = KnownApiSurface.SYSTEM,
             expectedIssues =
                 """
                     src/android/foobar/BadHiddenSuperClass.java:4: warning: New API must be flagged with @FlaggedApi: field android.foobar.Bad.BAD_INHERITED [UnflaggedApi]
@@ -347,7 +342,6 @@ class FlaggedApiLintTest : DriverTest() {
                             import android.annotation.FlaggedApi;
                             import android.annotation.SystemApi;
 
-                            /** @hide */
                             @SystemApi
                             public interface ExistingSystemInterface {
                                 public static final String EXISTING_SYSTEM_INTERFACE_FIELD = "foo";
@@ -362,7 +356,6 @@ class FlaggedApiLintTest : DriverTest() {
                             import android.annotation.FlaggedApi;
                             import android.annotation.SystemApi;
 
-                            /** @hide */
                             @SystemApi
                             public class ExistingSystemSuperClass {
                                 public static final String EXISTING_SYSTEM_SUPER_FIELD = "foo";
@@ -406,7 +399,6 @@ class FlaggedApiLintTest : DriverTest() {
 
                             import android.annotation.SystemApi;
 
-                            /** @hide */
                             @SystemApi
                             @SuppressWarnings("UnflaggedApi")  // Ignore the class itself for this test.
                             public class Ok extends ExistingSystemSuperClass implements ExistingSystemInterface {
@@ -420,7 +412,6 @@ class FlaggedApiLintTest : DriverTest() {
 
                             import android.annotation.SystemApi;
 
-                            /** @hide */
                             @SystemApi
                             @SuppressWarnings("UnflaggedApi")  // Ignore the class itself for this test.
                             public class Bad extends BadHiddenSuperClass {
@@ -434,7 +425,6 @@ class FlaggedApiLintTest : DriverTest() {
 
                             import android.annotation.SystemApi;
 
-                            /** @hide */
                             @SystemApi
                             @SuppressWarnings("UnflaggedApi")  // Ignore the class itself for this test.
                             public class Ok2 extends ExistingPublicSuperClass implements ExistingPublicInterface {
@@ -448,14 +438,12 @@ class FlaggedApiLintTest : DriverTest() {
 
                             import android.annotation.SystemApi;
 
-                            /** @hide */
                             @SystemApi
                             public class Existing extends ExistingPublicSuperClass implements ExistingPublicInterface {
                                 private Existing() {}
                             }
                         """
                     ),
-                    systemApiSource,
                 ),
             // Access android.annotation.FlaggedApi
             classpath = arrayOf(KnownJarFiles.stubAnnotationsTestFile),
