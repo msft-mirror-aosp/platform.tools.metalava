@@ -349,7 +349,6 @@ private constructor(
                         constructorToSnapshot.throwsTypes().map {
                             typeItemFactory.getExceptionType(it)
                         },
-                    callableBodyFactory = constructorToSnapshot.body::snapshot,
                     implicitConstructor = constructorToSnapshot.isImplicitConstructor(),
                     isPrimary = constructorToSnapshot.isPrimary,
                 )
@@ -393,7 +392,6 @@ private constructor(
                     },
                     throwsTypes =
                         methodToSnapshot.throwsTypes().map { typeItemFactory.getExceptionType(it) },
-                    callableBodyFactory = methodToSnapshot.body::snapshot,
                     defaultValueProvider = defaultValueSnapshot.provider(),
                     isExtensionMethod = methodToSnapshot.isExtensionMethod(),
                 )

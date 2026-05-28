@@ -18,7 +18,6 @@ package com.android.tools.metalava.model.item
 
 import com.android.tools.metalava.model.ApiVariantSelectorsFactory
 import com.android.tools.metalava.model.BaseModifierList
-import com.android.tools.metalava.model.CallableBodyFactory
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.ExceptionTypeItem
@@ -47,7 +46,6 @@ internal class DefaultMethodItem(
     returnType: TypeItem,
     parameterItemsFactory: ParameterItemsFactory,
     throwsTypes: List<ExceptionTypeItem>,
-    callableBodyFactory: CallableBodyFactory,
     private val defaultValueProvider: OptionalValueProvider?,
     private val isExtensionMethod: Boolean,
     override val isKotlinProperty: Boolean = false,
@@ -66,7 +64,6 @@ internal class DefaultMethodItem(
         returnType,
         parameterItemsFactory,
         throwsTypes,
-        callableBodyFactory,
     ),
     MethodItem {
 
@@ -134,7 +131,6 @@ internal class DefaultMethodItem(
                     parameters.map { it.duplicate(containingCallable, typeConverter) }
                 },
                 throwsTypes = throwsTypes,
-                callableBodyFactory = body::duplicate,
                 defaultValueProvider = defaultValueProvider,
                 isExtensionMethod = isExtensionMethod,
                 isKotlinProperty = isKotlinProperty,

@@ -158,7 +158,6 @@ object Issues {
     val SUPERFLUOUS_PREFIX by Issue(Severity.WARNING)
     val HIDDEN_TYPEDEF_CONSTANT by Issue(Severity.ERROR)
     val INTERNAL_ERROR by Issue(Severity.ERROR)
-    val RETURNING_UNEXPECTED_CONSTANT by Issue(Severity.WARNING)
     val BOTH_PACKAGE_INFO_AND_HTML by Issue(Severity.WARNING, Category.DOCUMENTATION)
 
     val MISSING_ANNOTATIONS_XML_ITEM by Issue(Severity.HIDDEN, Category.API_LINT)
@@ -269,7 +268,6 @@ object Issues {
     val SAM_SHOULD_BE_LAST by Issue(Severity.WARNING, Category.API_LINT)
     val MISSING_JVMSTATIC by Issue(Severity.WARNING, Category.API_LINT)
     val DEFAULT_VALUE_CHANGE by Issue(Severity.ERROR, Category.SOURCE_COMPATIBILITY_ONLY)
-    val DOCUMENT_EXCEPTIONS by Issue(Severity.ERROR, Category.API_LINT)
     val FORBIDDEN_SUPER_CLASS by Issue(Severity.ERROR, Category.API_LINT)
     val MISSING_NULLABILITY by Issue(Severity.ERROR, Category.API_LINT)
     // This issue must be manually enabled

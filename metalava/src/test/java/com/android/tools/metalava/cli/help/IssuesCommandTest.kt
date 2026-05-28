@@ -93,7 +93,6 @@ Available Issues                             |  Category                        
   DefaultValueChange                         |  source_compatibility_only            |   error
   Deprecated                                 |  documentation                        |   hidden
   DeprecationMismatch                        |  documentation                        |   error
-  DocumentExceptions                         |  api_lint                             |   error
   DuplicateSourceClass                       |  unknown                              |   warning
   EndsWithImpl                               |  api_lint                             |   error
   Enum                                       |  api_lint                             |   error
@@ -235,7 +234,6 @@ Available Issues                             |  Category                        
   ResourceStyleFieldName                     |  api_lint                             |   error
   ResourceValueFieldName                     |  api_lint                             |   error
   RethrowRemoteException                     |  api_lint                             |   error
-  ReturningUnexpectedConstant                |  unknown                              |   warning
   SamShouldBeLast                            |  api_lint                             |   warning
   SdkConstant                                |  documentation                        |   error
   SealedClassExhaustivityChanged             |  source_compatibility_only            |   error
