@@ -97,9 +97,6 @@ interface CallableItem : MemberItem, TypeParameterListOwner, PossiblyRecordCompo
     /** Types of exceptions that this callable can throw */
     fun throwsTypes(): List<ExceptionTypeItem>
 
-    /** The body of this, may not be available. */
-    val body: CallableBody
-
     /** Returns true if this callable throws the given exception */
     fun throws(qualifiedName: String): Boolean {
         for (type in throwsTypes()) {
