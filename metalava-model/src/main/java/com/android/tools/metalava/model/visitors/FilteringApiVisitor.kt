@@ -34,7 +34,6 @@ import com.android.tools.metalava.model.TargetLanguage
 import com.android.tools.metalava.model.TargetLanguageSet
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeTransformer
-import com.android.tools.metalava.model.testOrTrue
 import com.android.tools.metalava.model.typeUseAnnotationFilter
 
 /**
@@ -89,9 +88,6 @@ class FilteringApiVisitor(
         targetLanguages = targetLanguages,
     ),
     ItemVisitor {
-
-    /** If no [apiFilters] have been provided then it has already been filtered. */
-    private val preFiltered = apiFilters == null
 
     /**
      * A [TypeTransformer] that will remove any type annotations for which [filterReference] returns
@@ -181,13 +177,13 @@ class FilteringApiVisitor(
         override fun superClass() = superClassType()?.resolveClass(codebase)
 
         override fun superClassType() =
-            if (preFiltered) delegate.superClassType()
+            if (filterReference == null) delegate.superClassType()
             else delegate.filteredSuperClassType(filterReference)?.transform(typeAnnotationFilter)
 
         override fun interfaceTypes(): List<ClassTypeItem> {
             // Get the filtered list from the delegate.
             val filtered =
-                if (preFiltered) delegate.interfaceTypes()
+                if (filterReference == null) delegate.interfaceTypes()
                 else delegate.filteredInterfaceTypes(filterReference).toList()
 
             // If the list is empty then nothing else is needed.
@@ -210,7 +206,7 @@ class FilteringApiVisitor(
 
                         // Get the unfiltered lists from the delegate.
                         val unfiltered =
-                            if (preFiltered) {
+                            if (filterReference == null) {
                                 // If pre-filtered then the filtered and unfiltered are the
                                 // same.
                                 filtered
@@ -229,7 +225,7 @@ class FilteringApiVisitor(
                 }
 
             // If required then filter annotation types from the ordered list before returning.
-            return if (preFiltered) ordered
+            return if (filterReference == null) ordered
             else
                 ordered.map {
                     // Filter any inaccessible annotations from the interfaces
@@ -239,7 +235,7 @@ class FilteringApiVisitor(
 
         override val permitTypes: List<ClassTypeItem>
             get() =
-                if (preFiltered) delegate.permitTypes
+                if (filterEmit == null) delegate.permitTypes
                 else
                     delegate.permitTypes.filter { type ->
                         val classItem = type.resolveClass(codebase) ?: return@filter false
@@ -249,17 +245,20 @@ class FilteringApiVisitor(
                         // match classes that are defined in another API surface. The latter would
                         // not work as sealed classes and their subclasses have to be defined within
                         // the same API surface as they depend on each other.
-                        filterEmit.testOrTrue(classItem)
+                        filterEmit.test(classItem)
                     }
 
         override fun constructors() =
-            delegate
-                .filteredConstructors(filterReference)
-                .map { FilteringConstructorItem(it) }
-                .toList()
+            if (filterReference == null) delegate.constructors()
+            else
+                delegate
+                    .filteredConstructors(filterReference)
+                    .map { FilteringConstructorItem(it) }
+                    .toList()
 
         override fun fields(): List<FieldItem> =
-            delegate.filteredFields(filterReference).map { FilteringFieldItem(it) }.toList()
+            if (filterReference == null) delegate.fields()
+            else delegate.filteredFields(filterReference).map { FilteringFieldItem(it) }.toList()
 
         override val aliasedType: TypeItem
             get() = delegate.aliasedType.transform(typeAnnotationFilter)
@@ -288,7 +287,7 @@ class FilteringApiVisitor(
      * [ExceptionTypeItem] in the list.
      */
     private fun filteredThrowsTypes(callableItem: CallableItem) =
-        if (preFiltered) callableItem.throwsTypes()
+        if (filterReference == null) callableItem.throwsTypes()
         else
             callableItem.filteredThrowsTypes(filterReference).map {
                 it.transform(typeAnnotationFilter)
