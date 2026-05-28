@@ -1385,11 +1385,11 @@ interface WildcardTypeItem : TypeItem, TypeArgumentTypeItem {
 }
 
 /**
- * Create a [TypeTransformer] that will remove any type annotations for which [filter] returns false
+ * Create a [TypeTransformer] that will remove any type annotations for which [this] returns false
  * when called against the [AnnotationItem]'s [ClassItem] return by [AnnotationItem.resolve]. If
  * that returns `null` then the [AnnotationItem] will be kept.
  */
-fun typeUseAnnotationFilter(filter: FilterPredicate): TypeTransformer =
+fun FilterPredicate.typeUseAnnotationFilter(): TypeTransformer =
     object : BaseTypeTransformer() {
         override fun transform(modifiers: TypeModifiers): TypeModifiers {
             if (modifiers.annotations.isEmpty()) return modifiers
@@ -1401,7 +1401,7 @@ fun typeUseAnnotationFilter(filter: FilterPredicate): TypeTransformer =
                             annotationItem.resolve() ?: return@filterIfNotSame true
 
                         // Otherwise, apply the filter to determine whether to keep it.
-                        filter.test(annotationClass)
+                        test(annotationClass)
                     }
             )
         }

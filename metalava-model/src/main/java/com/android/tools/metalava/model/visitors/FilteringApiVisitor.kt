@@ -97,7 +97,7 @@ class FilteringApiVisitor(
      * A [TypeTransformer] that will remove any type annotations for which [filterReference] returns
      * false when called against the annotation's [ClassItem].
      */
-    private val typeAnnotationFilter = typeUseAnnotationFilter(filterReference)
+    private val typeAnnotationFilter = filterReference.typeUseAnnotationFilter()
 
     override fun visitCodebase(codebase: Codebase) {
         // This does not create a filtering wrapper around the Codebase as the classes to which this
