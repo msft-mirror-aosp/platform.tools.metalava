@@ -20,6 +20,7 @@ import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.SelectableItem
+import com.android.tools.metalava.model.annotation.binding.bindTo
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
 import java.util.function.Predicate
@@ -34,18 +35,8 @@ abstract class BaseDevicePolicyAnnotationHandler(
     protected val reporter: Reporter,
     protected val filterReference: Predicate<SelectableItem>
 ) {
-
     /** Processes a policy annotation and returns a documentation string. */
     abstract fun processPolicyAnnotation(annotation: AnnotationItem, item: Item): String
-
-    /** A helper function to format the allow/disallow status of a field. */
-    protected fun StringBuilder.appendAllowed(
-        name: String,
-        allowed: Boolean,
-        leadingSpaces: String = "   ",
-    ) {
-        append("$leadingSpaces<li>$name: ${if (allowed) "Allowed" else "Not allowed"}</li>\n")
-    }
 }
 
 /** Report missing required fields inside the annotation. */
