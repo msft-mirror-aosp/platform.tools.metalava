@@ -141,7 +141,7 @@ class FilteringApiVisitor(
     override fun afterVisitClass(cls: ClassItem) {
         // Consistency check to make sure that the visitClass/afterVisitClass are called correctly.
         if (currentClassItem?.delegate !== cls)
-            throw IllegalStateException("Expected ${currentClassItem?.delegate}, found ${cls}")
+            throw IllegalStateException("Expected ${currentClassItem?.delegate}, found $cls")
 
         // Visit the class after its contents.
         delegate.afterVisitClass(currentClassItem!!)
@@ -316,6 +316,8 @@ class FilteringApiVisitor(
      */
     private inner class FilteringMethodItem(private val delegate: MethodItem) :
         MethodItem by delegate {
+
+        override fun type() = returnType()
 
         override fun returnType() = filteredReturnType(delegate)
 
