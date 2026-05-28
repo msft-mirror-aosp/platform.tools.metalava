@@ -234,7 +234,6 @@ Available Issues                             |  Category                        
   ResourceStyleFieldName                     |  api_lint                             |   error
   ResourceValueFieldName                     |  api_lint                             |   error
   RethrowRemoteException                     |  api_lint                             |   error
-  ReturningUnexpectedConstant                |  unknown                              |   warning
   SamShouldBeLast                            |  api_lint                             |   warning
   SdkConstant                                |  documentation                        |   error
   SealedClassExhaustivityChanged             |  source_compatibility_only            |   error

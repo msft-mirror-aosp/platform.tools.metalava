@@ -46,27 +46,11 @@ interface CallableBody {
      */
     fun snapshot(callableItem: CallableItem) = duplicate(callableItem)
 
-    /**
-     * Called on a method whose return value is annotated with [typeDefAnnotation] of class
-     * [typeDefClass].
-     *
-     * This scans the body of the method, finds `return` statements and checks to make sure that if
-     * they use a constant that it is one of the constants in the type def, reporting any which are
-     * not.
-     */
-    fun verifyReturnedConstants(typeDefAnnotation: AnnotationItem, typeDefClass: ClassItem)
-
     companion object {
         /** Indicates that the model does not provide [CallableBody] instances. */
         val UNAVAILABLE =
             object : CallableBody {
                 override fun duplicate(callableItem: CallableItem) = this
-
-                /** Do nothing. */
-                override fun verifyReturnedConstants(
-                    typeDefAnnotation: AnnotationItem,
-                    typeDefClass: ClassItem
-                ) {}
             }
 
         /**

@@ -33,7 +33,6 @@ import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.JAVA_LANG_PREFIX
 import com.android.tools.metalava.model.MemberItem
-import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.findAnnotation
@@ -230,13 +229,6 @@ class ExtractAnnotations(
 
                     classToAnnotationHolder[className] = typeDefAnnotation
                     addItem(item, typeDefAnnotation)
-
-                    if (
-                        item is MethodItem &&
-                            !reporter.isSuppressed(Issues.RETURNING_UNEXPECTED_CONSTANT)
-                    ) {
-                        item.body.verifyReturnedConstants(typeDefAnnotation, typeDefClass)
-                    }
                 }
             }
         }
