@@ -477,7 +477,11 @@ class Driver(
 
         runApiChecksFromOptions(codebase) { _, previouslyReleasedCodebase ->
             val flaggedApiLintVisitor =
-                FlaggedApiLint(previouslyReleasedCodebase, reporter, apiPredicateConfig)
+                FlaggedApiLint(
+                    previouslyReleasedCodebase,
+                    reporter,
+                    apiFilters ?: ApiFilters.ALL,
+                )
             codebaseFragment.accept(flaggedApiLintVisitor)
         }
 
