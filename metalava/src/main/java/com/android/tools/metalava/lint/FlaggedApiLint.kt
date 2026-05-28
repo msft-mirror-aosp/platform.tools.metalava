@@ -48,7 +48,6 @@ import com.android.tools.metalava.reporter.Issues.UNFLAGGED_API
 import com.android.tools.metalava.reporter.Reporter
 import com.android.tools.metalava.reporter.Severity
 import java.io.StringWriter
-import org.jetbrains.kotlin.util.capitalizeDecapitalize.toUpperCaseAsciiOnly
 
 /**
  * The [FlaggedApiLint] analyzer checks the API against a known set of preferred FlaggedAPI
@@ -334,7 +333,7 @@ class FlaggedApiLint(
             val parts = literal.split('.')
 
             val flag = parts.lastOrNull() ?: return null
-            val flagField = "FLAG_" + flag.toUpperCaseAsciiOnly()
+            val flagField = "FLAG_" + flag.uppercase()
             val pkg = parts.dropLast(1).joinToString(separator = ".")
             val className = "$pkg.Flags"
             val fieldSource = "$className.$flagField"
