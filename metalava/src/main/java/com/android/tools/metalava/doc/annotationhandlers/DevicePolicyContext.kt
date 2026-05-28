@@ -20,5 +20,5 @@ import com.android.tools.metalava.model.FilterPredicate
 
 /** Contextual information for [BaseDevicePolicyAnnotationHandler]. */
 class DevicePolicyContext(
-    val filterReference: FilterPredicate,
+    val filterReference: FilterPredicate?,
 )

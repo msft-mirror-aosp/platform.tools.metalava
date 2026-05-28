@@ -19,13 +19,13 @@ package com.android.tools.metalava.doc.annotationhandlers
 import com.android.tools.metalava.model.ANDROIDX_INT_DEF
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.FilterPredicate
 import com.android.tools.metalava.model.Item
-import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.annotation.binding.bindTo
+import com.android.tools.metalava.model.testOrTrue
 import com.android.tools.metalava.model.value.FieldReferenceValue
 import com.android.tools.metalava.model.value.asAny
 import com.android.tools.metalava.reporter.Issues
-import java.util.function.Predicate
 
 /** Handles @android.processor.devicepolicy.EnumPolicyDefinition annotation. */
 class EnumPolicyAnnotationHandler(
@@ -107,7 +107,7 @@ data class EnumPolicyDefinitionProxy(
      * ```
      */
     private fun buildEnumValueToCodeReferenceMap(
-        filterReference: Predicate<SelectableItem>
+        filterReference: FilterPredicate?
     ): Map<Int, String> {
         // Get the enum value class object. Currently, the @EnumPolicyDefinition annotation's intDef
         // field is of type: Class<?>.
@@ -136,7 +136,7 @@ data class EnumPolicyDefinitionProxy(
                     )
                     continue
                 }
-                if (filterReference.test(fieldItem)) {
+                if (filterReference.testOrTrue(fieldItem)) {
                     val link = "{@link $qualifiedClassName#$fieldName}"
                     enumValueToName[fieldValue] = link
                 } else {
