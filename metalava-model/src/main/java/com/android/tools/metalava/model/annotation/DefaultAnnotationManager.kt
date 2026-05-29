@@ -103,7 +103,7 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
         val apiFlags: ApiFlags? = null,
     )
 
-    private val apiSurfaceSelector = config.apiSurfaceSelector
+    override val apiSurfaceSelector = config.apiSurfaceSelector
 
     /** The set of all annotation names that should be preserved during normalization. */
     private val annotationNamesToPreserveDuringNormalization = buildSet {

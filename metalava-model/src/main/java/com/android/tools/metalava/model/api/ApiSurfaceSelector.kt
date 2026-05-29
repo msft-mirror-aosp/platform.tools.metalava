@@ -206,6 +206,9 @@ class ApiSurfaceSelector(
                 // longer more specific pattern should be matched before a shorter, less specific
                 // one.
                 .thenDescending(patternComparator)
+
+        /** Default instance of an [ApiSurfaceSelector]. */
+        internal val DEFAULT = ApiSurfaceSelector()
     }
 }
 
