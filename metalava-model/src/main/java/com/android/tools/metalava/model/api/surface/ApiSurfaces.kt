@@ -16,12 +16,15 @@
 
 package com.android.tools.metalava.model.api.surface
 
+import com.android.tools.metalava.model.api.surface.ApiSurface.Contents
+
 /** The configured set of [ApiSurface]s. */
 sealed interface ApiSurfaces {
     /**
-     * The list of all [ApiSurface]s.
+     * The list of all [ApiSurface]s that are being tracked, from the narrowest to the widest
+     * ([main]).
      *
-     * If [base] is set then it comes first; [main] is always last.
+     * The narrowest is the one whose [ApiSurface.extends] is null.
      */
     val all: List<ApiSurface>
 
@@ -92,12 +95,18 @@ sealed interface ApiSurfaces {
          * Create an [ApiSurface] with the specified [name] which has an optional [extends].
          *
          * If [extends] is not `null` then the referenced [ApiSurface] must already have been
-         * created with this method.
+         * created with this method. The [contents] determines how the surface relates to the one it
+         * extends.
          *
          * If the surface is the one to be created then [isMain] must be `true`. Exactly one surface
          * can have [isMain] set to `true`, none or more than one will fail.
          */
-        fun createSurface(name: String, extends: String? = null, isMain: Boolean = false)
+        fun createSurface(
+            name: String,
+            extends: String? = null,
+            contents: Contents = Contents.DELTA,
+            isMain: Boolean = false,
+        )
     }
 }
 
@@ -161,7 +170,12 @@ private class DefaultApiSurfaces(initializer: ApiSurfaces.Builder.() -> Unit) : 
         val variants
             get() = allVariants.toList()
 
-        override fun createSurface(name: String, extends: String?, isMain: Boolean) {
+        override fun createSurface(
+            name: String,
+            extends: String?,
+            contents: Contents,
+            isMain: Boolean,
+        ) {
             val existing = nameToSurface[name]
             if (existing != null) error("Duplicate surfaces called `$name`")
 
@@ -178,6 +192,7 @@ private class DefaultApiSurfaces(initializer: ApiSurfaces.Builder.() -> Unit) : 
                     index,
                     name,
                     extendsSurface,
+                    contents,
                     isMain,
                     allVariants,
                 )
@@ -207,6 +222,7 @@ private class DefaultApiSurface(
     private val index: Int,
     override val name: String,
     override val extends: DefaultApiSurface?,
+    override val contents: Contents,
     override val isMain: Boolean,
     allVariants: MutableList<ApiVariant>,
 ) : ApiSurface {

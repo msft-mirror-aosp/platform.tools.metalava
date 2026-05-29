@@ -17,7 +17,7 @@
 package com.android.tools.metalava.model.turbine
 
 import com.android.tools.lint.checks.infrastructure.TestFile
-import com.android.tools.metalava.testing.TemporaryFolderOwner
+import com.android.tools.metalava.testing.BaseTemporaryFolderOwner
 import com.android.tools.metalava.testing.java
 import com.google.common.collect.ImmutableList
 import com.google.turbine.binder.Binder
@@ -34,13 +34,9 @@ import com.google.turbine.tree.Tree
 import com.google.turbine.tree.Tree.Ident
 import java.util.Optional
 import kotlin.test.fail
-import org.junit.Rule
 import org.junit.Test
-import org.junit.rules.TemporaryFolder
 
-class TurbineFieldResolverTest : TemporaryFolderOwner {
-    @get:Rule override val temporaryFolder = TemporaryFolder()
-
+class TurbineFieldResolverTest : BaseTemporaryFolderOwner() {
     /** Parse and bind [sources] into a [CompoundEnv]. */
     private fun bind(sources: List<TestFile>): CompoundEnv<ClassSymbol, TypeBoundClass> {
         val srcDir = temporaryFolder.newFolder("src")
@@ -72,10 +68,10 @@ class TurbineFieldResolverTest : TemporaryFolderOwner {
         return combinedEnv
     }
 
-    /** Create a [TurbineFieldResolver] for resolving fields as if from within [binaryClassName]. */
+    /** Create a [FieldResolver] for resolving fields as if from within [binaryClassName]. */
     private fun CompoundEnv<ClassSymbol, TypeBoundClass>.resolverFor(
         binaryClassName: String
-    ): TurbineFieldResolver {
+    ): FieldResolver {
         // Select the class from where the field will be resolved.
         val testClassSym = ClassSymbol(binaryClassName)
         val testClassInfo =
@@ -93,7 +89,7 @@ class TurbineFieldResolverTest : TemporaryFolderOwner {
         return fieldResolver
     }
 
-    private fun assertFieldCanBeResolved(fieldResolver: TurbineFieldResolver, fieldName: String) {
+    private fun assertFieldCanBeResolved(fieldResolver: FieldResolver, fieldName: String) {
         val idents =
             fieldName
                 .split(".")

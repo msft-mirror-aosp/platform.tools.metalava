@@ -50,9 +50,10 @@ class SnapshotTest : DriverTest() {
 
         val snapshot =
             CodebaseSnapshotTaker.takeSnapshot(
-                codebase,
+                codebase!!,
                 definitionVisitorFactory = factory,
                 referenceVisitorFactory = factory,
+                includeDocumentation = true,
             )
         return snapshot
     }
@@ -69,13 +70,17 @@ class SnapshotTest : DriverTest() {
                             import android.annotation.SdkConstant;
                             import android.annotation.SdkConstant.SdkConstantType;
                             public class Foo {
+                                /**
+                                 * Using SdkConstant in this comment will keep the import if it is
+                                 * not filtered out.
+                                 */
                                 @SdkConstant(SdkConstantType.SERVICE_ACTION)
                                 public static final String CONSTANT = "something";
                             }
                         """
                     ),
                 ),
-            api =
+            expectedApiSignature =
                 """
                     // Signature format: 5.0
                     package test.pkg {
@@ -85,7 +90,7 @@ class SnapshotTest : DriverTest() {
                       }
                     }
                 """,
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
@@ -93,6 +98,10 @@ class SnapshotTest : DriverTest() {
                             @SuppressWarnings({"unchecked", "deprecation", "all"})
                             public class Foo {
                             public Foo() { throw new RuntimeException("Stub!"); }
+                            /**
+                             * Using SdkConstant in this comment will keep the import if it is
+                             * not filtered out.
+                             */
                             @android.annotation.SdkConstant(android.annotation.SdkConstant.SdkConstantType.SERVICE_ACTION) public static final java.lang.String CONSTANT = "something";
                             }
                         """

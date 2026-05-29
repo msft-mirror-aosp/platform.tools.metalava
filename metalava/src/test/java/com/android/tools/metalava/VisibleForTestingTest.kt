@@ -50,7 +50,7 @@ class VisibleForTestingTest : DriverTest() {
                     testFile,
                     visibleForTestingSource,
                 ),
-            api = api,
+            expectedApiSignature = api,
             extraArguments =
                 if (useShowAndHideOptions) {
                     arrayOf(

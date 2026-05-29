@@ -17,7 +17,6 @@
 package com.android.tools.metalava.cli.signature
 
 import com.android.tools.metalava.JDiffXmlWriter
-import com.android.tools.metalava.OptionsDelegate
 import com.android.tools.metalava.cli.common.DefaultSignatureFileLoader
 import com.android.tools.metalava.cli.common.MetalavaSubCommand
 import com.android.tools.metalava.cli.common.existingFile
@@ -121,10 +120,6 @@ class SignatureToJDiffCommand :
             .newFile()
 
     override fun run() {
-        // Make sure that none of the code called by this command accesses the global `options`
-        // property.
-        OptionsDelegate.disallowAccess()
-
         val annotationManager = DefaultAnnotationManager()
         val codebaseConfig =
             Codebase.Config(
@@ -140,9 +135,16 @@ class SignatureToJDiffCommand :
         val signatureApi = signatureFileLoader.load(SignatureFile.fromFiles(apiFile))
 
         val strip = strip
-        val apiEmit = FilterPredicate { it.emit }
-        val apiReference = if (strip) apiEmit else FilterPredicate { true }
-        val apiFilters = ApiFilters(emit = apiEmit, reference = apiReference)
+        val preFiltered = signatureApi.preFiltered && !strip
+        val apiFilters =
+            if (preFiltered) {
+                ApiFilters.ALL
+            } else {
+                val apiEmit = FilterPredicate { it.emit }
+                val apiReference = if (strip) apiEmit else FilterPredicate { true }
+                ApiFilters(emit = apiEmit, reference = apiReference)
+            }
+
         val baseFile = baseApiFile
 
         val signatureFragment =
@@ -150,8 +152,7 @@ class SignatureToJDiffCommand :
                 createFilteringVisitorForJDiffWriter(
                     delegate,
                     apiFilters = apiFilters,
-                    preFiltered = signatureApi.preFiltered && !strip,
-                    showUnannotated = false,
+                    preFiltered = preFiltered,
                     // Historically, the super class type has not been filtered when generating
                     // JDiff files, so do not filter here even though it could result in undefined
                     // types being included in the JDiff file.
@@ -163,7 +164,12 @@ class SignatureToJDiffCommand :
             if (baseFile != null) {
                 // Convert base on a diff
                 val baseApi = signatureFileLoader.load(SignatureFile.fromFiles(baseFile))
-                SnapshotDeltaMaker.createDelta(baseApi, signatureFragment)
+                SnapshotDeltaMaker.createDelta(
+                    baseApi,
+                    signatureFragment,
+                    checkMemberItemEquivalence = false,
+                    allowClassModifierChanges = false,
+                )
             } else {
                 signatureFragment
             }

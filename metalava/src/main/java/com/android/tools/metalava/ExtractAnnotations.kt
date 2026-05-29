@@ -18,8 +18,6 @@ package com.android.tools.metalava
 
 import com.android.tools.lint.LintCliClient.Companion.printWriter
 import com.android.tools.metalava.model.ANDROIDX_ANNOTATION_PREFIX
-import com.android.tools.metalava.model.ANDROIDX_FLOAT_RANGE
-import com.android.tools.metalava.model.ANDROIDX_INT_RANGE
 import com.android.tools.metalava.model.ANDROIDX_REQUIRES_PERMISSION_READ
 import com.android.tools.metalava.model.ANDROIDX_REQUIRES_PERMISSION_WRITE
 import com.android.tools.metalava.model.ANDROID_ANNOTATION_PREFIX
@@ -38,15 +36,13 @@ import com.android.tools.metalava.model.MemberItem
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
-import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.findAnnotation
 import com.android.tools.metalava.model.value.AnnotationValue
 import com.android.tools.metalava.model.value.FieldReferenceValue
 import com.android.tools.metalava.model.value.SingleArrayElementFormat
 import com.android.tools.metalava.model.value.Value
 import com.android.tools.metalava.model.value.ValueStringConfiguration
-import com.android.tools.metalava.model.value.asDouble
-import com.android.tools.metalava.model.value.asLong
+import com.android.tools.metalava.model.visitors.ApiPredicate
 import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
@@ -65,9 +61,10 @@ class ExtractAnnotations(
     private val codebase: Codebase,
     private val reporter: Reporter,
     private val outputFile: File,
+    apiPredicateConfig: ApiPredicate.Config,
 ) :
     ApiVisitor(
-        apiPredicateConfig = @Suppress("DEPRECATION") options.apiPredicateConfig,
+        apiPredicateConfig = apiPredicateConfig,
     ) {
     // Used linked hash map for order such that we always emit parameters after their surrounding
     // method etc
@@ -152,7 +149,7 @@ class ExtractAnnotations(
             when (item) {
                 is ClassItem -> item.containingPackage()
                 is MemberItem -> item.containingClass().containingPackage()
-                is ParameterItem -> item.containingCallable().containingClass().containingPackage()
+                is ParameterItem -> item.containingClass().containingPackage()
                 else -> return
             }
 
@@ -231,14 +228,6 @@ class ExtractAnnotations(
                         )
                     }
 
-                    if (filterEmit.test(typeDefClass)) {
-                        reporter.report(
-                            Issues.ANNOTATION_EXTRACTION,
-                            typeDefClass,
-                            "This typedef annotation class should be marked @hide or should not be marked public"
-                        )
-                    }
-
                     classToAnnotationHolder[className] = typeDefAnnotation
                     addItem(item, typeDefAnnotation)
 
@@ -309,9 +298,7 @@ class ExtractAnnotations(
                 return escapeXml(containingClass().qualifiedName()) + " " + name()
             }
             is ParameterItem -> {
-                return containingCallable().getExternalAnnotationSignature() +
-                    " " +
-                    this.parameterIndex
+                return parent().getExternalAnnotationSignature() + " " + this.parameterIndex
             }
         }
 
@@ -320,7 +307,7 @@ class ExtractAnnotations(
 
     private fun writeAnnotation(writer: PrintWriter, item: Item, annotationItem: AnnotationItem) {
         // Retrieve the attributes from the annotation item.
-        val attributes = retrieveAttributes(item, annotationItem)
+        val attributes = retrieveAttributes(annotationItem)
 
         // Some annotations need to keep field references and some need to replace them with their
         // constant value.
@@ -405,10 +392,7 @@ class ExtractAnnotations(
     }
 
     /** Retrieve the attributes from [annotationItem]. */
-    private fun retrieveAttributes(
-        item: Item,
-        annotationItem: AnnotationItem
-    ): List<AnnotationAttribute> {
+    private fun retrieveAttributes(annotationItem: AnnotationItem): List<AnnotationAttribute> {
         val qualifiedName = annotationItem.qualifiedName
 
         // Ensure consistent ordering.
@@ -437,46 +421,6 @@ class ExtractAnnotations(
                     // permission, but we'll counteract that on the read-annotations side.
                     (attributes[0].value as? AnnotationValue)?.let { value ->
                         return value.annotationItem.attributes
-                    }
-                }
-            }
-            // `@IntRange` can be used to set the range of both `int`s and `long`s. As a result its
-            // `from` and `to` attributes are `long` as that covers both types. However, it makes
-            // little sense to use `long` values when the type to which it is applied is an `int`.
-            // In that case this converts those attributes to `int`s.
-            // TODO(b/354633349): Consider moving this to annotation item creation to make the value
-            //   types appropriate for the annotated item everywhere not just here.
-            ANDROIDX_INT_RANGE -> {
-                val type = item.type()
-                if (type is PrimitiveTypeItem && type.kind == PrimitiveTypeItem.Primitive.INT) {
-                    return attributes.mapNotNull { attribute ->
-                        val name = attribute.name
-                        if (name == "from" || name == "to") {
-                            attribute.value.asLong()?.let { long ->
-                                val intValue = Value.createLiteralValue(null, long.toInt())
-                                AnnotationAttribute.createAttribute(name, intValue)
-                            }
-                        } else attribute
-                    }
-                }
-            }
-            // `@FloatRange` can be used to set the range of both `float`s and `doubles`s. As a
-            // result its `from` and `to` attributes are `doubles` as that covers both types.
-            // However, it makes little sense to use `doubles` values when the type to which it is
-            // applied is a `float`. Especially given that converting a `float` to a `double` can
-            // result in a different serialized form. In that case this converts those attributes to
-            // `float`s.
-            ANDROIDX_FLOAT_RANGE -> {
-                val type = item.type()
-                if (type is PrimitiveTypeItem && type.kind == PrimitiveTypeItem.Primitive.FLOAT) {
-                    return attributes.mapNotNull { attribute ->
-                        val name = attribute.name
-                        if (name == "from" || name == "to") {
-                            attribute.value.asDouble()?.let { double ->
-                                val floatValue = Value.createLiteralValue(null, double.toFloat())
-                                AnnotationAttribute.createAttribute(name, floatValue)
-                            }
-                        } else attribute
                     }
                 }
             }
@@ -543,7 +487,7 @@ class ExtractAnnotations(
          */
         private val EXTRACT_VALUE_STRING_CONFIGURATION =
             ValueStringConfiguration(
-                singleArrayElementFormat = SingleArrayElementFormat.UNWRAP,
+                singleArrayElementFormat = SingleArrayElementFormat.WRAP,
             )
     }
 }
