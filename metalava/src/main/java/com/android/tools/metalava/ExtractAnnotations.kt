@@ -36,6 +36,7 @@ import com.android.tools.metalava.model.MemberItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.findAnnotation
+import com.android.tools.metalava.model.testOrTrue
 import com.android.tools.metalava.model.value.AnnotationValue
 import com.android.tools.metalava.model.value.FieldReferenceValue
 import com.android.tools.metalava.model.value.SingleArrayElementFormat
@@ -345,7 +346,7 @@ class ExtractAnnotations(
                                 if (keepFieldReferences) {
                                     // If keeping the field then make sure it can be referenced from
                                     // the API. If not then discard it.
-                                    if (!filterReference.test(fieldItem)) {
+                                    if (!filterReference.testOrTrue(fieldItem)) {
                                         // This field is not visible: remove from typedef
                                         reporter.report(
                                             Issues.HIDDEN_TYPEDEF_CONSTANT,

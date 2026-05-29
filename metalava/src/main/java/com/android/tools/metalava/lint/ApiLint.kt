@@ -1894,7 +1894,7 @@ private constructor(
         }
     }
 
-    private fun checkExceptions(callable: CallableItem, filterReference: FilterPredicate) {
+    private fun checkExceptions(callable: CallableItem, filterReference: FilterPredicate?) {
         for (throwableType in callable.filteredThrowsTypes(filterReference)) {
             // Get the throwable class, which for a type parameter will be the lower bound. A
             // method that throws a type parameter is treated as if it throws its lower bound, so

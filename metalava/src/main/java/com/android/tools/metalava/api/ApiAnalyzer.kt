@@ -43,6 +43,7 @@ import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.doc.DocContentPredicate
 import com.android.tools.metalava.model.source.SourceParser
 import com.android.tools.metalava.model.source.doc.DocContentPredicates
+import com.android.tools.metalava.model.testOrTrue
 import com.android.tools.metalava.model.value.asString
 import com.android.tools.metalava.model.visitors.ApiPredicate
 import com.android.tools.metalava.model.visitors.ApiVisitor
@@ -488,7 +489,7 @@ class ApiAnalyzer(
                             override fun visitClassType(classType: ClassTypeItem) {
                                 val cls = classType.resolveClass(codebase) ?: return
                                 if (
-                                    !filterReference.test(cls) &&
+                                    !filterReference.testOrTrue(cls) &&
                                         cls.origin != ClassOrigin.CLASS_PATH
                                 ) {
                                     reporter.report(

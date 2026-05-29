@@ -34,6 +34,7 @@ import com.android.tools.metalava.model.TargetLanguage
 import com.android.tools.metalava.model.TargetLanguageSet
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeTransformer
+import com.android.tools.metalava.model.testOrTrue
 import com.android.tools.metalava.model.typeUseAnnotationFilter
 
 /**
@@ -97,7 +98,7 @@ class FilteringApiVisitor(
      * A [TypeTransformer] that will remove any type annotations for which [filterReference] returns
      * false when called against the annotation's [ClassItem].
      */
-    private val typeAnnotationFilter = filterReference.typeUseAnnotationFilter()
+    private val typeAnnotationFilter = filterReference?.typeUseAnnotationFilter()
 
     override fun visitCodebase(codebase: Codebase) {
         // This does not create a filtering wrapper around the Codebase as the classes to which this
@@ -249,7 +250,7 @@ class FilteringApiVisitor(
                         // match classes that are defined in another API surface. The latter would
                         // not work as sealed classes and their subclasses have to be defined within
                         // the same API surface as they depend on each other.
-                        filterEmit.test(classItem)
+                        filterEmit.testOrTrue(classItem)
                     }
 
         override fun constructors() =

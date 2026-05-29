@@ -56,6 +56,7 @@ import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.annotation.binding.bindTo
 import com.android.tools.metalava.model.doc.DocContentOwner
 import com.android.tools.metalava.model.getCallableParameterDescriptorUsingDots
+import com.android.tools.metalava.model.testOrTrue
 import com.android.tools.metalava.model.value.ArrayElementValue
 import com.android.tools.metalava.model.value.FieldReferenceValue
 import com.android.tools.metalava.model.value.FloatingPointValue
@@ -446,7 +447,7 @@ class DocAnalyzer(
                                 }
                                 sb.append(value.toValueString())
                             } else {
-                                if (filterReference.test(field)) {
+                                if (filterReference.testOrTrue(field)) {
                                     sb.append(
                                         "{@link ${field.containingClass().qualifiedName()}#${field.name()}}"
                                     )
@@ -528,7 +529,7 @@ class DocAnalyzer(
                 ): String? {
                     val field = (value as? FieldReferenceValue)?.resolve()
                     return if (field is FieldItem) {
-                        if (filterReference.test(field)) {
+                        if (filterReference.testOrTrue(field)) {
                             "{@link ${field.containingClass().qualifiedName()}#${field.name()}}"
                         } else {
                             // Typedef annotation references field which isn't part of the API:
@@ -559,7 +560,7 @@ class DocAnalyzer(
                             )
                             "{@link ${value.toValueString()}}"
                         } else {
-                            if (filterReference.test(field)) {
+                            if (filterReference.testOrTrue(field)) {
                                 "{@link ${field.containingClass().qualifiedName()}#${field.name()} ${field.containingClass().simpleName()}#${field.name()}}"
                             } else {
                                 reporter.report(
@@ -662,7 +663,7 @@ class DocAnalyzer(
                         )
                         sb.append("{@link ${value.toValueString()}}")
                     } else {
-                        if (filterReference.test(field)) {
+                        if (filterReference.testOrTrue(field)) {
                             sb.append(
                                 "{@link ${field.containingClass().qualifiedName()}#${field.name()} ${field.containingClass().simpleName()}#${field.name()}} "
                             )
