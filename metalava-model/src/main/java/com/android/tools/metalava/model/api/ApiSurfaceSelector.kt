@@ -189,7 +189,7 @@ class ApiSurfaceSelector(
             Comparator.comparing { it.annotationPattern }
 
         /**
-         * Comparator that sors [AnnotationMatcher.Rule] by [Showability] then reverse order of
+         * Comparator that sorts [AnnotationMatcher.Rule] by [Showability] then reverse order of
          * [patternComparator]
          */
         private val comparator =
@@ -230,6 +230,56 @@ class ApiSurfaceRules(
             append("    }\n")
         }
         append(")")
+    }
+
+    /**
+     * Retarget these rules at [surface].
+     *
+     * This takes this set of rules and then rewrites them to target [surface] which must be one of
+     * the surfaces in [apiSurfaces]. That involves dropping any surfaces that extend [surface] and
+     * treating any of their rules as [Effect.HIDE].
+     *
+     * Useful for testing as a single set of [apiSurfaces] and rules [byName] can be used for
+     * multiple tests targeting different surfaces.
+     */
+    fun retargetAt(surface: String): ApiSurfaceRules {
+        val selectedSurface = apiSurfaces.byName[surface]!!
+        val subSurfaces =
+            ApiSurfaces.build {
+                val subset = selectedSurface.includedSurfaces
+                for (s in subset) {
+                    createSurface(s.name, extends = s.extends?.name, isMain = s === selectedSurface)
+                }
+            }
+
+        val extraHideRules =
+            byName.flatMap { (name, rules) ->
+                if (name in subSurfaces.byName) emptyList()
+                else
+                    rules.filterIsInstance<SelectAnnotated>().map { rule ->
+                        SurfaceSelectionRule.createAnnotationRule(
+                            rule.annotationPattern,
+                            effect = Effect.HIDE,
+                            rule.recursive
+                        )
+                    }
+            }
+
+        val subsetRules =
+            byName
+                .mapNotNull { (name, rules) ->
+                    val surface = subSurfaces.byName[name]
+                    if (surface == null) {
+                        null
+                    } else if (surface.extends == null) {
+                        name to rules + extraHideRules
+                    } else {
+                        name to rules
+                    }
+                }
+                .toMap()
+
+        return ApiSurfaceRules(apiSurfaces, subsetRules)
     }
 
     companion object {
