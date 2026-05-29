@@ -25,6 +25,7 @@ import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.SkeletonClassItem
 import com.android.tools.metalava.model.SourceLanguage
 import com.android.tools.metalava.model.WellKnownTypes.JAVA_LANG_ANNOTATION_NON_NULL_TYPE
+import com.android.tools.metalava.model.api.SelectedApi
 import com.android.tools.metalava.model.bestGuessAtFullName
 import com.android.tools.metalava.model.item.DefaultCodebase
 import com.android.tools.metalava.model.item.DefaultCodebaseAssembler
@@ -200,6 +201,9 @@ internal class TextCodebaseAssembler(
                             trustedApi = true,
                             supportsDocumentation = false,
                             assembler = assembler,
+                            // Create a simple [SelectedApi] instance that will be populated
+                            // while parsing the signature files.
+                            selectedApiFactory = SelectedApi::createSimple,
                         )
                     },
                     classPathResolver = classPathResolver,

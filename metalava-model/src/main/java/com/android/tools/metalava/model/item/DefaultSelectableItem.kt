@@ -27,6 +27,7 @@ import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.Showability
 import com.android.tools.metalava.model.SourceLanguage
 import com.android.tools.metalava.model.TargetLanguage
+import com.android.tools.metalava.model.api.SelectedApi
 import com.android.tools.metalava.model.api.surface.ApiVariantSet
 import com.android.tools.metalava.model.api.surface.MutableApiVariantSet
 import com.android.tools.metalava.reporter.FileLocation
@@ -66,7 +67,30 @@ internal sealed class DefaultSelectableItem(
         }
     }
 
-    final override var selectedApiVariants: ApiVariantSet = codebase.apiSurfaces.emptyVariantSet
+    private lateinit var _selectedApi: SelectedApi
+
+    /** Create a [SelectedApi] appropriate for this [SelectableItem] on demand. */
+    private val selectedApi: SelectedApi
+        get() {
+            if (!::_selectedApi.isInitialized) {
+                // Create the instance and store in the field straight away before initialization.
+                // This is needed because initialize() may reenter this method and if it is not set
+                // before calling initialize() it will overflow the stack.
+                val factory = (codebase as DefaultCodebase).selectedApiFactory
+                _selectedApi = factory(this)
+
+                // Initialize the instance.
+                _selectedApi.initialize()
+            }
+            return _selectedApi
+        }
+
+    /** Delegate to [selectedApi]'s [SelectedApi.itemApiVariants]. */
+    final override var selectedApiVariants: ApiVariantSet
+        get() = selectedApi.itemApiVariants
+        set(value) {
+            selectedApi.itemApiVariants = value
+        }
 
     override fun mutateSelectedApiVariants(mutator: MutableApiVariantSet.() -> Unit) {
         val mutable = selectedApiVariants.toMutable()

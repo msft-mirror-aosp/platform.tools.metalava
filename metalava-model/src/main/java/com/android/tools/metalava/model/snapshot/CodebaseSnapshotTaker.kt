@@ -42,6 +42,7 @@ import com.android.tools.metalava.model.SourceFile
 import com.android.tools.metalava.model.SourceLanguage
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
+import com.android.tools.metalava.model.api.SelectedApi
 import com.android.tools.metalava.model.item.AbstractSourceFile
 import com.android.tools.metalava.model.item.DefaultCodebase
 import com.android.tools.metalava.model.item.DefaultCodebaseAssembler
@@ -123,6 +124,9 @@ private constructor(
                 // Supports documentation if the copied codebase does.
                 supportsDocumentation = codebase.supportsDocumentation(),
                 assembler = this,
+                // Create a simple [SelectedApi] instance that will be populated from information
+                // retrieved from the original [SelectedApi].
+                selectedApiFactory = SelectedApi::createSimple,
             )
 
         this.snapshotCodebase = newCodebase
