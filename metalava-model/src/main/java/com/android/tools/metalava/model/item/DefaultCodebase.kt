@@ -48,7 +48,7 @@ open class DefaultCodebase(
      * Provide a single factory for creating [SelectedApi]s for the whole [DefaultCodebase] to
      * ensure consistent behavior.
      */
-    internal val selectedApiFactory: (SelectableItem) -> SelectedApi = SelectedApi::createSimple,
+    internal val selectedApiFactory: (SelectableItem) -> SelectedApi,
 ) : Codebase {
 
     final override val annotationManager: AnnotationManager = config.annotationManager

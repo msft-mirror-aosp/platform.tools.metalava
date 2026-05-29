@@ -16,6 +16,10 @@
 
 package com.android.tools.metalava.model.api
 
+import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.Codebase
+import com.android.tools.metalava.model.MemberItem
+import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.api.surface.ApiVariantSet
 import com.android.tools.metalava.model.item.DefaultSelectableItem
@@ -39,6 +43,36 @@ sealed class SelectedApi {
          * based off information outside the [SelectableItem], e.g. signature files.
          */
         fun createSimple(item: SelectableItem): SelectedApi = SimpleSelectedApi(item)
+
+        /**
+         * Create a [SelectedApi] factory that will create [SelectedApi] instances suitable for a
+         * [Codebase] created from [config].
+         */
+        fun sourceFactory(config: Codebase.Config): (SelectableItem) -> SelectedApi {
+            // Get the ApiSurfaceSelector that is used by the AnnotationManager.
+            val annotationManager = config.annotationManager
+            val apiSurfaceSelector = annotationManager.apiSurfaceSelector
+
+            // Create an updater that will be captured by the factory below and will be used by all
+            // SelectedApi instances in the Codebase that uses tha factory.
+            val selectedApiUpdater =
+                SelectedApiUpdater(
+                    apiSurfaceSelector,
+                )
+            return { item -> createFromSource(selectedApiUpdater, item) }
+        }
+
+        /** Create a [SelectedApi] for a source [item]. */
+        fun createFromSource(
+            selectedApiUpdater: SelectedApiUpdater,
+            item: SelectableItem,
+        ): SelectedApi =
+            when (item) {
+                is ClassItem -> ClassSelectedApi(selectedApiUpdater, item)
+                is MemberItem -> MemberSelectedApi(selectedApiUpdater, item)
+                is PackageItem -> PackageSelectedApi(selectedApiUpdater, item)
+                else -> error("unknown selectable item: $item")
+            }
     }
 }
 
@@ -48,3 +82,54 @@ private class SimpleSelectedApi(item: SelectableItem) : SelectedApi() {
 
     override fun initialize() {}
 }
+
+/** Base [SelectedApi] class for use on [SelectableItem]s created from sources. */
+internal sealed class SourceSelectedApi<S : SelectableItem>(
+    internal val selectedApiUpdater: SelectedApiUpdater,
+    internal val item: S,
+) : SelectedApi() {
+    /**
+     * The [ApiVariantSet] for the [item].
+     *
+     * This is initialized in [initialize] which must have been called and which must initialize
+     * this before it is accessed.
+     */
+    override lateinit var itemApiVariants: ApiVariantSet
+
+    override fun initialize() {
+        // Update this.
+        selectedApiUpdater.updateSelectedApi(this)
+    }
+
+    override fun toString(): String {
+        val itemApiVariantsString =
+            if (::itemApiVariants.isInitialized) itemApiVariants.toString() else "UNSET"
+        return buildString {
+            append("SourceSelectedApi(")
+
+            append("item=")
+            append(item)
+            append(", itemApiVariants=")
+            append(itemApiVariantsString)
+            append(")")
+        }
+    }
+}
+
+/** Base [SelectedApi] class for source [PackageItem]s. */
+private class PackageSelectedApi(
+    selectedApiUpdater: SelectedApiUpdater,
+    item: PackageItem,
+) : SourceSelectedApi<PackageItem>(selectedApiUpdater, item)
+
+/** Base [SelectedApi] class for source [ClassItem]s. */
+private class ClassSelectedApi(
+    selectedApiUpdater: SelectedApiUpdater,
+    item: ClassItem,
+) : SourceSelectedApi<ClassItem>(selectedApiUpdater, item)
+
+/** Base [SelectedApi] class for source [MemberItem]s. */
+private class MemberSelectedApi(
+    selectedApiUpdater: SelectedApiUpdater,
+    item: MemberItem,
+) : SourceSelectedApi<MemberItem>(selectedApiUpdater, item)
