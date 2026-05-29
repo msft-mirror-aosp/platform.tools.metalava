@@ -75,7 +75,6 @@ class FilteringApiVisitor(
      */
     private val interfaceListComparator: Comparator<TypeItem>? = null,
     apiFilters: ApiFilters?,
-    private val filterSuperClassType: Boolean = true,
     showUnannotated: Boolean = true,
     private val ignoreEmit: Boolean = false,
     targetLanguages: Set<TargetLanguage> = TargetLanguageSet.ALL,
@@ -182,7 +181,7 @@ class FilteringApiVisitor(
         override fun superClass() = superClassType()?.resolveClass(codebase)
 
         override fun superClassType() =
-            if (!filterSuperClassType || preFiltered) delegate.superClassType()
+            if (preFiltered) delegate.superClassType()
             else delegate.filteredSuperClassType(filterReference)?.transform(typeAnnotationFilter)
 
         override fun interfaceTypes(): List<ClassTypeItem> {

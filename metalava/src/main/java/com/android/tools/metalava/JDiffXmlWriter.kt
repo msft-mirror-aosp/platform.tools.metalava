@@ -297,12 +297,10 @@ class JDiffXmlWriter(
 fun createFilteringVisitorForJDiffWriter(
     delegate: DelegatedVisitor,
     apiFilters: ApiFilters?,
-    filterSuperClassType: Boolean = true,
 ): ApiVisitor =
     FilteringApiVisitor(
         delegate,
         interfaceListComparator = TypeItem.totalComparator,
         apiFilters = apiFilters,
-        filterSuperClassType = filterSuperClassType,
         showUnannotated = false,
     )
