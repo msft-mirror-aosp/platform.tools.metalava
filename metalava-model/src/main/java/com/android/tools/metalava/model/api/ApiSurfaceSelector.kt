@@ -128,6 +128,9 @@ class ApiSurfaceSelector(
     /** The qualified names of all annotations that can affect API surface selection. */
     val annotationNames = matcher.annotationNames
 
+    /** The [ApiSurfaces] this selects between. */
+    val apiSurfaces = apiSurfaceRules.apiSurfaces
+
     /**
      * Compute the [SurfaceAnnotationData] for [annotationItem], returns `null` if [annotationItem]
      * does not affect API selection.
