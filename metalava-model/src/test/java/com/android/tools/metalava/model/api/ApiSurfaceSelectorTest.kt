@@ -34,6 +34,7 @@ class ApiSurfaceSelectorTest {
         mainSurfaceName: String? = null,
         expectedMatcherState: String,
         expectedShowUnannotated: Boolean,
+        expectedUnannotatedSurfaceName: String?,
     ) {
         val apiSurfaceRules =
             ApiSurfaceRules(apiSurfaces, rulesByName).let {
@@ -43,6 +44,7 @@ class ApiSurfaceSelectorTest {
         surfaceSelector.assertState(
             expectedMatcherState = expectedMatcherState,
             expectedShowUnannotated = expectedShowUnannotated,
+            expectedUnannotatedSurfaceName = expectedUnannotatedSurfaceName,
         )
     }
 
@@ -146,6 +148,7 @@ class ApiSurfaceSelectorTest {
             rulesByName = mapOf("main" to listOf(SurfaceSelectionRule.unannotated)),
             expectedMatcherState = "AnnotationMatcher(\n)",
             expectedShowUnannotated = true,
+            expectedUnannotatedSurfaceName = "main",
         )
     }
 
@@ -182,6 +185,7 @@ class ApiSurfaceSelectorTest {
                     )
                 """,
             expectedShowUnannotated = true,
+            expectedUnannotatedSurfaceName = "main",
         )
     }
 
@@ -222,6 +226,7 @@ class ApiSurfaceSelectorTest {
                     )
                 """,
             expectedShowUnannotated = false,
+            expectedUnannotatedSurfaceName = "base",
         )
     }
 
@@ -251,6 +256,7 @@ class ApiSurfaceSelectorTest {
                     )
                 """,
             expectedShowUnannotated = false,
+            expectedUnannotatedSurfaceName = "base",
         )
     }
 
@@ -281,6 +287,7 @@ class ApiSurfaceSelectorTest {
                     )
                 """,
             expectedShowUnannotated = false,
+            expectedUnannotatedSurfaceName = "base",
         )
     }
 

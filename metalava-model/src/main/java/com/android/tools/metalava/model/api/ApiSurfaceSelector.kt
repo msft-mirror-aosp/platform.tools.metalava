@@ -43,6 +43,12 @@ class ApiSurfaceSelector(
      */
     internal val matcher: AnnotationMatcher<SurfaceAnnotationData>
 
+    /**
+     * The optional [ApiSurface] that contains any items that are not annotated or contained within
+     * another item that is annotated with a surface annotation.
+     */
+    val unannotatedApiSurface: ApiSurface?
+
     init {
         var unannotatedSurface: ApiSurface? = null
         var hasShowForStubs = false
@@ -123,6 +129,7 @@ class ApiSurfaceSelector(
 
         hasAnyHideAnnotations = hasHideAnnotations
         hasAnyShowForStubPurposesAnnotations = hasShowForStubs
+        unannotatedApiSurface = unannotatedSurface
     }
 
     /** The qualified names of all annotations that can affect API surface selection. */
