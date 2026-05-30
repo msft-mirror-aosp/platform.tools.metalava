@@ -86,6 +86,17 @@ sealed interface ApiSurfaces {
         val DEFAULT = create()
     }
 
+    /** Create an [ApiVariantSet] from a vararg array of [variants]. */
+    fun createVariantSet(vararg variants: ApiVariant) = createVariantSet(variants.asList())
+
+    /** Create an [ApiVariantSet] from a list of [variants]. */
+    fun createVariantSet(variants: List<ApiVariant>) =
+        ApiVariantSet.build(this) {
+            for (variant in variants) {
+                add(variant)
+            }
+        }
+
     /**
      * Provides support for creating a more complicated [ApiSurfaces] instance than is supported by
      * [create].
@@ -237,11 +248,7 @@ private class DefaultApiSurface(
 
     override val variantSet =
         // Create an ApiVariantSet that contains all ApiVariants in this surface.
-        ApiVariantSet.build(surfaces) {
-            for (variant in variants) {
-                add(variant)
-            }
-        }
+        surfaces.createVariantSet(variants)
 
     override val narrowerSurfaces: Set<ApiSurface> = extends?.includedSurfaces ?: emptySet()
 
