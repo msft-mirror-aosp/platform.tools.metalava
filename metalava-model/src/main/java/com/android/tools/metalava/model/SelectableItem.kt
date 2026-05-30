@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model
 
+import com.android.tools.metalava.model.api.SelectedApi
 import com.android.tools.metalava.model.api.surface.ApiVariant
 import com.android.tools.metalava.model.api.surface.ApiVariantSet
 import com.android.tools.metalava.model.api.surface.MutableApiVariantSet
@@ -34,6 +35,9 @@ import com.android.tools.metalava.model.scope.ReferencableNameScope
  * an indivisible part of the [ParameterItem.containingCallable].
  */
 interface SelectableItem : Item, ReferencableNameScope {
+    /** The [SelectedApi] for this [SelectableItem]. */
+    val selectedApi: SelectedApi
+
     /** The [ApiVariant]s for which this [Item] has been selected. */
     var selectedApiVariants: ApiVariantSet
 

@@ -89,6 +89,28 @@ internal sealed class SourceSelectedApi<S : SelectableItem>(
     internal val item: S,
 ) : SelectedApi() {
     /**
+     * The parent [SourceSelectedApi], used for propagating information up to the parent
+     * [SourceSelectedApi].
+     *
+     * e.g. A package belongs in the API surfaces of all its top level child classes. That requires
+     * the child classes propagate information about the API surfaces to which they belong up to the
+     * parent package.
+     *
+     * This is the [SelectableItem.selectedApi] for [item]'s [SelectableItem.parent]. If the latter
+     * is `null`, i.e. [item] is the root package then this will refer to [item]. That avoids having
+     * to check this for `null` every time it is used at the expense of have a cycle at the top.
+     *
+     * The cycle should not be an issue as while packages are hierarchical when it comes to hiding
+     * them they are otherwise flat. That means a [PackageSelectedApi] will never try and propagate
+     * information to its parent. So, the root [PackageSelectedApi] will never use its [parent].
+     *
+     * Initialized in [initialize] which is called after creation but before the object is stored
+     * anywhere so it is impossible for this to be accessed before [initialize] has been called so
+     * there is no need to check is this has been initialized before using it.
+     */
+    protected lateinit var parent: SourceSelectedApi<*>
+
+    /**
      * The [ApiVariantSet] for the [item].
      *
      * This is initialized in [initialize] which must have been called and which must initialize
@@ -97,6 +119,20 @@ internal sealed class SourceSelectedApi<S : SelectableItem>(
     override lateinit var itemApiVariants: ApiVariantSet
 
     override fun initialize() {
+        // Initialize the parent first.
+        parent =
+            item.parent().let { parentItem ->
+                if (parentItem == null) {
+                    // Use this as its own parent to avoid having to make parent nullable.
+                    this
+                } else {
+                    parentItem.selectedApi as? SourceSelectedApi<*>
+                        // This error should never happen as all items in a codebase use the same
+                        // SelectedApi factory.
+                        ?: error("Incompatible selectable items for $item and $parentItem")
+                }
+            }
+
         // Update this.
         selectedApiUpdater.updateSelectedApi(this)
     }

@@ -70,7 +70,7 @@ internal sealed class DefaultSelectableItem(
     private lateinit var _selectedApi: SelectedApi
 
     /** Create a [SelectedApi] appropriate for this [SelectableItem] on demand. */
-    private val selectedApi: SelectedApi
+    final override val selectedApi: SelectedApi
         get() {
             if (!::_selectedApi.isInitialized) {
                 // Create the instance and store in the field straight away before initialization.
