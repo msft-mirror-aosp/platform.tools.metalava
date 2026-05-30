@@ -118,7 +118,7 @@ internal sealed class SourceSelectedApi<S : SelectableItem>(
      */
     override lateinit var itemApiVariants: ApiVariantSet
 
-    override fun initialize() {
+    final override fun initialize() {
         // Initialize the parent first.
         parent =
             item.parent().let { parentItem ->
@@ -133,9 +133,23 @@ internal sealed class SourceSelectedApi<S : SelectableItem>(
                 }
             }
 
-        // Update this.
+        // Perform any item specific initialization.
+        itemSpecificInitialization()
+    }
+
+    /** Update this from information in [item]. */
+    fun updateFromSelectableItem() {
         selectedApiUpdater.updateSelectedApi(this)
     }
+
+    /**
+     * Perform any item specific initialization.
+     *
+     * This is called after [parent] has been initialized, and it is the responsibility of this to
+     * call [updateFromSelectableItem] to update the state before accessing the
+     * [SelectableItem.selectedApi] of any enclosed items.
+     */
+    abstract fun itemSpecificInitialization()
 
     override fun toString(): String {
         val itemApiVariantsString =
@@ -156,16 +170,47 @@ internal sealed class SourceSelectedApi<S : SelectableItem>(
 private class PackageSelectedApi(
     selectedApiUpdater: SelectedApiUpdater,
     item: PackageItem,
-) : SourceSelectedApi<PackageItem>(selectedApiUpdater, item)
+) : SourceSelectedApi<PackageItem>(selectedApiUpdater, item) {
+    override fun itemSpecificInitialization() {
+
+        updateFromSelectableItem()
+
+        // Packages do not belong to an API surface in their own right. They belong to the union of
+        // the API surfaces to which their contained classes belong. So, reset this to empty to
+        // ignore the default values.
+        itemApiVariants = selectedApiUpdater.emptyVariantSet
+
+        // At this point itemApiVariants has been set which means it is now safe to compute the
+        // selectedApi for the contained classes which may access itemApiVariants.
+
+        // Make sure that all the classes in the package have also had their selectedApi initialized
+        // as that can affect this package's selectedApi.
+        for (classItem in item.topLevelClasses()) {
+            classItem.selectedApi
+        }
+    }
+}
 
 /** Base [SelectedApi] class for source [ClassItem]s. */
 private class ClassSelectedApi(
     selectedApiUpdater: SelectedApiUpdater,
     item: ClassItem,
-) : SourceSelectedApi<ClassItem>(selectedApiUpdater, item)
+) : SourceSelectedApi<ClassItem>(selectedApiUpdater, item) {
+    override fun itemSpecificInitialization() {
+        updateFromSelectableItem()
+
+        // Propagate information from this to the parent, which may be a containing class or
+        // package.
+        parent.itemApiVariants = parent.itemApiVariants.unionWith(itemApiVariants).toImmutable()
+    }
+}
 
 /** Base [SelectedApi] class for source [MemberItem]s. */
 private class MemberSelectedApi(
     selectedApiUpdater: SelectedApiUpdater,
     item: MemberItem,
-) : SourceSelectedApi<MemberItem>(selectedApiUpdater, item)
+) : SourceSelectedApi<MemberItem>(selectedApiUpdater, item) {
+    override fun itemSpecificInitialization() {
+        updateFromSelectableItem()
+    }
+}
