@@ -208,14 +208,14 @@ class CommonParameterizedSelectedApiTest : BaseModelTest() {
                 surfaceTest(
                     surface = "public",
                     expected =
-                        // TODO(b/512093496): Everything apart from Unannotated should be in the
-                        //   core public API, i.e. "public(C)".
+                        // TODO(b/512093496): All members of test.pkg.Test should be in the core
+                        //   public API, i.e. "public(C)".
                         """
-                            package test.pkg - ApiVariantSet[]
-                              class test.pkg.Test - ApiVariantSet[]
+                            package test.pkg - ApiVariantSet[public(C)]
+                              class test.pkg.Test - ApiVariantSet[public(C)]
                                 constructor test.pkg.Test(int) - ApiVariantSet[]
                                 method test.pkg.Test.method() - ApiVariantSet[]
-                              class test.pkg.ClassOnly - ApiVariantSet[]
+                              class test.pkg.ClassOnly - ApiVariantSet[public(C)]
                                 constructor test.pkg.ClassOnly() - ApiVariantSet[]
                                 method test.pkg.ClassOnly.notIncluded() - ApiVariantSet[]
                               class test.pkg.Unannotated - ApiVariantSet[]

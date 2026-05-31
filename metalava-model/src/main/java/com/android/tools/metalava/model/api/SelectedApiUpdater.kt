@@ -19,6 +19,8 @@ package com.android.tools.metalava.model.api
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.api.surface.ApiSurfaces
 import com.android.tools.metalava.model.api.surface.ApiVariant
+import com.android.tools.metalava.model.api.surface.ApiVariantSet
+import com.android.tools.metalava.model.api.surface.BaseApiVariantSet
 
 /** Provides support for updating [SourceSelectedApi] instances. */
 class SelectedApiUpdater(
@@ -50,6 +52,14 @@ class SelectedApiUpdater(
     }
 
     /**
+     * Union this option [BaseApiVariantSet] with [other] [ApiVariantSet].
+     *
+     * If this is `null` then this just returns [other], otherwise it calls
+     * [BaseApiVariantSet.unionWith] on [other].
+     */
+    private fun BaseApiVariantSet?.unionWith(other: ApiVariantSet) = this?.unionWith(other) ?: other
+
+    /**
      * Update [selectedApi] with information about [ApiVariant]s to which the
      * [SourceSelectedApi.item] belongs.
      */
@@ -59,20 +69,43 @@ class SelectedApiUpdater(
         // Get the item that owns selectedApi.
         val item = selectedApi.item
 
-        // Compute the variant set for the item.
-        val itemApiVariants =
+        // Keep track of the ApiVariants to which the context item belong. Is `null` to avoid
+        // creating a MutableApiVariantSet when most items are unannotated.
+        var itemApiVariants: BaseApiVariantSet? = null
+
+        // Iterate over the annotations, checking to see if any match the surface rules.
+        val annotations = item.modifiers.annotations()
+        for (annotationItem in annotations) {
+            // Ignore any annotation that does not match.
+            annotationItem.surfaceData?.let { surfaceData ->
+                if (surfaceData.show) {
+                    val resultSurface = surfaceData.surface
+
+                    // It is a show annotation so add the context surfaces variants.
+                    val resultVariants = resultSurface.defaultVariantSet
+
+                    // Add the surface variants to the variants for the context item.
+                    itemApiVariants = itemApiVariants.unionWith(resultVariants)
+                }
+            }
+        }
+
+        // Check to see if any show rules matched; if they had then they would have set
+        // itemApiVariants to non-null.
+        if (itemApiVariants == null) {
             if (item.hasHideDocTag) {
                 // Mark the selectedApi as being hidden.
                 selectedApi.markAsHidden()
 
                 // Return immediately to avoid falling through.
                 return
-            } else {
-                // It belongs to the default set of API surfaces.
-                defaultVariantSet
             }
 
+            // It belongs to the default set of API surfaces.
+            itemApiVariants = defaultVariantSet
+        }
+
         // Store the variant set in selectedApi.
-        selectedApi.itemApiVariants = itemApiVariants
+        selectedApi.itemApiVariants = itemApiVariants.toImmutable()
     }
 }
