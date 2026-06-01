@@ -123,7 +123,7 @@ class CommonApiSurfacesTest : BaseModelTest() {
             val testClass = codebase.assertClass("test.pkg.Test")
 
             // Make sure that the selectedApiVariants is empty.
-            testClass.mutateSelectedApiVariants { clear() }
+            testClass.selectedApiVariants = codebase.apiSurfaces.emptyVariantSet
 
             assertEquals(
                 "ApiVariantSet[]",
@@ -132,7 +132,7 @@ class CommonApiSurfacesTest : BaseModelTest() {
             )
 
             val mainStubsApiVariant = codebase.apiSurfaces.main.variantFor(ApiVariantType.DOC_ONLY)
-            testClass.mutateSelectedApiVariants { add(mainStubsApiVariant) }
+            testClass.selectedApiVariants += mainStubsApiVariant
             assertEquals(
                 "ApiVariantSet[main(D)]",
                 testClass.selectedApiVariants.toString(),

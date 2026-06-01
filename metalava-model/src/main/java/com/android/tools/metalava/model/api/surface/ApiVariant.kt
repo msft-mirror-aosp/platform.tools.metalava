@@ -192,6 +192,9 @@ class ApiVariantSet(apiSurfaces: ApiSurfaces, override val value: ValueApiVarian
         if (value + other.value == value) this
         else if (value.isEmpty()) other else toMutable().apply { unionWith(other) }
 
+    operator fun plus(variant: ApiVariant) =
+        if (value + variant == value) this else toMutable().apply { add(variant) }.toImmutable()
+
     override fun toMutable() = MutableApiVariantSet(apiSurfaces, value)
 
     override fun toImmutable() = this

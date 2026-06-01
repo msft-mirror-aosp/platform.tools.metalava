@@ -28,8 +28,6 @@ import com.android.tools.metalava.model.Showability
 import com.android.tools.metalava.model.SourceLanguage
 import com.android.tools.metalava.model.TargetLanguage
 import com.android.tools.metalava.model.api.SelectedApi
-import com.android.tools.metalava.model.api.surface.ApiVariantSet
-import com.android.tools.metalava.model.api.surface.MutableApiVariantSet
 import com.android.tools.metalava.reporter.FileLocation
 
 internal sealed class DefaultSelectableItem(
@@ -86,17 +84,11 @@ internal sealed class DefaultSelectableItem(
         }
 
     /** Delegate to [selectedApi]'s [SelectedApi.itemApiVariants]. */
-    final override var selectedApiVariants: ApiVariantSet
+    final override var selectedApiVariants
         get() = selectedApi.itemApiVariants
         set(value) {
             selectedApi.itemApiVariants = value
         }
-
-    override fun mutateSelectedApiVariants(mutator: MutableApiVariantSet.() -> Unit) {
-        val mutable = selectedApiVariants.toMutable()
-        mutable.mutator()
-        selectedApiVariants = mutable.toImmutable()
-    }
 
     // Default to true, may be updated later
     final override var emit = true
