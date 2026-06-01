@@ -21,6 +21,7 @@ import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.api.ApiSurfaceRules
 import com.android.tools.metalava.model.provider.InputFormat
 import com.android.tools.metalava.model.testing.SupportedInputFormats
+import com.android.tools.metalava.model.testing.surfaces.TestableApiSurfaces.HIDE
 import com.android.tools.metalava.model.testing.surfaces.TestableApiSurfaces.UNANNOTATED_API
 import com.android.tools.metalava.model.testing.surfaces.TestableApiSurfaces.UNANNOTATED_NON_RECURSIVE_API
 import com.android.tools.metalava.model.testing.surfaces.TestableApiSurfaces.annotatedOnlyRules
@@ -160,6 +161,33 @@ class CommonParameterizedSelectedApiTest : BaseModelTest() {
                         """
                             package test - ApiVariantSet[]
                               class test.Hidden - ApiVariantSet[]
+                        """,
+                )
+            }
+
+            buildTests(
+                name = "@hide annotation class",
+                surfaceRules = publicSystemModuleRules,
+                sources =
+                    listOf(
+                        java(
+                            """
+                                package test;
+                                $HIDE
+                                public interface Hidden {
+                                }
+                            """
+                        ),
+                    ),
+            ) {
+                surfaceTest(
+                    surface = "public",
+                    expected =
+                        // TODO(b/512093496): test.Hidden should be hidden and so should the test
+                        //   package.
+                        """
+                            package test - ApiVariantSet[public(C)]
+                              class test.Hidden - ApiVariantSet[public(C)]
                         """,
                 )
             }
