@@ -137,6 +137,10 @@ internal sealed class SourceSelectedApi<S : SelectableItem>(
         parent =
             item.parent().let { parentItem ->
                 if (parentItem == null) {
+                    // Initialize inheritableApiVariants for the root package to the default variant
+                    // set so that any unannotated items will inherit the correct surfaces. This is
+                    // done here as otherwise this will be accessed in [updateFromSelectableItem]
+                    // before it is initialized.
                     inheritableApiVariants = selectedApiUpdater.defaultVariantSet
 
                     // Use this as its own parent to avoid having to make parent nullable.
