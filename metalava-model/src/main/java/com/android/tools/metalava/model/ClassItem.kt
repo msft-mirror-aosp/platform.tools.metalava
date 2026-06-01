@@ -311,8 +311,6 @@ interface ClassItem :
         return qualifiedName().hashCode()
     }
 
-    override fun toStringForItem() = "class ${qualifiedName()}"
-
     companion object {
         // Same as doclava1 (modulo the new handling when class names match)
         val comparator: Comparator<in ClassItem> = Comparator { o1, o2 ->

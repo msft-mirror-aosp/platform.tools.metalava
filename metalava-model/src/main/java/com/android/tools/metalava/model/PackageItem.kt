@@ -96,8 +96,6 @@ interface PackageItem : SelectableItem, ReferencableItem, QualifiedNameScope {
         append(qualifiedName().let { if (it == "") "<root>" else it })
     }
 
-    override fun toStringForItem() = describe()
-
     companion object {
         val comparator: Comparator<PackageItem> = Comparator { a, b ->
             a.qualifiedName().compareTo(b.qualifiedName())

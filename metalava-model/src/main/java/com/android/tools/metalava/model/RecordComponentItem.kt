@@ -73,8 +73,6 @@ interface RecordComponentItem : Item {
         append(name)
     }
 
-    override fun toStringForItem() = describe()
-
     override val effectivelyDeprecated: Boolean
         get() = originallyDeprecated || containingClass().effectivelyDeprecated
 

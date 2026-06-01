@@ -164,8 +164,6 @@ interface CallableItem : MemberItem, TypeParameterListOwner, PossiblyRecordCompo
         append(")")
     }
 
-    override fun toStringForItem() = describe()
-
     override fun equalsToItem(other: Any?): Boolean {
         if (this === other) return true
         if (other !is CallableItem) return false

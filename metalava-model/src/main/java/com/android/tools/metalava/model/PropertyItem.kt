@@ -126,8 +126,6 @@ interface PropertyItem : MemberItem, TypeParameterListOwner, InheritableItem {
         append(contextString())
     }
 
-    override fun toStringForItem() = describe()
-
     // Inherit deprecation from the getter
     override val effectivelyDeprecated: Boolean
         get() =
