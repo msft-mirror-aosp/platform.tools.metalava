@@ -28,6 +28,7 @@ import com.android.tools.metalava.model.Showability
 import com.android.tools.metalava.model.SourceLanguage
 import com.android.tools.metalava.model.TargetLanguage
 import com.android.tools.metalava.model.api.SelectedApi
+import com.android.tools.metalava.model.api.surface.ApiVariantSet
 import com.android.tools.metalava.reporter.FileLocation
 
 internal sealed class DefaultSelectableItem(
@@ -85,9 +86,9 @@ internal sealed class DefaultSelectableItem(
 
     /** Delegate to [selectedApi]'s [SelectedApi.itemApiVariants]. */
     final override var selectedApiVariants
-        get() = selectedApi.itemApiVariants
+        get() = selectedApi.itemApiVariants.value
         set(value) {
-            selectedApi.itemApiVariants = value
+            selectedApi.itemApiVariants = ApiVariantSet(codebase.apiSurfaces, value)
         }
 
     // Default to true, may be updated later

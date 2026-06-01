@@ -18,6 +18,7 @@ package com.android.tools.metalava.model.testsuite
 
 import com.android.tools.metalava.model.api.ApiSurfaceRules
 import com.android.tools.metalava.model.api.surface.ApiVariantType
+import com.android.tools.metalava.model.api.surface.ValueApiVariantSet
 import com.android.tools.metalava.model.provider.InputFormat
 import com.android.tools.metalava.model.testing.SupportedInputFormats
 import com.android.tools.metalava.testing.java
@@ -123,11 +124,11 @@ class CommonApiSurfacesTest : BaseModelTest() {
             val testClass = codebase.assertClass("test.pkg.Test")
 
             // Make sure that the selectedApiVariants is empty.
-            testClass.selectedApiVariants = codebase.apiSurfaces.emptyVariantSet
+            testClass.selectedApiVariants = ValueApiVariantSet.EMPTY
 
             assertEquals(
                 "ApiVariantSet[]",
-                testClass.selectedApiVariants.toString(),
+                testClass.selectedApiVariants.formatFor(codebase.apiSurfaces),
                 "empty selectedApiVariants"
             )
 
@@ -135,7 +136,7 @@ class CommonApiSurfacesTest : BaseModelTest() {
             testClass.selectedApiVariants += mainStubsApiVariant
             assertEquals(
                 "ApiVariantSet[main(D)]",
-                testClass.selectedApiVariants.toString(),
+                testClass.selectedApiVariants.formatFor(codebase.apiSurfaces),
                 "mutated selectedApiVariants"
             )
         }
