@@ -792,7 +792,7 @@ class ApiFileTest : BaseTextCodebaseTest() {
                 method test.pkg.Foo.extensibleMethod(int)
                 method test.pkg.Foo.currentMethod(int)
                 property test.pkg.Foo#prop
-                field Foo.currentField
+                field test.pkg.Foo.currentField
                 class test.pkg.Outer.Middle.Inner
                 method test.pkg.Outer.Middle.Inner.currentInnerMethod()
             """
@@ -823,8 +823,8 @@ class ApiFileTest : BaseTextCodebaseTest() {
                 method test.pkg.Foo.extensibleMethod(int)
                 method test.pkg.Foo.currentMethod(int)
                 property test.pkg.Foo#prop
-                field Foo.field
-                field Foo.currentField
+                field test.pkg.Foo.field
+                field test.pkg.Foo.currentField
                 class test.pkg.Outer
                 class test.pkg.Outer.Middle
                 class test.pkg.Outer.Middle.Inner

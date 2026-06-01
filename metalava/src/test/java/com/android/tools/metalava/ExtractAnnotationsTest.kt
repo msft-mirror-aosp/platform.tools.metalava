@@ -167,7 +167,7 @@ class ExtractAnnotationsTest : DriverTest() {
                     longDefAnnotationSource
                 ),
             expectedIssues =
-                "src/test/pkg/LongDefTest.kt:12: error: Typedef class references hidden field field LongDefTestKt.HIDDEN: removed from typedef metadata [HiddenTypedefConstant]",
+                "src/test/pkg/LongDefTest.kt:12: error: Typedef class references hidden field field test.pkg.LongDefTestKt.HIDDEN: removed from typedef metadata [HiddenTypedefConstant]",
             extractAnnotations =
                 mapOf(
                     "test.pkg" to
@@ -250,7 +250,7 @@ class ExtractAnnotationsTest : DriverTest() {
                     longDefAnnotationSource
                 ),
             expectedIssues =
-                "src/test/pkg/LongDefTest.kt:12: error: Typedef class references hidden field field LongDefTestKt.HIDDEN: removed from typedef metadata [HiddenTypedefConstant]",
+                "src/test/pkg/LongDefTest.kt:12: error: Typedef class references hidden field field test.pkg.LongDefTestKt.HIDDEN: removed from typedef metadata [HiddenTypedefConstant]",
             extractAnnotations =
                 mapOf(
                     "test.pkg" to

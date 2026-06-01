@@ -87,7 +87,7 @@ interface FieldItem : MemberItem, InheritableItem, ReferencableItem, PossiblyPro
         return name().hashCode()
     }
 
-    override fun toStringForItem() = "field ${containingClass().fullName()}.${name()}"
+    override fun toStringForItem() = describe()
 
     companion object {
         val comparator: java.util.Comparator<FieldItem> = Comparator { a, b ->
