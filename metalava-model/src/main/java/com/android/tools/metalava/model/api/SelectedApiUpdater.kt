@@ -73,6 +73,12 @@ class SelectedApiUpdater(
         // creating a MutableApiVariantSet when most items are unannotated.
         var itemApiVariants: BaseApiVariantSet? = null
 
+        // Indicates whether a hide annotation has been seen. Hide annotations are superseded by
+        // show annotations so any processing of a hide annotation is deferred until after all
+        // annotations have been checked. Hide annotations are always recursive so this just tracks
+        // whether one has been seen.
+        var hide = false
+
         // Iterate over the annotations, checking to see if any match the surface rules.
         val annotations = item.modifiers.annotations()
         for (annotationItem in annotations) {
@@ -86,6 +92,9 @@ class SelectedApiUpdater(
 
                     // Add the surface variants to the variants for the context item.
                     itemApiVariants = itemApiVariants.unionWith(resultVariants)
+                } else {
+                    // A hide annotation was seen.
+                    hide = true
                 }
             }
         }
@@ -93,7 +102,14 @@ class SelectedApiUpdater(
         // Check to see if any show rules matched; if they had then they would have set
         // itemApiVariants to non-null.
         if (itemApiVariants == null) {
-            if (item.hasHideDocTag) {
+            // No show rules matched. Check to see if the context item should be hidden.
+
+            // If no hide annotations were found then check for @hide doc tag.
+            if (!hide) {
+                hide = item.hasHideDocTag
+            }
+
+            if (hide) {
                 // Mark the selectedApi as being hidden.
                 selectedApi.markAsHidden()
 

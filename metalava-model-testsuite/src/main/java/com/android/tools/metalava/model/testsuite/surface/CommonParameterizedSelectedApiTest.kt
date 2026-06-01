@@ -183,11 +183,9 @@ class CommonParameterizedSelectedApiTest : BaseModelTest() {
                 surfaceTest(
                     surface = "public",
                     expected =
-                        // TODO(b/512093496): test.Hidden should be hidden and so should the test
-                        //   package.
                         """
-                            package test - ApiVariantSet[public(C)]
-                              class test.Hidden - ApiVariantSet[public(C)]
+                            package test - ApiVariantSet[]
+                              class test.Hidden - ApiVariantSet[]
                         """,
                 )
             }
