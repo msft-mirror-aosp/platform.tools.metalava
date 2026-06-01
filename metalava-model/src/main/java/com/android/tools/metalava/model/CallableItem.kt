@@ -164,10 +164,7 @@ interface CallableItem : MemberItem, TypeParameterListOwner, PossiblyRecordCompo
         append(")")
     }
 
-    override fun toStringForItem(): String {
-        return "${if (isConstructor()) "constructor" else "method"} ${
-            containingClass().qualifiedName()}.${name()}(${parameters().joinToString { it.type().toSimpleTypeString() }})"
-    }
+    override fun toStringForItem() = describe()
 
     override fun equalsToItem(other: Any?): Boolean {
         if (this === other) return true

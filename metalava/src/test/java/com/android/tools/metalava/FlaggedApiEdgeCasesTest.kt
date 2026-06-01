@@ -134,7 +134,7 @@ class FlaggedApiEdgeCasesTest : DriverTest() {
             expectedIssues =
                 """
                     src/test/pkg/Test.java:5: error: Cannot revert class test.pkg.Test (or any other API item) as no previously released API has been provided [NoPreviouslyReleasedApi]
-                    src/test/pkg/Test.java:6: error: Cannot revert constructor test.pkg.Test.Test() (or any other API item) as no previously released API has been provided [NoPreviouslyReleasedApi]
+                    src/test/pkg/Test.java:6: error: Cannot revert constructor test.pkg.Test() (or any other API item) as no previously released API has been provided [NoPreviouslyReleasedApi]
                 """,
         )
     }
