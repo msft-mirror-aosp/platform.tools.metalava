@@ -118,11 +118,27 @@ internal sealed class SourceSelectedApi<S : SelectableItem>(
      */
     override lateinit var itemApiVariants: ApiVariantSet
 
+    /**
+     * The [ApiVariantSet] that will be inherited by [SelectableItem]s enclosed within [item].
+     *
+     * This is initialized in [initialize] which must have been called and which must initialize
+     * this before it is accessed.
+     *
+     * This is tracked separately to [itemApiVariants] for a couple of reasons:
+     * * Non-recursive show annotations can include an item in a surface without automatically
+     *   including enclosed items.
+     * * [itemApiVariants] can be modified by enclosed items, e.g. a package's [itemApiVariants] is
+     *   the aggregate of all its classes.
+     */
+    lateinit var inheritableApiVariants: ApiVariantSet
+
     final override fun initialize() {
         // Initialize the parent first.
         parent =
             item.parent().let { parentItem ->
                 if (parentItem == null) {
+                    inheritableApiVariants = selectedApiUpdater.defaultVariantSet
+
                     // Use this as its own parent to avoid having to make parent nullable.
                     this
                 } else {
@@ -139,7 +155,7 @@ internal sealed class SourceSelectedApi<S : SelectableItem>(
 
     /** Update this from information in [item]. */
     fun updateFromSelectableItem() {
-        selectedApiUpdater.updateSelectedApi(this)
+        selectedApiUpdater.updateSelectedApi(this, parent)
     }
 
     /**

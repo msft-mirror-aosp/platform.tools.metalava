@@ -49,6 +49,7 @@ class SelectedApiUpdater(
     private fun SourceSelectedApi<*>.markAsHidden() {
         // A hidden item does not belong to any API surfaces.
         itemApiVariants = emptyVariantSet
+        inheritableApiVariants = emptyVariantSet
     }
 
     /**
@@ -65,13 +66,19 @@ class SelectedApiUpdater(
      */
     internal fun updateSelectedApi(
         selectedApi: SourceSelectedApi<*>,
+        parent: SourceSelectedApi<*>,
     ) {
         // Get the item that owns selectedApi.
         val item = selectedApi.item
 
+        val enclosingApiVariants = parent.inheritableApiVariants
+
         // Keep track of the ApiVariants to which the context item belong. Is `null` to avoid
         // creating a MutableApiVariantSet when most items are unannotated.
         var itemApiVariants: BaseApiVariantSet? = null
+
+        // Keep track of the ApiVariants which the context item's enclosed items will inherit.
+        var inheritableApiVariants: BaseApiVariantSet? = null
 
         // Indicates whether a hide annotation has been seen. Hide annotations are superseded by
         // show annotations so any processing of a hide annotation is deferred until after all
@@ -92,6 +99,12 @@ class SelectedApiUpdater(
 
                     // Add the surface variants to the variants for the context item.
                     itemApiVariants = itemApiVariants.unionWith(resultVariants)
+
+                    // If the rule is recursive then add the surface variants to those that are
+                    // inherited by enclosed items.
+                    if (surfaceData.recursive) {
+                        inheritableApiVariants = inheritableApiVariants.unionWith(resultVariants)
+                    }
                 } else {
                     // A hide annotation was seen.
                     hide = true
@@ -117,11 +130,20 @@ class SelectedApiUpdater(
                 return
             }
 
-            // It belongs to the default set of API surfaces.
-            itemApiVariants = defaultVariantSet
+            // The context item did not specify the API surfaces to which it belongs so use the
+            // enclosing item's API variants for the context item and its enclosed items.
+            itemApiVariants =
+                if (enclosingApiVariants.isNotEmpty()) {
+                    enclosingApiVariants
+                } else {
+                    emptyVariantSet
+                }
+            inheritableApiVariants = enclosingApiVariants
         }
 
         // Store the variant set in selectedApi.
         selectedApi.itemApiVariants = itemApiVariants.toImmutable()
+        selectedApi.inheritableApiVariants =
+            inheritableApiVariants?.toImmutable() ?: emptyVariantSet
     }
 }

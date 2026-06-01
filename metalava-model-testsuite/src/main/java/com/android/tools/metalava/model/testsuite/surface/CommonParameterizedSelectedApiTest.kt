@@ -234,13 +234,11 @@ class CommonParameterizedSelectedApiTest : BaseModelTest() {
                 surfaceTest(
                     surface = "public",
                     expected =
-                        // TODO(b/512093496): All members of test.pkg.Test should be in the core
-                        //   public API, i.e. "public(C)".
                         """
                             package test.pkg - ApiVariantSet[public(C)]
                               class test.pkg.Test - ApiVariantSet[public(C)]
-                                constructor test.pkg.Test(int) - ApiVariantSet[]
-                                method test.pkg.Test.method() - ApiVariantSet[]
+                                constructor test.pkg.Test(int) - ApiVariantSet[public(C)]
+                                method test.pkg.Test.method() - ApiVariantSet[public(C)]
                               class test.pkg.ClassOnly - ApiVariantSet[public(C)]
                                 constructor test.pkg.ClassOnly() - ApiVariantSet[]
                                 method test.pkg.ClassOnly.notIncluded() - ApiVariantSet[]
