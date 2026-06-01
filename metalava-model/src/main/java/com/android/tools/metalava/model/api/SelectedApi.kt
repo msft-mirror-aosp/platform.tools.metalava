@@ -21,13 +21,13 @@ import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.MemberItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.SelectableItem
-import com.android.tools.metalava.model.api.surface.ApiVariantSet
+import com.android.tools.metalava.model.api.surface.ValueApiVariantSet
 import com.android.tools.metalava.model.item.DefaultSelectableItem
 
-/** Provides access to the [ApiVariantSet] to which a specific [SelectableItem] belongs. */
+/** Provides access to the [ValueApiVariantSet] to which a specific [SelectableItem] belongs. */
 sealed class SelectedApi {
-    /** The [ApiVariantSet] for the [SelectableItem]. */
-    abstract var itemApiVariants: ApiVariantSet
+    /** The [ValueApiVariantSet] for the [SelectableItem]. */
+    abstract var itemApiVariants: ValueApiVariantSet
 
     /**
      * Initialize this instance.
@@ -42,7 +42,7 @@ sealed class SelectedApi {
          * Return a [SelectedApi] factory that will create [SelectedApi] instances suitable for
          * being populated based off information outside the [SelectableItem], e.g. signature files.
          */
-        val SIMPLE_FACTORY: (SelectableItem) -> SelectedApi = { item -> SimpleSelectedApi(item) }
+        val SIMPLE_FACTORY: (SelectableItem) -> SelectedApi = { SimpleSelectedApi() }
 
         /**
          * Create a [SelectedApi] factory that will create [SelectedApi] instances suitable for a
@@ -76,9 +76,9 @@ sealed class SelectedApi {
     }
 }
 
-/** A simple [SelectedApi] that just stores [itemApiVariants] for [item]. */
-private class SimpleSelectedApi(item: SelectableItem) : SelectedApi() {
-    override var itemApiVariants = item.codebase.apiSurfaces.emptyVariantSet
+/** A simple [SelectedApi] that just stores [itemApiVariants]. */
+private class SimpleSelectedApi : SelectedApi() {
+    override var itemApiVariants = ValueApiVariantSet.EMPTY
 
     override fun initialize() {}
 }
@@ -111,15 +111,15 @@ internal sealed class SourceSelectedApi<S : SelectableItem>(
     protected lateinit var parent: SourceSelectedApi<*>
 
     /**
-     * The [ApiVariantSet] for the [item].
+     * The [ValueApiVariantSet] for the [item].
      *
      * This is initialized in [initialize] which must have been called and which must initialize
      * this before it is accessed.
      */
-    override lateinit var itemApiVariants: ApiVariantSet
+    override var itemApiVariants = ValueApiVariantSet.EMPTY
 
     /**
-     * The [ApiVariantSet] that will be inherited by [SelectableItem]s enclosed within [item].
+     * The [ValueApiVariantSet] that will be inherited by [SelectableItem]s enclosed within [item].
      *
      * This is initialized in [initialize] which must have been called and which must initialize
      * this before it is accessed.
@@ -130,7 +130,7 @@ internal sealed class SourceSelectedApi<S : SelectableItem>(
      * * [itemApiVariants] can be modified by enclosed items, e.g. a package's [itemApiVariants] is
      *   the aggregate of all its classes.
      */
-    lateinit var inheritableApiVariants: ApiVariantSet
+    var inheritableApiVariants = ValueApiVariantSet.EMPTY
 
     final override fun initialize() {
         // Initialize the parent first.
@@ -172,15 +172,13 @@ internal sealed class SourceSelectedApi<S : SelectableItem>(
     abstract fun itemSpecificInitialization()
 
     override fun toString(): String {
-        val itemApiVariantsString =
-            if (::itemApiVariants.isInitialized) itemApiVariants.toString() else "UNSET"
         return buildString {
             append("SourceSelectedApi(")
 
             append("item=")
             append(item)
             append(", itemApiVariants=")
-            append(itemApiVariantsString)
+            append(itemApiVariants.formatFor(selectedApiUpdater.apiSurfaces))
             append(")")
         }
     }
@@ -198,7 +196,7 @@ private class PackageSelectedApi(
         // Packages do not belong to an API surface in their own right. They belong to the union of
         // the API surfaces to which their contained classes belong. So, reset this to empty to
         // ignore the default values.
-        itemApiVariants = selectedApiUpdater.emptyVariantSet
+        itemApiVariants = ValueApiVariantSet.EMPTY
 
         // At this point itemApiVariants has been set which means it is now safe to compute the
         // selectedApi for the contained classes which may access itemApiVariants.
@@ -221,7 +219,7 @@ private class ClassSelectedApi(
 
         // Propagate information from this to the parent, which may be a containing class or
         // package.
-        parent.itemApiVariants = parent.itemApiVariants.unionWith(itemApiVariants).toImmutable()
+        parent.itemApiVariants += itemApiVariants
     }
 }
 

@@ -19,18 +19,14 @@ package com.android.tools.metalava.model.api
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.api.surface.ApiSurfaces
 import com.android.tools.metalava.model.api.surface.ApiVariant
-import com.android.tools.metalava.model.api.surface.ApiVariantSet
-import com.android.tools.metalava.model.api.surface.BaseApiVariantSet
+import com.android.tools.metalava.model.api.surface.ValueApiVariantSet
 
 /** Provides support for updating [SourceSelectedApi] instances. */
 class SelectedApiUpdater(
     apiSurfaceSelector: ApiSurfaceSelector,
 ) {
     /** The [ApiSurfaces] with which this will associate [SelectableItem]s */
-    private val apiSurfaces = apiSurfaceSelector.apiSurfaces
-
-    /** The set of empty [ApiVariant]s for [apiSurfaces]. */
-    internal val emptyVariantSet = apiSurfaces.emptyVariantSet
+    internal val apiSurfaces = apiSurfaceSelector.apiSurfaces
 
     /**
      * The default set of variants that are used on unannotated items.
@@ -39,7 +35,8 @@ class SelectedApiUpdater(
      * default variants for the unannotated surface.
      */
     internal val defaultVariantSet =
-        apiSurfaceSelector.unannotatedApiSurface?.defaultVariantSet ?: emptyVariantSet
+        apiSurfaceSelector.unannotatedApiSurface?.defaultVariantSet?.value
+            ?: ValueApiVariantSet.EMPTY
 
     /** Check whether this [SelectableItem] has an `@hide` doc tag. */
     private val SelectableItem.hasHideDocTag: Boolean
@@ -48,17 +45,9 @@ class SelectedApiUpdater(
     /** Mark this [SourceSelectedApi] as being hidden. */
     private fun SourceSelectedApi<*>.markAsHidden() {
         // A hidden item does not belong to any API surfaces.
-        itemApiVariants = emptyVariantSet
-        inheritableApiVariants = emptyVariantSet
+        itemApiVariants = ValueApiVariantSet.EMPTY
+        inheritableApiVariants = ValueApiVariantSet.EMPTY
     }
-
-    /**
-     * Union this option [BaseApiVariantSet] with [other] [ApiVariantSet].
-     *
-     * If this is `null` then this just returns [other], otherwise it calls
-     * [BaseApiVariantSet.unionWith] on [other].
-     */
-    private fun BaseApiVariantSet?.unionWith(other: ApiVariantSet) = this?.unionWith(other) ?: other
 
     /**
      * Update [selectedApi] with information about [ApiVariant]s to which the
@@ -75,10 +64,10 @@ class SelectedApiUpdater(
 
         // Keep track of the ApiVariants to which the context item belong. Is `null` to avoid
         // creating a MutableApiVariantSet when most items are unannotated.
-        var itemApiVariants: BaseApiVariantSet? = null
+        var itemApiVariants = ValueApiVariantSet.EMPTY
 
         // Keep track of the ApiVariants which the context item's enclosed items will inherit.
-        var inheritableApiVariants: BaseApiVariantSet? = null
+        var inheritableApiVariants = ValueApiVariantSet.EMPTY
 
         // Indicates whether a hide annotation has been seen. Hide annotations are superseded by
         // show annotations so any processing of a hide annotation is deferred until after all
@@ -95,15 +84,15 @@ class SelectedApiUpdater(
                     val resultSurface = surfaceData.surface
 
                     // It is a show annotation so add the context surfaces variants.
-                    val resultVariants = resultSurface.defaultVariantSet
+                    val resultVariants = resultSurface.defaultVariantSet.value
 
                     // Add the surface variants to the variants for the context item.
-                    itemApiVariants = itemApiVariants.unionWith(resultVariants)
+                    itemApiVariants += resultVariants
 
                     // If the rule is recursive then add the surface variants to those that are
                     // inherited by enclosed items.
                     if (surfaceData.recursive) {
-                        inheritableApiVariants = inheritableApiVariants.unionWith(resultVariants)
+                        inheritableApiVariants += resultVariants
                     }
                 } else {
                     // A hide annotation was seen.
@@ -114,7 +103,7 @@ class SelectedApiUpdater(
 
         // Check to see if any show rules matched; if they had then they would have set
         // itemApiVariants to non-null.
-        if (itemApiVariants == null) {
+        if (itemApiVariants.isEmpty()) {
             // No show rules matched. Check to see if the context item should be hidden.
 
             // If no hide annotations were found then check for @hide doc tag.
@@ -136,14 +125,13 @@ class SelectedApiUpdater(
                 if (enclosingApiVariants.isNotEmpty()) {
                     enclosingApiVariants
                 } else {
-                    emptyVariantSet
+                    ValueApiVariantSet.EMPTY
                 }
             inheritableApiVariants = enclosingApiVariants
         }
 
         // Store the variant set in selectedApi.
-        selectedApi.itemApiVariants = itemApiVariants.toImmutable()
-        selectedApi.inheritableApiVariants =
-            inheritableApiVariants?.toImmutable() ?: emptyVariantSet
+        selectedApi.itemApiVariants = itemApiVariants
+        selectedApi.inheritableApiVariants = inheritableApiVariants
     }
 }
