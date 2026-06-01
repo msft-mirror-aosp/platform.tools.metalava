@@ -116,8 +116,17 @@ interface PropertyItem : MemberItem, TypeParameterListOwner, InheritableItem {
         return Objects.hash(name(), receiver, contextParameters)
     }
 
-    override fun toStringForItem() =
-        "property ${containingClass().qualifiedName()}#${receiverString()}${name()}${contextString()}"
+    override fun describe(capitalize: Boolean) = buildString {
+        append(if (capitalize) "Property" else "property")
+        append(" ")
+        append(containingClass().qualifiedName())
+        append("#")
+        append(receiverString())
+        append(name())
+        append(contextString())
+    }
+
+    override fun toStringForItem() = describe()
 
     // Inherit deprecation from the getter
     override val effectivelyDeprecated: Boolean
