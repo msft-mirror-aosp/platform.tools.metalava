@@ -19,7 +19,7 @@ package com.android.tools.metalava.model.api
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.api.surface.ApiSurfaces
 import com.android.tools.metalava.model.api.surface.ApiVariant
-import com.android.tools.metalava.model.api.surface.ValueApiVariantSet
+import com.android.tools.metalava.model.api.surface.ApiVariantSet
 
 /** Provides support for updating [SourceSelectedApi] instances. */
 class SelectedApiUpdater(
@@ -35,7 +35,7 @@ class SelectedApiUpdater(
      * default variants for the unannotated surface.
      */
     internal val defaultVariantSet =
-        apiSurfaceSelector.unannotatedApiSurface?.defaultVariantSet ?: ValueApiVariantSet.EMPTY
+        apiSurfaceSelector.unannotatedApiSurface?.defaultVariantSet ?: ApiVariantSet.EMPTY
 
     /** Check whether this [SelectableItem] has an `@hide` doc tag. */
     private val SelectableItem.hasHideDocTag: Boolean
@@ -44,8 +44,8 @@ class SelectedApiUpdater(
     /** Mark this [SourceSelectedApi] as being hidden. */
     private fun SourceSelectedApi<*>.markAsHidden() {
         // A hidden item does not belong to any API surfaces.
-        itemApiVariants = ValueApiVariantSet.EMPTY
-        inheritableApiVariants = ValueApiVariantSet.EMPTY
+        itemApiVariants = ApiVariantSet.EMPTY
+        inheritableApiVariants = ApiVariantSet.EMPTY
     }
 
     /**
@@ -63,10 +63,10 @@ class SelectedApiUpdater(
 
         // Keep track of the ApiVariants to which the context item belong. Is `null` to avoid
         // creating a MutableApiVariantSet when most items are unannotated.
-        var itemApiVariants = ValueApiVariantSet.EMPTY
+        var itemApiVariants = ApiVariantSet.EMPTY
 
         // Keep track of the ApiVariants which the context item's enclosed items will inherit.
-        var inheritableApiVariants = ValueApiVariantSet.EMPTY
+        var inheritableApiVariants = ApiVariantSet.EMPTY
 
         // Indicates whether a hide annotation has been seen. Hide annotations are superseded by
         // show annotations so any processing of a hide annotation is deferred until after all
@@ -124,7 +124,7 @@ class SelectedApiUpdater(
                 if (enclosingApiVariants.isNotEmpty()) {
                     enclosingApiVariants
                 } else {
-                    ValueApiVariantSet.EMPTY
+                    ApiVariantSet.EMPTY
                 }
             inheritableApiVariants = enclosingApiVariants
         }

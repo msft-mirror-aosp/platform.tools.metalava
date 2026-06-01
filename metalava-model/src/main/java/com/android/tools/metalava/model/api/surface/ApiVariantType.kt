@@ -45,7 +45,7 @@ import com.android.tools.metalava.model.Item
  */
 enum class ApiVariantType(
     /**
-     * Used in [ValueApiVariantSet.toString] to reduce the size of the string representation when
+     * Used in [ApiVariantSet.toString] to reduce the size of the string representation when
      * debugging.
      */
     internal val shortCode: Char,

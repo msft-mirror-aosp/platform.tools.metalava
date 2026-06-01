@@ -21,13 +21,13 @@ import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.MemberItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.SelectableItem
-import com.android.tools.metalava.model.api.surface.ValueApiVariantSet
+import com.android.tools.metalava.model.api.surface.ApiVariantSet
 import com.android.tools.metalava.model.item.DefaultSelectableItem
 
-/** Provides access to the [ValueApiVariantSet] to which a specific [SelectableItem] belongs. */
+/** Provides access to the [ApiVariantSet] to which a specific [SelectableItem] belongs. */
 sealed class SelectedApi {
-    /** The [ValueApiVariantSet] for the [SelectableItem]. */
-    abstract var itemApiVariants: ValueApiVariantSet
+    /** The [ApiVariantSet] for the [SelectableItem]. */
+    abstract var itemApiVariants: ApiVariantSet
 
     /**
      * Initialize this instance.
@@ -78,7 +78,7 @@ sealed class SelectedApi {
 
 /** A simple [SelectedApi] that just stores [itemApiVariants]. */
 private class SimpleSelectedApi : SelectedApi() {
-    override var itemApiVariants = ValueApiVariantSet.EMPTY
+    override var itemApiVariants = ApiVariantSet.EMPTY
 
     override fun initialize() {}
 }
@@ -111,15 +111,15 @@ internal sealed class SourceSelectedApi<S : SelectableItem>(
     protected lateinit var parent: SourceSelectedApi<*>
 
     /**
-     * The [ValueApiVariantSet] for the [item].
+     * The [ApiVariantSet] for the [item].
      *
      * This is initialized in [initialize] which must have been called and which must initialize
      * this before it is accessed.
      */
-    override var itemApiVariants = ValueApiVariantSet.EMPTY
+    override var itemApiVariants = ApiVariantSet.EMPTY
 
     /**
-     * The [ValueApiVariantSet] that will be inherited by [SelectableItem]s enclosed within [item].
+     * The [ApiVariantSet] that will be inherited by [SelectableItem]s enclosed within [item].
      *
      * This is initialized in [initialize] which must have been called and which must initialize
      * this before it is accessed.
@@ -130,7 +130,7 @@ internal sealed class SourceSelectedApi<S : SelectableItem>(
      * * [itemApiVariants] can be modified by enclosed items, e.g. a package's [itemApiVariants] is
      *   the aggregate of all its classes.
      */
-    var inheritableApiVariants = ValueApiVariantSet.EMPTY
+    var inheritableApiVariants = ApiVariantSet.EMPTY
 
     final override fun initialize() {
         // Initialize the parent first.
@@ -196,7 +196,7 @@ private class PackageSelectedApi(
         // Packages do not belong to an API surface in their own right. They belong to the union of
         // the API surfaces to which their contained classes belong. So, reset this to empty to
         // ignore the default values.
-        itemApiVariants = ValueApiVariantSet.EMPTY
+        itemApiVariants = ApiVariantSet.EMPTY
 
         // At this point itemApiVariants has been set which means it is now safe to compute the
         // selectedApi for the contained classes which may access itemApiVariants.

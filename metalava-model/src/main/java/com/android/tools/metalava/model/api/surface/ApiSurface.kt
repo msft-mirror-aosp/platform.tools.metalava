@@ -46,14 +46,14 @@ sealed interface ApiSurface : Comparable<ApiSurface> {
     val variants: List<ApiVariant>
 
     /** The set of all [ApiVariant]s in this [ApiSurface]. */
-    val variantSet: ValueApiVariantSet
+    val variantSet: ApiVariantSet
 
     /**
      * The default [ApiVariant]s that will be included in this surface.
      *
      * @see ApiVariantType.isDefault
      */
-    val defaultVariantSet: ValueApiVariantSet
+    val defaultVariantSet: ApiVariantSet
 
     /**
      * The set of all [ApiSurface]s narrower than this one, i.e. the set of all [ApiSurface]s that

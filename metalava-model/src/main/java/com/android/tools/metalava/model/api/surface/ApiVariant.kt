@@ -54,7 +54,7 @@ class ApiVariant(
  * this applied. Instead, it relies on the owner tracking the [ApiSurfaces] separately.
  */
 @JvmInline
-value class ValueApiVariantSet(internal val bits: Int) {
+value class ApiVariantSet(internal val bits: Int) {
     /** Return true if this contains no [ApiVariant]s. */
     fun isEmpty() = bits == 0
 
@@ -67,25 +67,25 @@ value class ValueApiVariantSet(internal val bits: Int) {
     fun containsAny(surface: ApiSurface) = containsAny(surface.variantSet)
 
     /** True if this set contains any of the variants from [variantSet]. */
-    fun containsAny(variantSet: ValueApiVariantSet) = (bits and variantSet.bits) != 0
+    fun containsAny(variantSet: ApiVariantSet) = (bits and variantSet.bits) != 0
 
-    /** Return the result of adding [variant] to this [ValueApiVariantSet]. */
-    operator fun plus(variant: ApiVariant) = ValueApiVariantSet(bits or variant.bitMask)
-
-    /**
-     * Return the result of adding all [ApiVariant]s in [other] [ValueApiVariantSet] to this
-     * [ValueApiVariantSet].
-     */
-    operator fun plus(other: ValueApiVariantSet) = ValueApiVariantSet(bits or other.bits)
-
-    /** Return the result of removing [variant] from this [ValueApiVariantSet]. */
-    operator fun minus(variant: ApiVariant) = ValueApiVariantSet(bits and variant.bitMask.inv())
+    /** Return the result of adding [variant] to this [ApiVariantSet]. */
+    operator fun plus(variant: ApiVariant) = ApiVariantSet(bits or variant.bitMask)
 
     /**
-     * Return the result of removing all [ApiVariant]s in [other] [ValueApiVariantSet] from this
-     * [ValueApiVariantSet].
+     * Return the result of adding all [ApiVariant]s in [other] [ApiVariantSet] to this
+     * [ApiVariantSet].
      */
-    operator fun minus(other: ValueApiVariantSet) = ValueApiVariantSet(bits and other.bits.inv())
+    operator fun plus(other: ApiVariantSet) = ApiVariantSet(bits or other.bits)
+
+    /** Return the result of removing [variant] from this [ApiVariantSet]. */
+    operator fun minus(variant: ApiVariant) = ApiVariantSet(bits and variant.bitMask.inv())
+
+    /**
+     * Return the result of removing all [ApiVariant]s in [other] [ApiVariantSet] from this
+     * [ApiVariantSet].
+     */
+    operator fun minus(other: ApiVariantSet) = ApiVariantSet(bits and other.bits.inv())
 
     /** Represent the values as binary number starting with a `0b` prefix. */
     override fun toString() = "0b${Integer.toBinaryString(bits)}"
@@ -96,13 +96,13 @@ value class ValueApiVariantSet(internal val bits: Int) {
         var separator = ""
         for (apiSurface in apiSurfaces.all) {
             // If this set does not contain any variants from the ApiSurface then ignore it.
-            if (!this@ValueApiVariantSet.containsAny(apiSurface.variantSet)) continue
+            if (!this@ApiVariantSet.containsAny(apiSurface.variantSet)) continue
             append(separator)
             separator = ","
             append(apiSurface.name)
             append("(")
             for (variant in apiSurface.variants) {
-                if (variant in this@ValueApiVariantSet) append(variant.type.shortCode)
+                if (variant in this@ApiVariantSet) append(variant.type.shortCode)
             }
             append(")")
         }
@@ -110,7 +110,7 @@ value class ValueApiVariantSet(internal val bits: Int) {
     }
 
     companion object {
-        /** The empty [ValueApiVariantSet]. */
-        val EMPTY = ValueApiVariantSet(0)
+        /** The empty [ApiVariantSet]. */
+        val EMPTY = ApiVariantSet(0)
     }
 }

@@ -24,7 +24,7 @@ import org.junit.Test
 import org.junit.runners.MethodSorters
 
 @FixMethodOrder(MethodSorters.NAME_ASCENDING)
-class ValueApiVariantSetTest {
+class ApiVariantSetTest {
     private val apiSurfaces = ApiSurfaces.create(needsBase = true)
 
     private val main = apiSurfaces.main
@@ -35,11 +35,11 @@ class ValueApiVariantSetTest {
     private val baseRemoved = base.variantFor(ApiVariantType.REMOVED)
     private val baseDocOnly = base.variantFor(ApiVariantType.DOC_ONLY)
 
-    private fun ValueApiVariantSet.format() = formatFor(apiSurfaces)
+    private fun ApiVariantSet.format() = formatFor(apiSurfaces)
 
     @Test
     fun `Test empty variant set`() {
-        val variantSet = ValueApiVariantSet.EMPTY
+        val variantSet = ApiVariantSet.EMPTY
 
         assertTrue(variantSet.isEmpty(), "isEmpty")
         assertFalse(variantSet.isNotEmpty(), "isNotEmpty")
@@ -53,7 +53,7 @@ class ValueApiVariantSetTest {
 
     @Test
     fun `Test plus and minus variant`() {
-        var variantSet = ValueApiVariantSet.EMPTY
+        var variantSet = ApiVariantSet.EMPTY
 
         variantSet += mainCore
 

@@ -17,8 +17,8 @@
 package com.android.tools.metalava.model.testsuite
 
 import com.android.tools.metalava.model.api.ApiSurfaceRules
+import com.android.tools.metalava.model.api.surface.ApiVariantSet
 import com.android.tools.metalava.model.api.surface.ApiVariantType
-import com.android.tools.metalava.model.api.surface.ValueApiVariantSet
 import com.android.tools.metalava.model.provider.InputFormat
 import com.android.tools.metalava.model.testing.SupportedInputFormats
 import com.android.tools.metalava.testing.java
@@ -124,7 +124,7 @@ class CommonApiSurfacesTest : BaseModelTest() {
             val testClass = codebase.assertClass("test.pkg.Test")
 
             // Make sure that the selectedApiVariants is empty.
-            testClass.selectedApiVariants = ValueApiVariantSet.EMPTY
+            testClass.selectedApiVariants = ApiVariantSet.EMPTY
 
             assertEquals(
                 "ApiVariantSet[]",
