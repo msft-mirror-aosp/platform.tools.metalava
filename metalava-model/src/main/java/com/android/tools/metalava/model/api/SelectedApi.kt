@@ -39,10 +39,10 @@ sealed class SelectedApi {
 
     companion object {
         /**
-         * Create a simple [SelectedApi] that simply stores an [itemApiVariants] that is populated
-         * based off information outside the [SelectableItem], e.g. signature files.
+         * Return a [SelectedApi] factory that will create [SelectedApi] instances suitable for
+         * being populated based off information outside the [SelectableItem], e.g. signature files.
          */
-        fun createSimple(item: SelectableItem): SelectedApi = SimpleSelectedApi(item)
+        val SIMPLE_FACTORY: (SelectableItem) -> SelectedApi = { item -> SimpleSelectedApi(item) }
 
         /**
          * Create a [SelectedApi] factory that will create [SelectedApi] instances suitable for a
