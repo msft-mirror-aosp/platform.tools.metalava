@@ -141,15 +141,6 @@ sealed class BaseApiVariantSet(internal val apiSurfaces: ApiSurfaces) {
     }
 
     /**
-     * Return the union of this [BaseApiVariantSet] with the [other] [BaseApiVariantSet].
-     *
-     * If this is a [MutableApiVariantSet] then this will modify and return this. If this is
-     * [ApiVariantSet] then it will create a [MutableApiVariantSet] copy and then modify and return
-     * it.
-     */
-    abstract fun unionWith(other: BaseApiVariantSet): BaseApiVariantSet
-
-    /**
      * Get a [MutableApiVariantSet] from this.
      *
      * This will return the object on which it is called if that is already mutable, otherwise it
@@ -188,10 +179,6 @@ sealed class BaseApiVariantSet(internal val apiSurfaces: ApiSurfaces) {
 class ApiVariantSet(apiSurfaces: ApiSurfaces, override val value: ValueApiVariantSet) :
     BaseApiVariantSet(apiSurfaces) {
 
-    override fun unionWith(other: BaseApiVariantSet): BaseApiVariantSet =
-        if (value + other.value == value) this
-        else if (value.isEmpty()) other else toMutable().apply { unionWith(other) }
-
     operator fun plus(variant: ApiVariant) =
         if (value + variant == value) this else toMutable().apply { add(variant) }.toImmutable()
 
@@ -226,8 +213,6 @@ internal constructor(
     apiSurfaces: ApiSurfaces,
     override var value: ValueApiVariantSet = ValueApiVariantSet.EMPTY,
 ) : BaseApiVariantSet(apiSurfaces) {
-
-    override fun unionWith(other: BaseApiVariantSet) = this.apply { value += other.value }
 
     override fun toMutable() = this
 
