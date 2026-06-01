@@ -64,7 +64,7 @@ value class ValueApiVariantSet(internal val bits: Int) {
     operator fun contains(variant: ApiVariant) = (bits and variant.bitMask) != 0
 
     /** True if this set contains any of the variants from [surface]. */
-    fun containsAny(surface: ApiSurface) = containsAny(surface.variantSet.value)
+    fun containsAny(surface: ApiSurface) = containsAny(surface.variantSet)
 
     /** True if this set contains any of the variants from [variantSet]. */
     fun containsAny(variantSet: ValueApiVariantSet) = (bits and variantSet.bits) != 0
@@ -96,7 +96,7 @@ value class ValueApiVariantSet(internal val bits: Int) {
         var separator = ""
         for (apiSurface in apiSurfaces.all) {
             // If this set does not contain any variants from the ApiSurface then ignore it.
-            if (!this@ValueApiVariantSet.containsAny(apiSurface.variantSet.value)) continue
+            if (!this@ValueApiVariantSet.containsAny(apiSurface.variantSet)) continue
             append(separator)
             separator = ","
             append(apiSurface.name)
@@ -130,7 +130,7 @@ sealed class BaseApiVariantSet(internal val apiSurfaces: ApiSurfaces) {
     operator fun contains(variant: ApiVariant) = value.contains(variant)
 
     /** True if this set contains any of the variants from [surface]. */
-    fun containsAny(surface: ApiSurface) = containsAny(surface.variantSet)
+    fun containsAny(surface: ApiSurface) = value.containsAny(surface.variantSet)
 
     /** True if this set contains any of the variants from [variantSet]. */
     fun containsAny(variantSet: ApiVariantSet): Boolean {

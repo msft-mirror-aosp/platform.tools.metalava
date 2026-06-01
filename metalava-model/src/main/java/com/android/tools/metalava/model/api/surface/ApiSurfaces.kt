@@ -86,16 +86,17 @@ sealed interface ApiSurfaces {
         val DEFAULT = create()
     }
 
-    /** Create an [ApiVariantSet] from a vararg array of [variants]. */
+    /** Create a [ValueApiVariantSet] from a vararg array of [variants]. */
     fun createVariantSet(vararg variants: ApiVariant) = createVariantSet(variants.asList())
 
-    /** Create an [ApiVariantSet] from a list of [variants]. */
-    fun createVariantSet(variants: List<ApiVariant>) =
-        ApiVariantSet.build(this) {
-            for (variant in variants) {
-                add(variant)
-            }
+    /** Create a [ValueApiVariantSet] from a list of [variants]. */
+    fun createVariantSet(variants: List<ApiVariant>) = let {
+        var result = ValueApiVariantSet.EMPTY
+        for (variant in variants) {
+            result += variant
         }
+        result
+    }
 
     /**
      * Provides support for creating a more complicated [ApiSurfaces] instance than is supported by

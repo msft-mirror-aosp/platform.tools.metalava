@@ -92,8 +92,8 @@ class ValueApiVariantSetTest {
 
     @Test
     fun `Test plus and minus set`() {
-        val set1 = apiSurfaces.createVariantSet(mainCore, mainRemoved, baseDocOnly).value
-        val set2 = apiSurfaces.createVariantSet(mainCore, baseRemoved).value
+        val set1 = apiSurfaces.createVariantSet(mainCore, mainRemoved, baseDocOnly)
+        val set2 = apiSurfaces.createVariantSet(mainCore, baseRemoved)
 
         assertEquals(
             "ApiVariantSet[base(RD),main(CR)]",

@@ -35,8 +35,7 @@ class SelectedApiUpdater(
      * default variants for the unannotated surface.
      */
     internal val defaultVariantSet =
-        apiSurfaceSelector.unannotatedApiSurface?.defaultVariantSet?.value
-            ?: ValueApiVariantSet.EMPTY
+        apiSurfaceSelector.unannotatedApiSurface?.defaultVariantSet ?: ValueApiVariantSet.EMPTY
 
     /** Check whether this [SelectableItem] has an `@hide` doc tag. */
     private val SelectableItem.hasHideDocTag: Boolean
@@ -84,7 +83,7 @@ class SelectedApiUpdater(
                     val resultSurface = surfaceData.surface
 
                     // It is a show annotation so add the context surfaces variants.
-                    val resultVariants = resultSurface.defaultVariantSet.value
+                    val resultVariants = resultSurface.defaultVariantSet
 
                     // Add the surface variants to the variants for the context item.
                     itemApiVariants += resultVariants
