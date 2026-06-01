@@ -131,51 +131,43 @@ class PolicyDefinitionProxy(
         }
     }
 
-    /** Generates documentation for the base policy definition. */
-    fun generateDocs() = buildString {
+    /** Generates table entries for the base policy definition. */
+    fun getTableEntries(): List<Pair<String, String>> = buildList {
         allowedScopes
             .takeIf { it.isNotEmpty() }
             ?.let { scopes ->
-                append("   <li>Allowed Scopes:\n    <ul>\n")
-                scopes.joinTo(this, separator = "") { scope ->
-                    val dpcTypes =
-                        getAllowedDPCTypesForScope(requiredCrossUserPermission ?: "", scope)
-                    buildString {
+                val scopesValue = buildString {
+                    append("<ul>\n")
+                    scopes.forEach { scope ->
+                        val dpcTypes =
+                            getAllowedDPCTypesForScope(requiredCrossUserPermission ?: "", scope)
                         if (dpcTypes.isEmpty()) {
                             append(
-                                "       <li>${getScopeName(scope)}. Not settable by any DPC type.</li>\n"
+                                "  <li>${getScopeName(scope)}. Not settable by any DPC type.</li>\n"
                             )
                         } else {
-                            append("       <li>${getScopeName(scope)}. Settable by:\n")
-                            append("         <ul>\n")
-                            dpcTypes.forEach { append("           <li>${it.description}</li>\n") }
-                            append("         </ul>\n")
-                            append("       </li>\n")
+                            append("  <li>${getScopeName(scope)}. Settable by:\n")
+                            append("    <ul>\n")
+                            dpcTypes.forEach { append("      <li>${it.description}</li>\n") }
+                            append("    </ul>\n")
+                            append("  </li>\n")
                         }
                     }
+                    append("</ul>")
                 }
-                append("     </ul>\n   </li>\n")
+                add(Pair("Allowed Scopes", scopesValue))
             }
 
-        affectedResource.let { append("   <li>Affected Resource: ${getResourceName(it)}</li>\n") }
+        add(Pair("Affected Resource", getResourceName(affectedResource)))
         requiredPermission?.let { permission ->
-            append(
-                "   <li>Required Permission: ${resolvePermissionCodeLink(permission, item)}</li>\n"
-            )
+            add(Pair("Required Permission", resolvePermissionCodeLink(permission, item)))
         }
         requiredCrossUserPermission?.let { permission ->
-            append(
-                "   <li>Required Cross User Permission: ${
-                    resolvePermissionCodeLink(
-                        permission,
-                        item
-                    )
-                }</li>\n"
-            )
+            add(Pair("Required Cross User Permission", resolvePermissionCodeLink(permission, item)))
         }
 
-        append(allowedDpcTypes.generateDocs())
-        append(allowedRoles.generateDocs())
+        allowedDpcTypes.getTableEntry()?.let { add(it) }
+        allowedRoles.getTableEntry()?.let { add(it) }
     }
 
     companion object {

@@ -91,39 +91,71 @@ class EnumPolicyAnnotationHandlerTest : DriverTest() {
                         public TestPolicy() { throw new RuntimeException("Stub!"); }
                         /**
                          * <p>Policy Type: Enum</p>
-                         * <ul>
-                         *   <li>Allowed Scopes:
-                         *    <ul>
-                         *       <li>User. Settable by:
-                         *         <ul>
-                         *           <li>Device Owner</li>
-                         *           <li>Managed Profile Owner (Of Organization Owned Device)</li>
-                         *           <li>Unaffiliated Full User Profile Owner</li>
-                         *           <li>Affiliated Full User Profile Owner</li>
-                         *         </ul>
-                         *       </li>
-                         *     </ul>
-                         *   </li>
-                         *   <li>Affected Resource: Device Wide</li>
-                         *   <li>Required Permission: {@link android.Manifest.permission#ENUM_TEST android.permission.ENUM_TEST}</li>
-                         *   <li>Required Cross User Permission: {@link android.Manifest.permission#MANAGE_DEVICE_POLICY_ACROSS_USERS android.permission.MANAGE_DEVICE_POLICY_ACROSS_USERS}</li>
-                         *   <li>Allowed DPC Types:
-                         *    <ul>
-                         *       <li>Device Owner</li>
-                         *       <li>Managed Profile Owner (Of Organization Owned Device)</li>
-                         *       <li>Unaffiliated Full User Profile Owner</li>
-                         *       <li>Affiliated Full User Profile Owner</li>
-                         *     </ul>
-                         *   </li>
-                         *   <li>This policy can be set by holders of the device controller role</li>
-                         *   <li>Resolution Mechanism: custom</li>
-                         *   <li>Enum policy values:
-                         *     <ul>
-                         *        <li>{@link android.processor.devicepolicy.EnumPolicyValues#ENUM_POLICY_VALUE_1} (default)</li>
-                         *        <li>{@link android.processor.devicepolicy.EnumPolicyValues#ENUM_POLICY_VALUE_2}</li>
-                         *     </ul>
-                         *   </li>
-                         * </ul>
+                         * <table>
+                         *  <tr>
+                         *    <th colspan="2">Policy details</th>
+                         *  </tr>
+                         *  <tr>
+                         *    <td>Allowed Scopes</td>
+                         *    <td>
+                         *      <ul>
+                         *        <li>User. Settable by:
+                         *          <ul>
+                         *            <li>Device Owner</li>
+                         *            <li>Managed Profile Owner (Of Organization Owned Device)</li>
+                         *            <li>Unaffiliated Full User Profile Owner</li>
+                         *            <li>Affiliated Full User Profile Owner</li>
+                         *          </ul>
+                         *        </li>
+                         *      </ul>
+                         *    </td>
+                         *  </tr>
+                         *  <tr>
+                         *    <td>Affected Resource</td>
+                         *    <td>Device Wide</td>
+                         *  </tr>
+                         *  <tr>
+                         *    <td>Required Permission</td>
+                         *    <td>{@link android.Manifest.permission#ENUM_TEST android.permission.ENUM_TEST}</td>
+                         *  </tr>
+                         *  <tr>
+                         *    <td>Required Cross User Permission</td>
+                         *    <td>{@link android.Manifest.permission#MANAGE_DEVICE_POLICY_ACROSS_USERS android.permission.MANAGE_DEVICE_POLICY_ACROSS_USERS}</td>
+                         *  </tr>
+                         *  <tr>
+                         *    <td>Allowed DPC Types</td>
+                         *    <td>
+                         *      <ul>
+                         *        <li>Device Owner</li>
+                         *        <li>Managed Profile Owner (Of Organization Owned Device)</li>
+                         *        <li>Unaffiliated Full User Profile Owner</li>
+                         *        <li>Affiliated Full User Profile Owner</li>
+                         *      </ul>
+                         *    </td>
+                         *  </tr>
+                         *  <tr>
+                         *    <td>Allowed Roles</td>
+                         *    <td>This policy can be set by holders of the device controller role</td>
+                         *  </tr>
+                         *  <tr>
+                         *    <td>Resolution Mechanism</td>
+                         *    <td>custom</td>
+                         *  </tr>
+                         *  <tr>
+                         *    <td>Policy value</td>
+                         *    <td>
+                         *      <code>Enum</code> with the following restrictions:
+                         *      <ul>
+                         *        <li>Enum policy values:
+                         *          <ul>
+                         *            <li>{@link android.processor.devicepolicy.EnumPolicyValues#ENUM_POLICY_VALUE_1} (default)</li>
+                         *            <li>{@link android.processor.devicepolicy.EnumPolicyValues#ENUM_POLICY_VALUE_2}</li>
+                         *          </ul>
+                         *        </li>
+                         *      </ul>
+                         *    </td>
+                         *  </tr>
+                         * </table>
                          */
                         public static final int POLICY_FIELD = 1;
                         }
@@ -193,38 +225,67 @@ class EnumPolicyAnnotationHandlerTest : DriverTest() {
                         public TestPolicy() { throw new RuntimeException("Stub!"); }
                         /**
                          * <p>Policy Type: Enum</p>
-                         * <ul>
-                         *   <li>Allowed Scopes:
-                         *    <ul>
-                         *       <li>User. Settable by:
-                         *         <ul>
-                         *           <li>Device Owner</li>
-                         *           <li>Managed Profile Owner (Of Organization Owned Device)</li>
-                         *           <li>Unaffiliated Full User Profile Owner</li>
-                         *           <li>Affiliated Full User Profile Owner</li>
-                         *         </ul>
-                         *       </li>
-                         *     </ul>
-                         *   </li>
-                         *   <li>Affected Resource: Device Wide</li>
-                         *   <li>Required Permission: {@link android.Manifest.permission#ENUM_TEST android.permission.ENUM_TEST}</li>
-                         *   <li>Required Cross User Permission: {@link android.Manifest.permission#MANAGE_DEVICE_POLICY_ACROSS_USERS android.permission.MANAGE_DEVICE_POLICY_ACROSS_USERS}</li>
-                         *   <li>Allowed DPC Types:
-                         *    <ul>
-                         *       <li>Device Owner</li>
-                         *       <li>Managed Profile Owner (Of Organization Owned Device)</li>
-                         *       <li>Unaffiliated Full User Profile Owner</li>
-                         *       <li>Affiliated Full User Profile Owner</li>
-                         *     </ul>
-                         *   </li>
-                         *   <li>Resolution Mechanism: most restrictive: [{@link android.processor.devicepolicy.EnumPolicyValues#ENUM_POLICY_VALUE_1}, {@link android.processor.devicepolicy.EnumPolicyValues#ENUM_POLICY_VALUE_2}]</li>
-                         *   <li>Enum policy values:
-                         *     <ul>
-                         *        <li>{@link android.processor.devicepolicy.EnumPolicyValues#ENUM_POLICY_VALUE_1} (default)</li>
-                         *        <li>{@link android.processor.devicepolicy.EnumPolicyValues#ENUM_POLICY_VALUE_2}</li>
-                         *     </ul>
-                         *   </li>
-                         * </ul>
+                         * <table>
+                         *  <tr>
+                         *    <th colspan="2">Policy details</th>
+                         *  </tr>
+                         *  <tr>
+                         *    <td>Allowed Scopes</td>
+                         *    <td>
+                         *      <ul>
+                         *        <li>User. Settable by:
+                         *          <ul>
+                         *            <li>Device Owner</li>
+                         *            <li>Managed Profile Owner (Of Organization Owned Device)</li>
+                         *            <li>Unaffiliated Full User Profile Owner</li>
+                         *            <li>Affiliated Full User Profile Owner</li>
+                         *          </ul>
+                         *        </li>
+                         *      </ul>
+                         *    </td>
+                         *  </tr>
+                         *  <tr>
+                         *    <td>Affected Resource</td>
+                         *    <td>Device Wide</td>
+                         *  </tr>
+                         *  <tr>
+                         *    <td>Required Permission</td>
+                         *    <td>{@link android.Manifest.permission#ENUM_TEST android.permission.ENUM_TEST}</td>
+                         *  </tr>
+                         *  <tr>
+                         *    <td>Required Cross User Permission</td>
+                         *    <td>{@link android.Manifest.permission#MANAGE_DEVICE_POLICY_ACROSS_USERS android.permission.MANAGE_DEVICE_POLICY_ACROSS_USERS}</td>
+                         *  </tr>
+                         *  <tr>
+                         *    <td>Allowed DPC Types</td>
+                         *    <td>
+                         *      <ul>
+                         *        <li>Device Owner</li>
+                         *        <li>Managed Profile Owner (Of Organization Owned Device)</li>
+                         *        <li>Unaffiliated Full User Profile Owner</li>
+                         *        <li>Affiliated Full User Profile Owner</li>
+                         *      </ul>
+                         *    </td>
+                         *  </tr>
+                         *  <tr>
+                         *    <td>Resolution Mechanism</td>
+                         *    <td>most restrictive: [{@link android.processor.devicepolicy.EnumPolicyValues#ENUM_POLICY_VALUE_1}, {@link android.processor.devicepolicy.EnumPolicyValues#ENUM_POLICY_VALUE_2}]</td>
+                         *  </tr>
+                         *  <tr>
+                         *    <td>Policy value</td>
+                         *    <td>
+                         *      <code>Enum</code> with the following restrictions:
+                         *      <ul>
+                         *        <li>Enum policy values:
+                         *          <ul>
+                         *            <li>{@link android.processor.devicepolicy.EnumPolicyValues#ENUM_POLICY_VALUE_1} (default)</li>
+                         *            <li>{@link android.processor.devicepolicy.EnumPolicyValues#ENUM_POLICY_VALUE_2}</li>
+                         *          </ul>
+                         *        </li>
+                         *      </ul>
+                         *    </td>
+                         *  </tr>
+                         * </table>
                          */
                         public static final int POLICY_FIELD = 1;
                         }
@@ -299,42 +360,71 @@ class EnumPolicyAnnotationHandlerTest : DriverTest() {
                         public TestPolicy() { throw new RuntimeException("Stub!"); }
                         /**
                          * <p>Policy Type: Enum</p>
-                         * <ul>
-                         *   <li>Allowed Scopes:
-                         *    <ul>
-                         *       <li>User. Settable by:
-                         *         <ul>
-                         *           <li>Device Owner</li>
-                         *           <li>Managed Profile Owner (Of Organization Owned Device)</li>
-                         *           <li>Managed Profile Owner (Of Personally Owned Device)</li>
-                         *           <li>Unaffiliated Full User Profile Owner</li>
-                         *           <li>Profile Owner on User 0</li>
-                         *           <li>Affiliated Full User Profile Owner</li>
-                         *         </ul>
-                         *       </li>
-                         *     </ul>
-                         *   </li>
-                         *   <li>Affected Resource: Per User</li>
-                         *   <li>Required Permission: android.permission.DOES_NOT_EXIST</li>
-                         *   <li>Required Cross User Permission: {@link android.Manifest.permission#MANAGE_DEVICE_POLICY_ACROSS_USERS android.permission.MANAGE_DEVICE_POLICY_ACROSS_USERS}</li>
-                         *   <li>Allowed DPC Types:
-                         *    <ul>
-                         *       <li>Device Owner</li>
-                         *       <li>Managed Profile Owner (Of Organization Owned Device)</li>
-                         *       <li>Managed Profile Owner (Of Personally Owned Device)</li>
-                         *       <li>Unaffiliated Full User Profile Owner</li>
-                         *       <li>Profile Owner on User 0</li>
-                         *       <li>Affiliated Full User Profile Owner</li>
-                         *     </ul>
-                         *   </li>
-                         *   <li>Resolution Mechanism: </li>
-                         *   <li>Enum policy values:
-                         *     <ul>
-                         *        <li>{@link android.processor.devicepolicy.EnumPolicyValues#ENUM_POLICY_VALUE_1} (default)</li>
-                         *        <li>{@link android.processor.devicepolicy.EnumPolicyValues#ENUM_POLICY_VALUE_2}</li>
-                         *     </ul>
-                         *   </li>
-                         * </ul>
+                         * <table>
+                         *  <tr>
+                         *    <th colspan="2">Policy details</th>
+                         *  </tr>
+                         *  <tr>
+                         *    <td>Allowed Scopes</td>
+                         *    <td>
+                         *      <ul>
+                         *        <li>User. Settable by:
+                         *          <ul>
+                         *            <li>Device Owner</li>
+                         *            <li>Managed Profile Owner (Of Organization Owned Device)</li>
+                         *            <li>Managed Profile Owner (Of Personally Owned Device)</li>
+                         *            <li>Unaffiliated Full User Profile Owner</li>
+                         *            <li>Profile Owner on User 0</li>
+                         *            <li>Affiliated Full User Profile Owner</li>
+                         *          </ul>
+                         *        </li>
+                         *      </ul>
+                         *    </td>
+                         *  </tr>
+                         *  <tr>
+                         *    <td>Affected Resource</td>
+                         *    <td>Per User</td>
+                         *  </tr>
+                         *  <tr>
+                         *    <td>Required Permission</td>
+                         *    <td>android.permission.DOES_NOT_EXIST</td>
+                         *  </tr>
+                         *  <tr>
+                         *    <td>Required Cross User Permission</td>
+                         *    <td>{@link android.Manifest.permission#MANAGE_DEVICE_POLICY_ACROSS_USERS android.permission.MANAGE_DEVICE_POLICY_ACROSS_USERS}</td>
+                         *  </tr>
+                         *  <tr>
+                         *    <td>Allowed DPC Types</td>
+                         *    <td>
+                         *      <ul>
+                         *        <li>Device Owner</li>
+                         *        <li>Managed Profile Owner (Of Organization Owned Device)</li>
+                         *        <li>Managed Profile Owner (Of Personally Owned Device)</li>
+                         *        <li>Unaffiliated Full User Profile Owner</li>
+                         *        <li>Profile Owner on User 0</li>
+                         *        <li>Affiliated Full User Profile Owner</li>
+                         *      </ul>
+                         *    </td>
+                         *  </tr>
+                         *  <tr>
+                         *    <td>Resolution Mechanism</td>
+                         *    <td></td>
+                         *  </tr>
+                         *  <tr>
+                         *    <td>Policy value</td>
+                         *    <td>
+                         *      <code>Enum</code> with the following restrictions:
+                         *      <ul>
+                         *        <li>Enum policy values:
+                         *          <ul>
+                         *            <li>{@link android.processor.devicepolicy.EnumPolicyValues#ENUM_POLICY_VALUE_1} (default)</li>
+                         *            <li>{@link android.processor.devicepolicy.EnumPolicyValues#ENUM_POLICY_VALUE_2}</li>
+                         *          </ul>
+                         *        </li>
+                         *      </ul>
+                         *    </td>
+                         *  </tr>
+                         * </table>
                          */
                         public static final int POLICY_FIELD = 1;
                         }

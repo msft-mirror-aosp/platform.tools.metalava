@@ -47,23 +47,36 @@ data class StringPolicyDefinitionProxy(
     val maxLength: Int,
 ) {
     fun generateDocs() = buildString {
-        append("\n<p>Policy Type: String</p>\n <ul>\n")
-        append(base.generateDocs())
-        append(
-            "   <li>Empty string: ${if (emptyStringAllowed) "Allowed" else "Not allowed"}</li>\n"
-        )
-        append(
-            "   <li>Unprintable characters: ${if (unprintableCharactersAllowed) "Allowed" else "Not allowed"}</li>\n"
-        )
-        append(
-            "   <li>Pure whitespace: ${if (pureWhitespaceAllowed) "Allowed" else "Not allowed"}</li>\n"
-        )
-        append(
-            "   <li>Unstripped string: ${if (unstrippedStringAllowed) "Allowed" else "Not allowed"}</li>\n"
-        )
-        append(
-            "   <li>Max Length: ${if (maxLength == Integer.MAX_VALUE) "No limit" else maxLength}</li>\n"
-        )
-        append(" </ul>\n")
+        val tableEntries = buildList {
+            addAll(base.getTableEntries())
+            val policyValueValidations = buildList {
+                add(Pair("Empty string", if (emptyStringAllowed) "Allowed" else "Not allowed"))
+                add(
+                    Pair(
+                        "Unprintable characters",
+                        if (unprintableCharactersAllowed) "Allowed" else "Not allowed"
+                    )
+                )
+                add(
+                    Pair("Pure whitespace", if (pureWhitespaceAllowed) "Allowed" else "Not allowed")
+                )
+                add(
+                    Pair(
+                        "Unstripped string",
+                        if (unstrippedStringAllowed) "Allowed" else "Not allowed"
+                    )
+                )
+                add(
+                    Pair(
+                        "Max Length",
+                        if (maxLength == Integer.MAX_VALUE) "No limit" else maxLength.toString()
+                    )
+                )
+            }
+            add(Pair("Policy value", renderPolicyValue("String", policyValueValidations)))
+        }
+
+        append("\n<p>Policy Type: String</p>\n")
+        append(renderTable(tableEntries))
     }
 }

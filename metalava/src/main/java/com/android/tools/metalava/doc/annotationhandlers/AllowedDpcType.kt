@@ -66,7 +66,7 @@ class AllowedDpcTypesProxy(
     val financedDeviceOwner: Int,
     val profileOwnerOnUser0: Int,
 ) {
-    fun generateDocs(): String {
+    fun getTableEntry(): Pair<String, String>? {
         val dpcTypes =
             AllowedDpcType.entries.mapNotNull {
                 if (it.isAllowed(this)) {
@@ -76,13 +76,14 @@ class AllowedDpcTypesProxy(
                 }
             }
 
-        if (dpcTypes.isEmpty()) return ""
+        if (dpcTypes.isEmpty()) return null
 
-        return buildString {
-            append("   <li>Allowed DPC Types: \n    <ul>\n")
-            dpcTypes.joinTo(this, separator = "") { "       <li>$it</li>\n" }
-            append("     </ul>\n   </li>\n")
+        val value = buildString {
+            append("<ul>\n")
+            dpcTypes.forEach { append("  <li>$it</li>\n") }
+            append("</ul>")
         }
+        return Pair("Allowed DPC Types", value)
     }
 
     companion object {
@@ -95,12 +96,15 @@ class AllowedDpcTypesProxy(
 class AllowedRolesProxy(
     val deviceController: Int,
 ) {
-    fun generateDocs(): String {
+    fun getTableEntry(): Pair<String, String>? {
         if (deviceController == ROLE_ANNOTATION_ALLOWED) {
             // TODO(b/477491703): add code link to "android.app.role.DEVICE_CONTROLLER"
-            return "   <li>This policy can be set by holders of the device controller role</li>\n"
+            return Pair(
+                "Allowed Roles",
+                "This policy can be set by holders of the device controller role"
+            )
         }
-        return ""
+        return null
     }
 
     companion object {

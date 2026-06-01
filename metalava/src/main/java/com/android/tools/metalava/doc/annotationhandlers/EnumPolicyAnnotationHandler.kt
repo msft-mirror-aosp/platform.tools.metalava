@@ -61,25 +61,32 @@ data class EnumPolicyDefinitionProxy(
         val enumValueToCodeReference = buildEnumValueToCodeReferenceMap(context.filterReference)
         val defaultValue = defaultValue
 
-        return buildString {
-            append("\n<p>Policy Type: Enum</p>\n <ul>\n")
-            append(base.generateDocs())
+        val tableEntries = buildList {
+            addAll(base.getTableEntries())
             val resolutionMechanismDoc = resolutionMechanism.generateDocs(enumValueToCodeReference)
-            append("   <li>Resolution Mechanism: $resolutionMechanismDoc</li>\n")
-            if (enumValueToCodeReference.isNotEmpty()) {
-                append("   <li>Enum policy values:\n     <ul>\n")
-                enumValueToCodeReference.entries
-                    .map { entry ->
-                        if (entry.key == defaultValue) {
-                            "        <li>${entry.value} (default)</li>\n"
-                        } else {
-                            "        <li>${entry.value}</li>\n"
+            add(Pair("Resolution Mechanism", resolutionMechanismDoc))
+            val policyValueValidations = buildList {
+                if (enumValueToCodeReference.isNotEmpty()) {
+                    val valuesDoc = buildString {
+                        append("<ul>\n")
+                        enumValueToCodeReference.entries.forEach { entry ->
+                            if (entry.key == defaultValue) {
+                                append("  <li>${entry.value} (default)</li>\n")
+                            } else {
+                                append("  <li>${entry.value}</li>\n")
+                            }
                         }
+                        append("</ul>")
                     }
-                    .joinTo(this, separator = "")
-                append("     </ul>\n   </li>\n")
+                    add(Pair("Enum policy values", valuesDoc))
+                }
             }
-            append(" </ul>\n")
+            add(Pair("Policy value", renderPolicyValue("Enum", policyValueValidations)))
+        }
+
+        return buildString {
+            append("\n<p>Policy Type: Enum</p>\n")
+            append(renderTable(tableEntries))
         }
     }
 

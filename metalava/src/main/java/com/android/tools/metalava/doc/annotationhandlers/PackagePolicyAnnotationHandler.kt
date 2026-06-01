@@ -43,8 +43,11 @@ data class PackagePolicyDefinitionProxy(
     val base: PolicyDefinitionProxy,
 ) {
     fun generateDocs() = buildString {
-        append("\n<p>Policy Type: Package</p>\n <ul>\n")
-        append(base.generateDocs())
-        append(" </ul>\n")
+        val tableEntries = buildList {
+            addAll(base.getTableEntries())
+            add(Pair("Policy value", renderPolicyValue("Package", emptyList())))
+        }
+        append("\n<p>Policy Type: Package</p>\n")
+        append(renderTable(tableEntries))
     }
 }
