@@ -46,6 +46,7 @@ import com.android.tools.metalava.model.source.SourceParser
 import com.android.tools.metalava.model.source.doc.DocContentPredicates
 import com.android.tools.metalava.model.testOrTrue
 import com.android.tools.metalava.model.value.asString
+import com.android.tools.metalava.model.visitors.ApiFilters
 import com.android.tools.metalava.model.visitors.ApiPredicate
 import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.android.tools.metalava.permission.getRequiresPermissionProxy
@@ -116,12 +117,35 @@ class ApiAnalyzer(
         }
 
         skipEmitPackages()
+
         // Suppress kotlin file facade classes with no public api
         hideEmptyKotlinFileFacadeClasses()
 
         // Propagate visibility down into individual elements -- if a class is hidden,
         // then the methods and fields are hidden etc
         propagateHiddenRemovedAndDocOnly()
+
+        // Update deprecated status from Javadoc for all items that are part of the API surface.
+        // Since Javadoc parsing is expensive, we defer checking and updating the deprecation status
+        // from `@deprecated` block tags until we run this API analysis phase, and only visit items
+        // that match the API filter.
+        val predicate =
+            ApiPredicate(
+                ignoreRemoved = true,
+                includeDocOnly = true,
+                config = config.apiPredicateConfig.copy(ignoreShown = true),
+                includeApisForStubPurposes = true,
+            )
+
+        val apiFilters = ApiFilters(predicate, predicate)
+
+        codebase.accept(
+            object : ApiVisitor(visitParameterItems = false, apiFilters = apiFilters) {
+                override fun visitSelectableItem(item: SelectableItem) {
+                    item.updateDeprecatedFromJavadocIfNeeded()
+                }
+            }
+        )
     }
 
     fun handleFileFacadeClassesAndExperimentalPackages(filterEmit: FilterPredicate) {
@@ -427,10 +451,9 @@ class ApiAnalyzer(
                         item.originallyDeprecated &&
                             !item.documentationContainsDeprecated() &&
                             // Don't warn about this in Kotlin; the Kotlin deprecation annotation
-                            // includes deprecation
-                            // messages (unlike java.lang.Deprecated which has no attributes).
-                            // Instead, these
-                            // are added to the documentation by the [DocAnalyzer].
+                            // includes deprecation messages (unlike java.lang.Deprecated which has
+                            // no attributes). Instead, these are added to the documentation by the
+                            // [DocAnalyzer].
                             !item.isKotlin()
                     ) {
                         reporter.report(
