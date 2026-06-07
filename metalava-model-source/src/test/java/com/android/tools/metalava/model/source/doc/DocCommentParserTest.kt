@@ -381,6 +381,10 @@ class DocCommentParserTest : BaseDocCommentTest() {
                 """
                     /** An inline tag at the end of some text {@hide reason why hidden} */
                 """,
+            expectedIssues =
+                """
+                    2:44: Cannot use 'hide' as an inline tag [InvalidTagForm]
+                """,
         )
     }
 
@@ -406,6 +410,10 @@ class DocCommentParserTest : BaseDocCommentTest() {
                      * An inline tag.
                      * @see resolved.Something {@hide}
                      */
+                """,
+            expectedIssues =
+                """
+                    4:6: Cannot use 'hide' as an inline tag [InvalidTagForm]
                 """,
         )
     }
