@@ -42,18 +42,27 @@ data class ListOfPackagePolicyDefinitionProxy(
 ) {
 
     fun generateDocs() = buildString {
-        append("\n<p>Policy Type: List of Package</p>\n <ul>\n")
-        append(base.generateDocs())
+        val tableEntries = buildList {
+            addAll(base.getTableEntries())
 
-        val resMechDocs = resolutionMechanism.generateDocs(base.item)
-        if (resMechDocs.isNotEmpty()) {
-            append("   <li>Resolution Mechanism: $resMechDocs</li>\n")
+            val resMechDocs = resolutionMechanism.generateDocs(base.item)
+            if (resMechDocs.isNotEmpty()) {
+                add(Pair("Resolution Mechanism", resMechDocs))
+            }
+
+            val policyValueValidations = buildList {
+                add(Pair("Empty list", if (emptyListAllowed) "Allowed" else "Not allowed"))
+                add(
+                    Pair(
+                        "Max list length",
+                        if (maxListLength == Int.MAX_VALUE) "No limit" else maxListLength.toString()
+                    )
+                )
+            }
+            add(Pair("Policy value", renderPolicyValue("List of Package", policyValueValidations)))
         }
 
-        append("   <li>Empty list: ${if (emptyListAllowed) "Allowed" else "Not allowed"}</li>\n")
-        append(
-            "   <li>Max list length: ${if (maxListLength == Int.MAX_VALUE) "No limit" else maxListLength}</li>\n"
-        )
-        append(" </ul>\n")
+        append("\n<p>Policy Type: List of Package</p>\n")
+        append(renderTable(tableEntries))
     }
 }

@@ -47,17 +47,29 @@ data class IntegerPolicyDefinitionProxy(
     val resolutionMechanism: IntegerResolutionMechanismProxy,
 ) {
     fun generateDocs() = buildString {
-        append("\n<p>Policy Type: Integer</p>\n <ul>\n")
-        append(base.generateDocs())
-        val resolutionMechanismDoc = resolutionMechanism.generateDocs()
-        append("   <li>Resolution Mechanism: $resolutionMechanismDoc</li>\n")
-        append(
-            "   <li>Min Value: ${if (minValue == Integer.MIN_VALUE) "No limit" else minValue}</li>\n"
-        )
-        append(
-            "   <li>Max Value: ${if (maxValue == Integer.MAX_VALUE) "No limit" else maxValue}</li>\n"
-        )
-        append(" </ul>\n")
+        val tableEntries = buildList {
+            addAll(base.getTableEntries())
+            val resolutionMechanismDoc = resolutionMechanism.generateDocs()
+            add(Pair("Resolution Mechanism", resolutionMechanismDoc))
+            val policyValueValidations = buildList {
+                add(
+                    Pair(
+                        "Min Value",
+                        if (minValue == Integer.MIN_VALUE) "No limit" else minValue.toString()
+                    )
+                )
+                add(
+                    Pair(
+                        "Max Value",
+                        if (maxValue == Integer.MAX_VALUE) "No limit" else maxValue.toString()
+                    )
+                )
+            }
+            add(Pair("Policy value", renderPolicyValue("Integer", policyValueValidations)))
+        }
+
+        append("\n<p>Policy Type: Integer</p>\n")
+        append(renderTable(tableEntries))
     }
 }
 
