@@ -150,6 +150,16 @@ internal object DocCommentParser {
                     )
                 }
 
+                if (blockTagType.form == TagTypeForm.SURFACE) {
+                    val position = matcher.start(BLOCK_TAG_TYPE_GROUP_INDEX)
+                    reporter.report(
+                        Issues.DEPRECATED_SURFACE_DOC_TAG,
+                        "Use of '@$tagTypeName' to affect the API surface is deprecated",
+                        text.lineOffsetFor(position),
+                        text.characterOffsetFor(position),
+                    )
+                }
+
                 // The start of the block tag description is the end of the match (which excludes
                 // any white space after the block tag name).
                 blockTagDescriptionStartInclusive = matcher.end()

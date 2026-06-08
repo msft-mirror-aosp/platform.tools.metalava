@@ -172,6 +172,12 @@ object Issues {
     val HIDDEN_SHOW_ANNOTATION by Issue(Severity.WARNING_ERROR_WHEN_NEW, Category.API_LINT)
     val OVERLAPPING_API_SURFACES by Issue(Severity.WARNING_ERROR_WHEN_NEW, Category.API_LINT)
 
+    // Reported when using @hide doc tag. It is UNKNOWN because it does not fit into any other
+    // category. There is an argument that it should be DOCUMENTATION but that causes issues
+    // downstream as it treats all documentation issues as errors and just because it is the
+    // Javadoc does not mean it is an issue with the documentation.
+    val DEPRECATED_SURFACE_DOC_TAG by Issue(Severity.HIDDEN, Category.UNKNOWN)
+
     val SHOWING_MEMBER_IN_HIDDEN_CLASS by Issue(Severity.ERROR, Category.API_LINT)
     val INVALID_NULLABILITY_ANNOTATION by Issue(Severity.ERROR)
     val REFERENCES_HIDDEN by Issue(Severity.ERROR, Category.API_LINT)
