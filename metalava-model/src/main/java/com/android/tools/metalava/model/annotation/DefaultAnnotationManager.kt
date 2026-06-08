@@ -657,6 +657,11 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
             } else item.findCorrespondingItemIn(codebase)
         }
 
+    /** Finds the corresponding item in the previously released API, if available. */
+    override fun findPreviouslyReleasedItem(item: SelectableItem): SelectableItem? {
+        return previouslyReleasedCodebase?.let { item.findCorrespondingItemIn(it) }
+    }
+
     override val typedefMode: TypedefMode = config.typedefMode
 }
 

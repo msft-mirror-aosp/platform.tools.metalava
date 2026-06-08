@@ -40,6 +40,9 @@ interface AnnotationManager {
      */
     fun normalizeInputName(qualifiedName: String): String?
 
+    /** Finds the corresponding item in the previously released API, if available. */
+    fun findPreviouslyReleasedItem(item: SelectableItem): SelectableItem? = null
+
     /**
      * Maps an annotation name to the name to be used in signatures/stubs/external annotation files.
      */
