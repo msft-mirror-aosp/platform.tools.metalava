@@ -96,52 +96,29 @@ class IntegerPolicyAnnotationHandlerTest : DriverTest() {
                          *    <th colspan="2">Policy details</th>
                          *  </tr>
                          *  <tr>
-                         *    <td>Allowed Scopes</td>
+                         *    <td>Settable by</td>
                          *    <td>
+                         *      <p>This policy can be set with scope <code>User</code> by anyone holding {@link android.Manifest.permission#TEST android.permission.TEST}, or the following DPC types:
                          *      <ul>
-                         *        <li>User. Settable by:
-                         *          <ul>
-                         *            <li>Device Owner</li>
-                         *            <li>Managed Profile Owner (Of Organization Owned Device)</li>
-                         *            <li>Managed Profile Owner (Of Personally Owned Device)</li>
-                         *            <li>Unaffiliated Full User Profile Owner</li>
-                         *            <li>Profile Owner on User 0</li>
-                         *            <li>Affiliated Full User Profile Owner</li>
-                         *          </ul>
-                         *        </li>
-                         *        <li>Device. Settable by:
-                         *          <ul>
-                         *            <li>Device Owner</li>
-                         *            <li>Managed Profile Owner (Of Organization Owned Device)</li>
-                         *          </ul>
-                         *        </li>
+                         *          <li>Device Owner</li>
+                         *          <li>Managed Profile Owner (Of Organization Owned Device)</li>
+                         *          <li>Managed Profile Owner (Of Personally Owned Device)</li>
+                         *          <li>Unaffiliated Full User Profile Owner</li>
+                         *          <li>Profile Owner on User 0</li>
+                         *          <li>Affiliated Full User Profile Owner</li>
                          *      </ul>
+                         *      </p>
+                         *      <p>In addition, this policy can be set with scope <code>Device</code> by anyone holding {@link android.Manifest.permission#TEST android.permission.TEST} and {@link android.Manifest.permission#MANAGE_DEVICE_POLICY_ACROSS_USERS android.permission.MANAGE_DEVICE_POLICY_ACROSS_USERS}, or the following DPC types:
+                         *      <ul>
+                         *          <li>Device Owner</li>
+                         *          <li>Managed Profile Owner (Of Organization Owned Device)</li>
+                         *      </ul>
+                         *      </p>
                          *    </td>
                          *  </tr>
                          *  <tr>
                          *    <td>Affected Resource</td>
                          *    <td>Device Wide</td>
-                         *  </tr>
-                         *  <tr>
-                         *    <td>Required Permission</td>
-                         *    <td>{@link android.Manifest.permission#TEST android.permission.TEST}</td>
-                         *  </tr>
-                         *  <tr>
-                         *    <td>Required Cross User Permission</td>
-                         *    <td>{@link android.Manifest.permission#MANAGE_DEVICE_POLICY_ACROSS_USERS android.permission.MANAGE_DEVICE_POLICY_ACROSS_USERS}</td>
-                         *  </tr>
-                         *  <tr>
-                         *    <td>Allowed DPC Types</td>
-                         *    <td>
-                         *      <ul>
-                         *        <li>Device Owner</li>
-                         *        <li>Managed Profile Owner (Of Organization Owned Device)</li>
-                         *        <li>Managed Profile Owner (Of Personally Owned Device)</li>
-                         *        <li>Unaffiliated Full User Profile Owner</li>
-                         *        <li>Profile Owner on User 0</li>
-                         *        <li>Affiliated Full User Profile Owner</li>
-                         *      </ul>
-                         *    </td>
                          *  </tr>
                          *  <tr>
                          *    <td>Resolution Mechanism</td>

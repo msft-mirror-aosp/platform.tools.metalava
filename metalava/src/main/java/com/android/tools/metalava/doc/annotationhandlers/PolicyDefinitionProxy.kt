@@ -131,42 +131,108 @@ class PolicyDefinitionProxy(
         }
     }
 
+    private fun getAllowedDpcForScopeDoc(scopeId: Int): String {
+        val dpcs = getAllowedDPCTypesForScope(requiredCrossUserPermission ?: "", scopeId)
+        return if (dpcs.isNotEmpty()) {
+            "<ul>\n" + dpcs.joinToString("") { "    <li>${it.description}</li>\n" } + "</ul>\n"
+        } else ""
+    }
+
     /** Generates table entries for the base policy definition. */
     fun getTableEntries(): List<Pair<String, String>> = buildList {
-        allowedScopes
-            .takeIf { it.isNotEmpty() }
-            ?.let { scopes ->
-                val scopesValue = buildString {
-                    append("<ul>\n")
-                    scopes.forEach { scope ->
-                        val dpcTypes =
-                            getAllowedDPCTypesForScope(requiredCrossUserPermission ?: "", scope)
-                        if (dpcTypes.isEmpty()) {
-                            append(
-                                "  <li>${getScopeName(scope)}. Not settable by any DPC type.</li>\n"
-                            )
-                        } else {
-                            append("  <li>${getScopeName(scope)}. Settable by:\n")
-                            append("    <ul>\n")
-                            dpcTypes.forEach { append("      <li>${it.description}</li>\n") }
-                            append("    </ul>\n")
-                            append("  </li>\n")
-                        }
-                    }
-                    append("</ul>")
-                }
-                add(Pair("Allowed Scopes", scopesValue))
+        if (allowedScopes.isNotEmpty()) {
+            val docLines = mutableListOf<String>()
+
+            val hasUser = allowedScopes.contains(PolicyScope.USER.id)
+            val hasDevice = allowedScopes.contains(PolicyScope.DEVICE.id)
+            val hasParent = allowedScopes.contains(PolicyScope.PARENT_USER.id)
+
+            if (hasUser) {
+                val allowedDpcDoc = getAllowedDpcForScopeDoc(PolicyScope.USER.id).ifEmpty { null }
+                val permission = requiredPermission?.let { resolvePermissionCodeLink(it, item) }
+                docLines.add(
+                    formatSettableByEntry(
+                        scope = "<code>User</code>",
+                        permission = permission,
+                        dpcTypes = allowedDpcDoc
+                    )
+                )
             }
 
-        add(Pair("Affected Resource", getResourceName(affectedResource)))
-        requiredPermission?.let { permission ->
-            add(Pair("Required Permission", resolvePermissionCodeLink(permission, item)))
-        }
-        requiredCrossUserPermission?.let { permission ->
-            add(Pair("Required Cross User Permission", resolvePermissionCodeLink(permission, item)))
+            if (hasDevice || hasParent) {
+                val scopeId = if (hasDevice) PolicyScope.DEVICE.id else PolicyScope.PARENT_USER.id
+                val scope =
+                    if (hasDevice && hasParent) "<code>Device</code> and <code>Parent User</code>"
+                    else if (hasDevice) "<code>Device</code>" else "<code>Parent User</code>"
+
+                val allowedDpcDoc = getAllowedDpcForScopeDoc(scopeId).ifEmpty { null }
+
+                val permission = formatPermissions(requiredPermission, requiredCrossUserPermission)
+                docLines.add(
+                    if (hasUser) {
+                        formatAlsoSettableByEntry(
+                            scope = scope,
+                            permission = permission,
+                            dpcTypes = allowedDpcDoc,
+                        )
+                    } else {
+                        formatSettableByEntry(
+                            scope = scope,
+                            permission = permission,
+                            dpcTypes = allowedDpcDoc,
+                        )
+                    }
+                )
+            }
+
+            add(Pair("Settable by", docLines.joinToString("")))
         }
 
-        allowedDpcTypes.getTableEntry()?.let { add(it) }
+        add(Pair("Affected Resource", getResourceName(affectedResource)))
+    }
+
+    private fun formatPermissions(first: String?, second: String?): String? {
+        val firstCodeLink = first?.let { resolvePermissionCodeLink(it, item) }
+        val secondCodeLink = second?.let { resolvePermissionCodeLink(it, item) }
+        return if (firstCodeLink != null && secondCodeLink != null) {
+            "$firstCodeLink and $secondCodeLink"
+        } else {
+            firstCodeLink ?: secondCodeLink
+        }
+    }
+
+    private fun formatSettableByEntry(
+        scope: String,
+        permission: String?,
+        dpcTypes: String?
+    ): String {
+        return if (permission == null && dpcTypes == null) {
+            "<p>This policy can be set with scope ${scope}.</p>\n"
+        } else if (permission == null) {
+            "<p>This policy can be set with scope ${scope} by the following DPC types: \n$dpcTypes</p>\n"
+        } else if (dpcTypes == null) {
+            "<p>This policy can be set with scope ${scope} by anyone holding $permission.</p>\n"
+        } else {
+            // Nothing is null
+            "<p>This policy can be set with scope ${scope} by anyone holding $permission, or the following DPC types: \n$dpcTypes</p>\n"
+        }
+    }
+
+    private fun formatAlsoSettableByEntry(
+        scope: String,
+        permission: String?,
+        dpcTypes: String?
+    ): String {
+        return if (permission == null && dpcTypes == null) {
+            "<p>In addition, this policy can be set with scope ${scope}.</p>\n"
+        } else if (permission == null) {
+            "<p>In addition, this policy can be set with scope ${scope} by the following DPC types: \n$dpcTypes</p>\n"
+        } else if (dpcTypes == null) {
+            "<p>In addition, this policy can be set with scope ${scope} by anyone holding $permission.</p>\n"
+        } else {
+            // Nothing is null
+            "<p>In addition, this policy can be set with scope ${scope} by anyone holding $permission, or the following DPC types: \n$dpcTypes</p>\n"
+        }
     }
 
     companion object {
