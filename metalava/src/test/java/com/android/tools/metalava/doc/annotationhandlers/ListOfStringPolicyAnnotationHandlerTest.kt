@@ -144,10 +144,6 @@ class ListOfStringPolicyAnnotationHandlerTest : DriverTest() {
                          *    </td>
                          *  </tr>
                          *  <tr>
-                         *    <td>Allowed Roles</td>
-                         *    <td>This policy can be set by holders of the device controller role</td>
-                         *  </tr>
-                         *  <tr>
                          *    <td>Resolution Mechanism</td>
                          *    <td>custom</td>
                          *  </tr>
@@ -166,6 +162,7 @@ class ListOfStringPolicyAnnotationHandlerTest : DriverTest() {
                          *    </td>
                          *  </tr>
                          * </table>
+                         * See also: {@link android.app.admin.DevicePolicyManager#setPolicy DevicePolicyManager.setPolicy}, {@link android.app.admin.DevicePolicyManager#getPolicy DevicePolicyManager.getPolicy}
                          */
                         public static final java.lang.String POLICY_FIELD = "";
                         }
@@ -289,6 +286,7 @@ class ListOfStringPolicyAnnotationHandlerTest : DriverTest() {
                          *    </td>
                          *  </tr>
                          * </table>
+                         * See also: {@link android.app.admin.DevicePolicyManager#setPolicy DevicePolicyManager.setPolicy}, {@link android.app.admin.DevicePolicyManager#getPolicy DevicePolicyManager.getPolicy}
                          */
                         public static final java.lang.String POLICY_FIELD = "";
                         }

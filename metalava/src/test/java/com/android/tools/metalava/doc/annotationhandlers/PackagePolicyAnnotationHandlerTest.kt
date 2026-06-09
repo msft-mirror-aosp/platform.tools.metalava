@@ -135,14 +135,11 @@ class PackagePolicyAnnotationHandlerTest : DriverTest() {
                          *    </td>
                          *  </tr>
                          *  <tr>
-                         *    <td>Allowed Roles</td>
-                         *    <td>This policy can be set by holders of the device controller role</td>
-                         *  </tr>
-                         *  <tr>
                          *    <td>Policy value</td>
                          *    <td><code>Package</code></td>
                          *  </tr>
                          * </table>
+                         * See also: {@link android.app.admin.DevicePolicyManager#setPolicy DevicePolicyManager.setPolicy}, {@link android.app.admin.DevicePolicyManager#getPolicy DevicePolicyManager.getPolicy}
                          */
                         public static final int POLICY_FIELD = 1;
                         }

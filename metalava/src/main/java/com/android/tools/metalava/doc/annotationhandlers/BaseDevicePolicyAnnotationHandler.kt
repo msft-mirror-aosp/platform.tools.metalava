@@ -61,6 +61,9 @@ fun renderTable(tableEntries: List<Pair<String, String>>): String {
             append("  </tr>\n")
         }
         append(" </table>\n")
+        append(
+            " See also: {@link android.app.admin.DevicePolicyManager#setPolicy DevicePolicyManager.setPolicy}, {@link android.app.admin.DevicePolicyManager#getPolicy DevicePolicyManager.getPolicy}\n"
+        )
     }
 }
 

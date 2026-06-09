@@ -167,7 +167,6 @@ class PolicyDefinitionProxy(
         }
 
         allowedDpcTypes.getTableEntry()?.let { add(it) }
-        allowedRoles.getTableEntry()?.let { add(it) }
     }
 
     companion object {
