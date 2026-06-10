@@ -16,57 +16,58 @@
 
 package com.android.tools.metalava.model
 
-import java.util.function.Predicate
+import com.android.tools.metalava.model.scope.ReferencableNameScope
+import com.android.tools.metalava.model.snapshot.SourceFileSnapshot
+import com.android.tools.metalava.reporter.FileLocation
 
 /** Represents a Kotlin/Java source file */
-interface SourceFile {
+interface SourceFile : ReferencableNameScope {
+    /**
+     * The location of this [SourceFile]
+     *
+     * If this is not [FileLocation.UNKNOWN] then it will not have a line number.
+     */
+    val fileLocation: FileLocation
+
+    /** The [Codebase] to which this [SourceFile] belongs. */
+    val codebase: Codebase
+
+    /** The [PackageItem] to which this [SourceFile] belongs. */
+    val containingPackage: PackageItem
+
     /** Top level classes contained in this file */
     fun classes(): Sequence<ClassItem>
 
     fun getHeaderComments(): String? = null
 
-    fun getImports(predicate: Predicate<Item>): Collection<Import> = emptyList()
+    /**
+     * Get all the Java imports, no filtering, no sorting, includes static and on demand.
+     *
+     * Returns an empty list for Kotlin as this will be used for resolving references in Javadoc
+     * comments that are written to the stubs, which is only done for Java APIs.
+     */
+    fun allJavaImports(): List<JavaImport>
+
+    fun snapshot(targetCodebase: Codebase): SourceFile =
+        SourceFileSnapshot(
+            targetCodebase,
+            originalSourceFile = this,
+        )
 }
 
-/** Encapsulates information about the imports used in a [SourceFile]. */
-data class Import
-internal constructor(
+/** Encapsulates information about the imports used in a Java [SourceFile]. */
+data class JavaImport(
     /**
-     * The import pattern, i.e. the whole part of the import statement after `import static? ` and
-     * before the optional `;`, excluding any whitespace.
+     * The qualified name of the import.
+     *
+     * If [onDemand] is `true` then this is everything before the `.*`. Otherwise, this is the
+     * qualified name of the imported item(s).
      */
-    val pattern: String,
+    val qualifiedName: String,
 
-    /**
-     * The name that is being imported, i.e. the part after the last `.`. Is `*` for wildcard
-     * imports.
-     */
-    val name: String,
+    /** `true` if the import used a wildcard, i.e. ended with `.*`. */
+    val onDemand: Boolean,
 
-    /**
-     * True if the item that is being imported is a member of a class. Corresponds to the `static`
-     * keyword in Java, has no effect on Kotlin import statements.
-     */
-    val isMember: Boolean,
-) {
-    /** Import a whole [PackageItem], i.e. uses a wildcard. */
-    constructor(pkgItem: PackageItem) : this("${pkgItem.qualifiedName()}.*", "*", false)
-
-    /** Import a [ClassItem]. */
-    constructor(
-        classItem: ClassItem
-    ) : this(
-        classItem.qualifiedName(),
-        classItem.simpleName(),
-        false,
-    )
-
-    /** Import a [MemberItem]. */
-    constructor(
-        memberItem: MemberItem
-    ) : this(
-        "${memberItem.containingClass().qualifiedName()}.${memberItem.name()}",
-        memberItem.name(),
-        true,
-    )
-}
+    /** `true` if the import used the `static` keyword. */
+    val static: Boolean,
+)

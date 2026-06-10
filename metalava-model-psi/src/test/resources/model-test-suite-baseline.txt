@@ -1,24 +1,16 @@
 com.android.tools.metalava.model.testsuite.annotationitem.CommonAnnotationItemTest
-  annotation with enum values[psi,java]
+  unknown annotation class with default attribute - array value[kotlin]
+  unknown annotation class with default attribute - string value[kotlin]
+  unknown annotation class with named attribute - array value[kotlin]
+  unknown annotation class with named attribute - string value[kotlin]
 
-com.android.tools.metalava.model.testsuite.codebase.ParameterizedFindClassTest
-  test findClass()[psi,java,java.lang.Object]
-  test findClass()[psi,java,java.lang.Throwable]
-  test findClass()[psi,kotlin,java.lang.Object]
-  test findClass()[psi,kotlin,java.lang.Throwable]
+com.android.tools.metalava.model.testsuite.parameteritem.CommonParameterKindTest
+  Kind for parameters on function with all kinds of parameters[kotlin]
 
-com.android.tools.metalava.model.testsuite.typeitem.CommonParameterizedTypeItemTest
-  Test asClass[psi,java,T extends Comparable]
-  Test asClass[psi,java,T[]]
-  Test asClass[psi,java,T]
-  Test asClass[psi,kotlin,T extends Comparable]
-  Test asClass[psi,kotlin,T[]]
-  Test asClass[psi,kotlin,T]
+com.android.tools.metalava.model.testsuite.value.CommonParameterizedFieldValueTest
+  testFieldValue[kotlin,source,null - intermediate non-constant expression]
+  testFieldValue[kotlin,source,unsigned int - expression]
 
-com.android.tools.metalava.model.testsuite.typeitem.CommonTypeModifiersTest
-  Test inner parameterized types with annotations[psi,java]
-  Test nullability of outer classes[psi,java]
-
-com.android.tools.metalava.model.testsuite.typeitem.CommonTypeStringTest
-  Type string[psi,java,null annotated parameterized inner type - annotated]
-  Type string[psi,java,null annotated parameterized inner type - kotlin nulls]
+com.android.tools.metalava.model.testsuite.value.CommonParameterizedFieldWriteWithSemicolonValueTest
+  testLegacySource[kotlin,source,null - intermediate non-constant expression]
+  testLegacySource[kotlin,source,unsigned int - expression]

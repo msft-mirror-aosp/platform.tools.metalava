@@ -16,18 +16,94 @@
 
 package com.android.tools.metalava.model.testsuite.methoditem
 
+import com.android.tools.metalava.model.JAVA_LANG_THROWABLE
+import com.android.tools.metalava.model.MethodItem
+import com.android.tools.metalava.model.PrimitiveTypeItem
+import com.android.tools.metalava.model.provider.InputFormat
+import com.android.tools.metalava.model.testing.SupportedInputFormats
+import com.android.tools.metalava.model.testing.classTypeItem
+import com.android.tools.metalava.model.testing.value.annotationValue
+import com.android.tools.metalava.model.testing.value.arrayValueFromAny
+import com.android.tools.metalava.model.testing.value.classObjectValue
+import com.android.tools.metalava.model.testing.value.fieldReferenceValue
+import com.android.tools.metalava.model.testing.value.literalValue
 import com.android.tools.metalava.model.testsuite.BaseModelTest
+import com.android.tools.metalava.testing.createAndroidModuleDescription
+import com.android.tools.metalava.testing.createCommonModuleDescription
+import com.android.tools.metalava.testing.createProjectDescription
 import com.android.tools.metalava.testing.java
+import com.android.tools.metalava.testing.kotlin
+import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNotEquals
+import kotlin.test.assertNull
+import kotlin.test.assertTrue
 import org.junit.Test
-import org.junit.runner.RunWith
-import org.junit.runners.Parameterized
 
 /** Common tests for implementations of [MethodItem]. */
-@RunWith(Parameterized::class)
 class CommonMethodItemTest : BaseModelTest() {
 
+    @Test
+    fun `Test access type parameter of outer class`() {
+        runCodebaseTest(
+            signature(
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public class Outer<O> {
+                      }
+                      public class Outer.Middle {
+                      }
+                      public abstract class Outer.Middle.Inner {
+                        method public abstract O method();
+                      }
+                    }
+                """
+            ),
+            java(
+                """
+                    package test.pkg;
+
+                    public class Outer<O> {
+                        private Outer() {}
+
+                        public class Middle {
+                            private Middle() {}
+                            public class Inner {
+                                private Inner() {}
+                                public abstract O method();
+                            }
+                        }
+                    }
+                """
+            ),
+            kotlin(
+                """
+                    package test.pkg
+
+                    class Outer<O> private constructor() {
+                        inner class Middle private constructor() {
+                            abstract inner class Inner private constructor() {
+                                abstract fun method(): O
+                            }
+                        }
+                    }
+                """
+            ),
+        ) {
+            val oTypeParameter = codebase.assertClass("test.pkg.Outer").typeParameterList.single()
+            val methodType =
+                codebase
+                    .assertClass("test.pkg.Outer.Middle.Inner")
+                    .assertMethod("method", emptyList())
+                    .type()
+
+            methodType.assertReferencesTypeParameter(oTypeParameter)
+        }
+    }
+
+    @SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.JAVA)
     @Test
     fun `MethodItem type`() {
         runCodebaseTest(
@@ -85,51 +161,7 @@ class CommonMethodItemTest : BaseModelTest() {
         }
     }
 
-    @Test
-    fun `MethodItem superMethods() on constructor`() {
-        runCodebaseTest(
-            inputSet(
-                signature(
-                    """
-                        // Signature format: 2.0
-                        package test.pkg {
-                          public class Base {
-                            ctor public Base();
-                          }
-                          public class Test extends test.pkg.Base {
-                            ctor public Test();
-                          }
-                        }
-                    """
-                ),
-            ),
-            inputSet(
-                java(
-                    """
-                        package test.pkg;
-
-                        public class Base {
-                            public Base() {}
-                        }
-                    """
-                ),
-                java(
-                    """
-                        package test.pkg;
-
-                        public class Test extends Base {
-                            public Test() {}
-                        }
-                    """
-                ),
-            ),
-        ) {
-            val testClass = codebase.assertClass("test.pkg.Test")
-            val testConstructor = testClass.constructors().single()
-            assertEquals(emptyList(), testConstructor.superMethods())
-        }
-    }
-
+    @SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.JAVA)
     @Test
     fun `MethodItem superMethods() on simple method`() {
         runCodebaseTest(
@@ -183,6 +215,7 @@ class CommonMethodItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.JAVA)
     @Test
     fun `Test equality of methods with type parameters`() {
         runCodebaseTest(
@@ -214,6 +247,342 @@ class CommonMethodItemTest : BaseModelTest() {
             val strBounds = methods[1]
             // These methods look the same besides their type parameter bounds
             assertNotEquals(numBounds, strBounds)
+        }
+    }
+
+    @SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.JAVA)
+    @Test
+    fun `Test throws method type parameter extends Throwable`() {
+        runCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+
+                    @SuppressWarnings("ALL")
+                    public final class Test {
+                        private Test() {}
+                        public <X extends Throwable> void throwsTypeParameter() throws X {
+                            return null;
+                        }
+                    }
+                """
+            ),
+            signature(
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public final class Test {
+                        method public <X extends Throwable> void throwsTypeParameter() throws X;
+                      }
+                    }
+                """
+            ),
+        ) {
+            val methodItem = codebase.assertClass("test.pkg.Test").methods().single()
+            val typeParameterItem = methodItem.typeParameterList.single()
+            val throwsType = methodItem.throwsTypes().single()
+            throwsType.assertReferencesTypeParameter(typeParameterItem)
+            assertEquals(throwsType.asErasedClass(codebase)!!.qualifiedName(), JAVA_LANG_THROWABLE)
+        }
+    }
+
+    @SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.JAVA)
+    @Test
+    fun `Test throws method type parameter does not extend Throwable`() {
+        // This is an error but Metalava should try not to fail on an error.
+        runCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+
+                    @SuppressWarnings("ALL")
+                    public final class Test {
+                        private Test() {}
+                        public <X> void throwsTypeParameter() throws X {
+                            return null;
+                        }
+                    }
+                """
+            ),
+            signature(
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public final class Test {
+                        method public <X> void throwsTypeParameter() throws X;
+                      }
+                    }
+                """
+            ),
+        ) {
+            val methodItem = codebase.assertClass("test.pkg.Test").methods().single()
+            val typeParameterItem = methodItem.typeParameterList.single()
+            val throwsType = methodItem.throwsTypes().single()
+            throwsType.assertReferencesTypeParameter(typeParameterItem)
+            // The type parameter does not extend a throwable type.
+            assertFalse(throwsType.asErasedClass(codebase)!!.extends(JAVA_LANG_THROWABLE))
+        }
+    }
+
+    @SupportedInputFormats(InputFormat.JAVA)
+    @Test
+    fun `Test throws method class does not exist`() {
+        // This is an error but Metalava should try not to fail on an error.
+        runCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+
+                    @SuppressWarnings("ALL")
+                    public final class Test {
+                        private Test() {}
+                        public void throwsUnknownException() throws UnknownException {
+                            return null;
+                        }
+                    }
+                """
+            ),
+            // No signature test as that will just fabricate an UnknownException.
+        ) {
+            val methodItem = codebase.assertClass("test.pkg.Test").methods().single()
+            val throwsType = methodItem.throwsTypes().single()
+            // Neither the class nor throwable class is available.
+            assertNull(throwsType.asErasedClass(codebase))
+        }
+    }
+
+    @SupportedInputFormats(InputFormat.KOTLIN)
+    @Test
+    fun `Test throws type on kotlin only constructor`() {
+        runCodebaseTest(
+            kotlin(
+                """
+                package test.pkg
+                annotation class SingleThrowsType
+                    @Throws(IllegalStateException::class)
+                    constructor(val v: Int)
+
+                annotation class MultipleThrowsTypes
+                    @Throws(IllegalStateException::class, IllegalArgumentException::class)
+                    constructor(val v: Int)
+
+                annotation class NoThrowsTypes
+                    @Throws
+                    constructor(val v: Int)
+                """
+            )
+        ) {
+            assertEquals(
+                codebase
+                    .assertClass("test.pkg.SingleThrowsType")
+                    .assertConstructor(listOf("int"))
+                    .throwsTypes()
+                    .single()
+                    .toTypeString(),
+                "java.lang.IllegalStateException"
+            )
+            assertContentEquals(
+                codebase
+                    .assertClass("test.pkg.MultipleThrowsTypes")
+                    .assertConstructor(listOf("int"))
+                    .throwsTypes()
+                    .map { it.toTypeString() },
+                listOf("java.lang.IllegalStateException", "java.lang.IllegalArgumentException")
+            )
+            assertTrue(
+                codebase
+                    .assertClass("test.pkg.NoThrowsTypes")
+                    .assertConstructor(listOf("int"))
+                    .throwsTypes()
+                    .isEmpty()
+            )
+        }
+    }
+
+    @SupportedInputFormats(InputFormat.JAVA)
+    @Test
+    fun `Test method default values`() {
+        runSourceCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+
+                    public @interface TestAnnotation {
+                        int id() default 7;
+                        int id1() default -7;
+                        byte bt() default 1;
+                        float floating() default 1.0f;
+                        float floating1() default -1.0f;
+                        long longValue() default 1L;
+                        long longValue1() default -1L;
+                        boolean isResolved() default false;
+                        String prefix() default "pref";
+                        char[] letters() default {'a', 'b', 'c'};
+                        char[] letter() default 'a';
+                        double negInf() default Double.NEGATIVE_INFINITY;
+                        int expr() default 1+2*3;
+                        int compExpr() default FIELD1+FIELD2;
+                        InnerAnnotation value() default @InnerAnnotation;
+                        Class<? extends Number> Cls() default Integer.class;
+                        InnerEnum testEnum() default InnerEnum.ENUM1;
+
+                        int FIELD1 = 5;
+                        int FIELD2 = 7;
+
+                        @interface InnerAnnotation {}
+                        enum InnerEnum {
+                          ENUM1,
+                          ENUM2,
+                        }
+                    }
+                """
+            ),
+        ) {
+            val classItem = codebase.assertClass("test.pkg.TestAnnotation")
+
+            val values =
+                listOf(
+                    literalValue(7),
+                    literalValue(-7),
+                    literalValue(1.toByte()),
+                    literalValue(1.0f),
+                    literalValue(-1.0f),
+                    literalValue(1L),
+                    literalValue(-1L),
+                    literalValue(false),
+                    literalValue("pref"),
+                    arrayValueFromAny('a', 'b', 'c'),
+                    arrayValueFromAny('a'),
+                    fieldReferenceValue("java.lang.Double", "NEGATIVE_INFINITY"),
+                    literalValue(7),
+                    literalValue(12),
+                    annotationValue("test.pkg.TestAnnotation.InnerAnnotation"),
+                    classObjectValue(classTypeItem("java.lang.Integer")),
+                    fieldReferenceValue("test.pkg.TestAnnotation.InnerEnum", "ENUM1"),
+                )
+            assertEquals(values, classItem.methods().map { it.defaultValue })
+        }
+    }
+
+    @SupportedInputFormats(InputFormat.KOTLIN)
+    @Test
+    fun `JvmOverloads methods`() {
+        val commonSource =
+            kotlin(
+                "commonMain/src/test/pkg/Foo.kt",
+                """
+                    package test.pkg
+                    import kotlin.jvm.JvmOverloads
+                    expect class Foo {
+                        @JvmOverloads
+                        fun allOptionalJvmOverloads(p1: Int = 0, p2: Int = 0, p3: Int = 0)
+
+                        @JvmOverloads
+                        fun someOptionalJvmOverloads(p1: Int, p2: Long = 0L, p3: Int, p4: Float = 0F, p5: Int)
+                    }
+                """
+            )
+        // @JvmOverloads needs to be annotated on the actual fun too, but the default values can't
+        // be present on actuals
+        val androidSource =
+            kotlin(
+                "androidMain/src/test/pkg/Foo.kt",
+                """
+                    package test.pkg
+                    actual class Foo {
+                        @JvmOverloads
+                        actual fun allOptionalJvmOverloads(p1: Int, p2: Int, p3: Int) = Unit
+
+                        @JvmOverloads
+                        actual fun someOptionalJvmOverloads(p1: Int, p2: Long, p3: Int, p4: Float, p5: Int) = Unit
+                    }
+                """
+            )
+        runCodebaseTest(
+            inputSet(androidSource, commonSource),
+            projectDescription =
+                createProjectDescription(
+                    createAndroidModuleDescription(arrayOf(androidSource)),
+                    createCommonModuleDescription(arrayOf(commonSource)),
+                ),
+        ) {
+            val fooClass = codebase.assertClass("test.pkg.Foo")
+
+            // check all overloads for `allOptionalJvmOverloads` are present
+            fooClass.assertMethod("allOptionalJvmOverloads", emptyList())
+            fooClass.assertMethod("allOptionalJvmOverloads", listOf("int"))
+            fooClass.assertMethod("allOptionalJvmOverloads", listOf("int", "int"))
+            fooClass.assertMethod("allOptionalJvmOverloads", listOf("int", "int", "int"))
+
+            // check all overloads for `someOptionalJvmOverloads` are present
+            fooClass.assertMethod("someOptionalJvmOverloads", listOf("int", "int", "int"))
+            fooClass.assertMethod("someOptionalJvmOverloads", listOf("int", "long", "int", "int"))
+            fooClass.assertMethod(
+                "someOptionalJvmOverloads",
+                listOf("int", "long", "int", "float", "int")
+            )
+
+            // check that there aren't any other methods present
+            assertEquals(fooClass.methods().size, 7)
+        }
+    }
+
+    @SupportedInputFormats(InputFormat.KOTLIN)
+    @Test
+    fun `JvmOverloads with initial vararg parameter`() {
+        val commonSource =
+            kotlin(
+                "commonMain/src/test/pkg/Foo.kt",
+                """
+                package test.pkg
+                import kotlin.jvm.JvmOverloads
+                expect class Foo {
+                    @JvmOverloads
+                    fun foo(vararg str: String, bool: Boolean = true)
+                }
+                """
+            )
+        val androidSource =
+            kotlin(
+                "androidMain/src/test/pkg/Foo.kt",
+                """
+                package test.pkg
+                actual class Foo {
+                    @JvmOverloads
+                    actual fun foo(vararg str: String, bool: Boolean) = Unit
+                }
+                """
+            )
+
+        runCodebaseTest(
+            inputSet(androidSource, commonSource),
+            projectDescription =
+                createProjectDescription(
+                    createAndroidModuleDescription(arrayOf(androidSource)),
+                    createCommonModuleDescription(arrayOf(commonSource)),
+                ),
+        ) {
+            val fooClass = codebase.assertClass("test.pkg.Foo")
+
+            // Overload with both parameters: parameter is not varargs because it is not final.
+            val withArrayType = fooClass.methods().single { it.parameters().size == 2 }
+            withArrayType.parameters()[0].type().assertArrayTypeItem {
+                assertFalse(isVarargs)
+                assertTrue(componentType.isString())
+            }
+            withArrayType.parameters()[1].type().assertPrimitiveTypeItem {
+                assertEquals(kind, PrimitiveTypeItem.Primitive.BOOLEAN)
+            }
+
+            // Overload with single parameter: parameter is varargs because it is final.
+            val withVarargsType = fooClass.methods().single { it.parameters().size == 1 }
+            withVarargsType.parameters()[0].type().assertArrayTypeItem {
+                assertTrue(isVarargs)
+                assertTrue(componentType.isString())
+            }
+
+            // Check there are no other methods.
+            assertEquals(fooClass.methods().size, 2)
         }
     }
 }

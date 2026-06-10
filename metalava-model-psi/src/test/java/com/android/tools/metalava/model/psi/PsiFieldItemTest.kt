@@ -17,6 +17,9 @@
 package com.android.tools.metalava.model.psi
 
 import com.android.tools.metalava.model.TypeNullability
+import com.android.tools.metalava.model.provider.InputFormat
+import com.android.tools.metalava.model.testing.SupportedInputFormats
+import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
 import kotlin.test.Test
@@ -25,10 +28,11 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertSame
 
-class PsiFieldItemTest : BasePsiTest() {
+class PsiFieldItemTest : BaseModelTest() {
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `backing fields have properties`() {
-        testCodebase(kotlin("class Foo(val bar: Int)")) { codebase ->
+        runCodebaseTest(kotlin("class Foo(val bar: Int)")) {
             val field = codebase.assertClass("Foo").fields().single()
 
             assertNotNull(field.property)
@@ -36,9 +40,10 @@ class PsiFieldItemTest : BasePsiTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `no error for initializer of arrayOf`() {
-        testCodebase(
+        runCodebaseTest(
             kotlin(
                 """
                 package test.pkg
@@ -47,39 +52,41 @@ class PsiFieldItemTest : BasePsiTest() {
                 }
             """
             )
-        ) { codebase ->
+        ) {
             val fooClass = codebase.assertClass("test.pkg.Foo")
             val x = fooClass.fields().single()
-            assertNull(x.initialValue(false))
-            assertNull(x.implicitNullness())
+            assertNull(x.constantValue)
         }
     }
 
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `Duplicated field has correct nullability`() {
-        testCodebase(
-            java(
-                """
-                    package test.pkg;
-                    public class Foo {
-                        public final String foo = "string";
-                    }
-                """
-            ),
-            java(
-                """
-                    package test.pkg;
-                    public class Bar extends Foo {}
-                """
+        runCodebaseTest(
+            inputSet(
+                java(
+                    """
+                        package test.pkg;
+                        public class Foo {
+                            public final String foo = "string";
+                        }
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
+                        public class Bar extends Foo {}
+                    """
+                )
             )
-        ) { codebase ->
+        ) {
             val fooClass = codebase.assertClass("test.pkg.Foo")
             val fooField = fooClass.fields().single()
-            assertEquals(TypeNullability.NONNULL, fooField.type().modifiers.nullability())
+            assertEquals(TypeNullability.NONNULL, fooField.type().modifiers.nullability)
 
             val barClass = codebase.assertClass("test.pkg.Bar")
             val duplicated = fooField.duplicate(barClass)
-            assertEquals(TypeNullability.NONNULL, duplicated.type().modifiers.nullability())
+            assertEquals(TypeNullability.NONNULL, duplicated.type().modifiers.nullability)
         }
     }
 }

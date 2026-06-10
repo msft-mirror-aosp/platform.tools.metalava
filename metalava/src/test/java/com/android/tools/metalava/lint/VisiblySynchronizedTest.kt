@@ -17,11 +17,10 @@
 package com.android.tools.metalava.lint
 
 import com.android.tools.metalava.DriverTest
-import com.android.tools.metalava.androidxNullableSource
 import com.android.tools.metalava.nullableSource
 import com.android.tools.metalava.reporter.Issues
+import com.android.tools.metalava.testing.KnownSourceFiles
 import com.android.tools.metalava.testing.java
-import com.android.tools.metalava.testing.kotlin
 import org.junit.Test
 
 /** Tests for the [Issues.VISIBLY_SYNCHRONIZED] issue. */
@@ -39,14 +38,6 @@ class VisiblySynchronizedTest : DriverTest() {
             expectedIssues =
                 """
                     src/android/pkg/CheckSynchronization.java:12: error: Internal locks must not be exposed: method android.pkg.CheckSynchronization.errorMethod1(Runnable) [VisiblySynchronized]
-                    src/android/pkg/CheckSynchronization.java:14: error: Internal locks must not be exposed (synchronizing on this or class is still externally observable): method android.pkg.CheckSynchronization.errorMethod2() [VisiblySynchronized]
-                    src/android/pkg/CheckSynchronization.java:18: error: Internal locks must not be exposed (synchronizing on this or class is still externally observable): method android.pkg.CheckSynchronization.errorMethod3() [VisiblySynchronized]
-                    src/android/pkg/CheckSynchronization.java:23: error: Internal locks must not be exposed (synchronizing on this or class is still externally observable): method android.pkg.CheckSynchronization.errorMethod4() [VisiblySynchronized]
-                    src/android/pkg/CheckSynchronization2.kt:5: error: Internal locks must not be exposed (synchronizing on this or class is still externally observable): method android.pkg.CheckSynchronization2.errorMethod1() [VisiblySynchronized]
-                    src/android/pkg/CheckSynchronization2.kt:8: error: Internal locks must not be exposed (synchronizing on this or class is still externally observable): method android.pkg.CheckSynchronization2.errorMethod2() [VisiblySynchronized]
-                    src/android/pkg/CheckSynchronization2.kt:12: error: Internal locks must not be exposed (synchronizing on this or class is still externally observable): method android.pkg.CheckSynchronization2.errorMethod3() [VisiblySynchronized]
-                    src/android/pkg/CheckSynchronization2.kt:15: error: Internal locks must not be exposed (synchronizing on this or class is still externally observable): method android.pkg.CheckSynchronization2.errorMethod4() [VisiblySynchronized]
-                    src/android/pkg/CheckSynchronization2.kt:17: error: Internal locks must not be exposed (synchronizing on this or class is still externally observable): method android.pkg.CheckSynchronization2.errorMethod5() [VisiblySynchronized]
                 """,
             baselineApiLintTestInfo =
                 BaselineTestInfo(
@@ -56,31 +47,9 @@ class VisiblySynchronizedTest : DriverTest() {
                             // Baseline format: 1.0
                             VisiblySynchronized: android.pkg.CheckSynchronization#errorMethod1(Runnable):
                                 Internal locks must not be exposed: method android.pkg.CheckSynchronization.errorMethod1(Runnable)
-                            VisiblySynchronized: android.pkg.CheckSynchronization#errorMethod2():
-                                Internal locks must not be exposed (synchronizing on this or class is still externally observable): method android.pkg.CheckSynchronization.errorMethod2()
-                            VisiblySynchronized: android.pkg.CheckSynchronization#errorMethod3():
-                                Internal locks must not be exposed (synchronizing on this or class is still externally observable): method android.pkg.CheckSynchronization.errorMethod3()
-                            VisiblySynchronized: android.pkg.CheckSynchronization#errorMethod4():
-                                Internal locks must not be exposed (synchronizing on this or class is still externally observable): method android.pkg.CheckSynchronization.errorMethod4()
-                            VisiblySynchronized: android.pkg.CheckSynchronization2#errorMethod1():
-                                Internal locks must not be exposed (synchronizing on this or class is still externally observable): method android.pkg.CheckSynchronization2.errorMethod1()
-                            VisiblySynchronized: android.pkg.CheckSynchronization2#errorMethod2():
-                                Internal locks must not be exposed (synchronizing on this or class is still externally observable): method android.pkg.CheckSynchronization2.errorMethod2()
-                            VisiblySynchronized: android.pkg.CheckSynchronization2#errorMethod3():
-                                Internal locks must not be exposed (synchronizing on this or class is still externally observable): method android.pkg.CheckSynchronization2.errorMethod3()
-                            VisiblySynchronized: android.pkg.CheckSynchronization2#errorMethod4():
-                                Internal locks must not be exposed (synchronizing on this or class is still externally observable): method android.pkg.CheckSynchronization2.errorMethod4()
-                            VisiblySynchronized: android.pkg.CheckSynchronization2#errorMethod5():
-                                Internal locks must not be exposed (synchronizing on this or class is still externally observable): method android.pkg.CheckSynchronization2.errorMethod5()
                         """,
                     silentUpdate = false,
                 ),
-            expectedFail =
-                """
-                    metalava wrote updated baseline to TESTROOT/update-baseline-api-lint.txt
-
-                """
-                    .trimIndent() + DefaultLintErrorMessage,
             sourceFiles =
                 arrayOf(
                     java(
@@ -97,51 +66,10 @@ class VisiblySynchronizedTest : DriverTest() {
                                     }
                                 }
                                 public synchronized void errorMethod1(@Nullable Runnable r) { } // ERROR
-                                public void errorMethod2() {
-                                    synchronized(this) {
-                                    }
-                                }
-                                public void errorMethod3() {
-                                    synchronized(CheckSynchronization.class) {
-                                    }
-                                }
-                                public void errorMethod4() {
-                                    if (true) {
-                                        synchronized(CheckSynchronization.class) {
-                                        }
-                                    }
-                                }
                             }
                         """
                     ),
-                    kotlin(
-                        """
-                            package android.pkg
-
-                            class CheckSynchronization2 {
-                                fun errorMethod1() {
-                                    synchronized(this) { println("hello") }
-                                }
-                                fun errorMethod2() {
-                                    synchronized(CheckSynchronization2::class.java) { println("hello") }
-                                }
-                                fun errorMethod3() {
-                                    if (true) {
-                                        synchronized(CheckSynchronization2::class.java) { println("hello") }
-                                    }
-                                }
-                                fun errorMethod4() = synchronized(this) { println("hello") }
-                                fun errorMethod5() {
-                                    synchronized(CheckSynchronization2::class) { println("hello") }
-                                }
-                                fun okMethod() {
-                                    val lock = Object()
-                                    synchronized(lock) { println("hello") }
-                                }
-                            }
-                        """
-                    ),
-                    androidxNullableSource,
+                    KnownSourceFiles.androidxNullableJavaSource,
                     nullableSource
                 )
         )
@@ -174,12 +102,6 @@ class VisiblySynchronizedTest : DriverTest() {
                         """,
                     silentUpdate = false,
                 ),
-            expectedFail =
-                """
-                    metalava wrote updated baseline to TESTROOT/update-baseline-api-lint.txt
-
-                """
-                    .trimIndent() + DefaultLintErrorMessage,
             sourceFiles =
                 arrayOf(
                     java(

@@ -16,17 +16,18 @@
 
 package com.android.tools.metalava.model.testsuite.typeitem
 
+import com.android.tools.metalava.model.provider.InputFormat
+import com.android.tools.metalava.model.testing.SupportedInputFormats
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.testing.java
 import kotlin.test.assertEquals
 import kotlin.test.assertSame
 import org.junit.Assert
 import org.junit.Test
-import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 import org.junit.runners.Parameterized.Parameter
 
-@RunWith(Parameterized::class)
+@SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.JAVA)
 class CommonErasedTypeStringTest : BaseModelTest() {
 
     data class TypeStringParameters(
@@ -151,11 +152,7 @@ class CommonErasedTypeStringTest : BaseModelTest() {
                     ),
                 )
 
-        @JvmStatic
-        @Parameterized.Parameters(name = "{0},{1}")
-        fun combinedTestParameters(): Iterable<Array<Any>> {
-            return crossProduct(typeStringParameters)
-        }
+        @JvmStatic @Parameterized.Parameters fun typeStringParameters() = typeStringParameters
     }
 
     /**
@@ -164,9 +161,9 @@ class CommonErasedTypeStringTest : BaseModelTest() {
      * Anything that accesses this, either directly or indirectly must do it after initialization,
      * e.g. from lazy fields or in methods called from test methods.
      *
-     * See [baseParameters] for more info.
+     * See [codebaseCreatorConfig] for more info.
      */
-    @Parameter(1) lateinit var parameters: TypeStringParameters
+    @Parameter(0) lateinit var parameters: TypeStringParameters
 
     private fun javaTestFile() =
         java(
@@ -183,7 +180,7 @@ class CommonErasedTypeStringTest : BaseModelTest() {
     private fun signatureTestFile() =
         signature(
             """
-                        // Signature format: 3.0
+                        // Signature format: 4.0
                         package test.pkg {
                           public class Foo {
                             ctor public Foo();
@@ -214,7 +211,7 @@ class CommonErasedTypeStringTest : BaseModelTest() {
             val fooClass = codebase.assertClass("test.pkg.Foo")
 
             val fooMethod = fooClass.methods().single()
-            val foundMethod = fooClass.findMethod("foo", parameters.searchParameters)
+            val foundMethod = fooClass.findBytecodeMethod("foo", parameters.searchParameters)
 
             if (foundMethod == null) {
                 Assert.fail(

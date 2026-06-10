@@ -16,13 +16,17 @@
 
 package com.android.tools.metalava.model
 
+import com.android.tools.metalava.model.api.flags.ApiFlags
+import com.android.tools.metalava.model.api.surface.ApiSurfaces
+import com.android.tools.metalava.reporter.Reporter
+import com.android.tools.metalava.reporter.ThrowingReporter
 import java.io.File
 
 /**
  * Represents a complete unit of code -- typically in the form of a set of source trees, but also
  * potentially backed by .jar files or even signature files
  */
-interface Codebase {
+interface Codebase : ClassPathResolver, AnnotationContext {
     /** Description of what this codebase is (useful during debugging) */
     val description: String
 
@@ -32,8 +36,14 @@ interface Codebase {
      */
     val location: File
 
-    /** The manager of annotations within this codebase. */
-    val annotationManager: AnnotationManager
+    /** Configuration of this [Codebase], typically comes from the command line. */
+    val config: Config
+
+    /** [Reporter] to which any issues found within the [Codebase] can be reported. */
+    val reporter: Reporter
+
+    /** The [ApiSurfaces] that will be tracked in this [Codebase]. */
+    val apiSurfaces: ApiSurfaces
 
     /** The packages in the codebase (may include packages that are not included in the API) */
     fun getPackages(): PackageList
@@ -41,8 +51,35 @@ interface Codebase {
     /** The rough size of the codebase (package count) */
     fun size(): Int
 
+    /**
+     * Returns a list of the top-level classes declared in the codebase's source (rather than on its
+     * classpath).
+     */
+    fun getTopLevelClassesFromSource(): List<ClassItem>
+
+    /**
+     * Freeze all the classes loaded from sources, along with their super classes.
+     *
+     * This does not prevent adding new classes and does automatically freeze classes added after
+     * this is called.
+     */
+    fun freezeClasses()
+
     /** Returns a class identified by fully qualified name, if in the codebase */
     fun findClass(className: String): ClassItem?
+
+    /**
+     * Resolve a class identified by fully qualified name.
+     *
+     * This does everything it can to retrieve a suitable class, e.g. searching classpath (if
+     * available). That may include fabricating the [ClassItem] from nothing in the case of models
+     * that work with a partial set of classes (like text model).
+     */
+    override fun resolveClass(erasedName: String): ClassItem?
+
+    /** The root [PackageItem]. */
+    val rootPackage
+        get() = resolvePackage("")
 
     /** Returns a package identified by fully qualified name, if in the codebase */
     fun findPackage(pkgName: String): PackageItem?
@@ -58,23 +95,19 @@ interface Codebase {
     fun trustedApi(): Boolean
 
     fun accept(visitor: ItemVisitor) {
-        getPackages().accept(visitor)
+        visitor.visit(this)
     }
 
-    /** Creates an annotation item for the given (fully qualified) Java source */
-    fun createAnnotation(
-        source: String,
-        context: Item? = null,
-    ): AnnotationItem
-
     /** Reports that the given operation is unsupported for this codebase type */
-    fun unsupported(desc: String? = null): Nothing
+    fun unsupported(desc: String? = null): Nothing {
+        error(
+            desc
+                ?: "This operation is not available on this type of codebase (${javaClass.simpleName})"
+        )
+    }
 
     /** Discards this model */
     fun dispose()
-
-    /** If this codebase was filtered from another codebase, this points to the original */
-    val original: Codebase?
 
     /** If true, this codebase has already been filtered */
     val preFiltered: Boolean
@@ -82,30 +115,84 @@ interface Codebase {
     fun isEmpty(): Boolean {
         return getPackages().packages.isEmpty()
     }
-}
 
-sealed class MinSdkVersion
+    /** Indicates whether this [Codebase] contains a reverted item, or not. */
+    val containsRevertedItem: Boolean
 
-data class SetMinSdkVersion(val value: Int) : MinSdkVersion()
+    /** Record that this [Codebase] contains at least one reverted item. */
+    fun markContainsRevertedItem()
 
-object UnsetMinSdkVersion : MinSdkVersion()
+    /**
+     * Contains configuration for [Codebase] that can, or at least could, come from command line
+     * options.
+     */
+    data class Config(
+        /**
+         * Whether to allow reading comments from the sources.
+         *
+         * If `true` then source comments will be read and [SelectableItem.documentation] will not
+         * be `null` (unless the [SelectableItem] is `private`). If `false` then
+         * [SelectableItem.documentation] will always be `null`.
+         */
+        val allowReadingComments: Boolean = true,
 
-abstract class DefaultCodebase(
-    final override var location: File,
-    final override var description: String,
-    final override var preFiltered: Boolean,
-    final override val annotationManager: AnnotationManager,
-) : Codebase {
-    final override var original: Codebase? = null
+        /** Determines how annotations will affect the [Codebase]. */
+        val annotationManager: AnnotationManager = noOpAnnotationManager,
 
-    override fun unsupported(desc: String?): Nothing {
-        error(
-            desc
-                ?: "This operation is not available on this type of codebase (${this.javaClass.simpleName})"
-        )
+        /**
+         * The [ApiFlags] to use in conditional javadoc.
+         *
+         * If set to `null` then it behaves as if all flags are enabled.
+         */
+        val apiFlags: ApiFlags? = null,
+
+        /** The [ApiSurfaces] that will be tracked in the [Codebase]. */
+        val apiSurfaces: ApiSurfaces = ApiSurfaces.DEFAULT,
+
+        /** The reporter to use for issues found during processing of the [Codebase]. */
+        val reporter: Reporter = ThrowingReporter.INSTANCE,
+
+        /** Whether items on the class path can be hidden, e.g. by a --hide-annotation. */
+        val hideItemsOnClassPath: Boolean = true,
+    ) {
+        companion object {
+            /**
+             * A [Config] containing a [noOpAnnotationManager], [ApiSurfaces.DEFAULT] and no
+             * reporter.
+             */
+            val NOOP = Config()
+        }
     }
 
-    override fun dispose() {
-        description += " [disposed]"
+    companion object {
+        /** Find the corresponding item in the previously released API if available. */
+        fun findPreviouslyReleased(
+            oldCodebase: Codebase?,
+            item: Item?,
+            inherit: Boolean = true,
+        ): Item? {
+            val oldItem =
+                oldCodebase?.let {
+                    item?.findCorrespondingItemIn(
+                        oldCodebase,
+                        superMethods = inherit,
+                        duplicate = inherit,
+                    )
+                }
+            // If this is an expect in the old codebase and an actual in the new one, do not treat
+            // it as previously released because the actual definition may have a different
+            // signature from the expect with a different set of issues to report.
+            return if (
+                oldItem?.modifiers?.isExpect() == true && item?.modifiers?.isActual() == true
+            ) {
+                null
+            } else {
+                oldItem
+            }
+        }
+
+        /** Check to see if [item] was previously released. */
+        fun wasPreviouslyReleased(oldCodebase: Codebase?, item: Item?) =
+            findPreviouslyReleased(oldCodebase, item) != null
     }
 }

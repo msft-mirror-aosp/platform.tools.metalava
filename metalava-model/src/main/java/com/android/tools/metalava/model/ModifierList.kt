@@ -16,12 +16,15 @@
 
 package com.android.tools.metalava.model
 
-interface ModifierList {
-    val codebase: Codebase
+interface BaseModifierList {
+    /**
+     * List of [ModifierList]s contained within this.
+     *
+     * Created on demand, useful for testing.
+     */
+    val keywordList: List<ModifierKeyword>
 
     fun annotations(): List<AnnotationItem>
-
-    fun owner(): Item
 
     fun getVisibilityLevel(): VisibilityLevel
 
@@ -29,7 +32,13 @@ interface ModifierList {
 
     fun isProtected(): Boolean
 
+    fun isInternal(): Boolean
+
     fun isPrivate(): Boolean
+
+    fun isPackagePrivate(): Boolean
+
+    fun isPublicOrProtected() = isPublic() || isProtected()
 
     @MetalavaApi fun isStatic(): Boolean
 
@@ -49,86 +58,74 @@ interface ModifierList {
 
     fun isDefault(): Boolean
 
+    fun isDeprecated(): Boolean
+
     // Modifier in Kotlin, separate syntax (...) in Java but modeled as modifier here
-    fun isVarArg(): Boolean = false
+    fun isVarArg(): Boolean
 
-    // Kotlin
-    fun isSealed(): Boolean = false
+    // Kotlin and Java
+    fun isSealed(): Boolean
 
-    fun isFunctional(): Boolean = false
+    // Java only
+    fun isNonSealed(): Boolean
 
-    fun isCompanion(): Boolean = false
+    /**
+     * A sealed class is exhaustive if all classes that inherit from it are publicly accessible, and
+     * a client can do an exhaustive match on an instance of that sealed class without the need for
+     * an else branch. This is being tracked because adding a new subclass to an exhaustive class
+     * can create breaking changes for clients, so we want to raise a compatibility issue if that is
+     * detected. For more information see b/447143803
+     */
+    fun isExhaustive(): Boolean
 
-    fun isInfix(): Boolean = false
+    fun isFunctional(): Boolean
 
-    fun isConst(): Boolean = false
+    fun isCompanion(): Boolean
 
-    fun isSuspend(): Boolean = false
+    fun isInfix(): Boolean
 
-    fun isOperator(): Boolean = false
+    fun isConst(): Boolean
 
-    fun isInline(): Boolean = false
+    fun isSuspend(): Boolean
 
-    fun isValue(): Boolean = false
+    fun isOperator(): Boolean
 
-    fun isData(): Boolean = false
+    fun isInline(): Boolean
 
-    fun isExpect(): Boolean = false
+    fun isValue(): Boolean
 
-    fun isActual(): Boolean = false
+    fun isData(): Boolean
 
-    fun isEmpty(): Boolean
+    fun isExpect(): Boolean
 
-    fun isPackagePrivate() = !(isPublic() || isProtected() || isPrivate())
+    fun isActual(): Boolean
 
-    fun isPublicOrProtected() = isPublic() || isProtected()
-
-    // Rename? It's not a full equality, it's whether an override's modifier set is significant
-    fun equivalentTo(other: ModifierList): Boolean {
-        if (isPublic() != other.isPublic()) return false
-        if (isProtected() != other.isProtected()) return false
-        if (isPrivate() != other.isPrivate()) return false
-
-        if (isStatic() != other.isStatic()) return false
-        if (isAbstract() != other.isAbstract()) return false
-        if (isFinal() != other.isFinal()) {
-            return false
-        }
-        if (isTransient() != other.isTransient()) return false
-        if (isVolatile() != other.isVolatile()) return false
-
-        // Default does not require an override to "remove" it
-        // if (isDefault() != other.isDefault()) return false
-
-        return true
-    }
-
-    /** Returns true if this modifier list contains any nullness information */
-    fun hasNullnessInfo(): Boolean = hasAnnotation(AnnotationItem::isNullnessAnnotation)
-
-    /** Returns true if this modifier list contains any a Nullable annotation */
-    fun isNullable(): Boolean = hasAnnotation(AnnotationItem::isNullable)
-
-    /** Returns true if this modifier list contains any a NonNull annotation */
-    fun isNonNull(): Boolean = hasAnnotation(AnnotationItem::isNonNull)
+    /**
+     * Check whether this [ModifierList]'s modifiers are equivalent to the [other] [ModifierList]'s
+     * modifiers.
+     *
+     * Modifier meaning does depend on the [Item] to which they belong, e.g. just because `final`
+     * and `deprecated` are `false` does not mean that the [Item] is not final or deprecated as the
+     * containing class may be final or deprecated.
+     *
+     * It is used for:
+     * * Checking method overrides.
+     * * Checking consistent of classes whose definition is split across multiple signature files.
+     * * Testing the [InheritableItem.duplicate] works correctly.
+     *
+     * @param owner the optional [Item] that owns this [ModifierList] and which is used to tweak the
+     *   check to make it take into account the content within which they are being used. If it is
+     *   not provided then this will just compare modifiers like for like.
+     *
+     * TODO(b/356548977): Currently, [owner] only has an effect if it is a [MethodItem]. That is due
+     *   to it historically only being used for method overrides. However, as the previous list
+     *   shows that is no longer true so it will need to be updated to correctly handle the other
+     *   cases.
+     */
+    fun equivalentTo(owner: Item?, other: BaseModifierList): Boolean
 
     /** Returns true if this modifier list contains the `@JvmSynthetic` annotation */
     fun hasJvmSyntheticAnnotation(): Boolean = hasAnnotation(AnnotationItem::isJvmSynthetic)
-
-    /**
-     * Returns true if this modifier list contains any suppress compatibility meta-annotations.
-     *
-     * Metalava will suppress compatibility checks for APIs which are within the scope of a
-     * "suppress compatibility" meta-annotation, but they may still be written to API files or stub
-     * JARs.
-     *
-     * "Suppress compatibility" meta-annotations allow Metalava to handle concepts like Jetpack
-     * experimental APIs, where developers can use the [RequiresOptIn] meta-annotation to mark
-     * feature sets with unstable APIs.
-     */
-    fun hasSuppressCompatibilityMetaAnnotations(): Boolean {
-        return codebase.annotationManager.hasSuppressCompatibilityMetaAnnotations(this)
-    }
 
     /** Returns true if this modifier list contains the given annotation */
     fun isAnnotatedWith(qualifiedName: String): Boolean {
@@ -140,15 +137,14 @@ interface ModifierList {
      * list
      */
     fun findAnnotation(qualifiedName: String): AnnotationItem? {
-        val mappedName = codebase.annotationManager.normalizeInputName(qualifiedName)
-        return findAnnotation { mappedName == it.qualifiedName }
+        return findAnnotation { qualifiedName == it.qualifiedName }
     }
 
     /**
      * Returns true if the visibility modifiers in this modifier list is as least as visible as the
      * ones in the given [other] modifier list
      */
-    fun asAccessibleAs(other: ModifierList): Boolean {
+    fun asAccessibleAs(other: BaseModifierList): Boolean {
         val otherLevel = other.getVisibilityLevel()
         val thisLevel = getVisibilityLevel()
         // Generally the access level enum order determines relative visibility. However, there is
@@ -174,19 +170,110 @@ interface ModifierList {
     fun getVisibilityModifiers(): String {
         return getVisibilityLevel().javaSourceCodeModifier
     }
+
+    /**
+     * Determines whether a class/interface with these modifiers could be a subtype of a sealed java
+     * type.
+     *
+     * Returns `true` if any of [isFinal], [isSealed] or [isNonSealed] return true.
+     */
+    fun mayBeSubtypeOfJavaSealedType(): Boolean
+
+    /**
+     * Get a [MutableModifierList] from this.
+     *
+     * This will return the object on which it is called if that is already mutable, otherwise it
+     * will create a separate mutable copy of this.
+     */
+    fun toMutable(): MutableModifierList
+
+    /**
+     * Get an immutable [ModifierList] from this.
+     *
+     * This will return the object on which it is called if that is already immutable, otherwise it
+     * will create a separate immutable copy of this.
+     */
+    fun toImmutable(): ModifierList
 }
 
 /**
  * Returns the first annotation in the modifier list that matches the supplied predicate, or null
  * otherwise.
  */
-inline fun ModifierList.findAnnotation(predicate: (AnnotationItem) -> Boolean): AnnotationItem? {
+inline fun BaseModifierList.findAnnotation(
+    predicate: (AnnotationItem) -> Boolean
+): AnnotationItem? {
     return annotations().firstOrNull(predicate)
 }
 
 /**
  * Returns true iff the modifier list contains any annotation that matches the supplied predicate.
  */
-inline fun ModifierList.hasAnnotation(predicate: (AnnotationItem) -> Boolean): Boolean {
+inline fun BaseModifierList.hasAnnotation(predicate: (AnnotationItem) -> Boolean): Boolean {
     return annotations().any(predicate)
+}
+
+interface ModifierList : BaseModifierList {
+    /**
+     * Take a snapshot of this for use in [targetCodebase].
+     *
+     * Creates a deep snapshot, including snapshots of each annotation for use in [targetCodebase].
+     *
+     * @param targetCodebase The [Codebase] of which the snapshot will be part.
+     */
+    fun snapshot(targetCodebase: Codebase): ModifierList
+}
+
+/**
+ * Context within which modifiers will be processed.
+ *
+ * This ensures consistent creation of [ModifierList] instances across the different [ItemKind]s.
+ */
+class ModifierContext
+private constructor(
+    private val itemKind: ItemKind,
+    private val classKind: ClassKind?,
+) {
+    /**
+     * Normalize [flags] to make them suitable for this [ModifierContext].
+     *
+     * Where [flags] is a bit set containing values from [ModifierFlags].
+     *
+     * This ensures consistent handling of [flags] across the different [ItemKind]s.
+     */
+    fun normalizeFlags(flags: Int, sourceLanguage: SourceLanguage): Int {
+        // Remove any flags that are not appropriate for itemKind.
+        var normalizedFlags =
+            when (sourceLanguage) {
+                SourceLanguage.JAVA -> {
+                    flags and itemKind.javaModifierMask
+                }
+                else -> {
+                    flags
+                }
+            }
+
+        // Apply any ClassKind specific restrictions if appropriate.
+        if (itemKind == ItemKind.CLASS && classKind != null) {
+            normalizedFlags = normalizedFlags and classKind.javaModifierMask
+        }
+
+        return normalizedFlags
+    }
+
+    companion object {
+        /** List of [ModifierContext]s indexed by [ItemKind.ordinal]. */
+        private val modifierContextForItemKind =
+            ItemKind.entries.map { ModifierContext(it, classKind = null) }
+
+        /** List of [ModifierContext]s indexed by [ClassKind.ordinal]. */
+        private val modifierContextForClassKind =
+            ClassKind.entries.map { ModifierContext(ItemKind.CLASS, it) }
+
+        /** Get a [ModifierContext] instance for [itemKind]. */
+        fun forItemKind(itemKind: ItemKind) = modifierContextForItemKind[itemKind.ordinal]
+
+        /** Get a [ModifierContext] instance for [classKind]. */
+        fun forClassKind(classKind: ClassKind) = modifierContextForClassKind[classKind.ordinal]
+    }
 }

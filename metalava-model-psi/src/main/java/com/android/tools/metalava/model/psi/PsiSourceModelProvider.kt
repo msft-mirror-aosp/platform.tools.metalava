@@ -16,8 +16,9 @@
 
 package com.android.tools.metalava.model.psi
 
+import com.android.tools.metalava.model.provider.Capability
+import com.android.tools.metalava.model.provider.InputFormat
 import com.android.tools.metalava.model.source.EnvironmentManager
-import com.android.tools.metalava.model.source.SourceLanguage
 import com.android.tools.metalava.model.source.SourceModelProvider
 
 // @AutoService(SourceModelProvider::class)
@@ -25,11 +26,28 @@ internal class PsiSourceModelProvider : SourceModelProvider {
 
     override val providerName: String = "psi"
 
-    override val supportedLanguages: Set<SourceLanguage> =
-        setOf(SourceLanguage.JAVA, SourceLanguage.KOTLIN)
+    override val supportedInputFormats = setOf(InputFormat.JAVA, InputFormat.KOTLIN)
+
+    override val capabilities: Set<Capability> =
+        setOf(
+            Capability.JAVA,
+            Capability.KOTLIN,
+            Capability.DOCUMENTATION,
+            Capability.LOAD_JAR,
+            Capability.CLASS_PATH_RESOLVER,
+            Capability.JAR_WITH_SOURCES,
+            Capability.LAX_PARSER,
+            Capability.IMPORTS,
+            Capability.PACKAGE_HTML_FILES,
+            Capability.HIDDEN_ITEMS,
+            Capability.API_VARIANT_SELECTORS,
+            Capability.MULTIPLATFORM,
+        )
 
     override fun createEnvironmentManager(
         disableStderrDumping: Boolean,
         forTesting: Boolean,
     ): EnvironmentManager = PsiEnvironmentManager(disableStderrDumping, forTesting)
+
+    override fun toString() = providerName
 }

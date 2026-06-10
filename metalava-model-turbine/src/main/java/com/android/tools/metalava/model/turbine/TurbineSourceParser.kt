@@ -16,45 +16,74 @@
 
 package com.android.tools.metalava.model.turbine
 
-import com.android.tools.metalava.model.AnnotationManager
-import com.android.tools.metalava.model.ClassResolver
-import com.android.tools.metalava.model.source.SourceCodebase
+import com.android.tools.metalava.model.Codebase
+import com.android.tools.metalava.model.api.SelectedApi
+import com.android.tools.metalava.model.item.DefaultCodebase
+import com.android.tools.metalava.model.multiplatform.MultiplatformCodebase
+import com.android.tools.metalava.model.source.AbstractSourceParser
 import com.android.tools.metalava.model.source.SourceParser
-import com.google.turbine.diag.SourceFile
-import com.google.turbine.parse.Parser
+import com.google.turbine.binder.ClassPathBinder
+import com.google.turbine.binder.JimageClassBinder
+import com.google.turbine.diag.TurbineError
 import java.io.File
 
-internal class TurbineSourceParser(private val annotationManager: AnnotationManager) :
-    SourceParser {
-
-    override fun getClassResolver(classPath: List<File>): ClassResolver {
-        TODO("implement it")
-    }
-
+internal class TurbineSourceParser(
+    private val codebaseConfig: Codebase.Config,
+    private val jdkHome: File?,
+) : AbstractSourceParser(codebaseConfig.reporter) {
     /**
      * Returns a codebase initialized from the given Java source files, with the given description.
      */
-    override fun parseSources(
-        sources: List<File>,
-        description: String,
-        sourcePath: List<File>,
-        classPath: List<File>,
-    ): TurbineBasedCodebase {
-        val rootDir = sourcePath.firstOrNull() ?: File("").canonicalFile
-        val codebase = TurbineBasedCodebase(rootDir, description, annotationManager)
+    override fun processInputs(inputs: SourceParser.Inputs): Codebase? {
+        if (inputs.projectDescription != null) {
+            error("Turbine model does not support --project")
+        }
+        if (inputs.compiledSourceJar != null) {
+            error("Turbine model does not support --compiled-jar")
+        }
 
-        val sourcefiles = getSourceFiles(sources)
-        val units = sourcefiles.map { it -> Parser.parse(it) }
-        codebase.initialize(units, classPath)
+        val classpath = ClassPathBinder.bindClasspath(inputs.classPath.map { it.toPath() })
+        val bootclasspath =
+            jdkHome?.let { home -> JimageClassBinder.bind(home.path) }
+                ?: ClassPathBinder.bindClasspath(listOf())
 
-        return codebase
+        val sourceSet = inputs.sourceSet
+
+        val rootDir = sourceSet.sourcePath.firstOrNull() ?: File("").canonicalFile
+
+        val assembler =
+            TurbineCodebaseInitialiser(
+                codebaseFactory = { assembler ->
+                    DefaultCodebase(
+                        location = rootDir,
+                        description = inputs.description,
+                        preFiltered = false,
+                        config = codebaseConfig,
+                        trustedApi = false,
+                        supportsDocumentation = true,
+                        assembler = assembler,
+                        // Create a [SelectedApi] instance that will be initialized lazily from the
+                        // source.
+                        selectedApiFactory = SelectedApi.sourceFactory(codebaseConfig),
+                    )
+                },
+                bootclasspath = bootclasspath,
+                classpath = classpath,
+            )
+
+        try {
+            // Initialize the codebase.
+            assembler.initialize(sourceSet, inputs.apiPackages)
+        } catch (_: TurbineError) {
+            // Processing was aborted so the `codebase` is not valid so return `null`.
+            return null
+        }
+
+        // Return the newly created and initialized codebase.
+        return assembler.codebase
     }
 
-    private fun getSourceFiles(sources: List<File>): List<SourceFile> {
-        return sources.map { it -> SourceFile(it.path, it.readText()) }
-    }
-
-    override fun loadFromJar(apiJar: File, preFiltered: Boolean): SourceCodebase {
-        TODO("b/299044569 handle this")
+    override fun createMultiplatformCodebase(projectDescription: File): MultiplatformCodebase {
+        error("Turbine model does not support multiplatform codebase creation")
     }
 }

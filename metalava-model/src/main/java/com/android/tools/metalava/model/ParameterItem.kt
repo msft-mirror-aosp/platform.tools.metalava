@@ -16,30 +16,74 @@
 
 package com.android.tools.metalava.model
 
+import com.android.tools.metalava.model.doc.DocContent
+import com.android.tools.metalava.model.doc.DocContentOwner
+
 @MetalavaApi
-interface ParameterItem : Item {
+interface ParameterItem :
+    ClassContentItem, Item, PossiblyPropertyRelated, PossiblyRecordComponentRelated {
     /** The name of this field */
     fun name(): String
+
+    override fun describe(capitalize: Boolean) = buildString {
+        append(if (capitalize) "Parameter" else "parameter")
+        append(' ')
+        append(name())
+        append(" in ")
+        when (val parent = parent()) {
+            is CallableItem ->
+                with(parent) {
+                    appendCallableSignature(
+                        includeParameterNames = true,
+                        includeParameterTypes = true,
+                    )
+                }
+            is PropertyItem -> append(parent.describe(capitalize = false))
+        }
+    }
 
     /** The type of this field */
     @MetalavaApi override fun type(): TypeItem
 
-    override fun findCorrespondingItemIn(codebase: Codebase) =
-        containingMethod()
-            .findCorrespondingItemIn(codebase)
-            ?.parameters()
-            ?.getOrNull(parameterIndex)
+    override fun findCorrespondingItemIn(
+        codebase: Codebase,
+        superMethods: Boolean,
+        duplicate: Boolean,
+    ) =
+        when (val parent = parent()) {
+            is CallableItem ->
+                parent
+                    .findCorrespondingItemIn(
+                        codebase,
+                        superMethods = superMethods,
+                        duplicate = duplicate
+                    )
+                    ?.parameters()
+                    ?.getOrNull(parameterIndex)
+            is PropertyItem ->
+                parent
+                    .findCorrespondingItemIn(
+                        codebase,
+                        superMethods = superMethods,
+                        duplicate = duplicate,
+                    )
+                    ?.contextParameters
+                    ?.getOrNull(parameterIndex)
+            else -> error("Unexpected parent of type ${parent::class.java} for $this")
+        }
 
-    /** The containing method */
-    fun containingMethod(): MethodItem
+    /** The containing callable. */
+    fun containingCallable(): CallableItem?
+
+    /** The possible containing method, returns null if this is a constructor parameter. */
+    fun possibleContainingMethod(): MethodItem? = containingCallable().let { it as? MethodItem }
 
     /** Index of this parameter in the parameter list (0-based) */
     val parameterIndex: Int
 
     /**
      * The public name of this parameter. In Kotlin, names are part of the public API; in Java they
-     * are not. In Java, you can annotate a parameter with {@literal @ParameterName("foo")} to name
-     * the parameter something (potentially different from the actual code parameter name).
+     * are not.
      */
     fun publicName(): String?
 
@@ -48,83 +92,105 @@ interface ParameterItem : Item {
      * Java, it's supported via a special annotation, {@literal @DefaultValue("source"). This does
      * not necessarily imply that the default value is accessible, and we know the body of the
      * default value.
-     *
-     * @see isDefaultValueKnown
      */
     fun hasDefaultValue(): Boolean
 
-    /**
-     * Returns whether this parameter has an accessible default value that we plan to keep. This is
-     * a superset of [hasDefaultValue] - if we are not writing the default values to the signature
-     * file, then the default value might not be available, even though the parameter does have a
-     * default.
-     *
-     * @see hasDefaultValue
-     */
-    fun isDefaultValueKnown(): Boolean
-
-    /**
-     * Returns the default value.
-     *
-     * **This method should only be called if [isDefaultValueKnown] returned true!** (This is
-     * necessary since the null return value is a valid default value separate from no default value
-     * specified.)
-     *
-     * The default value is the source string literal representation of the value, e.g. strings
-     * would be surrounded by quotes, Booleans are the strings "true" or "false", and so on.
-     */
-    fun defaultValue(): String?
-
     /** Whether this is a varargs parameter */
-    @MetalavaApi fun isVarArgs(): Boolean
+    fun isVarArgs(): Boolean = modifiers.isVarArg()
 
-    /** The property declared by this parameter; inverse of [PropertyItem.constructorParameter] */
-    val property: PropertyItem?
-        get() = null
+    /** The kind of parameter this is. See the values of [ParameterKind] for more details. */
+    val kind: ParameterKind
 
-    override fun parent(): MethodItem? = containingMethod()
+    /**
+     * The property declared by this parameter; inverse of [PropertyItem.constructorParameter].
+     *
+     * Overridden to provide more specific documentation.
+     */
+    override var property: PropertyItem?
+
+    override val isRecordComponentRelated: Boolean
+        get() = containingCallable()?.isRecordComponentRelated == true
+
+    override val recordComponentRelationship: String?
+        get() = if (isRecordComponentRelated) "canonical constructor" else null
+
+    override fun parent(): MemberItem
+
+    override val effectivelyDeprecated: Boolean
+        get() = originallyDeprecated || parent().effectivelyDeprecated
+
+    override fun baselineElementId() =
+        parent().baselineElementId() + " parameter #" + parameterIndex
 
     override fun accept(visitor: ItemVisitor) {
         visitor.visit(this)
     }
 
-    override fun requiresNullnessInfo(): Boolean {
-        return type() !is PrimitiveTypeItem
+    /**
+     * Create a duplicate of this for [containingItem].
+     *
+     * The duplicate's [ParameterItem.type] is the result of applying [typeConverter] to this
+     * [ParameterItem]'s [type].
+     *
+     * This is called from within the constructor of the [containingItem] so must only access its
+     * `name` and its reference. In particularly it must not access its [CallableItem.parameters]
+     * property as this is called during its initialization.
+     */
+    fun duplicate(
+        containingItem: MemberItem,
+        typeConverter: TypeItemConverter,
+        newParameterIndex: Int = parameterIndex,
+    ): ParameterItem
+
+    override val description: DocContent?
+        get() = parent().documentation?.paramTagDescription(name())
+
+    override val descriptionOwner: DocContentOwner
+        get() = parent().requiredDocumentation.paramTagDescriptionOwner(name())
+
+    override fun equalsToItem(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is ParameterItem) return false
+
+        return parameterIndex == other.parameterIndex && parent() == other.parent()
     }
 
-    override fun hasNullnessInfo(): Boolean {
-        if (!requiresNullnessInfo()) {
-            return true
-        }
-
-        return modifiers.hasNullnessInfo()
+    override fun hashCodeForItem(): Int {
+        return name().hashCode()
     }
 
-    override fun implicitNullness(): Boolean? {
-        // Delegate to the super class, only dropping through if it did not determine an implicit
-        // nullness.
-        super.implicitNullness()?.let { nullable ->
-            return nullable
-        }
+    override fun toStringForItem() = "parameter ${name()}"
 
-        val method = containingMethod()
-        if (synthetic && method.isEnumSyntheticMethod()) {
-            // Workaround the fact that the Kotlin synthetic enum methods
-            // do not have nullness information
-            return false
-        }
+    override fun containingClass(): ClassItem = parent().containingClass()
 
-        // Equals has known nullness
-        if (method.name() == "equals" && method.parameters().size == 1) {
-            return true
-        }
+    override fun containingPackage(): PackageItem? = parent().containingPackage()
 
-        return null
-    }
-
-    override fun containingClass(): ClassItem? = containingMethod().containingClass()
-
-    override fun containingPackage(): PackageItem? = containingMethod().containingPackage()
+    override val targetLanguages: Set<TargetLanguage>
+        get() = parent().targetLanguages
 
     // TODO: modifier list
+}
+
+/** The possible kinds of [ParameterItem]s that can be defined in Java and Kotlin. */
+enum class ParameterKind {
+    /**
+     * Any parameter from Java source or loaded from a jar, or a value parameter from Kotlin source.
+     */
+    VALUE,
+
+    /**
+     * The synthetic receiver parameter generated for a Kotlin
+     * [extension](https://kotlinlang.org/docs/extensions.html#receivers).
+     */
+    RECEIVER,
+
+    /** A Kotlin [context parameter](https://kotlinlang.org/docs/context-parameters.html). */
+    CONTEXT,
+
+    /**
+     * The synthetic
+     * [continuation parameter](https://kotlinlang.org/spec/asynchronous-programming-with-coroutines.html#continuation-passing-style)
+     * for a Kotlin suspend function.
+     */
+    CONTINUATION,
 }

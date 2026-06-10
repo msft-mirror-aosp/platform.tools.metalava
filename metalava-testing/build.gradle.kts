@@ -21,6 +21,11 @@ plugins {
 }
 
 dependencies {
+    api(libs.tracing)
+    implementation(libs.tracingWire)
     implementation(libs.androidLintTests)
     implementation(libs.junit4)
+    implementation(libs.androidToolsExternalKotlinCompiler)
+
+    testImplementation(libs.kotlinTest)
 }

@@ -16,21 +16,23 @@
 
 package com.android.tools.metalava.cli.common
 
-import com.android.tools.metalava.ExecutionEnvironment
 import com.android.tools.metalava.ProgressTracker
-import com.android.tools.metalava.testing.TemporaryFolderOwner
+import com.android.tools.metalava.testing.getNoopTracer
 import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.core.subcommands
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertThrows
 import org.junit.Assert.fail
-import org.junit.Rule
 import org.junit.Test
-import org.junit.rules.TemporaryFolder
 
-class MetalavaCommandTest : TemporaryFolderOwner {
-
-    @get:Rule override val temporaryFolder = TemporaryFolder()
+class MetalavaCommandTest :
+    BaseCommandTest<MetalavaCommand>({ executionEnvironment ->
+        MetalavaCommand(
+            executionEnvironment = executionEnvironment,
+            progressTracker = ProgressTracker(),
+            tracer = getNoopTracer(),
+        )
+    }) {
 
     /**
      * Ensure that the [CommonOptions.terminal] can be accessed before the options has been
@@ -44,22 +46,21 @@ class MetalavaCommandTest : TemporaryFolderOwner {
         val args = listOf(ARG_NO_COLOR, "@invalid.file")
 
         val (executionEnvironment, stdout, stderr) = ExecutionEnvironment.forTest()
-
         val command =
             MetalavaCommand(
                 executionEnvironment = executionEnvironment,
                 progressTracker = ProgressTracker(),
+                tracer = getNoopTracer(),
             )
-
         try {
             command.processThrowCliException(args.toTypedArray())
         } catch (e: MetalavaCliException) {
             assertEquals(
                 """
-                Usage: metalava [options] [flags]...
+            Usage: metalava [options] [flags]...
 
-                Error: invalid.file not found
-            """
+            Error: invalid.file not found
+        """
                     .trimIndent(),
                 e.message
             )
@@ -68,7 +69,8 @@ class MetalavaCommandTest : TemporaryFolderOwner {
         assertEquals("", stderr.toString())
         assertEquals("", stdout.toString())
 
-        // Make sure that the unsafeTerminal property has not been initialized as otherwise this is
+        // Make sure that the unsafeTerminal property has not been initialized as otherwise this
+        // is
         // not testing what how the error handling works in that case.
         val thrown =
             assertThrows(IllegalStateException::class.java) { command.common.unsafeTerminal }
@@ -99,6 +101,7 @@ class MetalavaCommandTest : TemporaryFolderOwner {
                 executionEnvironment = executionEnvironment,
                 progressTracker = ProgressTracker(),
                 defaultCommandName = subCommand.commandName,
+                tracer = getNoopTracer(),
             )
         command.subcommands(subCommand)
 
@@ -107,10 +110,10 @@ class MetalavaCommandTest : TemporaryFolderOwner {
         } catch (e: MetalavaCliException) {
             assertEquals(
                 """
-                Usage: metalava sub
+            Usage: metalava sub
 
-                Error: Got unexpected extra argument (--invalid-argument)
-            """
+            Error: Got unexpected extra argument (--invalid-argument)
+        """
                     .trimIndent(),
                 e.message
             )
@@ -130,13 +133,14 @@ class MetalavaCommandTest : TemporaryFolderOwner {
             MetalavaCommand(
                 executionEnvironment = executionEnvironment,
                 progressTracker = ProgressTracker(),
+                tracer = getNoopTracer(),
             )
         command.subcommands(FailCommand())
-
         command.process(args.toTypedArray())
 
         val pattern =
             """\Qcom.android.tools.metalava.cli.common.MetalavaCliException: fail
+            |	at com.android.tools.metalava.cli.common.MetalavaCliExceptionKt.cliError\E\([^)]+\)\Q
             |	at com.android.tools.metalava.cli.common.MetalavaCommandTest${"$"}FailCommand.run\E\([^)]+\)
             |	at .*
             |	at .*
@@ -164,7 +168,17 @@ $separator
 
     private class FailCommand : CliktCommand() {
         override fun run() {
-            throw MetalavaCliException("fail")
+            cliError("fail")
+        }
+    }
+
+    @Test
+    fun `Test version`() {
+        commandTest {
+            args += listOf(ARG_NO_COLOR, "--version")
+
+            expectedStderr = ""
+            expectedStdout = "metalava version: 1.0.0-alpha14"
         }
     }
 }

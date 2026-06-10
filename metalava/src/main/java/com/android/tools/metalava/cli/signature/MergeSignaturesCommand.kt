@@ -16,17 +16,17 @@
 
 package com.android.tools.metalava.cli.signature
 
-import com.android.tools.metalava.OptionsDelegate
-import com.android.tools.metalava.SignatureWriter
-import com.android.tools.metalava.cli.common.MetalavaCliException
 import com.android.tools.metalava.cli.common.MetalavaSubCommand
+import com.android.tools.metalava.cli.common.cliError
 import com.android.tools.metalava.cli.common.existingFile
 import com.android.tools.metalava.cli.common.newFile
 import com.android.tools.metalava.cli.common.progressTracker
-import com.android.tools.metalava.createReportFile
+import com.android.tools.metalava.createOutputFileFromCodebaseFragment
 import com.android.tools.metalava.model.text.ApiFile
 import com.android.tools.metalava.model.text.ApiParseException
-import com.android.tools.metalava.model.visitors.ApiVisitor
+import com.android.tools.metalava.model.text.SignatureFile
+import com.android.tools.metalava.model.text.SignatureWriter
+import com.android.tools.metalava.model.text.createCodebaseFragmentForSignatureFile
 import com.github.ajalt.clikt.parameters.arguments.argument
 import com.github.ajalt.clikt.parameters.arguments.multiple
 import com.github.ajalt.clikt.parameters.groups.provideDelegate
@@ -76,25 +76,32 @@ class MergeSignaturesCommand :
             .required()
 
     override fun run() {
-        // Make sure that none of the code called by this command accesses the global `options`
-        // property.
-        OptionsDelegate.disallowAccess()
-
         try {
-            val codebase = ApiFile.parseApi(files)
-            createReportFile(progressTracker, codebase, out, description = "Merged file") {
+            val codebase = ApiFile.parseApi(SignatureFile.fromFiles(files))
+            val fileFormat = signatureFormat.fileFormat
+
+            val codebaseFragment =
+                createCodebaseFragmentForSignatureFile(
+                    codebase,
+                    fileFormat = fileFormat,
+                    // Pre-filtered so does not need any filters.
+                    apiFilters = null,
+                    showUnannotated = false,
+                )
+            createOutputFileFromCodebaseFragment(
+                progressTracker,
+                codebaseFragment,
+                out,
+                description = "Merged file"
+            ) {
+                val fileFormat = signatureFormat.fileFormat
                 SignatureWriter(
                     writer = it,
-                    filterEmit = { true },
-                    filterReference = { true },
-                    preFiltered = true,
-                    fileFormat = signatureFormat.fileFormat,
-                    showUnannotated = false,
-                    apiVisitorConfig = ApiVisitor.Config(),
+                    fileFormat = fileFormat,
                 )
             }
         } catch (e: ApiParseException) {
-            throw MetalavaCliException(stderr = e.message)
+            cliError(e.message)
         }
     }
 }
