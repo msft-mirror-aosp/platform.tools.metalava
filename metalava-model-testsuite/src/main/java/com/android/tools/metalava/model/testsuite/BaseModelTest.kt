@@ -36,6 +36,7 @@ import com.android.tools.metalava.model.testing.CodebaseCreatorConfigAware
 import com.android.tools.metalava.model.testing.SupportedInputFormats
 import com.android.tools.metalava.model.testing.inheritedSupportedInputFormats
 import com.android.tools.metalava.model.testing.testTypeString
+import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Issues.Issue
 import com.android.tools.metalava.reporter.RecordingReporter
 import com.android.tools.metalava.testing.BaseTemporaryFolderOwner
@@ -239,7 +240,13 @@ abstract class BaseModelTest :
         val checkSupportedInputFormats: Boolean = true,
     ) {
         /** The [RecordingReporter] used by the test. */
-        val recordingReporter = RecordingReporter(excludedIssues)
+        val recordingReporter =
+            RecordingReporter(
+                excludedIssues
+                // Ignore DeprecatedSurfaceDocTag issues as they break too many tests.
+                // TODO(b/519195092): Remove this when tests have been migrated to use annotations.
+                + Issues.DEPRECATED_SURFACE_DOC_TAG
+            )
 
         /** The [Codebase.Config] to use when creating a [Codebase] to test. */
         val codebaseConfig

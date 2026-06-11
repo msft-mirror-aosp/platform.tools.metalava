@@ -90,31 +90,57 @@ class StringPolicyAnnotationHandlerTest : DriverTest() {
                          * A test policy for string policy definition with multiple scopes.
                          * <br>
                          * <p>Policy Type: String</p>
-                         * <ul>
-                         *   <li>Allowed Scopes:
-                         *    <ul>
-                         *       <li>User. Settable by:
-                         *         <ul>
-                         *           <li>Profile Owner on User 0</li>
-                         *         </ul>
-                         *       </li>
-                         *     </ul>
-                         *   </li>
-                         *   <li>Affected Resource: Device Wide</li>
-                         *   <li>Required Permission: {@link android.Manifest.permission#TEST android.permission.TEST}</li>
-                         *   <li>Required Cross User Permission: {@link android.Manifest.permission#MANAGE_DEVICE_POLICY_ACROSS_USERS android.permission.MANAGE_DEVICE_POLICY_ACROSS_USERS}</li>
-                         *   <li>Allowed DPC Types:
-                         *    <ul>
-                         *       <li>Profile Owner on User 0</li>
-                         *     </ul>
-                         *   </li>
-                         *   <li>This policy can be set by holders of the device controller role</li>
-                         *   <li>Empty string: Allowed</li>
-                         *   <li>Unprintable characters: Allowed</li>
-                         *   <li>Pure whitespace: Allowed</li>
-                         *   <li>Unstripped string: Allowed</li>
-                         *   <li>Max Length: 100</li>
-                         * </ul>
+                         * <table>
+                         *  <tr>
+                         *    <th colspan="2">Policy details</th>
+                         *  </tr>
+                         *  <tr>
+                         *    <td>Allowed Scopes</td>
+                         *    <td>
+                         *      <ul>
+                         *        <li>User. Settable by:
+                         *          <ul>
+                         *            <li>Profile Owner on User 0</li>
+                         *          </ul>
+                         *        </li>
+                         *      </ul>
+                         *    </td>
+                         *  </tr>
+                         *  <tr>
+                         *    <td>Affected Resource</td>
+                         *    <td>Device Wide</td>
+                         *  </tr>
+                         *  <tr>
+                         *    <td>Required Permission</td>
+                         *    <td>{@link android.Manifest.permission#TEST android.permission.TEST}</td>
+                         *  </tr>
+                         *  <tr>
+                         *    <td>Required Cross User Permission</td>
+                         *    <td>{@link android.Manifest.permission#MANAGE_DEVICE_POLICY_ACROSS_USERS android.permission.MANAGE_DEVICE_POLICY_ACROSS_USERS}</td>
+                         *  </tr>
+                         *  <tr>
+                         *    <td>Allowed DPC Types</td>
+                         *    <td>
+                         *      <ul>
+                         *        <li>Profile Owner on User 0</li>
+                         *      </ul>
+                         *    </td>
+                         *  </tr>
+                         *  <tr>
+                         *    <td>Policy value</td>
+                         *    <td>
+                         *      <code>String</code> with the following restrictions:
+                         *      <ul>
+                         *        <li>Empty string: Allowed</li>
+                         *        <li>Unprintable characters: Allowed</li>
+                         *        <li>Pure whitespace: Allowed</li>
+                         *        <li>Unstripped string: Allowed</li>
+                         *        <li>Max Length: 100</li>
+                         *      </ul>
+                         *    </td>
+                         *  </tr>
+                         * </table>
+                         * See also: {@link android.app.admin.DevicePolicyManager#setPolicy DevicePolicyManager.setPolicy}, {@link android.app.admin.DevicePolicyManager#getPolicy DevicePolicyManager.getPolicy}
                          */
                         public static final java.lang.String POLICY_FIELD = "";
                         }
@@ -185,31 +211,58 @@ class StringPolicyAnnotationHandlerTest : DriverTest() {
                          * A test policy for string policy definition with a scope not settable by any DPC.
                          * <br>
                          * <p>Policy Type: String</p>
-                         * <ul>
-                         *   <li>Allowed Scopes:
-                         *    <ul>
-                         *       <li>User. Settable by:
-                         *         <ul>
-                         *           <li>Profile Owner on User 0</li>
-                         *         </ul>
-                         *       </li>
-                         *       <li>Parent User. Not settable by any DPC type.</li>
-                         *     </ul>
-                         *   </li>
-                         *   <li>Affected Resource: Device Wide</li>
-                         *   <li>Required Permission: {@link android.Manifest.permission#TEST android.permission.TEST}</li>
-                         *   <li>Required Cross User Permission: {@link android.Manifest.permission#MANAGE_DEVICE_POLICY_ACROSS_USERS android.permission.MANAGE_DEVICE_POLICY_ACROSS_USERS}</li>
-                         *   <li>Allowed DPC Types:
-                         *    <ul>
-                         *       <li>Profile Owner on User 0</li>
-                         *     </ul>
-                         *   </li>
-                         *   <li>Empty string: Allowed</li>
-                         *   <li>Unprintable characters: Allowed</li>
-                         *   <li>Pure whitespace: Not allowed</li>
-                         *   <li>Unstripped string: Not allowed</li>
-                         *   <li>Max Length: 100</li>
-                         * </ul>
+                         * <table>
+                         *  <tr>
+                         *    <th colspan="2">Policy details</th>
+                         *  </tr>
+                         *  <tr>
+                         *    <td>Allowed Scopes</td>
+                         *    <td>
+                         *      <ul>
+                         *        <li>User. Settable by:
+                         *          <ul>
+                         *            <li>Profile Owner on User 0</li>
+                         *          </ul>
+                         *        </li>
+                         *        <li>Parent User. Not settable by any DPC type.</li>
+                         *      </ul>
+                         *    </td>
+                         *  </tr>
+                         *  <tr>
+                         *    <td>Affected Resource</td>
+                         *    <td>Device Wide</td>
+                         *  </tr>
+                         *  <tr>
+                         *    <td>Required Permission</td>
+                         *    <td>{@link android.Manifest.permission#TEST android.permission.TEST}</td>
+                         *  </tr>
+                         *  <tr>
+                         *    <td>Required Cross User Permission</td>
+                         *    <td>{@link android.Manifest.permission#MANAGE_DEVICE_POLICY_ACROSS_USERS android.permission.MANAGE_DEVICE_POLICY_ACROSS_USERS}</td>
+                         *  </tr>
+                         *  <tr>
+                         *    <td>Allowed DPC Types</td>
+                         *    <td>
+                         *      <ul>
+                         *        <li>Profile Owner on User 0</li>
+                         *      </ul>
+                         *    </td>
+                         *  </tr>
+                         *  <tr>
+                         *    <td>Policy value</td>
+                         *    <td>
+                         *      <code>String</code> with the following restrictions:
+                         *      <ul>
+                         *        <li>Empty string: Allowed</li>
+                         *        <li>Unprintable characters: Allowed</li>
+                         *        <li>Pure whitespace: Not allowed</li>
+                         *        <li>Unstripped string: Not allowed</li>
+                         *        <li>Max Length: 100</li>
+                         *      </ul>
+                         *    </td>
+                         *  </tr>
+                         * </table>
+                         * See also: {@link android.app.admin.DevicePolicyManager#setPolicy DevicePolicyManager.setPolicy}, {@link android.app.admin.DevicePolicyManager#getPolicy DevicePolicyManager.getPolicy}
                          */
                         public static final java.lang.String POLICY_FIELD = "";
                         }

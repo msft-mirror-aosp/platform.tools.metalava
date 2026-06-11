@@ -35,6 +35,65 @@ abstract class BaseDevicePolicyAnnotationHandler(protected val context: DevicePo
     ): String
 }
 
+/** Renders a list of table entries into an HTML table format. */
+fun renderTable(tableEntries: List<Pair<String, String>>): String {
+    return buildString {
+        append(" <table>\n")
+        append("  <tr>\n")
+        append("    <th colspan=\"2\">Policy details</th>\n")
+        append("  </tr>\n")
+        for ((name, value) in tableEntries) {
+            append("  <tr>\n")
+            append("    <td>$name</td>\n")
+            if (value.contains('\n')) {
+                append("    <td>\n")
+                value.trimEnd('\n').split('\n').forEach { line ->
+                    if (line.isNotEmpty()) {
+                        append("      $line\n")
+                    } else {
+                        append("\n")
+                    }
+                }
+                append("    </td>\n")
+            } else {
+                append("    <td>$value</td>\n")
+            }
+            append("  </tr>\n")
+        }
+        append(" </table>\n")
+        append(
+            " See also: {@link android.app.admin.DevicePolicyManager#setPolicy DevicePolicyManager.setPolicy}, {@link android.app.admin.DevicePolicyManager#getPolicy DevicePolicyManager.getPolicy}\n"
+        )
+    }
+}
+
+/** Renders the "Policy value" cell content, merging validations. */
+fun renderPolicyValue(type: String, policyValueValidations: List<Pair<String, String>>): String {
+    if (policyValueValidations.isEmpty()) {
+        return "<code>$type</code>"
+    }
+    return buildString {
+        append("<code>$type</code> with the following restrictions:")
+        append("\n<ul>\n")
+        policyValueValidations.forEach { (name, value) ->
+            if (value.contains('\n')) {
+                append("  <li>$name:\n")
+                value.trimEnd('\n').split('\n').forEach { line ->
+                    if (line.isNotEmpty()) {
+                        append("    $line\n")
+                    } else {
+                        append("\n")
+                    }
+                }
+                append("  </li>\n")
+            } else {
+                append("  <li>$name: $value</li>\n")
+            }
+        }
+        append("</ul>")
+    }
+}
+
 /** Report missing required fields inside the annotation. */
 fun Reporter.reportOnMissingFields(fieldName: String, item: Item) {
     report(

@@ -92,6 +92,7 @@ Available Issues                             |  Category                        
   DataClassDefinition                        |  api_lint                             |   hidden
   DefaultValueChange                         |  source_compatibility_only            |   error
   Deprecated                                 |  documentation                        |   hidden
+  DeprecatedSurfaceDocTag                    |  unknown                              |   hidden
   DeprecationMismatch                        |  documentation                        |   error
   DuplicateSourceClass                       |  unknown                              |   warning
   EndsWithImpl                               |  api_lint                             |   error
