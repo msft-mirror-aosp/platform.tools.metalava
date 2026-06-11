@@ -109,12 +109,8 @@ class EnumPolicyAnnotationHandlerTest : DriverTest() {
                          *    </td>
                          *  </tr>
                          *  <tr>
-                         *    <td>Affected Resource</td>
-                         *    <td>Device Wide</td>
-                         *  </tr>
-                         *  <tr>
-                         *    <td>Resolution Mechanism</td>
-                         *    <td>custom</td>
+                         *    <td>Resources affected</td>
+                         *    <td>This policy takes effect device-wide, so it affects all users.</td>
                          *  </tr>
                          *  <tr>
                          *    <td>Policy value</td>
@@ -219,12 +215,12 @@ class EnumPolicyAnnotationHandlerTest : DriverTest() {
                          *    </td>
                          *  </tr>
                          *  <tr>
-                         *    <td>Affected Resource</td>
-                         *    <td>Device Wide</td>
+                         *    <td>Resources affected</td>
+                         *    <td>This policy takes effect device-wide, so it affects all users.</td>
                          *  </tr>
                          *  <tr>
-                         *    <td>Resolution Mechanism</td>
-                         *    <td>most restrictive: [{@link android.processor.devicepolicy.EnumPolicyValues#ENUM_POLICY_VALUE_1}, {@link android.processor.devicepolicy.EnumPolicyValues#ENUM_POLICY_VALUE_2}]</td>
+                         *    <td>Conflict resolution mechanism</td>
+                         *    <td>If this policy is set by multiple admins, {@link android.processor.devicepolicy.EnumPolicyValues#ENUM_POLICY_VALUE_1} takes effect if it is set by any admin.</td>
                          *  </tr>
                          *  <tr>
                          *    <td>Policy value</td>
@@ -336,12 +332,8 @@ class EnumPolicyAnnotationHandlerTest : DriverTest() {
                          *    </td>
                          *  </tr>
                          *  <tr>
-                         *    <td>Affected Resource</td>
-                         *    <td>Per User</td>
-                         *  </tr>
-                         *  <tr>
-                         *    <td>Resolution Mechanism</td>
-                         *    <td></td>
+                         *    <td>Resources affected</td>
+                         *    <td>This policy only takes effect on the user on which it is set.</td>
                          *  </tr>
                          *  <tr>
                          *    <td>Policy value</td>

@@ -50,7 +50,9 @@ data class IntegerPolicyDefinitionProxy(
         val tableEntries = buildList {
             addAll(base.getTableEntries())
             val resolutionMechanismDoc = resolutionMechanism.generateDocs()
-            add(Pair("Resolution Mechanism", resolutionMechanismDoc))
+            if (resolutionMechanismDoc.isNotEmpty()) {
+                add(Pair("Conflict resolution mechanism", resolutionMechanismDoc))
+            }
             val policyValueValidations = buildList {
                 add(
                     Pair(
@@ -86,9 +88,9 @@ data class IntegerResolutionMechanismProxy(
 ) {
     fun generateDocs() =
         if (custom) {
-            "custom"
+            ""
         } else if (notCoexistable) {
-            "notCoexistable"
+            "This policy can not be set by multiple admins at the same time. When multiple values are set, the resulting behavior is undefined and is monitored to avoid widespread usage."
         } else {
             item.codebase.reporter.report(
                 Issues.INVALID_DEVICE_POLICY_ANNOTATION,

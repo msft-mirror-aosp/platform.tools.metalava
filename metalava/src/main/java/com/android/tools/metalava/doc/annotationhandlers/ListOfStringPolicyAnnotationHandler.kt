@@ -56,7 +56,7 @@ data class ListOfStringPolicyDefinitionProxy(
             addAll(base.getTableEntries())
             val resMechDocs = resolutionMechanism.generateDocs(base.item)
             if (resMechDocs.isNotEmpty()) {
-                add(Pair("Resolution Mechanism", resMechDocs))
+                add(Pair("Conflict resolution mechanism", resMechDocs))
             }
             val policyValueValidations = buildList {
                 add(Pair("Empty list", if (emptyListAllowed) "Allowed" else "Not allowed"))

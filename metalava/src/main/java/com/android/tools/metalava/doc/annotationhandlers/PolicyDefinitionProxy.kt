@@ -188,7 +188,7 @@ class PolicyDefinitionProxy(
             add(Pair("Settable by", docLines.joinToString("")))
         }
 
-        add(Pair("Affected Resource", getResourceName(affectedResource)))
+        add(Pair("Resources affected", getResourceName(affectedResource)))
     }
 
     private fun formatPermissions(first: String?, second: String?): String? {
@@ -257,8 +257,8 @@ enum class PolicyScope(val scopeName: String, val id: Int) {
 }
 
 enum class PolicyResource(val resourceName: String, val id: Int) {
-    DEVICE_WIDE("Device Wide", 1),
-    PER_USER("Per User", 2);
+    DEVICE_WIDE("This policy takes effect device-wide, so it affects all users.", 1),
+    PER_USER("This policy only takes effect on the user on which it is set.", 2);
 
     companion object {
         fun fromId(id: Int): PolicyResource? = entries.firstOrNull { it.id == id }

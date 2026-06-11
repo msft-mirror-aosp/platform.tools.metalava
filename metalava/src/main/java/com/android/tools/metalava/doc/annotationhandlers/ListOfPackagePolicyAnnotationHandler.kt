@@ -47,7 +47,7 @@ data class ListOfPackagePolicyDefinitionProxy(
 
             val resMechDocs = resolutionMechanism.generateDocs(base.item)
             if (resMechDocs.isNotEmpty()) {
-                add(Pair("Resolution Mechanism", resMechDocs))
+                add(Pair("Conflict resolution mechanism", resMechDocs))
             }
 
             val policyValueValidations = buildList {

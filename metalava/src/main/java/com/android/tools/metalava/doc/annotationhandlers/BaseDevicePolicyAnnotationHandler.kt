@@ -116,9 +116,9 @@ data class ListResolutionMechanismProxy(
     // TODO(b/492421367): Enrich the doc for resolution mechanism.
     fun generateDocs(item: Item): String {
         if (custom) {
-            return "custom"
+            return ""
         } else if (union) {
-            return "union"
+            return "If this policy is set by multiple admins, the union of all provided values takes effect."
         } else {
             item.codebase.reporter.report(
                 Issues.INVALID_DEVICE_POLICY_ANNOTATION,
