@@ -17,7 +17,6 @@
 package com.android.tools.metalava.model.snapshot
 
 import com.android.tools.metalava.model.ApiVariantSelectors
-import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.ClassTypeItem
@@ -28,11 +27,14 @@ import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.ItemDocumentationFactory
 import com.android.tools.metalava.model.ItemVisitor
+import com.android.tools.metalava.model.MemberItem
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ModifierList
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.PropertyItem
+import com.android.tools.metalava.model.RecordComponentItem
+import com.android.tools.metalava.model.RecordComponents
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.Showability
 import com.android.tools.metalava.model.SkeletonClassItem
@@ -40,6 +42,7 @@ import com.android.tools.metalava.model.SourceFile
 import com.android.tools.metalava.model.SourceLanguage
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
+import com.android.tools.metalava.model.api.SelectedApi
 import com.android.tools.metalava.model.item.AbstractSourceFile
 import com.android.tools.metalava.model.item.DefaultCodebase
 import com.android.tools.metalava.model.item.DefaultCodebaseAssembler
@@ -121,6 +124,9 @@ private constructor(
                 // Supports documentation if the copied codebase does.
                 supportsDocumentation = codebase.supportsDocumentation(),
                 assembler = this,
+                // Create a simple [SelectedApi] instance that will be populated from information
+                // retrieved from the original [SelectedApi].
+                selectedApiFactory = SelectedApi::createSimple,
             )
 
         this.snapshotCodebase = newCodebase
@@ -205,6 +211,38 @@ private constructor(
         selectedApiVariants = original.selectedApiVariants
     }
 
+    /**
+     * Take a snapshot of this [RecordComponentItem].
+     *
+     * @param containingClass the containing [ClassItem] for the snapshot.
+     * @param classTypeItemFactory the factory used to create the type, in case it references type
+     *   parameters in the new record class.
+     */
+    private fun RecordComponentItem.snapshot(
+        containingClass: ClassItem,
+        classTypeItemFactory: SnapshotTypeItemFactory
+    ) =
+        itemFactory.createRecordComponentItem(
+            fileLocation,
+            modifiers = modifiers.snapshot(snapshotCodebase),
+            name = name,
+            containingClass = containingClass,
+            type = classTypeItemFactory.getGeneralType(type),
+            recordComponentIndex = recordComponentIndex,
+        )
+
+    /**
+     * Take a snapshot of the [RecordComponentItem]s in this [RecordComponents].
+     *
+     * @param containingClass the containing [ClassItem] for the snapshots.
+     * @param classTypeItemFactory the factory used to create types, in case they reference type
+     *   parameters in the new record class.
+     */
+    private fun RecordComponents.snapshot(
+        containingClass: ClassItem,
+        classTypeItemFactory: SnapshotTypeItemFactory
+    ) = map { it.snapshot(containingClass, classTypeItemFactory) }
+
     override fun visitClass(cls: ClassItem) {
         val classToSnapshot = cls.actualItemToSnapshot
 
@@ -230,8 +268,12 @@ private constructor(
         val snapshotInterfaceTypes =
             classToSnapshot.interfaceTypes().map { classTypeItemFactory.getInterfaceType(it) }
 
+        val snapshotPermitTypes =
+            classToSnapshot.permitTypes.map { classTypeItemFactory.getHierarchicalClassType(it) }
+
+        val classKind = classToSnapshot.classKind
         val optionalAliasedType =
-            if (classToSnapshot.classKind == ClassKind.TYPEALIAS) {
+            if (classKind == ClassKind.TYPEALIAS) {
                 classTypeItemFactory.getGeneralType(classToSnapshot.aliasedType)
             } else {
                 null
@@ -246,7 +288,7 @@ private constructor(
                 modifiers = classToSnapshot.modifiers.snapshot(),
                 documentationFactory = snapshotDocumentation(classToSnapshot, cls),
                 source = sourceFileCache.snapshotSourceFile(cls.sourceFile()),
-                classKind = classToSnapshot.classKind,
+                classKind = classKind,
                 containingClass = containingClass,
                 containingPackage = containingPackage,
                 qualifiedName = classToSnapshot.qualifiedName(),
@@ -254,7 +296,19 @@ private constructor(
                 origin = classToSnapshot.origin,
                 superClassType = snapshotSuperClassType,
                 interfaceTypes = snapshotInterfaceTypes,
-                optionalAliasedType = optionalAliasedType
+                permitTypes = snapshotPermitTypes,
+                optionalAliasedType = optionalAliasedType,
+                recordComponentItemsFactory =
+                    if (classKind == ClassKind.RECORD)
+                        { classItem ->
+                            classToSnapshot.recordComponents.snapshot(
+                                classItem,
+                                classTypeItemFactory
+                            )
+                        }
+                    else {
+                        null
+                    },
             )
         newClass.copySelectedApiVariants(classToSnapshot)
     }
@@ -291,13 +345,14 @@ private constructor(
                     typeParameterList = typeParameterList,
                     returnType = constructorToSnapshot.returnType().snapshot(),
                     parameterItemsFactory = { containingCallable ->
-                        constructorToSnapshot.parameters().snapshot(containingCallable, constructor)
+                        constructorToSnapshot
+                            .parameters()
+                            .snapshot(containingCallable, constructor.parameters())
                     },
                     throwsTypes =
                         constructorToSnapshot.throwsTypes().map {
                             typeItemFactory.getExceptionType(it)
                         },
-                    callableBodyFactory = constructorToSnapshot.body::snapshot,
                     implicitConstructor = constructorToSnapshot.isImplicitConstructor(),
                     isPrimary = constructorToSnapshot.isPrimary,
                 )
@@ -335,11 +390,12 @@ private constructor(
                     typeParameterList = typeParameterList,
                     returnType = methodToSnapshot.returnType().snapshot(),
                     parameterItemsFactory = { containingCallable ->
-                        methodToSnapshot.parameters().snapshot(containingCallable, method)
+                        methodToSnapshot
+                            .parameters()
+                            .snapshot(containingCallable, method.parameters())
                     },
                     throwsTypes =
                         methodToSnapshot.throwsTypes().map { typeItemFactory.getExceptionType(it) },
-                    callableBodyFactory = methodToSnapshot.body::snapshot,
                     defaultValueProvider = defaultValueSnapshot.provider(),
                     isExtensionMethod = methodToSnapshot.isExtensionMethod(),
                 )
@@ -405,6 +461,12 @@ private constructor(
                     receiver = property.receiver?.snapshot(),
                     typeParameterList = typeParameterList,
                     setterVisibility = property.setterVisibility,
+                    contextParameterFactory = { containingProperty ->
+                        propertyToSnapshot.contextParameters.snapshot(
+                            containingProperty,
+                            property.contextParameters
+                        )
+                    },
                 )
             }
         newProperty.copySelectedApiVariants(propertyToSnapshot)
@@ -507,8 +569,8 @@ private constructor(
 
         /** Create a snapshot of this list of [ParameterItem]s. */
         internal fun List<ParameterItem>.snapshot(
-            containingCallable: CallableItem,
-            currentCallable: CallableItem
+            containingItem: MemberItem,
+            currentParameters: List<ParameterItem>,
         ): List<ParameterItem> {
             return map { parameterItem ->
                 // Retrieve the public name immediately to remove any dependencies on this in the
@@ -528,8 +590,7 @@ private constructor(
                 val name =
                     if (publicName != null) parameterItem.name()
                     else {
-                        val namedParameter =
-                            currentCallable.parameters()[parameterItem.parameterIndex]
+                        val namedParameter = currentParameters[parameterItem.parameterIndex]
                         namedParameter.name()
                     }
 
@@ -539,10 +600,11 @@ private constructor(
                     modifiers = parameterItem.modifiers.snapshot(),
                     name = name,
                     publicName = publicName,
-                    containingCallable = containingCallable,
+                    containingItem = containingItem,
                     parameterIndex = parameterItem.parameterIndex,
                     type = parameterItem.type().snapshot(),
                     hasDefaultValue = parameterItem.hasDefaultValue(),
+                    kind = parameterItem.kind,
                 )
             }
         }

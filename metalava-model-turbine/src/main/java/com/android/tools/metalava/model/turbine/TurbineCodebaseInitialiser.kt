@@ -50,7 +50,6 @@ import com.google.turbine.diag.SourceFile
 import com.google.turbine.diag.TurbineDiagnostic
 import com.google.turbine.diag.TurbineError
 import com.google.turbine.diag.TurbineLog
-import com.google.turbine.model.TurbineFlag
 import com.google.turbine.parse.Parser
 import com.google.turbine.tree.Tree.CompUnit
 import com.google.turbine.tree.Tree.Ident
@@ -315,9 +314,6 @@ internal class TurbineCodebaseInitialiser(
             // containing class.
             if (sourceTypeBoundClass.owner() != null) return@filter false
 
-            // Ignore inaccessible classes.
-            if (!sourceTypeBoundClass.isAccessible) return@filter false
-
             // Ignore classes whose paths were not specified on the command line.
             val path = sourceTypeBoundClass.source().path()
             path in commandLinePaths
@@ -551,12 +547,3 @@ private fun getSourceFiles(sources: Sequence<File>): List<SourceFile> {
         .map { SourceFile(it.path, it.readText()) }
         .toList()
 }
-
-private const val ACC_PUBLIC_OR_PROTECTED = TurbineFlag.ACC_PUBLIC or TurbineFlag.ACC_PROTECTED
-
-/** Check whether the [TypeBoundClass] is accessible. */
-private val TypeBoundClass.isAccessible: Boolean
-    get() {
-        val flags = access()
-        return flags and ACC_PUBLIC_OR_PROTECTED != 0
-    }

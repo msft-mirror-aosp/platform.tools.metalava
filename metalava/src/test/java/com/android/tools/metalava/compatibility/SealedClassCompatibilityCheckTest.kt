@@ -17,9 +17,62 @@
 package com.android.tools.metalava.compatibility
 
 import com.android.tools.metalava.DriverTest
+import com.android.tools.metalava.model.provider.Capability
+import com.android.tools.metalava.model.testing.RequiresCapabilities
+import com.android.tools.metalava.model.text.FileFormat
+import com.android.tools.metalava.testing.kotlin
 import org.junit.Test
 
 class SealedClassCompatibilityCheckTest : DriverTest() {
+    @RequiresCapabilities(Capability.KOTLIN)
+    @Test
+    fun `Add sealed`() {
+        check(
+            expectedIssues =
+                """
+                    src/test/pkg/Foo.kt:2: error: Source breaking change: Cannot add 'sealed' modifier to class test.pkg.Foo: Incompatible change [AddedSealed]
+                """,
+            checkCompatibilityApiReleased =
+                """
+                    package test.pkg {
+                      public class Foo {
+                      }
+                    }
+                """,
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
+                            package test.pkg
+                            sealed class Foo
+                        """
+                    ),
+                ),
+        )
+    }
+
+    @Test
+    fun `Allow change from non-final to final in sealed class`() {
+        check(
+            signatureSource =
+                """
+                    package test.pkg {
+                      sealed class Foo {
+                        method final public void bar(int);
+                      }
+                    }
+                """,
+            format = FileFormat.V4,
+            checkCompatibilityApiReleased =
+                """
+                    package test.pkg {
+                      sealed class Foo {
+                        method public void bar(int);
+                      }
+                    }
+                """,
+        )
+    }
 
     @Test
     fun `Should raise issue when adding abstract method to explicitly sealed non-effectively final class when a grandchild implements the abstract method`() {
@@ -357,14 +410,13 @@ class SealedClassCompatibilityCheckTest : DriverTest() {
     }
 
     @Test
-    fun `Should raise issue when adding private subclass to exhaustive sealed interface (sealed interface changes from exhaustive to nonexhaustive)`() {
+    fun `Should raise issue when adding private subclass to exhaustive sealed interface - sealed interface changes from exhaustive to nonexhaustive`() {
         check(
             expectedIssues =
                 """
                     load-api.txt:6: error: Sealed interface can no longer be exhaustively matched because an inaccessible subclass was added. [SealedClassExhaustivityChanged]
                 """
                     .trimIndent(),
-            expectedFail = "",
             checkCompatibilityApiReleased =
                 """
                 package test.pkg {
@@ -389,14 +441,13 @@ class SealedClassCompatibilityCheckTest : DriverTest() {
     }
 
     @Test
-    fun `Should raise issue when adding private subclass to exhaustive sealed class (sealed class changes from exhaustive to nonexhaustive)`() {
+    fun `Should raise issue when adding private subclass to exhaustive sealed class - sealed class changes from exhaustive to nonexhaustive`() {
         check(
             expectedIssues =
                 """
                 load-api.txt:6: error: Sealed class can no longer be exhaustively matched because an inaccessible subclass was added. [SealedClassExhaustivityChanged]
             """
                     .trimIndent(),
-            expectedFail = "",
             checkCompatibilityApiReleased =
                 """
                 package test.pkg {
@@ -458,7 +509,6 @@ class SealedClassCompatibilityCheckTest : DriverTest() {
                     load-api.txt:3: error: Added a subclass to a sealed interface that can be exhaustively matched [AddedSubclassToSealedClass]
                 """
                     .trimIndent(),
-            expectedFail = "",
             checkCompatibilityApiReleased =
                 """
                 package test.pkg {
@@ -493,7 +543,6 @@ class SealedClassCompatibilityCheckTest : DriverTest() {
                 load-api.txt:3: error: Added a subclass to a sealed class that can be exhaustively matched [AddedSubclassToSealedClass]
             """
                     .trimIndent(),
-            expectedFail = "",
             checkCompatibilityApiReleased =
                 """
                 package test.pkg {
@@ -528,7 +577,6 @@ class SealedClassCompatibilityCheckTest : DriverTest() {
                 load-api.txt:3: error: Added a subclass to a sealed class that can be exhaustively matched [AddedSubclassToSealedClass]
             """
                     .trimIndent(),
-            expectedFail = "",
             checkCompatibilityApiReleased =
                 """
                 package test.pkg {

@@ -41,6 +41,7 @@ import org.jetbrains.kotlin.analysis.api.symbols.KaClassSymbol
 import org.jetbrains.kotlin.analysis.api.symbols.KaNamedClassSymbol
 import org.jetbrains.kotlin.analysis.api.types.KaClassType
 import org.jetbrains.kotlin.analysis.api.types.KaDefinitelyNotNullType
+import org.jetbrains.kotlin.analysis.api.types.KaDynamicType
 import org.jetbrains.kotlin.analysis.api.types.KaErrorType
 import org.jetbrains.kotlin.analysis.api.types.KaFlexibleType
 import org.jetbrains.kotlin.analysis.api.types.KaFunctionType
@@ -105,12 +106,7 @@ internal class KaTypeItemFactory(
     }
 
     // Override to ensure primitives are boxed.
-    override fun getSuperClassType(underlyingType: KaType): ClassTypeItem {
-        return underlyingType.toTypeItem(mustBoxPrimitives = true) as ClassTypeItem
-    }
-
-    // Override to ensure primitives are boxed.
-    override fun getInterfaceType(underlyingType: KaType): ClassTypeItem {
+    override fun getHierarchicalClassType(underlyingType: KaType): ClassTypeItem {
         return underlyingType.toTypeItem(mustBoxPrimitives = true) as ClassTypeItem
     }
 
@@ -182,6 +178,17 @@ internal class KaTypeItemFactory(
                     .toTypeItem(mustBoxPrimitives)
                     // Ensure correct nullability.
                     .substitute(TypeNullability.NONNULL)
+            // Kotlin dynamic types can be used in code compiled to javascript (see
+            // https://kotlinlang.org/docs/dynamic-type.html).
+            // Currently, this is represented as a class type, if more robust support is needed in
+            // the future there would need to be a new TypeItem subclass introduced (b/495459207).
+            is KaDynamicType ->
+                TypeItem.createClassType(
+                    modifiers = modifiers,
+                    qualifiedName = "dynamic",
+                    arguments = emptyList(),
+                    outerClassType = null,
+                )
             // To avoid runtime errors, construct an invalid class type for error types.
             is KaErrorType ->
                 TypeItem.createClassType(

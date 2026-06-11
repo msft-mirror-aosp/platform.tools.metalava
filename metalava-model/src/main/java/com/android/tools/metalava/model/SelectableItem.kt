@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model
 
+import com.android.tools.metalava.model.api.SelectedApi
 import com.android.tools.metalava.model.api.surface.ApiVariant
 import com.android.tools.metalava.model.api.surface.ApiVariantSet
 import com.android.tools.metalava.model.api.surface.MutableApiVariantSet
@@ -34,6 +35,9 @@ import com.android.tools.metalava.model.scope.ReferencableNameScope
  * an indivisible part of the [ParameterItem.containingCallable].
  */
 interface SelectableItem : Item, ReferencableNameScope {
+    /** The [SelectedApi] for this [SelectableItem]. */
+    val selectedApi: SelectedApi
+
     /** The [ApiVariant]s for which this [Item] has been selected. */
     var selectedApiVariants: ApiVariantSet
 
@@ -92,10 +96,17 @@ interface SelectableItem : Item, ReferencableNameScope {
     val removed: Boolean
 
     /** True if this item is either hidden or removed */
-    fun isHiddenOrRemoved(): Boolean = hidden || removed
+    fun isHiddenOrRemoved(): Boolean = hidden() || removed
 
     /** Determines whether this item will be shown as part of the API or not. */
     val showability: Showability
+
+    /**
+     * Returns true, if an item should be included only for "stub" purposes; that is, the item does
+     * have at least one [AnnotationItem.isShowAnnotation] annotation and all those annotations are
+     * also an [AnnotationItem.isShowForStubPurposes] annotation.
+     */
+    fun includeOnlyForStubPurposes(): Boolean
 
     /**
      * Returns true if this item has any show annotations.

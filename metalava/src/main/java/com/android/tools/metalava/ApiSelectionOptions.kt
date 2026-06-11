@@ -17,27 +17,33 @@
 package com.android.tools.metalava
 
 import com.android.tools.metalava.cli.common.MetalavaCliException
+import com.android.tools.metalava.cli.common.cliError
 import com.android.tools.metalava.cli.common.enumOption
 import com.android.tools.metalava.cli.common.map
 import com.android.tools.metalava.cli.common.splitMultiple
 import com.android.tools.metalava.config.ApiSurfaceConfig
 import com.android.tools.metalava.config.ApiSurfacesConfig
+import com.android.tools.metalava.config.EffectConfig
 import com.android.tools.metalava.model.TypedefMode
-import com.android.tools.metalava.model.annotation.AnnotationFilter
+import com.android.tools.metalava.model.api.ApiSurfaceRules
+import com.android.tools.metalava.model.api.ApiSurfaceSelector
+import com.android.tools.metalava.model.api.SurfaceSelectionRule
+import com.android.tools.metalava.model.api.SurfaceSelectionRule.Companion.unannotated
+import com.android.tools.metalava.model.api.SurfaceSelectionRule.Effect
 import com.android.tools.metalava.model.api.surface.ApiSurface
+import com.android.tools.metalava.model.api.surface.ApiSurface.Contents
 import com.android.tools.metalava.model.api.surface.ApiSurfaces
 import com.github.ajalt.clikt.parameters.groups.OptionGroup
-import com.github.ajalt.clikt.parameters.options.defaultLazy
+import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.multiple
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.options.switch
 import com.github.ajalt.clikt.parameters.options.unique
+import kotlin.collections.buildList
 
 const val ARG_API_SURFACE = "--api-surface"
 const val ARG_SHOW_UNANNOTATED = "--show-unannotated"
 const val ARG_SHOW_ANNOTATION = "--show-annotation"
-const val ARG_SHOW_SINGLE_ANNOTATION = "--show-single-annotation"
-const val ARG_SHOW_FOR_STUB_PURPOSES_ANNOTATION = "--show-for-stub-purposes-annotation"
 
 const val ARG_HIDE_ANNOTATION = "--hide-annotation"
 
@@ -56,12 +62,9 @@ const val API_SELECTION_OPTIONS_GROUP = "Api Selection"
  *
  * @param apiSurfacesConfigProvider Provides the [ApiSurfacesConfig] that was provided in an
  *   [ARG_CONFIG_FILE], if any. This must only be called after all the options have been parsed.
- * @param checkSurfaceConsistencyProvider Returns `true` if the configured [ApiSurfaces] should be
- *   checked for consistency with the [showUnannotated] property.
  */
 class ApiSelectionOptions(
     private val apiSurfacesConfigProvider: () -> ApiSurfacesConfig? = { null },
-    private val checkSurfaceConsistencyProvider: () -> Boolean = { true },
 ) :
     OptionGroup(
         name = API_SELECTION_OPTIONS_GROUP,
@@ -72,6 +75,20 @@ class ApiSelectionOptions(
             """
                 .trimIndent()
     ) {
+    /** The [ApiSurfaceConfig] extracted from configuration files. */
+    private val apiSurfacesConfig by lazy(LazyThreadSafetyMode.NONE) { apiSurfacesConfigProvider() }
+
+    /**
+     * Return true if at least one `--show*-annotation`, `--show-unannotated` or `--hide-annotation`
+     * option was specified.
+     */
+    private fun atLeastOneApiSelectionOptionWasSpecified() =
+        optionalShowUnannotated == ShowUnannotated.SPECIFIED ||
+            hideAnnotationValues.isNotEmpty() ||
+            atLeastOneShowAnnotationOptionWasSpecified()
+
+    /** Return true if at least one `--show*-annotation` option was specified. */
+    private fun atLeastOneShowAnnotationOptionWasSpecified() = showAnnotationValues.isNotEmpty()
 
     internal val apiSurface by
         option(
@@ -84,15 +101,42 @@ class ApiSelectionOptions(
                 """,
         )
 
-    val showUnannotated by
+    /** The values of [optionalShowUnannotated]. */
+    private enum class ShowUnannotated {
+        /** Indicates that [ARG_SHOW_UNANNOTATED] was not specified on the command line. */
+        UNSPECIFIED,
+
+        /** Indicates that [ARG_SHOW_UNANNOTATED] was specified on the command line. */
+        SPECIFIED,
+    }
+
+    private val optionalShowUnannotated by
         option(help = "Include un-annotated public APIs in the signature file as well.")
-            .switch(ARG_SHOW_UNANNOTATED to true)
-            .defaultLazy(defaultForHelp = "true if no --show*-annotation options specified") {
-                // If the caller has not explicitly requested that unannotated classes and members
-                // should be shown in the output then only show them if no show annotations were
-                // provided.
-                allShowAnnotations.isEmpty()
+            .switch(ARG_SHOW_UNANNOTATED to ShowUnannotated.SPECIFIED)
+            .default(
+                ShowUnannotated.UNSPECIFIED,
+                defaultForHelp = "true if no --show*-annotation options specified",
+            )
+
+    /**
+     * Convert [optionalShowUnannotated] into a [Boolean], defaulting to `true` if no show options
+     * were specified.
+     */
+    private val showUnannotatedOption by
+        lazy(LazyThreadSafetyMode.NONE) {
+            when (optionalShowUnannotated) {
+                ShowUnannotated.UNSPECIFIED -> {
+                    // If the caller has not explicitly requested that unannotated classes and
+                    // members should be shown in the output then only show them if no show
+                    // annotations were provided.
+                    !atLeastOneShowAnnotationOptionWasSpecified()
+                }
+                else -> true
             }
+        }
+
+    val showUnannotated
+        get() = apiSurfaceSelector.showUnannotated
 
     private val showAnnotationValues by
         option(
@@ -101,34 +145,6 @@ class ApiSelectionOptions(
                     """
                         Unhide any hidden elements that are also annotated with the given
                         annotation.
-                    """
-                        .trimIndent(),
-                metavar = "<annotation-filter>",
-            )
-            .multiple()
-
-    private val showSingleAnnotationValues by
-        option(
-                ARG_SHOW_SINGLE_ANNOTATION,
-                help =
-                    """
-                        Like $ARG_SHOW_ANNOTATION, but does not apply to members; these must also be
-                        explicitly annotated.
-                    """
-                        .trimIndent(),
-                metavar = "<annotation-filter>",
-            )
-            .multiple()
-
-    private val showForStubPurposesAnnotationValues by
-        option(
-                ARG_SHOW_FOR_STUB_PURPOSES_ANNOTATION,
-                help =
-                    """
-                        Like $ARG_SHOW_ANNOTATION, but elements annotated with it are assumed to be
-                        "implicitly" included in the API surface, and they'll be included in certain
-                        kinds of output such as stubs, but not in others, such as the signature file
-                        and API lint.
                     """
                         .trimIndent(),
                 metavar = "<annotation-filter>",
@@ -144,50 +160,245 @@ class ApiSelectionOptions(
             .multiple()
 
     /**
-     * Whether to include APIs with annotations (intended for documentation purposes). This includes
-     * [showAnnotations], [showSingleAnnotations] and [showForStubPurposesAnnotations].
+     * Select the [ApiSurfaceRules] to use between the [apiSurfaceRulesFromConfig] and
+     * [apiSurfaceRulesFromOptions].
      */
-    internal val allShowAnnotations by
+    private fun selectApiSurfaceRulesToUse(
+        apiSurfaceRulesFromConfig: ApiSurfaceRules?,
+        apiSurfaceRulesFromOptions: ApiSurfaceRules?,
+    ): ApiSurfaceRules {
+        // If no config was available then just use the one from the options.
+        if (apiSurfaceRulesFromConfig == null) {
+            return apiSurfaceRulesFromOptions ?: ApiSurfaceRules.DEFAULT
+        } else if (apiSurfaceRulesFromOptions == null) {
+            return apiSurfaceRulesFromConfig
+        }
+
+        // The configuration provided rules take priority as they are better in many ways, i.e.
+        // more consistent to specify, simpler, less duplication.
+        return apiSurfaceRulesFromConfig
+    }
+
+    /** The [ApiSurfaceSelector] that will determine to which API surface an item belongs. */
+    internal val apiSurfaceSelector by
         lazy(LazyThreadSafetyMode.NONE) {
-            AnnotationFilter.create(
-                showAnnotationValues +
-                    showSingleAnnotationValues +
-                    showForStubPurposesAnnotationValues
-            )
+            val apiSurfaceRulesFromConfig = createApiSurfaceRulesFromConfig()
+            val apiSurfaceRulesFromOptions = createApiSurfaceRulesFromOptions()
+            val apiSurfaceRules =
+                selectApiSurfaceRulesToUse(
+                    apiSurfaceRulesFromConfig,
+                    apiSurfaceRulesFromOptions,
+                )
+
+            ApiSurfaceSelector(apiSurfaceRules)
         }
 
     /**
-     * A filter that will match annotations which will cause an annotated item (and its enclosed
-     * items unless overridden by a closer annotation) to be included in the API surface.
-     *
-     * @see [allShowAnnotations]
+     * Treat this [String] as an annotation pattern that will hide any annotated item from the
+     * narrowest API.
      */
-    internal val showAnnotations by
-        lazy(LazyThreadSafetyMode.NONE) { AnnotationFilter.create(showAnnotationValues) }
+    private fun String.toHideRule() =
+        SurfaceSelectionRule.createAnnotationRule(
+            annotationPattern = this,
+            effect = Effect.HIDE,
+            recursive = true,
+        )
 
     /**
-     * Like [showAnnotations], but does not work recursively.
+     * Treat this [String] as an annotation pattern that will include any annotated item as part of
+     * the main API.
      *
-     * @see [allShowAnnotations]
+     * @param recursive if `true` then it will also include any enclosed items, otherwise it will
+     *   not.
      */
-    internal val showSingleAnnotations by
-        lazy(LazyThreadSafetyMode.NONE) { AnnotationFilter.create(showSingleAnnotationValues) }
+    private fun String.toShowRule(recursive: Boolean) =
+        SurfaceSelectionRule.createAnnotationRule(
+            annotationPattern = this,
+            effect = Effect.SHOW,
+            recursive = recursive,
+        )
 
-    /**
-     * Annotations that defines APIs that are implicitly included in the API surface. These APIs
-     * will be included in certain kinds of output such as stubs, but others (e.g. API lint and the
-     * API signature file) ignore them.
-     *
-     * @see [allShowAnnotations]
-     */
-    internal val showForStubPurposesAnnotations by
-        lazy(LazyThreadSafetyMode.NONE) {
-            AnnotationFilter.create(showForStubPurposesAnnotationValues)
+    /** Create [ApiSurfaceRules] from the [apiSurfacesConfig], if available. */
+    internal fun createApiSurfaceRulesFromConfig(): ApiSurfaceRules? {
+        // If --api-surface has not been specified then rules cannot be created even if there is
+        // configuration.
+        if (apiSurface == null) return null
+
+        // If there is no configuration then they cannot be created.
+        val surfacesConfig = apiSurfacesConfig ?: return null
+
+        // Get the main surface.
+        val main = apiSurfaces.main
+
+        // Compute the actual surfaces to use.
+        val actualSurfaces =
+            when (main.contents) {
+                // Delta uses the full set of api surfaces.
+                Contents.DELTA -> apiSurfaces
+
+                // Standalone creates a new set of api surfaces that only contains a single
+                // surface.
+                Contents.STANDALONE -> ApiSurfaces.build { createSurface(main.name, isMain = true) }
+            }
+
+        // Build a map from surface name to the [SurfaceSelectionRule]s that apply to that surface.
+        val rulesBySurfaceName = buildMap {
+            when (main.contents) {
+                Contents.DELTA -> {
+                    // Iterate over the surfaces, adding information from the --show-* and
+                    // --hide-annotation options.
+                    for (surface in apiSurfaces.all) {
+                        val surfaceRules = surfacesConfig.createRulesForSurface(surface) ?: continue
+
+                        val name = surface.name
+                        put(name, surfaceRules)
+                    }
+                }
+                Contents.STANDALONE -> {
+                    // Combine all the rules from each of the API surfaces into a single list which
+                    // is used for the standalone API surface.
+                    val allSurfaceRules =
+                        apiSurfaces.all.flatMap {
+                            surfacesConfig.createRulesForSurface(it) ?: emptyList()
+                        }
+                    val name = main.name
+                    put(name, allSurfaceRules)
+                }
+            }
+
+            // Check to see if any related API surfaces need to be hidden. If so, add them to the
+            // narrowest surface.
+            val hideRules = surfacesConfig.createHideRulesForRelatedButUntrackedSurfaces(main.name)
+            if (hideRules.isNotEmpty()) {
+                // Add the hide rules to the narrowest API in the actual surfaces.
+                val narrowestName = actualSurfaces.all.first().name
+                val existing = this[narrowestName]
+                this[narrowestName] =
+                    if (existing == null) {
+                        hideRules
+                    } else {
+                        buildList {
+                            addAll(existing)
+                            addAll(hideRules)
+                        }
+                    }
+            }
         }
 
-    /** Annotations that mark items which should be treated as hidden. */
-    internal val hideAnnotations by
-        lazy(LazyThreadSafetyMode.NONE) { AnnotationFilter.create(hideAnnotationValues) }
+        // If the map is empty then there are no rules so return null.
+        if (rulesBySurfaceName.isEmpty()) return null
+
+        // Create and return the rules.
+        return ApiSurfaceRules(
+            actualSurfaces,
+            rulesBySurfaceName,
+        )
+    }
+
+    /** Create the [SurfaceSelectionRule]s for [surface] from this [ApiSurfacesConfig]. */
+    private fun ApiSurfacesConfig.createRulesForSurface(
+        surface: ApiSurface,
+    ): List<SurfaceSelectionRule>? {
+        val name = surface.name
+        val surfaceConfig = byName[name] ?: return null
+        val selectionCriteria = surfaceConfig.selectionCriteria
+
+        val surfaceRules = buildList {
+            if (selectionCriteria.unannotated == EffectConfig.SHOW) {
+                add(unannotated)
+            }
+            for (annotationRule in selectionCriteria.annotationRules) {
+                val effect =
+                    when (annotationRule.effect) {
+                        EffectConfig.SHOW -> Effect.SHOW
+                        EffectConfig.HIDE -> Effect.HIDE
+                    }
+                add(
+                    SurfaceSelectionRule.createAnnotationRule(
+                        annotationRule.pattern,
+                        effect,
+                        annotationRule.recursive
+                    )
+                )
+            }
+        }
+
+        return surfaceRules
+    }
+
+    /**
+     * Add rules to this list that will hide related surfaces that are not currently being tracked.
+     */
+    private fun ApiSurfacesConfig.createHideRulesForRelatedButUntrackedSurfaces(
+        surfaceName: String,
+    ): List<SurfaceSelectionRule> {
+        // Get the tracked surfaces by name.
+        val trackedSurfaces = apiSurfaces.byName
+
+        // Get the set of annotation rules that must be hidden.
+        val rulesToHide =
+            this
+                // Get all API surfaces related to this one.
+                .relatedTo(
+                    byName[surfaceName] ?: error("Cannot find $surfaceName in ${byName.keys}")
+                )
+                // Remove any that are being tracked.
+                .filter { it.name !in trackedSurfaces }
+                // Flatten all the rules.
+                .flatMap { it.selectionCriteria.annotationRules }
+                // Sort by pattern.
+                .sortedBy { it.pattern }
+                .toSet()
+
+        // Hide all the rules that need to be hidden.
+        return rulesToHide.map { rule ->
+            SurfaceSelectionRule.createAnnotationRule(rule.pattern, Effect.HIDE, rule.recursive)
+        }
+    }
+
+    /** Create [ApiSurfaceRules] from the command line options. */
+    internal fun createApiSurfaceRulesFromOptions(): ApiSurfaceRules? {
+        if (!atLeastOneApiSelectionOptionWasSpecified()) return null
+
+        val surfaces = apiSurfaces
+        val main = surfaces.main
+        val base = surfaces.base
+        val rulesBySurfaceName = buildMap {
+            // Iterate over the surfaces, adding information from the --show-* and --hide-annotation
+            // options.
+            for (surface in surfaces.all) {
+                val name = surface.name
+                val surfaceRules = buildList {
+                    // The --show-unannotated and --hide-annotation options only apply to the
+                    // narrowest API surface.
+                    if (surface.extends == null) {
+                        // If --show-unannotated is set (explicitly or implicitly) or this is not
+                        // the main surface then include unannotated items in the API. The latter is
+                        // there to match the behavior in createApiSurfaces which assumes that if
+                        // --show-unannotated is not set that the surface must extend one where it
+                        // is set.
+                        if (showUnannotatedOption || !surface.isMain) {
+                            add(unannotated)
+                        }
+
+                        addAll(hideAnnotationValues.map { it.toHideRule() })
+                    }
+
+                    if (surface === main) {
+                        // The --show-annotation only applies to the main surface.
+                        addAll(showAnnotationValues.map { it.toShowRule(recursive = true) })
+                    }
+                }
+
+                put(name, surfaceRules)
+            }
+        }
+
+        return ApiSurfaceRules(
+            apiSurfaces,
+            rulesBySurfaceName,
+        )
+    }
 
     /** The set of annotation classes that should be removed from all outputs */
     internal val excludeAnnotations by
@@ -249,13 +460,16 @@ class ApiSelectionOptions(
 
     val apiSurfaces by
         lazy(LazyThreadSafetyMode.NONE) {
-            val apiSurfacesConfig = apiSurfacesConfigProvider()
-            val checkSurfaceConsistency = checkSurfaceConsistencyProvider()
+            if (apiSurface != null && atLeastOneApiSelectionOptionWasSpecified()) {
+                cliError(
+                    "$ARG_API_SURFACE is mutually exclusive with $ARG_SHOW_UNANNOTATED, $ARG_SHOW_ANNOTATION and $ARG_HIDE_ANNOTATION"
+                )
+            }
+
             createApiSurfaces(
-                showUnannotated,
+                showUnannotatedOption,
                 apiSurface,
                 apiSurfacesConfig,
-                checkSurfaceConsistency,
             )
         }
 
@@ -268,14 +482,11 @@ class ApiSelectionOptions(
          * @param targetApiSurface the optional name of the target API surface to be created. If
          *   supplied it MUST reference an [ApiSurfaceConfig] in [apiSurfacesConfig].
          * @param apiSurfacesConfig the optional [ApiSurfacesConfig].
-         * @param checkSurfaceConsistency if `true` and [targetApiSurface] is not-null then check
-         *   the consistency between the configured surfaces and the [ApiSelectionOptions].
          */
         private fun createApiSurfaces(
             showUnannotated: Boolean,
             targetApiSurface: String?,
             apiSurfacesConfig: ApiSurfacesConfig?,
-            checkSurfaceConsistency: Boolean,
         ): ApiSurfaces {
             // A base API surface is needed if and only if the main API surface being generated
             // extends another API surface. That is not currently explicitly specified on the
@@ -326,24 +537,6 @@ class ApiSelectionOptions(
                     "$ARG_API_SURFACE (`$it`) does not match an <api-surface> in a --config-file"
                 }
 
-            val extendedSurface = targetApiSurfaceConfig.extends
-            val extendsSurface = extendedSurface != null
-
-            // If show annotations should not be ignored then perform a consistency check to ensure
-            // that the configuration and command line options are compatible.
-            if (checkSurfaceConsistency) {
-                if (extendsSurface != needsBase) {
-                    val reason =
-                        if (extendsSurface)
-                            "extends $extendedSurface which requires that it not show unannotated items but $ARG_SHOW_UNANNOTATED is true"
-                        else
-                            "does not extend another surface which requires that it show unannotated items but $ARG_SHOW_UNANNOTATED is false"
-                    throw MetalavaCliException(
-                        """Configuration of `<api-surface name="$targetApiSurface">` is inconsistent with command line options because `$targetApiSurface` $reason"""
-                    )
-                }
-            }
-
             // Create the ApiSurfaces from the configured API surfaces.
             return apiSurfacesFromConfig(
                 apiSurfacesConfig.contributesTo(targetApiSurfaceConfig),
@@ -372,6 +565,7 @@ internal fun apiSurfacesFromConfig(
             createSurface(
                 name = surfaceConfig.name,
                 extends = surfaceConfig.extends,
+                contents = surfaceConfig.contents?.surfaceContents ?: Contents.DELTA,
                 isMain = surfaceConfig.name == targetApiSurface,
             )
         }

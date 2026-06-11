@@ -60,6 +60,9 @@ enum class TagTypeForm(
     /** Can be used as a block tag. */
     BLOCK(supportsBlockTag = true),
 
+    /** An API surface related block tag. */
+    SURFACE(supportsBlockTag = true),
+
     /** Can be used as a block tag or an inline tag. */
     BOTH(supportsBlockTag = true, supportsInlineTag = true),
 }
@@ -247,6 +250,9 @@ internal object TagTypes {
     init {
         register(LabeledRefTagType("link", TagTypeForm.INLINE))
         register(LabeledRefTagType("linkplain", TagTypeForm.INLINE))
+
+        // Special surface doc tags.
+        registerDefaultTagType("hide", TagTypeForm.SURFACE)
     }
 }
 

@@ -27,9 +27,15 @@ com.android.tools.metalava.model.testsuite.fielditem.CommonFieldItemTest
 com.android.tools.metalava.model.testsuite.methoditem.CommonMethodModifierTest
   Test final method in final class[text]
 
-com.android.tools.metalava.model.testsuite.methoditem.CommonParameterItemTest
+com.android.tools.metalava.model.testsuite.multiplatform.CommonMultiplatformTypeParameterItemTest
+  Type parameter with different names per source set[text]
+
+com.android.tools.metalava.model.testsuite.parameteritem.CommonParameterItemTest
   Test publicName reports correct name when called on binary class - Object#equals[turbine]
   Test publicName reports correct name when called on binary class - ViewGroup#onLayout[turbine]
+
+com.android.tools.metalava.model.testsuite.parameteritem.CommonParameterKindTest
+  Kind for parameters on function with all kinds of parameters[psi,kotlin]
 
 com.android.tools.metalava.model.testsuite.typeitem.CommonParameterizedInvalidTypeTest
   Test invalid source reference[turbine,genericStringInnerNumber - generic and inner both undefined]

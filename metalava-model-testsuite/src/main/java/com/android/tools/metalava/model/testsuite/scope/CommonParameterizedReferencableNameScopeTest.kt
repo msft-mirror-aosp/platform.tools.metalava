@@ -20,10 +20,10 @@ import com.android.tools.metalava.model.Assertions
 import com.android.tools.metalava.model.InvalidReferencableItem
 import com.android.tools.metalava.model.ReferencableItem
 import com.android.tools.metalava.model.ReferencableMethodSet
-import com.android.tools.metalava.model.provider.Capability
+import com.android.tools.metalava.model.provider.InputFormat
 import com.android.tools.metalava.model.scope.NameClassification
 import com.android.tools.metalava.model.scope.ReferencableNameScope
-import com.android.tools.metalava.model.testing.RequiresCapabilities
+import com.android.tools.metalava.model.testing.SupportedInputFormats
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.model.testsuite.value.ValueExample
 import com.android.tools.metalava.testing.EntryPoint
@@ -527,7 +527,7 @@ class CommonParameterizedReferencableNameScopeTest : BaseModelTest() {
         @JvmStatic @Parameterized.Parameters fun params() = params
     }
 
-    @RequiresCapabilities(Capability.JAVA)
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `Test resolve`() {
         runCodebaseTest(

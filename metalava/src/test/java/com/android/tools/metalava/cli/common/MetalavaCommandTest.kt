@@ -17,6 +17,7 @@
 package com.android.tools.metalava.cli.common
 
 import com.android.tools.metalava.ProgressTracker
+import com.android.tools.metalava.testing.getNoopTracer
 import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.core.subcommands
 import org.junit.Assert.assertEquals
@@ -29,6 +30,7 @@ class MetalavaCommandTest :
         MetalavaCommand(
             executionEnvironment = executionEnvironment,
             progressTracker = ProgressTracker(),
+            tracer = getNoopTracer(),
         )
     }) {
 
@@ -44,22 +46,21 @@ class MetalavaCommandTest :
         val args = listOf(ARG_NO_COLOR, "@invalid.file")
 
         val (executionEnvironment, stdout, stderr) = ExecutionEnvironment.forTest()
-
         val command =
             MetalavaCommand(
                 executionEnvironment = executionEnvironment,
                 progressTracker = ProgressTracker(),
+                tracer = getNoopTracer(),
             )
-
         try {
             command.processThrowCliException(args.toTypedArray())
         } catch (e: MetalavaCliException) {
             assertEquals(
                 """
-                Usage: metalava [options] [flags]...
+            Usage: metalava [options] [flags]...
 
-                Error: invalid.file not found
-            """
+            Error: invalid.file not found
+        """
                     .trimIndent(),
                 e.message
             )
@@ -68,7 +69,8 @@ class MetalavaCommandTest :
         assertEquals("", stderr.toString())
         assertEquals("", stdout.toString())
 
-        // Make sure that the unsafeTerminal property has not been initialized as otherwise this is
+        // Make sure that the unsafeTerminal property has not been initialized as otherwise this
+        // is
         // not testing what how the error handling works in that case.
         val thrown =
             assertThrows(IllegalStateException::class.java) { command.common.unsafeTerminal }
@@ -99,6 +101,7 @@ class MetalavaCommandTest :
                 executionEnvironment = executionEnvironment,
                 progressTracker = ProgressTracker(),
                 defaultCommandName = subCommand.commandName,
+                tracer = getNoopTracer(),
             )
         command.subcommands(subCommand)
 
@@ -107,10 +110,10 @@ class MetalavaCommandTest :
         } catch (e: MetalavaCliException) {
             assertEquals(
                 """
-                Usage: metalava sub
+            Usage: metalava sub
 
-                Error: Got unexpected extra argument (--invalid-argument)
-            """
+            Error: Got unexpected extra argument (--invalid-argument)
+        """
                     .trimIndent(),
                 e.message
             )
@@ -130,9 +133,9 @@ class MetalavaCommandTest :
             MetalavaCommand(
                 executionEnvironment = executionEnvironment,
                 progressTracker = ProgressTracker(),
+                tracer = getNoopTracer(),
             )
         command.subcommands(FailCommand())
-
         command.process(args.toTypedArray())
 
         val pattern =

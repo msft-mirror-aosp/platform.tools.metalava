@@ -16,11 +16,15 @@
 
 package com.android.tools.metalava.model
 
+import com.android.tools.metalava.model.ModifierFlags.Companion.FINAL
+import com.android.tools.metalava.model.ModifierFlags.Companion.STATIC
+
 /**
  * The kind of class.
  *
  * Corresponds to similarly named values in [javax.lang.model.element.ElementKind].
  *
+ * @param description the description of this [ClassKind] that can be used in issue messages.
  * @param supportsInitializerBlock `true` if the class kind supports initializer blocks, e.g. `{
  *   field = 0; }` or `static { FIELD = 0; }`.
  * @param signatureKeyword the keyword to use in a signature file to differentiate by class kind.
@@ -41,8 +45,11 @@ package com.android.tools.metalava.model
  *   [ClassKind]s are not implicitly `final` so this defaults to `false`.
  * @param implicitlyStatic indicates whether this [ClassKind] is implicitly `static` or not. Most
  *   [ClassKind]s are not implicitly `static` so this defaults to `false`.
+ * @param javaModifierMask the modifier flags that are allowed on this [ClassKind]. Defaults to
+ *   `0.inv()`, i.e. allowing all flags.
  */
 enum class ClassKind(
+    val description: String,
     val supportsInitializerBlock: Boolean,
     val signatureKeyword: String,
     val implicitSuperClassType: ClassTypeItem? = null,
@@ -53,10 +60,11 @@ enum class ClassKind(
     val implicitlyAbstract: Boolean = false,
     val implicitlyFinal: Boolean = false,
     val implicitlyStatic: Boolean = false,
+    internal val javaModifierMask: Int = 0.inv(),
 ) {
-
     /** An interface. */
     INTERFACE(
+        description = "interface",
         supportsInitializerBlock = false,
         signatureKeyword = "interface",
         // Interfaces do not have a super class, explicit or otherwise.
@@ -69,6 +77,7 @@ enum class ClassKind(
 
     /** An enum class. */
     ENUM(
+        description = "enum class",
         supportsInitializerBlock = true,
         signatureKeyword = "enum",
         implicitSuperClassType = WellKnownTypes.JAVA_LANG_ENUM_NON_NULL_TYPE,
@@ -79,10 +88,13 @@ enum class ClassKind(
         implicitlyFinal = true,
         // Enum classes are implicitly static, even when they are nested within another class.
         implicitlyStatic = true,
+        // Enum classes support final and static which are both implicitly true.
+        javaModifierMask = flagBits(FINAL, STATIC),
     ),
 
     /** An annotation class. */
     ANNOTATION_TYPE(
+        description = "annotation class",
         supportsInitializerBlock = false,
         signatureKeyword = "@interface",
         // Annotation types are interfaces and so do not have a super class, explicit or otherwise.
@@ -97,6 +109,7 @@ enum class ClassKind(
 
     /** A normal class. */
     CLASS(
+        description = "class",
         supportsInitializerBlock = true,
         signatureKeyword = "class",
         // Normal classes allow super classes to be explicitly provided.
@@ -105,12 +118,26 @@ enum class ClassKind(
         allowAbstract = true,
     ),
 
+    /** A java record class */
+    RECORD(
+        description = "record class",
+        supportsInitializerBlock = false,
+        signatureKeyword = "record",
+        implicitSuperClassType = WellKnownTypes.JAVA_LANG_RECORD_NON_NULL_TYPE,
+        // Records have an implicit super class and do not allow a super class to be provided
+        // explicitly.
+        allowsExplicitSuperClass = false,
+        // Record classes can never be subclasses so are implicitly final.
+        implicitlyFinal = true,
+    ),
+
     /** A typealias */
     TYPEALIAS(
+        description = "typealias",
         supportsInitializerBlock = false,
         signatureKeyword = "typealias",
-        // Typealiases do not have super classes, explicit or otherwise..
-        allowsExplicitSuperClass = true,
+        // Typealiases do not have super classes, explicit or otherwise.
+        allowsExplicitSuperClass = false,
     ),
     ;
 

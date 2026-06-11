@@ -32,6 +32,12 @@ class ApiVariantSetTest {
     private val main = apiSurfaces.main
     private val base = apiSurfaces.base!!
 
+    private val mainCore = main.variantFor(ApiVariantType.CORE)
+    private val mainRemoved = main.variantFor(ApiVariantType.REMOVED)
+    private val baseCore = base.variantFor(ApiVariantType.CORE)
+    private val baseRemoved = base.variantFor(ApiVariantType.REMOVED)
+    private val baseDocOnly = base.variantFor(ApiVariantType.DOC_ONLY)
+
     @Test
     fun `Test creation`() {
         val mutable = MutableApiVariantSet.setOf(apiSurfaces)
@@ -49,9 +55,6 @@ class ApiVariantSetTest {
     @Test
     fun `Test mutations`() {
         val mutable = MutableApiVariantSet.setOf(apiSurfaces)
-
-        val mainCore = main.variantFor(ApiVariantType.CORE)
-        val baseRemoved = base.variantFor(ApiVariantType.REMOVED)
 
         mutable.add(mainCore)
 
@@ -85,9 +88,6 @@ class ApiVariantSetTest {
     fun `Test clear`() {
         val mutable = MutableApiVariantSet.setOf(apiSurfaces)
 
-        val mainCore = main.variantFor(ApiVariantType.CORE)
-        val baseCore = base.variantFor(ApiVariantType.CORE)
-
         mutable.add(mainCore)
         mutable.add(baseCore)
 
@@ -97,11 +97,31 @@ class ApiVariantSetTest {
     }
 
     @Test
+    fun `Test unionWith - immutable`() {
+        val set1 = apiSurfaces.createVariantSet(mainCore, mainRemoved, baseDocOnly)
+        val set2 = apiSurfaces.createVariantSet(mainCore, baseRemoved)
+
+        set1.unionWith(set2).let { result ->
+            result as MutableApiVariantSet
+            assertEquals("ApiVariantSet[base(RD),main(CR)]", result.toString())
+        }
+    }
+
+    @Test
+    fun `Test unionWith - mutable`() {
+        val mutableSet1 =
+            apiSurfaces.createVariantSet(mainCore, mainRemoved, baseDocOnly).toMutable()
+        val set2 = apiSurfaces.createVariantSet(mainCore, baseRemoved)
+
+        mutableSet1.unionWith(set2).let { result ->
+            assertSame(mutableSet1, result)
+            assertEquals("ApiVariantSet[base(RD),main(CR)]", result.toString())
+        }
+    }
+
+    @Test
     fun `Test mutable and immutable`() {
         val mutable = MutableApiVariantSet.setOf(apiSurfaces)
-
-        val mainCore = main.variantFor(ApiVariantType.CORE)
-        val baseCore = base.variantFor(ApiVariantType.CORE)
 
         mutable.add(mainCore)
         mutable.add(baseCore)

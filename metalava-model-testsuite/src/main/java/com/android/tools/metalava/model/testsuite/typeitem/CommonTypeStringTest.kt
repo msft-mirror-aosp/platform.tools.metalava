@@ -25,6 +25,8 @@ import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeStringConfiguration
 import com.android.tools.metalava.model.isNullnessAnnotation
 import com.android.tools.metalava.model.noOpAnnotationManager
+import com.android.tools.metalava.model.provider.InputFormat
+import com.android.tools.metalava.model.testing.SupportedInputFormats
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.model.typeUseAnnotationFilter
 import com.android.tools.metalava.testing.KnownSourceFiles.intRangeTypeUseSource
@@ -38,6 +40,7 @@ import org.junit.runners.Parameterized.Parameter
 
 typealias MethodToTest = TypeItem.(TypeStringConfiguration) -> String
 
+@SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.JAVA)
 class CommonTypeStringTest : BaseModelTest() {
 
     data class TypeStringParameters(
@@ -183,7 +186,7 @@ class CommonTypeStringTest : BaseModelTest() {
             val type =
                 param.type().let { unfilteredType ->
                     val filter = parameters.filter ?: return@let unfilteredType
-                    unfilteredType.transform(typeUseAnnotationFilter(filter))
+                    unfilteredType.transform(filter.typeUseAnnotationFilter())
                 }
             val methodToTest = parameters.methodToTest
             val typeString = type.methodToTest(parameters.typeStringConfiguration)

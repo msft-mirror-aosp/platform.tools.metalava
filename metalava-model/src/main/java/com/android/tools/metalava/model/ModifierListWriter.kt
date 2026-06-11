@@ -16,70 +16,84 @@
 
 package com.android.tools.metalava.model
 
+import com.android.tools.metalava.reporter.Issues
 import java.io.Writer
 
-class ModifierListWriter
-private constructor(
+class ModifierListWriter(
     private val writer: Writer,
-    /**
-     * Can be one of [AnnotationTarget.SIGNATURE_FILE], [AnnotationTarget.SDK_STUBS_FILE] or
-     * [AnnotationTarget.DOC_STUBS_FILE].
-     */
-    private val target: AnnotationTarget,
-    private val annotationFormatter: AnnotationFormatter,
-    private val runtimeAnnotationsOnly: Boolean,
-    private val skipNullnessAnnotations: Boolean,
-    private val normalizeFinal: Boolean = true,
-    private val normalizeAbstract: Boolean = true,
-    private val flaggedApiInheritance: FlaggedApiInheritance = FlaggedApiInheritance.NONE,
+    config: Config,
 ) {
+    data class Config(
+        /**
+         * Can be one of [AnnotationTarget.SIGNATURE_FILE], [AnnotationTarget.SDK_STUBS_FILE] or
+         * [AnnotationTarget.DOC_STUBS_FILE].
+         */
+        val target: AnnotationTarget,
+
+        /** The [AnnotationFormatter] that is used for formatting any [AnnotationItem]s. */
+        val annotationFormatter: AnnotationFormatter,
+
+        /**
+         * If `true` then only annotations with [AnnotationRetention.RUNTIME] will be written out,
+         * otherwise the retention is ignored.
+         */
+        val runtimeAnnotationsOnly: Boolean,
+
+        /** If `true` then nullness annotations will not be written out, otherwise they will. */
+        val skipNullnessAnnotations: Boolean,
+
+        /**
+         * If `true` then the `final` modifier on a method in a `final` class will not be written
+         * out, otherwise it will.
+         */
+        val normalizeFinal: Boolean = true,
+
+        /**
+         * If `true` then any unnecessary `abstract` modifiers, e.g. on an annotation or enum class
+         * will not be written out, otherwise `abstract` modifier will always be written out except
+         * on interface methods.
+         */
+        val normalizeAbstract: Boolean = true,
+
+        /** Determines whether `@FlaggedApi` annotations are inherited and if so how. */
+        val flaggedApiInheritance: FlaggedApiInheritance = FlaggedApiInheritance.NONE,
+
+        /**
+         * If `true` then a [ClassKind.RECORD] class will be represented as a `record` class and the
+         * `final` modifier will not be written out as `record` classes are implicitly `final`.
+         * Otherwise, a [ClassKind.RECORD] class will be written out as an explicitly `final` normal
+         * class.
+         */
+        val javaRecordClasses: Boolean = false,
+
+        /**
+         * If `true` then `sealed`, `non-sealed`, `exhaustive` and `nonexhaustive` modifiers will be
+         * written out for java classes, otherwise they will not.
+         */
+        val javaSealedClasses: Boolean = false,
+    )
+
+    private val target = config.target
+    private val annotationFormatter = config.annotationFormatter
+    private val runtimeAnnotationsOnly = config.runtimeAnnotationsOnly
+    private val skipNullnessAnnotations = config.skipNullnessAnnotations
+    private val normalizeFinal = config.normalizeFinal
+    private val normalizeAbstract = config.normalizeAbstract
+    private val flaggedApiInheritance = config.flaggedApiInheritance
+    private val javaRecordClasses: Boolean = config.javaRecordClasses
+    private val javaSealedClasses = config.javaSealedClasses
+
+    /**
+     * Whether the `abstract` modifier should only be disallowed on interface methods.
+     *
+     * Signature files only disallow `abstract` on interfaces when not normalizing abstract. All
+     * other files disallow `abstract` on methods iff it is disallowed on the method's containing
+     * class.
+     */
+    private val onlyDisallowAbstractOnInterfaceMethods =
+        target == AnnotationTarget.SIGNATURE_FILE && !normalizeAbstract
+
     companion object {
-        fun forSignature(
-            writer: Writer,
-            skipNullnessAnnotations: Boolean,
-            normalizeFinal: Boolean,
-            normalizeAbstract: Boolean,
-            flaggedApiInheritance: FlaggedApiInheritance,
-        ): ModifierListWriter {
-            val target = AnnotationTarget.SIGNATURE_FILE
-            return ModifierListWriter(
-                writer = writer,
-                target = target,
-                annotationFormatter = AnnotationFormatter.legacyAnnotationFormatter(target),
-                runtimeAnnotationsOnly = false,
-                skipNullnessAnnotations = skipNullnessAnnotations,
-                normalizeFinal = normalizeFinal,
-                normalizeAbstract = normalizeAbstract,
-                flaggedApiInheritance = flaggedApiInheritance,
-            )
-        }
-
-        fun forNormalizing(writer: Writer): ModifierListWriter {
-            return ModifierListWriter(
-                writer = writer,
-                target = AnnotationTarget.SIGNATURE_FILE,
-                annotationFormatter = AnnotationFormatter.normalizingFormatter(),
-                runtimeAnnotationsOnly = false,
-                skipNullnessAnnotations = true,
-            )
-        }
-
-        fun forStubs(
-            writer: Writer,
-            isDocStubs: Boolean,
-            runtimeAnnotationsOnly: Boolean = false,
-        ): ModifierListWriter {
-            val target =
-                if (isDocStubs) AnnotationTarget.DOC_STUBS_FILE else AnnotationTarget.SDK_STUBS_FILE
-            return ModifierListWriter(
-                writer = writer,
-                target = target,
-                annotationFormatter = AnnotationFormatter.stubFormatter(target),
-                runtimeAnnotationsOnly = runtimeAnnotationsOnly,
-                skipNullnessAnnotations = false,
-            )
-        }
-
         /**
          * Checks whether the method requires a body to be generated in the stubs.
          * * Methods that are annotations are implicitly `abstract` but the body is provided by the
@@ -122,7 +136,10 @@ private constructor(
         //   https://kotlinlang.org/docs/reference/coding-conventions.html#modifiers
 
         val classItem = item as? ClassItem
-        val classKind = classItem?.classKind
+        val classKind =
+            classItem?.classKind?.let { kind ->
+                if (kind == ClassKind.RECORD && !javaRecordClasses) ClassKind.CLASS else kind
+            }
         val methodItem = item as? MethodItem
 
         val list = item.modifiers
@@ -159,14 +176,37 @@ private constructor(
             writer.write("final ")
         }
 
-        if (list.isSealed()) {
-            writer.write("sealed ")
+        // Only write sealed keywords if they do not come from java or java sealed classes are
+        // specifically supported. When [item] is read from a signature file it will be set to
+        // [SourceLanguage.UNKNOWN] whether it was originally from Kotlin or Java. This check
+        // ensures that reading a [Codebase] from a signature file, and then writing it out (as is
+        // done by many of the signature related commands) does not drop the sealed keywords.
+        val allowSealedKeywords = item.sourceLanguage != SourceLanguage.JAVA || javaSealedClasses
+        if (allowSealedKeywords) {
+            if (list.isSealed()) {
+                writer.write("sealed ")
 
-            if (list.isExhaustive()) {
-                writer.write("exhaustive ")
-            } else {
-                writer.write("nonexhaustive ")
+                // Only write exhaustive to signature files.
+                if (target == AnnotationTarget.SIGNATURE_FILE) {
+                    if (list.isExhaustive()) {
+                        writer.write("exhaustive ")
+                    } else if (javaSealedClasses) {
+                        writer.write("non-exhaustive ")
+                    } else {
+                        writer.write("nonexhaustive ")
+                    }
+                }
             }
+
+            if (list.isNonSealed()) {
+                writer.write("non-sealed ")
+            }
+        } else if (list.isSealed()) {
+            item.codebase.reporter.report(
+                Issues.ADDED_SEALED,
+                item,
+                "`sealed` is not currently supported, see b/482391240 for more details.",
+            )
         }
 
         if (list.isSuspend()) {
@@ -233,15 +273,12 @@ private constructor(
      */
     private fun MethodItem.allowAbstract(): Boolean {
         val containingClassKind = containingClass().classKind
-        return when {
-            target == AnnotationTarget.SIGNATURE_FILE && !normalizeAbstract ->
-                // Signature files only disallow `abstract` on interfaces when not normalizing
-                // abstract.
-                containingClassKind != ClassKind.INTERFACE
-            else ->
-                // All other files disallow `abstract` on methods iff it is disallowed on the
-                // method's containing class.
-                containingClassKind.allowAbstract
+        return if (onlyDisallowAbstractOnInterfaceMethods) {
+            containingClassKind != ClassKind.INTERFACE
+        } else {
+            // Otherwise, disallow it on the methods iff it is disallowed on the method's containing
+            // class.
+            containingClassKind.allowAbstract
         }
     }
 
@@ -278,7 +315,7 @@ private constructor(
         return null
     }
 
-    private fun writeAnnotations(item: Item) {
+    fun writeAnnotations(item: Item) {
         // Generate annotations on separate lines in stub files for packages, classes and
         // methods and also for enum constants.
         val separateLines =
@@ -313,6 +350,23 @@ private constructor(
         // does add it to this list. It will be sorted into the correct position below.
         flaggedApiAnnotationToInherit(item, annotations)?.let { flaggedApiAnnotation ->
             annotations = annotations + flaggedApiAnnotation
+        }
+
+        // @FlaggedApi annotations are always converted to @RequiresFlag in stub files.
+        // Developers are not allowed to add @RequiresFlag to flagged APIs to avoid duplicate
+        // @RequiresFlag compilation errors in stubs
+        if (
+            target.isStubsFile() &&
+                annotations.any { it.qualifiedName == ANDROID_FLAGGED_API } &&
+                annotations.any { it.qualifiedName == ANDROID_REQUIRES_FLAG }
+        ) {
+            item.codebase.reporter.report(
+                Issues.MULTIPLE_FLAGGING,
+                item,
+                "@RequiresFlag can not be placed on APIs that are already flagged.",
+            )
+
+            annotations = annotations.filter { it.qualifiedName != ANDROID_REQUIRES_FLAG }
         }
 
         if (annotations.isEmpty()) {
