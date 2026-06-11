@@ -16,7 +16,8 @@
 
 package com.android.tools.metalava.stub
 
-import com.android.tools.metalava.model.CallableItem
+import com.android.tools.metalava.model.AnnotationFormatter
+import com.android.tools.metalava.model.AnnotationTarget
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.DelegatedVisitor
@@ -29,10 +30,8 @@ import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.item.ResourceFile
 import com.android.tools.metalava.model.visitors.ApiFilters
-import com.android.tools.metalava.model.visitors.ApiPredicate
 import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.android.tools.metalava.model.visitors.FilteringApiVisitor
-import com.android.tools.metalava.model.visitors.MatchOverridingMethodPredicate
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
 import java.io.BufferedWriter
@@ -45,11 +44,25 @@ import java.io.Writer
 internal class StubWriter(
     private val stubsDir: File,
     private val generateAnnotations: Boolean = false,
-    private val docStubs: Boolean,
+    private val isDocStubs: Boolean,
     private val reporter: Reporter,
     private val config: StubWriterConfig,
     private val stubConstructorManager: StubConstructorManager,
 ) : DelegatedVisitor {
+    /** Configuration for a [ModifierListWriter] instance. */
+    private val modifierListWriterConfig = modifierListWriterConfig()
+
+    /** Get the [ModifierListWriter.Config] suitable for this [StubWriter]. */
+    private fun modifierListWriterConfig(): ModifierListWriter.Config {
+        val modifierListWriterConfig =
+            if (isDocStubs) DOC_STUBS_MODIFIER_LIST_WRITER_CONFIG
+            else SDK_STUBS_MODIFIER_LIST_WRITER_CONFIG
+        return modifierListWriterConfig.copy(
+            runtimeAnnotationsOnly = !generateAnnotations,
+            javaRecordClasses = config.javaRecordClasses,
+            javaSealedClasses = config.javaSealedClasses,
+        )
+    }
 
     /**
      * Stubs need to preserve class nesting when visiting otherwise nested classes will not be
@@ -63,7 +76,7 @@ internal class StubWriter(
 
         writePackageInfo(pkg)
 
-        if (docStubs) {
+        if (isDocStubs) {
             pkg.overviewDocumentation?.let { writeDocOverview(pkg, it) }
         }
     }
@@ -95,7 +108,7 @@ internal class StubWriter(
         val annotations = pkg.modifiers.annotations()
         val writeAnnotations = annotations.isNotEmpty() && generateAnnotations
         val writeDocumentation =
-            config.includeDocumentationInStubs && pkg.documentation.requiresSourceComment()
+            config.includeDocumentationInStubs && pkg.documentation?.requiresSourceComment() == true
         if (writeAnnotations || writeDocumentation) {
             val sourceFile = File(getPackageDir(pkg), "package-info.java")
             val packageInfoWriter =
@@ -112,9 +125,9 @@ internal class StubWriter(
                 // Write the modifier list even though the package info does not actually have
                 // modifiers as that will write the annotations which it does have and ignore the
                 // modifiers.
-                ModifierListWriter.forStubs(
+                ModifierListWriter(
                         writer = packageInfoWriter,
-                        docStubs = docStubs,
+                        config = modifierListWriterConfig,
                     )
                     .write(pkg)
             }
@@ -179,6 +192,9 @@ internal class StubWriter(
 
     private var stubWriter: DelegatedVisitor? = null
 
+    private val inaccessibleSealedSubclassManager =
+        InaccessibleSealedSubclassManager(stubConstructorManager)
+
     override fun visitClass(cls: ClassItem) {
         if (cls.isTopLevelClass()) {
             val sourceFile = getClassFile(cls)
@@ -191,10 +207,9 @@ internal class StubWriter(
                 }
 
             val modifierListWriter =
-                ModifierListWriter.forStubs(
+                ModifierListWriter(
                     writer = textWriter,
-                    docStubs = docStubs,
-                    runtimeAnnotationsOnly = !generateAnnotations,
+                    config = modifierListWriterConfig,
                 )
 
             stubWriter =
@@ -203,6 +218,7 @@ internal class StubWriter(
                     modifierListWriter,
                     config,
                     stubConstructorManager,
+                    inaccessibleSealedSubclassManager,
                 )
 
             // Copyright statements from the original file?
@@ -254,6 +270,25 @@ internal class StubWriter(
     override fun visitField(field: FieldItem) {
         stubWriter?.visitField(field)
     }
+
+    companion object {
+        /** [ModifierListWriter.Config] common to all [AnnotationTarget.DOC_STUBS_FILE]s. */
+        private val DOC_STUBS_MODIFIER_LIST_WRITER_CONFIG =
+            targetSpecificModifierListWriterConfig(AnnotationTarget.DOC_STUBS_FILE)
+
+        /** [ModifierListWriter.Config] common to all [AnnotationTarget.SDK_STUBS_FILE]s. */
+        private val SDK_STUBS_MODIFIER_LIST_WRITER_CONFIG =
+            targetSpecificModifierListWriterConfig(AnnotationTarget.SDK_STUBS_FILE)
+
+        /** Get a [ModifierListWriter.Config] suitable for [target] stubs. */
+        private fun targetSpecificModifierListWriterConfig(target: AnnotationTarget) =
+            ModifierListWriter.Config(
+                target = target,
+                annotationFormatter = AnnotationFormatter.stubFormatter(target),
+                runtimeAnnotationsOnly = false,
+                skipNullnessAnnotations = false,
+            )
+    }
 }
 
 /**
@@ -263,32 +298,12 @@ internal class StubWriter(
  */
 fun createFilteringVisitorForStubs(
     delegate: DelegatedVisitor,
-    docStubs: Boolean,
-    preFiltered: Boolean,
-    apiPredicateConfig: ApiPredicate.Config,
+    apiFilters: ApiFilters?,
     ignoreEmit: Boolean = false,
 ): ItemVisitor {
-    val filterReference =
-        ApiPredicate(
-            includeDocOnly = docStubs,
-            config = apiPredicateConfig.copy(ignoreShown = true),
-        )
-    val filterEmit = MatchOverridingMethodPredicate(filterReference)
-    val apiFilters =
-        ApiFilters(
-            emit = filterEmit,
-            reference = filterReference,
-        )
     return FilteringApiVisitor(
         delegate = delegate,
-        inlineInheritedFields = true,
-        // Sort methods in stubs based on their signature. The order of methods in stubs is
-        // irrelevant, e.g. it does not affect compilation or document generation. However, having a
-        // consistent order will prevent churn in the generated stubs caused by changes to Metalava
-        // itself or changes to the order of methods in the sources.
-        callableComparator = CallableItem.comparator,
         apiFilters = apiFilters,
-        preFiltered = preFiltered,
         ignoreEmit = ignoreEmit,
     )
 }
@@ -300,6 +315,6 @@ internal fun appendDocumentation(
 ) {
     if (config.includeDocumentationInStubs) {
         val documentation = item.documentation
-        documentation.print(writer)
+        documentation?.print(writer)
     }
 }

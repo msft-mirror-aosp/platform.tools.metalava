@@ -20,60 +20,47 @@ import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.provider.InputFormat
-import com.android.tools.metalava.model.testsuite.memberitem.CommonCopyMemberItemTest
+import com.android.tools.metalava.model.testing.SupportedInputFormats
+import com.android.tools.metalava.model.testsuite.memberitem.CommonCopyInheritableItemTest
 import com.android.tools.metalava.testing.java
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 import org.junit.Test
-import org.junit.runners.Parameterized
 
-/**
- * Common tests for [MethodItem.duplicate] and [ClassItem.inheritMethodFromNonApiAncestor].
- *
- * These methods do very similar jobs, i.e. take a [MethodItem] from one [ClassItem], create a copy
- * of it in some way, and then add it to another [ClassItem].
- */
-class CommonCopyMethodItemTest : CommonCopyMemberItemTest<MethodItem>() {
-
-    enum class CopyMethod(
-        val supportedInputFormats: Set<InputFormat> = setOf(InputFormat.JAVA, InputFormat.SIGNATURE)
-    ) {
-        DUPLICATE {
-            override fun copy(
-                sourceMethodItem: MethodItem,
-                targetClassItem: ClassItem
-            ): MethodItem {
-                return sourceMethodItem.duplicate(targetClassItem)
-            }
-        };
-
-        abstract fun copy(sourceMethodItem: MethodItem, targetClassItem: ClassItem): MethodItem
-    }
-
-    companion object {
-        @JvmStatic @Parameterized.Parameters fun comparisons() = CopyMethod.entries
-    }
-
-    /**
-     * Set by injection by [Parameterized] after class initializers are called.
-     *
-     * Anything that accesses this, either directly or indirectly must do it after initialization,
-     * e.g. from lazy fields or in methods called from test methods.
-     *
-     * See [codebaseCreatorConfig] for more info.
-     */
-    @Parameterized.Parameter(0) lateinit var copyMethod: CopyMethod
-
-    override fun supportsInputFormat(): Boolean {
-        return (inputFormat in copyMethod.supportedInputFormats)
-    }
+/** Common tests for [MethodItem.duplicate]. */
+@SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.JAVA)
+class CommonCopyMethodItemTest : CommonCopyInheritableItemTest<MethodItem>() {
 
     override fun getMember(sourceClassItem: ClassItem) =
         sourceClassItem.assertMethod("method", emptyList())
 
     override fun copyMember(sourceMemberItem: MethodItem, targetClassItem: ClassItem) =
-        copyMethod.copy(sourceMemberItem, targetClassItem)
+        sourceMemberItem.duplicate(targetClassItem)
+
+    @SupportedInputFormats(InputFormat.JAVA)
+    @Test
+    fun `test duplicate creates item in same codebase as target class`() {
+        checkDuplicateUsesTargetCodebase(
+            sourceFile =
+                java(
+                    """
+                        package test.pkg;
+                        public class Source {
+                            public void method() {}
+                        }
+                    """
+                ),
+            targetFile =
+                java(
+                    """
+                        package test.pkg;
+                        public class Target {
+                        }
+                    """
+                ),
+        )
+    }
 
     @Test
     fun `test copy method from interface to class uses public visibility`() {
@@ -219,7 +206,7 @@ class CommonCopyMethodItemTest : CommonCopyMemberItemTest<MethodItem>() {
                           public class Source {
                             method public void method();
                           }
-                          public final class Target implements test.pkg.Source {
+                          public final class Target extends test.pkg.Source {
                           }
                         }
                     """
@@ -241,7 +228,7 @@ class CommonCopyMethodItemTest : CommonCopyMemberItemTest<MethodItem>() {
                     """
                         package test.pkg;
 
-                        public final class Target implements Source {}
+                        public final class Target extends Source {}
                     """
                 ),
             ),
@@ -266,7 +253,7 @@ class CommonCopyMethodItemTest : CommonCopyMemberItemTest<MethodItem>() {
                           public class Source {
                             method public void method();
                           }
-                          @Deprecated public class Target implements test.pkg.Source {
+                          @Deprecated public class Target extends test.pkg.Source {
                           }
                         }
                     """
@@ -290,7 +277,7 @@ class CommonCopyMethodItemTest : CommonCopyMemberItemTest<MethodItem>() {
 
                         /** @deprecated */
                         @Deprecated
-                        public final class Target implements Source {}
+                        public final class Target extends Source {}
                     """
                 ),
             ),
@@ -318,7 +305,7 @@ class CommonCopyMethodItemTest : CommonCopyMemberItemTest<MethodItem>() {
                           @Deprecated public class Source {
                             method public void method();
                           }
-                          public class Target implements test.pkg.Source {
+                          public class Target extends test.pkg.Source {
                           }
                         }
                     """
@@ -342,7 +329,7 @@ class CommonCopyMethodItemTest : CommonCopyMemberItemTest<MethodItem>() {
                     """
                         package test.pkg;
 
-                        public final class Target implements Source {}
+                        public final class Target extends Source {}
                     """
                 ),
             ),
@@ -370,7 +357,7 @@ class CommonCopyMethodItemTest : CommonCopyMemberItemTest<MethodItem>() {
                           public class Source {
                             method @Deprecated public void method();
                           }
-                          public class Target implements test.pkg.Source {
+                          public class Target extends test.pkg.Source {
                           }
                         }
                     """
@@ -393,7 +380,7 @@ class CommonCopyMethodItemTest : CommonCopyMemberItemTest<MethodItem>() {
                     """
                         package test.pkg;
 
-                        public final class Target implements Source {}
+                        public final class Target extends Source {}
                     """
                 ),
             ),

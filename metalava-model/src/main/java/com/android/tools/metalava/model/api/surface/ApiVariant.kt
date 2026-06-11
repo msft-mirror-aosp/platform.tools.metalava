@@ -71,6 +71,15 @@ sealed class BaseApiVariantSet(internal val apiSurfaces: ApiSurfaces) {
     }
 
     /**
+     * Return the union of this [BaseApiVariantSet] with the [other] [BaseApiVariantSet].
+     *
+     * If this is a [MutableApiVariantSet] then this will modify and return this. If this is
+     * [ApiVariantSet] then it will create a [MutableApiVariantSet] copy and then modify and return
+     * it.
+     */
+    abstract fun unionWith(other: BaseApiVariantSet): BaseApiVariantSet
+
+    /**
      * Get a [MutableApiVariantSet] from this.
      *
      * This will return the object on which it is called if that is already mutable, otherwise it
@@ -127,6 +136,10 @@ sealed class BaseApiVariantSet(internal val apiSurfaces: ApiSurfaces) {
 class ApiVariantSet(apiSurfaces: ApiSurfaces, override val bits: Int) :
     BaseApiVariantSet(apiSurfaces) {
 
+    override fun unionWith(other: BaseApiVariantSet): BaseApiVariantSet =
+        if (bits or other.bits == bits) this
+        else if (bits == 0) other else toMutable().apply { unionWith(other) }
+
     override fun toMutable() = MutableApiVariantSet(apiSurfaces, bits)
 
     override fun toImmutable() = this
@@ -152,6 +165,8 @@ class ApiVariantSet(apiSurfaces: ApiSurfaces, override val bits: Int) :
 class MutableApiVariantSet
 internal constructor(apiSurfaces: ApiSurfaces, override var bits: Int = 0) :
     BaseApiVariantSet(apiSurfaces) {
+
+    override fun unionWith(other: BaseApiVariantSet) = this.apply { bits = bits or other.bits }
 
     override fun toMutable() = this
 

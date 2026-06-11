@@ -17,10 +17,12 @@
 package com.android.tools.metalava.model.source.doc
 
 import com.android.tools.metalava.model.ClassItem
-import com.android.tools.metalava.model.Item
+import com.android.tools.metalava.model.MemberItem
 import com.android.tools.metalava.model.MethodItem
+import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.SelectableItem
-import com.android.tools.metalava.model.TypeParameterItem
+import com.android.tools.metalava.model.source.javadoc.ExprBuilderContext
+import com.android.tools.metalava.model.source.javadoc.ExprContext
 
 /**
  * Provides contextual information from the surrounding model for use when processing a
@@ -30,13 +32,7 @@ import com.android.tools.metalava.model.TypeParameterItem
  * that created at different levels within the [DocComment] whereas this applies to the whole
  * [DocComment].
  */
-internal interface DocCommentContext {
-    /**
-     * The [DocCommentMutationListener] whose [DocCommentMutationListener.docCommentMutated] must be
-     * invoked when the [DocComment] is changed.
-     */
-    val mutationListener: DocCommentMutationListener
-
+internal interface DocCommentContext : ExprBuilderContext, ExprContext {
     /**
      * Compute the ordinal value for parameter [name] in the list of all `@param` tags.
      *
@@ -61,37 +57,16 @@ internal interface DocCommentContext {
      */
     fun isOverridingMethod(): Boolean
 
-    /** Fully qualify the Javadoc [comment]. */
-    fun fullyQualifyComment(comment: String): String
-
     /**
-     * Resolve [typeName] (which may be a reference to a class or a type parameter) to a
-     * [TypeReference], if possible.
+     * The optional [ClassItem] that contains this documentation.
+     *
+     * The value returned depends on the [SelectableItem] this documents:
+     * * For a [PackageItem] this will return `null`.
+     * * For a [ClassItem] this will just return the [ClassItem] itself.
+     * * For a [MemberItem] this will return [MemberItem.containingClass].
      */
-    fun resolveThrowableType(typeName: String): TypeReference?
-}
+    val containingClassItem: ClassItem?
 
-/**
- * Base for type returned by [DocCommentContext.resolveThrowableType].
- *
- * This allows the caller to differentiate between the different resolved types without depending on
- * [Item]s that would cause issues when taking a snapshot.
- */
-interface TypeReference : Comparable<TypeReference> {
-    /** The display name of the referenced type. */
-    val displayName: String
-
-    override fun compareTo(other: TypeReference) = displayName.compareTo(other.displayName)
-}
-
-/** A reference to a [ClassItem]. */
-data class ClassReference(val qualifiedName: String) : TypeReference {
-    override val displayName: String
-        get() = qualifiedName
-}
-
-/** A reference to a [TypeParameterItem]. */
-data class TypeParameterReference(val name: String) : TypeReference {
-    override val displayName: String
-        get() = name
+    /** Provides support for parsing type references within Javadoc content. */
+    val docTypeParser: DocTypeParser
 }

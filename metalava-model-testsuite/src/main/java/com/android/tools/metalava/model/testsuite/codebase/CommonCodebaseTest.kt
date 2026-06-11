@@ -17,6 +17,9 @@
 package com.android.tools.metalava.model.testsuite.codebase
 
 import com.android.tools.metalava.model.MethodItem
+import com.android.tools.metalava.model.api.flags.ApiFlags
+import com.android.tools.metalava.model.provider.InputFormat
+import com.android.tools.metalava.model.testing.SupportedInputFormats
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.testing.java
 import kotlin.test.assertEquals
@@ -27,6 +30,7 @@ import org.junit.Test
 /** Common tests for implementations of [MethodItem]. */
 class CommonCodebaseTest : BaseModelTest() {
 
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `Test getTopLevelClassesFromSource`() {
         runSourceCodebaseTest(
@@ -52,6 +56,7 @@ class CommonCodebaseTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `Test resolve nested class sets correct containing class`() {
         runSourceCodebaseTest(
@@ -71,14 +76,25 @@ class CommonCodebaseTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.JAVA)
     @Test
     fun `Test resolve package`() {
-        runSourceCodebaseTest(
+        runCodebaseTest(
             java(
                 """
                     package test.pkg;
 
                     public class Test {}
+                """
+            ),
+            signature(
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public class Test {
+                        ctor public Test();
+                      }
+                    }
                 """
             ),
         ) {
@@ -90,6 +106,28 @@ class CommonCodebaseTest : BaseModelTest() {
 
             // Make sure that resolving an unknown package does not create it.
             assertNull(codebase.resolvePackage("unknown"), message = "resolve unknown package")
+        }
+    }
+
+    @SupportedInputFormats(InputFormat.JAVA)
+    @Test
+    fun `Test ApiFlags passed through to codebase config`() {
+        val apiFlags = ApiFlags(emptyList())
+        runSourceCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+
+                    public class Test {}
+                """
+            ),
+            testFixture =
+                TestFixture(
+                    apiFlags = apiFlags,
+                ),
+        ) {
+            // Make sure that the `apiFlags` has been passed through to the Codebase.Config.
+            assertSame(apiFlags, codebase.config.apiFlags)
         }
     }
 }

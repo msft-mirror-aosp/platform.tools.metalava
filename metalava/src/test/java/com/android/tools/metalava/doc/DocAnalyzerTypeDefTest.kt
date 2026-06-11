@@ -60,7 +60,7 @@ class DocAnalyzerTypeDefTest : DriverTest() {
                 ),
             checkCompilation = true,
             docStubs = true,
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
@@ -71,10 +71,10 @@ class DocAnalyzerTypeDefTest : DriverTest() {
                             /**
                              * @param flags Value is either <code>0</code> or a combination of the following:
                              * <ul>
-                             *   <li>{@link test.pkg.TypedefTest#STYLE_NORMAL}</li>
-                             *   <li>{@link test.pkg.TypedefTest#STYLE_NO_TITLE}</li>
-                             *   <li>{@link test.pkg.TypedefTest#STYLE_NO_FRAME}</li>
-                             *   <li>{@link test.pkg.TypedefTest#STYLE_NO_INPUT}</li>
+                             *   <li>{@link #STYLE_NORMAL}</li>
+                             *   <li>{@link #STYLE_NO_TITLE}</li>
+                             *   <li>{@link #STYLE_NO_FRAME}</li>
+                             *   <li>{@link #STYLE_NO_INPUT}</li>
                              *   <li>2</li>
                              *   <li>4</li>
                              * <ul>
@@ -127,7 +127,7 @@ class DocAnalyzerTypeDefTest : DriverTest() {
                 ),
             checkCompilation = true,
             docStubs = true,
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
@@ -138,10 +138,10 @@ class DocAnalyzerTypeDefTest : DriverTest() {
                             /**
                              * @param style Value is one of the following:
                              * <ul>
-                             *   <li>{@link test.pkg.TypedefTest#STYLE_NORMAL}</li>
-                             *   <li>{@link test.pkg.TypedefTest#STYLE_NO_TITLE}</li>
-                             *   <li>{@link test.pkg.TypedefTest#STYLE_NO_FRAME}</li>
-                             *   <li>{@link test.pkg.TypedefTest#STYLE_NO_INPUT}</li>
+                             *   <li>{@link #STYLE_NORMAL}</li>
+                             *   <li>{@link #STYLE_NO_TITLE}</li>
+                             *   <li>{@link #STYLE_NO_FRAME}</li>
+                             *   <li>{@link #STYLE_NO_INPUT}</li>
                              * <ul>
                              */
                             public void setStyle(int style, int theme) { throw new RuntimeException("Stub!"); }
@@ -196,7 +196,7 @@ class DocAnalyzerTypeDefTest : DriverTest() {
                 """
                     src/test/pkg/TypedefTest.java:20: error: Typedef references constant which isn't part of the API, skipping in documentation: test.pkg.TypedefTest#STYLE_NO_INPUT [HiddenTypedefConstant]
                 """,
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
@@ -207,9 +207,9 @@ class DocAnalyzerTypeDefTest : DriverTest() {
                             /**
                              * @param style Value is one of the following:
                              * <ul>
-                             *   <li>{@link test.pkg.TypedefTest#STYLE_NORMAL}</li>
-                             *   <li>{@link test.pkg.TypedefTest#STYLE_NO_TITLE}</li>
-                             *   <li>{@link test.pkg.TypedefTest#STYLE_NO_FRAME}</li>
+                             *   <li>{@link #STYLE_NORMAL}</li>
+                             *   <li>{@link #STYLE_NO_TITLE}</li>
+                             *   <li>{@link #STYLE_NO_FRAME}</li>
                              * <ul>
                              */
                             public void setStyle(int style, int theme) { throw new RuntimeException("Stub!"); }
@@ -259,7 +259,7 @@ class DocAnalyzerTypeDefTest : DriverTest() {
                 ),
             docStubs = true,
             checkCompilation = true,
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
@@ -270,9 +270,9 @@ class DocAnalyzerTypeDefTest : DriverTest() {
                             /**
                              * @param style Value is one of the following:
                              * <ul>
-                             *   <li>{@link test.pkg.TypedefTest#STYLE_NORMAL}</li>
-                             *   <li>{@link test.pkg.TypedefTest#STYLE_NO_TITLE}</li>
-                             *   <li>{@link test.pkg.TypedefTest#STYLE_NO_FRAME}</li>
+                             *   <li>{@link #STYLE_NORMAL}</li>
+                             *   <li>{@link #STYLE_NO_TITLE}</li>
+                             *   <li>{@link #STYLE_NO_FRAME}</li>
                              * <ul>.
                              * <br>
                              * Value is 20 or greater

@@ -28,13 +28,15 @@ sealed interface AnnotationFormatter {
     /** Format [annotationItem] as part of [context]. */
     fun formatAnnotation(
         annotationItem: AnnotationItem,
+        purpose: AnnotationPurpose,
         context: Item? = null,
-    ) = buildString { appendFormatAnnotation(this, annotationItem, context) }
+    ) = buildString { appendFormatAnnotation(this, annotationItem, purpose, context) }
 
     /** Format [annotationItem] as part of [context] and append to [builder]. */
     fun appendFormatAnnotation(
         builder: StringBuilder,
         annotationItem: AnnotationItem,
+        purpose: AnnotationPurpose,
         context: Item? = null,
     )
 
@@ -47,6 +49,11 @@ sealed interface AnnotationFormatter {
 
         /** An [AnnotationFormatter] for use when writing stubs for [target]. */
         fun stubFormatter(target: AnnotationTarget): AnnotationFormatter = StubFormatter(target)
+
+        /**
+         * An [AnnotationFormatter] for use when normalizing annotation values during comparisons.
+         */
+        fun normalizingFormatter(): AnnotationFormatter = NormalizingFormatter()
 
         /** True if this [FieldItem] is not-null, is not hidden or removed and is public. */
         private fun FieldItem?.isAccessible() = this != null && !isHiddenOrRemoved() && isPublic
@@ -64,9 +71,16 @@ sealed interface AnnotationFormatter {
         override fun appendFormatAnnotation(
             builder: StringBuilder,
             annotationItem: AnnotationItem,
+            purpose: AnnotationPurpose,
             context: Item?
         ) {
-            legacyValueFormatter.appendFormatAnnotation(builder, annotationItem, target, context)
+            legacyValueFormatter.appendFormatAnnotation(
+                builder,
+                annotationItem,
+                purpose,
+                target,
+                context
+            )
         }
     }
 
@@ -77,9 +91,17 @@ sealed interface AnnotationFormatter {
             ValueStringConfiguration(
                 annotationAttributeNameValueSeparator =
                     AnnotationAttributeNameValueSeparator.WITHOUT_SPACES,
-                annotationQualifiedNameGetter = { annotationItem ->
+                annotationQualifiedNameGetter = { annotationItem, _ ->
+                    // @RequiresFlag replaces all occurrences of @FlaggedApi in stub files
+                    val qualifiedName =
+                        if (
+                            annotationItem.qualifiedName == ANDROID_FLAGGED_API &&
+                                target == AnnotationTarget.SDK_STUBS_FILE
+                        )
+                            ANDROID_REQUIRES_FLAG
+                        else annotationItem.qualifiedName
                     annotationItem.annotationContext.annotationManager.normalizeOutputName(
-                        annotationItem.qualifiedName,
+                        qualifiedName,
                         target
                     )
                 },
@@ -99,6 +121,7 @@ sealed interface AnnotationFormatter {
         override fun appendFormatAnnotation(
             builder: StringBuilder,
             annotationItem: AnnotationItem,
+            purpose: AnnotationPurpose,
             context: Item?
         ) {
             val alwaysInline = annotationItem.qualifiedName == ANDROID_FLAGGED_API
@@ -107,7 +130,33 @@ sealed interface AnnotationFormatter {
             annotationItem.appendAnnotationStringTo(
                 builder,
                 configuration,
-                annotationIsValue = false,
+                purpose,
+            )
+        }
+    }
+
+    /** An [AnnotationFormatter] used when normalizing annotations e.g. for comparisons */
+    private class NormalizingFormatter : AnnotationFormatter {
+        /** The default [ValueStringConfiguration] for normalization */
+        private val defaultConfiguration =
+            ValueStringConfiguration(
+                annotationAttributeNameValueSeparator =
+                    AnnotationAttributeNameValueSeparator.WITHOUT_SPACES,
+                inlineFieldReferenceChecker = { true },
+                singleArrayElementFormat = SingleArrayElementFormat.UNWRAP,
+                useOriginalValueForNumbers = true,
+            )
+
+        override fun appendFormatAnnotation(
+            builder: StringBuilder,
+            annotationItem: AnnotationItem,
+            purpose: AnnotationPurpose,
+            context: Item?
+        ) {
+            annotationItem.appendAnnotationStringTo(
+                builder,
+                defaultConfiguration,
+                purpose,
             )
         }
     }

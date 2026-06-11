@@ -59,8 +59,8 @@ dependencies {
 
     implementation(project(":metalava-reporter"))
     implementation(project(":metalava-model"))
-    implementation(project(":metalava-reporter"))
     implementation(libs.antlr4)
+    api(libs.tracing)
 
     testFixturesImplementation(project(":metalava-model"))
     testFixturesImplementation(testFixtures(project(":metalava-model")))
@@ -68,9 +68,13 @@ dependencies {
     testFixturesImplementation(project(":metalava-reporter"))
     testFixturesImplementation(libs.androidLintTests)
     testFixturesImplementation(project(":metalava-testing"))
+    testFixturesImplementation(libs.tracingWire)
 
+    testImplementation(testFixtures(project(":metalava-model")))
     testImplementation(libs.androidLintTests)
     testImplementation(libs.junit4)
     testImplementation(libs.truth)
     testImplementation(libs.kotlinTest)
+    testImplementation(libs.mockitoKotlin)
+    testImplementation(project(":metalava-testing"))
 }

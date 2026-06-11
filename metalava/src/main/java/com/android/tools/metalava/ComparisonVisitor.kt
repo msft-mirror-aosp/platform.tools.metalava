@@ -30,7 +30,7 @@ import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.TargetLanguage
-import com.android.tools.metalava.model.TypeAliasItem
+import com.android.tools.metalava.model.multiplatform.MultiplatformCodebase
 import com.android.tools.metalava.model.visitors.ApiFilters
 import com.android.tools.metalava.model.visitors.ApiVisitor
 
@@ -63,8 +63,6 @@ open class ComparisonVisitor {
 
     open fun compareParameterItems(old: ParameterItem, new: ParameterItem) {}
 
-    open fun compareTypeAliasItems(old: TypeAliasItem, new: TypeAliasItem) {}
-
     open fun addedPackageItem(new: PackageItem) {}
 
     open fun addedClassItem(new: ClassItem) {}
@@ -78,8 +76,6 @@ open class ComparisonVisitor {
     open fun addedFieldItem(new: FieldItem) {}
 
     open fun addedPropertyItem(new: PropertyItem) {}
-
-    open fun addedTypeAliasItem(new: TypeAliasItem) {}
 
     open fun removedPackageItem(old: PackageItem, from: PackageItem?) {}
 
@@ -95,7 +91,9 @@ open class ComparisonVisitor {
 
     open fun removedPropertyItem(old: PropertyItem, from: ClassItem) {}
 
-    open fun removedTypeAliasItem(old: TypeAliasItem, from: PackageItem) {}
+    open fun addedCodebase(new: Codebase) {}
+
+    open fun removedCodebase(old: Codebase) {}
 }
 
 /** Simple stack type built on top of an [ArrayList]. */
@@ -109,7 +107,7 @@ private fun <E> Stack<E>.pop(): E = removeAt(lastIndex)
 
 private fun <E> Stack<E>.peek(): E = last()
 
-class CodebaseComparator {
+object CodebaseComparator {
     /**
      * Visits this codebase and compares it with another codebase, informing the visitors about the
      * correlations and differences that it finds
@@ -150,6 +148,41 @@ class CodebaseComparator {
         */
 
         compare(visitor, oldTree, newTree, null, null, filter)
+    }
+
+    /**
+     * Compares the [old] and [new] [MultiplatformCodebase].
+     *
+     * If a source set [Codebase] is only present in [old], dispatches to
+     * [ComparisonVisitor.removedCodebase] on [visitor].
+     *
+     * If a source set [Codebase] is only present in [new], dispatches to
+     * [ComparisonVisitor.addedCodebase] on [visitor].
+     *
+     * If a source set [Codebase] is present in both [old] and [new], uses [compare] to compare all
+     * elements of the [Codebase]s.
+     */
+    fun compareMultiplatform(
+        visitor: ComparisonVisitor,
+        old: MultiplatformCodebase,
+        new: MultiplatformCodebase,
+        filter: FilterPredicate? = null,
+    ) {
+        val allSourceSetNames = old.sourceSets + new.sourceSets
+        for (sourceSetName in allSourceSetNames) {
+            val oldSourceSet = old.sourceSetToCodebase[sourceSetName]
+            val newSourceSet = new.sourceSetToCodebase[sourceSetName]
+            when {
+                oldSourceSet == null ->
+                    visitor.addedCodebase(
+                        requireNotNull(newSourceSet) {
+                            "$sourceSetName does not exist in the old or new codebase"
+                        }
+                    )
+                newSourceSet == null -> visitor.removedCodebase(oldSourceSet)
+                else -> compare(visitor, oldSourceSet, newSourceSet, filter)
+            }
+        }
     }
 
     private fun compare(
@@ -289,7 +322,7 @@ class CodebaseComparator {
         oldParent: SelectableItem?,
         visitor: ComparisonVisitor,
     ) {
-        // If it's a method, we may not have added a new method,
+        // If it's a method/property, we may not have added a new method/property,
         // we may simply have inherited it previously and overriding
         // it now (or in the case of signature files, identical overrides
         // are not explicitly listed and therefore not added to the model)
@@ -301,6 +334,10 @@ class CodebaseComparator {
                         includeSuperClasses = true,
                         includeInterfaces = true
                     )
+                    ?.duplicate(oldParent)
+            } else if (new is PropertyItem && oldParent is ClassItem) {
+                oldParent
+                    .findProperty(new, includeSuperClasses = true, includeInterfaces = true)
                     ?.duplicate(oldParent)
             } else {
                 null
@@ -328,7 +365,6 @@ class CodebaseComparator {
             is MethodItem -> visitor.addedMethodItem(item)
             is FieldItem -> visitor.addedFieldItem(item)
             is PropertyItem -> visitor.addedPropertyItem(item)
-            is TypeAliasItem -> visitor.addedTypeAliasItem(item)
             else -> error("unexpected addition of $item")
         }
     }
@@ -393,6 +429,17 @@ class CodebaseComparator {
             dispatchToCompare(visitor, old, inheritedField)
             return
         }
+
+        // A property may have been moved to a superclass.
+        if (old is PropertyItem && newParent is ClassItem) {
+            val superProperty =
+                newParent.findProperty(old, includeSuperClasses = true, includeInterfaces = true)
+            if (superProperty != null && (filter == null || filter.test(superProperty))) {
+                dispatchToCompare(visitor, old, superProperty.duplicate(newParent))
+                return
+            }
+        }
+
         dispatchToRemoved(visitor, old, newParent)
     }
 
@@ -415,7 +462,6 @@ class CodebaseComparator {
             is MethodItem -> visitor.removedMethodItem(item, from as ClassItem)
             is FieldItem -> visitor.removedFieldItem(item, from as ClassItem)
             is PropertyItem -> visitor.removedPropertyItem(item, from as ClassItem)
-            is TypeAliasItem -> visitor.removedTypeAliasItem(item, from as PackageItem)
             else -> error("unexpected removal of $item")
         }
     }
@@ -440,7 +486,6 @@ class CodebaseComparator {
             is MethodItem -> visitor.compareMethodItems(old, new as MethodItem)
             is FieldItem -> visitor.compareFieldItems(old, new as FieldItem)
             is PropertyItem -> visitor.comparePropertyItems(old, new as PropertyItem)
-            is TypeAliasItem -> visitor.compareTypeAliasItems(old, new as TypeAliasItem)
             else -> error("unexpected comparison of $old and $new")
         }
 
@@ -453,148 +498,166 @@ class CodebaseComparator {
     private fun compare(item1: SelectableItem, item2: SelectableItem): Int =
         comparator.compare(item1, item2)
 
-    companion object {
-        /** Sorting rank for types */
-        private fun typeRank(item: Item): Int {
-            return when (item) {
-                is PackageItem -> 0
-                is ConstructorItem -> 1
-                is MethodItem -> 2
-                is FieldItem -> 3
-                is ClassItem -> 4
-                is PropertyItem -> 5
-                is TypeAliasItem -> 6
-                else -> error("Unexpected item $item of ${item.javaClass}")
-            }
+    /** Sorting rank for types */
+    private fun typeRank(item: Item): Int {
+        return when (item) {
+            is PackageItem -> 0
+            is ConstructorItem -> 1
+            is MethodItem -> 2
+            is FieldItem -> 3
+            is ClassItem -> 4
+            is PropertyItem -> 5
+            else -> error("Unexpected item $item of ${item.javaClass}")
         }
+    }
 
-        val comparator: Comparator<SelectableItem> = Comparator { item1, item2 ->
-            val typeSort = typeRank(item1) - typeRank(item2)
-            when {
-                typeSort != 0 -> typeSort
-                item1 == item2 -> 0
-                else ->
-                    when (item1) {
-                        is PackageItem -> {
-                            item1.qualifiedName().compareTo((item2 as PackageItem).qualifiedName())
-                        }
-                        is ClassItem -> {
-                            item1.qualifiedName().compareTo((item2 as ClassItem).qualifiedName())
-                        }
-                        is CallableItem -> {
-                            // Try to incrementally match aspects of the method until you can
-                            // conclude
-                            // whether they are the same or different.
-                            // delta is 0 when the methods are the same, else not 0
-                            // Start by comparing the names
-                            var delta = item1.name().compareTo((item2 as CallableItem).name())
+    private val comparator: Comparator<SelectableItem> = Comparator { item1, item2 ->
+        val typeSort = typeRank(item1) - typeRank(item2)
+        when {
+            typeSort != 0 -> typeSort
+            item1 == item2 -> 0
+            else ->
+                when (item1) {
+                    is PackageItem -> {
+                        item1.qualifiedName().compareTo((item2 as PackageItem).qualifiedName())
+                    }
+                    is ClassItem -> {
+                        item1.qualifiedName().compareTo((item2 as ClassItem).qualifiedName())
+                    }
+                    is CallableItem -> {
+                        // Try to incrementally match aspects of the method until you can conclude
+                        // whether they are the same or different.
+                        // delta is 0 when the methods are the same, else not 0
+                        // Start by comparing the names
+                        var delta = item1.name().compareTo((item2 as CallableItem).name())
+                        if (delta == 0) {
+                            // If the names are the same then compare the number of parameters
+                            val parameters1 = item1.parameters()
+                            val parameters2 = item2.parameters()
+                            val parameterCount1 = parameters1.size
+                            val parameterCount2 = parameters2.size
+                            delta = parameterCount1 - parameterCount2
                             if (delta == 0) {
-                                // If the names are the same then compare the number of parameters
-                                val parameters1 = item1.parameters()
-                                val parameters2 = item2.parameters()
-                                val parameterCount1 = parameters1.size
-                                val parameterCount2 = parameters2.size
-                                delta = parameterCount1 - parameterCount2
-                                if (delta == 0) {
-                                    // If the parameter count is the same, compare the parameter
-                                    // types
-                                    for (i in 0 until parameterCount1) {
-                                        val parameter1 = parameters1[i]
-                                        val parameter2 = parameters2[i]
-                                        val type1 = parameter1.type().toTypeString()
-                                        val type2 = parameter2.type().toTypeString()
-                                        delta = type1.compareTo(type2)
+                                // If the parameter count is the same, compare the parameter types
+                                for (i in 0 until parameterCount1) {
+                                    val parameter1 = parameters1[i]
+                                    val parameter2 = parameters2[i]
+                                    val type1 = parameter1.type().toTypeString()
+                                    val type2 = parameter2.type().toTypeString()
+                                    delta = type1.compareTo(type2)
+                                    if (delta != 0) {
+                                        // If the parameter types aren't the same, try a little
+                                        // harder:
+                                        //  (1) treat varargs and arrays the same, and
+                                        //  (2) drop java.lang. prefixes from comparisons in
+                                        // wildcard signatures since older signature files may have
+                                        // removed those
+                                        val simpleType1 = parameter1.type().toCanonicalTypeString()
+                                        val simpleType2 = parameter2.type().toCanonicalTypeString()
+                                        delta = simpleType1.compareTo(simpleType2)
                                         if (delta != 0) {
-                                            // If the parameter types aren't the same, try a little
-                                            // harder:
-                                            //  (1) treat varargs and arrays the same, and
-                                            //  (2) drop java.lang. prefixes from comparisons in
-                                            // wildcard
-                                            //      signatures since older signature files may have
-                                            // removed
-                                            //      those
-                                            val simpleType1 = parameter1.type().toCanonicalType()
-                                            val simpleType2 = parameter2.type().toCanonicalType()
-                                            delta = simpleType1.compareTo(simpleType2)
-                                            if (delta != 0) {
-                                                // If still not the same, check the special case for
-                                                // Kotlin coroutines: It's possible one has
-                                                // "experimental"
-                                                // when fully qualified while the other does not.
-                                                // We treat these the same, so strip the prefix and
-                                                // strip
-                                                // "experimental", then compare.
-                                                if (
-                                                    simpleType1.startsWith("kotlin.coroutines.") &&
-                                                        simpleType2.startsWith("kotlin.coroutines.")
-                                                ) {
-                                                    val t1 =
-                                                        simpleType1
-                                                            .removePrefix("kotlin.coroutines.")
-                                                            .removePrefix("experimental.")
-                                                    val t2 =
-                                                        simpleType2
-                                                            .removePrefix("kotlin.coroutines.")
-                                                            .removePrefix("experimental.")
-                                                    delta = t1.compareTo(t2)
-                                                    if (delta != 0) {
-                                                        // They're not the same
-                                                        break
-                                                    }
-                                                } else {
+                                            // If still not the same, check the special case for
+                                            // Kotlin coroutines: It's possible one has
+                                            // "experimental" when fully qualified while the other
+                                            // does not.
+                                            // We treat these the same, so strip the prefix and
+                                            // strip "experimental", then compare.
+                                            if (
+                                                simpleType1.startsWith("kotlin.coroutines.") &&
+                                                    simpleType2.startsWith("kotlin.coroutines.")
+                                            ) {
+                                                val t1 =
+                                                    simpleType1
+                                                        .removePrefix("kotlin.coroutines.")
+                                                        .removePrefix("experimental.")
+                                                val t2 =
+                                                    simpleType2
+                                                        .removePrefix("kotlin.coroutines.")
+                                                        .removePrefix("experimental.")
+                                                delta = t1.compareTo(t2)
+                                                if (delta != 0) {
                                                     // They're not the same
                                                     break
                                                 }
+                                            } else {
+                                                // They're not the same
+                                                break
                                             }
                                         }
                                     }
-                                    if (delta == 0) {
-                                        // Also compare the target languages. As long as there is a
-                                        // common target language, it makes sense to compare the
-                                        // items, but if there are no common target language, treat
-                                        // these items as not the same.
-                                        if (
-                                            item1.targetLanguages
-                                                .intersect(item2.targetLanguages)
-                                                .isEmpty()
-                                        ) {
-                                            // If there is no intersection between the target
-                                            // language sets, exactly one of them must contain
-                                            // Kotlin (because Java implies bytecode, and the
-                                            // possible non-overlapping sets are bytecode|kotlin or
-                                            // bytecode,java|kotlin).
-                                            delta =
-                                                if (
-                                                    TargetLanguage.KOTLIN in item1.targetLanguages
-                                                ) {
-                                                    1
-                                                } else {
-                                                    -1
-                                                }
-                                        }
+                                }
+                                if (delta == 0) {
+                                    // Also compare the target languages. As long as there is a
+                                    // common target language, it makes sense to compare the items,
+                                    // but if there are no common target language, treat these items
+                                    // as not the same.
+                                    if (
+                                        item1.targetLanguages
+                                            .intersect(item2.targetLanguages)
+                                            .isEmpty()
+                                    ) {
+                                        // If there is no intersection between the target language
+                                        // sets, exactly one of them must contain Kotlin (because
+                                        // Java implies bytecode, and the possible non-overlapping
+                                        // sets are bytecode|kotlin or bytecode,java|kotlin).
+                                        delta =
+                                            if (TargetLanguage.KOTLIN in item1.targetLanguages) {
+                                                1
+                                            } else {
+                                                -1
+                                            }
                                     }
                                 }
                             }
-                            // The method names are different, return the result of the compareTo
-                            delta
                         }
-                        is FieldItem -> {
-                            item1.name().compareTo((item2 as FieldItem).name())
-                        }
-                        is PropertyItem -> {
-                            item1.name().compareTo((item2 as PropertyItem).name())
-                        }
-                        is TypeAliasItem -> {
-                            item1.qualifiedName.compareTo((item2 as TypeAliasItem).qualifiedName)
-                        }
-                        else -> error("Unexpected item $item1 of ${item1.javaClass}")
+                        // The method names are different, return the result of the compareTo
+                        delta
                     }
-            }
+                    is FieldItem -> {
+                        item1.name().compareTo((item2 as FieldItem).name())
+                    }
+                    is PropertyItem -> {
+                        var delta = item1.name().compareTo((item2 as PropertyItem).name())
+                        if (delta == 0) {
+                            // If the properties have the same name, additionally check the receiver
+                            // types.
+                            delta =
+                                when (val receiver1 = item1.receiver) {
+                                    null ->
+                                        when (item2.receiver) {
+                                            null -> 0
+                                            else -> 1
+                                        }
+                                    else ->
+                                        when (val receiver2 = item2.receiver) {
+                                            null -> -1
+                                            else ->
+                                                receiver1
+                                                    .toTypeString()
+                                                    .compareTo(receiver2.toTypeString())
+                                        }
+                                }
+                        }
+                        if (delta == 0) {
+                            delta = item1.contextParameters.size - item2.contextParameters.size
+                            if (delta == 0) {
+                                for ((p1, p2) in
+                                    item1.contextParameters.zip(item2.contextParameters)) {
+                                    delta =
+                                        p1.type().toTypeString().compareTo(p2.type().toTypeString())
+                                    if (delta != 0) break
+                                }
+                            }
+                        }
+                        delta
+                    }
+                    else -> error("Unexpected item $item1 of ${item1.javaClass}")
+                }
         }
+    }
 
-        val treeComparator: Comparator<ItemTree> = Comparator { item1, item2 ->
-            comparator.compare(item1.item, item2.item())
-        }
+    private val treeComparator: Comparator<ItemTree> = Comparator { item1, item2 ->
+        comparator.compare(item1.item, item2.item())
     }
 
     private fun ensureSorted(item: ItemTree) {
@@ -666,7 +729,6 @@ class CodebaseComparator {
                         // Do not visit [ParameterItem]s, as they will be compared in
                         // [dispatchToCompare].
                         visitParameterItems = false,
-                        inlineInheritedFields = true,
                         apiFilters = apiFilters,
                         // Whenever a caller passes arguments of "--show-annotation 'SomeAnnotation'
                         // --check-compatibility:api:released $oldApi",

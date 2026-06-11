@@ -20,20 +20,19 @@ import com.android.tools.metalava.model.ApiVariantSelectors
 import com.android.tools.metalava.model.ApiVariantSelectorsFactory
 import com.android.tools.metalava.model.BaseModifierList
 import com.android.tools.metalava.model.Codebase
-import com.android.tools.metalava.model.DefaultItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.ItemDocumentationFactory
-import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.Showability
 import com.android.tools.metalava.model.SourceLanguage
 import com.android.tools.metalava.model.TargetLanguage
+import com.android.tools.metalava.model.api.SelectedApi
 import com.android.tools.metalava.model.api.surface.ApiVariantSet
 import com.android.tools.metalava.model.api.surface.MutableApiVariantSet
 import com.android.tools.metalava.reporter.FileLocation
 
-abstract class DefaultSelectableItem(
+internal sealed class DefaultSelectableItem(
     codebase: Codebase,
     fileLocation: FileLocation,
     sourceLanguage: SourceLanguage,
@@ -56,24 +55,42 @@ abstract class DefaultSelectableItem(
      * initialized.
      *
      * If this is private then it cannot be included in an API so its documentation is irrelevant.
-     * In that case this ignores its [ItemDocumentationFactory] and uses [ItemDocumentation.NONE]
-     * instead. The latter is immutable and attempting to change it will throw an error but that is
-     * safe as only documentation for API [Item]s is modified.
-     *
-     * The [ItemDocumentationFactory] is also ignored if this is not a [SelectableItem], i.e. is a
-     * [ParameterItem] as they do not have documentation.
+     * In that case this ignores its [ItemDocumentationFactory] and uses `null` instead.
      */
     final override val documentation =
-        if (modifiers.isPrivate()) ItemDocumentation.NONE
-        else @Suppress("LeakingThis") documentationFactory(this)
+        if (modifiers.isPrivate()) null
+        else @Suppress("LeakingThis") documentationFactory.create(this)
 
     init {
-        if (!modifiers.isDeprecated() && documentation.hasBlockTagOfType("deprecated")) {
+        if (!modifiers.isDeprecated() && documentation?.hasBlockTagOfType("deprecated") == true) {
             @Suppress("LeakingThis") mutateModifiers { setDeprecated(true) }
         }
     }
 
-    final override var selectedApiVariants: ApiVariantSet = codebase.apiSurfaces.emptyVariantSet
+    private lateinit var _selectedApi: SelectedApi
+
+    /** Create a [SelectedApi] appropriate for this [SelectableItem] on demand. */
+    final override val selectedApi: SelectedApi
+        get() {
+            if (!::_selectedApi.isInitialized) {
+                // Create the instance and store in the field straight away before initialization.
+                // This is needed because initialize() may reenter this method and if it is not set
+                // before calling initialize() it will overflow the stack.
+                val factory = (codebase as DefaultCodebase).selectedApiFactory
+                _selectedApi = factory(this)
+
+                // Initialize the instance.
+                _selectedApi.initialize()
+            }
+            return _selectedApi
+        }
+
+    /** Delegate to [selectedApi]'s [SelectedApi.itemApiVariants]. */
+    final override var selectedApiVariants: ApiVariantSet
+        get() = selectedApi.itemApiVariants
+        set(value) {
+            selectedApi.itemApiVariants = value
+        }
 
     override fun mutateSelectedApiVariants(mutator: MutableApiVariantSet.() -> Unit) {
         val mutable = selectedApiVariants.toMutable()
@@ -81,9 +98,8 @@ abstract class DefaultSelectableItem(
         selectedApiVariants = mutable.toImmutable()
     }
 
-    final override var emit =
-        // Do not emit expect declarations in APIs.
-        !modifiers.isExpect()
+    // Default to true, may be updated later
+    final override var emit = true
 
     /**
      * Create an [ApiVariantSelectors] appropriate for this [SelectableItem].
@@ -110,4 +126,8 @@ abstract class DefaultSelectableItem(
 
     final override val showability: Showability
         get() = variantSelectors.showability
+
+    override fun includeOnlyForStubPurposes(): Boolean {
+        return variantSelectors.includeOnlyForStubPurposes
+    }
 }

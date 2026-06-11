@@ -16,8 +16,16 @@
 
 package com.android.tools.metalava.model
 
+import com.android.tools.metalava.model.annotation.AnnotationClass
+import com.android.tools.metalava.model.api.ApiSurfaceSelector
+
 /** Provides support for managing annotations within Metalava. */
 interface AnnotationManager {
+    /**
+     * The [ApiSurfaceSelector] used by this [AnnotationManager] to match API surface annotations
+     * and keep track of whether unannotated items are included in a surface.
+     */
+    val apiSurfaceSelector: ApiSurfaceSelector
 
     /** Get the [AnnotationInfo] for the specified [annotation]. */
     fun getAnnotationInfo(annotation: AnnotationItem): AnnotationInfo
@@ -36,9 +44,6 @@ interface AnnotationManager {
         qualifiedName: String,
         target: AnnotationTarget = AnnotationTarget.SIGNATURE_FILE
     ): String
-
-    /** Returns true if [annotationName] is the name of one of the show annotations. */
-    fun isShowAnnotationName(annotationName: String): Boolean = false
 
     /**
      * Checks to see if this has any show for stubs purposes annotations.
@@ -139,15 +144,16 @@ abstract class BaseAnnotationManager : AnnotationManager {
  */
 internal class NoOpAnnotationManager : BaseAnnotationManager() {
 
+    override val apiSurfaceSelector: ApiSurfaceSelector = ApiSurfaceSelector.DEFAULT
+
     override fun getKeyForAnnotationItem(annotationItem: AnnotationItem): String {
         // Just use the qualified name as the key as [computeAnnotationInfo] does not use anything
         // else.
         return annotationItem.qualifiedName
     }
 
-    override fun computeAnnotationInfo(annotationItem: AnnotationItem): AnnotationInfo {
-        return NoOpAnnotationInfo(annotationItem.qualifiedName)
-    }
+    override fun computeAnnotationInfo(annotationItem: AnnotationItem) =
+        NoOpAnnotationInfo(annotationItem)
 
     override fun normalizeInputName(qualifiedName: String): String {
         return qualifiedName
@@ -167,14 +173,19 @@ internal class NoOpAnnotationManager : BaseAnnotationManager() {
  * [qualifiedName]. Any other properties are set to the default, usually `false`.
  */
 internal class NoOpAnnotationInfo(
-    /** The fully qualified and normalized name of the annotation class. */
-    val qualifiedName: String,
+    /** The [AnnotationItem], needed for retrieving the [AnnotationClass]. */
+    private val annotationItem: AnnotationItem,
 ) : AnnotationInfo {
+    /** The fully qualified and normalized name of the annotation class. */
+    private val qualifiedName: String = annotationItem.qualifiedName
 
     override val targets
         get() = ANNOTATION_IN_ALL_STUBS
 
     override val typeNullability = computeTypeNullability(qualifiedName)
+
+    override val surfaceData
+        get() = null
 
     override val showability
         get() = Showability.NO_EFFECT
@@ -184,6 +195,14 @@ internal class NoOpAnnotationInfo(
 
     override val suppressCompatibility
         get() = qualifiedName == SUPPRESS_COMPATIBILITY_ANNOTATION_QUALIFIED
+
+    override val annotationClass: AnnotationClass?
+        get() = annotationItem.resolve()?.annotationClass
 }
 
-val noOpAnnotationManager: AnnotationManager = NoOpAnnotationManager()
+/**
+ * Get a [NoOpAnnotationManager], creates a new one on each call as it caches information specific
+ * to a [Codebase].
+ */
+val noOpAnnotationManager: AnnotationManager
+    get() = NoOpAnnotationManager()

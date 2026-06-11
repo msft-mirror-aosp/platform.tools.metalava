@@ -17,11 +17,13 @@
 package com.android.tools.metalava.model.source.doc
 
 import com.android.tools.metalava.model.source.javadoc.JavadocContent
+import com.android.tools.metalava.reporter.LocationSpecificReporter
 
 /** [TagType] for `@param` block tag. */
-internal class ParamTagType(name: String) : TagType<ParamTagData>(name) {
+internal class ParamTagType(name: String) : TagType<ParamTagData>(name, TagTypeForm.BLOCK) {
     override fun extractData(
         context: DocCommentContext,
+        reporter: LocationSpecificReporter,
         text: CharSequence
     ): ExtractDataResult<ParamTagData>? {
         val paramName = text.findLeadingIdentifier() ?: return null

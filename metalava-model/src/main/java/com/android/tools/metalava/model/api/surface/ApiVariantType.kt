@@ -48,14 +48,36 @@ enum class ApiVariantType(
      * Used in [ApiVariantSet.toString] to reduce the size of the string representation when
      * debugging.
      */
-    val shortCode: Char,
+    internal val shortCode: Char,
+
+    /**
+     * True if this type of [ApiVariantType] is included in an [ApiSurface] by default.
+     *
+     * @see ApiSurface.defaultVariantSet
+     */
+    internal val isDefault: Boolean,
 ) {
     /** The core API that is used everywhere. */
-    CORE(shortCode = 'C'),
+    CORE(
+        shortCode = 'C',
+
+        // Items are in the core API by default.
+        isDefault = true,
+    ),
 
     /** The removed API items. */
-    REMOVED(shortCode = 'R'),
+    REMOVED(
+        shortCode = 'R',
 
-    /** Doc stub only items. */
-    DOC_ONLY(shortCode = 'D'),
+        // Items are not removed by default.
+        isDefault = false,
+    ),
+
+    /** Documentation only items. */
+    DOC_ONLY(
+        shortCode = 'D',
+
+        // Items are not documentation only by default.
+        isDefault = false,
+    ),
 }
