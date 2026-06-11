@@ -19,15 +19,17 @@
 package com.android.tools.metalava
 
 import com.android.tools.lint.checks.infrastructure.TestFiles.base64gzip
-import com.android.tools.metalava.cli.common.ARG_ERROR
-import com.android.tools.metalava.cli.common.ARG_HIDE
-import com.android.tools.metalava.lint.DefaultLintErrorMessage
+import com.android.tools.metalava.cli.common.ARG_KOTLIN_SOURCE
 import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.testing.RequiresCapabilities
+import com.android.tools.metalava.model.text.CustomizableProperty.Companion.INCLUDE_TYPE_USE_ANNOTATIONS
+import com.android.tools.metalava.model.text.CustomizableProperty.Companion.KOTLIN_NAME_TYPE_ORDER
+import com.android.tools.metalava.model.text.CustomizableProperty.Companion.OVERLOADED_METHOD_ORDER
+import com.android.tools.metalava.model.text.CustomizableProperty.Companion.SORT_WHOLE_EXTENDS_LIST
 import com.android.tools.metalava.model.text.FileFormat
-import com.android.tools.metalava.model.text.FileFormat.OverloadedMethodOrder
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.testing.KnownJarFiles
+import com.android.tools.metalava.testing.KnownSourceFiles
 import com.android.tools.metalava.testing.createAndroidModuleDescription
 import com.android.tools.metalava.testing.createCommonModuleDescription
 import com.android.tools.metalava.testing.createProjectDescription
@@ -74,6 +76,201 @@ class ApiFileTest : DriverTest() {
 
     @RequiresCapabilities(Capability.KOTLIN)
     @Test
+    fun `Correctly mark sealed class and interface as nonexhaustive even when private subclass is declared before sealed parent class`() {
+        check(
+            format = FileFormat.V4,
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
+                        package test.pkg
+
+                        private class PrivateSubclassOfSealedClass: ParentNonExhaustiveSealedClass()
+                        private class PrivateSubclassOfSealedInterface: ParentNonExhaustiveSealedInterface
+                        """
+                    ),
+                    kotlin(
+                        """
+                        package test.pkg
+
+                        public sealed class ParentNonExhaustiveSealedClass
+                        public sealed interface ParentNonExhaustiveSealedInterface
+                        """
+                    ),
+                    kotlin(
+                        """
+                        package test.pkg
+
+                        public class PublicSubclassOfSealedClass : ParentNonExhaustiveSealedClass()
+                        public class PublicSubclassOfSealedInterface : ParentNonExhaustiveSealedInterface
+                        """
+                    )
+                ),
+            expectedApiSignature =
+                """
+                package test.pkg {
+                  public abstract sealed nonexhaustive class ParentNonExhaustiveSealedClass {
+                  }
+                  public sealed nonexhaustive interface ParentNonExhaustiveSealedInterface {
+                  }
+                  public final class PublicSubclassOfSealedClass extends test.pkg.ParentNonExhaustiveSealedClass {
+                    ctor public PublicSubclassOfSealedClass();
+                  }
+                  public final class PublicSubclassOfSealedInterface implements test.pkg.ParentNonExhaustiveSealedInterface {
+                    ctor public PublicSubclassOfSealedInterface();
+                  }
+                }
+                """
+        )
+    }
+
+    @RequiresCapabilities(Capability.KOTLIN)
+    @Test
+    fun `Mark a sealed class and interface as exhaustive if no non-accessible classes inherit from it - basic case`() {
+        check(
+            format = FileFormat.V4,
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
+                        package test.pkg
+
+                        public sealed class ExhaustiveSealedClass
+                        public class PublicSealedClassChild1 : ExhaustiveSealedClass()
+                        public class PublicSealedClassChild2 : ExhaustiveSealedClass()
+
+                        public sealed interface ExhaustiveSealedInterface
+                        public class PublicSealedInterfaceImplementor1 : ExhaustiveSealedInterface
+                        public class PublicSealedInterfaceImplementor2 : ExhaustiveSealedInterface
+                        """
+                    )
+                ),
+            expectedApiSignature =
+                """
+                package test.pkg {
+                  public abstract sealed exhaustive class ExhaustiveSealedClass {
+                  }
+                  public sealed exhaustive interface ExhaustiveSealedInterface {
+                  }
+                  public final class PublicSealedClassChild1 extends test.pkg.ExhaustiveSealedClass {
+                    ctor public PublicSealedClassChild1();
+                  }
+                  public final class PublicSealedClassChild2 extends test.pkg.ExhaustiveSealedClass {
+                    ctor public PublicSealedClassChild2();
+                  }
+                  public final class PublicSealedInterfaceImplementor1 implements test.pkg.ExhaustiveSealedInterface {
+                    ctor public PublicSealedInterfaceImplementor1();
+                  }
+                  public final class PublicSealedInterfaceImplementor2 implements test.pkg.ExhaustiveSealedInterface {
+                    ctor public PublicSealedInterfaceImplementor2();
+                  }
+                }
+                """
+        )
+    }
+
+    @RequiresCapabilities(Capability.KOTLIN)
+    @Test
+    fun `Mark a sealed class and interface as exhaustive even if sealed subclass is nonexhaustive`() {
+        check(
+            format = FileFormat.V4,
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
+                        package test.pkg
+
+                        public sealed class SealedExhaustiveParentClass
+                        public class PublicChildOfSealedParentClass : SealedExhaustiveParentClass()
+
+                        public sealed interface SealedExhaustiveParentInterface
+                        public class PublicChildOfSealedParentInterface : SealedExhaustiveParentInterface
+                        """
+                    ),
+                    kotlin(
+                        """
+                        package test.pkg
+
+                        public sealed class SealedNonExhaustiveChildClass : SealedExhaustiveParentClass()
+                        public class PublicChildOfSealedChildClass: SealedNonExhaustiveChildClass()
+                        private class PrivateChildOfSealedChildClass : SealedNonExhaustiveChildClass()
+
+                        public sealed interface SealedNonExhaustiveChildInterface : SealedExhaustiveParentInterface
+                        public class PublicChildOfSealedChildInterface: SealedNonExhaustiveChildInterface
+                        private class PrivateChildOfSealedChildInterface : SealedNonExhaustiveChildInterface
+                        """
+                    )
+                ),
+            expectedApiSignature =
+                """
+                package test.pkg {
+                  public final class PublicChildOfSealedChildClass extends test.pkg.SealedNonExhaustiveChildClass {
+                    ctor public PublicChildOfSealedChildClass();
+                  }
+                  public final class PublicChildOfSealedChildInterface implements test.pkg.SealedNonExhaustiveChildInterface {
+                    ctor public PublicChildOfSealedChildInterface();
+                  }
+                  public final class PublicChildOfSealedParentClass extends test.pkg.SealedExhaustiveParentClass {
+                    ctor public PublicChildOfSealedParentClass();
+                  }
+                  public final class PublicChildOfSealedParentInterface implements test.pkg.SealedExhaustiveParentInterface {
+                    ctor public PublicChildOfSealedParentInterface();
+                  }
+                  public abstract sealed exhaustive class SealedExhaustiveParentClass {
+                  }
+                  public sealed exhaustive interface SealedExhaustiveParentInterface {
+                  }
+                  public abstract sealed nonexhaustive class SealedNonExhaustiveChildClass extends test.pkg.SealedExhaustiveParentClass {
+                  }
+                  public sealed nonexhaustive interface SealedNonExhaustiveChildInterface extends test.pkg.SealedExhaustiveParentInterface {
+                  }
+                }
+                """
+        )
+    }
+
+    @RequiresCapabilities(Capability.KOTLIN)
+    @Test
+    fun `Mark a sealed class and interface as nonexhaustive if a private subclass inherits from it`() {
+        check(
+            format = FileFormat.V4,
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
+                        package test.pkg
+                        class AnOuterClass {
+                            private class InnerClassA : SealedParentClass()
+                            private class InnerClassB : SealedParentInterface
+                        }
+                        """
+                    ),
+                    kotlin(
+                        """
+                        package test.pkg
+
+                        public sealed class SealedParentClass
+                        public sealed interface SealedParentInterface
+                        """
+                    )
+                ),
+            expectedApiSignature =
+                """
+                package test.pkg {
+                  public final class AnOuterClass {
+                    ctor public AnOuterClass();
+                  }
+                  public abstract sealed nonexhaustive class SealedParentClass {
+                  }
+                  public sealed nonexhaustive interface SealedParentInterface {
+                  }
+                }
+                """
+        )
+    }
+
+    @RequiresCapabilities(Capability.KOTLIN)
+    @Test
     fun `Kotlin language level`() {
         // static method in interface is not overridable.
         // See https://kotlinlang.org/docs/reference/whatsnew13.html
@@ -97,7 +294,7 @@ class ApiFileTest : DriverTest() {
                     """
                     )
                 ),
-            api =
+            expectedApiSignature =
                 """
                 package test.pkg {
                   public interface Foo {
@@ -131,7 +328,7 @@ class ApiFileTest : DriverTest() {
                     """
                     )
                 ),
-            api =
+            expectedApiSignature =
                 """
                     package test.pkg {
                       public class Foo {
@@ -185,15 +382,15 @@ class ApiFileTest : DriverTest() {
                     """
                     )
                 ),
-            api =
+            expectedApiSignature =
                 """
                 package test.pkg {
                   public final class Kotlin extends test.pkg.Parent {
                     ctor public Kotlin(optional String property1, int arg2);
-                    method public String getProperty1();
-                    method public String? getProperty2();
+                    method @InaccessibleFromKotlin public String getProperty1();
+                    method @InaccessibleFromKotlin public String? getProperty2();
                     method public void otherMethod(boolean ok, int times);
-                    method public void setProperty2(String?);
+                    method @InaccessibleFromKotlin public void setProperty2(String?);
                     property public String property1;
                     property public String? property2;
                     property public int someField2;
@@ -206,8 +403,8 @@ class ApiFileTest : DriverTest() {
                   }
                   public final class KotlinKt {
                     method public static inline operator String component1(String);
-                    method public static inline int getRed(int);
-                    method public static inline boolean isSrgb(long);
+                    method @InaccessibleFromKotlin public static inline int getRed(int);
+                    method @InaccessibleFromKotlin public static inline boolean isSrgb(long);
                     property public static inline boolean long.isSrgb;
                     property public static inline int int.red;
                   }
@@ -280,12 +477,12 @@ class ApiFileTest : DriverTest() {
                         "bsZNe7ynSGyRAOdF/aZ9YqpAs3TAeZGRSYQBYR9yPgUVBqgAV9GAbgqyf0RR" +
                         "TKjHlcPRjUB2pDSKEXOZ8QZDgDcrG0gZMxBeAtLcYE8AACkmDZvzBAAA"
                 ),
-            api =
+            expectedApiSignature =
                 """
                 package test.pkg {
                   public class Context {
                     ctor public Context();
-                    method public final <T> T! getSystemService(Class<T!>!);
+                    method public final <T> T getSystemService(Class<T>!);
                   }
                   public final class TestKt {
                     method @KotlinOnly public static inline <reified T> T! systemService1(test.pkg.Context);
@@ -356,7 +553,7 @@ class ApiFileTest : DriverTest() {
                         "oDAyiTAg7EMubEAlGirAVb6hm4LsH1EUE+pxFVPoRiA7UhrFiCQWvMEQ4M3K" +
                         "BlLGDISXgPQFsCcAHeKkPLgFAAA="
                 ),
-            api =
+            expectedApiSignature =
                 """
                 package test.pkg {
                   public final class TestKt {
@@ -390,7 +587,7 @@ class ApiFileTest : DriverTest() {
                     """
                     )
                 ),
-            api =
+            expectedApiSignature =
                 """
                 package test.pkg {
                   public final class TestKt {
@@ -424,14 +621,14 @@ class ApiFileTest : DriverTest() {
                     """
                     )
                 ),
-            api =
+            expectedApiSignature =
                 """
                 // Signature format: 4.0
                 package test.pkg {
                   public final class MyClass {
                     ctor public MyClass();
-                    method public boolean getReadOnlyVar();
-                    method public boolean getReadOnlyVarWithPublicModifier();
+                    method @InaccessibleFromKotlin public boolean getReadOnlyVar();
+                    method @InaccessibleFromKotlin public boolean getReadOnlyVarWithPublicModifier();
                     property public boolean readOnlyVar;
                     property public boolean readOnlyVarWithPublicModifier;
                   }
@@ -458,7 +655,7 @@ class ApiFileTest : DriverTest() {
                     """
                     )
                 ),
-            api =
+            expectedApiSignature =
                 """
                 // Signature format: 4.0
                 package test.pkg {
@@ -612,7 +809,7 @@ class ApiFileTest : DriverTest() {
                         "SX2JQkPyu3PqV8bF7cJwiVFG+sfK+ivo4k64DFr86497TUeDgPDHZ8Tn9+3z" +
                         "P9Ei//H2H7sYnHGbEQAA"
                 ),
-            api =
+            expectedApiSignature =
                 """
                 // Signature format: 4.0
                 package test.pkg {
@@ -623,15 +820,11 @@ class ApiFileTest : DriverTest() {
                 """,
             format = FileFormat.V4,
             extraArguments =
-                arrayOf(
-                    ARG_HIDE,
-                    "ReferencesHidden",
-                    ARG_HIDE,
-                    "UnavailableSymbol",
-                    ARG_HIDE,
-                    "HiddenTypeParameter",
-                    ARG_HIDE,
-                    "HiddenSuperclass"
+                hiddenIssues(
+                    Issues.REFERENCES_HIDDEN,
+                    Issues.UNAVAILABLE_SYMBOL,
+                    Issues.HIDDEN_TYPE_PARAMETER,
+                    Issues.HIDDEN_SUPERCLASS,
                 )
         )
     }
@@ -734,14 +927,14 @@ class ApiFileTest : DriverTest() {
                     }
                     """
                     ),
-                    androidxNonNullSource,
-                    androidxNullableSource,
+                    KnownSourceFiles.androidxNonNullJavaSource,
+                    KnownSourceFiles.androidxNullableJavaSource,
                 ),
-            api =
+            expectedApiSignature =
                 """
                 // Signature format: 4.0
                 package androidx.collection {
-                  public class ArrayMap<K, V> extends java.util.HashMap<K!,V!> implements java.util.Map<K!,V!> {
+                  public class ArrayMap<K, V> extends java.util.HashMap<K,V> implements java.util.Map<K,V> {
                     ctor public ArrayMap();
                   }
                   public final class ArrayMapKt {
@@ -749,7 +942,7 @@ class ApiFileTest : DriverTest() {
                     method public static <K, V> androidx.collection.ArrayMap<K,V> arrayMapOf(kotlin.Pair<? extends K,? extends V>... pairs);
                     method public static <K, V> androidx.collection.ArrayMap<K,V>? arrayMapOfNullable(kotlin.Pair<? extends K,? extends V>?... pairs);
                   }
-                  public class ArraySet<E> extends java.util.HashSet<E!> implements java.util.Set<E!> {
+                  public class ArraySet<E> extends java.util.HashSet<E> implements java.util.Set<E> {
                     ctor public ArraySet();
                   }
                   public final class ArraySetKt {
@@ -767,13 +960,10 @@ class ApiFileTest : DriverTest() {
                 """,
             format = FileFormat.V4,
             extraArguments =
-                arrayOf(
-                    ARG_HIDE,
-                    "ReferencesHidden",
-                    ARG_HIDE,
-                    "UnavailableSymbol",
-                    ARG_HIDE,
-                    "HiddenTypeParameter"
+                hiddenIssues(
+                    Issues.REFERENCES_HIDDEN,
+                    Issues.UNAVAILABLE_SYMBOL,
+                    Issues.HIDDEN_TYPE_PARAMETER,
                 )
         )
     }
@@ -813,7 +1003,7 @@ class ApiFileTest : DriverTest() {
                     """
                     )
                 ),
-            api =
+            expectedApiSignature =
                 """
                 package test.pkg {
                   public final class NonNullUpperBound<T> {
@@ -868,7 +1058,7 @@ class ApiFileTest : DriverTest() {
                     """
                     )
                 ),
-            api =
+            expectedApiSignature =
                 """
                 package test.pkg {
                   public final class TestKt {
@@ -904,14 +1094,14 @@ class ApiFileTest : DriverTest() {
                     """
                     )
                 ),
-            api =
+            expectedApiSignature =
                 """
                 package test.pkg {
                   public final class CircularArray<E> {
                     ctor public CircularArray();
-                    method public E getFirst();
-                    method public E getLast();
-                    method public void setLast(E);
+                    method @InaccessibleFromKotlin public E getFirst();
+                    method @InaccessibleFromKotlin public E getLast();
+                    method @InaccessibleFromKotlin public void setLast(E);
                     property public E first;
                     property public E last;
                   }
@@ -1005,10 +1195,10 @@ class ApiFileTest : DriverTest() {
                     inline operator fun <F, S> PlatformJavaPair<F, S>.component1() = first
                     """
                     ),
-                    androidxNonNullSource,
-                    androidxNullableSource,
+                    KnownSourceFiles.androidxNonNullJavaSource,
+                    KnownSourceFiles.androidxNullableJavaSource,
                 ),
-            api =
+            expectedApiSignature =
                 """
                 // Signature format: 4.0
                 package androidx.util {
@@ -1019,8 +1209,8 @@ class ApiFileTest : DriverTest() {
                   }
                   public final class NonNullableKotlinPair<F, S> {
                     ctor public NonNullableKotlinPair(F first, S second);
-                    method public F getFirst();
-                    method public S getSecond();
+                    method @InaccessibleFromKotlin public F getFirst();
+                    method @InaccessibleFromKotlin public S getSecond();
                     property public F first;
                     property public S second;
                   }
@@ -1031,15 +1221,15 @@ class ApiFileTest : DriverTest() {
                   }
                   public final class NullableKotlinPair<F, S> {
                     ctor public NullableKotlinPair(F? first, S? second);
-                    method public F? getFirst();
-                    method public S? getSecond();
+                    method @InaccessibleFromKotlin public F? getFirst();
+                    method @InaccessibleFromKotlin public S? getSecond();
                     property public F? first;
                     property public S? second;
                   }
                   public class PlatformJavaPair<F, S> {
-                    ctor public PlatformJavaPair(F!, S!);
-                    field public final F! first;
-                    field public final S! second;
+                    ctor public PlatformJavaPair(F, S);
+                    field public final F first;
+                    field public final S second;
                   }
                   public final class TestKt {
                     method public static inline operator <F, S> F! component1(androidx.util.PlatformJavaPair<F,S>);
@@ -1160,10 +1350,10 @@ class ApiFileTest : DriverTest() {
                     """
                         )
                         .indented(),
-                    androidxNonNullSource,
-                    androidxNullableSource,
+                    KnownSourceFiles.androidxNonNullJavaSource,
+                    KnownSourceFiles.androidxNullableJavaSource,
                 ),
-            api =
+            expectedApiSignature =
                 """
                 // Signature format: 4.0
                 package test {
@@ -1246,7 +1436,7 @@ class ApiFileTest : DriverTest() {
                     """
                     ),
                 ),
-            api =
+            expectedApiSignature =
                 """
                 // Signature format: 4.0
                 package androidx.content {
@@ -1284,7 +1474,7 @@ class ApiFileTest : DriverTest() {
                     )
                 ),
             format = FileFormat.V4,
-            api =
+            expectedApiSignature =
                 """
                 // Signature format: 4.0
                 package test.pkg {
@@ -1322,14 +1512,14 @@ class ApiFileTest : DriverTest() {
                     )
                 ),
             format = FileFormat.V4,
-            api =
+            expectedApiSignature =
                 """
                 // Signature format: 4.0
                 package test.pkg {
                   public final class SimpleClass {
                     ctor public SimpleClass();
-                    method public int getNonJvmField();
-                    method public void setNonJvmField(int);
+                    method @InaccessibleFromKotlin public int getNonJvmField();
+                    method @InaccessibleFromKotlin public void setNonJvmField(int);
                     property public int jvmField;
                     property public int nonJvmField;
                     field public int jvmField;
@@ -1359,16 +1549,16 @@ class ApiFileTest : DriverTest() {
                     )
                 ),
             format = FileFormat.V4,
-            api =
+            expectedApiSignature =
                 """
                 // Signature format: 4.0
                 package test.pkg {
                   public final class SimpleClass {
                     ctor public SimpleClass();
-                    method public int getAnotherProperty();
-                    method public int myPropertyJvmGetter();
-                    method public void setAnotherProperty(int);
-                    method public void setMyProperty(int);
+                    method @InaccessibleFromKotlin public int getAnotherProperty();
+                    method @InaccessibleFromKotlin public int myPropertyJvmGetter();
+                    method @InaccessibleFromKotlin public void setAnotherProperty(int);
+                    method @InaccessibleFromKotlin public void setMyProperty(int);
                     property public int anotherProperty;
                     property public int myProperty;
                   }
@@ -1405,7 +1595,7 @@ class ApiFileTest : DriverTest() {
                     )
                 ),
             format = FileFormat.V4,
-            api =
+            expectedApiSignature =
                 """
                 // Signature format: 4.0
                 package test.pkg {
@@ -1485,25 +1675,25 @@ class ApiFileTest : DriverTest() {
                     )
                 ),
             format = FileFormat.V5,
-            api =
+            expectedApiSignature =
                 """
                 // Signature format: 5.0
                 package test.pkg {
                   public final class Bar {
-                    method @SuppressCompatibility @test.pkg.ExperimentalBar public test.pkg.FancyBar getExperimentalPropertyWithGetterInsideObject();
+                    method @InaccessibleFromKotlin @SuppressCompatibility @test.pkg.ExperimentalBar public test.pkg.FancyBar getExperimentalPropertyWithGetterInsideObject();
                     property @SuppressCompatibility @test.pkg.ExperimentalBar public test.pkg.FancyBar ExperimentalPropertyWithGetterInsideObject;
                     field public static final test.pkg.Bar INSTANCE;
                   }
                   @SuppressCompatibility @kotlin.RequiresOptIn @kotlin.annotation.Retention(kotlin.annotation.AnnotationRetention.BINARY) public @interface ExperimentalBar {
                   }
-                  public final class ExperimentalBarKt {
-                    method @SuppressCompatibility @test.pkg.ExperimentalBar public static test.pkg.FancyBar? getExperimentalPropertyWithCustomGetterAndSetter();
-                    method @SuppressCompatibility @test.pkg.ExperimentalBar public static test.pkg.FancyBar? getExperimentalPropertyWithExplicitAnnotationsOnGetterAndSetter();
-                    method @SuppressCompatibility @test.pkg.ExperimentalBar public static test.pkg.FancyBar getExperimentalPropertyWithGetter();
-                    method @SuppressCompatibility @test.pkg.ExperimentalBar public static test.pkg.FancyBar? getExperimentalPropertyWithGetterAndSetter();
-                    method @SuppressCompatibility @test.pkg.ExperimentalBar public static void setExperimentalPropertyWithCustomGetterAndSetter(test.pkg.FancyBar?);
-                    method @SuppressCompatibility @test.pkg.ExperimentalBar public static void setExperimentalPropertyWithExplicitAnnotationsOnGetterAndSetter(test.pkg.FancyBar?);
-                    method @SuppressCompatibility @test.pkg.ExperimentalBar public static void setExperimentalPropertyWithGetterAndSetter(test.pkg.FancyBar?);
+                  @SuppressCompatibility public final class ExperimentalBarKt {
+                    method @InaccessibleFromKotlin @SuppressCompatibility @test.pkg.ExperimentalBar public static test.pkg.FancyBar? getExperimentalPropertyWithCustomGetterAndSetter();
+                    method @InaccessibleFromKotlin @SuppressCompatibility @test.pkg.ExperimentalBar public static test.pkg.FancyBar? getExperimentalPropertyWithExplicitAnnotationsOnGetterAndSetter();
+                    method @InaccessibleFromKotlin @SuppressCompatibility @test.pkg.ExperimentalBar public static test.pkg.FancyBar getExperimentalPropertyWithGetter();
+                    method @InaccessibleFromKotlin @SuppressCompatibility @test.pkg.ExperimentalBar public static test.pkg.FancyBar? getExperimentalPropertyWithGetterAndSetter();
+                    method @InaccessibleFromKotlin @SuppressCompatibility @test.pkg.ExperimentalBar public static void setExperimentalPropertyWithCustomGetterAndSetter(test.pkg.FancyBar?);
+                    method @InaccessibleFromKotlin @SuppressCompatibility @test.pkg.ExperimentalBar public static void setExperimentalPropertyWithExplicitAnnotationsOnGetterAndSetter(test.pkg.FancyBar?);
+                    method @InaccessibleFromKotlin @SuppressCompatibility @test.pkg.ExperimentalBar public static void setExperimentalPropertyWithGetterAndSetter(test.pkg.FancyBar?);
                     property @SuppressCompatibility @test.pkg.ExperimentalBar public static int ExperimentalConstField;
                     property @SuppressCompatibility @test.pkg.ExperimentalBar public static test.pkg.FancyBar ExperimentalJvmFieldProperty;
                     property @SuppressCompatibility @test.pkg.ExperimentalBar public static test.pkg.FancyBar ExperimentalPropertyWithGetter;
@@ -1586,7 +1776,7 @@ class ApiFileTest : DriverTest() {
                     """
                     )
                 ),
-            api =
+            expectedApiSignature =
                 """
                     package a.b.c {
                       public interface MyStream<T, S extends a.b.c.MyStream<T, S>> extends test.pkg.AutoCloseable {
@@ -1613,7 +1803,10 @@ class ApiFileTest : DriverTest() {
                       }
                     }
                 """,
-            extraArguments = arrayOf(ARG_HIDE, "KotlinKeyword")
+            extraArguments =
+                hiddenIssues(
+                    Issues.KOTLIN_KEYWORD,
+                ),
         )
     }
 
@@ -1636,7 +1829,7 @@ class ApiFileTest : DriverTest() {
                     """
                     )
                 ),
-            api =
+            expectedApiSignature =
                 """
                 package test.pkg {
                   public class Foo {
@@ -1665,7 +1858,7 @@ class ApiFileTest : DriverTest() {
                     """
                     )
                 ),
-            api =
+            expectedApiSignature =
                 """
                 package test.pkg {
                   public class Foo {
@@ -1694,7 +1887,7 @@ class ApiFileTest : DriverTest() {
                     """
                     )
                 ),
-            api =
+            expectedApiSignature =
                 """
                 package test.pkg {
                   public interface Foo {
@@ -1721,7 +1914,7 @@ class ApiFileTest : DriverTest() {
                     """
                     )
                 ),
-            api =
+            expectedApiSignature =
                 """
                 package test.pkg {
                   public enum Foo {
@@ -1748,7 +1941,7 @@ class ApiFileTest : DriverTest() {
                     """
                     )
                 ),
-            api =
+            expectedApiSignature =
                 """
                 package test.pkg {
                   public enum Foo {
@@ -1775,7 +1968,7 @@ class ApiFileTest : DriverTest() {
                     """
                     )
                 ),
-            api =
+            expectedApiSignature =
                 """
                 package test.pkg {
                   public enum Foo {
@@ -1821,7 +2014,7 @@ class ApiFileTest : DriverTest() {
                 ),
             // Override default to emit android.annotation classes.
             skipEmitPackages = emptyList(),
-            api =
+            expectedApiSignature =
                 """
                 package android.annotation {
                   @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.CLASS) @java.lang.annotation.Target({java.lang.annotation.ElementType.TYPE, java.lang.annotation.ElementType.FIELD, java.lang.annotation.ElementType.METHOD, java.lang.annotation.ElementType.PARAMETER, java.lang.annotation.ElementType.CONSTRUCTOR, java.lang.annotation.ElementType.LOCAL_VARIABLE}) public @interface SuppressLint {
@@ -1846,7 +2039,6 @@ class ApiFileTest : DriverTest() {
                 """
                 src/test/pkg/PublicSuper.java:3: error: isContiguous cannot be hidden and abstract when PublicSuper has a visible constructor, in case a third-party attempts to subclass it. [HiddenAbstractMethod]
             """,
-            expectedFail = DefaultLintErrorMessage,
             sourceFiles =
                 arrayOf(
                     java(
@@ -1883,10 +2075,10 @@ class ApiFileTest : DriverTest() {
                     """
                     )
                 ),
-            api =
+            expectedApiSignature =
                 """
                 package test.pkg {
-                  public class MyStringBuilder<A, B> extends test.pkg.PublicSuper<A!,B!> {
+                  public class MyStringBuilder<A, B> extends test.pkg.PublicSuper<A,B> {
                     ctor public MyStringBuilder();
                     method public void setLength(int);
                   }
@@ -1925,7 +2117,7 @@ class ApiFileTest : DriverTest() {
                     """
                     )
                 ),
-            api =
+            expectedApiSignature =
                 """
                 package test.pkg {
                   public class Foo extends test.pkg.Super {
@@ -1976,7 +2168,7 @@ class ApiFileTest : DriverTest() {
                     """
                     )
                 ),
-            api =
+            expectedApiSignature =
                 """
                 package test.pkg {
                   public class Foo {
@@ -2040,8 +2232,7 @@ class ApiFileTest : DriverTest() {
                 src/test/pkg/Foo.java:10: error: Class test.pkg.Foo.Inner2: @Deprecated annotation (present) and @deprecated doc tag (not present) do not match [DeprecationMismatch]
                 src/test/pkg/Foo.java:11: error: Class test.pkg.Foo.Inner3: @Deprecated annotation (present) and @deprecated doc tag (not present) do not match [DeprecationMismatch]
                 """,
-            expectedFail = DefaultLintErrorMessage,
-            api =
+            expectedApiSignature =
                 """
                     package test.pkg {
                       public abstract class Foo {
@@ -2126,7 +2317,7 @@ class ApiFileTest : DriverTest() {
                     """
                     )
                 ),
-            api =
+            expectedApiSignature =
                 """
                 package test.pkg3 {
                   public class Boo {
@@ -2170,7 +2361,7 @@ class ApiFileTest : DriverTest() {
                     """
                     )
                 ),
-            api =
+            expectedApiSignature =
                 """
                 package test.pkg {
                   public enum FooBar {
@@ -2206,7 +2397,7 @@ class ApiFileTest : DriverTest() {
                     """
                     )
                 ),
-            api =
+            expectedApiSignature =
                 """
                 package test.pkg {
                   public final class Test<T> {
@@ -2254,7 +2445,7 @@ class ApiFileTest : DriverTest() {
                     """
                     )
                 ),
-            api =
+            expectedApiSignature =
                 """
                 package test.pkg {
                   public abstract class Collections {
@@ -2320,7 +2511,7 @@ class ApiFileTest : DriverTest() {
                     )
                 ),
             importedPackages = emptyList(),
-            api =
+            expectedApiSignature =
                 """
                 package test.pkg {
                   public enum ChronUnit implements test.pkg.TempUnit {
@@ -2365,7 +2556,7 @@ class ApiFileTest : DriverTest() {
               }
             }
                     """
-        check(format = FileFormat.V2, signatureSource = source, api = source)
+        check(format = FileFormat.V2, signatureSource = source, expectedApiSignature = source)
     }
 
     @Test
@@ -2395,7 +2586,7 @@ class ApiFileTest : DriverTest() {
                     )
                 ),
             expectedIssues = "",
-            api =
+            expectedApiSignature =
                 """
                     package test.pkg {
                       public class MyClass {
@@ -2436,7 +2627,7 @@ class ApiFileTest : DriverTest() {
                     )
                 ),
             expectedIssues = "",
-            api =
+            expectedApiSignature =
                 """
                     package test.pkg {
                       public class MyClass {
@@ -2477,7 +2668,7 @@ class ApiFileTest : DriverTest() {
                     )
                 ),
             expectedIssues = "",
-            api =
+            expectedApiSignature =
                 """
                     package test.pkg {
                       public class MyClass {
@@ -2487,7 +2678,10 @@ class ApiFileTest : DriverTest() {
                       }
                     }
             """,
-            extraArguments = arrayOf(ARG_HIDE, Issues.INHERIT_CHANGES_SIGNATURE.name),
+            extraArguments =
+                hiddenIssues(
+                    Issues.INHERIT_CHANGES_SIGNATURE,
+                ),
         )
     }
 
@@ -2499,24 +2693,24 @@ class ApiFileTest : DriverTest() {
                 arrayOf(
                     java(
                         """
-                    package test.pkg;
-                    public class MyClass {
-                        public <T> MyClass(Class<T> klass) { }
-                        public <U> void method1(Function<U> func) { }
-                    }
-                    """
-                    )
+                            package test.pkg;
+                            public class MyClass {
+                                public <T> MyClass(Class<T> klass) { }
+                                public <U> void method1(java.util.function.Consumer<U> func) { }
+                            }
+                        """
+                    ),
                 ),
             expectedIssues = "",
-            api =
+            expectedApiSignature =
                 """
                     package test.pkg {
                       public class MyClass {
                         ctor public <T> MyClass(Class<T>);
-                        method public <U> void method1(Function<U>);
+                        method public <U> void method1(java.util.function.Consumer<U>);
                       }
                     }
-            """
+                """,
         )
     }
 
@@ -2555,7 +2749,7 @@ class ApiFileTest : DriverTest() {
                     """
                     )
                 ),
-            api =
+            expectedApiSignature =
                 """
                 package test.pkg {
                   public class MyClass implements test.pkg.OtherInterface {
@@ -2607,7 +2801,7 @@ class ApiFileTest : DriverTest() {
                     """
                     )
                 ),
-            api =
+            expectedApiSignature =
                 """
                 package test.pkg {
                   public class MyClass implements test.pkg.OtherInterface {
@@ -2655,7 +2849,7 @@ class ApiFileTest : DriverTest() {
                     """
                     )
                 ),
-            api =
+            expectedApiSignature =
                 """
                 package test.pkg {
                   public class MyClass implements test.pkg.SuperInterface {
@@ -2700,7 +2894,7 @@ class ApiFileTest : DriverTest() {
                     """
                     )
                 ),
-            api =
+            expectedApiSignature =
                 """
                 package test.pkg {
                   public abstract class AbstractCursor extends test.pkg.Parent {
@@ -2746,7 +2940,7 @@ class ApiFileTest : DriverTest() {
                     """
                     )
                 ),
-            api =
+            expectedApiSignature =
                 """
             package test.pkg {
               public class Foo implements test.pkg.SomeInterface2 {
@@ -2794,7 +2988,7 @@ class ApiFileTest : DriverTest() {
                     """
                     )
                 ),
-            api =
+            expectedApiSignature =
                 """
                 package test.pkg {
                   public class Foo implements test.pkg.SomeInterface test.pkg.SomeInterface2 {
@@ -2830,7 +3024,10 @@ class ApiFileTest : DriverTest() {
                         public int removedField;
                         /** @removed */
                         public void removedMethod() { }
-                        /** @removed and @hide - should not be listed */
+                        /**
+                         * @removed
+                         * @hide - should not be listed
+                         */
                         public int hiddenField;
 
                         /** @removed */
@@ -3002,7 +3199,7 @@ class ApiFileTest : DriverTest() {
                     """
                     )
                 ),
-            api =
+            expectedApiSignature =
                 """
                     package test.pkg {
                       public class Child extends test.pkg.Parent {
@@ -3037,7 +3234,7 @@ class ApiFileTest : DriverTest() {
                     """
                     )
                 ),
-            api =
+            expectedApiSignature =
                 """
                 package test.pkg {
                   public final class -Foo {
@@ -3083,7 +3280,7 @@ class ApiFileTest : DriverTest() {
                     """
                     )
                 ),
-            api =
+            expectedApiSignature =
                 """
                     package test.pkg1 {
                       public class MyParent implements java.io.Closeable {
@@ -3096,9 +3293,6 @@ class ApiFileTest : DriverTest() {
                     package test.pkg2 {
                       public class MyChild extends test.pkg1.MyParent {
                         ctor public MyChild();
-                        field public static final long CONSTANT1 = 12345L; // 0x3039L
-                        field public static final long CONSTANT2 = 67890L; // 0x10932L
-                        field public static final long CONSTANT3 = 42L; // 0x2aL
                       }
                     }
                 """
@@ -3151,7 +3345,7 @@ class ApiFileTest : DriverTest() {
                 """
                 src/android/net/http/HttpResponseCache.java:7: warning: Public class android.net.http.HttpResponseCache stripped of unavailable superclass com.squareup.okhttp.OkCacheContainer [HiddenSuperclass]
             """,
-            api =
+            expectedApiSignature =
                 """
                 package android.net.http {
                   public final class HttpResponseCache implements java.io.Closeable {
@@ -3200,7 +3394,7 @@ class ApiFileTest : DriverTest() {
                     """
                     ),
                 ),
-            api =
+            expectedApiSignature =
                 """
                 package mine {
                   public interface Bar {
@@ -3223,7 +3417,7 @@ class ApiFileTest : DriverTest() {
     @Test
     fun `Test whether partial or total ordering -  sort-whole-extends-list=yes`() {
         check(
-            format = FileFormat.V2.copy(specifiedSortWholeExtendsList = true),
+            format = FileFormat.V2.buildCopy { this[SORT_WHOLE_EXTENDS_LIST] = true },
             checkCompilation = true,
             sourceFiles =
                 arrayOf(
@@ -3258,7 +3452,7 @@ class ApiFileTest : DriverTest() {
                     """
                     ),
                 ),
-            api =
+            expectedApiSignature =
                 """
                 package mine {
                   public interface Bar {
@@ -3323,7 +3517,7 @@ class ApiFileTest : DriverTest() {
                     """
                     )
                 ),
-            api =
+            expectedApiSignature =
                 """
                 package android.content.res {
                   public interface XmlResourceParser extends org.xmlpull.v1.XmlPullParser android.util.AttributeSet my.AutoCloseable {
@@ -3350,7 +3544,7 @@ class ApiFileTest : DriverTest() {
     fun `Extend from multiple interfaces - sort-whole-extends-list=yes`() {
         // Real-world example: XmlResourceParser
         check(
-            format = FileFormat.V2.copy(specifiedSortWholeExtendsList = true),
+            format = FileFormat.V2.buildCopy { this[SORT_WHOLE_EXTENDS_LIST] = true },
             checkCompilation = true,
             sourceFiles =
                 arrayOf(
@@ -3391,7 +3585,7 @@ class ApiFileTest : DriverTest() {
                     """
                     )
                 ),
-            api =
+            expectedApiSignature =
                 """
                 package android.content.res {
                   public interface XmlResourceParser extends android.util.AttributeSet my.AutoCloseable org.xmlpull.v1.XmlPullParser {
@@ -3410,50 +3604,6 @@ class ApiFileTest : DriverTest() {
                   public interface XmlPullParser {
                   }
                 }
-                """
-        )
-    }
-
-    @Test
-    fun `Test KDoc suppress`() {
-        // Basic class; also checks that default constructor is made explicit
-        check(
-            sourceFiles =
-                arrayOf(
-                    java(
-                        """
-                    package test.pkg;
-                    public class Foo {
-                        private Foo() { }
-                        /** @suppress */
-                        public void hidden() {
-                        }
-                    }
-                    """
-                    ),
-                    java(
-                        """
-                    package test.pkg;
-                    /**
-                    * Some comment.
-                    * @suppress
-                    */
-                    public class Hidden {
-                        private Hidden() { }
-                        public void hidden() {
-                        }
-                        public class Inner {
-                        }
-                    }
-                    """
-                    )
-                ),
-            api =
-                """
-                    package test.pkg {
-                      public class Foo {
-                      }
-                    }
                 """
         )
     }
@@ -3522,7 +3672,7 @@ class ApiFileTest : DriverTest() {
                     """
                     )
                 ),
-            api =
+            expectedApiSignature =
                 """
                 package test.pkg {
                   public final class Child1 extends test.pkg.Parent {
@@ -3570,7 +3720,7 @@ class ApiFileTest : DriverTest() {
                     """
                     )
                 ),
-            api =
+            expectedApiSignature =
                 """
                 package test.pkg2 {
                   public class Child1 extends test.pkg2.Parent {
@@ -3659,7 +3809,7 @@ class ApiFileTest : DriverTest() {
                     """
                     )
                 ),
-            api =
+            expectedApiSignature =
                 """
                 package android.test.mock {
                   public abstract class MockContentProvider {
@@ -3674,7 +3824,10 @@ class ApiFileTest : DriverTest() {
     fun `References Deprecated`() {
         check(
             extraArguments =
-                arrayOf(ARG_ERROR, "ReferencesDeprecated", ARG_ERROR, "ExtendsDeprecated"),
+                errorIssues(
+                    Issues.REFERENCES_DEPRECATED,
+                    Issues.EXTENDS_DEPRECATED,
+                ),
             expectedIssues =
                 """
             src/test/pkg/MyClass.java:2: error: Extending deprecated super class class test.pkg.DeprecatedClass from test.pkg.MyClass: this class should also be deprecated [ExtendsDeprecated]
@@ -3682,7 +3835,6 @@ class ApiFileTest : DriverTest() {
             src/test/pkg/MyClass.java:3: error: Parameter references deprecated type test.pkg.DeprecatedClass in test.pkg.MyClass.method1(): this method should also be deprecated [ReferencesDeprecated]
             src/test/pkg/MyClass.java:4: error: Return type references deprecated type test.pkg.DeprecatedInterface in test.pkg.MyClass.method2(): this method should also be deprecated [ReferencesDeprecated]
             """,
-            expectedFail = DefaultLintErrorMessage,
             sourceFiles =
                 arrayOf(
                     java(
@@ -3747,7 +3899,7 @@ class ApiFileTest : DriverTest() {
                     """
                     )
                 ),
-            api =
+            expectedApiSignature =
                 """
                 // Signature format: 4.0
                 package androidx.appcompat.app {
@@ -3777,7 +3929,7 @@ class ApiFileTest : DriverTest() {
                     """
                     )
                 ),
-            api =
+            expectedApiSignature =
                 """
                 // Signature format: 4.0
                 package test.pkg {
@@ -3831,7 +3983,7 @@ class ApiFileTest : DriverTest() {
                     )
                 ),
             expectedIssues = "",
-            api =
+            expectedApiSignature =
                 """
                 package test.pkg {
                   public class Class1 {
@@ -3893,7 +4045,7 @@ class ApiFileTest : DriverTest() {
                 ),
             expectedIssues =
                 "src/test/pkg/Class3.java:2: warning: Public class test.pkg.Class3 stripped of unavailable superclass test.pkg.Class2 [HiddenSuperclass]",
-            api =
+            expectedApiSignature =
                 """
                 package test.pkg {
                   public class Class1 {
@@ -3946,10 +4098,10 @@ class ApiFileTest : DriverTest() {
                     }
                     """
                     ),
-                    androidxNonNullSource,
+                    KnownSourceFiles.androidxNonNullJavaSource,
                 ),
             expectedIssues = "",
-            api =
+            expectedApiSignature =
                 """
                 package test.pkg {
                   public class Class2 {
@@ -3962,7 +4114,10 @@ class ApiFileTest : DriverTest() {
                   }
                 }
                 """,
-            extraArguments = arrayOf(ARG_HIDE, Issues.INHERIT_CHANGES_SIGNATURE.name),
+            extraArguments =
+                hiddenIssues(
+                    Issues.INHERIT_CHANGES_SIGNATURE,
+                ),
         )
     }
 
@@ -4024,8 +4179,8 @@ class ApiFileTest : DriverTest() {
         val expected =
             """
             package Test.pkg {
-              public class IpcDataCache<Query, Result> extends android.app.PropertyInvalidatedCache<Query!,Result!> {
-                ctor public IpcDataCache(int, String, String, String, android.os.IpcDataCache.QueryHandler<Query!,Result!>);
+              public class IpcDataCache<Query, Result> extends android.app.PropertyInvalidatedCache<Query,Result> {
+                ctor public IpcDataCache(int, String, String, String, android.os.IpcDataCache.QueryHandler<Query,Result>);
                 method public void disableForCurrentProcess();
                 method public static void disableForCurrentProcess(String);
                 method public void invalidateCache();
@@ -4039,7 +4194,7 @@ class ApiFileTest : DriverTest() {
                     """
         check(
             signatureSources = arrayOf(source1, source2),
-            api = expected,
+            expectedApiSignature = expected,
         )
     }
 
@@ -4082,11 +4237,11 @@ class ApiFileTest : DriverTest() {
             """
         check(
             signatureSources = arrayOf(source1, source2),
-            api = expected,
+            expectedApiSignature = expected,
             format =
-                FileFormat.V2.copy(
-                    specifiedOverloadedMethodOrder = OverloadedMethodOrder.SOURCE,
-                ),
+                FileFormat.V2.buildCopy {
+                    this[OVERLOADED_METHOD_ORDER] = FileFormat.OverloadedMethodOrder.SOURCE
+                },
         )
     }
 
@@ -4153,7 +4308,7 @@ class ApiFileTest : DriverTest() {
                     )
                 ),
             expectedIssues = "",
-            api =
+            expectedApiSignature =
                 """
                 // Signature format: 4.0
                 package test.pkg {
@@ -4223,17 +4378,17 @@ class ApiFileTest : DriverTest() {
                     )
                 ),
             expectedIssues = "",
-            api =
+            expectedApiSignature =
                 """
                 // Signature format: 4.0
-                package test.pkg {
+                package @SuppressCompatibility test.pkg {
                   @SuppressCompatibility @test.pkg.ExternalExperimentalAnnotation public final class ClassUsingExternalExperimentalApi {
                     ctor public ClassUsingExternalExperimentalApi();
                   }
                   @SuppressCompatibility @test.pkg.InLibraryExperimentalAnnotation public final class ClassUsingInLibraryExperimentalApi {
                     ctor public ClassUsingInLibraryExperimentalApi();
                   }
-                  @SuppressCompatibility @kotlin.RequiresOptIn public @interface InLibraryExperimentalAnnotation {
+                  @SuppressCompatibility @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME) @kotlin.RequiresOptIn public @interface InLibraryExperimentalAnnotation {
                   }
                 }
                 """,
@@ -4299,17 +4454,17 @@ class ApiFileTest : DriverTest() {
                     )
                 ),
             expectedIssues = "",
-            api =
+            expectedApiSignature =
                 """
                 // Signature format: 4.0
-                package test.pkg {
+                package @SuppressCompatibility test.pkg {
                   @SuppressCompatibility @test.pkg.ExternalExperimentalAnnotation public final class ClassUsingExternalExperimentalApi {
                     ctor public ClassUsingExternalExperimentalApi();
                   }
                   @SuppressCompatibility @test.pkg.InLibraryExperimentalAnnotation public final class ClassUsingInLibraryExperimentalApi {
                     ctor public ClassUsingInLibraryExperimentalApi();
                   }
-                  @SuppressCompatibility @kotlin.RequiresOptIn public @interface InLibraryExperimentalAnnotation {
+                  @SuppressCompatibility @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME) @kotlin.RequiresOptIn public @interface InLibraryExperimentalAnnotation {
                   }
                 }
             """,
@@ -4339,14 +4494,14 @@ class ApiFileTest : DriverTest() {
                 ),
             // Access androidx.annotation.IntRange
             classpath = arrayOf(KnownJarFiles.stubAnnotationsTestFile),
-            api =
+            expectedApiSignature =
                 """
                 // Signature format: 4.0
                 package test.pkg {
                   public final class KotlinClass {
                     ctor public KotlinClass(@IntRange(from=1L) int param);
                     ctor public KotlinClass(@IntRange(from=2L) int differentParam);
-                    method public int getParam();
+                    method @InaccessibleFromKotlin public int getParam();
                     method public void myMethod(@IntRange(from=3L) int methodParam);
                     property public int param;
                   }
@@ -4377,7 +4532,7 @@ class ApiFileTest : DriverTest() {
                 ),
             // Access androidx.annotation.IntRange
             classpath = arrayOf(KnownJarFiles.stubAnnotationsTestFile),
-            api =
+            expectedApiSignature =
                 """
                 // Signature format: 2.0
                 package test.pkg {
@@ -4412,14 +4567,14 @@ class ApiFileTest : DriverTest() {
                 ),
             // Access androidx.annotation.IntRange
             classpath = arrayOf(KnownJarFiles.stubAnnotationsTestFile),
-            api =
+            expectedApiSignature =
                 """
                 // Signature format: 4.0
                 package test.pkg {
                   public final class KotlinClass {
                     ctor public KotlinClass();
-                    method public boolean getPropertyWithGetter();
-                    method public boolean getPropertyWithNoGetter();
+                    method @InaccessibleFromKotlin public boolean getPropertyWithGetter();
+                    method @InaccessibleFromKotlin public boolean getPropertyWithNoGetter();
                     property public boolean propertyWithGetter;
                     property public boolean propertyWithNoGetter;
                   }
@@ -4456,14 +4611,14 @@ class ApiFileTest : DriverTest() {
                 """
                     )
                 ),
-            api =
+            expectedApiSignature =
                 """
                 // Signature format: 4.0
                 package test.pkg {
-                  public abstract sealed class MyClass {
-                    method public final int getFirstConstructorProperty();
-                    method public final String getNonConstructorProperty();
-                    method public final boolean getSecondConstructorProperty();
+                  public abstract sealed exhaustive class MyClass {
+                    method @InaccessibleFromKotlin public final int getFirstConstructorProperty();
+                    method @InaccessibleFromKotlin public final String getNonConstructorProperty();
+                    method @InaccessibleFromKotlin public final boolean getSecondConstructorProperty();
                     property public final int firstConstructorProperty;
                     property public final String nonConstructorProperty;
                     property public final boolean secondConstructorProperty;
@@ -4472,7 +4627,7 @@ class ApiFileTest : DriverTest() {
                     ctor public MyDataClass(String constructorProperty, String internalConstructorProperty);
                     method public String component1();
                     method public test.pkg.MyDataClass copy(optional String constructorProperty, optional String internalConstructorProperty);
-                    method public String getConstructorProperty();
+                    method @InaccessibleFromKotlin public String getConstructorProperty();
                     property public String constructorProperty;
                   }
                 }
@@ -4529,7 +4684,7 @@ class ApiFileTest : DriverTest() {
                     """
                     ),
                 ),
-            api =
+            expectedApiSignature =
                 """
                 // Signature format: 4.0
                 package test.pkg {
@@ -4613,10 +4768,10 @@ class ApiFileTest : DriverTest() {
                     }
                     """
                     ),
-                    androidxNullableSource,
-                    androidxNonNullSource,
+                    KnownSourceFiles.androidxNullableJavaSource,
+                    KnownSourceFiles.androidxNonNullJavaSource,
                 ),
-            api =
+            expectedApiSignature =
                 """
                 // Signature format: 4.0
                 package androidx.core.util {
@@ -4647,7 +4802,7 @@ class ApiFileTest : DriverTest() {
                 """
                     )
                 ),
-            api =
+            expectedApiSignature =
                 """
                 // Signature format: 4.0
                 package test.pkg {
@@ -4734,7 +4889,7 @@ class ApiFileTest : DriverTest() {
                         "v/SvEfaFk9/WP1Hz7ylfb6/wTULc/4Pf3+1fLwj7xt4m8a8fJhLEJb48E9s+" +
                         "HdsdIfnl9iewH8XSCggAAA=="
                 ),
-            api =
+            expectedApiSignature =
                 """
                 // Signature format: 4.0
                 package test.pkg {
@@ -4748,7 +4903,7 @@ class ApiFileTest : DriverTest() {
                     method @KotlinOnly public void doSomething();
                     method @BytecodeOnly public static void doSomething-impl(float);
                     method @BytecodeOnly public static int getSomeBits-impl(float);
-                    method public float getValue();
+                    method @InaccessibleFromKotlin public float getValue();
                     method @KotlinOnly public inline operator test.pkg.Dp minus(test.pkg.Dp other);
                     method @BytecodeOnly public static float minus-TBhqLn8(float, float);
                     method @KotlinOnly public inline operator test.pkg.Dp plus(test.pkg.Dp other);
@@ -4765,14 +4920,6 @@ class ApiFileTest : DriverTest() {
     @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Value class`() {
-        // With K1, the value class functions which can't be used from Java source are not properly
-        // marked as kotlin only, because K1 psi does not handle value classes differently.
-        val doSomethingTargetLanguages =
-            if (isK2) {
-                "@KotlinOnly "
-            } else {
-                ""
-            }
         check(
             format = FileFormat.V4,
             sourceFiles =
@@ -4857,7 +5004,7 @@ class ApiFileTest : DriverTest() {
                         "n0zXjyzfTr7MdwzRf+edfkz/th1y36V3iv3tZ/mR4NsXqn5HsAb81x7a4UXF" +
                         "vh4T2VrSWzc4s/3r7k+Fg8CTigoAAA=="
                 ),
-            api =
+            expectedApiSignature =
                 """
                 // Signature format: 4.0
                 package test.pkg {
@@ -4868,10 +5015,10 @@ class ApiFileTest : DriverTest() {
                     method @BytecodeOnly public int compareTo-fPRv1QM(float);
                     method @BytecodeOnly public static int compareTo-fPRv1QM(float, float);
                     method @BytecodeOnly public static float constructor-impl(float);
-                    method ${doSomethingTargetLanguages}public void doSomething();
+                    method @KotlinOnly public void doSomething();
                     method @BytecodeOnly public static void doSomething-impl(float);
                     method @BytecodeOnly public static int getSomeBits-impl(float);
-                    method public float getValue();
+                    method @InaccessibleFromKotlin public float getValue();
                     method @KotlinOnly public inline operator test.pkg.Dp minus(test.pkg.Dp other);
                     method @BytecodeOnly public static float minus-TBhqLn8(float, float);
                     method @KotlinOnly public inline operator test.pkg.Dp plus(test.pkg.Dp other);
@@ -4903,13 +5050,13 @@ class ApiFileTest : DriverTest() {
                     """
                     )
                 ),
-            api =
+            expectedApiSignature =
                 """
                 // Signature format: 4.0
                 package test.pkg {
                   @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME) public @interface Foo {
                     ctor @KotlinOnly public Foo(optional long bar);
-                    method public abstract long bar() default java.lang.Long.MIN_VALUE;
+                    method @InaccessibleFromKotlin public abstract long bar() default java.lang.Long.MIN_VALUE;
                     property public abstract long bar;
                   }
                 }
@@ -4956,7 +5103,7 @@ class ApiFileTest : DriverTest() {
                     """
                     )
                 ),
-            api =
+            expectedApiSignature =
                 """
                 // Signature format: 4.0
                 package test.pkg {
@@ -4985,13 +5132,10 @@ class ApiFileTest : DriverTest() {
     @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Kotlin expect-actual with JvmOverloads constructors`() {
-        check(
-            format = FileFormat.V4,
-            sourceFiles =
-                arrayOf(
-                    kotlin(
-                        "src/commonMain/test/pkg/Expect.kt",
-                        """
+        val commonSource =
+            kotlin(
+                "src/commonMain/test/pkg/Expect.kt",
+                """
                         package test.pkg
 
                         expect class AllOptionalJvmOverloads @JvmOverloads constructor(
@@ -5012,10 +5156,11 @@ class ApiFileTest : DriverTest() {
                             private val bar: Int = 0
                         )
                     """
-                    ),
-                    kotlin(
-                        "src/jvmMain/test/pkg/Actual.kt",
-                        """
+            )
+        val androidSource =
+            kotlin(
+                "src/androidMain/test/pkg/Actual.kt",
+                """
                         package test.pkg
 
                         actual class AllOptionalJvmOverloads @JvmOverloads actual constructor(
@@ -5036,9 +5181,16 @@ class ApiFileTest : DriverTest() {
                             private val bar: Int = 0
                         )
                     """
-                    )
+            )
+        check(
+            format = FileFormat.V4,
+            sourceFiles = arrayOf(commonSource, androidSource),
+            projectDescription =
+                createProjectDescription(
+                    createCommonModuleDescription(arrayOf(commonSource)),
+                    createAndroidModuleDescription(arrayOf(androidSource)),
                 ),
-            api =
+            expectedApiSignature =
                 """
                     // Signature format: 4.0
                     package test.pkg {
@@ -5103,7 +5255,7 @@ class ApiFileTest : DriverTest() {
                     createAndroidModuleDescription(arrayOf(androidSource)),
                     createCommonModuleDescription(arrayOf(commonSource)),
                 ),
-            api =
+            expectedApiSignature =
                 """
                     package test.pkg {
                       public final class Foo {
@@ -5180,7 +5332,7 @@ class ApiFileTest : DriverTest() {
                         "aJYOOE0zMokwIOxDTu+gTIUKcGUxdFOQ/SOKYkI9rpyCbgSyI6VRjADmTHzB" +
                         "EODNygZSxgyEl4B0MDOIBwDRacUzOwQAAA=="
                 ),
-            api =
+            expectedApiSignature =
                 """
                 // Signature format: 4.0
                 package test.pkg {
@@ -5256,7 +5408,7 @@ class ApiFileTest : DriverTest() {
                         "Kcj+EUUxoR5XVkM3AtmR0ihGqDHjDYYAb1Y2kDJmILwEpKcwg3gAMjwVH3wE" +
                         "AAA="
                 ),
-            api =
+            expectedApiSignature =
                 """
                 package test.pkg {
                   public final class TestKt {
@@ -5288,7 +5440,7 @@ class ApiFileTest : DriverTest() {
                     restrictToSource,
                 ),
             format = FileFormat.V4,
-            api =
+            expectedApiSignature =
                 """
                 // Signature format: 4.0
                 package test.pkg {
@@ -5324,7 +5476,7 @@ class ApiFileTest : DriverTest() {
                 arrayOf(
                     "androidx.annotation.RestrictTo(androidx.annotation.RestrictTo.Scope.LIBRARY)"
                 ),
-            api =
+            expectedApiSignature =
                 """
                     // Signature format: 4.0
                 """,
@@ -5349,14 +5501,14 @@ class ApiFileTest : DriverTest() {
                     """
                     )
                 ),
-            api =
+            expectedApiSignature =
                 """
                 // Signature format: 4.0
                 package test.pkg {
                   @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME) public @interface Foo {
                     ctor @KotlinOnly public Foo(String[] bar, java.lang.String... baz);
-                    method public abstract String[] bar();
-                    method public abstract String[] baz();
+                    method @InaccessibleFromKotlin public abstract String[] bar();
+                    method @InaccessibleFromKotlin public abstract String[] baz();
                     property public abstract String[] bar;
                     property public abstract String[] baz;
                   }
@@ -5378,13 +5530,13 @@ class ApiFileTest : DriverTest() {
                     """
                     )
                 ),
-            api =
+            expectedApiSignature =
                 """
                 package test.pkg {
                   public final class Foo {
                     ctor public Foo(int bar);
-                    method public int getBar();
-                    method public void setBar(int);
+                    method @InaccessibleFromKotlin public int getBar();
+                    method @InaccessibleFromKotlin public void setBar(int);
                     property public int bar;
                   }
                 }
@@ -5407,7 +5559,7 @@ class ApiFileTest : DriverTest() {
                     """
                     )
                 ),
-            api =
+            expectedApiSignature =
                 """
                 package test.pkg {
                   public final class MyList implements kotlin.jvm.internal.markers.KMappedMarker java.util.List<java.lang.String> {
@@ -5438,12 +5590,12 @@ class ApiFileTest : DriverTest() {
                     """
                     )
                 ),
-            api =
+            expectedApiSignature =
                 """
                 package test.pkg {
                   @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME) public @interface Dimension {
                     ctor @KotlinOnly public Dimension(optional int unit);
-                    method public abstract int unit() default test.pkg.Dimension.PX;
+                    method @InaccessibleFromKotlin public abstract int unit() default test.pkg.Dimension.PX;
                     property public abstract int unit;
                     field public static final test.pkg.Dimension.Companion Companion;
                     field public static final int DP = 0; // 0x0
@@ -5576,11 +5728,11 @@ class ApiFileTest : DriverTest() {
                         "VeHHB5vz56GY8u+G4l81fryk+H/SiKT5nw/9r2I/usT3k9gY/f+65X7V+tEA" +
                         "7p+0BIG/ddnMmIb2+zHa011x+m9Tgd+//g9J/9fpVw4AAA=="
                 ),
-            api =
+            expectedApiSignature =
                 """
                 package test.pkg {
                   public interface State<T> {
-                    method public T getValue();
+                    method @InaccessibleFromKotlin public T getValue();
                     property public abstract T value;
                   }
                   public final class StateKt {
@@ -5685,7 +5837,7 @@ class ApiFileTest : DriverTest() {
                         "H0D7rcLO+Q2+UlAR+v+Y8K3izqk1vlK0Fv/uL2LQomJfrolsb/3tga6Jfzn9" +
                         "Gy2z08bLCAAA"
                 ),
-            api =
+            expectedApiSignature =
                 """
                 package test.pkg {
                   public final class AsyncPagingDataDiffer<T> {
@@ -5694,7 +5846,7 @@ class ApiFileTest : DriverTest() {
                     ctor public AsyncPagingDataDiffer(test.pkg.State<? extends T> initState, test.pkg.State<? extends T> nextState, Runnable updateCallback);
                   }
                   public interface State<T> {
-                    method public T getValue();
+                    method @InaccessibleFromKotlin public T getValue();
                     property public abstract T value;
                   }
                 }
@@ -5720,12 +5872,12 @@ class ApiFileTest : DriverTest() {
                     """
                     )
                 ),
-            api =
+            expectedApiSignature =
                 """
                 package test.pkg {
-                  @Deprecated public sealed interface LazyInfo {
-                    method @Deprecated public int getIndex();
-                    method @Deprecated public int getKey();
+                  @Deprecated public sealed exhaustive interface LazyInfo {
+                    method @InaccessibleFromKotlin @Deprecated public int getIndex();
+                    method @InaccessibleFromKotlin @Deprecated public int getKey();
                     property @Deprecated public abstract int index;
                     property @Deprecated public abstract int key;
                   }
@@ -5756,17 +5908,17 @@ class ApiFileTest : DriverTest() {
                 ),
             // Access androidx.annotation.IntRange
             classpath = arrayOf(KnownJarFiles.stubAnnotationsTestFile),
-            api =
+            expectedApiSignature =
                 """
                 package test.pkg {
-                  @kotlin.annotation.Repeatable public @interface RequiresExtension {
+                  @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME) @kotlin.annotation.Repeatable public @interface RequiresExtension {
                     ctor @KotlinOnly public RequiresExtension(@IntRange(from=1L) int extension, @IntRange(from=1L) int version);
-                    method public abstract int extension();
-                    method public abstract int version();
+                    method @InaccessibleFromKotlin public abstract int extension();
+                    method @InaccessibleFromKotlin public abstract int version();
                     property public abstract int extension;
                     property public abstract int version;
                   }
-                  @kotlin.annotation.Repeatable public static @interface RequiresExtension.Container {
+                  @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME) @kotlin.annotation.Repeatable public static @interface RequiresExtension.Container {
                     method public abstract test.pkg.RequiresExtension[] value();
                   }
                 }
@@ -5806,7 +5958,7 @@ class ApiFileTest : DriverTest() {
                         package test.pkg
 
                         /**
-                         * @suppress
+                         * @hide
                          */
                         @PublishedApi
                         internal fun internalYetPublished() {}
@@ -5831,18 +5983,6 @@ class ApiFileTest : DriverTest() {
                          */
                         @RestrictTo(RestrictTo.Scope.LIBRARY_GROUP)
                         fun conditionalError(): ConfigurationError? = null
-                    """
-                    ),
-                    kotlin(
-                        "test/pkg/test2.kt",
-                        """
-                        package test.pkg
-                        import androidx.annotation.VisibleForTesting
-
-                        @VisibleForTesting(otherwise = VisibleForTesting.PACKAGE_PRIVATE)
-                        fun shouldBePackagePrivate() {}
-
-                        private fun shouldBePrivate() {}
                     """
                     ),
                     kotlin(
@@ -5901,7 +6041,7 @@ class ApiFileTest : DriverTest() {
                     "androidx.annotation.RestrictTo(androidx.annotation.RestrictTo.Scope.LIBRARY_GROUP)",
                 ),
             format = FileFormat.V4,
-            api =
+            expectedApiSignature =
                 """
                 // Signature format: 4.0
                 package test.pkg {
@@ -5910,7 +6050,7 @@ class ApiFileTest : DriverTest() {
                   }
                   public interface LazyLayoutItemProvider {
                     method public default int getIndex();
-                    method public int getItemCount();
+                    method @InaccessibleFromKotlin public int getItemCount();
                     property public abstract int itemCount;
                   }
                   public interface Path1 {
@@ -5927,7 +6067,7 @@ class ApiFileTest : DriverTest() {
                   }
                   public final class Toast {
                     ctor public Toast();
-                    method public int getFoo();
+                    method @InaccessibleFromKotlin public int getFoo();
                     property public int foo;
                   }
                 }
@@ -5969,14 +6109,14 @@ class ApiFileTest : DriverTest() {
                     )
                 ),
             format = FileFormat.V4,
-            api =
+            expectedApiSignature =
                 """
                 // Signature format: 4.0
                 package test.pkg {
                   public final class Foo {
                     method public static void bar(String);
                     method public static void baz(String);
-                    method public static int getNonConstVal();
+                    method @InaccessibleFromKotlin public static int getNonConstVal();
                     property public static int constVal;
                     property public static int nonConstVal;
                     field public static final int constVal = 4; // 0x4
@@ -6040,15 +6180,17 @@ class ApiFileTest : DriverTest() {
                         "/r8q7dkrDNQpAU7/jEwiDAjTkfMGKAOiAlzZEd0UZNcLoZhQjzVXoetHdqE0" +
                         "in5lZrw+DvBmZQMpYwbC8yDrmEE8AEJ8aHZkBAAA"
                 ),
-            api =
+            expectedApiSignature =
                 """
                package test.pkg {
                  public final class Foo {
                    ctor public Foo();
                    method @BytecodeOnly @Deprecated public void deprecatedHidden();
-                   method public void newNameForRenamed();
-                   method @Deprecated public void newNameForRenamedAndDeprecatedError();
+                   method @InaccessibleFromKotlin public void newNameForRenamed();
+                   method @InaccessibleFromKotlin @Deprecated public void newNameForRenamedAndDeprecatedError();
                    method @BytecodeOnly @Deprecated public void newNameForRenamedAndDeprecatedHidden();
+                   method @KotlinOnly public void renamed();
+                   method @KotlinOnly @Deprecated public void renamedAndDeprecatedError();
                  }
                }
             """
@@ -6077,7 +6219,7 @@ class ApiFileTest : DriverTest() {
                     """
                     )
                 ),
-            api =
+            expectedApiSignature =
                 """
                 package test.pkg {
                   public final class Bar {
@@ -6131,7 +6273,7 @@ class ApiFileTest : DriverTest() {
                     ),
                     systemApiSource,
                 ),
-            api =
+            expectedApiSignature =
                 """
                 // Signature format: 2.0
                 package test.pkg {
@@ -6153,6 +6295,7 @@ class ApiFileTest : DriverTest() {
     @Test
     fun `Partial signature files include affected subclass definitions in complex class hierarchy`() {
         check(
+            apiSurface = KnownApiSurface.TEST,
             format = FileFormat.V2,
             sourceFiles =
                 arrayOf(
@@ -6170,7 +6313,6 @@ class ApiFileTest : DriverTest() {
 
                         import android.annotation.SystemApi;
 
-                        /** @hide */
                         @SystemApi
                         public class SystemSubClass extends SomePublicClass {
                         }
@@ -6182,7 +6324,6 @@ class ApiFileTest : DriverTest() {
 
                         import android.annotation.TestApi;
 
-                        /** @hide */
                         @TestApi
                         public class TestSubClass extends SystemSubClass {
                         }
@@ -6194,7 +6335,6 @@ class ApiFileTest : DriverTest() {
 
                         import android.annotation.SystemApi;
 
-                        /** @hide */
                         @SystemApi
                         public class AnotherSystemSubClass extends TestSubClass {
                         }
@@ -6206,7 +6346,6 @@ class ApiFileTest : DriverTest() {
 
                         import android.annotation.TestApi;
 
-                        /** @hide */
                         @TestApi
                         public class AnotherTestSubClass extends AnotherSystemSubClass {
                         }
@@ -6220,10 +6359,8 @@ class ApiFileTest : DriverTest() {
                         }
                     """
                     ),
-                    systemApiSource,
-                    testApiSource,
                 ),
-            api =
+            expectedApiSignature =
                 """
                 // Signature format: 2.0
                 package test.pkg {
@@ -6237,13 +6374,6 @@ class ApiFileTest : DriverTest() {
                   }
                 }
             """,
-            extraArguments =
-                arrayOf(
-                    ARG_SHOW_ANNOTATION,
-                    "android.annotation.TestApi",
-                    ARG_SHOW_FOR_STUB_PURPOSES_ANNOTATION,
-                    "android.annotation.SystemApi",
-                )
         )
     }
 
@@ -6346,8 +6476,11 @@ class ApiFileTest : DriverTest() {
                     )
                 ),
             format =
-                FileFormat.V5.copy(kotlinNameTypeOrder = true, includeTypeUseAnnotations = true),
-            api =
+                FileFormat.V5.buildCopy {
+                    this[INCLUDE_TYPE_USE_ANNOTATIONS] = true
+                    this[KOTLIN_NAME_TYPE_ORDER] = true
+                },
+            expectedApiSignature =
                 """
                     package test.pkg {
                       public class Foo {
@@ -6398,7 +6531,7 @@ class ApiFileTest : DriverTest() {
             // `VisibleInterface` using [ClassItem.mapTypeVariables]. It really should become
             // `implements test.pkg.VisibleInterface<java.util.List<F>>`, but the `F` is erased from
             // `List` for legacy reasons.
-            api =
+            expectedApiSignature =
                 """
                     // Signature format: 5.0
                     package test.pkg {
@@ -6440,17 +6573,17 @@ class ApiFileTest : DriverTest() {
                         """
                     )
                 ),
-            api =
+            expectedApiSignature =
                 """
                 // Signature format: 5.0
                 package test.pkg {
                   public final class SeekableTransitionState<S> extends test.pkg.TransitionState<S> {
                     ctor public SeekableTransitionState(S initialState);
-                    method public S getCurrentState();
+                    method @InaccessibleFromKotlin public S getCurrentState();
                     property public S currentState;
                   }
-                  public abstract sealed class TransitionState<S> {
-                    method public abstract S getCurrentState();
+                  public abstract sealed exhaustive class TransitionState<S> {
+                    method @InaccessibleFromKotlin public abstract S getCurrentState();
                     property public abstract S currentState;
                   }
                 }
@@ -6481,14 +6614,14 @@ class ApiFileTest : DriverTest() {
                         """
                     )
                 ),
-            api =
+            expectedApiSignature =
                 """
                     package test.pkg {
                       public class Foo {
                         ctor public Foo();
                         method public java.util.List<java.lang.String?>! foo(Number?, Number!);
                       }
-                      @kotlin.annotation.Target(allowedTargets=kotlin.annotation.AnnotationTarget.TYPE) public @interface NullableType {
+                      @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME) @kotlin.annotation.Target(allowedTargets=kotlin.annotation.AnnotationTarget.TYPE) public @interface NullableType {
                       }
                     }
                 """
@@ -6565,18 +6698,86 @@ class ApiFileTest : DriverTest() {
                 ),
             // The delegate APIs shouldn't be bytecode only, but it is better that they are tracked
             // that way than not tracked at all.
-            api =
+            expectedApiSignature =
                 """
                 // Signature format: 5.0
                 package test.pkg {
                   public final class Delegated {
                     ctor public Delegated();
-                    method @InaccessibleFromJava public void baseMethod();
+                    method public void baseMethod();
                     method @BytecodeOnly public int getBaseVal();
                     property public int baseVal;
                   }
                 }
                 """
+        )
+    }
+
+    @RequiresCapabilities(Capability.KOTLIN)
+    @Test
+    fun `Test primary constructor with defaults and secondary constructor with JvmOverloads`() {
+        check(
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
+                        package test.pkg
+                        // Annotations defined to make it clear which constructor the output is based on
+                        annotation class A
+                        annotation class B
+                        class Foo @A constructor(i: Int = 0) {
+                            @JvmOverloads @B
+                            constructor(s: String = "", i: Int = 0): this(i)
+                        }
+                        """
+                    )
+                ),
+            expectedApiSignature =
+                """
+                // Signature format: 5.0
+                package test.pkg {
+                  @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME) public @interface A {
+                  }
+                  @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME) public @interface B {
+                  }
+                  public final class Foo {
+                    ctor @test.pkg.B public Foo();
+                    ctor @test.pkg.A public Foo(optional int i);
+                    ctor @test.pkg.B public Foo(optional String s);
+                    ctor @test.pkg.B public Foo(optional String s, optional int i);
+                  }
+                }
+                """
+        )
+    }
+
+    @RequiresCapabilities(Capability.KOTLIN)
+    @Test
+    fun `Test typealiases from classpath are not listed`() {
+        check(
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        // The kotlin package is used here to make it so built-in kotlin typealiases
+                        // are also processed.
+                        """
+                        package kotlin
+                        """,
+                    ),
+                    kotlin(
+                        """
+                        package test.pkg
+                        typealias Foo = String
+                        """
+                    ),
+                ),
+            expectedApiSignature =
+                """
+                // Signature format: 5.0
+                package test.pkg {
+                  public typealias Foo = String;
+                }
+                """,
         )
     }
 }

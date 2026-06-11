@@ -16,28 +16,32 @@
 
 package com.android.tools.metalava.model.source
 
-import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.ItemDocumentationFactory
+import com.android.tools.metalava.model.SelectableItem
+import com.android.tools.metalava.model.source.doc.ContentSupplier
+import com.android.tools.metalava.model.source.doc.DefaultDocComment
+import com.android.tools.metalava.model.source.doc.DocComment
+import com.android.tools.metalava.reporter.FileLocation
 
 /** A default [com.android.tools.metalava.model.ItemDocumentation] containing JavaDoc/KDoc. */
-internal class DefaultItemDocumentation(override var text: String) : AbstractItemDocumentation() {
+internal class DefaultItemDocumentation(
+    item: SelectableItem,
+    docComment: DocComment? = null,
+    override val fileLocation: FileLocation = FileLocation.UNKNOWN,
+) : AbstractItemDocumentation(item) {
 
-    override fun duplicate(item: Item) = DefaultItemDocumentation(text)
-
-    override fun snapshot(item: Item) = text.toItemDocumentation()
-
-    override fun mergeDocumentation(comment: String, tagSection: String?) {
-        TODO("Not yet implemented")
-    }
-
-    override fun findMainDocumentation(): String {
-        TODO("Not yet implemented")
-    }
+    override val docComment: DocComment =
+        docComment
+            ?: DefaultDocComment(
+                this,
+                ContentSupplier.NULL,
+                emptyList(),
+                noComment = true,
+            )
 }
 
-/** Wrap a [String] in an [ItemDocumentationFactory]. */
-fun String.toItemDocumentationFactory(): ItemDocumentationFactory = { toItemDocumentation() }
-
-/** Wrap a [String] in an [ItemDocumentation] instance. */
-private fun String.toItemDocumentation(): ItemDocumentation = DefaultItemDocumentation(this)
+/** Creates an [ItemDocumentation] for an item without any source comment. */
+val NO_SOURCE_COMMENT_FACTORY = ItemDocumentationFactory { item ->
+    DefaultItemDocumentation(item, null)
+}

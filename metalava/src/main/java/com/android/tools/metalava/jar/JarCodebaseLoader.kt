@@ -16,8 +16,9 @@
 
 package com.android.tools.metalava.jar
 
-import com.android.tools.metalava.ApiAnalyzer
+import androidx.tracing.Tracer
 import com.android.tools.metalava.ProgressTracker
+import com.android.tools.metalava.api.ApiAnalyzer
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.annotation.DefaultAnnotationManager
 import com.android.tools.metalava.model.source.EnvironmentManager
@@ -76,7 +77,10 @@ sealed interface JarCodebaseLoader {
             analyzer.mergeExternalInclusionAnnotations()
             analyzer.computeApi()
             analyzer.mergeExternalQualifierAnnotations()
-            analyzer.generateInheritedStubs(apiEmit, apiReference)
+            analyzer.inheritHiddenAspects(
+                apiEmit,
+                apiReference,
+            )
 
             if (freezeCodebase) {
                 // Prevent the codebase from being mutated.
@@ -118,6 +122,7 @@ private constructor(
         fun create(
             disableStderrDumping: Boolean,
             progressTracker: ProgressTracker,
+            tracer: Tracer,
             reporter: Reporter,
             sourceModelProvider: SourceModelProvider = SourceModelProvider.getImplementation("psi"),
         ): StandaloneJarCodebaseLoader {
@@ -134,10 +139,7 @@ private constructor(
                     reporter = reporter,
                 )
 
-            val sourceParser =
-                environmentManager.createSourceParser(
-                    codebaseConfig,
-                )
+            val sourceParser = environmentManager.createSourceParser(codebaseConfig, tracer)
 
             val jarLoader =
                 JarCodebaseLoader.createForSourceParser(

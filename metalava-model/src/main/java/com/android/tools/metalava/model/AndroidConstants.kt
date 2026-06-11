@@ -22,9 +22,12 @@ const val ANDROID_INT_DEF = "android.annotation.IntDef"
 const val ANDROID_LONG_DEF = "android.annotation.LongDef"
 const val ANDROID_STRING_DEF = "android.annotation.StringDef"
 
+const val ANDROID_HIDE = "android.annotation.Hide"
+
 const val ANDROID_SYSTEM_API = "android.annotation.SystemApi"
 const val ANDROID_TEST_API = "android.annotation.TestApi"
 const val ANDROID_FLAGGED_API = "android.annotation.FlaggedApi"
+const val ANDROID_REQUIRES_FLAG = "android.annotation.RequiresFlag"
 
 const val ANDROIDX_ANNOTATION_PACKAGE = "androidx.annotation"
 const val ANDROIDX_ANNOTATION_PREFIX = "androidx.annotation."
@@ -45,3 +48,5 @@ const val ANDROIDX_REQUIRES_PERMISSION_WRITE = "androidx.annotation.RequiresPerm
 
 const val ANDROIDX_INT_RANGE = "androidx.annotation.IntRange"
 const val ANDROIDX_FLOAT_RANGE = "androidx.annotation.FloatRange"
+
+const val ANDROIDX_COMPOSABLE = "androidx.compose.runtime.Composable"
