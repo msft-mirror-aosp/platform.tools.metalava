@@ -67,7 +67,7 @@ abstract class CompatibilityCheckAndroidApisTest(
                 ApiLevelCheck(
                     5,
                     """
-                        load-api.txt:14736: warning: Binary breaking change: Method android.view.Surface.lockCanvas added thrown exception java.lang.IllegalArgumentException [ChangedThrows]
+                        load-api.txt:14736: warning: Source breaking change: Method android.view.Surface.lockCanvas added thrown exception java.lang.IllegalArgumentException [ChangedThrows]
                     """,
                     hide(
                         DEFAULT_HIDDEN_ISSUES_STRING,
@@ -77,8 +77,8 @@ abstract class CompatibilityCheckAndroidApisTest(
                 ApiLevelCheck(
                     6,
                     """
-                        load-api.txt:1321: warning: Binary breaking change: Method android.accounts.AbstractAccountAuthenticator.confirmCredentials added thrown exception android.accounts.NetworkErrorException [ChangedThrows]
-                        load-api.txt:1328: warning: Binary breaking change: Method android.accounts.AbstractAccountAuthenticator.updateCredentials added thrown exception android.accounts.NetworkErrorException [ChangedThrows]
+                        load-api.txt:1321: warning: Source breaking change: Method android.accounts.AbstractAccountAuthenticator.confirmCredentials added thrown exception android.accounts.NetworkErrorException [ChangedThrows]
+                        load-api.txt:1328: warning: Source breaking change: Method android.accounts.AbstractAccountAuthenticator.updateCredentials added thrown exception android.accounts.NetworkErrorException [ChangedThrows]
                         load-api.txt:15728: warning: Binary breaking change: Field android.view.WindowManager.LayoutParams.TYPE_STATUS_BAR_PANEL has changed value from 2008 to 2014 [ChangedValue]
                     """,
                     hide(
@@ -106,30 +106,30 @@ abstract class CompatibilityCheckAndroidApisTest(
                 ApiLevelCheck(
                     8,
                     """
-                        load-api.txt:2901: warning: Binary breaking change: Method android.content.ComponentName.clone no longer throws exception java.lang.CloneNotSupportedException [ChangedThrows]
+                        load-api.txt:2901: warning: Source breaking change: Method android.content.ComponentName.clone no longer throws exception java.lang.CloneNotSupportedException [ChangedThrows]
                         load-api.txt:2901: error: Binary breaking change: Method android.content.ComponentName.clone has changed return type from java.lang.Object to android.content.ComponentName [ChangedType]
-                        load-api.txt:5169: warning: Binary breaking change: Method android.gesture.Gesture.clone no longer throws exception java.lang.CloneNotSupportedException [ChangedThrows]
-                        load-api.txt:5281: warning: Binary breaking change: Method android.gesture.GesturePoint.clone no longer throws exception java.lang.CloneNotSupportedException [ChangedThrows]
-                        load-api.txt:5313: warning: Binary breaking change: Method android.gesture.GestureStroke.clone no longer throws exception java.lang.CloneNotSupportedException [ChangedThrows]
-                        load-api.txt:8395: warning: Binary breaking change: Constructor android.net.SSLCertificateSocketFactory no longer throws exception java.security.KeyManagementException [ChangedThrows]
-                        load-api.txt:8395: warning: Binary breaking change: Constructor android.net.SSLCertificateSocketFactory no longer throws exception java.security.NoSuchAlgorithmException [ChangedThrows]
-                        load-api.txt:24974: warning: Binary breaking change: Constructor java.nio.charset.Charset no longer throws exception java.nio.charset.IllegalCharsetNameException [ChangedThrows]
-                        load-api.txt:24987: warning: Binary breaking change: Method java.nio.charset.Charset.forName no longer throws exception java.nio.charset.IllegalCharsetNameException [ChangedThrows]
-                        load-api.txt:24987: warning: Binary breaking change: Method java.nio.charset.Charset.forName no longer throws exception java.nio.charset.UnsupportedCharsetException [ChangedThrows]
-                        load-api.txt:24990: warning: Binary breaking change: Method java.nio.charset.Charset.isSupported no longer throws exception java.nio.charset.IllegalCharsetNameException [ChangedThrows]
-                        load-api.txt:30437: warning: Binary breaking change: Method java.util.regex.Matcher.appendReplacement no longer throws exception java.lang.IllegalStateException [ChangedThrows]
-                        load-api.txt:30462: warning: Binary breaking change: Method java.util.regex.Matcher.start no longer throws exception java.lang.IllegalStateException [ChangedThrows]
-                        load-api.txt:30471: warning: Binary breaking change: Method java.util.regex.Pattern.compile no longer throws exception java.util.regex.PatternSyntaxException [ChangedThrows]
+                        load-api.txt:5169: warning: Source breaking change: Method android.gesture.Gesture.clone no longer throws exception java.lang.CloneNotSupportedException [ChangedThrows]
+                        load-api.txt:5281: warning: Source breaking change: Method android.gesture.GesturePoint.clone no longer throws exception java.lang.CloneNotSupportedException [ChangedThrows]
+                        load-api.txt:5313: warning: Source breaking change: Method android.gesture.GestureStroke.clone no longer throws exception java.lang.CloneNotSupportedException [ChangedThrows]
+                        load-api.txt:8395: warning: Source breaking change: Constructor android.net.SSLCertificateSocketFactory no longer throws exception java.security.KeyManagementException [ChangedThrows]
+                        load-api.txt:8395: warning: Source breaking change: Constructor android.net.SSLCertificateSocketFactory no longer throws exception java.security.NoSuchAlgorithmException [ChangedThrows]
+                        load-api.txt:24974: warning: Source breaking change: Constructor java.nio.charset.Charset no longer throws exception java.nio.charset.IllegalCharsetNameException [ChangedThrows]
+                        load-api.txt:24987: warning: Source breaking change: Method java.nio.charset.Charset.forName no longer throws exception java.nio.charset.IllegalCharsetNameException [ChangedThrows]
+                        load-api.txt:24987: warning: Source breaking change: Method java.nio.charset.Charset.forName no longer throws exception java.nio.charset.UnsupportedCharsetException [ChangedThrows]
+                        load-api.txt:24990: warning: Source breaking change: Method java.nio.charset.Charset.isSupported no longer throws exception java.nio.charset.IllegalCharsetNameException [ChangedThrows]
+                        load-api.txt:30437: warning: Source breaking change: Method java.util.regex.Matcher.appendReplacement no longer throws exception java.lang.IllegalStateException [ChangedThrows]
+                        load-api.txt:30462: warning: Source breaking change: Method java.util.regex.Matcher.start no longer throws exception java.lang.IllegalStateException [ChangedThrows]
+                        load-api.txt:30471: warning: Source breaking change: Method java.util.regex.Pattern.compile no longer throws exception java.util.regex.PatternSyntaxException [ChangedThrows]
                         load-api.txt:32652: warning: Binary breaking change: Class javax.xml.XMLConstants added 'final' qualifier [AddedFinal]
-                        load-api.txt:32849: warning: Binary breaking change: Method javax.xml.parsers.DocumentBuilder.isXIncludeAware no longer throws exception java.lang.UnsupportedOperationException [ChangedThrows]
-                        load-api.txt:32874: warning: Binary breaking change: Method javax.xml.parsers.DocumentBuilderFactory.newInstance no longer throws exception javax.xml.parsers.FactoryConfigurationError [ChangedThrows]
-                        load-api.txt:32908: warning: Binary breaking change: Method javax.xml.parsers.SAXParser.isXIncludeAware no longer throws exception java.lang.UnsupportedOperationException [ChangedThrows]
-                        load-api.txt:32930: warning: Binary breaking change: Method javax.xml.parsers.SAXParserFactory.newInstance no longer throws exception javax.xml.parsers.FactoryConfigurationError [ChangedThrows]
-                        load-api.txt:37246: warning: Binary breaking change: Method org.w3c.dom.Element.getAttributeNS added thrown exception org.w3c.dom.DOMException [ChangedThrows]
-                        load-api.txt:37248: warning: Binary breaking change: Method org.w3c.dom.Element.getAttributeNodeNS added thrown exception org.w3c.dom.DOMException [ChangedThrows]
-                        load-api.txt:37250: warning: Binary breaking change: Method org.w3c.dom.Element.getElementsByTagNameNS added thrown exception org.w3c.dom.DOMException [ChangedThrows]
-                        load-api.txt:37254: warning: Binary breaking change: Method org.w3c.dom.Element.hasAttributeNS added thrown exception org.w3c.dom.DOMException [ChangedThrows]
-                        load-api.txt:37290: warning: Binary breaking change: Method org.w3c.dom.NamedNodeMap.getNamedItemNS added thrown exception org.w3c.dom.DOMException [ChangedThrows]
+                        load-api.txt:32849: warning: Source breaking change: Method javax.xml.parsers.DocumentBuilder.isXIncludeAware no longer throws exception java.lang.UnsupportedOperationException [ChangedThrows]
+                        load-api.txt:32874: warning: Source breaking change: Method javax.xml.parsers.DocumentBuilderFactory.newInstance no longer throws exception javax.xml.parsers.FactoryConfigurationError [ChangedThrows]
+                        load-api.txt:32908: warning: Source breaking change: Method javax.xml.parsers.SAXParser.isXIncludeAware no longer throws exception java.lang.UnsupportedOperationException [ChangedThrows]
+                        load-api.txt:32930: warning: Source breaking change: Method javax.xml.parsers.SAXParserFactory.newInstance no longer throws exception javax.xml.parsers.FactoryConfigurationError [ChangedThrows]
+                        load-api.txt:37246: warning: Source breaking change: Method org.w3c.dom.Element.getAttributeNS added thrown exception org.w3c.dom.DOMException [ChangedThrows]
+                        load-api.txt:37248: warning: Source breaking change: Method org.w3c.dom.Element.getAttributeNodeNS added thrown exception org.w3c.dom.DOMException [ChangedThrows]
+                        load-api.txt:37250: warning: Source breaking change: Method org.w3c.dom.Element.getElementsByTagNameNS added thrown exception org.w3c.dom.DOMException [ChangedThrows]
+                        load-api.txt:37254: warning: Source breaking change: Method org.w3c.dom.Element.hasAttributeNS added thrown exception org.w3c.dom.DOMException [ChangedThrows]
+                        load-api.txt:37290: warning: Source breaking change: Method org.w3c.dom.NamedNodeMap.getNamedItemNS added thrown exception org.w3c.dom.DOMException [ChangedThrows]
                         released-api.txt:31151: error: Binary breaking change: Removed constructor javax.xml.XMLConstants() [RemovedMethod]
                     """,
                     hide(

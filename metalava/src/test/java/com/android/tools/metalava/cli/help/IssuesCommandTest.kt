@@ -78,7 +78,7 @@ Available Issues                             |  Category                        
   ChangedScope                               |  binary_and_source_compatibility      |   error
   ChangedStatic                              |  binary_and_source_compatibility      |   error
   ChangedSuperclass                          |  binary_and_source_compatibility      |   error
-  ChangedThrows                              |  binary_and_source_compatibility      |   error
+  ChangedThrows                              |  source_compatibility_only            |   error
   ChangedType                                |  binary_and_source_compatibility      |   error
   ChangedValue                               |  binary_compatibility_only            |   error
   ChangedVolatile                            |  other_compatibility                  |   error
