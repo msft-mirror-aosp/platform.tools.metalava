@@ -66,7 +66,7 @@ class ApiSurfaceSelector(
                         SurfaceAnnotationData(
                             showability,
                             surface,
-                            annotated.effect == Effect.SHOW,
+                            annotated.effect,
                             annotated.recursive,
                         )
                     )
@@ -203,9 +203,9 @@ class ApiSurfaceSelector(
          * [patternComparator]
          */
         private val comparator =
-            // First sort so that HIDE is last. That is because SHOW overrides HIDE.
-            Comparator.comparing<AnnotationMatcher.Rule<SurfaceAnnotationData>, Boolean> {
-                    !it.result.show
+            // First sort by [Effect] so that SHOW comes before HIDE because SHOW overrides HIDE.
+            Comparator.comparing<AnnotationMatcher.Rule<SurfaceAnnotationData>, Effect> {
+                    it.result.effect
                 }
                 // Then make sure that a rule that matches the main surface comes before any other
                 // surface.
@@ -400,15 +400,12 @@ data class SurfaceAnnotationData(
     /** The [ApiSurface] to which the annotation applies. */
     val surface: ApiSurface,
 
-    /**
-     * True if an item annotated with the annotation is shown in the [surface], false if it is
-     * hidden from the [surface].
-     */
-    val show: Boolean,
+    /** The [Effect] that this annotation has on the annotated item. */
+    val effect: Effect,
 
     /**
-     * True if [show] applies to the contents of the annotated item, false if it only applies to the
-     * item itself.
+     * True if [effect] applies to the contents of the annotated item, false if it only applies to
+     * the item itself.
      */
     val recursive: Boolean,
 ) {
@@ -416,7 +413,7 @@ data class SurfaceAnnotationData(
      * The [ApiSurface], if any, to which an annotated item will belong, ignoring the effects of
      * flags.
      */
-    val showSurface = surface.takeIf { show }
+    val showSurface = surface.takeIf { effect == Effect.SHOW }
 
     override fun toString() = showability.toString()
 }

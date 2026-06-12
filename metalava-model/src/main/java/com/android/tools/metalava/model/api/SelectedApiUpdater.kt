@@ -17,6 +17,7 @@
 package com.android.tools.metalava.model.api
 
 import com.android.tools.metalava.model.SelectableItem
+import com.android.tools.metalava.model.api.SurfaceSelectionRule.Effect
 import com.android.tools.metalava.model.api.surface.ApiSurfaces
 import com.android.tools.metalava.model.api.surface.ApiVariant
 import com.android.tools.metalava.model.api.surface.ApiVariantSet
@@ -79,23 +80,26 @@ class SelectedApiUpdater(
         for (annotationItem in annotations) {
             // Ignore any annotation that does not match.
             annotationItem.surfaceData?.let { surfaceData ->
-                if (surfaceData.show) {
-                    val resultSurface = surfaceData.surface
+                when (surfaceData.effect) {
+                    Effect.SHOW -> {
+                        val resultSurface = surfaceData.surface
 
-                    // It is a show annotation so add the context surfaces variants.
-                    val resultVariants = resultSurface.defaultVariantSet
+                        // It is a show annotation so add the context surfaces variants.
+                        val resultVariants = resultSurface.defaultVariantSet
 
-                    // Add the surface variants to the variants for the context item.
-                    itemApiVariants += resultVariants
+                        // Add the surface variants to the variants for the context item.
+                        itemApiVariants += resultVariants
 
-                    // If the rule is recursive then add the surface variants to those that are
-                    // inherited by enclosed items.
-                    if (surfaceData.recursive) {
-                        inheritableApiVariants += resultVariants
+                        // If the rule is recursive then add the surface variants to those that are
+                        // inherited by enclosed items.
+                        if (surfaceData.recursive) {
+                            inheritableApiVariants += resultVariants
+                        }
                     }
-                } else {
-                    // A hide annotation was seen.
-                    hide = true
+                    Effect.HIDE -> {
+                        // A hide annotation was seen.
+                        hide = true
+                    }
                 }
             }
         }
