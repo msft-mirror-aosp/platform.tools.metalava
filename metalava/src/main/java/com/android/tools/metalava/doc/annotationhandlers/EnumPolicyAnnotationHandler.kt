@@ -19,27 +19,26 @@ package com.android.tools.metalava.doc.annotationhandlers
 import com.android.tools.metalava.model.ANDROIDX_INT_DEF
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ClassItem
-import com.android.tools.metalava.model.Codebase
+import com.android.tools.metalava.model.FilterPredicate
 import com.android.tools.metalava.model.Item
-import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.annotation.binding.bindTo
+import com.android.tools.metalava.model.testOrTrue
 import com.android.tools.metalava.model.value.FieldReferenceValue
 import com.android.tools.metalava.model.value.asAny
 import com.android.tools.metalava.reporter.Issues
-import com.android.tools.metalava.reporter.Reporter
-import java.util.function.Predicate
 
 /** Handles @android.processor.devicepolicy.EnumPolicyDefinition annotation. */
 class EnumPolicyAnnotationHandler(
-    codebase: Codebase,
-    reporter: Reporter,
-    filterReference: Predicate<SelectableItem>
-) : BaseDevicePolicyAnnotationHandler(codebase, reporter, filterReference) {
+    context: DevicePolicyContext,
+) : BaseDevicePolicyAnnotationHandler(context) {
 
     /** Processes a policy annotation and returns a documentation string. */
-    override fun processPolicyAnnotation(annotation: AnnotationItem, item: Item): String {
+    override fun processPolicyAnnotation(
+        annotation: AnnotationItem,
+        item: Item,
+    ): String {
         val proxy = annotation.bindTo<EnumPolicyDefinitionProxy>(item)
-        return proxy?.generateDocs(filterReference) ?: ""
+        return proxy?.generateDocs(context) ?: ""
     }
 }
 
@@ -58,29 +57,36 @@ data class EnumPolicyDefinitionProxy(
 ) {
     val reporter = item.codebase.reporter
 
-    fun generateDocs(filterReference: Predicate<SelectableItem>): String {
-        val enumValueToCodeReference = buildEnumValueToCodeReferenceMap(filterReference)
+    fun generateDocs(context: DevicePolicyContext): String {
+        val enumValueToCodeReference = buildEnumValueToCodeReferenceMap(context.filterReference)
         val defaultValue = defaultValue
 
-        return buildString {
-            append("\n<p>Policy Type: Enum</p>\n <ul>\n")
-            append(base.generateDocs())
-            val resolutionMechanismDoc = resolutionMechanism.generateDocs()
-            append("   <li>Resolution Mechanism: $resolutionMechanismDoc</li>\n")
-            if (enumValueToCodeReference.isNotEmpty()) {
-                append("   <li>Enum policy values:\n     <ul>\n")
-                enumValueToCodeReference.entries
-                    .map { entry ->
-                        if (entry.key == defaultValue) {
-                            "        <li>${entry.value} (default)</li>\n"
-                        } else {
-                            "        <li>${entry.value}</li>\n"
+        val tableEntries = buildList {
+            addAll(base.getTableEntries())
+            val resolutionMechanismDoc = resolutionMechanism.generateDocs(enumValueToCodeReference)
+            add(Pair("Resolution Mechanism", resolutionMechanismDoc))
+            val policyValueValidations = buildList {
+                if (enumValueToCodeReference.isNotEmpty()) {
+                    val valuesDoc = buildString {
+                        append("<ul>\n")
+                        enumValueToCodeReference.entries.forEach { entry ->
+                            if (entry.key == defaultValue) {
+                                append("  <li>${entry.value} (default)</li>\n")
+                            } else {
+                                append("  <li>${entry.value}</li>\n")
+                            }
                         }
+                        append("</ul>")
                     }
-                    .joinTo(this, separator = "")
-                append("     </ul>\n   </li>\n")
+                    add(Pair("Enum policy values", valuesDoc))
+                }
             }
-            append(" </ul>\n")
+            add(Pair("Policy value", renderPolicyValue("Enum", policyValueValidations)))
+        }
+
+        return buildString {
+            append("\n<p>Policy Type: Enum</p>\n")
+            append(renderTable(tableEntries))
         }
     }
 
@@ -108,7 +114,7 @@ data class EnumPolicyDefinitionProxy(
      * ```
      */
     private fun buildEnumValueToCodeReferenceMap(
-        filterReference: Predicate<SelectableItem>
+        filterReference: FilterPredicate?
     ): Map<Int, String> {
         // Get the enum value class object. Currently, the @EnumPolicyDefinition annotation's intDef
         // field is of type: Class<?>.
@@ -137,7 +143,7 @@ data class EnumPolicyDefinitionProxy(
                     )
                     continue
                 }
-                if (filterReference.test(fieldItem)) {
+                if (filterReference.testOrTrue(fieldItem)) {
                     val link = "{@link $qualifiedClassName#$fieldName}"
                     enumValueToName[fieldValue] = link
                 } else {
@@ -166,13 +172,15 @@ data class EnumResolutionMechanismProxy(
     val mostRestrictive: List<Int>,
     val notCoexistable: Boolean,
 ) {
-    fun generateDocs() =
+    fun generateDocs(enumValueToCodeReference: Map<Int, String>) =
         if (custom) {
             "custom"
         } else if (notCoexistable) {
             "not coexistable"
         } else if (mostRestrictive.isNotEmpty()) {
-            "most restrictive: [${mostRestrictive.joinToString(", ")}]"
+            val mostRestrictiveDocs =
+                mostRestrictive.map { enumValueToCodeReference[it] ?: it.toString() }
+            "most restrictive: [${mostRestrictiveDocs.joinToString(", ")}]"
         } else {
             item.codebase.reporter.reportOnMissingFields("resolutionMechanism", item)
             ""

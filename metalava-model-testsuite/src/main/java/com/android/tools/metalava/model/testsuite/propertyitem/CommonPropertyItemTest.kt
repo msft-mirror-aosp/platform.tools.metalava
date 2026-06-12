@@ -1742,7 +1742,7 @@ class CommonPropertyItemTest : BaseModelTest() {
                 .isEqualTo("method test.pkg.Foo.getOneContextParam(String)")
             assertThat(oneContextParam.setter).isNotNull()
             assertThat(oneContextParam.setter.toString())
-                .isEqualTo("method test.pkg.Foo.setOneContextParam(String, int)")
+                .isEqualTo("method test.pkg.Foo.setOneContextParam(String,int)")
 
             val twoContextParam =
                 fooClass.assertProperty(
@@ -1751,10 +1751,10 @@ class CommonPropertyItemTest : BaseModelTest() {
                 )
             assertThat(twoContextParam.getter).isNotNull()
             assertThat(twoContextParam.getter.toString())
-                .isEqualTo("method test.pkg.Foo.getTwoContextParam(String, int)")
+                .isEqualTo("method test.pkg.Foo.getTwoContextParam(String,int)")
             assertThat(twoContextParam.setter).isNotNull()
             assertThat(twoContextParam.setter.toString())
-                .isEqualTo("method test.pkg.Foo.setTwoContextParam(String, int, int)")
+                .isEqualTo("method test.pkg.Foo.setTwoContextParam(String,int,int)")
 
             val withContextParamAndReceiver =
                 fooClass.assertProperty(
@@ -1764,12 +1764,10 @@ class CommonPropertyItemTest : BaseModelTest() {
                 )
             assertThat(withContextParamAndReceiver.getter).isNotNull()
             assertThat(withContextParamAndReceiver.getter.toString())
-                .isEqualTo("method test.pkg.Foo.getWithContextParamAndReceiver(String, String)")
+                .isEqualTo("method test.pkg.Foo.getWithContextParamAndReceiver(String,String)")
             assertThat(withContextParamAndReceiver.setter).isNotNull()
             assertThat(withContextParamAndReceiver.setter.toString())
-                .isEqualTo(
-                    "method test.pkg.Foo.setWithContextParamAndReceiver(String, String, int)"
-                )
+                .isEqualTo("method test.pkg.Foo.setWithContextParamAndReceiver(String,String,int)")
         }
     }
 
@@ -1864,7 +1862,7 @@ class CommonPropertyItemTest : BaseModelTest() {
                 .isEqualTo("method test.pkg.Foo.getWithJvmName(int)")
             assertThat(varWithJvmName.setter).isNotNull()
             assertThat(varWithJvmName.setter.toString())
-                .isEqualTo("method test.pkg.Foo.setWithJvmName(int, int)")
+                .isEqualTo("method test.pkg.Foo.setWithJvmName(int,int)")
 
             val varWithoutJvmName =
                 fooClass.assertProperty(

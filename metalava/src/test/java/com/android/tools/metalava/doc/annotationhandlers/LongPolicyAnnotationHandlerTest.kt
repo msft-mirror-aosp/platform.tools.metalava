@@ -38,6 +38,7 @@ class LongPolicyAnnotationHandlerTest : DriverTest() {
                         import android.processor.devicepolicy.LongResolutionMechanism;
                         import android.processor.devicepolicy.PolicyDefinition;
                         import android.processor.devicepolicy.AllowedDpcTypes;
+                        import android.processor.devicepolicy.AllowedRoles;
                         import static android.processor.devicepolicy.AllowedDpcTypes.ALLOWED;
 
                         @Retention(RetentionPolicy.SOURCE)
@@ -53,13 +54,17 @@ class LongPolicyAnnotationHandlerTest : DriverTest() {
                                 base = @PolicyDefinition(
                                     allowedScopes = {SCOPE_USER},
                                     affectedResource = RESOURCE_DEVICE_WIDE,
-                                    requiredPermission = "android.permission.TEST",
+                                    requiredPermission = android.Manifest.permission.TEST,
+                                    requiredCrossUserPermission = android.Manifest.permission.MANAGE_DEVICE_POLICY_ACROSS_USERS,
                                     allowedDpcTypes = @AllowedDpcTypes(
                                         deviceOwner = ALLOWED,
                                         managedProfileOwnerOfOrganizationOwnedDevice = ALLOWED,
                                         managedProfileOwnerOfPersonalOwnedDevice = ALLOWED,
                                         profileOwnerOnUser0 = ALLOWED,
                                         fullUserProfileOwner = ALLOWED
+                                    ),
+                                    allowedRoles = @AllowedRoles(
+                                        deviceController = AllowedRoles.ALLOWED
                                     )
                                 ),
                                 minValue = 10L,
@@ -87,28 +92,68 @@ class LongPolicyAnnotationHandlerTest : DriverTest() {
                          * Some other human handwritten comments.
                          * <br>
                          * <p>Policy Type: Long</p>
-                         * <ul>
-                         *   <li>Allowed Scopes:
-                         *    <ul>
-                         *       <li>User</li>
-                         *     </ul>
-                         *   </li>
-                         *   <li>Affected Resource: Device Wide</li>
-                         *   <li>Required Permission: {@link android.Manifest.permission#TEST android.permission.TEST}</li>
-                         *   <li>Allowed DPC Types:
-                         *    <ul>
-                         *       <li>Device Owner</li>
-                         *       <li>Managed Profile Owner (Of Organization Owned Device)</li>
-                         *       <li>Managed Profile Owner (Of Personally Owned Device)</li>
-                         *       <li>Unaffiliated Full User Profile Owner</li>
-                         *       <li>Profile Owner on User 0</li>
-                         *       <li>Affiliated Full User Profile Owner</li>
-                         *     </ul>
-                         *   </li>
-                         *   <li>Resolution Mechanism: custom</li>
-                         *   <li>Min Value: 10</li>
-                         *   <li>Max Value: 100</li>
-                         * </ul>
+                         * <table>
+                         *  <tr>
+                         *    <th colspan="2">Policy details</th>
+                         *  </tr>
+                         *  <tr>
+                         *    <td>Allowed Scopes</td>
+                         *    <td>
+                         *      <ul>
+                         *        <li>User. Settable by:
+                         *          <ul>
+                         *            <li>Device Owner</li>
+                         *            <li>Managed Profile Owner (Of Organization Owned Device)</li>
+                         *            <li>Managed Profile Owner (Of Personally Owned Device)</li>
+                         *            <li>Unaffiliated Full User Profile Owner</li>
+                         *            <li>Profile Owner on User 0</li>
+                         *            <li>Affiliated Full User Profile Owner</li>
+                         *          </ul>
+                         *        </li>
+                         *      </ul>
+                         *    </td>
+                         *  </tr>
+                         *  <tr>
+                         *    <td>Affected Resource</td>
+                         *    <td>Device Wide</td>
+                         *  </tr>
+                         *  <tr>
+                         *    <td>Required Permission</td>
+                         *    <td>{@link android.Manifest.permission#TEST android.permission.TEST}</td>
+                         *  </tr>
+                         *  <tr>
+                         *    <td>Required Cross User Permission</td>
+                         *    <td>{@link android.Manifest.permission#MANAGE_DEVICE_POLICY_ACROSS_USERS android.permission.MANAGE_DEVICE_POLICY_ACROSS_USERS}</td>
+                         *  </tr>
+                         *  <tr>
+                         *    <td>Allowed DPC Types</td>
+                         *    <td>
+                         *      <ul>
+                         *        <li>Device Owner</li>
+                         *        <li>Managed Profile Owner (Of Organization Owned Device)</li>
+                         *        <li>Managed Profile Owner (Of Personally Owned Device)</li>
+                         *        <li>Unaffiliated Full User Profile Owner</li>
+                         *        <li>Profile Owner on User 0</li>
+                         *        <li>Affiliated Full User Profile Owner</li>
+                         *      </ul>
+                         *    </td>
+                         *  </tr>
+                         *  <tr>
+                         *    <td>Resolution Mechanism</td>
+                         *    <td>custom</td>
+                         *  </tr>
+                         *  <tr>
+                         *    <td>Policy value</td>
+                         *    <td>
+                         *      <code>Long</code> with the following restrictions:
+                         *      <ul>
+                         *        <li>Min Value: 10</li>
+                         *        <li>Max Value: 100</li>
+                         *      </ul>
+                         *    </td>
+                         *  </tr>
+                         * </table>
+                         * See also: {@link android.app.admin.DevicePolicyManager#setPolicy DevicePolicyManager.setPolicy}, {@link android.app.admin.DevicePolicyManager#getPolicy DevicePolicyManager.getPolicy}
                          */
                         public static final long POLICY_FIELD = 1L;
                         }

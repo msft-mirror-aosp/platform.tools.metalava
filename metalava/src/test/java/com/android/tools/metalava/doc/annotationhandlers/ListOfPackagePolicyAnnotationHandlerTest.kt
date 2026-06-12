@@ -38,6 +38,7 @@ class ListOfPackagePolicyAnnotationHandlerTest : DriverTest() {
                         import android.processor.devicepolicy.ListResolutionMechanism;
                         import android.processor.devicepolicy.PolicyDefinition;
                         import android.processor.devicepolicy.AllowedDpcTypes;
+                        import android.processor.devicepolicy.AllowedRoles;
                         import static android.processor.devicepolicy.AllowedDpcTypes.ALLOWED;
 
                         @Retention(RetentionPolicy.SOURCE)
@@ -61,6 +62,9 @@ class ListOfPackagePolicyAnnotationHandlerTest : DriverTest() {
                                         managedProfileOwnerOfPersonalOwnedDevice = ALLOWED,
                                         profileOwnerOnUser0 = ALLOWED,
                                         fullUserProfileOwner = ALLOWED
+                                    ),
+                                    allowedRoles = @AllowedRoles(
+                                        deviceController = AllowedRoles.ALLOWED
                                     )
                                 ),
                                 emptyListAllowed = true,
@@ -88,28 +92,64 @@ class ListOfPackagePolicyAnnotationHandlerTest : DriverTest() {
                          * Some other human handwritten comments.
                          * <br>
                          * <p>Policy Type: List of Package</p>
-                         * <ul>
-                         *   <li>Allowed Scopes:
-                         *    <ul>
-                         *       <li>User</li>
-                         *     </ul>
-                         *   </li>
-                         *   <li>Affected Resource: Device Wide</li>
-                         *   <li>Required Permission: {@link android.Manifest.permission#TEST android.permission.TEST}</li>
-                         *   <li>Allowed DPC Types:
-                         *    <ul>
-                         *       <li>Device Owner</li>
-                         *       <li>Managed Profile Owner (Of Organization Owned Device)</li>
-                         *       <li>Managed Profile Owner (Of Personally Owned Device)</li>
-                         *       <li>Unaffiliated Full User Profile Owner</li>
-                         *       <li>Profile Owner on User 0</li>
-                         *       <li>Affiliated Full User Profile Owner</li>
-                         *     </ul>
-                         *   </li>
-                         *   <li>Resolution Mechanism: custom</li>
-                         *   <li>Empty list: Allowed</li>
-                         *   <li>Max list length: 10</li>
-                         * </ul>
+                         * <table>
+                         *  <tr>
+                         *    <th colspan="2">Policy details</th>
+                         *  </tr>
+                         *  <tr>
+                         *    <td>Allowed Scopes</td>
+                         *    <td>
+                         *      <ul>
+                         *        <li>User. Settable by:
+                         *          <ul>
+                         *            <li>Device Owner</li>
+                         *            <li>Managed Profile Owner (Of Organization Owned Device)</li>
+                         *            <li>Managed Profile Owner (Of Personally Owned Device)</li>
+                         *            <li>Unaffiliated Full User Profile Owner</li>
+                         *            <li>Profile Owner on User 0</li>
+                         *            <li>Affiliated Full User Profile Owner</li>
+                         *          </ul>
+                         *        </li>
+                         *      </ul>
+                         *    </td>
+                         *  </tr>
+                         *  <tr>
+                         *    <td>Affected Resource</td>
+                         *    <td>Device Wide</td>
+                         *  </tr>
+                         *  <tr>
+                         *    <td>Required Permission</td>
+                         *    <td>{@link android.Manifest.permission#TEST android.permission.TEST}</td>
+                         *  </tr>
+                         *  <tr>
+                         *    <td>Allowed DPC Types</td>
+                         *    <td>
+                         *      <ul>
+                         *        <li>Device Owner</li>
+                         *        <li>Managed Profile Owner (Of Organization Owned Device)</li>
+                         *        <li>Managed Profile Owner (Of Personally Owned Device)</li>
+                         *        <li>Unaffiliated Full User Profile Owner</li>
+                         *        <li>Profile Owner on User 0</li>
+                         *        <li>Affiliated Full User Profile Owner</li>
+                         *      </ul>
+                         *    </td>
+                         *  </tr>
+                         *  <tr>
+                         *    <td>Resolution Mechanism</td>
+                         *    <td>custom</td>
+                         *  </tr>
+                         *  <tr>
+                         *    <td>Policy value</td>
+                         *    <td>
+                         *      <code>List of Package</code> with the following restrictions:
+                         *      <ul>
+                         *        <li>Empty list: Allowed</li>
+                         *        <li>Max list length: 10</li>
+                         *      </ul>
+                         *    </td>
+                         *  </tr>
+                         * </table>
+                         * See also: {@link android.app.admin.DevicePolicyManager#setPolicy DevicePolicyManager.setPolicy}, {@link android.app.admin.DevicePolicyManager#getPolicy DevicePolicyManager.getPolicy}
                          */
                         public static final java.lang.String POLICY_FIELD = "";
                         }
@@ -170,27 +210,60 @@ class ListOfPackagePolicyAnnotationHandlerTest : DriverTest() {
                         public TestPolicy() { throw new RuntimeException("Stub!"); }
                         /**
                          * <p>Policy Type: List of Package</p>
-                         * <ul>
-                         *   <li>Allowed Scopes:
-                         *    <ul>
-                         *       <li>User</li>
-                         *     </ul>
-                         *   </li>
-                         *   <li>Affected Resource: Device Wide</li>
-                         *   <li>Required Permission: {@link android.Manifest.permission#TEST android.permission.TEST}</li>
-                         *   <li>Allowed DPC Types:
-                         *    <ul>
-                         *       <li>Device Owner</li>
-                         *       <li>Managed Profile Owner (Of Organization Owned Device)</li>
-                         *       <li>Managed Profile Owner (Of Personally Owned Device)</li>
-                         *       <li>Unaffiliated Full User Profile Owner</li>
-                         *       <li>Profile Owner on User 0</li>
-                         *       <li>Affiliated Full User Profile Owner</li>
-                         *     </ul>
-                         *   </li>
-                         *   <li>Empty list: Not allowed</li>
-                         *   <li>Max list length: No limit</li>
-                         * </ul>
+                         * <table>
+                         *  <tr>
+                         *    <th colspan="2">Policy details</th>
+                         *  </tr>
+                         *  <tr>
+                         *    <td>Allowed Scopes</td>
+                         *    <td>
+                         *      <ul>
+                         *        <li>User. Settable by:
+                         *          <ul>
+                         *            <li>Device Owner</li>
+                         *            <li>Managed Profile Owner (Of Organization Owned Device)</li>
+                         *            <li>Managed Profile Owner (Of Personally Owned Device)</li>
+                         *            <li>Unaffiliated Full User Profile Owner</li>
+                         *            <li>Profile Owner on User 0</li>
+                         *            <li>Affiliated Full User Profile Owner</li>
+                         *          </ul>
+                         *        </li>
+                         *      </ul>
+                         *    </td>
+                         *  </tr>
+                         *  <tr>
+                         *    <td>Affected Resource</td>
+                         *    <td>Device Wide</td>
+                         *  </tr>
+                         *  <tr>
+                         *    <td>Required Permission</td>
+                         *    <td>{@link android.Manifest.permission#TEST android.permission.TEST}</td>
+                         *  </tr>
+                         *  <tr>
+                         *    <td>Allowed DPC Types</td>
+                         *    <td>
+                         *      <ul>
+                         *        <li>Device Owner</li>
+                         *        <li>Managed Profile Owner (Of Organization Owned Device)</li>
+                         *        <li>Managed Profile Owner (Of Personally Owned Device)</li>
+                         *        <li>Unaffiliated Full User Profile Owner</li>
+                         *        <li>Profile Owner on User 0</li>
+                         *        <li>Affiliated Full User Profile Owner</li>
+                         *      </ul>
+                         *    </td>
+                         *  </tr>
+                         *  <tr>
+                         *    <td>Policy value</td>
+                         *    <td>
+                         *      <code>List of Package</code> with the following restrictions:
+                         *      <ul>
+                         *        <li>Empty list: Not allowed</li>
+                         *        <li>Max list length: 10000</li>
+                         *      </ul>
+                         *    </td>
+                         *  </tr>
+                         * </table>
+                         * See also: {@link android.app.admin.DevicePolicyManager#setPolicy DevicePolicyManager.setPolicy}, {@link android.app.admin.DevicePolicyManager#getPolicy DevicePolicyManager.getPolicy}
                          */
                         public static final java.lang.String POLICY_FIELD = "";
                         }

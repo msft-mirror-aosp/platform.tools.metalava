@@ -26,7 +26,8 @@ import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.TargetLanguage
 import com.android.tools.metalava.model.TargetLanguageSet
-import java.util.function.Predicate
+import com.android.tools.metalava.model.nullableAndNullable
+import com.android.tools.metalava.model.testOrTrue
 
 open class ApiVisitor(
     /** @see BaseItemVisitor.preserveClassNesting */
@@ -38,11 +39,8 @@ open class ApiVisitor(
     /** Whether to visit typealiases in a package after all other [ClassItem]s have been visited. */
     private val sortTypeAliasesLast: Boolean = true,
 
-    /** Whether to include inherited fields too */
-    private val inlineInheritedFields: Boolean = true,
-
     /** The filters to use to determine what parts of the API will be visited. */
-    private val apiFilters: ApiFilters,
+    private val apiFilters: ApiFilters?,
 
     /**
      * Whether this visitor should visit elements that have not been annotated with one of the
@@ -58,7 +56,6 @@ open class ApiVisitor(
      */
     targetLanguages: Set<TargetLanguage> = TargetLanguageSet.ALL,
 ) : BaseItemVisitor(preserveClassNesting, visitParameterItems) {
-
     constructor(
         /** @see BaseItemVisitor.visitParameterItems */
         visitParameterItems: Boolean = true,
@@ -75,10 +72,20 @@ open class ApiVisitor(
     )
 
     /** The filter to use to determine if we should emit an item */
-    protected val filterEmit = addTargetLanguageCheck(apiFilters.emit, targetLanguages)
+    protected val filterEmit: FilterPredicate?
 
     /** The filter to use to determine if we should emit a reference to an item */
-    protected val filterReference = addTargetLanguageCheck(apiFilters.reference, targetLanguages)
+    protected val filterReference: FilterPredicate?
+
+    init {
+        // Create an optional [FilterPredicate] that will ignore any items that do not target at
+        // least one language in targetLanguages.
+        val targetLanguagesInclusionFilter = targetLanguages.inclusionFilter()
+
+        // Combine the filters with the target language filter.
+        filterEmit = apiFilters?.emit.nullableAndNullable(targetLanguagesInclusionFilter)
+        filterReference = apiFilters?.reference.nullableAndNullable(targetLanguagesInclusionFilter)
+    }
 
     companion object {
         /** Get the default [ApiFilters] to use with [ApiVisitor]. */
@@ -102,19 +109,6 @@ open class ApiVisitor(
                 includeApisForStubPurposes = true,
                 config = apiPredicateConfig.copy(ignoreShown = true),
             )
-
-        /**
-         * Updates the [filter] to also check that the [SelectableItem] has at least one of the
-         * [targetLanguages].
-         */
-        fun addTargetLanguageCheck(
-            filter: FilterPredicate,
-            targetLanguages: Set<TargetLanguage>
-        ): FilterPredicate {
-            return Predicate { item: SelectableItem ->
-                filter.test(item) && item.targetLanguages.intersect(targetLanguages).isNotEmpty()
-            }
-        }
     }
 
     /**
@@ -195,7 +189,7 @@ open class ApiVisitor(
 
         // Check to see whether this class should be emitted in its entirety. If not then it may
         // still be emitted if it contains emittable members.
-        val emit = filterEmit.test(cls)
+        val emit = filterEmit.testOrTrue(cls)
 
         // If the class is emitted then create a VisitCandidate immediately.
         if (emit) return VisitCandidate(cls)
@@ -203,7 +197,7 @@ open class ApiVisitor(
         // Check to see if the class could be emitted if it contains emittable members. If not then
         // return `null` to ignore this class. This will happen for a hidden class, e.g. package
         // private, that implements/overrides methods from the API.
-        if (!filterReference.test(cls)) return null
+        if (!filterReference.testOrTrue(cls)) return null
 
         // Create a VisitCandidate to encapsulate the emittable members, if any.
         val vc = VisitCandidate(cls)
@@ -239,15 +233,10 @@ open class ApiVisitor(
                 if (!::_members.isInitialized) {
                     // Construct a single list of all members.
                     _members = buildList {
-                        cls.constructors().filterTo(this) { filterEmit.test(it) }
-                        cls.methods().filterTo(this) { filterEmit.test(it) }
-                        cls.properties().filterTo(this) { filterEmit.test(it) }
-
-                        if (inlineInheritedFields) {
-                            addAll(cls.filteredFields(filterEmit, showUnannotated))
-                        } else {
-                            cls.fields().filterTo(this) { filterEmit.test(it) }
-                        }
+                        cls.constructors().filterTo(this) { filterEmit.testOrTrue(it) }
+                        cls.methods().filterTo(this) { filterEmit.testOrTrue(it) }
+                        cls.properties().filterTo(this) { filterEmit.testOrTrue(it) }
+                        cls.fields().filterTo(this) { filterEmit.testOrTrue(it) }
                     }
                 }
 
@@ -286,3 +275,13 @@ open class ApiVisitor(
         }
     }
 }
+
+/**
+ * Get a [FilterPredicate] that will return `true` if the [SelectableItem] on which it is called is
+ * for at least one of this set's [TargetLanguage].
+ *
+ * If this set is all [TargetLanguage]s then it returns `null` to avoid any filtering.
+ */
+private fun Set<TargetLanguage>.inclusionFilter() =
+    if (this == TargetLanguageSet.ALL) null
+    else FilterPredicate { item -> item.targetLanguages.intersect(this).isNotEmpty() }

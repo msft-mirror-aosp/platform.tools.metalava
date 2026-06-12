@@ -49,10 +49,10 @@ class ApiSurfacesConfigTest : BaseConfigParserTest() {
                                     name = "system",
                                     extends = "public",
                                     selectionCriteria =
-                                        SelectionCriteria(
+                                        SelectionCriteriaConfig(
                                             annotationRules =
                                                 listOf(
-                                                    AnnotationRule(
+                                                    AnnotationRuleConfig(
                                                         pattern =
                                                             "android.annotation.SystemApi(client=android.annotation.SystemApi.Client.PRIVILEGED_APPS)"
                                                     )
@@ -484,13 +484,13 @@ class ApiSurfacesConfigTest : BaseConfigParserTest() {
                                 ApiSurfaceConfig(
                                     name = "public",
                                     selectionCriteria =
-                                        SelectionCriteria(
-                                            unannotated = SelectionCriteriaEffect.SHOW,
+                                        SelectionCriteriaConfig(
+                                            unannotated = EffectConfig.SHOW,
                                             annotationRules =
                                                 listOf(
-                                                    AnnotationRule(
+                                                    AnnotationRuleConfig(
                                                         pattern = "test.annotation.Hide",
-                                                        effect = SelectionCriteriaEffect.HIDE,
+                                                        effect = EffectConfig.HIDE,
                                                     )
                                                 ),
                                         ),
@@ -499,10 +499,10 @@ class ApiSurfacesConfigTest : BaseConfigParserTest() {
                                     name = "system",
                                     extends = "public",
                                     selectionCriteria =
-                                        SelectionCriteria(
+                                        SelectionCriteriaConfig(
                                             annotationRules =
                                                 listOf(
-                                                    AnnotationRule(
+                                                    AnnotationRuleConfig(
                                                         pattern = "test.annotation.Show",
                                                         recursive = false,
                                                     )
@@ -523,6 +523,56 @@ class ApiSurfacesConfigTest : BaseConfigParserTest() {
                     <api-surface name="system" extends="public">
                       <selection-criteria>
                         <annotation-rule pattern="test.annotation.Show" effect="show" recursive="false"/>
+                      </selection-criteria>
+                    </api-surface>
+                  </api-surfaces>
+                </config>
+            """
+        )
+    }
+
+    @Test
+    fun `api-surfaces standalone`() {
+        roundTrip(
+            Config(
+                apiSurfaces =
+                    ApiSurfacesConfig(
+                        apiSurfaceList =
+                            listOf(
+                                ApiSurfaceConfig(
+                                    name = "public",
+                                    selectionCriteria =
+                                        SelectionCriteriaConfig(
+                                            unannotated = EffectConfig.SHOW,
+                                        ),
+                                ),
+                                ApiSurfaceConfig(
+                                    name = "restricted",
+                                    extends = "public",
+                                    contents = ContentsConfig.STANDALONE,
+                                    selectionCriteria =
+                                        SelectionCriteriaConfig(
+                                            annotationRules =
+                                                listOf(
+                                                    AnnotationRuleConfig(
+                                                        pattern = "test.api.RestrictedApi",
+                                                        recursive = false,
+                                                    )
+                                                ),
+                                        ),
+                                ),
+                            ),
+                    )
+            ),
+            """
+                <config xmlns="http://www.google.com/tools/metalava/config">
+                  <api-surfaces>
+                    <api-surface name="public">
+                      <selection-criteria unannotated="show"/>
+                    </api-surface>
+                    <api-surface name="restricted" extends="public" contents="standalone">
+                      <selection-criteria>
+                        <annotation-rule pattern="test.api.RestrictedApi" effect="show" recursive="false"/>
                       </selection-criteria>
                     </api-surface>
                   </api-surfaces>

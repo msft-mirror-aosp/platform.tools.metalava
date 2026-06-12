@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.android.tools.metalava
+package com.android.tools.metalava.api
 
 import com.android.tools.metalava.cli.common.cliError
 import com.android.tools.metalava.model.AnnotationItem

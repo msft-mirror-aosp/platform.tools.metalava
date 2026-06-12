@@ -17,20 +17,14 @@
 package com.android.tools.metalava.doc.annotationhandlers
 
 import com.android.tools.metalava.model.AnnotationItem
-import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.Item
-import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.annotation.binding.bindTo
 import com.android.tools.metalava.reporter.Issues
-import com.android.tools.metalava.reporter.Reporter
-import java.util.function.Predicate
 
 /** Handles @android.processor.devicepolicy.IntegerPolicyDefinition annotation. */
 class IntegerPolicyAnnotationHandler(
-    codebase: Codebase,
-    reporter: Reporter,
-    filterReference: Predicate<SelectableItem>
-) : BaseDevicePolicyAnnotationHandler(codebase, reporter, filterReference) {
+    context: DevicePolicyContext,
+) : BaseDevicePolicyAnnotationHandler(context) {
     /**
      * Processes the [IntegerPolicyDefinitionProxy] and returns the documentation for the policy.
      */
@@ -53,17 +47,29 @@ data class IntegerPolicyDefinitionProxy(
     val resolutionMechanism: IntegerResolutionMechanismProxy,
 ) {
     fun generateDocs() = buildString {
-        append("\n<p>Policy Type: Integer</p>\n <ul>\n")
-        append(base.generateDocs())
-        val resolutionMechanismDoc = resolutionMechanism.generateDocs()
-        append("   <li>Resolution Mechanism: $resolutionMechanismDoc</li>\n")
-        append(
-            "   <li>Min Value: ${if (minValue == Integer.MIN_VALUE) "No limit" else minValue}</li>\n"
-        )
-        append(
-            "   <li>Max Value: ${if (maxValue == Integer.MAX_VALUE) "No limit" else maxValue}</li>\n"
-        )
-        append(" </ul>\n")
+        val tableEntries = buildList {
+            addAll(base.getTableEntries())
+            val resolutionMechanismDoc = resolutionMechanism.generateDocs()
+            add(Pair("Resolution Mechanism", resolutionMechanismDoc))
+            val policyValueValidations = buildList {
+                add(
+                    Pair(
+                        "Min Value",
+                        if (minValue == Integer.MIN_VALUE) "No limit" else minValue.toString()
+                    )
+                )
+                add(
+                    Pair(
+                        "Max Value",
+                        if (maxValue == Integer.MAX_VALUE) "No limit" else maxValue.toString()
+                    )
+                )
+            }
+            add(Pair("Policy value", renderPolicyValue("Integer", policyValueValidations)))
+        }
+
+        append("\n<p>Policy Type: Integer</p>\n")
+        append(renderTable(tableEntries))
     }
 }
 

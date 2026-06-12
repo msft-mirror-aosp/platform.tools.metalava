@@ -120,7 +120,6 @@ class FastPathTest : DriverTest() {
                     sourceFiles = sourceFiles,
                     postAnalysisChecker = postAnalysisChecker,
                 )
-            else -> error("unsupported $apiType")
         }
 
         // Check the result.

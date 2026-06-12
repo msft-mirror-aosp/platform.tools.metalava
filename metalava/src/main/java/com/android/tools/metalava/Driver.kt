@@ -18,6 +18,8 @@ package com.android.tools.metalava
 import androidx.tracing.Tracer
 import com.android.SdkConstants.DOT_JAR
 import com.android.SdkConstants.DOT_TXT
+import com.android.tools.metalava.api.AnnotationsMerger
+import com.android.tools.metalava.api.ApiAnalyzer
 import com.android.tools.metalava.apilevels.ApiGenerator
 import com.android.tools.metalava.cli.common.CheckerContext
 import com.android.tools.metalava.cli.common.DefaultSignatureFileLoader
@@ -359,17 +361,24 @@ class Driver(
         )
 
         miscellaneousOptions.proguardFile?.let { proguard ->
-            val apiPredicateConfigIgnoreShown = apiPredicateConfig.copy(ignoreShown = true)
-            val apiReferenceIgnoreShown = ApiPredicate(config = apiPredicateConfigIgnoreShown)
-            val apiEmit = MatchOverridingMethodPredicate(ApiPredicate(config = apiPredicateConfig))
-            val apiFilters = ApiFilters(emit = apiEmit, reference = apiReferenceIgnoreShown)
+            val apiFilters =
+                if (codebase.preFiltered) {
+                    // Pre-filtered so does not need any filters.
+                    null
+                } else {
+                    val apiPredicateConfigIgnoreShown = apiPredicateConfig.copy(ignoreShown = true)
+                    val apiReferenceIgnoreShown =
+                        ApiPredicate(config = apiPredicateConfigIgnoreShown)
+                    val apiEmit =
+                        MatchOverridingMethodPredicate(ApiPredicate(config = apiPredicateConfig))
+                    ApiFilters(emit = apiEmit, reference = apiReferenceIgnoreShown)
+                }
+
             val codebaseFragment =
                 CodebaseFragment.create(codebase) { delegatedVisitor ->
                     FilteringApiVisitor(
                         delegatedVisitor,
-                        inlineInheritedFields = true,
                         apiFilters = apiFilters,
-                        preFiltered = codebase.preFiltered,
                     )
                 }
 
@@ -449,17 +458,30 @@ class Driver(
     /** write api signature to files specified by option flags (e.g. current.txt) */
     private fun createApiSignatureFilesFromOptions(codebase: Codebase) {
         val fileFormat = signatureFormatOptions.fileFormat
+
+        val preFiltered = codebase.preFiltered
+        val apiFilters =
+            if (preFiltered) {
+                // Pre-filtered so does not need any filters.
+                null
+            } else {
+                ApiType.PUBLIC_API.getApiFilters(apiPredicateConfig)
+            }
+
         val codebaseFragment =
             createSignatureFileFragment(
                 codebase,
                 fileFormat = fileFormat,
-                apiType = ApiType.PUBLIC_API,
-                preFiltered = codebase.preFiltered,
+                apiFilters = apiFilters,
             )
 
         runApiChecksFromOptions(codebase) { _, previouslyReleasedCodebase ->
             val flaggedApiLintVisitor =
-                FlaggedApiLint(previouslyReleasedCodebase, reporter, apiPredicateConfig)
+                FlaggedApiLint(
+                    previouslyReleasedCodebase,
+                    reporter,
+                    apiFilters ?: ApiFilters.ALL,
+                )
             codebaseFragment.accept(flaggedApiLintVisitor)
         }
 
@@ -478,12 +500,19 @@ class Driver(
         }
 
         signatureFileOptions.removedApiFile?.let { apiSignatureFile ->
+            val apiFilters =
+                if (preFiltered) {
+                    // Pre-filtered so does not need any filters.
+                    null
+                } else {
+                    ApiType.REMOVED.getApiFilters(apiPredicateConfig)
+                }
+
             val removedApiCodebaseFragment =
                 createSignatureFileFragment(
                     codebase,
                     fileFormat = fileFormat,
-                    apiType = ApiType.REMOVED,
-                    preFiltered = false,
+                    apiFilters = apiFilters,
                 )
 
             createOutputFileFromCodebaseFragment(
@@ -505,17 +534,14 @@ class Driver(
     private fun createSignatureFileFragment(
         codebase: Codebase,
         fileFormat: FileFormat,
-        apiType: ApiType,
-        preFiltered: Boolean,
+        apiFilters: ApiFilters?,
     ): CodebaseFragment {
         var codebaseFragment =
             createCodebaseFragmentForSignatureFile(
                 codebase,
                 fileFormat = fileFormat,
-                apiType = apiType,
-                preFiltered = preFiltered,
+                apiFilters = apiFilters,
                 showUnannotated = apiSelectionOptions.showUnannotated,
-                apiPredicateConfig = apiPredicateConfig,
             )
 
         // If reverting some changes then create a snapshot that combines the items from the sources
@@ -628,11 +654,15 @@ class Driver(
                         ApiLint.Config(
                             manifest = miscellaneousOptions.manifest,
                             allowedAcronyms = apiLintOptions.allowedAcronyms,
+                            // Don't run Java interop checks because this code isn't meant to be
+                            // used from Java.
+                            enableInteropChecks = false,
                         ),
                     )
                 }
             }
 
+            val commonCodebase = multiplatformCodebase.sourceSetToCodebase["commonMain"]
             // Run regular API lint checks for each source set.
             for ((sourceSet, codebase) in multiplatformCodebase.sourceSetToCodebase) {
                 // Skip checking the main source set, which will already have been checked through
@@ -643,17 +673,22 @@ class Driver(
                     runApiChecksFromOptions(codebase) { codebase, _ ->
                         ApiLint.check(
                             codebase,
-                            // By making the main android/jvm/common codebase the "oldCodebase", any
-                            // issues which have already been reported for the main codebase through
-                            // the
+                            // By making the common codebase the "oldCodebase", any issues which
+                            // have already been reported for common APIs through the
                             // non-multiplatform checks or the common check above will be skipped.
-                            oldCodebase = mainCodebase,
+                            // Actual items will be rechecked, which may lead to some duplicate
+                            // issues but prevents skipping issues that come up only on the expect
+                            // but not the actual.
+                            oldCodebase = commonCodebase,
                             reporter,
                             apiPredicateConfig,
                             ApiLint.Config(
                                 manifest = miscellaneousOptions.manifest,
                                 allowedAcronyms = apiLintOptions.allowedAcronyms,
-                            ),
+                                // Don't run Java interop checks because this code isn't meant to be
+                                // used from Java.
+                                enableInteropChecks = false,
+                            )
                         )
                     }
                 }
@@ -668,11 +703,18 @@ class Driver(
                 outputDirectory = outputDirectory,
                 // Convert a [Codebase] to a [CodebaseFragment].
                 fragmentCreator = { sourceSetCodebase ->
+                    val apiFilters =
+                        if (sourceSetCodebase.preFiltered) {
+                            // Pre-filtered so does not need any filters.
+                            null
+                        } else {
+                            ApiType.PUBLIC_API.getApiFilters(apiPredicateConfig)
+                        }
+
                     createSignatureFileFragment(
                         sourceSetCodebase,
                         fileFormat = format,
-                        apiType = ApiType.PUBLIC_API,
-                        preFiltered = sourceSetCodebase.preFiltered,
+                        apiFilters = apiFilters,
                     )
                 },
                 // Write the signature file for a [sourceSetCodebase] to the [outputFile].
@@ -723,7 +765,6 @@ class Driver(
                     FilteringApiVisitor(
                         delegate = delegatedVisitor,
                         apiFilters = ApiVisitor.defaultFilters(apiPredicateConfig),
-                        preFiltered = false,
                     )
                 }
 
@@ -753,7 +794,6 @@ class Driver(
                 FilteringApiVisitor(
                     delegate = delegatedVisitor,
                     apiFilters = apiFilters,
-                    preFiltered = false,
                 )
             }
         }
@@ -806,7 +846,6 @@ class Driver(
             when (apiType) {
                 ApiType.PUBLIC_API -> signatureFileOptions.apiFile
                 ApiType.REMOVED -> signatureFileOptions.removedApiFile
-                else -> error("unsupported $apiType")
             }
 
         // Fast path: if we've already generated a signature file, and it's identical to the
@@ -903,7 +942,10 @@ class Driver(
         // methods can have annotations added and are checked properly.
         progressTracker.progress("Insert missing stubs methods: ")
         tracer.trace("analyzer.generateInheritedStubs") {
-            analyzer.generateInheritedStubs(apiEmitAndReference, apiEmitAndReference)
+            analyzer.inheritHiddenAspects(
+                apiEmitAndReference,
+                apiEmitAndReference,
+            )
         }
 
         tracer.trace("analyzer.mergeExternalQualifierAnnotations") {

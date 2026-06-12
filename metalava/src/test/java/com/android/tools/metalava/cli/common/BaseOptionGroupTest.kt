@@ -17,7 +17,7 @@
 package com.android.tools.metalava.cli.common
 
 import com.android.tools.metalava.ProgressTracker
-import com.android.tools.metalava.testing.TemporaryFolderOwner
+import com.android.tools.metalava.testing.BaseTemporaryFolderOwner
 import com.android.tools.metalava.testing.getNoopTracer
 import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.core.context
@@ -27,16 +27,12 @@ import com.github.ajalt.clikt.parameters.groups.provideDelegate
 import kotlin.properties.PropertyDelegateProvider
 import kotlin.reflect.KProperty
 import org.junit.Assert
-import org.junit.Rule
 import org.junit.Test
-import org.junit.rules.TemporaryFolder
 
 /** Base class for tests of [OptionGroup] classes. */
 abstract class BaseOptionGroupTest<O : OptionGroup>(
     private val expectedHelp: String,
-) : TemporaryFolderOwner {
-
-    @get:Rule override val temporaryFolder = TemporaryFolder()
+) : BaseTemporaryFolderOwner() {
 
     protected abstract fun createOptions(): O
 

@@ -76,17 +76,13 @@ class JarToJDiffCommand :
             .use { jarCodebaseLoader ->
                 val codebase = jarCodebaseLoader.loadFromJarFile(jarFile)
 
-                val apiType = ApiType.PUBLIC_API
-                val apiPredicateConfig = ApiPredicate.Config()
-                val apiFilters = apiType.getApiFilters(apiPredicateConfig)
+                val apiFilters = ApiType.PUBLIC_API.getApiFilters(ApiPredicate.Config())
 
                 val codebaseFragment =
                     CodebaseFragment.create(codebase) { delegate ->
                         createFilteringVisitorForJDiffWriter(
                             delegate,
                             apiFilters = apiFilters,
-                            preFiltered = false,
-                            showUnannotated = false,
                         )
                     }
 

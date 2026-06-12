@@ -289,6 +289,19 @@ object KnownSourceFiles {
             """
         )
 
+    val testApiSource: TestFile =
+        java(
+            """
+                package android.annotation;
+                import static java.lang.annotation.ElementType.*;
+                import java.lang.annotation.*;
+                @Target({TYPE, FIELD, METHOD, CONSTRUCTOR, ANNOTATION_TYPE, PACKAGE})
+                @Retention(RetentionPolicy.SOURCE)
+                public @interface TestApi {
+                }
+            """
+        )
+
     val intRangeAnnotationSource: TestFile =
         TestFiles.java(
             """

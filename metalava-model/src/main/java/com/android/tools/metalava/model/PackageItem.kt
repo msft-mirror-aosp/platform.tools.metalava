@@ -90,8 +90,11 @@ interface PackageItem : SelectableItem, ReferencableItem, QualifiedNameScope {
         return qualifiedName().hashCode()
     }
 
-    override fun toStringForItem() =
-        "package ${qualifiedName().let { if (it == "") "<root>" else it}}"
+    override fun describe(capitalize: Boolean) = buildString {
+        append(if (capitalize) "Package" else "package")
+        append(" ")
+        append(qualifiedName().let { if (it == "") "<root>" else it })
+    }
 
     companion object {
         val comparator: Comparator<PackageItem> = Comparator { a, b ->

@@ -17,12 +17,13 @@
 package com.android.tools.metalava
 
 import com.android.tools.lint.checks.infrastructure.TestFiles.base64gzip
-import com.android.tools.metalava.cli.common.ARG_HIDE
 import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.testing.RequiresCapabilities
 import com.android.tools.metalava.model.text.FileFormat
+import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
+import com.android.tools.metalava.testing.xml
 import org.junit.Test
 
 /** Tests for the --show-annotation functionality */
@@ -61,7 +62,6 @@ class ShowAnnotationTest : DriverTest() {
                     }
                 """
                     ),
-                    systemApiSource,
                 ),
             expectedApiSignature =
                 """
@@ -109,7 +109,6 @@ class ShowAnnotationTest : DriverTest() {
                     }
                 """
                     ),
-                    systemApiSource,
                 ),
             expectedApiSignature =
                 """
@@ -164,7 +163,6 @@ class ShowAnnotationTest : DriverTest() {
                     }
                     """
                     ),
-                    testApiSource,
                 ),
             expectedApiSignature =
                 """
@@ -226,9 +224,6 @@ class ShowAnnotationTest : DriverTest() {
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class MyChild extends test.pkg1.MyParent {
                     public MyChild() { throw new RuntimeException("Stub!"); }
-                    public static final long CONSTANT1 = 12345L;
-                    public static final long CONSTANT2 = 67890L;
-                    public static final long CONSTANT3 = 42L;
                     }
                     """
                     ),
@@ -251,8 +246,9 @@ class ShowAnnotationTest : DriverTest() {
     }
 
     @Test
-    fun `No UnhiddenSystemApi warning for --show-single-annotations`() {
+    fun `No UnhiddenSystemApi warning for non-recursive show annotation`() {
         check(
+            apiSurface = KnownApiSurface.NON_RECURSIVE_SYSTEM,
             expectedIssues = "",
             sourceFiles =
                 arrayOf(
@@ -287,12 +283,6 @@ class ShowAnnotationTest : DriverTest() {
                     }
                 """
                     ),
-                    systemApiSource,
-                ),
-            extraArguments =
-                arrayOf(
-                    ARG_SHOW_SINGLE_ANNOTATION,
-                    "android.annotation.SystemApi",
                 ),
             expectedApiSignature =
                 """
@@ -704,13 +694,9 @@ class ShowAnnotationTest : DriverTest() {
                     )
                 ),
             extraArguments =
-                arrayOf(
-                    ARG_SHOW_ANNOTATION,
-                    "kotlin.PublishedApi",
-                    ARG_HIDE,
-                    "UnhiddenSystemApi",
-                    ARG_SHOW_UNANNOTATED
-                ),
+                hiddenIssues(
+                    Issues.UNHIDDEN_SYSTEM_API,
+                ) + arrayOf(ARG_SHOW_ANNOTATION, "kotlin.PublishedApi", ARG_SHOW_UNANNOTATED),
             expectedApiSignature =
                 """
                 package test.pkg {
@@ -838,8 +824,39 @@ class ShowAnnotationTest : DriverTest() {
     }
 
     @Test
-    fun `Mixing for stubs only and single show annotations`() {
+    fun `Mixing recursive and non-recursive annotations`() {
+        val apiSurface =
+            KnownApiSurface(
+                surface = "test",
+                configFile =
+                    xml(
+                        "config-known-test-surfaces.xml",
+                        """
+                            <config xmlns="http://www.google.com/tools/metalava/config"
+                                xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                                xsi:schemaLocation="http://www.google.com/tools/metalava/config ../../../../../resources/schemas/config.xsd">
+                                <api-surfaces>
+                                    <api-surface name="public">
+                                        <selection-criteria unannotated="show"/>
+                                    </api-surface>
+                                    <api-surface name="system" extends="public">
+                                        <selection-criteria>
+                                            <annotation-rule pattern="android.annotation.SystemApi(client=android.annotation.SystemApi.Client.PRIVILEGED_APPS)"/>
+                                        </selection-criteria>
+                                    </api-surface>
+                                    <api-surface name="test" extends="system">
+                                        <selection-criteria>
+                                            <annotation-rule pattern="android.annotation.TestApi" recursive='false'/>
+                                        </selection-criteria>
+                                    </api-surface>
+                                </api-surfaces>
+                            </config>
+                        """
+                    ),
+            )
+
         check(
+            apiSurface = apiSurface,
             sourceFiles =
                 arrayOf(
                     java(
@@ -868,12 +885,14 @@ class ShowAnnotationTest : DriverTest() {
                     testApiSource,
                 ),
             extraArguments =
-                arrayOf(
-                    ARG_SHOW_SINGLE_ANNOTATION,
-                    "android.annotation.SystemApi",
-                    ARG_SHOW_FOR_STUB_PURPOSES_ANNOTATION,
-                    "android.annotation.TestApi",
+                errorIssues(
+                    Issues.OVERLAPPING_API_SURFACES,
                 ),
+            expectedIssues =
+                """
+                    src/test/pkg/Foo.java:9: error: Remove @android.annotation.TestApi from method test.pkg.Foo.method1() as it is superseded by @android.annotation.SystemApi [OverlappingApiSurfaces]
+                    src/test/pkg/Foo.java:15: error: Remove @android.annotation.TestApi from method test.pkg.Foo.method2() as it is superseded by @android.annotation.SystemApi [OverlappingApiSurfaces]
+                """,
             expectedApiSignature =
                 """
                 package test.pkg {

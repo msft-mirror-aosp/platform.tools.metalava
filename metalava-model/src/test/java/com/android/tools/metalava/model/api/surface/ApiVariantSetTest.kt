@@ -33,8 +33,10 @@ class ApiVariantSetTest {
     private val base = apiSurfaces.base!!
 
     private val mainCore = main.variantFor(ApiVariantType.CORE)
+    private val mainRemoved = main.variantFor(ApiVariantType.REMOVED)
     private val baseCore = base.variantFor(ApiVariantType.CORE)
     private val baseRemoved = base.variantFor(ApiVariantType.REMOVED)
+    private val baseDocOnly = base.variantFor(ApiVariantType.DOC_ONLY)
 
     @Test
     fun `Test creation`() {
@@ -92,6 +94,29 @@ class ApiVariantSetTest {
         assertFalse(mutable.isEmpty(), "expected not empty before clear")
         mutable.clear()
         assertTrue(mutable.isEmpty(), "expected empty before clear")
+    }
+
+    @Test
+    fun `Test unionWith - immutable`() {
+        val set1 = apiSurfaces.createVariantSet(mainCore, mainRemoved, baseDocOnly)
+        val set2 = apiSurfaces.createVariantSet(mainCore, baseRemoved)
+
+        set1.unionWith(set2).let { result ->
+            result as MutableApiVariantSet
+            assertEquals("ApiVariantSet[base(RD),main(CR)]", result.toString())
+        }
+    }
+
+    @Test
+    fun `Test unionWith - mutable`() {
+        val mutableSet1 =
+            apiSurfaces.createVariantSet(mainCore, mainRemoved, baseDocOnly).toMutable()
+        val set2 = apiSurfaces.createVariantSet(mainCore, baseRemoved)
+
+        mutableSet1.unionWith(set2).let { result ->
+            assertSame(mutableSet1, result)
+            assertEquals("ApiVariantSet[base(RD),main(CR)]", result.toString())
+        }
     }
 
     @Test

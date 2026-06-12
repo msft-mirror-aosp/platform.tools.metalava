@@ -92,6 +92,12 @@ abstract class AbstractStubsTest : DriverTest() {
          * Defaults to `true` unless [docStubs] is `true`, in which case it defaults to `false`.
          */
         checkTextStubEquivalence: Boolean? = null,
+
+        /**
+         * Language level of the Java source files. If not specified
+         * [com.android.tools.metalava.model.source.DEFAULT_JAVA_LANGUAGE_LEVEL] is used.
+         */
+        javaLanguageLevel: String? = null,
     ) {
         val stubFilesArr = if (source.isNotEmpty()) arrayOf(java(source)) else expectedStubFiles
         if (stubFilesArr.isEmpty()) {
@@ -111,6 +117,7 @@ abstract class AbstractStubsTest : DriverTest() {
             docStubs = docStubs,
             skipEmitPackages = skipEmitPackages,
             format = format,
+            javaLanguageLevel = javaLanguageLevel,
         )
         if (checkTextStubEquivalence == true) {
             error("checkTextStubEquivalence defaults to true where possible")
@@ -127,7 +134,8 @@ abstract class AbstractStubsTest : DriverTest() {
                 compilationChecks = compilationChecks,
                 extraArguments = arrayOf(*extraArguments),
                 skipEmitPackages = skipEmitPackages,
-                format = format
+                format = format,
+                javaLanguageLevel = javaLanguageLevel,
             )
         }
     }

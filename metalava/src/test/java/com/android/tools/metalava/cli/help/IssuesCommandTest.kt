@@ -92,8 +92,8 @@ Available Issues                             |  Category                        
   DataClassDefinition                        |  api_lint                             |   hidden
   DefaultValueChange                         |  source_compatibility_only            |   error
   Deprecated                                 |  documentation                        |   hidden
+  DeprecatedSurfaceDocTag                    |  unknown                              |   hidden
   DeprecationMismatch                        |  documentation                        |   error
-  DocumentExceptions                         |  api_lint                             |   error
   DuplicateSourceClass                       |  unknown                              |   warning
   EndsWithImpl                               |  api_lint                             |   error
   Enum                                       |  api_lint                             |   error
@@ -178,6 +178,7 @@ Available Issues                             |  Category                        
   MissingNullability                         |  api_lint                             |   error
   MissingPermission                          |  documentation                        |   error
   MissingRequiredAttribute                   |  api_lint                             |   error
+  MultipleFlagging                           |  api_lint                             |   error
   MultipleThreadAnnotations                  |  documentation                        |   error
   MutableBareField                           |  api_lint                             |   error
   NoByteOrShort                              |  api_lint                             |   warning
@@ -191,6 +192,7 @@ Available Issues                             |  Category                        
   OnNameExpected                             |  api_lint                             |   warning
   OperatorRemoval                            |  source_compatibility_only            |   error
   OptionalBuilderConstructorArgument         |  api_lint                             |   warning
+  OverlappingApiSurfaces                     |  api_lint                             |   warning_error_when_new
   OverlappingConstants                       |  api_lint                             |   warning
   PackageLayering                            |  api_lint                             |   warning
   PairedRegistration                         |  api_lint                             |   error
@@ -233,7 +235,6 @@ Available Issues                             |  Category                        
   ResourceStyleFieldName                     |  api_lint                             |   error
   ResourceValueFieldName                     |  api_lint                             |   error
   RethrowRemoteException                     |  api_lint                             |   error
-  ReturningUnexpectedConstant                |  unknown                              |   warning
   SamShouldBeLast                            |  api_lint                             |   warning
   SdkConstant                                |  documentation                        |   error
   SealedClassExhaustivityChanged             |  source_compatibility_only            |   error

@@ -472,13 +472,20 @@ interface Assertions {
      */
     fun MultiplatformClassItem.assertProperty(
         name: String,
-        receiverType: String? = null
+        receiverType: String? = null,
+        contextParameterTypeStrings: List<String> = emptyList(),
     ): MultiplatformPropertyItem {
         val propertyItem =
             properties.singleOrNull { property ->
                 property.name == name &&
                     property.receiver?.toTypeString(TypeStringConfiguration.DEFAULT_KOTLIN_NULLS) ==
-                        receiverType
+                        receiverType &&
+                    contextParameterTypeStrings ==
+                        property.contextParameterTypes.map { contextParameter ->
+                            contextParameter.toTypeString(
+                                TypeStringConfiguration.DEFAULT_KOTLIN_NULLS
+                            )
+                        }
             }
         assertNotNull(
             propertyItem,
@@ -488,7 +495,7 @@ interface Assertions {
     }
 
     /**
-     * Finds the property by [name] and [receiverType] in the [MultiplatformClassItem], failing if
+     * Finds the property by [name] and [receiverType] in the [MultiplatformPackageItem], failing if
      * it does not exist.
      *
      * [receiverType] is expected to be formatted according to
@@ -496,13 +503,20 @@ interface Assertions {
      */
     fun MultiplatformPackageItem.assertProperty(
         name: String,
-        receiverType: String? = null
+        receiverType: String? = null,
+        contextParameterTypeStrings: List<String> = emptyList(),
     ): MultiplatformPropertyItem {
         val propertyItem =
             topLevelProperties.singleOrNull { property ->
                 property.name == name &&
                     property.receiver?.toTypeString(TypeStringConfiguration.DEFAULT_KOTLIN_NULLS) ==
-                        receiverType
+                        receiverType &&
+                    contextParameterTypeStrings ==
+                        property.contextParameterTypes.map { contextParameter ->
+                            contextParameter.toTypeString(
+                                TypeStringConfiguration.DEFAULT_KOTLIN_NULLS
+                            )
+                        }
             }
         assertNotNull(
             propertyItem,

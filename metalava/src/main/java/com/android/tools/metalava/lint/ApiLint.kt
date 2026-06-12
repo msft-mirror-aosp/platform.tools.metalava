@@ -225,6 +225,9 @@ private constructor(
 
         /** The list of allowed acronyms. */
         val allowedAcronyms: List<String> = emptyList(),
+
+        /** Whether to run Java-Kotlin interop checks. */
+        val enableInteropChecks: Boolean = true,
     )
 
     private val manifest
@@ -249,18 +252,23 @@ private constructor(
         codebase.accept(this)
     }
 
-    private val kotlinInterop: KotlinInteropChecks = KotlinInteropChecks(this.filteredReporter)
+    private val kotlinInterop: KotlinInteropChecks? =
+        if (config.enableInteropChecks) {
+            KotlinInteropChecks(this.filteredReporter)
+        } else {
+            null
+        }
 
     override fun visitClass(cls: ClassItem) {
         val methods = cls.filteredMethods(filterReference).asSequence()
-        val fields = cls.filteredFields(filterReference, showUnannotated).asSequence()
+        val fields = cls.filteredFields(filterReference).asSequence()
         val constructors = cls.filteredConstructors(filterReference)
         val superClass = cls.filteredSuperclass(filterReference)
         val interfaces = cls.filteredInterfaceTypes(filterReference).asSequence()
         val allCallables = methods.asSequence() + constructors.asSequence()
         filteredReporter.withContext(cls) {
             checkClass(cls, methods, constructors, allCallables, fields, superClass, interfaces)
-            kotlinInterop.checkClass(cls, allCallables + fields)
+            kotlinInterop?.checkClass(cls, allCallables + fields)
         }
     }
 
@@ -298,12 +306,12 @@ private constructor(
             checkCallbackOrListenerMethod(method)
             checkMethodSuffixListenableFutureReturn(method)
             checkTypeParameterNames(method)
-            kotlinInterop.checkMethod(method)
+            kotlinInterop?.checkMethod(method)
         }
     }
 
     override fun visitConstructor(constructor: ConstructorItem) {
-        filteredReporter.withContext(constructor) { kotlinInterop.checkConstructor(constructor) }
+        filteredReporter.withContext(constructor) { kotlinInterop?.checkConstructor(constructor) }
     }
 
     override fun visitField(field: FieldItem) {
@@ -311,12 +319,12 @@ private constructor(
             checkField(field)
             val type = field.type()
             checkEveryType(type, field, TypeUseSite.FIELD)
-            kotlinInterop.checkField(field)
+            kotlinInterop?.checkField(field)
         }
     }
 
     override fun visitProperty(property: PropertyItem) {
-        filteredReporter.withContext(property) { kotlinInterop.checkProperty(property) }
+        filteredReporter.withContext(property) { kotlinInterop?.checkProperty(property) }
     }
 
     /**
@@ -876,7 +884,12 @@ private constructor(
     private fun isEqualsMethod(method: MethodItem): Boolean {
         return method.name() == "equals" &&
             method.parameters().size == 1 &&
-            method.parameters()[0].type().isJavaLangObject() &&
+            (method.parameters()[0].type().isJavaLangObject() ||
+                // For a Kotlin-version of the equals method (which will be used in a multiplatform
+                // codebase, the parameter type will `Any`, which maps to `Object` for JVM.
+                (method.targetLanguages == TargetLanguageSet.KOTLIN_ONLY &&
+                    (method.parameters()[0].type() as? ClassTypeItem)?.qualifiedName ==
+                        "kotlin.Any")) &&
             !method.modifiers.isStatic()
     }
 
@@ -1881,7 +1894,7 @@ private constructor(
         }
     }
 
-    private fun checkExceptions(callable: CallableItem, filterReference: FilterPredicate) {
+    private fun checkExceptions(callable: CallableItem, filterReference: FilterPredicate?) {
         for (throwableType in callable.filteredThrowsTypes(filterReference)) {
             // Get the throwable class, which for a type parameter will be the lower bound. A
             // method that throws a type parameter is treated as if it throws its lower bound, so

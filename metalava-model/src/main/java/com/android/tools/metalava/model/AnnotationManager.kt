@@ -17,9 +17,15 @@
 package com.android.tools.metalava.model
 
 import com.android.tools.metalava.model.annotation.AnnotationClass
+import com.android.tools.metalava.model.api.ApiSurfaceSelector
 
 /** Provides support for managing annotations within Metalava. */
 interface AnnotationManager {
+    /**
+     * The [ApiSurfaceSelector] used by this [AnnotationManager] to match API surface annotations
+     * and keep track of whether unannotated items are included in a surface.
+     */
+    val apiSurfaceSelector: ApiSurfaceSelector
 
     /** Get the [AnnotationInfo] for the specified [annotation]. */
     fun getAnnotationInfo(annotation: AnnotationItem): AnnotationInfo
@@ -138,6 +144,8 @@ abstract class BaseAnnotationManager : AnnotationManager {
  */
 internal class NoOpAnnotationManager : BaseAnnotationManager() {
 
+    override val apiSurfaceSelector: ApiSurfaceSelector = ApiSurfaceSelector.DEFAULT
+
     override fun getKeyForAnnotationItem(annotationItem: AnnotationItem): String {
         // Just use the qualified name as the key as [computeAnnotationInfo] does not use anything
         // else.
@@ -175,6 +183,9 @@ internal class NoOpAnnotationInfo(
         get() = ANNOTATION_IN_ALL_STUBS
 
     override val typeNullability = computeTypeNullability(qualifiedName)
+
+    override val surfaceData
+        get() = null
 
     override val showability
         get() = Showability.NO_EFFECT

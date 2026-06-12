@@ -72,6 +72,10 @@ class CommonSealedClassTest : BaseModelTest() {
                     }
                 """
             ),
+            testFixture =
+                TestFixture(
+                    javaLanguageLevel = "17", // required for sealed classes
+                ),
         ) {
             val testClass = codebase.assertClass("test.pkg.SealedClass")
             assertTrue(testClass.modifiers.isSealed())
@@ -110,6 +114,10 @@ class CommonSealedClassTest : BaseModelTest() {
                     }
                """
             ),
+            testFixture =
+                TestFixture(
+                    javaLanguageLevel = "17", // required for sealed classes
+                ),
         ) {
             val testClass = codebase.assertClass("test.pkg.SealedClass")
             assertTrue(testClass.modifiers.isSealed())
@@ -225,6 +233,10 @@ class CommonSealedClassTest : BaseModelTest() {
                     """
                 ),
             ),
+            testFixture =
+                TestFixture(
+                    javaLanguageLevel = "17", // required for sealed classes
+                ),
         ) {
             val testClass = codebase.assertClass("test.pkg.SealedClass")
 
@@ -295,6 +307,10 @@ class CommonSealedClassTest : BaseModelTest() {
                     """
                 ),
             ),
+            testFixture =
+                TestFixture(
+                    javaLanguageLevel = "17", // required for sealed classes
+                ),
         ) {
             val testClass = codebase.assertClass("test.pkg.SealedClass")
 
@@ -350,6 +366,10 @@ class CommonSealedClassTest : BaseModelTest() {
                     }
                 """
             ),
+            testFixture =
+                TestFixture(
+                    javaLanguageLevel = "17", // required for sealed classes
+                ),
         ) {
             val testClass = codebase.assertClass("test.pkg.SealedClass")
 
@@ -422,6 +442,10 @@ class CommonSealedClassTest : BaseModelTest() {
                     """
                 ),
             ),
+            testFixture =
+                TestFixture(
+                    javaLanguageLevel = "17", // required for sealed classes
+                ),
         ) {
             val testClass = codebase.assertClass("test.pkg.SealedClass")
             assertFalse(testClass.modifiers.isExhaustive())
@@ -474,6 +498,10 @@ class CommonSealedClassTest : BaseModelTest() {
                     """
                 ),
             ),
+            testFixture =
+                TestFixture(
+                    javaLanguageLevel = "17", // required for sealed classes
+                ),
         ) {
             val testClass = codebase.assertClass("test.pkg.SealedClass")
             assertTrue(testClass.modifiers.isExhaustive())
@@ -531,6 +559,10 @@ class CommonSealedClassTest : BaseModelTest() {
                     """
                 ),
             ),
+            testFixture =
+                TestFixture(
+                    javaLanguageLevel = "17", // required for sealed classes
+                ),
         ) {
             val testClass = codebase.assertClass("test.pkg.SealedClass")
             assertFalse(testClass.modifiers.isExhaustive())
@@ -561,6 +593,10 @@ class CommonSealedClassTest : BaseModelTest() {
                     """
                 ),
             ),
+            testFixture =
+                TestFixture(
+                    javaLanguageLevel = "17", // required for sealed classes
+                ),
             // This does not run in Kotlin as there is no way to have a sealed concrete class in
             // Kotlin as Kotlin treats all sealed classes as abstract.
         ) {
@@ -599,6 +635,10 @@ class CommonSealedClassTest : BaseModelTest() {
                     """
                 ),
             ),
+            testFixture =
+                TestFixture(
+                    javaLanguageLevel = "17", // required for sealed classes
+                ),
             // This does not run in Kotlin as there is no way to have a sealed concrete class in
             // Kotlin as Kotlin treats all sealed classes as abstract.
         ) {
@@ -653,6 +693,10 @@ class CommonSealedClassTest : BaseModelTest() {
                     """
                 ),
             ),
+            testFixture =
+                TestFixture(
+                    javaLanguageLevel = "17", // required for sealed classes
+                ),
         ) {
             val testClass = codebase.assertClass("test.pkg.SealedClass")
 
@@ -698,6 +742,10 @@ class CommonSealedClassTest : BaseModelTest() {
                     """
                 ),
             ),
+            testFixture =
+                TestFixture(
+                    javaLanguageLevel = "17", // required for sealed classes
+                ),
         ) {
             val testClass = codebase.assertClass("test.pkg.SealedClass")
 

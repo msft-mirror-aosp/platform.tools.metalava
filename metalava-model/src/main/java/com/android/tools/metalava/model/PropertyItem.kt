@@ -91,6 +91,13 @@ interface PropertyItem : MemberItem, TypeParameterListOwner, InheritableItem {
         append(contextString())
     }
 
+    /**
+     * Duplicates this property item.
+     *
+     * Override to specialize the return type.
+     */
+    override fun duplicate(targetContainingClass: ClassItem): PropertyItem
+
     override fun accept(visitor: ItemVisitor) {
         visitor.visit(this)
     }
@@ -109,8 +116,15 @@ interface PropertyItem : MemberItem, TypeParameterListOwner, InheritableItem {
         return Objects.hash(name(), receiver, contextParameters)
     }
 
-    override fun toStringForItem() =
-        "property ${containingClass().qualifiedName()}#${receiverString()}${name()}${contextString()}"
+    override fun describe(capitalize: Boolean) = buildString {
+        append(if (capitalize) "Property" else "property")
+        append(" ")
+        append(containingClass().qualifiedName())
+        append("#")
+        append(receiverString())
+        append(name())
+        append(contextString())
+    }
 
     // Inherit deprecation from the getter
     override val effectivelyDeprecated: Boolean
@@ -138,11 +152,22 @@ interface PropertyItem : MemberItem, TypeParameterListOwner, InheritableItem {
             contextParameters1: List<ParameterItem>,
             contextParameters2: List<ParameterItem>
         ): Boolean {
+            return equalContextParameterTypes(
+                contextParameters1.map { it.type() },
+                contextParameters2.map { it.type() }
+            )
+        }
+
+        /** Returns whether the two lists should be considered equal context parameter types. */
+        fun equalContextParameterTypes(
+            contextParameters1: List<TypeItem>,
+            contextParameters2: List<TypeItem>
+        ): Boolean {
             // Nullability is important for property context parameters because kotlin allows
             // defining properties which differ only in context parameter nullability.
             return contextParameters1.size == contextParameters2.size &&
                 contextParameters1.zip(contextParameters2).all { (thisParam, otherParam) ->
-                    thisParam.type().equalToType(otherParam.type(), includeNullability = true)
+                    thisParam.equalToType(otherParam, includeNullability = true)
                 }
         }
     }

@@ -27,8 +27,6 @@ import com.android.tools.metalava.model.text.ApiParseException
 import com.android.tools.metalava.model.text.SignatureFile
 import com.android.tools.metalava.model.text.SignatureWriter
 import com.android.tools.metalava.model.text.createCodebaseFragmentForSignatureFile
-import com.android.tools.metalava.model.visitors.ApiPredicate
-import com.android.tools.metalava.model.visitors.ApiType
 import com.github.ajalt.clikt.parameters.arguments.argument
 import com.github.ajalt.clikt.parameters.arguments.multiple
 import com.github.ajalt.clikt.parameters.groups.provideDelegate
@@ -81,14 +79,14 @@ class MergeSignaturesCommand :
         try {
             val codebase = ApiFile.parseApi(SignatureFile.fromFiles(files))
             val fileFormat = signatureFormat.fileFormat
+
             val codebaseFragment =
                 createCodebaseFragmentForSignatureFile(
                     codebase,
                     fileFormat = fileFormat,
-                    apiType = ApiType.ALL,
-                    preFiltered = true,
+                    // Pre-filtered so does not need any filters.
+                    apiFilters = null,
                     showUnannotated = false,
-                    apiPredicateConfig = ApiPredicate.Config(),
                 )
             createOutputFileFromCodebaseFragment(
                 progressTracker,
