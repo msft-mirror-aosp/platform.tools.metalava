@@ -113,7 +113,7 @@
                 The type of the `api-surfaces` element defined inside `config`.
             </xs:documentation>
         </xs:annotation>
-        <xs:choice>
+        <xs:sequence>
             <xs:element name="api-surface" type="config:ApiSurfaceType" minOccurs="0" maxOccurs="unbounded">
                 <xs:annotation>
                     <xs:documentation>
@@ -121,7 +121,14 @@
                     </xs:documentation>
                 </xs:annotation>
             </xs:element>
-        </xs:choice>
+            <xs:element name="doc-only" type="config:ApiVariantType" minOccurs="0" maxOccurs="unbounded">
+                <xs:annotation>
+                    <xs:documentation>
+                        The doc-only variant definition.
+                    </xs:documentation>
+                </xs:annotation>
+            </xs:element>
+        </xs:sequence>
     </xs:complexType>
 
     <xs:simpleType name="ApiSurfaceNameType">
@@ -267,6 +274,39 @@
         </xs:annotation>
         <xs:restriction base="xs:string"/>
     </xs:simpleType>
+
+    <xs:complexType name="ApiVariantType">
+        <xs:annotation>
+            <xs:documentation>
+                The type of api variant elements defined inside `api-surfaces`.
+            </xs:documentation>
+        </xs:annotation>
+        <xs:choice>
+            <xs:element name="annotation-rule" type="config:AnnotationPattern" minOccurs="0" maxOccurs="unbounded">
+                <xs:annotation>
+                    <xs:documentation>
+                        Annotation rule definition.
+                    </xs:documentation>
+                </xs:annotation>
+            </xs:element>
+        </xs:choice>
+    </xs:complexType>
+
+    <xs:complexType name="AnnotationPattern">
+        <xs:annotation>
+            <xs:documentation>
+                The type of the `annotation-rule` element defined inside `ApiVariantType`.
+            </xs:documentation>
+        </xs:annotation>
+        <xs:choice/>
+        <xs:attribute name="pattern" type="config:AnnotationRulePattern" use="required">
+            <xs:annotation>
+                <xs:documentation>
+                    The pattern that will match an annotation.
+                </xs:documentation>
+            </xs:annotation>
+        </xs:attribute>
+    </xs:complexType>
 
     <xs:complexType name="ApiFlagsType">
         <xs:annotation>

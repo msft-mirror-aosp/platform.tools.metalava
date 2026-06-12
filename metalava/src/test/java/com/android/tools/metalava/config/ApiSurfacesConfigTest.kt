@@ -580,4 +580,46 @@ class ApiSurfacesConfigTest : BaseConfigParserTest() {
             """
         )
     }
+
+    @Test
+    fun `api-surfaces doc-only`() {
+        roundTrip(
+            Config(
+                apiSurfaces =
+                    ApiSurfacesConfig(
+                        apiSurfaceList =
+                            listOf(
+                                ApiSurfaceConfig(
+                                    name = "public",
+                                    selectionCriteria =
+                                        SelectionCriteriaConfig(
+                                            unannotated = EffectConfig.SHOW,
+                                        ),
+                                ),
+                            ),
+                        docOnly =
+                            ApiVariantTypeRuleConfig(
+                                annotationRules =
+                                    listOf(
+                                        AnnotationPatternRuleConfig(
+                                            pattern = "test.api.DocOnly",
+                                        )
+                                    )
+                            ),
+                    ),
+            ),
+            """
+                <config xmlns="http://www.google.com/tools/metalava/config">
+                  <api-surfaces>
+                    <api-surface name="public">
+                      <selection-criteria unannotated="show"/>
+                    </api-surface>
+                    <doc-only>
+                      <annotation-rule pattern="test.api.DocOnly"/>
+                    </doc-only>
+                  </api-surfaces>
+                </config>
+            """
+        )
+    }
 }
