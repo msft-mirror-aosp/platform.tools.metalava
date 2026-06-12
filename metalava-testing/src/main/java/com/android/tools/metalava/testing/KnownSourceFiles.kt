@@ -249,6 +249,31 @@ object KnownSourceFiles {
             """
         )
 
+    val docOnlyAnnotation =
+        TestFiles.java(
+            """
+                package android.annotation;
+
+                import static java.lang.annotation.ElementType.TYPE;
+
+                import java.lang.annotation.Retention;
+                import java.lang.annotation.RetentionPolicy;
+                import java.lang.annotation.Target;
+
+                /**
+                 * Indicates that a class should only be considered part of the API when
+                 * generating documentation.
+                 *
+                 * Should only be used on the {@code R.styleable} class.
+                 */
+                @Hide
+                @Target({TYPE})
+                @Retention(RetentionPolicy.SOURCE)
+                public @interface DocOnly {
+                }
+            """
+        )
+
     val systemApiSource: TestFile =
         TestFiles.java(
             """
