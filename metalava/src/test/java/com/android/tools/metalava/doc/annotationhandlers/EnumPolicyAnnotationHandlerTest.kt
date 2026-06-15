@@ -115,14 +115,10 @@ class EnumPolicyAnnotationHandlerTest : DriverTest() {
                          *  <tr>
                          *    <td>Policy value</td>
                          *    <td>
-                         *      <code>Enum</code> with the following restrictions:
+                         *      <code>Integer</code>: Value is one of the following:
                          *      <ul>
-                         *        <li>Enum policy values:
-                         *          <ul>
-                         *            <li>{@link android.processor.devicepolicy.EnumPolicyValues#ENUM_POLICY_VALUE_1} (default)</li>
-                         *            <li>{@link android.processor.devicepolicy.EnumPolicyValues#ENUM_POLICY_VALUE_2}</li>
-                         *          </ul>
-                         *        </li>
+                         *        <li>{@link android.processor.devicepolicy.EnumPolicyValues#ENUM_POLICY_VALUE_1} (default)</li>
+                         *        <li>{@link android.processor.devicepolicy.EnumPolicyValues#ENUM_POLICY_VALUE_2}</li>
                          *      </ul>
                          *    </td>
                          *  </tr>
@@ -225,14 +221,10 @@ class EnumPolicyAnnotationHandlerTest : DriverTest() {
                          *  <tr>
                          *    <td>Policy value</td>
                          *    <td>
-                         *      <code>Enum</code> with the following restrictions:
+                         *      <code>Integer</code>: Value is one of the following:
                          *      <ul>
-                         *        <li>Enum policy values:
-                         *          <ul>
-                         *            <li>{@link android.processor.devicepolicy.EnumPolicyValues#ENUM_POLICY_VALUE_1} (default)</li>
-                         *            <li>{@link android.processor.devicepolicy.EnumPolicyValues#ENUM_POLICY_VALUE_2}</li>
-                         *          </ul>
-                         *        </li>
+                         *        <li>{@link android.processor.devicepolicy.EnumPolicyValues#ENUM_POLICY_VALUE_1} (default)</li>
+                         *        <li>{@link android.processor.devicepolicy.EnumPolicyValues#ENUM_POLICY_VALUE_2}</li>
                          *      </ul>
                          *    </td>
                          *  </tr>
@@ -338,14 +330,10 @@ class EnumPolicyAnnotationHandlerTest : DriverTest() {
                          *  <tr>
                          *    <td>Policy value</td>
                          *    <td>
-                         *      <code>Enum</code> with the following restrictions:
+                         *      <code>Integer</code>: Value is one of the following:
                          *      <ul>
-                         *        <li>Enum policy values:
-                         *          <ul>
-                         *            <li>{@link android.processor.devicepolicy.EnumPolicyValues#ENUM_POLICY_VALUE_1} (default)</li>
-                         *            <li>{@link android.processor.devicepolicy.EnumPolicyValues#ENUM_POLICY_VALUE_2}</li>
-                         *          </ul>
-                         *        </li>
+                         *        <li>{@link android.processor.devicepolicy.EnumPolicyValues#ENUM_POLICY_VALUE_1} (default)</li>
+                         *        <li>{@link android.processor.devicepolicy.EnumPolicyValues#ENUM_POLICY_VALUE_2}</li>
                          *      </ul>
                          *    </td>
                          *  </tr>

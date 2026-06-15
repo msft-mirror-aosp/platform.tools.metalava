@@ -54,18 +54,8 @@ data class IntegerPolicyDefinitionProxy(
                 add(Pair("Conflict resolution mechanism", resolutionMechanismDoc))
             }
             val policyValueValidations = buildList {
-                add(
-                    Pair(
-                        "Min Value",
-                        if (minValue == Integer.MIN_VALUE) "No limit" else minValue.toString()
-                    )
-                )
-                add(
-                    Pair(
-                        "Max Value",
-                        if (maxValue == Integer.MAX_VALUE) "No limit" else maxValue.toString()
-                    )
-                )
+                if (minValue != Integer.MIN_VALUE) add("Minimum value $minValue")
+                if (maxValue != Integer.MAX_VALUE) add("Maximum value $maxValue")
             }
             add(Pair("Policy value", renderPolicyValue("Integer", policyValueValidations)))
         }

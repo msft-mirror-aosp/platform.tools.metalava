@@ -67,23 +67,28 @@ data class EnumPolicyDefinitionProxy(
             if (resolutionMechanismDoc.isNotEmpty()) {
                 add(Pair("Conflict resolution mechanism", resolutionMechanismDoc))
             }
-            val policyValueValidations = buildList {
-                if (enumValueToCodeReference.isNotEmpty()) {
-                    val valuesDoc = buildString {
-                        append("<ul>\n")
-                        enumValueToCodeReference.entries.forEach { entry ->
-                            if (entry.key == defaultValue) {
-                                append("  <li>${entry.value} (default)</li>\n")
-                            } else {
-                                append("  <li>${entry.value}</li>\n")
-                            }
+            if (enumValueToCodeReference.isNotEmpty()) {
+                val valuesDoc = buildString {
+                    append("<code>Integer</code>: Value is one of the following:\n")
+                    append("<ul>\n")
+                    enumValueToCodeReference.entries.forEach { entry ->
+                        if (entry.key == defaultValue) {
+                            append("  <li>${entry.value} (default)</li>\n")
+                        } else {
+                            append("  <li>${entry.value}</li>\n")
                         }
-                        append("</ul>")
                     }
-                    add(Pair("Enum policy values", valuesDoc))
+                    append("</ul>")
                 }
+                add(Pair("Policy value", valuesDoc))
+            } else {
+                reporter.report(
+                    Issues.INVALID_DEVICE_POLICY_ANNOTATION,
+                    item,
+                    "No enum values found for @EnumPolicyDefinition"
+                )
+                add(Pair("Policy value", "<code>Integer</code>"))
             }
-            add(Pair("Policy value", renderPolicyValue("Enum", policyValueValidations)))
         }
 
         return buildString {

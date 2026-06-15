@@ -52,18 +52,8 @@ data class LongPolicyDefinitionProxy(
                 add(Pair("Conflict resolution mechanism", resolutionMechanismDoc))
             }
             val policyValueValidations = buildList {
-                add(
-                    Pair(
-                        "Min Value",
-                        if (minValue == Long.MIN_VALUE) "No limit" else minValue.toString()
-                    )
-                )
-                add(
-                    Pair(
-                        "Max Value",
-                        if (maxValue == Long.MAX_VALUE) "No limit" else maxValue.toString()
-                    )
-                )
+                if (minValue != Long.MIN_VALUE) add("Minimum value $minValue")
+                if (maxValue != Long.MAX_VALUE) add("Maximum value $maxValue")
             }
             add(Pair("Policy value", renderPolicyValue("Long", policyValueValidations)))
         }

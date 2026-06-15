@@ -68,28 +68,14 @@ fun renderTable(tableEntries: List<Pair<String, String>>): String {
 }
 
 /** Renders the "Policy value" cell content, merging validations. */
-fun renderPolicyValue(type: String, policyValueValidations: List<Pair<String, String>>): String {
+fun renderPolicyValue(type: String, policyValueValidations: List<String>): String {
     if (policyValueValidations.isEmpty()) {
         return "<code>$type</code>"
     }
     return buildString {
         append("<code>$type</code> with the following restrictions:")
         append("\n<ul>\n")
-        policyValueValidations.forEach { (name, value) ->
-            if (value.contains('\n')) {
-                append("  <li>$name:\n")
-                value.trimEnd('\n').split('\n').forEach { line ->
-                    if (line.isNotEmpty()) {
-                        append("    $line\n")
-                    } else {
-                        append("\n")
-                    }
-                }
-                append("  </li>\n")
-            } else {
-                append("  <li>$name: $value</li>\n")
-            }
-        }
+        policyValueValidations.forEach { validation -> append("  <li>$validation</li>\n") }
         append("</ul>")
     }
 }

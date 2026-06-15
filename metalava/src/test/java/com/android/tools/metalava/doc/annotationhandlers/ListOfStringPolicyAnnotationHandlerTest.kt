@@ -123,14 +123,9 @@ class ListOfStringPolicyAnnotationHandlerTest : DriverTest() {
                          *  <tr>
                          *    <td>Policy value</td>
                          *    <td>
-                         *      <code>List Of String</code> with the following restrictions:
+                         *      <code>List<String></code> with the following restrictions:
                          *      <ul>
-                         *        <li>Empty list: Allowed</li>
-                         *        <li>Empty string: Allowed</li>
-                         *        <li>Unprintable characters: Allowed</li>
-                         *        <li>Pure whitespace: Allowed</li>
-                         *        <li>Unstripped string: Allowed</li>
-                         *        <li>Max list length: 5</li>
+                         *        <li>Length max 5 items</li>
                          *      </ul>
                          *    </td>
                          *  </tr>
@@ -224,14 +219,13 @@ class ListOfStringPolicyAnnotationHandlerTest : DriverTest() {
                          *  <tr>
                          *    <td>Policy value</td>
                          *    <td>
-                         *      <code>List Of String</code> with the following restrictions:
+                         *      <code>List<String></code> with the following restrictions:
                          *      <ul>
-                         *        <li>Empty list: Not allowed</li>
-                         *        <li>Empty string: Not allowed</li>
-                         *        <li>Unprintable characters: Not allowed</li>
-                         *        <li>Pure whitespace: Not allowed</li>
-                         *        <li>Unstripped string: Not allowed</li>
-                         *        <li>Max list length: No limit</li>
+                         *        <li>No empty list allowed</li>
+                         *        <li>No empty string allowed</li>
+                         *        <li>No unprintable characters allowed</li>
+                         *        <li>No pure whitespace allowed</li>
+                         *        <li>No unstripped string allowed</li>
                          *      </ul>
                          *    </td>
                          *  </tr>

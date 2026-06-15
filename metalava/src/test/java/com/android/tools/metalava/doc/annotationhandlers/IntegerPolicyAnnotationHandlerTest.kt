@@ -125,8 +125,8 @@ class IntegerPolicyAnnotationHandlerTest : DriverTest() {
                          *    <td>
                          *      <code>Integer</code> with the following restrictions:
                          *      <ul>
-                         *        <li>Min Value: 10</li>
-                         *        <li>Max Value: 100</li>
+                         *        <li>Minimum value 10</li>
+                         *        <li>Maximum value 100</li>
                          *      </ul>
                          *    </td>
                          *  </tr>

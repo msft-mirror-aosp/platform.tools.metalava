@@ -50,28 +50,11 @@ data class StringPolicyDefinitionProxy(
         val tableEntries = buildList {
             addAll(base.getTableEntries())
             val policyValueValidations = buildList {
-                add(Pair("Empty string", if (emptyStringAllowed) "Allowed" else "Not allowed"))
-                add(
-                    Pair(
-                        "Unprintable characters",
-                        if (unprintableCharactersAllowed) "Allowed" else "Not allowed"
-                    )
-                )
-                add(
-                    Pair("Pure whitespace", if (pureWhitespaceAllowed) "Allowed" else "Not allowed")
-                )
-                add(
-                    Pair(
-                        "Unstripped string",
-                        if (unstrippedStringAllowed) "Allowed" else "Not allowed"
-                    )
-                )
-                add(
-                    Pair(
-                        "Max Length",
-                        if (maxLength == Integer.MAX_VALUE) "No limit" else maxLength.toString()
-                    )
-                )
+                if (maxLength != Integer.MAX_VALUE) add("Length max $maxLength characters")
+                if (!emptyStringAllowed) add("No empty string allowed")
+                if (!unprintableCharactersAllowed) add("No unprintable characters allowed")
+                if (!pureWhitespaceAllowed) add("No pure whitespace allowed")
+                if (!unstrippedStringAllowed) add("No unstripped string allowed")
             }
             add(Pair("Policy value", renderPolicyValue("String", policyValueValidations)))
         }

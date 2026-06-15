@@ -118,10 +118,9 @@ class ListOfPackagePolicyAnnotationHandlerTest : DriverTest() {
                          *  <tr>
                          *    <td>Policy value</td>
                          *    <td>
-                         *      <code>List of Package</code> with the following restrictions:
+                         *      <code>List<Package></code> with the following restrictions:
                          *      <ul>
-                         *        <li>Empty list: Allowed</li>
-                         *        <li>Max list length: 10</li>
+                         *        <li>Length max 10 items</li>
                          *      </ul>
                          *    </td>
                          *  </tr>
@@ -213,10 +212,10 @@ class ListOfPackagePolicyAnnotationHandlerTest : DriverTest() {
                          *  <tr>
                          *    <td>Policy value</td>
                          *    <td>
-                         *      <code>List of Package</code> with the following restrictions:
+                         *      <code>List<Package></code> with the following restrictions:
                          *      <ul>
-                         *        <li>Empty list: Not allowed</li>
-                         *        <li>Max list length: 10000</li>
+                         *        <li>Length max 10000 items</li>
+                         *        <li>No empty list allowed</li>
                          *      </ul>
                          *    </td>
                          *  </tr>
