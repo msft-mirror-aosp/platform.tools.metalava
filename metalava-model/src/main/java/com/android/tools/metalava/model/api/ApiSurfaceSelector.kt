@@ -56,7 +56,7 @@ class ApiSurfaceSelector(
 
         val matcherRules = buildList {
             fun addMatcherRule(
-                surface: ApiSurface,
+                surface: ApiSurface?,
                 annotated: SelectAnnotated,
                 showability: Showability,
             ) {
@@ -209,7 +209,7 @@ class ApiSurfaceSelector(
                 }
                 // Then make sure that a rule that matches the main surface comes before any other
                 // surface.
-                .thenComparing { !it.result.surface.isMain }
+                .thenComparing { it.result.surface?.isMain != true }
                 // Then make sure that recursive rules come before non-recursive rules.
                 .thenComparing { !it.result.recursive }
                 // Finally, sort from longest (most specific pattern) to shortest. That is because a
@@ -397,8 +397,8 @@ data class SurfaceAnnotationData(
     /** The [Showability] of the [AnnotationItem]. */
     val showability: Showability,
 
-    /** The [ApiSurface] to which the annotation applies. */
-    val surface: ApiSurface,
+    /** The [ApiSurface] to which the annotation applies, if any. */
+    val surface: ApiSurface?,
 
     /** The [Effect] that this annotation has on the annotated item. */
     val effect: Effect,

@@ -82,7 +82,7 @@ class SelectedApiUpdater(
             annotationItem.surfaceData?.let { surfaceData ->
                 when (surfaceData.effect) {
                     Effect.SHOW -> {
-                        val resultSurface = surfaceData.surface
+                        val resultSurface = surfaceData.surface ?: return@let
 
                         // It is a show annotation so add the context surfaces variants.
                         val resultVariants = resultSurface.defaultVariantSet
