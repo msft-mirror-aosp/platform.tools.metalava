@@ -539,7 +539,7 @@ private constructor(
      */
     private fun SelectableItem.markSelectedApiVariant() {
         if (apiVariant !in selectedApiVariants) {
-            mutateSelectedApiVariants { add(apiVariant) }
+            selectedApiVariants += apiVariant
         }
     }
 

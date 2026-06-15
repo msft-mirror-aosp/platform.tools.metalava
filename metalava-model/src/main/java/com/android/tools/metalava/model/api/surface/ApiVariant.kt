@@ -46,15 +46,19 @@ class ApiVariant(
 }
 
 /**
- * The base set of [ApiVariant]s.
+ * An immutable set of [ApiVariant]s.
  *
- * Provides common query only functionality for [ApiVariantSet] and [MutableApiVariantSet].
+ * As this is a value class it is treated as its primitive [bits]. That makes it more efficient in
+ * terms of storage and processing than if it was an object. However, due to the limitation of the
+ * `value class` mechanism that means it cannot contain a reference to the [ApiSurfaces] for which
+ * this applied. Instead, it relies on the owner tracking the [ApiSurfaces] separately.
  */
-sealed class BaseApiVariantSet(internal val apiSurfaces: ApiSurfaces) {
-    internal abstract val bits: Int
-
+@JvmInline
+value class ApiVariantSet(internal val bits: Int) {
+    /** Return true if this contains no [ApiVariant]s. */
     fun isEmpty() = bits == 0
 
+    /** Return true if this contains at least one [ApiVariant]. */
     fun isNotEmpty() = bits != 0
 
     operator fun contains(variant: ApiVariant) = (bits and variant.bitMask) != 0
@@ -63,147 +67,50 @@ sealed class BaseApiVariantSet(internal val apiSurfaces: ApiSurfaces) {
     fun containsAny(surface: ApiSurface) = containsAny(surface.variantSet)
 
     /** True if this set contains any of the variants from [variantSet]. */
-    fun containsAny(variantSet: ApiVariantSet): Boolean {
-        require(apiSurfaces === variantSet.apiSurfaces) {
-            "Mismatch between ApiSurfaces, this set is for $apiSurfaces, other set is for ${variantSet.apiSurfaces}"
-        }
-        return (bits and variantSet.bits) != 0
-    }
+    fun containsAny(variantSet: ApiVariantSet) = (bits and variantSet.bits) != 0
+
+    /** Return the result of adding [variant] to this [ApiVariantSet]. */
+    operator fun plus(variant: ApiVariant) = ApiVariantSet(bits or variant.bitMask)
 
     /**
-     * Return the union of this [BaseApiVariantSet] with the [other] [BaseApiVariantSet].
-     *
-     * If this is a [MutableApiVariantSet] then this will modify and return this. If this is
-     * [ApiVariantSet] then it will create a [MutableApiVariantSet] copy and then modify and return
-     * it.
+     * Return the result of adding all [ApiVariant]s in [other] [ApiVariantSet] to this
+     * [ApiVariantSet].
      */
-    abstract fun unionWith(other: BaseApiVariantSet): BaseApiVariantSet
+    operator fun plus(other: ApiVariantSet) = ApiVariantSet(bits or other.bits)
+
+    /** Return the result of removing [variant] from this [ApiVariantSet]. */
+    operator fun minus(variant: ApiVariant) = ApiVariantSet(bits and variant.bitMask.inv())
 
     /**
-     * Get a [MutableApiVariantSet] from this.
-     *
-     * This will return the object on which it is called if that is already mutable, otherwise it
-     * will create a separate mutable copy of this.
+     * Return the result of removing all [ApiVariant]s in [other] [ApiVariantSet] from this
+     * [ApiVariantSet].
      */
-    abstract fun toMutable(): MutableApiVariantSet
+    operator fun minus(other: ApiVariantSet) = ApiVariantSet(bits and other.bits.inv())
 
-    /**
-     * Get an immutable [ApiVariantSet] from this.
-     *
-     * This will return the object on which it is called if that is already immutable, otherwise it
-     * will create a separate immutable copy of this.
-     */
-    abstract fun toImmutable(): ApiVariantSet
+    /** Represent the values as binary number starting with a `0b` prefix. */
+    override fun toString() = "0b${Integer.toBinaryString(bits)}"
 
-    override fun equals(other: Any?): Boolean {
-        if (this === other) return true
-        if (other !is BaseApiVariantSet) return false
-
-        if (apiSurfaces != other.apiSurfaces) return false
-        if (bits != other.bits) return false
-
-        return true
-    }
-
-    override fun hashCode(): Int {
-        var result = apiSurfaces.hashCode()
-        result = 31 * result + bits
-        return result
-    }
-
-    override fun toString(): String {
-        return buildString {
-            append("ApiVariantSet[")
-            var separator = ""
-            for (apiSurface in apiSurfaces.all) {
-                // If this set does not contain any variants from the ApiSurface then ignore it.
-                if (!this@BaseApiVariantSet.containsAny(apiSurface)) continue
-                append(separator)
-                separator = ","
-                append(apiSurface.name)
-                append("(")
-                for (variant in apiSurface.variants) {
-                    if (variant in this@BaseApiVariantSet) append(variant.type.shortCode)
-                }
-                append(")")
+    /** Format this for [apiSurfaces]. */
+    fun formatFor(apiSurfaces: ApiSurfaces) = buildString {
+        append("ApiVariantSet[")
+        var separator = ""
+        for (apiSurface in apiSurfaces.all) {
+            // If this set does not contain any variants from the ApiSurface then ignore it.
+            if (!this@ApiVariantSet.containsAny(apiSurface.variantSet)) continue
+            append(separator)
+            separator = ","
+            append(apiSurface.name)
+            append("(")
+            for (variant in apiSurface.variants) {
+                if (variant in this@ApiVariantSet) append(variant.type.shortCode)
             }
-            append("]")
+            append(")")
         }
-    }
-}
-
-/** An immutable set of [ApiVariant]s. */
-class ApiVariantSet(apiSurfaces: ApiSurfaces, override val bits: Int) :
-    BaseApiVariantSet(apiSurfaces) {
-
-    override fun unionWith(other: BaseApiVariantSet): BaseApiVariantSet =
-        if (bits or other.bits == bits) this
-        else if (bits == 0) other else toMutable().apply { unionWith(other) }
-
-    override fun toMutable() = MutableApiVariantSet(apiSurfaces, bits)
-
-    override fun toImmutable() = this
-
-    companion object {
-        internal fun emptySet(apiSurfaces: ApiSurfaces) = ApiVariantSet(apiSurfaces, 0)
-
-        /**
-         * Build an [ApiVariantSet].
-         *
-         * Creates a [MutableApiVariantSet], calls [lambda] to modify it and then calls
-         * [MutableApiVariantSet.toImmutable] to return an immutable [ApiVariantSet].
-         *
-         * @param apiSurfaces the [ApiSurfaces] whose [ApiVariant]s it will contain.
-         * @param lambda the lambda that will be passed a [MutableApiVariantSet] to modify.
-         */
-        fun build(apiSurfaces: ApiSurfaces, lambda: MutableApiVariantSet.() -> Unit) =
-            MutableApiVariantSet(apiSurfaces).apply(lambda).toImmutable()
-    }
-}
-
-/** A mutable set of [ApiVariant]s. */
-class MutableApiVariantSet
-internal constructor(apiSurfaces: ApiSurfaces, override var bits: Int = 0) :
-    BaseApiVariantSet(apiSurfaces) {
-
-    override fun unionWith(other: BaseApiVariantSet) = this.apply { bits = bits or other.bits }
-
-    override fun toMutable() = this
-
-    override fun toImmutable() =
-        if (bits == 0) apiSurfaces.emptyVariantSet else ApiVariantSet(apiSurfaces, bits)
-
-    /**
-     * Add [variant] to this set.
-     *
-     * This has no effect if it is already a member.
-     */
-    fun add(variant: ApiVariant) {
-        bits = bits or variant.bitMask
-    }
-
-    /**
-     * Remove [variant] from this set.
-     *
-     * This has no effect if it was not a member.
-     */
-    fun remove(variant: ApiVariant) {
-        bits = bits and variant.bitMask.inv()
-    }
-
-    /** Clear the set. */
-    fun clear() {
-        bits = 0
+        append("]")
     }
 
     companion object {
-
-        /** Create a [MutableApiVariantSet] for [apiSurfaces]. */
-        fun setOf(apiSurfaces: ApiSurfaces): MutableApiVariantSet {
-            // Make sure all the variant bits can fit into an Int.
-            if (apiSurfaces.variants.count() > 30)
-                error("Too many API variants to store in the set")
-            return MutableApiVariantSet(apiSurfaces, 0)
-        }
+        /** The empty [ApiVariantSet]. */
+        val EMPTY = ApiVariantSet(0)
     }
 }
