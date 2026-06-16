@@ -123,10 +123,8 @@ class CoreApiTest : DriverTest() {
                 arrayOf(
                     java(
                         """
-                            /**
-                             * Hide everything in this package:
-                             * @hide
-                             */
+                            /** Hide everything in this package: */
+                            @android.annotation.Hide
                             package test.pkg;
                         """
                     ),
@@ -145,11 +143,11 @@ class CoreApiTest : DriverTest() {
 
                             /**
                              * Included because it is annotated with a non-recursive @IntraCoreApi
-                             * @hide
                              */
                             @IntraCoreApi
+                            @android.annotation.Hide
                             public class Exposed {
-                                /** @hide */
+                                @android.annotation.Hide
                                 public Exposed() { }
                                 public void stillHidden() { }
                                 @IntraCoreApi
@@ -208,10 +206,7 @@ class CoreApiTest : DriverTest() {
                 arrayOf(
                     java(
                         """
-                            /**
-                             * Hide everything in this package:
-                             * @hide
-                             */
+                            @android.annotation.Hide
                             package test.pkg;
                         """
                     ),
@@ -220,10 +215,7 @@ class CoreApiTest : DriverTest() {
                             package test.pkg;
                             import libcore.api.IntraCoreApi;
 
-                            /**
-                            * Included because it is annotated with a non-recursive @IntraCoreApi
-                            * @hide
-                            */
+                            @android.annotation.Hide
                             public class Exposed {
                                 public void stillHidden() { }
                                 public String stillHidden;
@@ -251,9 +243,9 @@ class CoreApiTest : DriverTest() {
                 """,
             expectedIssues =
                 """
-                    src/test/pkg/Exposed.java:12: error: Attempting to unhide method test.pkg.Exposed.exposed(), but surrounding class test.pkg.Exposed is hidden and should also be annotated with @libcore.api.IntraCoreApi [ShowingMemberInHiddenClass]
-                    src/test/pkg/Exposed.java:15: error: Attempting to unhide field test.pkg.Exposed.exposed, but surrounding class test.pkg.Exposed is hidden and should also be annotated with @libcore.api.IntraCoreApi [ShowingMemberInHiddenClass]
-                    src/test/pkg/Exposed.java:18: error: Attempting to unhide class test.pkg.Exposed.StillHidden, but surrounding class test.pkg.Exposed is hidden and should also be annotated with @libcore.api.IntraCoreApi [ShowingMemberInHiddenClass]
+                    src/test/pkg/Exposed.java:9: error: Attempting to unhide method test.pkg.Exposed.exposed(), but surrounding class test.pkg.Exposed is hidden and should also be annotated with @libcore.api.IntraCoreApi [ShowingMemberInHiddenClass]
+                    src/test/pkg/Exposed.java:12: error: Attempting to unhide field test.pkg.Exposed.exposed, but surrounding class test.pkg.Exposed is hidden and should also be annotated with @libcore.api.IntraCoreApi [ShowingMemberInHiddenClass]
+                    src/test/pkg/Exposed.java:15: error: Attempting to unhide class test.pkg.Exposed.StillHidden, but surrounding class test.pkg.Exposed is hidden and should also be annotated with @libcore.api.IntraCoreApi [ShowingMemberInHiddenClass]
                 """,
         )
     }

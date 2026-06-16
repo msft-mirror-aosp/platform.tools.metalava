@@ -642,12 +642,13 @@ class ApiAnalyzerTest : DriverTest() {
             apiSurface = KnownApiSurface.SYSTEM_WITH_PUBLIC,
             sourceFiles =
                 arrayOf(
+                    KnownSourceFiles.hideAnnotation,
                     // Package "test.a" is hidden but "test.a.B" os marked with a show annotation so
                     // that should cause "test.a" to be unhidden. However, "test.a.C" should still
                     // be hidden as it inherits that from "test.a".
                     java(
                         """
-                            /** @hide */
+                            @android.annotation.Hide
                             package test.a;
                         """
                     ),

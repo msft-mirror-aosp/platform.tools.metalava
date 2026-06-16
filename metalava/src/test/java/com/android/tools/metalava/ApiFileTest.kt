@@ -2270,7 +2270,7 @@ class ApiFileTest : DriverTest() {
                     KnownSourceFiles.docOnlyAnnotation,
                     java(
                         """
-                            ${"/** @hide hidden package */" /* avoid dangling javadoc warning */}
+                            @android.annotation.Hide
                             package test.pkg1;
                         """
                     ),
@@ -2286,7 +2286,8 @@ class ApiFileTest : DriverTest() {
                     java(
                         """
                             package test.pkg2;
-                            /** @hide hidden class in this package */
+                            import android.annotation.Hide;
+                            @Hide
                             @SuppressWarnings("ALL")
                             public class Bar {
                             }
