@@ -154,6 +154,12 @@ interface Codebase : ClassPathResolver, AnnotationContext {
 
         /** Whether items on the class path can be hidden, e.g. by a --hide-annotation. */
         val hideItemsOnClassPath: Boolean = true,
+
+        /**
+         * Whether API surfaces have been configured in a config file. When true, Javadoc `@hide`
+         * block tags are ignored for hiding.
+         */
+        val apiSurfacesConfigured: Boolean = false,
     ) {
         companion object {
             /**

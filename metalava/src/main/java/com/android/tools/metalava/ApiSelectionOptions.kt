@@ -503,6 +503,14 @@ class ApiSelectionOptions(
             )
         }
 
+    /**
+     * Whether API surfaces have been configured via a configuration file (e.g. using the
+     * `--api-surface` flag and associated config XML). When true, Javadoc `@hide` block tags are
+     * ignored for hiding.
+     */
+    val apiSurfacesConfigured: Boolean
+        get() = apiSurfacesConfig?.apiSurfaceList?.isNotEmpty() == true
+
     companion object {
         /**
          * Create [ApiSurfaces] and associated [ApiSurface] objects from these options.

@@ -231,6 +231,9 @@ class Driver(
                 // TODO(b/510724278): Remove, or use something else when AndroidX uses
                 //  --api-surface.
                 hideItemsOnClassPath = apiSelectionOptions.apiSurface == null,
+                // Pass whether API surfaces are configured in a config file. This determines
+                // whether the `@hide` Javadoc tag is ignored for hiding elements.
+                apiSurfacesConfigured = apiSelectionOptions.apiSurfacesConfigured,
             )
         }
 

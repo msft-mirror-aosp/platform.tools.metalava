@@ -548,6 +548,11 @@ class ApiAnalyzer(
                 // because it would be necessary to differentiate between an annotation that hides
                 // items from all API surfaces and one that is hiding items that are part of a
                 // different API surface.
+                //
+                // We check the block tag physically (using `hasBlockTagOfType("hide")`) instead of
+                // calling `isHidden` because when API surfaces are configured in a config file,
+                // `isHidden` returns false for `@hide` Javadoc tags. However, we still want to
+                // flag this warning if the developer explicitly included a `@hide` tag.
                 item.documentation?.hasBlockTagOfType("hide") == true &&
                 !item.showability.showNonRecursive()
         ) {
