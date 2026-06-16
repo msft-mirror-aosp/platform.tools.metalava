@@ -545,9 +545,10 @@ class ApiAnalyzer(
         if (
             item.hasShowAnnotation() &&
                 // Only check for @hide doc tag. Testing for annotations would complicate this
-                // because
-                // it would be necessary to differentiate between
-                item.documentation?.isHidden == true &&
+                // because it would be necessary to differentiate between an annotation that hides
+                // items from all API surfaces and one that is hiding items that are part of a
+                // different API surface.
+                item.documentation?.hasBlockTagOfType("hide") == true &&
                 !item.showability.showNonRecursive()
         ) {
             item.modifiers
