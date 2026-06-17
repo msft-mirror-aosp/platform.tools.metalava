@@ -62,6 +62,7 @@ import com.android.tools.metalava.model.Showability.Companion.REVERT_UNSTABLE_AP
 import com.android.tools.metalava.model.TypedefMode
 import com.android.tools.metalava.model.annotation.DefaultAnnotationManager.Config
 import com.android.tools.metalava.model.api.ApiSurfaceSelector
+import com.android.tools.metalava.model.api.SurfaceSelectionRule.Effect
 import com.android.tools.metalava.model.api.flags.ApiFlag
 import com.android.tools.metalava.model.api.flags.ApiFlags
 import com.android.tools.metalava.model.api.flags.optionalFlagName
@@ -550,6 +551,18 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
             return false
         }
         return modifiers.hasAnnotation(AnnotationItem::isHideAnnotation)
+    }
+
+    override fun hasDocOnlyAnnotation(item: SelectableItem): Boolean {
+        // If there are no doc only annotations then this can never return true.
+        if (!apiSurfaceSelector.hasAnyDocOnlyAnnotations) {
+            return false
+        }
+
+        // Doc-only is currently only supported/applied to classes.
+        if (item !is ClassItem) return false
+
+        return item.modifiers.hasAnnotation { it.surfaceData?.effect == Effect.DOC_ONLY }
     }
 
     override fun hasSuppressCompatibilityMetaAnnotations(modifiers: ModifierList): Boolean {

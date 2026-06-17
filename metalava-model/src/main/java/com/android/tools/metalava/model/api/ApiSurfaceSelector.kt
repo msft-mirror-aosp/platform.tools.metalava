@@ -37,6 +37,9 @@ class ApiSurfaceSelector(
     /** True if this has any annotations that can hide a [SelectableItem] from the public API. */
     val hasAnyHideAnnotations: Boolean
 
+    /** True if this has any annotations that mark a [SelectableItem] as doc-only. */
+    val hasAnyDocOnlyAnnotations: Boolean
+
     /**
      * Associates an annotation pattern, e.g. `--show-annotation android.annotation.TestApi` with
      * its [SurfaceAnnotationData].
@@ -53,6 +56,7 @@ class ApiSurfaceSelector(
         var unannotatedSurface: ApiSurface? = null
         var hasShowForStubs = false
         var hasHideAnnotations = false
+        var hasDocOnlyAnnotations = false
 
         val matcherRules = buildList {
             fun addMatcherRule(
@@ -113,9 +117,33 @@ class ApiSurfaceSelector(
                                 hasShowForStubs = true
                                 addMatcherRule(surface, rule, SHOW_FOR_STUBS)
                             }
+                        } else {
+                            error("Unsupported effect $effect in surface $rule")
                         }
                     }
                 }
+            }
+
+            // Register variant rules (e.g. doc-only) which are not bound to a specific API surface
+            // but affect visibility variants of the items.
+            for (rule in apiSurfaceRules.variantRules) {
+                if (rule !is SelectAnnotated) {
+                    error("$rule is not a SelectAnnotated")
+                }
+
+                val effect = rule.effect
+                when (effect) {
+                    Effect.DOC_ONLY -> {
+                        hasDocOnlyAnnotations = true
+                    }
+                    else -> {
+                        error("Unsupported effect $effect in variant $rule")
+                    }
+                }
+
+                // Variant type rules are orthogonal to rules that determine whether an item is in
+                // a specific surface or its showability so provide null for both.
+                addMatcherRule(surface = null, rule, showability = null)
             }
         }
 
@@ -128,6 +156,7 @@ class ApiSurfaceSelector(
         showUnannotated = unannotatedSurface?.isMain == true
 
         hasAnyHideAnnotations = hasHideAnnotations
+        hasAnyDocOnlyAnnotations = hasDocOnlyAnnotations
         hasAnyShowForStubPurposesAnnotations = hasShowForStubs
         unannotatedApiSurface = unannotatedSurface
     }
@@ -226,6 +255,7 @@ class ApiSurfaceSelector(
 class ApiSurfaceRules(
     val apiSurfaces: ApiSurfaces,
     private val byName: Map<String, List<SurfaceSelectionRule>>,
+    internal val variantRules: List<SurfaceSelectionRule> = emptyList(),
 ) {
     operator fun get(surfaceName: String) = byName[surfaceName]
 
@@ -341,6 +371,9 @@ sealed interface SurfaceSelectionRule {
          * This must only be used on the narrowest [ApiSurface].
          */
         HIDE,
+
+        /** The annotated item will be included in doc-only stubs, but omitted from normal stubs. */
+        DOC_ONLY,
     }
 
     companion object {

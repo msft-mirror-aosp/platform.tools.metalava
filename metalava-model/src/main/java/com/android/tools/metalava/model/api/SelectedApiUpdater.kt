@@ -100,6 +100,9 @@ class SelectedApiUpdater(
                         // A hide annotation was seen.
                         hide = true
                     }
+                    Effect.DOC_ONLY -> {
+                        // TODO(b/512093496): Implement this.
+                    }
                 }
             }
         }
