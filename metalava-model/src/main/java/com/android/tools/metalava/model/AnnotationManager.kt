@@ -72,6 +72,9 @@ interface AnnotationManager {
     /** Checks to see if the [item] contains any doconly annotations. */
     fun hasDocOnlyAnnotation(item: SelectableItem): Boolean = false
 
+    /** Checks to see if the [item] contains any removed annotations. */
+    fun hasRemovedAnnotation(item: SelectableItem): Boolean = false
+
     /**
      * Checks to see if the modifiers contain any suppress compatibility annotations.
      *

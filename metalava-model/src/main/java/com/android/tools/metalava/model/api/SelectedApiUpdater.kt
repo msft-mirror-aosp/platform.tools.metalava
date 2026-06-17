@@ -103,6 +103,9 @@ class SelectedApiUpdater(
                     Effect.DOC_ONLY -> {
                         // TODO(b/512093496): Implement this.
                     }
+                    Effect.REMOVED -> {
+                        // TODO: Implement this if needed.
+                    }
                 }
             }
         }

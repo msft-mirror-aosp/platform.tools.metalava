@@ -565,6 +565,15 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
         return item.modifiers.hasAnnotation { it.surfaceData?.effect == Effect.DOC_ONLY }
     }
 
+    override fun hasRemovedAnnotation(item: SelectableItem): Boolean {
+        // If there are no removed annotations then this can never return true.
+        if (!apiSurfaceSelector.hasAnyRemovedAnnotations) {
+            return false
+        }
+
+        return item.modifiers.hasAnnotation { it.surfaceData?.effect == Effect.REMOVED }
+    }
+
     override fun hasSuppressCompatibilityMetaAnnotations(modifiers: ModifierList): Boolean {
         if (config.suppressCompatibilityMetaAnnotations.isEmpty()) {
             return false

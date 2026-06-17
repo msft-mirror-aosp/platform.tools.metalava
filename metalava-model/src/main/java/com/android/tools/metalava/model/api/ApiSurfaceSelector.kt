@@ -40,6 +40,9 @@ class ApiSurfaceSelector(
     /** True if this has any annotations that mark a [SelectableItem] as doc-only. */
     val hasAnyDocOnlyAnnotations: Boolean
 
+    /** True if this has any annotations that mark a [SelectableItem] as removed. */
+    val hasAnyRemovedAnnotations: Boolean
+
     /**
      * Associates an annotation pattern, e.g. `--show-annotation android.annotation.TestApi` with
      * its [SurfaceAnnotationData].
@@ -57,6 +60,7 @@ class ApiSurfaceSelector(
         var hasShowForStubs = false
         var hasHideAnnotations = false
         var hasDocOnlyAnnotations = false
+        var hasRemovedAnnotations = false
 
         val matcherRules = buildList {
             fun addMatcherRule(
@@ -136,6 +140,9 @@ class ApiSurfaceSelector(
                     Effect.DOC_ONLY -> {
                         hasDocOnlyAnnotations = true
                     }
+                    Effect.REMOVED -> {
+                        hasRemovedAnnotations = true
+                    }
                     else -> {
                         error("Unsupported effect $effect in variant $rule")
                     }
@@ -157,6 +164,7 @@ class ApiSurfaceSelector(
 
         hasAnyHideAnnotations = hasHideAnnotations
         hasAnyDocOnlyAnnotations = hasDocOnlyAnnotations
+        hasAnyRemovedAnnotations = hasRemovedAnnotations
         hasAnyShowForStubPurposesAnnotations = hasShowForStubs
         unannotatedApiSurface = unannotatedSurface
     }
@@ -374,6 +382,9 @@ sealed interface SurfaceSelectionRule {
 
         /** The annotated item will be included in doc-only stubs, but omitted from normal stubs. */
         DOC_ONLY,
+
+        /** The annotated item will be considered removed. */
+        REMOVED,
     }
 
     companion object {
