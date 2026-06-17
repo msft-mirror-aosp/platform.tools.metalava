@@ -58,7 +58,7 @@ class ApiSurfaceSelector(
             fun addMatcherRule(
                 surface: ApiSurface?,
                 annotated: SelectAnnotated,
-                showability: Showability,
+                showability: Showability?,
             ) {
                 add(
                     AnnotationMatcher.Rule(
@@ -395,7 +395,7 @@ private data class SelectAnnotated(
  */
 data class SurfaceAnnotationData(
     /** The [Showability] of the [AnnotationItem]. */
-    val showability: Showability,
+    val showability: Showability?,
 
     /** The [ApiSurface] to which the annotation applies, if any. */
     val surface: ApiSurface?,

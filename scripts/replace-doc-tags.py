@@ -59,10 +59,10 @@ annotations = [
         qualified = "android.annotation.Hide",
         doc_tag = "@hide",
     ),
-    # Annotation(
-    #     qualified = "android.annotation.RemovedFromApi",
-    #     doc_tag = "@removed",
-    # ),
+    Annotation(
+        qualified = "android.annotation.RemovedFromApi",
+        doc_tag = "@removed",
+    ),
 ]
 
 # Map from doc tag to Annotation.
