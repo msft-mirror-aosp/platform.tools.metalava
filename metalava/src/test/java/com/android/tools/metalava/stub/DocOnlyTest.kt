@@ -59,9 +59,6 @@ class DocOnlyTest : AbstractStubsTest() {
             docStubs = false,
             stubPaths =
                 arrayOf(
-                    // TODO: This is not expected as DocOnlyClass should be omitted from normal
-                    //  stubs.
-                    "test/pkg/DocOnlyClass.java",
                     "test/pkg/PublicClass.java",
                 ),
             expectedStubFiles =
@@ -72,18 +69,6 @@ class DocOnlyTest : AbstractStubsTest() {
                             @SuppressWarnings({"unchecked", "deprecation", "all"})
                             public class PublicClass {
                             public PublicClass() { throw new RuntimeException("Stub!"); }
-                            public void method() { throw new RuntimeException("Stub!"); }
-                            }
-                        """
-                    ),
-                    // TODO: This is not expected as DocOnlyClass should be omitted from normal
-                    //  stubs.
-                    java(
-                        """
-                            package test.pkg;
-                            @SuppressWarnings({"unchecked", "deprecation", "all"})
-                            public class DocOnlyClass {
-                            public DocOnlyClass() { throw new RuntimeException("Stub!"); }
                             public void method() { throw new RuntimeException("Stub!"); }
                             }
                         """
