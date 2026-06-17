@@ -57,6 +57,13 @@ data class ApiSurfacesConfig(
      */
     @field:JacksonXmlProperty(localName = "doc-only", namespace = CONFIG_NAMESPACE)
     val docOnly: ApiVariantTypeRuleConfig? = null,
+
+    /**
+     * Specifies the annotation patterns that determine if an item is a member of
+     * [ApiVariantType.REMOVED].
+     */
+    @field:JacksonXmlProperty(localName = "removed", namespace = CONFIG_NAMESPACE)
+    val removed: ApiVariantTypeRuleConfig? = null,
 ) : CombinableConfig<ApiSurfacesConfig> {
 
     /** Combine with another [ApiSurfacesConfig] by concatenating the [apiSurfaceList]s. */
@@ -64,6 +71,7 @@ data class ApiSurfacesConfig(
         ApiSurfacesConfig(
             apiSurfaceList + other.apiSurfaceList,
             docOnly = combine(docOnly, other.docOnly),
+            removed = combine(removed, other.removed),
         )
 
     /**

@@ -622,4 +622,46 @@ class ApiSurfacesConfigTest : BaseConfigParserTest() {
             """
         )
     }
+
+    @Test
+    fun `api-surfaces removed`() {
+        roundTrip(
+            Config(
+                apiSurfaces =
+                    ApiSurfacesConfig(
+                        apiSurfaceList =
+                            listOf(
+                                ApiSurfaceConfig(
+                                    name = "public",
+                                    selectionCriteria =
+                                        SelectionCriteriaConfig(
+                                            unannotated = EffectConfig.SHOW,
+                                        ),
+                                ),
+                            ),
+                        removed =
+                            ApiVariantTypeRuleConfig(
+                                annotationRules =
+                                    listOf(
+                                        AnnotationPatternRuleConfig(
+                                            pattern = "android.annotation.RemovedFromApi",
+                                        )
+                                    )
+                            ),
+                    ),
+            ),
+            """
+                <config xmlns="http://www.google.com/tools/metalava/config">
+                  <api-surfaces>
+                    <api-surface name="public">
+                      <selection-criteria unannotated="show"/>
+                    </api-surface>
+                    <removed>
+                      <annotation-rule pattern="android.annotation.RemovedFromApi"/>
+                    </removed>
+                  </api-surfaces>
+                </config>
+            """
+        )
+    }
 }
