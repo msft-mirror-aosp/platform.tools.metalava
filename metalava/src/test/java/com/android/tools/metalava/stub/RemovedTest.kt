@@ -59,9 +59,6 @@ class RemovedTest : AbstractStubsTest() {
             stubPaths =
                 arrayOf(
                     "test/pkg/PublicClass.java",
-                    // TODO: This is not expected as RemovedClass should be omitted from normal
-                    // stubs.
-                    "test/pkg/RemovedClass.java",
                 ),
             expectedStubFiles =
                 arrayOf(
@@ -71,18 +68,6 @@ class RemovedTest : AbstractStubsTest() {
                             @SuppressWarnings({"unchecked", "deprecation", "all"})
                             public class PublicClass {
                             public PublicClass() { throw new RuntimeException("Stub!"); }
-                            public void method() { throw new RuntimeException("Stub!"); }
-                            }
-                        """
-                    ),
-                    // TODO: This is not expected as RemovedClass should be omitted from normal
-                    // stubs.
-                    java(
-                        """
-                            package test.pkg;
-                            @SuppressWarnings({"unchecked", "deprecation", "all"})
-                            public class RemovedClass {
-                            public RemovedClass() { throw new RuntimeException("Stub!"); }
                             public void method() { throw new RuntimeException("Stub!"); }
                             }
                         """

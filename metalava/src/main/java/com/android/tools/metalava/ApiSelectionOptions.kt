@@ -285,8 +285,8 @@ class ApiSelectionOptions(
             }
         }
 
-        // Parse configured doc-only annotations from the surfaces configuration file
-        // and register them as variant rules with Effect.DOC_ONLY.
+        // Parse configured doc-only and removed annotations from the surfaces configuration file
+        // and register them as variant rules.
         val variantRules = buildList {
             surfacesConfig.docOnly?.let { docOnly ->
                 for (ruleConfig in docOnly.annotationRules) {
@@ -294,6 +294,19 @@ class ApiSelectionOptions(
                         SurfaceSelectionRule.createAnnotationRule(
                             ruleConfig.pattern,
                             Effect.DOC_ONLY,
+                            recursive = true,
+                        )
+
+                    add(annotationRule)
+                }
+            }
+
+            surfacesConfig.removed?.let { removed ->
+                for (ruleConfig in removed.annotationRules) {
+                    val annotationRule =
+                        SurfaceSelectionRule.createAnnotationRule(
+                            ruleConfig.pattern,
+                            Effect.REMOVED,
                             recursive = true,
                         )
 
