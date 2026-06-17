@@ -86,6 +86,9 @@ object KnownConfigFiles {
                         <doc-only>
                             <annotation-rule pattern="android.annotation.DocOnly"/>
                         </doc-only>
+                        <removed>
+                            <annotation-rule pattern="android.annotation.RemovedFromApi"/>
+                        </removed>
                     </api-surfaces>
                 </config>
             """
