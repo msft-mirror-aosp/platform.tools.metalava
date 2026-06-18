@@ -46,6 +46,7 @@ import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.TypeParameterScope
 import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.WellKnownTypes
+import com.android.tools.metalava.model.api.SelectedApi
 import com.android.tools.metalava.model.createImmutableModifiers
 import com.android.tools.metalava.model.createMutableModifiers
 import com.android.tools.metalava.model.item.CodebaseAssembler
@@ -200,6 +201,9 @@ internal class KaCodebaseAssembler(
                                     trustedApi = false,
                                     supportsDocumentation = false,
                                     assembler = assembler,
+                                    // Create a [SelectedApi] instance that will be initialized
+                                    // lazily from the source.
+                                    selectedApiFactory = SelectedApi.sourceFactory(config),
                                 )
                             }
                         tracer.trace(
@@ -535,7 +539,7 @@ private constructor(
             itemFactory.createClassItem(
                 fileLocation = PsiFileLocation.fromPsiElement(classifierSymbol.psi),
                 targetLanguages = TargetLanguageSet.KOTLIN_ONLY,
-                modifiers = kaModifierFactory.createForClass(classifierSymbol),
+                modifiers = kaModifierFactory.createForClass(classifierSymbol, containingClass),
                 source = null,
                 classKind = classifierSymbol.getClassKind(),
                 containingClass = containingClass,

@@ -285,6 +285,36 @@ class ApiSelectionOptions(
             }
         }
 
+        // Parse configured doc-only and removed annotations from the surfaces configuration file
+        // and register them as variant rules.
+        val variantRules = buildList {
+            surfacesConfig.docOnly?.let { docOnly ->
+                for (ruleConfig in docOnly.annotationRules) {
+                    val annotationRule =
+                        SurfaceSelectionRule.createAnnotationRule(
+                            ruleConfig.pattern,
+                            Effect.DOC_ONLY,
+                            recursive = true,
+                        )
+
+                    add(annotationRule)
+                }
+            }
+
+            surfacesConfig.removed?.let { removed ->
+                for (ruleConfig in removed.annotationRules) {
+                    val annotationRule =
+                        SurfaceSelectionRule.createAnnotationRule(
+                            ruleConfig.pattern,
+                            Effect.REMOVED,
+                            recursive = true,
+                        )
+
+                    add(annotationRule)
+                }
+            }
+        }
+
         // If the map is empty then there are no rules so return null.
         if (rulesBySurfaceName.isEmpty()) return null
 
@@ -292,6 +322,7 @@ class ApiSelectionOptions(
         return ApiSurfaceRules(
             actualSurfaces,
             rulesBySurfaceName,
+            variantRules,
         )
     }
 
@@ -362,7 +393,6 @@ class ApiSelectionOptions(
 
         val surfaces = apiSurfaces
         val main = surfaces.main
-        val base = surfaces.base
         val rulesBySurfaceName = buildMap {
             // Iterate over the surfaces, adding information from the --show-* and --hide-annotation
             // options.

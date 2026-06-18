@@ -65,6 +65,47 @@ class FlaggedApiEdgeCasesTest : DriverTest() {
     }
 
     @Test
+    fun `Test combining FlaggedApi and RequiresFlag annotations results in a multipleFlagging error`() {
+        check(
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+
+                            public class Test {
+                                @$ANDROID_FLAGGED_API("flag.name")
+                                @$ANDROID_REQUIRES_FLAG("another.flag")
+                                public void method();
+                            }
+                        """
+                    ),
+                    requiresFlagSource,
+                    flaggedApiSource
+                ),
+            expectedStubFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            @SuppressWarnings({"unchecked", "deprecation", "all"})
+                            public class Test {
+                            public Test() { throw new RuntimeException("Stub!"); }
+                            @$ANDROID_REQUIRES_FLAG("flag.name")
+                            public void method() { throw new RuntimeException("Stub!"); }
+                            }
+                        """
+                    )
+                ),
+            checkCompilation = true,
+            expectedIssues =
+                """
+                    src/test/pkg/Test.java:6: error: @RequiresFlag can not be placed on APIs that are already flagged. [MultipleFlagging]
+                """,
+        )
+    }
+
+    @Test
     fun `Test override flagged method from source path no previously released API`() {
         check(
             // Revert all FlaggedApi annotations.
@@ -93,7 +134,7 @@ class FlaggedApiEdgeCasesTest : DriverTest() {
             expectedIssues =
                 """
                     src/test/pkg/Test.java:5: error: Cannot revert class test.pkg.Test (or any other API item) as no previously released API has been provided [NoPreviouslyReleasedApi]
-                    src/test/pkg/Test.java:6: error: Cannot revert constructor test.pkg.Test.Test() (or any other API item) as no previously released API has been provided [NoPreviouslyReleasedApi]
+                    src/test/pkg/Test.java:6: error: Cannot revert constructor test.pkg.Test() (or any other API item) as no previously released API has been provided [NoPreviouslyReleasedApi]
                 """,
         )
     }
@@ -443,6 +484,40 @@ class FlaggedApiEdgeCasesTest : DriverTest() {
                       }
                     }
                 """,
+        )
+    }
+
+    @Test
+    fun `Test RequiresFlag annotation in source appears in stubs`() {
+        check(
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+
+                            public class Test {
+                                @$ANDROID_REQUIRES_FLAG("flag.name")
+                                public void method();
+                            }
+                        """
+                    ),
+                    requiresFlagSource,
+                ),
+            expectedStubFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            @SuppressWarnings({"unchecked", "deprecation", "all"})
+                            public class Test {
+                            public Test() { throw new RuntimeException("Stub!"); }
+                            @$ANDROID_REQUIRES_FLAG("flag.name")
+                            public void method() { throw new RuntimeException("Stub!"); }
+                            }
+                        """
+                    )
+                ),
         )
     }
 }

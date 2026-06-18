@@ -21,5 +21,39 @@ import java.util.function.Predicate
 /**
  * Type alias for [Predicate]s that are generally used to filter [SelectableItem]s that are defined
  * in the API, or can be referenced from the API.
+ *
+ * A null [FilterPredicate] should be treated as if it matched everything, i.e. was `{ true }`. It
+ * can be used to optimize code paths.
  */
 typealias FilterPredicate = Predicate<SelectableItem>
+
+/**
+ * Invoked this optional [FilterPredicate].
+ *
+ * If this [FilterPredicate] is `null` then this returns `true`, otherwise it returns the result of
+ * invoking [Predicate.test] on [item].
+ */
+fun FilterPredicate?.testOrTrue(item: SelectableItem) = this?.test(item) ?: true
+
+/**
+ * Combine this [FilterPredicate] with an optional [other] to produce a [FilterPredicate] that is
+ * the logical AND of the two [FilterPredicate]s.
+ *
+ * AND-ing anything with `true` has no effect. So, when [other] is `null` (which is equivalent to `{
+ * true }`) this [FilterPredicate] will be returned.
+ */
+fun FilterPredicate.andNullable(other: FilterPredicate?): FilterPredicate =
+    if (other == null) {
+        this
+    } else {
+        and(other)
+    }
+
+/**
+ * Combine this optional [FilterPredicate] with an optional [other] to produce a [FilterPredicate]
+ * that is the logical AND of the two [FilterPredicate]s.
+ *
+ * If this is `null` then it returns [other], otherwise it calls [andNullable] on [other].
+ */
+fun FilterPredicate?.nullableAndNullable(other: FilterPredicate?) =
+    this?.andNullable(other) ?: other

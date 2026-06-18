@@ -304,6 +304,7 @@ class ApiSelectionOptionsTest :
                         )
                     """,
                 expectedShowUnannotated = true,
+                expectedUnannotatedSurfaceName = "restricted",
             )
         }
     }

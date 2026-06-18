@@ -49,6 +49,7 @@ class ParameterizedApiSurfaceSelectorTest :
         val surface: String,
         val expectedMatcherState: String,
         val expectedShowUnannotated: Boolean,
+        val expectedUnannotatedSurfaceName: String?,
     ) {
         /**
          * Record the stack trace of the creation of this which can be used to provide a stack trace
@@ -150,6 +151,7 @@ class ParameterizedApiSurfaceSelectorTest :
                             )
                         """,
                     expectedShowUnannotated = true,
+                    expectedUnannotatedSurfaceName = "public",
                 ),
                 TestParams(
                     surface = "system",
@@ -183,6 +185,7 @@ class ParameterizedApiSurfaceSelectorTest :
                             )
                         """,
                     expectedShowUnannotated = false,
+                    expectedUnannotatedSurfaceName = "public",
                 ),
                 TestParams(
                     surface = "test",
@@ -216,6 +219,7 @@ class ParameterizedApiSurfaceSelectorTest :
                             )
                         """,
                     expectedShowUnannotated = false,
+                    expectedUnannotatedSurfaceName = "public",
                 ),
                 TestParams(
                     surface = "system-server",
@@ -253,6 +257,7 @@ class ParameterizedApiSurfaceSelectorTest :
                             )
                         """,
                     expectedShowUnannotated = false,
+                    expectedUnannotatedSurfaceName = "public",
                 ),
                 TestParams(
                     surface = "core-platform-plus-public",
@@ -273,6 +278,7 @@ class ParameterizedApiSurfaceSelectorTest :
                             )
                         """,
                     expectedShowUnannotated = true,
+                    expectedUnannotatedSurfaceName = "core-platform-plus-public",
                 ),
             )
 
@@ -293,6 +299,7 @@ class ParameterizedApiSurfaceSelectorTest :
             options.apiSurfaceSelector.assertState(
                 params.expectedMatcherState,
                 params.expectedShowUnannotated,
+                params.expectedUnannotatedSurfaceName,
             )
         }
     }

@@ -261,7 +261,7 @@ private constructor(
 
     override fun visitClass(cls: ClassItem) {
         val methods = cls.filteredMethods(filterReference).asSequence()
-        val fields = cls.filteredFields(filterReference, showUnannotated).asSequence()
+        val fields = cls.filteredFields(filterReference).asSequence()
         val constructors = cls.filteredConstructors(filterReference)
         val superClass = cls.filteredSuperclass(filterReference)
         val interfaces = cls.filteredInterfaceTypes(filterReference).asSequence()
@@ -1894,7 +1894,7 @@ private constructor(
         }
     }
 
-    private fun checkExceptions(callable: CallableItem, filterReference: FilterPredicate) {
+    private fun checkExceptions(callable: CallableItem, filterReference: FilterPredicate?) {
         for (throwableType in callable.filteredThrowsTypes(filterReference)) {
             // Get the throwable class, which for a type parameter will be the lower bound. A
             // method that throws a type parameter is treated as if it throws its lower bound, so

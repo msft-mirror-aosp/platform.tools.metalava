@@ -97,9 +97,6 @@ interface CallableItem : MemberItem, TypeParameterListOwner, PossiblyRecordCompo
     /** Types of exceptions that this callable can throw */
     fun throwsTypes(): List<ExceptionTypeItem>
 
-    /** The body of this, may not be available. */
-    val body: CallableBody
-
     /** Returns true if this callable throws the given exception */
     fun throws(qualifiedName: String): Boolean {
         for (type in throwsTypes()) {
@@ -112,11 +109,12 @@ interface CallableItem : MemberItem, TypeParameterListOwner, PossiblyRecordCompo
         return false
     }
 
-    fun filteredThrowsTypes(predicate: FilterPredicate): Collection<ExceptionTypeItem> {
+    fun filteredThrowsTypes(predicate: FilterPredicate?): Collection<ExceptionTypeItem> {
         if (throwsTypes().isEmpty()) {
             return emptyList()
         }
-        return filteredThrowsTypes(predicate, LinkedHashSet())
+        return if (predicate == null) throwsTypes()
+        else filteredThrowsTypes(predicate, LinkedHashSet())
     }
 
     private fun filteredThrowsTypes(
@@ -164,11 +162,6 @@ interface CallableItem : MemberItem, TypeParameterListOwner, PossiblyRecordCompo
         append("(")
         parameters().joinTo(this) { it.type().toSimpleTypeString() }
         append(")")
-    }
-
-    override fun toStringForItem(): String {
-        return "${if (isConstructor()) "constructor" else "method"} ${
-            containingClass().qualifiedName()}.${name()}(${parameters().joinToString { it.type().toSimpleTypeString() }})"
     }
 
     override fun equalsToItem(other: Any?): Boolean {
