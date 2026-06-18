@@ -21,6 +21,9 @@ import com.android.tools.metalava.model.AnnotationRetention
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.VariableTypeItem
+import com.android.tools.metalava.model.api.ApiSurfaceRules
+import com.android.tools.metalava.model.api.SurfaceSelectionRule
+import com.android.tools.metalava.model.api.surface.ApiSurfaces
 import com.android.tools.metalava.model.noOpAnnotationManager
 import com.android.tools.metalava.model.provider.InputFormat
 import com.android.tools.metalava.model.testing.SupportedInputFormats
@@ -31,6 +34,7 @@ import com.android.tools.metalava.model.testing.value.arrayValueFromAny
 import com.android.tools.metalava.model.testing.value.classObjectValue
 import com.android.tools.metalava.model.testing.value.fieldReferenceValue
 import com.android.tools.metalava.model.value.asInt
+import com.android.tools.metalava.testing.KnownSourceFiles
 import com.android.tools.metalava.testing.java
 import com.google.common.truth.Truth.assertThat
 import kotlin.test.assertEquals
@@ -1016,22 +1020,38 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
 
     @Test
     fun `260 - test doconly members`() {
+        val apiSurfaces = ApiSurfaces.create()
+        val rulesByName = mapOf("public" to listOf(SurfaceSelectionRule.unannotated))
+        val variantRules =
+            listOf(
+                SurfaceSelectionRule.createAnnotationRule(
+                    "android.annotation.DocOnly",
+                    effect = SurfaceSelectionRule.Effect.DOC_ONLY,
+                ),
+            )
+        val apiSurfaceRules = ApiSurfaceRules(apiSurfaces, rulesByName, variantRules)
+
         runSourceCodebaseTest(
-            java(
-                """
-                    package test.pkg;
+            inputSet(
+                KnownSourceFiles.docOnlyAnnotation,
+                java(
+                    """
+                        package test.pkg;
+                        import android.annotation.DocOnly;
 
-                    public class Test {
-                        /** @doconly */
-                        public class Inner {
-                            public int InnerField;
+                        public class Test {
+                            @DocOnly
+                            public class Inner {
+                                public int InnerField;
+                            }
+
+                            @DocOnly
+                            public int Field;
                         }
-
-                        /** @doconly Some docs here */
-                        public int Field;
-                    }
-                """
+                    """
+                ),
             ),
+            testFixture = TestFixture(apiSurfaceRules = apiSurfaceRules),
         ) {
             val classItem = codebase.assertClass("test.pkg.Test")
             val classSelectors = classItem.variantSelectors
@@ -1043,7 +1063,7 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
             assertEquals(false, classSelectors.docOnly, message = "classSelectors.docOnly")
             assertEquals(true, innerClassSelectors.docOnly, message = "innerClassSelectors.docOnly")
             assertEquals(true, innerFieldSelectors.docOnly, message = "innerFieldSelectors.docOnly")
-            assertEquals(true, fieldSelectors.docOnly, message = "fieldSelectors.docOnly")
+            assertEquals(false, fieldSelectors.docOnly, message = "fieldSelectors.docOnly")
         }
     }
 }
