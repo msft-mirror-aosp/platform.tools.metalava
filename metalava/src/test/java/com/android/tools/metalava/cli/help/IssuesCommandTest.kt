@@ -266,6 +266,7 @@ Available Issues                             |  Category                        
   UnqualifiedTypeError                       |  unknown                              |   hidden
   UnresolvedImport                           |  unknown                              |   info
   UnresolvedLink                             |  documentation                        |   warning_error_when_new
+  UnsupportedDocTag                          |  documentation                        |   error
   UseIcu                                     |  api_lint                             |   warning
   UseParcelFileDescriptor                    |  api_lint                             |   error
   UserHandle                                 |  api_lint                             |   warning

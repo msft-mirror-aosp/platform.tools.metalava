@@ -178,6 +178,9 @@ object Issues {
     // Javadoc does not mean it is an issue with the documentation.
     val DEPRECATED_SURFACE_DOC_TAG by Issue(Severity.HIDDEN, Category.UNKNOWN)
 
+    // Reported when using unsupported doc tags like @doconly.
+    val UNSUPPORTED_DOC_TAG by Issue(Severity.ERROR, Category.DOCUMENTATION)
+
     val SHOWING_MEMBER_IN_HIDDEN_CLASS by Issue(Severity.ERROR, Category.API_LINT)
     val INVALID_NULLABILITY_ANNOTATION by Issue(Severity.ERROR)
     val REFERENCES_HIDDEN by Issue(Severity.ERROR, Category.API_LINT)

@@ -291,6 +291,13 @@ internal object TagTypes {
                 "Use of '@$tagTypeName' to affect the API surface is deprecated",
             )
         }
+
+        registerDefaultTagType("doconly", TagTypeForm.BLOCK) { tagTypeName ->
+            TagTypeError(
+                Issues.UNSUPPORTED_DOC_TAG,
+                "Use of '@$tagTypeName' is no longer supported, use an <api-surfaces>/<doc-only> configured annotation",
+            )
+        }
     }
 }
 
