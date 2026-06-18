@@ -18,8 +18,6 @@ package com.android.tools.metalava.model.item
 
 import com.android.tools.metalava.model.ApiVariantSelectorsFactory
 import com.android.tools.metalava.model.BaseModifierList
-import com.android.tools.metalava.model.CallableBody
-import com.android.tools.metalava.model.CallableBodyFactory
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.ClassOrigin
@@ -149,7 +147,6 @@ class DefaultItemFactory(
         returnType: ClassTypeItem,
         parameterItemsFactory: ParameterItemsFactory,
         throwsTypes: List<ExceptionTypeItem>,
-        callableBodyFactory: CallableBodyFactory = CallableBody.UNAVAILABLE_FACTORY,
         implicitConstructor: Boolean,
         isPrimary: Boolean = false,
     ): ConstructorItem =
@@ -167,7 +164,6 @@ class DefaultItemFactory(
             returnType,
             parameterItemsFactory,
             throwsTypes,
-            callableBodyFactory,
             implicitConstructor,
             isPrimary,
         )
@@ -213,7 +209,6 @@ class DefaultItemFactory(
         returnType: TypeItem,
         parameterItemsFactory: ParameterItemsFactory,
         throwsTypes: List<ExceptionTypeItem>,
-        callableBodyFactory: CallableBodyFactory = CallableBody.UNAVAILABLE_FACTORY,
         defaultValueProvider: OptionalValueProvider?,
         isExtensionMethod: Boolean,
         isKotlinProperty: Boolean = false,
@@ -232,7 +227,6 @@ class DefaultItemFactory(
             returnType,
             parameterItemsFactory,
             throwsTypes,
-            callableBodyFactory,
             defaultValueProvider,
             isExtensionMethod,
             isKotlinProperty,

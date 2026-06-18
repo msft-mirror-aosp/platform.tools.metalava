@@ -25,6 +25,7 @@ import com.android.tools.metalava.model.ANDROID_ANNOTATION_PREFIX
 import com.android.tools.metalava.model.ANDROID_FLAGGED_API
 import com.android.tools.metalava.model.ANDROID_NONNULL
 import com.android.tools.metalava.model.ANDROID_NULLABLE
+import com.android.tools.metalava.model.ANDROID_REQUIRES_FLAG
 import com.android.tools.metalava.model.ANDROID_SYSTEM_API
 import com.android.tools.metalava.model.ANDROID_TEST_API
 import com.android.tools.metalava.model.ANNOTATION_EXTERNAL
@@ -61,6 +62,7 @@ import com.android.tools.metalava.model.Showability.Companion.REVERT_UNSTABLE_AP
 import com.android.tools.metalava.model.TypedefMode
 import com.android.tools.metalava.model.annotation.DefaultAnnotationManager.Config
 import com.android.tools.metalava.model.api.ApiSurfaceSelector
+import com.android.tools.metalava.model.api.SurfaceSelectionRule.Effect
 import com.android.tools.metalava.model.api.flags.ApiFlag
 import com.android.tools.metalava.model.api.flags.ApiFlags
 import com.android.tools.metalava.model.api.flags.optionalFlagName
@@ -102,7 +104,7 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
         val apiFlags: ApiFlags? = null,
     )
 
-    private val apiSurfaceSelector = config.apiSurfaceSelector
+    override val apiSurfaceSelector = config.apiSurfaceSelector
 
     /** The set of all annotation names that should be preserved during normalization. */
     private val annotationNamesToPreserveDuringNormalization = buildSet {
@@ -391,8 +393,7 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
         when (qualifiedName) {
             // The typedef annotations are special: they should not be in the signature
             // files, but we want to include them in the external annotations file such that
-            // tools
-            // can enforce them.
+            // tools can enforce them.
             "android.annotation.IntDef",
             "androidx.annotation.IntDef",
             "android.annotation.StringDef",
@@ -406,17 +407,15 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
             "android.view.ViewDebug.CapturedViewProperty" -> return ANNOTATION_STUBS_ONLY
 
             // Retained in the sdk/jar stub source code so that SdkConstant files can be
-            // extracted
-            // from those. This is useful for modularizing the main SDK stubs without having to
-            // add a separate module SDK artifact for sdk constants.
+            // extracted from those. This is useful for modularizing the main SDK stubs without
+            // having to add a separate module SDK artifact for sdk constants.
             "android.annotation.SdkConstant" -> return ANNOTATION_SDK_STUBS_ONLY
+            ANDROID_REQUIRES_FLAG,
             ANDROID_FLAGGED_API -> {
                 return annotation.apiFlag?.annotationTargets ?: ANNOTATION_IN_ALL_STUBS
             }
-
             // Skip known annotations that we (a) never want in external annotations and (b) we
-            // are
-            // specially overwriting anyway in the stubs (and which are (c) not API significant)
+            // are specially overwriting anyway in the stubs (and which are (c) not API significant)
             "com.android.modules.annotation.MinSdk",
             "java.lang.annotation.Native",
             "java.lang.SuppressWarnings",
@@ -440,8 +439,7 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
             JAVA_LANG_DEPRECATED, // tracked separately as a pseudo-modifier
 
             // Below this when-statement we perform the correct lookup: check API predicate, and
-            // check
-            // that retention is class or runtime, but we've hardcoded the answers here
+            // check that retention is class or runtime, but we've hardcoded the answers here
             // for some common annotations.
 
             "android.widget.RemoteViews.RemoteView",
@@ -460,8 +458,7 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
             "java.lang.annotation.Retention",
             "java.lang.annotation.Target" -> return ANNOTATION_IN_ALL_STUBS
 
-            // Metalava already tracks all the methods that get generated due to these
-            // annotations.
+            // Metalava already tracks all the methods that get generated due to these  annotations.
             "kotlin.jvm.JvmOverloads",
             JVM_FIELD,
             JVM_STATIC,
@@ -470,8 +467,7 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
         }
 
         // @android.annotation.Nullable and NonNullable specially recognized annotations by the
-        // Kotlin
-        // compiler 1.3 and above: they always go in the stubs.
+        // Kotlin compiler 1.3 and above: they always go in the stubs.
         if (
             qualifiedName == ANDROID_NULLABLE ||
                 qualifiedName == ANDROID_NONNULL ||
@@ -495,8 +491,7 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
         }
 
         // @RecentlyNullable and @RecentlyNonNull are specially recognized annotations by the
-        // Kotlin
-        // compiler: they always go in the stubs.
+        // Kotlin compiler: they always go in the stubs.
         if (qualifiedName == RECENTLY_NULLABLE || qualifiedName == RECENTLY_NONNULL) {
             return ANNOTATION_IN_ALL_STUBS
         }
@@ -556,6 +551,27 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
             return false
         }
         return modifiers.hasAnnotation(AnnotationItem::isHideAnnotation)
+    }
+
+    override fun hasDocOnlyAnnotation(item: SelectableItem): Boolean {
+        // If there are no doc only annotations then this can never return true.
+        if (!apiSurfaceSelector.hasAnyDocOnlyAnnotations) {
+            return false
+        }
+
+        // Doc-only is currently only supported/applied to classes.
+        if (item !is ClassItem) return false
+
+        return item.modifiers.hasAnnotation { it.surfaceData?.effect == Effect.DOC_ONLY }
+    }
+
+    override fun hasRemovedAnnotation(item: SelectableItem): Boolean {
+        // If there are no removed annotations then this can never return true.
+        if (!apiSurfaceSelector.hasAnyRemovedAnnotations) {
+            return false
+        }
+
+        return item.modifiers.hasAnnotation { it.surfaceData?.effect == Effect.REMOVED }
     }
 
     override fun hasSuppressCompatibilityMetaAnnotations(modifiers: ModifierList): Boolean {

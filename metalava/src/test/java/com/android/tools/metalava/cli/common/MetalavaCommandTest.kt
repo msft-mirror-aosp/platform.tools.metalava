@@ -16,7 +16,6 @@
 
 package com.android.tools.metalava.cli.common
 
-import com.android.tools.metalava.ProgressTracker
 import com.android.tools.metalava.testing.getNoopTracer
 import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.core.subcommands
@@ -29,7 +28,6 @@ class MetalavaCommandTest :
     BaseCommandTest<MetalavaCommand>({ executionEnvironment ->
         MetalavaCommand(
             executionEnvironment = executionEnvironment,
-            progressTracker = ProgressTracker(),
             tracer = getNoopTracer(),
         )
     }) {
@@ -49,7 +47,6 @@ class MetalavaCommandTest :
         val command =
             MetalavaCommand(
                 executionEnvironment = executionEnvironment,
-                progressTracker = ProgressTracker(),
                 tracer = getNoopTracer(),
             )
         try {
@@ -99,7 +96,6 @@ class MetalavaCommandTest :
         val command =
             MetalavaCommand(
                 executionEnvironment = executionEnvironment,
-                progressTracker = ProgressTracker(),
                 defaultCommandName = subCommand.commandName,
                 tracer = getNoopTracer(),
             )
@@ -132,7 +128,6 @@ class MetalavaCommandTest :
         val command =
             MetalavaCommand(
                 executionEnvironment = executionEnvironment,
-                progressTracker = ProgressTracker(),
                 tracer = getNoopTracer(),
             )
         command.subcommands(FailCommand())

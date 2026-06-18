@@ -729,7 +729,6 @@ object CodebaseComparator {
                         // Do not visit [ParameterItem]s, as they will be compared in
                         // [dispatchToCompare].
                         visitParameterItems = false,
-                        inlineInheritedFields = true,
                         apiFilters = apiFilters,
                         // Whenever a caller passes arguments of "--show-annotation 'SomeAnnotation'
                         // --check-compatibility:api:released $oldApi",

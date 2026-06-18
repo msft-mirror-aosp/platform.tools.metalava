@@ -25,7 +25,6 @@ import com.android.tools.metalava.cli.common.cliError
 import com.android.tools.metalava.cli.common.executionEnvironment
 import com.android.tools.metalava.cli.common.existingDir
 import com.android.tools.metalava.cli.common.map
-import com.android.tools.metalava.cli.common.progressTracker
 import com.android.tools.metalava.cli.common.stderr
 import com.android.tools.metalava.cli.common.stdout
 import com.android.tools.metalava.cli.common.tracer
@@ -136,7 +135,6 @@ class AndroidJarsToSignaturesCommand :
 
         StandaloneJarCodebaseLoader.create(
                 executionEnvironment.disableStderrDumping(),
-                progressTracker,
                 tracer,
                 BasicReporter(stderr),
             )
@@ -144,7 +142,7 @@ class AndroidJarsToSignaturesCommand :
                 ConvertJarsToSignatureFiles(
                         stderr,
                         stdout,
-                        progressTracker,
+                        tracer,
                         signatureFormat.fileFormat,
                         apiVersions,
                         apiSurfaces,

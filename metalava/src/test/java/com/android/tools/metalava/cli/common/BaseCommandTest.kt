@@ -17,7 +17,6 @@
 package com.android.tools.metalava.cli.common
 
 import com.android.tools.lint.checks.infrastructure.TestFile
-import com.android.tools.metalava.ProgressTracker
 import com.android.tools.metalava.testing.BaseTemporaryFolderOwner
 import com.android.tools.metalava.testing.getNoopTracer
 import com.github.ajalt.clikt.core.CliktCommand
@@ -272,13 +271,8 @@ class CommandTestConfig<C : CliktCommand>(private val test: BaseCommandTest<C>) 
     }
 
     private fun runCommand(executionEnvironment: ExecutionEnvironment, command: C): Int {
-        val progressTracker = ProgressTracker(stdout = executionEnvironment.stdout)
         val metalavaCommand =
-            MetalavaCommand(
-                executionEnvironment = executionEnvironment,
-                progressTracker = progressTracker,
-                tracer = getNoopTracer()
-            )
+            MetalavaCommand(executionEnvironment = executionEnvironment, tracer = getNoopTracer())
         metalavaCommand.subcommands(command)
         return metalavaCommand.process(args.toTypedArray())
     }

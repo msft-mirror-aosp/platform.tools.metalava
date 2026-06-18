@@ -17,19 +17,13 @@
 package com.android.tools.metalava.doc.annotationhandlers
 
 import com.android.tools.metalava.model.AnnotationItem
-import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.Item
-import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.annotation.binding.bindTo
-import com.android.tools.metalava.reporter.Reporter
-import java.util.function.Predicate
 
 /** Handles @android.processor.devicepolicy.StringPolicyDefinition annotation. */
 class StringPolicyAnnotationHandler(
-    codebase: Codebase,
-    reporter: Reporter,
-    filterReference: Predicate<SelectableItem>
-) : BaseDevicePolicyAnnotationHandler(codebase, reporter, filterReference) {
+    context: DevicePolicyContext,
+) : BaseDevicePolicyAnnotationHandler(context) {
 
     /** Processes the [StringPolicyDefinitionProxy] and returns the documentation for the policy. */
     override fun processPolicyAnnotation(annotation: AnnotationItem, item: Item): String {
@@ -53,23 +47,19 @@ data class StringPolicyDefinitionProxy(
     val maxLength: Int,
 ) {
     fun generateDocs() = buildString {
-        append("\n<p>Policy Type: String</p>\n <ul>\n")
-        append(base.generateDocs())
-        append(
-            "   <li>Empty string: ${if (emptyStringAllowed) "Allowed" else "Not allowed"}</li>\n"
-        )
-        append(
-            "   <li>Unprintable characters: ${if (unprintableCharactersAllowed) "Allowed" else "Not allowed"}</li>\n"
-        )
-        append(
-            "   <li>Pure whitespace: ${if (pureWhitespaceAllowed) "Allowed" else "Not allowed"}</li>\n"
-        )
-        append(
-            "   <li>Unstripped string: ${if (unstrippedStringAllowed) "Allowed" else "Not allowed"}</li>\n"
-        )
-        append(
-            "   <li>Max Length: ${if (maxLength == Integer.MAX_VALUE) "No limit" else maxLength}</li>\n"
-        )
-        append(" </ul>\n")
+        val tableEntries = buildList {
+            addAll(base.getTableEntries())
+            val policyValueValidations = buildList {
+                if (maxLength != Integer.MAX_VALUE) add("Length max $maxLength characters")
+                if (!emptyStringAllowed) add("No empty string allowed")
+                if (!unprintableCharactersAllowed) add("No unprintable characters allowed")
+                if (!pureWhitespaceAllowed) add("No pure whitespace allowed")
+                if (!unstrippedStringAllowed) add("No unstripped string allowed")
+            }
+            add(Pair("Policy value", renderPolicyValue("String", policyValueValidations)))
+        }
+
+        append("\n<p>Policy Type: String</p>\n")
+        append(renderTable(tableEntries))
     }
 }

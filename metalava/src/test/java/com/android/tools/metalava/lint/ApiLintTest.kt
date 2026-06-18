@@ -3341,11 +3341,12 @@ src/android/pkg/Interface.kt:158: error: Parameter `default` has a default value
                     createNativeModuleDescription(arrayOf(nativeSource)),
                 ),
             enableMultiplatform = true,
-            // TODO(b/506113222): native typealias should be reported too
             expectedIssues =
                 """
                 androidMain/src/test/pkg/Android.kt:2: error: Exposing typealiases as public API is discouraged. [TypealiasDefinition]
                 androidMain/src/test/pkg/Android.kt:4: error: Exposing typealiases as public API is discouraged. [TypealiasDefinition]
+                nativeMain/src/test/pkg/Native.kt:3: error: Exposing typealiases as public API is discouraged. [TypealiasDefinition]
+                nativeMain/src/test/pkg/Native.kt:4: error: Exposing typealiases as public API is discouraged. [TypealiasDefinition]
                 """,
         )
     }

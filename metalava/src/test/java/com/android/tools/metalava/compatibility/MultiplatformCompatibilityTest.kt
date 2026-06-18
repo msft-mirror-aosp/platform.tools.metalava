@@ -127,8 +127,6 @@ class MultiplatformCompatibilityTest : DriverTest() {
                 // The issue is reported for each source set because all source sets extend common.
                 """
                 MULTIPLATFORM-API-DIR/commonMain.txt:4: error: Source breaking change: Removed constructor test.pkg.Common() [RemovedMethod]
-                MULTIPLATFORM-API-DIR/commonMain.txt:4: error: Source breaking change: Removed constructor test.pkg.Common() [RemovedMethod]
-                MULTIPLATFORM-API-DIR/commonMain.txt:4: error: Source breaking change: Removed constructor test.pkg.Common() [RemovedMethod]
                 """
                     .trimIndent()
         )

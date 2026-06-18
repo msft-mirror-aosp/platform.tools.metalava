@@ -78,7 +78,7 @@ Available Issues                             |  Category                        
   ChangedScope                               |  binary_and_source_compatibility      |   error
   ChangedStatic                              |  binary_and_source_compatibility      |   error
   ChangedSuperclass                          |  binary_and_source_compatibility      |   error
-  ChangedThrows                              |  binary_and_source_compatibility      |   error
+  ChangedThrows                              |  source_compatibility_only            |   error
   ChangedType                                |  binary_and_source_compatibility      |   error
   ChangedValue                               |  binary_compatibility_only            |   error
   ChangedVolatile                            |  other_compatibility                  |   error
@@ -92,8 +92,8 @@ Available Issues                             |  Category                        
   DataClassDefinition                        |  api_lint                             |   hidden
   DefaultValueChange                         |  source_compatibility_only            |   error
   Deprecated                                 |  documentation                        |   hidden
+  DeprecatedSurfaceDocTag                    |  unknown                              |   hidden
   DeprecationMismatch                        |  documentation                        |   error
-  DocumentExceptions                         |  api_lint                             |   error
   DuplicateSourceClass                       |  unknown                              |   warning
   EndsWithImpl                               |  api_lint                             |   error
   Enum                                       |  api_lint                             |   error
@@ -178,6 +178,7 @@ Available Issues                             |  Category                        
   MissingNullability                         |  api_lint                             |   error
   MissingPermission                          |  documentation                        |   error
   MissingRequiredAttribute                   |  api_lint                             |   error
+  MultipleFlagging                           |  api_lint                             |   error
   MultipleThreadAnnotations                  |  documentation                        |   error
   MutableBareField                           |  api_lint                             |   error
   NoByteOrShort                              |  api_lint                             |   warning
@@ -234,7 +235,6 @@ Available Issues                             |  Category                        
   ResourceStyleFieldName                     |  api_lint                             |   error
   ResourceValueFieldName                     |  api_lint                             |   error
   RethrowRemoteException                     |  api_lint                             |   error
-  ReturningUnexpectedConstant                |  unknown                              |   warning
   SamShouldBeLast                            |  api_lint                             |   warning
   SdkConstant                                |  documentation                        |   error
   SealedClassExhaustivityChanged             |  source_compatibility_only            |   error

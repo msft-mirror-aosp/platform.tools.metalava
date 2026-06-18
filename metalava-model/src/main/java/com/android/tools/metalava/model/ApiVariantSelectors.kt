@@ -321,6 +321,8 @@ sealed class ApiVariantSelectors {
             get() =
                 lazyGet(DOCONLY_BIT_MASK) {
                     (item.parent()?.variantSelectors?.docOnly == true) ||
+                        // Check if the item is annotated with a configured doc-only annotation.
+                        item.codebase.annotationManager.hasDocOnlyAnnotation(item) ||
                         item.documentation?.isDocOnly == true
                 }
 
@@ -328,6 +330,8 @@ sealed class ApiVariantSelectors {
             get() =
                 lazyGet(REMOVED_BIT_MASK) {
                     (item.parent()?.variantSelectors?.removed == true) ||
+                        // Check if the item is annotated with a configured removed annotation.
+                        item.codebase.annotationManager.hasRemovedAnnotation(item) ||
                         item.documentation?.isRemoved == true
                 }
             // This is only used for testing.

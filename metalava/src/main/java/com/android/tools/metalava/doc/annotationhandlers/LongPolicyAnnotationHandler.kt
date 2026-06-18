@@ -17,20 +17,14 @@
 package com.android.tools.metalava.doc.annotationhandlers
 
 import com.android.tools.metalava.model.AnnotationItem
-import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.Item
-import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.annotation.binding.bindTo
 import com.android.tools.metalava.reporter.Issues
-import com.android.tools.metalava.reporter.Reporter
-import java.util.function.Predicate
 
 /** Handles @android.processor.devicepolicy.LongPolicyDefinition annotation. */
 class LongPolicyAnnotationHandler(
-    codebase: Codebase,
-    reporter: Reporter,
-    filterReference: Predicate<SelectableItem>
-) : BaseDevicePolicyAnnotationHandler(codebase, reporter, filterReference) {
+    context: DevicePolicyContext,
+) : BaseDevicePolicyAnnotationHandler(context) {
     /** Processes the [LongPolicyDefinitionProxy] and returns the documentation for the policy. */
     override fun processPolicyAnnotation(annotation: AnnotationItem, item: Item): String {
         val proxy = annotation.bindTo<LongPolicyDefinitionProxy>(item)
@@ -51,17 +45,21 @@ data class LongPolicyDefinitionProxy(
     val resolutionMechanism: LongResolutionMechanismProxy,
 ) {
     fun generateDocs() = buildString {
-        append("\n<p>Policy Type: Long</p>\n <ul>\n")
-        append(base.generateDocs())
-        val resolutionMechanismDoc = resolutionMechanism.generateDocs()
-        append("   <li>Resolution Mechanism: $resolutionMechanismDoc</li>\n")
-        append(
-            "   <li>Min Value: ${if (minValue == Long.MIN_VALUE) "No limit" else minValue}</li>\n"
-        )
-        append(
-            "   <li>Max Value: ${if (maxValue == Long.MAX_VALUE) "No limit" else maxValue}</li>\n"
-        )
-        append(" </ul>\n")
+        val tableEntries = buildList {
+            addAll(base.getTableEntries())
+            val resolutionMechanismDoc = resolutionMechanism.generateDocs()
+            if (resolutionMechanismDoc.isNotEmpty()) {
+                add(Pair("Conflict resolution mechanism", resolutionMechanismDoc))
+            }
+            val policyValueValidations = buildList {
+                if (minValue != Long.MIN_VALUE) add("Minimum value $minValue")
+                if (maxValue != Long.MAX_VALUE) add("Maximum value $maxValue")
+            }
+            add(Pair("Policy value", renderPolicyValue("Long", policyValueValidations)))
+        }
+
+        append("\n<p>Policy Type: Long</p>\n")
+        append(renderTable(tableEntries))
     }
 }
 
@@ -78,9 +76,9 @@ data class LongResolutionMechanismProxy(
 ) {
     fun generateDocs() =
         if (custom) {
-            "custom"
+            ""
         } else if (notCoexistable) {
-            "notCoexistable"
+            "This policy can not be set by multiple admins at the same time. When multiple values are set, the resulting behavior is undefined and is monitored to avoid widespread usage."
         } else {
             item.codebase.reporter.report(
                 Issues.INVALID_DEVICE_POLICY_ANNOTATION,

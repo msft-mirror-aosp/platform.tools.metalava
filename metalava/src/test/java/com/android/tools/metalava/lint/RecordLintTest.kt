@@ -85,7 +85,8 @@ class RecordLintTest : DriverTest() {
                             }
                         """
                     ),
-                )
+                ),
+            javaLanguageLevel = "16", // required for records
         )
     }
 
@@ -141,6 +142,7 @@ class RecordLintTest : DriverTest() {
                         """
                     ),
                 ),
+            javaLanguageLevel = "16", // required for records
         )
     }
 
@@ -232,6 +234,7 @@ class RecordLintTest : DriverTest() {
                         """
                     ),
                 ),
+            javaLanguageLevel = "16", // required for records
         )
     }
 
@@ -286,6 +289,7 @@ class RecordLintTest : DriverTest() {
                         """
                     ),
                 ),
+            javaLanguageLevel = "16", // required for records
         )
     }
 }
