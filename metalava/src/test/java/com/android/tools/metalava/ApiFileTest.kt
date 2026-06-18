@@ -2263,68 +2263,72 @@ class ApiFileTest : DriverTest() {
         // package is not marked @hide, but doclava now treats subpackages of a hidden package
         // as also hidden.
         check(
+            apiSurface = KnownApiSurface.PUBLIC,
             sourceFiles =
                 arrayOf(
+                    KnownSourceFiles.hideAnnotation,
+                    KnownSourceFiles.docOnlyAnnotation,
                     java(
                         """
-                    ${"/** @hide hidden package */" /* avoid dangling javadoc warning */}
-                    package test.pkg1;
-                    """
+                            ${"/** @hide hidden package */" /* avoid dangling javadoc warning */}
+                            package test.pkg1;
+                        """
                     ),
                     java(
                         """
-                    package test.pkg1;
-                    @SuppressWarnings("ALL")
-                    public class Foo {
-                        // Hidden by package hide
-                    }
-                    """
+                            package test.pkg1;
+                            @SuppressWarnings("ALL")
+                            public class Foo {
+                                // Hidden by package hide
+                            }
+                        """
                     ),
                     java(
                         """
-                    package test.pkg2;
-                    /** @hide hidden class in this package */
-                    @SuppressWarnings("ALL")
-                    public class Bar {
-                    }
-                    """
+                            package test.pkg2;
+                            /** @hide hidden class in this package */
+                            @SuppressWarnings("ALL")
+                            public class Bar {
+                            }
+                        """
                     ),
                     java(
                         """
-                    package test.pkg2;
-                    /** @doconly hidden class in this package */
-                    @SuppressWarnings("ALL")
-                    public class Baz {
-                    }
-                    """
+                            package test.pkg2;
+                            import android.annotation.DocOnly;
+                            @DocOnly
+                            @SuppressWarnings("ALL")
+                            public class Baz {
+                            }
+                        """
                     ),
                     java(
                         """
-                    package test.pkg1.sub;
-                    // Hidden by @hide in package above
-                    @SuppressWarnings("ALL")
-                    public class Test {
-                    }
-                    """
+                            package test.pkg1.sub;
+                            // Hidden by @hide in package above
+                            @SuppressWarnings("ALL")
+                            public class Test {
+                            }
+                        """
                     ),
                     java(
                         """
-                    package test.pkg3;
-                    // The only really visible class
-                    @SuppressWarnings("ALL")
-                    public class Boo {
-                    }
-                    """
-                    )
+                            package test.pkg3;
+                            // The only really visible class
+                            @SuppressWarnings("ALL")
+                            public class Boo {
+                            }
+                        """
+                    ),
                 ),
             expectedApiSignature =
                 """
-                package test.pkg3 {
-                  public class Boo {
-                    ctor public Boo();
-                  }
-                }
-                """
+                    package test.pkg3 {
+                      public class Boo {
+                        ctor public Boo();
+                      }
+                    }
+                """,
         )
     }
 
