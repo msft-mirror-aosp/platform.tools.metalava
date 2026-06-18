@@ -93,10 +93,10 @@ interface MethodItem : CallableItem, InheritableItem, PossiblyPropertyRelated {
      */
     override fun duplicate(targetContainingClass: ClassItem): MethodItem
 
-    fun findPredicateSuperMethod(predicate: FilterPredicate): MethodItem? {
+    fun findPredicateSuperMethod(predicate: FilterPredicate?): MethodItem? {
         val superMethods = superMethods()
         for (method in superMethods) {
-            if (predicate.test(method)) {
+            if (predicate.testOrTrue(method)) {
                 return method
             }
         }

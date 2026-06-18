@@ -16,11 +16,11 @@
 
 package com.android.tools.metalava.cli.historical
 
+import androidx.tracing.Tracer
 import com.android.SdkConstants
 import com.android.tools.metalava.CodebaseComparator
 import com.android.tools.metalava.ComparisonVisitor
 import com.android.tools.metalava.NullnessMigration
-import com.android.tools.metalava.ProgressTracker
 import com.android.tools.metalava.apilevels.ApiVersion
 import com.android.tools.metalava.apilevels.PatternNode
 import com.android.tools.metalava.cli.common.DefaultSignatureFileLoader
@@ -51,6 +51,7 @@ import com.android.tools.metalava.model.visitors.ApiPredicate
 import com.android.tools.metalava.model.visitors.ApiType
 import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.android.tools.metalava.reporter.BasicReporter
+import com.android.tools.metalava.trace
 import java.io.File
 import java.io.IOException
 import java.io.PrintWriter
@@ -69,7 +70,7 @@ import org.objectweb.asm.tree.MethodNode
 class ConvertJarsToSignatureFiles(
     private val stderr: PrintWriter,
     private val stdout: PrintWriter,
-    private val progressTracker: ProgressTracker,
+    private val tracer: Tracer,
     private val fileFormat: FileFormat,
     private val apiVersions: Set<ApiVersion>?,
     private val apiSurfaces: ApiSurfaces,
@@ -102,7 +103,7 @@ class ConvertJarsToSignatureFiles(
             // then do not convert `public` files.
             for (selectedApiSurface in selectedApiSurfaces) {
                 val surfaceInfo = historicalApi.infoBySurface[selectedApiSurface] ?: continue
-                convertJar(historicalApi.version, surfaceInfo)
+                tracer.trace("convertJar") { convertJar(historicalApi.version, surfaceInfo) }
             }
         }
     }
@@ -114,8 +115,6 @@ class ConvertJarsToSignatureFiles(
     private fun convertJar(version: ApiVersion, surfaceInfo: SurfaceInfo) {
         val jarFile = surfaceInfo.jarFile
         val signatureFile = surfaceInfo.signatureFile
-
-        progressTracker.progress("Writing signature files $signatureFile for $jarFile")
 
         val annotationManager = DefaultAnnotationManager()
         val codebaseConfig =
@@ -185,7 +184,7 @@ class ConvertJarsToSignatureFiles(
                 object : ComparisonVisitor() {
                     override fun compareItems(old: Item, new: Item) {
                         if (old.originallyDeprecated && old !is PackageItem) {
-                            new.deprecateIfRequired("previous signature file for $old")
+                            new.deprecateIfRequired()
                         }
                     }
                 }
@@ -194,17 +193,24 @@ class ConvertJarsToSignatureFiles(
             throw IllegalStateException("Could not load existing signature file: ${e.message}", e)
         }
 
+        val apiPredicateConfig =
+            ApiPredicate.Config(
+                addAdditionalOverrides = fileFormat[ADD_ADDITIONAL_OVERRIDES],
+            )
+        val apiFilters =
+            if (jarCodebase.preFiltered) {
+                // Pre-filtered so does not need any filters.
+                null
+            } else {
+                ApiType.PUBLIC_API.getApiFilters(apiPredicateConfig)
+            }
+
         val jarCodebaseFragment =
             createCodebaseFragmentForSignatureFile(
                 jarCodebase,
                 fileFormat = fileFormat,
-                apiType = ApiType.PUBLIC_API,
-                preFiltered = jarCodebase.preFiltered,
+                apiFilters = apiFilters,
                 showUnannotated = false,
-                apiPredicateConfig =
-                    ApiPredicate.Config(
-                        addAdditionalOverrides = fileFormat[ADD_ADDITIONAL_OVERRIDES],
-                    ),
             )
 
         val extendsInfo = surfaceInfo.extends
@@ -222,16 +228,16 @@ class ConvertJarsToSignatureFiles(
                 )
             }
 
-        createOutputFileFromCodebaseFragment(
-            progressTracker,
-            outputCodebaseFragment,
-            signatureFile,
-            "API"
-        ) { printWriter ->
-            SignatureWriter(
-                writer = printWriter,
-                fileFormat = fileFormat,
-            )
+        tracer.trace("createOutputFileFromCodebaseFragment API") {
+            createOutputFileFromCodebaseFragment(
+                outputCodebaseFragment,
+                signatureFile,
+            ) { printWriter ->
+                SignatureWriter(
+                    writer = printWriter,
+                    fileFormat = fileFormat,
+                )
+            }
         }
     }
 
@@ -280,14 +286,14 @@ class ConvertJarsToSignatureFiles(
             reader = ClassReader(bytes)
             classNode = ClassNode()
             reader.accept(classNode, 0)
-        } catch (t: Throwable) {
+        } catch (_: Throwable) {
             stderr.println("Error processing $path: broken class file?")
             return
         }
 
         if ((classNode.access and Opcodes.ACC_DEPRECATED) != 0) {
             val item = codebase.findClass(classNode, MATCH_ALL)
-            item.deprecateIfRequired("byte code for ${classNode.name}")
+            item.deprecateIfRequired()
         }
 
         val methodList = classNode.methods
@@ -297,7 +303,7 @@ class ConvertJarsToSignatureFiles(
                 continue
             }
             val item = codebase.findMethod(classNode, methodNode, MATCH_ALL)
-            item.deprecateIfRequired("byte code for ${methodNode.name}")
+            item.deprecateIfRequired()
         }
 
         val fieldList = classNode.fields
@@ -307,12 +313,12 @@ class ConvertJarsToSignatureFiles(
                 continue
             }
             val item = codebase.findField(classNode, fieldNode, MATCH_ALL)
-            item.deprecateIfRequired("byte code for ${fieldNode.name}")
+            item.deprecateIfRequired()
         }
     }
 
     /** Mark the [Item] as deprecated if required. */
-    private fun Item?.deprecateIfRequired(source: String) {
+    private fun Item?.deprecateIfRequired() {
         this ?: return
         if (!originallyDeprecated) {
             // Set the deprecated flag in the modifiers which underpins [originallyDeprecated].
@@ -321,7 +327,6 @@ class ConvertJarsToSignatureFiles(
                 // Add a Deprecated annotation to be consistent with model providers.
                 addAnnotation(AnnotationItem.createMarkerAnnotation(codebase, JAVA_LANG_DEPRECATED))
             }
-            progressTracker.progress("Turned deprecation on for $this from $source")
         }
     }
 

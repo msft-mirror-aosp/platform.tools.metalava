@@ -70,7 +70,7 @@ object Issues {
     val CHANGED_SCOPE by Issue(Severity.ERROR, Category.BINARY_AND_SOURCE_COMPATIBILITY)
     val CHANGED_ABSTRACT by Issue(Severity.ERROR, Category.BINARY_AND_SOURCE_COMPATIBILITY)
     val CHANGED_DEFAULT by Issue(Severity.ERROR, Category.BINARY_AND_SOURCE_COMPATIBILITY)
-    val CHANGED_THROWS by Issue(Severity.ERROR, Category.BINARY_AND_SOURCE_COMPATIBILITY)
+    val CHANGED_THROWS by Issue(Severity.ERROR, Category.SOURCE_COMPATIBILITY_ONLY)
     val CHANGED_NATIVE by Issue(Severity.HIDDEN, Category.OTHER_COMPATIBILITY)
     val CHANGED_CLASS by Issue(Severity.ERROR, Category.BINARY_AND_SOURCE_COMPATIBILITY)
     val CHANGED_DEPRECATED by Issue(Severity.HIDDEN, Category.SOURCE_COMPATIBILITY_ONLY)
@@ -158,7 +158,6 @@ object Issues {
     val SUPERFLUOUS_PREFIX by Issue(Severity.WARNING)
     val HIDDEN_TYPEDEF_CONSTANT by Issue(Severity.ERROR)
     val INTERNAL_ERROR by Issue(Severity.ERROR)
-    val RETURNING_UNEXPECTED_CONSTANT by Issue(Severity.WARNING)
     val BOTH_PACKAGE_INFO_AND_HTML by Issue(Severity.WARNING, Category.DOCUMENTATION)
 
     val MISSING_ANNOTATIONS_XML_ITEM by Issue(Severity.HIDDEN, Category.API_LINT)
@@ -172,6 +171,12 @@ object Issues {
     val UNHIDDEN_SYSTEM_API by Issue(Severity.ERROR, Category.API_LINT)
     val HIDDEN_SHOW_ANNOTATION by Issue(Severity.WARNING_ERROR_WHEN_NEW, Category.API_LINT)
     val OVERLAPPING_API_SURFACES by Issue(Severity.WARNING_ERROR_WHEN_NEW, Category.API_LINT)
+
+    // Reported when using @hide doc tag. It is UNKNOWN because it does not fit into any other
+    // category. There is an argument that it should be DOCUMENTATION but that causes issues
+    // downstream as it treats all documentation issues as errors and just because it is the
+    // Javadoc does not mean it is an issue with the documentation.
+    val DEPRECATED_SURFACE_DOC_TAG by Issue(Severity.HIDDEN, Category.UNKNOWN)
 
     val SHOWING_MEMBER_IN_HIDDEN_CLASS by Issue(Severity.ERROR, Category.API_LINT)
     val INVALID_NULLABILITY_ANNOTATION by Issue(Severity.ERROR)
@@ -269,7 +274,6 @@ object Issues {
     val SAM_SHOULD_BE_LAST by Issue(Severity.WARNING, Category.API_LINT)
     val MISSING_JVMSTATIC by Issue(Severity.WARNING, Category.API_LINT)
     val DEFAULT_VALUE_CHANGE by Issue(Severity.ERROR, Category.SOURCE_COMPATIBILITY_ONLY)
-    val DOCUMENT_EXCEPTIONS by Issue(Severity.ERROR, Category.API_LINT)
     val FORBIDDEN_SUPER_CLASS by Issue(Severity.ERROR, Category.API_LINT)
     val MISSING_NULLABILITY by Issue(Severity.ERROR, Category.API_LINT)
     // This issue must be manually enabled
@@ -294,6 +298,7 @@ object Issues {
     val UNFLAGGED_API by Issue(Severity.HIDDEN, Category.API_LINT)
     val FLAGGED_API_LITERAL by Issue(Severity.ERROR, Category.API_LINT)
     val UNEXPORTED_FLAGGED_API by Issue(Severity.WARNING_ERROR_WHEN_NEW, Category.API_LINT)
+    val MULTIPLE_FLAGGING by Issue(Severity.ERROR, Category.API_LINT)
 
     val NO_PREVIOUSLY_RELEASED_API by Issue(Severity.ERROR, Category.API_LINT)
 

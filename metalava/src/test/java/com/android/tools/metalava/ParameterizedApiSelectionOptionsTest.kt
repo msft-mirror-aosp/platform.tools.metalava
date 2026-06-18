@@ -89,6 +89,8 @@ class ParameterizedApiSelectionOptionsTest :
         apiSurfacesConfigWithRules: ApiSurfacesConfig,
         expectedMatcherState: String,
         expectedShowUnannotated: Boolean,
+        expectedConfigUnannotatedSurfaceName: String?,
+        expectedOptionUnannotatedSurfaceName: String? = expectedConfigUnannotatedSurfaceName,
         expectedOptionSurfaceRules: String?,
         expectedConfigSurfaceRules: String,
     ) {
@@ -119,9 +121,16 @@ class ParameterizedApiSelectionOptionsTest :
         }
         runTest(args = combinedArgs.toTypedArray(), optionGroup = optionGroup) {
             val selector = options.apiSurfaceSelector
+            val unannotatedSurfaceName =
+                if (surfaceRuleSource.useOptions) {
+                    expectedOptionUnannotatedSurfaceName
+                } else {
+                    expectedConfigUnannotatedSurfaceName
+                }
             selector.assertState(
                 expectedMatcherState = expectedMatcherState,
                 expectedShowUnannotated = expectedShowUnannotated,
+                expectedUnannotatedSurfaceName = unannotatedSurfaceName,
             )
 
             if (surfaceRuleSource.useOptions) {
@@ -184,6 +193,7 @@ class ParameterizedApiSelectionOptionsTest :
                     )
                 """,
             expectedShowUnannotated = true,
+            expectedOptionUnannotatedSurfaceName = "main",
             expectedOptionSurfaceRules =
                 """
                     ApiSurfaceRules(
@@ -193,6 +203,7 @@ class ParameterizedApiSelectionOptionsTest :
                         }
                     )
                 """,
+            expectedConfigUnannotatedSurfaceName = "public",
             expectedConfigSurfaceRules =
                 """
                     ApiSurfaceRules(
@@ -256,6 +267,7 @@ class ParameterizedApiSelectionOptionsTest :
                     )
                 """,
             expectedShowUnannotated = true,
+            expectedOptionUnannotatedSurfaceName = "main",
             expectedOptionSurfaceRules =
                 """
                     ApiSurfaceRules(
@@ -266,6 +278,7 @@ class ParameterizedApiSelectionOptionsTest :
                         }
                     )
                 """,
+            expectedConfigUnannotatedSurfaceName = "public",
             expectedConfigSurfaceRules =
                 """
                     ApiSurfaceRules(
@@ -341,6 +354,7 @@ class ParameterizedApiSelectionOptionsTest :
                     )
                 """,
             expectedShowUnannotated = false,
+            expectedOptionUnannotatedSurfaceName = "base",
             expectedOptionSurfaceRules =
                 """
                     ApiSurfaceRules(
@@ -353,6 +367,7 @@ class ParameterizedApiSelectionOptionsTest :
                         }
                     )
                 """,
+            expectedConfigUnannotatedSurfaceName = "public",
             expectedConfigSurfaceRules =
                 """
                     ApiSurfaceRules(
@@ -445,6 +460,7 @@ class ParameterizedApiSelectionOptionsTest :
             expectedShowUnannotated = false,
             // Is not supported using command line options.
             expectedOptionSurfaceRules = null,
+            expectedConfigUnannotatedSurfaceName = "public",
             expectedConfigSurfaceRules =
                 """
                     ApiSurfaceRules(
@@ -523,6 +539,7 @@ class ParameterizedApiSelectionOptionsTest :
             expectedShowUnannotated = false,
             // Is not supported using command line options.
             expectedOptionSurfaceRules = null,
+            expectedConfigUnannotatedSurfaceName = "public",
             expectedConfigSurfaceRules =
                 """
                     ApiSurfaceRules(

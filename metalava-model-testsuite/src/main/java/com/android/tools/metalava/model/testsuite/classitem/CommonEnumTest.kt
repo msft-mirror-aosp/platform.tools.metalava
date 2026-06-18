@@ -191,12 +191,12 @@ class CommonEnumTest : BaseModelTest() {
 
             assertEquals(
                 """
-                    MAIN_SRC/src/test/pkg/Bar.java:3 -> field Bar.BAR1
-                    MAIN_SRC/src/test/pkg/Bar.java:4 -> field Bar.BAR2
-                    MAIN_SRC/src/test/pkg/Baz.java:3 -> field Baz.BAZ1
-                    MAIN_SRC/src/test/pkg/Baz.java:4 -> field Baz.BAZ2
-                    MAIN_SRC/src/test/pkg/Foo.java:3 -> field Foo.FOO1
-                    MAIN_SRC/src/test/pkg/Foo.java:4 -> field Foo.FOO2
+                    MAIN_SRC/src/test/pkg/Bar.java:3 -> enum constant test.pkg.Bar.BAR1
+                    MAIN_SRC/src/test/pkg/Bar.java:4 -> enum constant test.pkg.Bar.BAR2
+                    MAIN_SRC/src/test/pkg/Baz.java:3 -> enum constant test.pkg.Baz.BAZ1
+                    MAIN_SRC/src/test/pkg/Baz.java:4 -> enum constant test.pkg.Baz.BAZ2
+                    MAIN_SRC/src/test/pkg/Foo.java:3 -> enum constant test.pkg.Foo.FOO1
+                    MAIN_SRC/src/test/pkg/Foo.java:4 -> enum constant test.pkg.Foo.FOO2
                 """
                     .trimIndent(),
                 removeTestSpecificDirectories(locations.trim())

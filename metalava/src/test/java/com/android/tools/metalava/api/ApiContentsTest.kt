@@ -168,13 +168,13 @@ class ApiContentsTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                    src/test/pkg/Foo.java:3: warning: Field Foo.fieldReferencesHidden1 references hidden type test.pkg.Hidden. [HiddenTypeParameter]
+                    src/test/pkg/Foo.java:3: warning: Field test.pkg.Foo.fieldReferencesHidden1 references hidden type test.pkg.Hidden. [HiddenTypeParameter]
                     src/test/pkg/Foo.java:3: error: Class test.pkg.Hidden is hidden but was referenced (in field type) from public field test.pkg.Foo.fieldReferencesHidden1 [ReferencesHidden]
-                    src/test/pkg/Foo.java:4: warning: Field Foo.fieldReferencesHidden2 references hidden type test.pkg.Hidden. [HiddenTypeParameter]
+                    src/test/pkg/Foo.java:4: warning: Field test.pkg.Foo.fieldReferencesHidden2 references hidden type test.pkg.Hidden. [HiddenTypeParameter]
                     src/test/pkg/Foo.java:4: error: Class test.pkg.Hidden is hidden but was referenced (in field type) from public field test.pkg.Foo.fieldReferencesHidden2 [ReferencesHidden]
-                    src/test/pkg/Foo.java:5: warning: Field Foo.fieldReferencesHidden3 references hidden type test.pkg.Hidden. [HiddenTypeParameter]
+                    src/test/pkg/Foo.java:5: warning: Field test.pkg.Foo.fieldReferencesHidden3 references hidden type test.pkg.Hidden. [HiddenTypeParameter]
                     src/test/pkg/Foo.java:5: error: Class test.pkg.Hidden is hidden but was referenced (in field type) from public field test.pkg.Foo.fieldReferencesHidden3 [ReferencesHidden]
-                    src/test/pkg/Foo.java:6: warning: Field Foo.fieldReferencesHidden4 references hidden type test.pkg.Hidden. [HiddenTypeParameter]
+                    src/test/pkg/Foo.java:6: warning: Field test.pkg.Foo.fieldReferencesHidden4 references hidden type test.pkg.Hidden. [HiddenTypeParameter]
                     src/test/pkg/Foo.java:6: error: Class test.pkg.Hidden is hidden but was referenced (in field type) from public field test.pkg.Foo.fieldReferencesHidden4 [ReferencesHidden]
                 """,
             sourceFiles =
@@ -386,7 +386,6 @@ class ApiContentsTest : DriverTest() {
                 // The `ReferencesHidden` and `UnavailableSymbol` checks look specifically at
                 // methods so the errors are for the getter.
                 """
-                    src/test/pkg/HiddenType.kt:5: warning: Parameter hidden references hidden type test.pkg.HiddenType. [HiddenTypeParameter]
                     src/test/pkg/HiddenType.kt:5: warning: Parameter hidden references hidden type test.pkg.HiddenType. [HiddenTypeParameter]
                     src/test/pkg/HiddenType.kt:5: error: Class test.pkg.HiddenType is hidden but was referenced (in parameter type) from public parameter hidden in test.pkg.Foo.getPropertyWithContext(test.pkg.HiddenType hidden) [ReferencesHidden]
                     src/test/pkg/HiddenType.kt:6: warning: Parameter of unavailable type test.pkg.HiddenType in test.pkg.Foo.getPropertyWithContext() [UnavailableSymbol]

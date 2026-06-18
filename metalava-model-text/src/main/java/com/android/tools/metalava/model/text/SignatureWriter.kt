@@ -58,8 +58,7 @@ import com.android.tools.metalava.model.text.CustomizableProperty.Companion.SORT
 import com.android.tools.metalava.model.text.CustomizableProperty.Companion.STRIP_JAVA_LANG_PREFIX
 import com.android.tools.metalava.model.text.CustomizableProperty.Companion.TYPE_ARGUMENT_SPACING
 import com.android.tools.metalava.model.text.FileFormat.TypeArgumentSpacing
-import com.android.tools.metalava.model.visitors.ApiPredicate
-import com.android.tools.metalava.model.visitors.ApiType
+import com.android.tools.metalava.model.visitors.ApiFilters
 import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.android.tools.metalava.model.visitors.FilteringApiVisitor
 import java.io.PrintWriter
@@ -575,10 +574,8 @@ private fun getInterfacesInOrder(
 fun createCodebaseFragmentForSignatureFile(
     codebase: Codebase,
     fileFormat: FileFormat,
-    apiType: ApiType,
-    preFiltered: Boolean,
+    apiFilters: ApiFilters?,
     showUnannotated: Boolean,
-    apiPredicateConfig: ApiPredicate.Config,
 ) =
     CodebaseFragment.create(
         codebase,
@@ -587,10 +584,8 @@ fun createCodebaseFragmentForSignatureFile(
         createFilteringVisitorForSignatures(
             delegate,
             fileFormat,
-            apiType,
-            preFiltered,
+            apiFilters,
             showUnannotated,
-            apiPredicateConfig,
         )
     }
 
@@ -602,23 +597,17 @@ fun createCodebaseFragmentForSignatureFile(
 private fun createFilteringVisitorForSignatures(
     delegate: DelegatedVisitor,
     fileFormat: FileFormat,
-    apiType: ApiType,
-    preFiltered: Boolean,
+    apiFilters: ApiFilters?,
     showUnannotated: Boolean,
-    apiPredicateConfig: ApiPredicate.Config,
 ): ApiVisitor {
-    val apiFilters = apiType.getApiFilters(apiPredicateConfig)
-
     val (interfaceListSorter, interfaceListComparator) =
         if (fileFormat[SORT_WHOLE_EXTENDS_LIST]) Pair(null, TypeItem.totalComparator)
         else Pair(::getInterfacesInOrder, null)
     return FilteringApiVisitor(
         delegate = delegate,
-        inlineInheritedFields = true,
         interfaceListSorter = interfaceListSorter,
         interfaceListComparator = interfaceListComparator,
         apiFilters = apiFilters,
-        preFiltered = preFiltered,
         showUnannotated = showUnannotated,
     )
 }

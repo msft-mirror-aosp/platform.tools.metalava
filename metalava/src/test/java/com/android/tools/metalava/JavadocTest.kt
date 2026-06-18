@@ -1245,7 +1245,9 @@ class JavadocTest : DriverTest() {
                     src/test/pkg/Foo.java:4: error: Documentation contains '@hide', `@removed` or '@doconly' that is not used as a block tag; that could cause unexpected behavior downstream. [InvalidBlockTagUse]
                     src/test/pkg/Foo.java:9: error: Documentation contains '@hide', `@removed` or '@doconly' that is not used as a block tag; that could cause unexpected behavior downstream. [InvalidBlockTagUse]
                     src/test/pkg/Foo.java:14: error: Documentation contains '@hide', `@removed` or '@doconly' that is not used as a block tag; that could cause unexpected behavior downstream. [InvalidBlockTagUse]
+                    src/test/pkg/Foo.java:15: warning: Cannot use 'hide' as an inline tag (ErrorWhenNew) [InvalidTagForm]
                     src/test/pkg/Foo.java:19: error: Documentation contains '@hide', `@removed` or '@doconly' that is not used as a block tag; that could cause unexpected behavior downstream. [InvalidBlockTagUse]
+                    src/test/pkg/Foo.java:21: warning: Cannot use 'hide' as an inline tag (ErrorWhenNew) [InvalidTagForm]
                 """,
             expectedApiSignature =
                 """
@@ -1379,6 +1381,8 @@ class JavadocTest : DriverTest() {
                                 Documentation contains '@hide', `@removed` or '@doconly' that is not used as a block tag; that could cause unexpected behavior downstream.
                             InvalidBlockTagUse: test.pkg.Foo#qux():
                                 Documentation contains '@hide', `@removed` or '@doconly' that is not used as a block tag; that could cause unexpected behavior downstream.
+                            InvalidTagForm: test/pkg/Foo.java:
+                                Cannot use 'hide' as an inline tag
                         """,
                     silentUpdate = false,
                 ),
@@ -1387,7 +1391,9 @@ class JavadocTest : DriverTest() {
                     src/test/pkg/Foo.java:4: error: Documentation contains '@hide', `@removed` or '@doconly' that is not used as a block tag; that could cause unexpected behavior downstream. [InvalidBlockTagUse]
                     src/test/pkg/Foo.java:9: error: Documentation contains '@hide', `@removed` or '@doconly' that is not used as a block tag; that could cause unexpected behavior downstream. [InvalidBlockTagUse]
                     src/test/pkg/Foo.java:14: error: Documentation contains '@hide', `@removed` or '@doconly' that is not used as a block tag; that could cause unexpected behavior downstream. [InvalidBlockTagUse]
+                    src/test/pkg/Foo.java:15: warning: Cannot use 'hide' as an inline tag (ErrorWhenNew) [InvalidTagForm]
                     src/test/pkg/Foo.java:19: error: Documentation contains '@hide', `@removed` or '@doconly' that is not used as a block tag; that could cause unexpected behavior downstream. [InvalidBlockTagUse]
+                    src/test/pkg/Foo.java:21: warning: Cannot use 'hide' as an inline tag (ErrorWhenNew) [InvalidTagForm]
                 """,
             expectedApiSignature =
                 """

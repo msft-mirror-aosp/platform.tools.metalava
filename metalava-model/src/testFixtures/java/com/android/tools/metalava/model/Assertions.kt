@@ -112,6 +112,7 @@ interface Assertions {
      * Return a dump of the state of [SelectableItem.selectedApiVariants] across this [Codebase].
      */
     private fun Codebase.dumpSelectedApiVariants() = buildString {
+        val apiSurfaces = apiSurfaces
         accept(
             object :
                 BaseItemVisitor(
@@ -121,7 +122,9 @@ interface Assertions {
                 private var indent = ""
 
                 override fun visitSelectableItem(item: SelectableItem) {
-                    append("$indent${item.describe()} - ${item.selectedApiVariants}\n")
+                    append(
+                        "$indent${item.describe()} - ${item.selectedApiVariants.formatFor(apiSurfaces)}\n"
+                    )
                     indent += "  "
                 }
 
