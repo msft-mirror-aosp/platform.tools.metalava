@@ -83,6 +83,12 @@ object KnownConfigFiles {
                                 <annotation-rule pattern="android.annotation.SystemApi(client=android.annotation.SystemApi.Client.MODULE_LIBRARIES)"/>
                             </selection-criteria>
                         </api-surface>
+                        <doc-only>
+                            <annotation-rule pattern="android.annotation.DocOnly"/>
+                        </doc-only>
+                        <removed>
+                            <annotation-rule pattern="android.annotation.RemovedFromApi"/>
+                        </removed>
                     </api-surfaces>
                 </config>
             """

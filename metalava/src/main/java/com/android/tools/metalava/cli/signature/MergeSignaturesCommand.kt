@@ -20,15 +20,14 @@ import com.android.tools.metalava.cli.common.MetalavaSubCommand
 import com.android.tools.metalava.cli.common.cliError
 import com.android.tools.metalava.cli.common.existingFile
 import com.android.tools.metalava.cli.common.newFile
-import com.android.tools.metalava.cli.common.progressTracker
+import com.android.tools.metalava.cli.common.tracer
 import com.android.tools.metalava.createOutputFileFromCodebaseFragment
 import com.android.tools.metalava.model.text.ApiFile
 import com.android.tools.metalava.model.text.ApiParseException
 import com.android.tools.metalava.model.text.SignatureFile
 import com.android.tools.metalava.model.text.SignatureWriter
 import com.android.tools.metalava.model.text.createCodebaseFragmentForSignatureFile
-import com.android.tools.metalava.model.visitors.ApiPredicate
-import com.android.tools.metalava.model.visitors.ApiType
+import com.android.tools.metalava.trace
 import com.github.ajalt.clikt.parameters.arguments.argument
 import com.github.ajalt.clikt.parameters.arguments.multiple
 import com.github.ajalt.clikt.parameters.groups.provideDelegate
@@ -81,26 +80,26 @@ class MergeSignaturesCommand :
         try {
             val codebase = ApiFile.parseApi(SignatureFile.fromFiles(files))
             val fileFormat = signatureFormat.fileFormat
+
             val codebaseFragment =
                 createCodebaseFragmentForSignatureFile(
                     codebase,
                     fileFormat = fileFormat,
-                    apiType = ApiType.ALL,
-                    preFiltered = true,
+                    // Pre-filtered so does not need any filters.
+                    apiFilters = null,
                     showUnannotated = false,
-                    apiPredicateConfig = ApiPredicate.Config(),
                 )
-            createOutputFileFromCodebaseFragment(
-                progressTracker,
-                codebaseFragment,
-                out,
-                description = "Merged file"
-            ) {
-                val fileFormat = signatureFormat.fileFormat
-                SignatureWriter(
-                    writer = it,
-                    fileFormat = fileFormat,
-                )
+            tracer.trace("createOutputFileFromCodebaseFragment merged files") {
+                createOutputFileFromCodebaseFragment(
+                    codebaseFragment,
+                    out,
+                ) {
+                    val fileFormat = signatureFormat.fileFormat
+                    SignatureWriter(
+                        writer = it,
+                        fileFormat = fileFormat,
+                    )
+                }
             }
         } catch (e: ApiParseException) {
             cliError(e.message)

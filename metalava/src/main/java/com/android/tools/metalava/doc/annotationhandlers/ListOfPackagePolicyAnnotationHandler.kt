@@ -17,19 +17,13 @@
 package com.android.tools.metalava.doc.annotationhandlers
 
 import com.android.tools.metalava.model.AnnotationItem
-import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.Item
-import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.annotation.binding.bindTo
-import com.android.tools.metalava.reporter.Reporter
-import java.util.function.Predicate
 
 /** Handles @android.processor.devicepolicy.ListOfPackagePolicyDefinition annotation. */
 class ListOfPackagePolicyAnnotationHandler(
-    codebase: Codebase,
-    reporter: Reporter,
-    filterReference: Predicate<SelectableItem>
-) : BaseDevicePolicyAnnotationHandler(codebase, reporter, filterReference) {
+    context: DevicePolicyContext,
+) : BaseDevicePolicyAnnotationHandler(context) {
     /**
      * Processes the [ListOfPackagePolicyDefinitionProxy] and returns the documentation for the
      * policy.
@@ -48,18 +42,22 @@ data class ListOfPackagePolicyDefinitionProxy(
 ) {
 
     fun generateDocs() = buildString {
-        append("\n<p>Policy Type: List of Package</p>\n <ul>\n")
-        append(base.generateDocs())
+        val tableEntries = buildList {
+            addAll(base.getTableEntries())
 
-        val resMechDocs = resolutionMechanism.generateDocs(base.item)
-        if (resMechDocs.isNotEmpty()) {
-            append("   <li>Resolution Mechanism: $resMechDocs</li>\n")
+            val resMechDocs = resolutionMechanism.generateDocs(base.item)
+            if (resMechDocs.isNotEmpty()) {
+                add(Pair("Conflict resolution mechanism", resMechDocs))
+            }
+
+            val policyValueValidations = buildList {
+                if (maxListLength != Int.MAX_VALUE) add("Length max $maxListLength items")
+                if (!emptyListAllowed) add("No empty list allowed")
+            }
+            add(Pair("Policy value", renderPolicyValue("List<Package>", policyValueValidations)))
         }
 
-        append("   <li>Empty list: ${if (emptyListAllowed) "Allowed" else "Not allowed"}</li>\n")
-        append(
-            "   <li>Max list length: ${if (maxListLength == Int.MAX_VALUE) "No limit" else maxListLength}</li>\n"
-        )
-        append(" </ul>\n")
+        append("\n<p>Policy Type: List of Package</p>\n")
+        append(renderTable(tableEntries))
     }
 }

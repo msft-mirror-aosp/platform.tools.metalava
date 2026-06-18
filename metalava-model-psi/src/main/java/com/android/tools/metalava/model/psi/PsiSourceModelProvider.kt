@@ -32,7 +32,6 @@ internal class PsiSourceModelProvider : SourceModelProvider {
         setOf(
             Capability.JAVA,
             Capability.KOTLIN,
-            Capability.METHOD_BODY,
             Capability.DOCUMENTATION,
             Capability.LOAD_JAR,
             Capability.CLASS_PATH_RESOLVER,

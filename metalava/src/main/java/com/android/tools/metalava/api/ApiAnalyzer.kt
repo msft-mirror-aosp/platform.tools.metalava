@@ -43,6 +43,7 @@ import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.doc.DocContentPredicate
 import com.android.tools.metalava.model.source.SourceParser
 import com.android.tools.metalava.model.source.doc.DocContentPredicates
+import com.android.tools.metalava.model.testOrTrue
 import com.android.tools.metalava.model.value.asString
 import com.android.tools.metalava.model.visitors.ApiPredicate
 import com.android.tools.metalava.model.visitors.ApiVisitor
@@ -209,238 +210,24 @@ class ApiAnalyzer(
             }
     }
 
-    fun generateInheritedStubs(filterEmit: FilterPredicate, filterReference: FilterPredicate) {
-        // When analyzing libraries we may discover some new classes during traversal; these aren't
-        // part of the API but may be super classes or interfaces; these will then be added into the
-        // package class lists, which could trigger a concurrent modification, so create a snapshot
-        // of the class list and iterate over it:
-        val allClasses = packages.allClasses().toList()
-
-        val visited = mutableSetOf<ClassItem>()
-        allClasses.forEach { generateInheritedStubs(it, filterEmit, filterReference, visited) }
-    }
-
-    private fun generateInheritedStubs(
-        cls: ClassItem,
+    /**
+     * Inherit hidden aspects of the API.
+     *
+     * @param filterEmit determines which [SelectableItem] are part of the target API surface.
+     * @param filterReference determines which [SelectableItem]s are part of the target API surface
+     *   or any API surface it extends.
+     */
+    fun inheritHiddenAspects(
         filterEmit: FilterPredicate,
         filterReference: FilterPredicate,
-        visited: MutableSet<ClassItem>,
     ) {
-        // If it is not a class, i.e. an interface, etc., then return.
-        if (!cls.isClass()) return
-
-        // If already visited this class then ignore it. Otherwise, remember that this was visited.
-        if (cls in visited) return
-        visited += cls
-
-        // If it has no super class then ignore it.
-        val superClass = cls.superClass() ?: return
-
-        // If the class is not going to be emitted then do not inherit any methods into it.
-        if (!filterEmit.test(cls)) return
-
-        // Make sure that the super class has inherited the stubs and interfaces.
-        generateInheritedStubs(superClass, filterEmit, filterReference, visited)
-
-        val allSuperClasses = cls.allSuperClasses()
-        val hiddenSuperClasses =
-            allSuperClasses.filter { !filterReference.test(it) && !it.isJavaLangObject() }
-
-        if (hiddenSuperClasses.none()) { // not missing any implementation methods
-            return
-        }
-
-        addInheritedStubsFrom(cls, hiddenSuperClasses, allSuperClasses, filterEmit, filterReference)
-        addInheritedInterfacesFrom(cls, hiddenSuperClasses, filterReference)
-    }
-
-    private fun addInheritedInterfacesFrom(
-        cls: ClassItem,
-        hiddenSuperClasses: Sequence<ClassItem>,
-        filterReference: FilterPredicate
-    ) {
-        var interfaceTypes: MutableList<ClassTypeItem>? = null
-        var interfaceTypeClasses: MutableList<ClassItem>? = null
-        for (hiddenSuperClass in hiddenSuperClasses) {
-            for (hiddenInterface in hiddenSuperClass.interfaceTypes()) {
-                val hiddenInterfaceClass = hiddenInterface.resolveClass(codebase)
-                if (filterReference.test(hiddenInterfaceClass ?: continue)) {
-                    if (interfaceTypes == null) {
-                        interfaceTypes = cls.interfaceTypes().toMutableList()
-                        interfaceTypeClasses =
-                            interfaceTypes.mapNotNull { it.resolveClass(codebase) }.toMutableList()
-                        if (cls.isInterface()) {
-                            cls.superClass()?.let { interfaceTypeClasses.add(it) }
-                        }
-                        cls.setInterfaceTypes(interfaceTypes)
-                    }
-                    if (interfaceTypeClasses!!.any { it == hiddenInterfaceClass }) {
-                        continue
-                    }
-
-                    interfaceTypeClasses.add(hiddenInterfaceClass)
-
-                    if (hiddenInterfaceClass.hasTypeVariables()) {
-                        val mapping = cls.mapTypeVariables(hiddenSuperClass)
-                        if (mapping.isNotEmpty()) {
-                            val mappedType = hiddenInterface.convertType(mapping)
-                            interfaceTypes.add(mappedType)
-                            continue
-                        }
-                    }
-
-                    interfaceTypes.add(hiddenInterface)
-                }
-            }
-        }
-    }
-
-    private fun addInheritedStubsFrom(
-        cls: ClassItem,
-        hiddenSuperClasses: Sequence<ClassItem>,
-        superClasses: Sequence<ClassItem>,
-        filterEmit: FilterPredicate,
-        filterReference: FilterPredicate
-    ) {
-        // Also generate stubs for any methods we would have inherited from abstract parents
-        // All methods from super classes that (1) aren't overridden in this class already, and
-        // (2) are overriding some method that is in a public interface accessible from this class.
-        val interfaces = cls.allInterfaceTypes(filterReference).toSet()
-
-        // Note that we can't just call method.superMethods() to and see whether any of their
-        // containing classes are among our target APIs because it's possible that the super class
-        // doesn't actually implement the interface, but still provides a matching signature for the
-        // interface. Instead, we'll look through all of our interface methods and look for
-        // potential overrides.
-        val inheritableMethods = MethodItemSet()
-        for (interfaceType in interfaces) {
-            val interfaceClass = interfaceType.resolveClass(codebase) ?: continue
-            for (method in interfaceClass.methods()) {
-                inheritableMethods.add(method)
-            }
-        }
-
-        // Also add in any abstract methods from public super classes
-        val publicSuperClasses =
-            superClasses.filter { filterEmit.test(it) && !it.isJavaLangObject() }
-        for (superClass in publicSuperClasses) {
-            for (method in superClass.methods()) {
-                if (!method.modifiers.isAbstract() || !method.modifiers.isPublicOrProtected()) {
-                    continue
-                }
-                inheritableMethods.add(method)
-            }
-        }
-
-        // Also add in any concrete public methods from hidden super classes
-        for (superClass in hiddenSuperClasses) {
-            // Determine if there is a non-hidden class between the superClass and this class.
-            // If non-hidden classes are found, don't include the methods for this hiddenSuperClass,
-            // as it will already have been included in a previous super class
-            val includeHiddenSuperClassMethods =
-                !cls.allSuperClasses()
-                    // Search from this class up to, but not including the superClass.
-                    .takeWhile { currentClass -> currentClass != superClass }
-                    // Find any class that is not hidden.
-                    .any { currentClass -> !hiddenSuperClasses.contains(currentClass) }
-
-            if (!includeHiddenSuperClassMethods) {
-                continue
-            }
-
-            for (method in superClass.methods()) {
-                if (method.modifiers.isAbstract() || !method.modifiers.isPublic()) {
-                    continue
-                }
-
-                if (method.hasHiddenType(filterReference)) {
-                    continue
-                }
-
-                inheritableMethods.add(method)
-            }
-        }
-
-        // Find all methods that are inherited from these classes into our class (making sure that
-        // we don't have duplicates, e.g. a method defined by one inherited class and then
-        // overridden by another closer one). map from method name to super methods overriding our
-        // interfaces
-        val inheritedMethods = MethodItemSet()
-
-        for (superClass in hiddenSuperClasses) {
-            for (method in superClass.methods()) {
-                val modifiers = method.modifiers
-                if (!modifiers.isPrivate() && !modifiers.isAbstract()) {
-                    if (inheritableMethods.containsMatchingMethod(method)) {
-                        inheritedMethods.add(method)
-                    }
-                }
-            }
-        }
-
-        // Remove any methods that are overriding any of our existing methods
-        for (method in cls.methods()) {
-            inheritedMethods.removeMatchingMethods(method)
-        }
-
-        // Next remove any overrides among the remaining super methods (e.g. one method from a
-        // hidden parent is overriding another method from a more distant hidden parent).
-        inheritedMethods.values.forEach { methods ->
-            if (methods.size >= 2) {
-                for (candidate in ArrayList(methods)) {
-                    for (superMethod in candidate.allSuperMethods()) {
-                        methods.remove(superMethod)
-                    }
-                }
-            }
-        }
-
-        // Add all the existing methods in the class to the set of existing methods.
-        val existingMethods = MethodItemSet()
-        for (method in cls.methods()) {
-            existingMethods.add(method)
-        }
-
-        // We're now left with concrete methods in hidden parents that are implementing methods in
-        // public interfaces that are listed in this class. Create stubs for them:
-        inheritedMethods.values.flatten().forEach {
-            // Copy the method from the hidden class that is not part of the API into the class that
-            // is part of the API.
-            val method = it.duplicate(cls)
-            /* Insert comment marker: This is useful for debugging purposes but doesn't
-               belong in the stub
-            method.documentation = "// Inlined stub from hidden parent class ${it.containingClass().qualifiedName()}\n" +
-                    method.documentation
-             */
-
-            // If we already have an override of this method, do not add it to the methods list
-            if (existingMethods.containsMatchingMethod(method)) {
-                return@forEach
-            }
-
-            val runtimeDesc = it.internalDesc()
-            val stubDesc = method.internalDesc()
-            if (filterEmit.test(method) && runtimeDesc != stubDesc) {
-                // This is problematic primarily for the platform where we use stubs, and the
-                // generated method in the android.jar won't actually exist at runtime.
-                // While we don't use stubs in AndroidX, this can still cause compat issues because
-                // the current.txt (which will show the equivalent of stubDesc) won't actually match
-                // the ABI of the library (because call sites will reference runtimeDesc).
-                reporter.report(
-                    Issues.INHERIT_CHANGES_SIGNATURE,
-                    it,
-                    "Explicitly override $it in $cls, or hide it in ${it.containingClass()};" +
-                        " it cannot be implicitly inherited as API from the hidden super class" +
-                        " because that would change its erased signature from $runtimeDesc to" +
-                        " $stubDesc, and cause failures at runtime.",
-                )
-            }
-
-            cls.addMethod(method)
-
-            // Make sure that the same method is not added from multiple super classes.
-            existingMethods.add(method)
-        }
+        val hiddenAspectsInheritor =
+            HiddenAspectsInheritor(
+                codebase,
+                filterEmit,
+                filterReference,
+            )
+        hiddenAspectsInheritor.inheritHiddenAspects()
     }
 
     /** Apply package filters listed in [Config.skipEmitPackages] */
@@ -702,7 +489,7 @@ class ApiAnalyzer(
                             override fun visitClassType(classType: ClassTypeItem) {
                                 val cls = classType.resolveClass(codebase) ?: return
                                 if (
-                                    !filterReference.test(cls) &&
+                                    !filterReference.testOrTrue(cls) &&
                                         cls.origin != ClassOrigin.CLASS_PATH
                                 ) {
                                     reporter.report(
@@ -955,67 +742,12 @@ private fun SelectableItem.documentationContainsDeprecated(): Boolean {
     return false
 }
 
-/**
- * Check for an `inheritDoc`.
- *
- * Strictly speaking it should not check for a block `inheritDoc` but the previous code would match
- * that and there is some code downstream which uses that.
- *
- * TODO(b/450228132): Remove check for block tag.
- */
+/** Check for an `inheritDoc`. */
 private fun ItemDocumentation.containsInheritDocTag(): Boolean =
-    hasBlockTagOfType("inheritDoc") || check(CONTAINS_INHERIT_DOC_TAG_PREDICATE)
+    check(CONTAINS_INHERIT_DOC_TAG_PREDICATE)
 
 /**
  * A [DocContentPredicate] that will check for the presence of `{@inheritDoc}` in the documentation.
  */
 private val CONTAINS_INHERIT_DOC_TAG_PREDICATE =
     DocContentPredicates.containsInlineTag("inheritDoc")
-
-/**
- * A set of [MethodItem]s.
- *
- * This is implemented as a [MutableMap] from the [MethodItem.name] to the list of [MethodItem]s
- * with that name.
- */
-private typealias MethodItemSet = HashMap<String, MutableList<MethodItem>>
-
-/**
- * Add a method to the set.
- *
- * This does not check to see if the [MethodItem] exists already so it is possible that it will
- * contain duplicate methods.
- */
-private fun MethodItemSet.add(method: MethodItem) {
-    val name = method.name()
-    val list = computeIfAbsent(name) { mutableListOf() }
-    list.add(method)
-}
-
-/**
- * Check to see whether the set contains a method that matches [method] as determined by
- * [MethodItem.matches].
- */
-private fun MethodItemSet.containsMatchingMethod(method: MethodItem): Boolean {
-    val name = method.name()
-    val list = this[name] ?: return false
-    for (existing in list) {
-        if (method.matches(existing)) {
-            return true
-        }
-    }
-    return false
-}
-
-/** Remove any method that matches [method] as determined by [MethodItem.matches]. */
-private fun MethodItemSet.removeMatchingMethods(method: MethodItem) {
-    val name = method.name()
-    val list = this[name] ?: return
-    val iterator = list.listIterator()
-    while (iterator.hasNext()) {
-        val existing = iterator.next()
-        if (method.matches(existing)) {
-            iterator.remove()
-        }
-    }
-}

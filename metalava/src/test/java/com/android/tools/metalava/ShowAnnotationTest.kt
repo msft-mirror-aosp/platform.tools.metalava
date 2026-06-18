@@ -224,9 +224,6 @@ class ShowAnnotationTest : DriverTest() {
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class MyChild extends test.pkg1.MyParent {
                     public MyChild() { throw new RuntimeException("Stub!"); }
-                    public static final long CONSTANT1 = 12345L;
-                    public static final long CONSTANT2 = 67890L;
-                    public static final long CONSTANT3 = 42L;
                     }
                     """
                     ),

@@ -37,22 +37,36 @@ class ApiSurfaceSelector(
     /** True if this has any annotations that can hide a [SelectableItem] from the public API. */
     val hasAnyHideAnnotations: Boolean
 
+    /** True if this has any annotations that mark a [SelectableItem] as doc-only. */
+    val hasAnyDocOnlyAnnotations: Boolean
+
+    /** True if this has any annotations that mark a [SelectableItem] as removed. */
+    val hasAnyRemovedAnnotations: Boolean
+
     /**
      * Associates an annotation pattern, e.g. `--show-annotation android.annotation.TestApi` with
      * its [SurfaceAnnotationData].
      */
     internal val matcher: AnnotationMatcher<SurfaceAnnotationData>
 
+    /**
+     * The optional [ApiSurface] that contains any items that are not annotated or contained within
+     * another item that is annotated with a surface annotation.
+     */
+    val unannotatedApiSurface: ApiSurface?
+
     init {
         var unannotatedSurface: ApiSurface? = null
         var hasShowForStubs = false
         var hasHideAnnotations = false
+        var hasDocOnlyAnnotations = false
+        var hasRemovedAnnotations = false
 
         val matcherRules = buildList {
             fun addMatcherRule(
-                surface: ApiSurface,
+                surface: ApiSurface?,
                 annotated: SelectAnnotated,
-                showability: Showability,
+                showability: Showability?,
             ) {
                 add(
                     AnnotationMatcher.Rule(
@@ -60,7 +74,7 @@ class ApiSurfaceSelector(
                         SurfaceAnnotationData(
                             showability,
                             surface,
-                            annotated.effect == Effect.SHOW,
+                            annotated.effect,
                             annotated.recursive,
                         )
                     )
@@ -107,9 +121,36 @@ class ApiSurfaceSelector(
                                 hasShowForStubs = true
                                 addMatcherRule(surface, rule, SHOW_FOR_STUBS)
                             }
+                        } else {
+                            error("Unsupported effect $effect in surface $rule")
                         }
                     }
                 }
+            }
+
+            // Register variant rules (e.g. doc-only) which are not bound to a specific API surface
+            // but affect visibility variants of the items.
+            for (rule in apiSurfaceRules.variantRules) {
+                if (rule !is SelectAnnotated) {
+                    error("$rule is not a SelectAnnotated")
+                }
+
+                val effect = rule.effect
+                when (effect) {
+                    Effect.DOC_ONLY -> {
+                        hasDocOnlyAnnotations = true
+                    }
+                    Effect.REMOVED -> {
+                        hasRemovedAnnotations = true
+                    }
+                    else -> {
+                        error("Unsupported effect $effect in variant $rule")
+                    }
+                }
+
+                // Variant type rules are orthogonal to rules that determine whether an item is in
+                // a specific surface or its showability so provide null for both.
+                addMatcherRule(surface = null, rule, showability = null)
             }
         }
 
@@ -122,11 +163,17 @@ class ApiSurfaceSelector(
         showUnannotated = unannotatedSurface?.isMain == true
 
         hasAnyHideAnnotations = hasHideAnnotations
+        hasAnyDocOnlyAnnotations = hasDocOnlyAnnotations
+        hasAnyRemovedAnnotations = hasRemovedAnnotations
         hasAnyShowForStubPurposesAnnotations = hasShowForStubs
+        unannotatedApiSurface = unannotatedSurface
     }
 
     /** The qualified names of all annotations that can affect API surface selection. */
     val annotationNames = matcher.annotationNames
+
+    /** The [ApiSurfaces] this selects between. */
+    val apiSurfaces = apiSurfaceRules.apiSurfaces
 
     /**
      * Compute the [SurfaceAnnotationData] for [annotationItem], returns `null` if [annotationItem]
@@ -189,23 +236,26 @@ class ApiSurfaceSelector(
             Comparator.comparing { it.annotationPattern }
 
         /**
-         * Comparator that sors [AnnotationMatcher.Rule] by [Showability] then reverse order of
+         * Comparator that sorts [AnnotationMatcher.Rule] by [Showability] then reverse order of
          * [patternComparator]
          */
         private val comparator =
-            // First sort so that HIDE is last. That is because SHOW overrides HIDE.
-            Comparator.comparing<AnnotationMatcher.Rule<SurfaceAnnotationData>, Boolean> {
-                    !it.result.show
+            // First sort by [Effect] so that SHOW comes before HIDE because SHOW overrides HIDE.
+            Comparator.comparing<AnnotationMatcher.Rule<SurfaceAnnotationData>, Effect> {
+                    it.result.effect
                 }
                 // Then make sure that a rule that matches the main surface comes before any other
                 // surface.
-                .thenComparing { !it.result.surface.isMain }
+                .thenComparing { it.result.surface?.isMain != true }
                 // Then make sure that recursive rules come before non-recursive rules.
                 .thenComparing { !it.result.recursive }
                 // Finally, sort from longest (most specific pattern) to shortest. That is because a
                 // longer more specific pattern should be matched before a shorter, less specific
                 // one.
                 .thenDescending(patternComparator)
+
+        /** Default instance of an [ApiSurfaceSelector]. */
+        internal val DEFAULT = ApiSurfaceSelector()
     }
 }
 
@@ -213,6 +263,7 @@ class ApiSurfaceSelector(
 class ApiSurfaceRules(
     val apiSurfaces: ApiSurfaces,
     private val byName: Map<String, List<SurfaceSelectionRule>>,
+    internal val variantRules: List<SurfaceSelectionRule> = emptyList(),
 ) {
     operator fun get(surfaceName: String) = byName[surfaceName]
 
@@ -230,6 +281,56 @@ class ApiSurfaceRules(
             append("    }\n")
         }
         append(")")
+    }
+
+    /**
+     * Retarget these rules at [surface].
+     *
+     * This takes this set of rules and then rewrites them to target [surface] which must be one of
+     * the surfaces in [apiSurfaces]. That involves dropping any surfaces that extend [surface] and
+     * treating any of their rules as [Effect.HIDE].
+     *
+     * Useful for testing as a single set of [apiSurfaces] and rules [byName] can be used for
+     * multiple tests targeting different surfaces.
+     */
+    fun retargetAt(surface: String): ApiSurfaceRules {
+        val selectedSurface = apiSurfaces.byName[surface]!!
+        val subSurfaces =
+            ApiSurfaces.build {
+                val subset = selectedSurface.includedSurfaces
+                for (s in subset) {
+                    createSurface(s.name, extends = s.extends?.name, isMain = s === selectedSurface)
+                }
+            }
+
+        val extraHideRules =
+            byName.flatMap { (name, rules) ->
+                if (name in subSurfaces.byName) emptyList()
+                else
+                    rules.filterIsInstance<SelectAnnotated>().map { rule ->
+                        SurfaceSelectionRule.createAnnotationRule(
+                            rule.annotationPattern,
+                            effect = Effect.HIDE,
+                            rule.recursive
+                        )
+                    }
+            }
+
+        val subsetRules =
+            byName
+                .mapNotNull { (name, rules) ->
+                    val surface = subSurfaces.byName[name]
+                    if (surface == null) {
+                        null
+                    } else if (surface.extends == null) {
+                        name to rules + extraHideRules
+                    } else {
+                        name to rules
+                    }
+                }
+                .toMap()
+
+        return ApiSurfaceRules(apiSurfaces, subsetRules)
     }
 
     companion object {
@@ -278,6 +379,12 @@ sealed interface SurfaceSelectionRule {
          * This must only be used on the narrowest [ApiSurface].
          */
         HIDE,
+
+        /** The annotated item will be included in doc-only stubs, but omitted from normal stubs. */
+        DOC_ONLY,
+
+        /** The annotated item will be considered removed. */
+        REMOVED,
     }
 
     companion object {
@@ -332,20 +439,17 @@ private data class SelectAnnotated(
  */
 data class SurfaceAnnotationData(
     /** The [Showability] of the [AnnotationItem]. */
-    val showability: Showability,
+    val showability: Showability?,
 
-    /** The [ApiSurface] to which the annotation applies. */
-    val surface: ApiSurface,
+    /** The [ApiSurface] to which the annotation applies, if any. */
+    val surface: ApiSurface?,
 
-    /**
-     * True if an item annotated with the annotation is shown in the [surface], false if it is
-     * hidden from the [surface].
-     */
-    val show: Boolean,
+    /** The [Effect] that this annotation has on the annotated item. */
+    val effect: Effect,
 
     /**
-     * True if [show] applies to the contents of the annotated item, false if it only applies to the
-     * item itself.
+     * True if [effect] applies to the contents of the annotated item, false if it only applies to
+     * the item itself.
      */
     val recursive: Boolean,
 ) {
@@ -353,7 +457,7 @@ data class SurfaceAnnotationData(
      * The [ApiSurface], if any, to which an annotated item will belong, ignoring the effects of
      * flags.
      */
-    val showSurface = surface.takeIf { show }
+    val showSurface = surface.takeIf { effect == Effect.SHOW }
 
     override fun toString() = showability.toString()
 }
