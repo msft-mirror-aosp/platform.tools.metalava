@@ -204,6 +204,7 @@ class MultiplatformLintTest : DriverTest() {
             expectedIssues =
                 """
                 commonMain/src/test/pkg/Foo.kt:3: error: multiplatform method test.pkg.Foo#foo() has different visibilities in different source sets: internal in [commonMain], public in [androidMain], protected in [nativeMain] [KmpVisibilityMismatch]
+                nativeMain/src/test/pkg/Foo_native.kt:3: error: Protected methods not allowed; must be public: method test.pkg.Foo.foo()} [ProtectedMember]
                 """,
         )
     }
@@ -524,6 +525,7 @@ class MultiplatformLintTest : DriverTest() {
             expectedIssues =
                 """
                 commonMain/src/test/pkg/Foo.kt:3: error: multiplatform method test.pkg.Foo#plus(test.pkg.Foo) is operator in source sets [androidMain] but not operator in source sets [commonMain, nativeMain] [KmpModifierMismatch]
+                nativeMain/src/test/pkg/Foo_native.kt:3: info: Note that adding the `operator` keyword would allow calling this method using operator syntax [KotlinOperator]
                 """
         )
     }
@@ -796,6 +798,7 @@ class MultiplatformLintTest : DriverTest() {
                 androidMain/src/test/pkg/clashingBadClassName.kt:2: error: multiplatform class test.pkg.clashingBadClassName is not an expect/actual and is defined with the same signature in unrelated source sets ([androidMain, nativeMain]) [KmpSignatureClash]
                 androidMain/src/test/pkg/clashingBadClassName.kt:2: error: Class must start with uppercase char: clashingBadClassName [StartWithUpper]
                 commonMain/src/test/pkg/commonBadClassName.kt:2: error: Class must start with uppercase char: commonBadClassName [StartWithUpper]
+                nativeMain/src/test/pkg/clashingBadClassName.kt:2: error: Class must start with uppercase char: clashingBadClassName [StartWithUpper]
                 nativeMain/src/test/pkg/nativeBadClassName.kt:2: error: Class must start with uppercase char: nativeBadClassName [StartWithUpper]
                 """,
         )

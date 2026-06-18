@@ -226,6 +226,18 @@ class DefaultReporter(
         // also sorted in the same order as that is called after this.
         reports.sortWith(reportComparator)
 
+        // Remove duplicates from the sorted list.
+        var previous: Report? = null
+        val reportIterator = reports.iterator()
+        while (reportIterator.hasNext()) {
+            val report = reportIterator.next()
+            if (report == previous) {
+                reportIterator.remove()
+            } else {
+                previous = report
+            }
+        }
+
         // Print out all the save reports.
         for (report in reports) {
             val formattedMessage = config.outputReportFormatter.format(report)

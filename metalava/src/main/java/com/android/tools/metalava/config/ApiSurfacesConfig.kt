@@ -17,9 +17,11 @@
 package com.android.tools.metalava.config
 
 import com.android.tools.metalava.model.api.surface.ApiSurface
+import com.android.tools.metalava.model.api.surface.ApiVariantType
 import com.fasterxml.jackson.annotation.JsonIgnore
 import com.fasterxml.jackson.annotation.JsonValue
 import com.fasterxml.jackson.dataformat.xml.annotation.JacksonXmlProperty
+import kotlin.collections.plus
 
 // Neither Kotlin nor Java has an interface for an ordered collection of unique elements, i.e. an
 // ordered set. However, the standard Kotlin [Set] and [MutableSet] as returned by [setOf],
@@ -48,11 +50,29 @@ typealias MutableOrderedSet<E> = MutableSet<E>
 data class ApiSurfacesConfig(
     @field:JacksonXmlProperty(localName = "api-surface", namespace = CONFIG_NAMESPACE)
     val apiSurfaceList: List<ApiSurfaceConfig> = emptyList(),
+
+    /**
+     * Specifies the annotation patterns that determine if an item is a member of
+     * [ApiVariantType.DOC_ONLY].
+     */
+    @field:JacksonXmlProperty(localName = "doc-only", namespace = CONFIG_NAMESPACE)
+    val docOnly: ApiVariantTypeRuleConfig? = null,
+
+    /**
+     * Specifies the annotation patterns that determine if an item is a member of
+     * [ApiVariantType.REMOVED].
+     */
+    @field:JacksonXmlProperty(localName = "removed", namespace = CONFIG_NAMESPACE)
+    val removed: ApiVariantTypeRuleConfig? = null,
 ) : CombinableConfig<ApiSurfacesConfig> {
 
     /** Combine with another [ApiSurfacesConfig] by concatenating the [apiSurfaceList]s. */
     override fun combineWith(other: ApiSurfacesConfig) =
-        ApiSurfacesConfig(apiSurfaceList + other.apiSurfaceList)
+        ApiSurfacesConfig(
+            apiSurfaceList + other.apiSurfaceList,
+            docOnly = combine(docOnly, other.docOnly),
+            removed = combine(removed, other.removed),
+        )
 
     /**
      * Map of [ApiSurfaceConfig]s by [ApiSurfaceConfig.name].
@@ -325,4 +345,29 @@ data class AnnotationRuleConfig(
 
     /** Determines if [effect] also applies to an annotated item's enclosed items or not. */
     @field:JacksonXmlProperty(isAttribute = true) val recursive: Boolean = true,
+)
+
+/**
+ * Contains patterns that are used to select an API variant type, e.g. [ApiVariantType.DOC_ONLY].
+ *
+ * The [ApiVariantType] is determined by the [ApiSurfacesConfig] field that references this.
+ */
+data class ApiVariantTypeRuleConfig(
+    /** Rules that determine what effect an annotation has on its annotated item. */
+    @field:JacksonXmlProperty(localName = "annotation-rule", namespace = CONFIG_NAMESPACE)
+    val annotationRules: List<AnnotationPatternRuleConfig> = emptyList(),
+) : CombinableConfig<ApiVariantTypeRuleConfig> {
+    /** Combine with another [ApiVariantTypeRuleConfig] by concatenating the [annotationRules]s. */
+    override fun combineWith(other: ApiVariantTypeRuleConfig) =
+        ApiVariantTypeRuleConfig(annotationRules + other.annotationRules)
+}
+
+/**
+ * A rule that specifies an annotation pattern.
+ *
+ * Its effect is determined by the [ApiSurfacesConfig] field that references this.
+ */
+data class AnnotationPatternRuleConfig(
+    /** Determines which annotation instances are matched by this rule. */
+    @field:JacksonXmlProperty(isAttribute = true) val pattern: String,
 )

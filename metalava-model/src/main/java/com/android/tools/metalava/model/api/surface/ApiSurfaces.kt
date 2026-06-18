@@ -37,9 +37,6 @@ sealed interface ApiSurfaces {
     /** The optional base [ApiSurface]. */
     val base: ApiSurface?
 
-    /** An immutable, empty set of variants. */
-    val emptyVariantSet: ApiVariantSet
-
     /** Map from [ApiSurface.name] to [ApiSurface]. */
     val byName: Map<String, ApiSurface>
 
@@ -84,6 +81,18 @@ sealed interface ApiSurfaces {
          * Includes [main] but not [base].
          */
         val DEFAULT = create()
+    }
+
+    /** Create an [ApiVariantSet] from a vararg array of [variants]. */
+    fun createVariantSet(vararg variants: ApiVariant) = createVariantSet(variants.asList())
+
+    /** Create an [ApiVariantSet] from a list of [variants]. */
+    fun createVariantSet(variants: List<ApiVariant>) = let {
+        var result = ApiVariantSet.EMPTY
+        for (variant in variants) {
+            result += variant
+        }
+        result
     }
 
     /**
@@ -139,8 +148,6 @@ private class DefaultApiSurfaces(initializer: ApiSurfaces.Builder.() -> Unit) : 
 
         byName = all.associateBy { it.name }
     }
-
-    override val emptyVariantSet: ApiVariantSet = ApiVariantSet.emptySet(this)
 
     /** Provides support for initializing [apiSurfaces] by implementing [ApiSurfaces.Builder]. */
     private class BuilderImpl(private val apiSurfaces: DefaultApiSurfaces) : ApiSurfaces.Builder {
@@ -237,11 +244,15 @@ private class DefaultApiSurface(
 
     override val variantSet =
         // Create an ApiVariantSet that contains all ApiVariants in this surface.
-        ApiVariantSet.build(surfaces) {
-            for (variant in variants) {
-                add(variant)
-            }
-        }
+        surfaces.createVariantSet(variants)
+
+    override val defaultVariantSet =
+        // Create an ApiVariantSet that contains all default ApiVariants in this surface.
+        surfaces.createVariantSet(variants.filter { it.type.isDefault })
+
+    override val narrowerSurfaces: Set<ApiSurface> = extends?.includedSurfaces ?: emptySet()
+
+    override val includedSurfaces = narrowerSurfaces + this
 
     override fun variantFor(type: ApiVariantType): ApiVariant {
         return variants[type.ordinal]

@@ -16,105 +16,10 @@
 
 package com.android.tools.metalava.doc.annotationhandlers
 
-import com.android.tools.metalava.model.AnnotationItem
-import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
-import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.annotation.binding.bindTo
 import com.android.tools.metalava.reporter.Issues
-import com.android.tools.metalava.reporter.Reporter
-import java.util.function.Predicate
-
-/** Handles {@link android.processor.devicepolicy.PolicyDefinition} annotation. */
-class PolicyDefinitionAnnotationHandler(
-    codebase: Codebase,
-    reporter: Reporter,
-    filterReference: Predicate<SelectableItem>
-) : BaseDevicePolicyAnnotationHandler(codebase, reporter, filterReference) {
-
-    /** Processes a policy annotation and returns a documentation string. */
-    override fun processPolicyAnnotation(annotation: AnnotationItem, item: Item): String {
-        val proxy = annotation.bindTo<PolicyDefinitionProxy>(item)
-        return proxy?.generateDocs() ?: ""
-    }
-}
-
-enum class AllowedDpcType(
-    val description: String,
-    val isAllowed: AllowedDpcTypesProxy.() -> Boolean,
-) {
-    DEVICE_OWNER(
-        description = "Device Owner",
-        isAllowed = { deviceOwner == AllowedDpcTypesProxy.DPC_ANNOTATION_ALLOWED },
-    ),
-    MANAGED_PROFILE_OWNER_OF_ORGANIZATION_OWNED_DEVICE(
-        description = "Managed Profile Owner (Of Organization Owned Device)",
-        isAllowed = {
-            managedProfileOwnerOfOrganizationOwnedDevice ==
-                AllowedDpcTypesProxy.DPC_ANNOTATION_ALLOWED
-        },
-    ),
-    MANAGED_PROFILE_OWNER_OF_PERSONAL_OWNED_DEVICE(
-        description = "Managed Profile Owner (Of Personally Owned Device)",
-        isAllowed = {
-            managedProfileOwnerOfPersonalOwnedDevice == AllowedDpcTypesProxy.DPC_ANNOTATION_ALLOWED
-        },
-    ),
-    UNAFFILIATED_FULL_USER_PROFILE_OWNER(
-        description = "Unaffiliated Full User Profile Owner",
-        isAllowed = { fullUserProfileOwner == AllowedDpcTypesProxy.DPC_ANNOTATION_ALLOWED },
-    ),
-    FINANCED_DEVICE_OWNER(
-        description = "Financed Device Owner",
-        isAllowed = { financedDeviceOwner == AllowedDpcTypesProxy.DPC_ANNOTATION_ALLOWED },
-    ),
-    PROFILE_OWNER_ON_USER_0(
-        description = "Profile Owner on User 0",
-        isAllowed = { profileOwnerOnUser0 == AllowedDpcTypesProxy.DPC_ANNOTATION_ALLOWED },
-    ),
-    AFFILIATED_FULL_USER_PROFILE_OWNER(
-        description = "Affiliated Full User Profile Owner",
-        isAllowed = {
-            fullUserProfileOwner == AllowedDpcTypesProxy.DPC_ANNOTATION_ALLOWED ||
-                fullUserProfileOwner == AllowedDpcTypesProxy.DPC_ANNOTATION_ALLOWED_WHEN_AFFILIATED
-        },
-    ),
-}
-
-class AllowedDpcTypesProxy(
-    val deviceOwner: Int,
-    val managedProfileOwnerOfOrganizationOwnedDevice: Int,
-    val managedProfileOwnerOfPersonalOwnedDevice: Int,
-    val fullUserProfileOwner: Int,
-    val financedDeviceOwner: Int,
-    val profileOwnerOnUser0: Int,
-) {
-    fun generateDocs(): String {
-        val dpcTypes =
-            AllowedDpcType.entries.mapNotNull {
-                if (it.isAllowed(this)) {
-                    it.description
-                } else {
-                    null
-                }
-            }
-
-        if (dpcTypes.isEmpty()) return ""
-
-        return buildString {
-            append("   <li>Allowed DPC Types: \n    <ul>\n")
-            dpcTypes.joinTo(this, separator = "") { "       <li>$it</li>\n" }
-            append("     </ul>\n   </li>\n")
-        }
-    }
-
-    companion object {
-        const val DPC_ANNOTATION_ALLOWED = 1
-        const val DPC_ANNOTATION_DISALLOWED = 2
-        const val DPC_ANNOTATION_ALLOWED_WHEN_AFFILIATED = 3
-    }
-}
 
 /**
  * Proxy class bound to an instance of the `android.processor.devicepolicy.PolicyDefinition`
@@ -130,6 +35,7 @@ class PolicyDefinitionProxy(
     private val requiredPermission: String?,
     private val requiredCrossUserPermission: String?,
     private val allowedDpcTypes: AllowedDpcTypesProxy,
+    private val allowedRoles: AllowedRolesProxy,
 ) {
     private val codebase = item.codebase
     private val reporter = codebase.reporter
@@ -225,50 +131,108 @@ class PolicyDefinitionProxy(
         }
     }
 
-    /** Generates documentation for the base policy definition. */
-    fun generateDocs() = buildString {
-        allowedScopes
-            .takeIf { it.isNotEmpty() }
-            ?.let { scopes ->
-                append("   <li>Allowed Scopes:\n    <ul>\n")
-                scopes.joinTo(this, separator = "") { scope ->
-                    val dpcTypes =
-                        getAllowedDPCTypesForScope(requiredCrossUserPermission ?: "", scope)
-                    buildString {
-                        if (dpcTypes.isEmpty()) {
-                            append(
-                                "       <li>${getScopeName(scope)}. Not settable by any DPC type.</li>\n"
-                            )
-                        } else {
-                            append("       <li>${getScopeName(scope)}. Settable by:\n")
-                            append("         <ul>\n")
-                            dpcTypes.forEach { append("           <li>${it.description}</li>\n") }
-                            append("         </ul>\n")
-                            append("       </li>\n")
-                        }
-                    }
-                }
-                append("     </ul>\n   </li>\n")
+    private fun getAllowedDpcForScopeDoc(scopeId: Int): String {
+        val dpcs = getAllowedDPCTypesForScope(requiredCrossUserPermission ?: "", scopeId)
+        return if (dpcs.isNotEmpty()) {
+            "<ul>\n" + dpcs.joinToString("") { "    <li>${it.description}</li>\n" } + "</ul>\n"
+        } else ""
+    }
+
+    /** Generates table entries for the base policy definition. */
+    fun getTableEntries(): List<Pair<String, String>> = buildList {
+        if (allowedScopes.isNotEmpty()) {
+            val docLines = mutableListOf<String>()
+
+            val hasUser = allowedScopes.contains(PolicyScope.USER.id)
+            val hasDevice = allowedScopes.contains(PolicyScope.DEVICE.id)
+            val hasParent = allowedScopes.contains(PolicyScope.PARENT_USER.id)
+
+            if (hasUser) {
+                val allowedDpcDoc = getAllowedDpcForScopeDoc(PolicyScope.USER.id).ifEmpty { null }
+                val permission = requiredPermission?.let { resolvePermissionCodeLink(it, item) }
+                docLines.add(
+                    formatSettableByEntry(
+                        scope = "<code>User</code>",
+                        permission = permission,
+                        dpcTypes = allowedDpcDoc
+                    )
+                )
             }
 
-        affectedResource.let { append("   <li>Affected Resource: ${getResourceName(it)}</li>\n") }
-        requiredPermission?.let { permission ->
-            append(
-                "   <li>Required Permission: ${resolvePermissionCodeLink(permission, item)}</li>\n"
-            )
-        }
-        requiredCrossUserPermission?.let { permission ->
-            append(
-                "   <li>Required Cross User Permission: ${
-                    resolvePermissionCodeLink(
-                        permission,
-                        item
-                    )
-                }</li>\n"
-            )
+            if (hasDevice || hasParent) {
+                val scopeId = if (hasDevice) PolicyScope.DEVICE.id else PolicyScope.PARENT_USER.id
+                val scope =
+                    if (hasDevice && hasParent) "<code>Device</code> and <code>Parent User</code>"
+                    else if (hasDevice) "<code>Device</code>" else "<code>Parent User</code>"
+
+                val allowedDpcDoc = getAllowedDpcForScopeDoc(scopeId).ifEmpty { null }
+
+                val permission = formatPermissions(requiredPermission, requiredCrossUserPermission)
+                docLines.add(
+                    if (hasUser) {
+                        formatAlsoSettableByEntry(
+                            scope = scope,
+                            permission = permission,
+                            dpcTypes = allowedDpcDoc,
+                        )
+                    } else {
+                        formatSettableByEntry(
+                            scope = scope,
+                            permission = permission,
+                            dpcTypes = allowedDpcDoc,
+                        )
+                    }
+                )
+            }
+
+            add(Pair("Settable by", docLines.joinToString("")))
         }
 
-        append(allowedDpcTypes.generateDocs())
+        add(Pair("Resources affected", getResourceName(affectedResource)))
+    }
+
+    private fun formatPermissions(first: String?, second: String?): String? {
+        val firstCodeLink = first?.let { resolvePermissionCodeLink(it, item) }
+        val secondCodeLink = second?.let { resolvePermissionCodeLink(it, item) }
+        return if (firstCodeLink != null && secondCodeLink != null) {
+            "$firstCodeLink and $secondCodeLink"
+        } else {
+            firstCodeLink ?: secondCodeLink
+        }
+    }
+
+    private fun formatSettableByEntry(
+        scope: String,
+        permission: String?,
+        dpcTypes: String?
+    ): String {
+        return if (permission == null && dpcTypes == null) {
+            "<p>This policy can be set with scope ${scope}.</p>\n"
+        } else if (permission == null) {
+            "<p>This policy can be set with scope ${scope} by the following DPC types: \n$dpcTypes</p>\n"
+        } else if (dpcTypes == null) {
+            "<p>This policy can be set with scope ${scope} by anyone holding $permission.</p>\n"
+        } else {
+            // Nothing is null
+            "<p>This policy can be set with scope ${scope} by anyone holding $permission, or the following DPC types: \n$dpcTypes</p>\n"
+        }
+    }
+
+    private fun formatAlsoSettableByEntry(
+        scope: String,
+        permission: String?,
+        dpcTypes: String?
+    ): String {
+        return if (permission == null && dpcTypes == null) {
+            "<p>In addition, this policy can be set with scope ${scope}.</p>\n"
+        } else if (permission == null) {
+            "<p>In addition, this policy can be set with scope ${scope} by the following DPC types: \n$dpcTypes</p>\n"
+        } else if (dpcTypes == null) {
+            "<p>In addition, this policy can be set with scope ${scope} by anyone holding $permission.</p>\n"
+        } else {
+            // Nothing is null
+            "<p>In addition, this policy can be set with scope ${scope} by anyone holding $permission, or the following DPC types: \n$dpcTypes</p>\n"
+        }
     }
 
     companion object {
@@ -293,8 +257,8 @@ enum class PolicyScope(val scopeName: String, val id: Int) {
 }
 
 enum class PolicyResource(val resourceName: String, val id: Int) {
-    DEVICE_WIDE("Device Wide", 1),
-    PER_USER("Per User", 2);
+    DEVICE_WIDE("This policy takes effect device-wide, so it affects all users.", 1),
+    PER_USER("This policy only takes effect on the user on which it is set.", 2);
 
     companion object {
         fun fromId(id: Int): PolicyResource? = entries.firstOrNull { it.id == id }
