@@ -10,7 +10,7 @@ commonly used ones are:
 * Allows extracting the API (into signature text files, into stub API files
   which in turn get compiled into android.jar, the Android SDK library) and
   more importantly to hide code intended to be implementation only, driven by
-  javadoc comments like @hide, @doconly, @removed, etc, as well as various
+  javadoc comments like @hide, @removed, etc, as well as various
   annotations.
 
 * Extracting source level annotations into external annotations file (such as
