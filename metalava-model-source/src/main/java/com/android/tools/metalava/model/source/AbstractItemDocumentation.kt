@@ -127,9 +127,6 @@ internal abstract class AbstractItemDocumentation(
     override val docTypeParser: DocTypeParser
         get() = DocTypeParser.create(reporter = this, item)
 
-    override val isDocOnly
-        get() = hasBlockTagOfType("doconly")
-
     override val isRemoved
         get() = hasBlockTagOfType("removed")
 

@@ -59,7 +59,7 @@ sealed class ApiVariantSelectors {
     /**
      * Indicates whether the [Item] should be included in the doc only API surface variant.
      *
-     * Initially set to `true` if the [SelectableItem.documentation] contains `@doconly` or an
+     * Initially set to `true` if the [SelectableItem.documentation] contains an
      * `<api-surfaces>/<doc-only>` configured annotation. Updated due to inheritance.
      */
     abstract val docOnly: Boolean
@@ -163,8 +163,8 @@ sealed class ApiVariantSelectors {
      * Unless [hidden] is written before reading then it will default to `true` if
      * [originallyHidden] is `true` and it does not have any show annotations.
      *
-     * [docOnly] will be initialized to `true` if it's [item]'s documentation contains `@doconly` or
-     * an `<api-surfaces>/<doc-only>` configured annotation.
+     * [docOnly] will be initialized to `true` if its [item]'s documentation contains an
+     * `<api-surfaces>/<doc-only>` configured annotation.
      *
      * [removed] will be initialized to `true` if its [item]'s documentation contains `@removed` or
      * an `<api-surfaces>/<removed>` configured annotation.
@@ -324,8 +324,7 @@ sealed class ApiVariantSelectors {
                 lazyGet(DOCONLY_BIT_MASK) {
                     (item.parent()?.variantSelectors?.docOnly == true) ||
                         // Check if the item is annotated with a configured doc-only annotation.
-                        item.codebase.annotationManager.hasDocOnlyAnnotation(item) ||
-                        item.documentation?.isDocOnly == true
+                        item.codebase.annotationManager.hasDocOnlyAnnotation(item)
                 }
 
         override var removed: Boolean
