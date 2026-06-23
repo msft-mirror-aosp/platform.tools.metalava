@@ -933,6 +933,7 @@ class CompatibilityCheck(
         old: TypeItem,
         newCodebase: Codebase,
         new: TypeItem,
+        targetLanguages: Set<TargetLanguage>,
     ): Boolean {
         when (new) {
             is ArrayTypeItem ->
@@ -941,7 +942,8 @@ class CompatibilityCheck(
                         oldCodebase,
                         old.componentType,
                         newCodebase,
-                        new.componentType
+                        new.componentType,
+                        targetLanguages,
                     )
             is VariableTypeItem -> {
                 when (old) {
@@ -983,6 +985,24 @@ class CompatibilityCheck(
                         // old ClassTypeItem or VariableTypeItem.
                         return false
                     }
+                }
+            }
+            is ClassTypeItem -> {
+                return when (old) {
+                    is ClassTypeItem -> {
+                        if (old.qualifiedName != new.qualifiedName) {
+                            false
+                        } else if (targetLanguages == TargetLanguageSet.BYTECODE_ONLY) {
+                            // If the types have the same qualified name, count them as compatible
+                            // when only bytecode is considered because they are the same erased
+                            // type regardless of the type arguments.
+                            true
+                        } else {
+                            // Otherwise check that the type arguments are equal as well.
+                            old == new
+                        }
+                    }
+                    else -> false
                 }
             }
             else -> return old == new
@@ -1060,7 +1080,15 @@ class CompatibilityCheck(
         val oldReturnType = old.returnType()
         val newReturnType = new.returnType()
 
-        if (!compatibleReturnTypes(old.codebase, oldReturnType, new.codebase, newReturnType)) {
+        if (
+            !compatibleReturnTypes(
+                old.codebase,
+                oldReturnType,
+                new.codebase,
+                newReturnType,
+                new.targetLanguages
+            )
+        ) {
             // For incompatible type variable changes, include the type bounds in the string.
             val oldTypeString = describeBounds(oldReturnType)
             val newTypeString = describeBounds(newReturnType)
