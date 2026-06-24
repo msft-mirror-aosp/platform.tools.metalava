@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model.testsuite.typeitem
 
+import com.android.tools.lint.checks.infrastructure.TestFiles.base64gzip
 import com.android.tools.metalava.model.ArrayTypeItem
 import com.android.tools.metalava.model.BaseTypeTransformer
 import com.android.tools.metalava.model.ClassItem
@@ -29,6 +30,7 @@ import com.android.tools.metalava.model.TypeModifiers
 import com.android.tools.metalava.model.VariableTypeItem
 import com.android.tools.metalava.model.WildcardTypeItem
 import com.android.tools.metalava.model.provider.InputFormat
+import com.android.tools.metalava.model.testing.SupportedInputFormats
 import com.android.tools.metalava.model.testing.testTypeString
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.testing.KnownSourceFiles
@@ -87,7 +89,6 @@ class CommonTypeItemTest : BaseModelTest() {
                       }
                     }
                 """
-                    .trimIndent()
             )
         ) {
             val method = codebase.assertClass("test.pkg.Foo").methods().single()
@@ -118,6 +119,7 @@ class CommonTypeItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.JAVA)
     @Test
     fun `Test primitive array types`() {
         runCodebaseTest(
@@ -143,7 +145,6 @@ class CommonTypeItemTest : BaseModelTest() {
                       }
                     }
                 """
-                    .trimIndent()
             )
         ) {
             val method = codebase.assertClass("test.pkg.Foo").methods().single()
@@ -199,7 +200,6 @@ class CommonTypeItemTest : BaseModelTest() {
                       }
                     }
                 """
-                    .trimIndent()
             )
         ) {
             val method = codebase.assertClass("test.pkg.Foo").methods().single()
@@ -217,6 +217,7 @@ class CommonTypeItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.JAVA)
     @Test
     fun `Test multidimensional primitive array types`() {
         runCodebaseTest(
@@ -242,7 +243,6 @@ class CommonTypeItemTest : BaseModelTest() {
                       }
                     }
                 """
-                    .trimIndent()
             )
         ) {
             val method = codebase.assertClass("test.pkg.Foo").methods().single()
@@ -315,7 +315,6 @@ class CommonTypeItemTest : BaseModelTest() {
                       }
                     }
                 """
-                    .trimIndent()
             )
         ) {
             val method = codebase.assertClass("test.pkg.Foo").methods().single()
@@ -385,7 +384,6 @@ class CommonTypeItemTest : BaseModelTest() {
                       }
                     }
                 """
-                    .trimIndent()
             )
         ) {
             val method = codebase.assertClass("test.pkg.Foo").methods().single()
@@ -466,7 +464,6 @@ class CommonTypeItemTest : BaseModelTest() {
                       }
                     }
                 """
-                    .trimIndent()
             )
         ) {
             val clz = codebase.assertClass("test.pkg.Foo")
@@ -523,7 +520,6 @@ class CommonTypeItemTest : BaseModelTest() {
                       }
                     }
                 """
-                    .trimIndent()
             )
         ) {
             val foo = codebase.assertClass("test.pkg.Foo")
@@ -586,7 +582,6 @@ class CommonTypeItemTest : BaseModelTest() {
                       }
                     }
                 """
-                    .trimIndent()
             )
         ) {
             val foo = codebase.assertClass("test.pkg.Foo")
@@ -622,7 +617,6 @@ class CommonTypeItemTest : BaseModelTest() {
                         public T foo;
                     }
                 """
-                    .trimIndent()
             ),
             kotlin(
                 """
@@ -641,7 +635,6 @@ class CommonTypeItemTest : BaseModelTest() {
                       }
                     }
                 """
-                    .trimIndent()
             )
         ) {
             val foo = codebase.assertClass("test.pkg.Foo")
@@ -652,6 +645,7 @@ class CommonTypeItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.KOTLIN)
     @Test
     fun `Test property type variable types`() {
         runCodebaseTest(
@@ -663,7 +657,6 @@ class CommonTypeItemTest : BaseModelTest() {
                         val foo: T
                     }
                 """
-                    .trimIndent()
             ),
             signature(
                 """
@@ -674,7 +667,6 @@ class CommonTypeItemTest : BaseModelTest() {
                       }
                     }
                 """
-                    .trimIndent()
             )
         ) {
             val foo = codebase.assertClass("test.pkg.Foo")
@@ -724,7 +716,6 @@ class CommonTypeItemTest : BaseModelTest() {
                       }
                     }
                 """
-                    .trimIndent()
             )
         ) {
             val method = codebase.assertClass("test.pkg.Foo").methods().single()
@@ -814,7 +805,6 @@ class CommonTypeItemTest : BaseModelTest() {
                       }
                     }
                 """
-                    .trimIndent()
             )
         ) {
             val method = codebase.assertClass("test.pkg.Outer").methods().single()
@@ -881,7 +871,6 @@ class CommonTypeItemTest : BaseModelTest() {
                       }
                     }
                 """
-                    .trimIndent()
             )
         ) {
             val method = codebase.assertClass("test.pkg.Test").methods().single()
@@ -942,7 +931,6 @@ class CommonTypeItemTest : BaseModelTest() {
                       }
                     }
                 """
-                    .trimIndent()
             )
         ) {
             val method = codebase.assertClass("test.pkg.Outer").methods().single()
@@ -973,6 +961,7 @@ class CommonTypeItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.JAVA)
     @Test
     fun `Test inner parameterized types without explicit outer type`() {
         runCodebaseTest(
@@ -1069,7 +1058,6 @@ class CommonTypeItemTest : BaseModelTest() {
 
                     public class MyList<E> implements java.util.List<E> {}
                 """
-                    .trimIndent()
             ),
             kotlin(
                 """
@@ -1079,7 +1067,6 @@ class CommonTypeItemTest : BaseModelTest() {
 
                     class MyList<E> : java.util.List<E>
                 """
-                    .trimIndent()
             ),
             signature(
                 """
@@ -1091,7 +1078,6 @@ class CommonTypeItemTest : BaseModelTest() {
                       }
                     }
                 """
-                    .trimIndent()
             )
         ) {
             // Verify that the Cache superclass type uses the Cache type variables
@@ -1144,7 +1130,6 @@ class CommonTypeItemTest : BaseModelTest() {
                       }
                     }
                 """
-                    .trimIndent()
             ),
             java(
                 """
@@ -1193,6 +1178,7 @@ class CommonTypeItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test Kotlin collection removeAll parameter type`() {
         runCodebaseTest(
@@ -1271,14 +1257,12 @@ class CommonTypeItemTest : BaseModelTest() {
                             public Parent<? extends M, ? super N> getWildcards() {}
                         }
                     """
-                        .trimIndent()
                 ),
                 java(
                     """
                         package test.pkg;
                         public class Child<X, Y> extends Parent<X, Y> {}
                     """
-                        .trimIndent()
                 ),
             ),
             inputSet(
@@ -1297,7 +1281,6 @@ class CommonTypeItemTest : BaseModelTest() {
                           }
                         }
                     """
-                        .trimIndent()
                 )
             ),
             inputSet(
@@ -1313,7 +1296,6 @@ class CommonTypeItemTest : BaseModelTest() {
                         }
                         class Child<X, Y> : Parent<X, Y>()
                     """
-                        .trimIndent()
                 )
             )
         ) {
@@ -1323,31 +1305,31 @@ class CommonTypeItemTest : BaseModelTest() {
             val x = childTypeParams[0]
             val y = childTypeParams[1]
 
-            val mVar = parent.assertMethod("getM", "").returnType()
+            val mVar = parent.assertMethod("getM", emptyList()).returnType()
             val xVar = mVar.convertType(child, parent)
             assertThat(xVar.toTypeString()).isEqualTo("X")
             xVar.assertReferencesTypeParameter(x)
 
-            val nArray = parent.assertMethod("getNArray", "").returnType()
+            val nArray = parent.assertMethod("getNArray", emptyList()).returnType()
             val yArray = nArray.convertType(child, parent)
             assertThat(yArray.toTypeString()).isEqualTo("Y[]")
             assertThat((yArray as ArrayTypeItem).isVarargs).isFalse()
             yArray.componentType.assertReferencesTypeParameter(y)
 
-            val mList = parent.assertMethod("getMList", "").returnType()
+            val mList = parent.assertMethod("getMList", emptyList()).returnType()
             val xList = mList.convertType(child, parent)
             assertThat(xList.toTypeString()).isEqualTo("java.util.List<X>")
             assertThat((xList as ClassTypeItem).qualifiedName).isEqualTo("java.util.List")
             xList.arguments.single().assertReferencesTypeParameter(x)
 
-            val mToNMap = parent.assertMethod("getMap", "").returnType()
+            val mToNMap = parent.assertMethod("getMap", emptyList()).returnType()
             val xToYMap = mToNMap.convertType(child, parent)
             assertThat(xToYMap.toTypeString()).isEqualTo("java.util.Map<X,Y>")
             assertThat((xToYMap as ClassTypeItem).qualifiedName).isEqualTo("java.util.Map")
             xToYMap.arguments[0].assertReferencesTypeParameter(x)
             xToYMap.arguments[1].assertReferencesTypeParameter(y)
 
-            val wildcards = parent.assertMethod("getWildcards", "").returnType()
+            val wildcards = parent.assertMethod("getWildcards", emptyList()).returnType()
             val convertedWildcards = wildcards.convertType(child, parent)
             assertThat(convertedWildcards.toTypeString())
                 .isEqualTo("test.pkg.Parent<? extends X,? super Y>")
@@ -1391,7 +1373,6 @@ class CommonTypeItemTest : BaseModelTest() {
                       public Foo<? super Number, String> wildcardSuperTypeAfterMatchingConversion;
                     }
                 """
-                    .trimIndent()
             ),
             kotlin(
                 """
@@ -1418,7 +1399,6 @@ class CommonTypeItemTest : BaseModelTest() {
                         @JvmField val wildcardSuperTypeAfterMatchingConversion: Foo<in Number, String>
                     }
                 """
-                    .trimIndent()
             ),
             signature(
                 """
@@ -1447,7 +1427,6 @@ class CommonTypeItemTest : BaseModelTest() {
                       }
                     }
                 """
-                    .trimIndent()
             )
         ) {
             val fooClass = codebase.assertClass("test.pkg.Foo")
@@ -1859,7 +1838,7 @@ class CommonTypeItemTest : BaseModelTest() {
     }
 
     @Test
-    fun `Test toSimpleType on varargs parameter`() {
+    fun `Test toSimpleTypeString on varargs parameter`() {
         runCodebaseTest(
             java(
                 """
@@ -1890,12 +1869,12 @@ class CommonTypeItemTest : BaseModelTest() {
         ) {
             val varargsType =
                 codebase.assertClass("test.pkg.Foo").methods().single().parameters().single().type()
-            assertThat(varargsType.toSimpleType()).isEqualTo("java.lang.String...")
+            assertThat(varargsType.toSimpleTypeString()).isEqualTo("java.lang.String...")
         }
     }
 
     @Test
-    fun `Test toSimpleType on varargs generic parameter`() {
+    fun `Test toSimpleTypeString on varargs generic parameter`() {
         runCodebaseTest(
             java(
                 @Suppress("unchecked")
@@ -1927,13 +1906,13 @@ class CommonTypeItemTest : BaseModelTest() {
         ) {
             val varargsType =
                 codebase.assertClass("test.pkg.Foo").methods().single().parameters().single().type()
-            assertThat(varargsType.toSimpleType())
+            assertThat(varargsType.toSimpleTypeString())
                 .isEqualTo("Comparable<? super java.lang.String>...")
         }
     }
 
     @Test
-    fun `Test toSimpleType on nested class`() {
+    fun `Test toSimpleTypeString on nested class`() {
         runCodebaseTest(
             java(
                 """
@@ -1964,16 +1943,18 @@ class CommonTypeItemTest : BaseModelTest() {
         ) {
             val varargsType =
                 codebase.assertClass("test.pkg.Foo").methods().single().parameters().single().type()
-            assertThat(varargsType.toSimpleType())
+            assertThat(varargsType.toSimpleTypeString())
                 .isEqualTo("java.lang.Thread.UncaughtExceptionHandler")
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Non-last varargs param in deprecated method`() {
         runCodebaseTest(
-            kotlin(
-                """
+            inputSet(
+                kotlin(
+                    """
                     package test.pkg
                     class Foo {
                         fun notDeprecated(vararg str: String, i: Int) = Unit
@@ -1984,8 +1965,39 @@ class CommonTypeItemTest : BaseModelTest() {
                         @Deprecated(message = "message", level = DeprecationLevel.HIDDEN)
                         fun deprecatedHidden(vararg str: String, i: Int) = Unit
                     }
-                """
-            )
+                    """
+                )
+            ),
+            compiledSourceJar =
+                base64gzip(
+                    "test.jar",
+                    // kotlinc version info: kotlinc-jvm 1.9.23 (JRE 17.0.6+10-b802.1)
+                    "" +
+                        "H4sIAAAAAAAA/wvwZmYRYeDg4GBgYFBkQAYiDCwMvq4hjrqefm76vo5+nm6u" +
+                        "wSF6vm7/TjEwfPY9c9rHW1fvIq+3rta5M+c3BxlcMX7wtEjPy1fH0/di6aot" +
+                        "QR+8dAu1vM6c0Q77cE7/5Mkzj58+esrEEODNzrFeWHO9JdACcyAOwGm9EBCX" +
+                        "pBaX6Bdkp+u75efrJeckFhevDb6dd9lBwPa1StmrZSuFNfYWtDvlNzjvsBVR" +
+                        "ZNS9osEissDmS+bsNZdyZaQrtwv2/xX716AuwL/i0UT5h/oCm/0UAiZwCAXa" +
+                        "zJtrmX6uL/375+v88owxx3XbmsS8fq+3yv3vKGOdwHNP732h/ZPA2/Wb9mrP" +
+                        "uuXYdnCfrvLK9wYpYtPNuE8cLJvYenjCVesgQ5Fse/Go1BkdSXvV4lQXndya" +
+                        "Yeijn3e1ber8ly5ub68mZE5+WKPrd+vfugu3OadP/FTpErIu1afO9trXvQZL" +
+                        "qiSXTrbp4llutZEv9cn7b7v29WzxUJL75ZjCpXUzhM+mbeWzvowytifLbR7G" +
+                        "Ojq0tR699fBdWP39qZkbepT1vCxOFTzh/52WMGlew8Irvy4+9p7nMkXFLXfD" +
+                        "0cT/Rwp2OWneE+PZGfDF5YRBtYS77nWfUwvi7+Veaf7l3HZy4aGqSUeuuObt" +
+                        "vVhxaYEnr7H0pqtCgr2ZyhHR0esv79t3vU7HJL/w7MplV9+mZrw7M8Mw2cG2" +
+                        "RONf1KzQ1j3XQtv02X9/XmeavHNa+Yb3UZWPI9YV7hWyPbpv9nKfsmcJ+7NC" +
+                        "b+y9s9zcrFFOt3Km5epJa6ftvTMnetvnNTmhc7pq+3Kufvs0Rfp2QdAa7xsf" +
+                        "6w+IuR3TqxCuP/xt4rK7WsbyB5cpVy9d/NLgfn+0yYKTs3pcatfv1p30vMZ6" +
+                        "icdOMfPKHSeFM681P6hJ1r+0SbtphfrUJRf6J5eVV7RI3pm//uCbhs030/9w" +
+                        "1Yi9V/X96NDGFJ548a/RfpncCeukb3KtrTE2Fo6ta/8TXaTTpOQrvd9r2wX2" +
+                        "BB69vd4SyzumTrr+Mlft7Zop6veTX4Xv8tV0tr/czvPimPajiKhLB03SOgrP" +
+                        "zpHvdhLWXNASGXSib9EE6cCHVVL7Hf1nPioWsVxXIKPO4vfoyvtfy92vlv9r" +
+                        "/jfT+VccZ7qnvXHXvxv1F+zdV8/OjLV33aNwpPLXps/RJ1h2CDxIamDVmdS9" +
+                        "lOF0xE2m4B0tp6M1tHZwhYvktF5eGeyj+3d5cHSAxWqD1Qb/eEEZxcx4UeBL" +
+                        "JgYGFTZ8GUUaiOH5NDcxM08vO78kJzMvPjc/pTQnNTkhISENiFmS/Ng0ApIu" +
+                        "JDGAM+FXpT17hYE6JcCZkJFJhAFhOnIGBZUCqABXmYBuCrLrhVBMqMeatdH1" +
+                        "I7tQGkX/Cma8Pg7wZmUDKWMGwvNAmgXsAwDUrWD46QQAAA=="
+                )
         ) {
             val foo = codebase.assertClass("test.pkg.Foo")
             val notDeprecated = foo.methods().single { it.name() == "notDeprecated" }
@@ -2000,6 +2012,53 @@ class CommonTypeItemTest : BaseModelTest() {
             assertThat(deprecatedWarning.firstParameterIsVarargs()).isFalse()
             assertThat(deprecatedError.firstParameterIsVarargs()).isFalse()
             assertThat(deprecatedHidden.firstParameterIsVarargs()).isFalse()
+        }
+    }
+
+    @SupportedInputFormats(InputFormat.SIGNATURE)
+    @Test
+    fun `Type equality including nullability`() {
+        runCodebaseTest(
+            // Methods out of alphabetical order to match source files
+            signature(
+                """
+                // Signature format: 5.0
+                // - include-type-use-annotations=yes
+                // - kotlin-name-type-order=yes
+                package test.pkg {
+                  public interface Foo {
+                    method public nonNullString(): String;
+                    method public nullableString(): String?;
+                    method public nonNullAnnotatedString(): @test.pkg.TypeAnno String;
+                    method public nonNullStringList(): java.util.List<java.lang.String>;
+                    method public nullableStringList(): java.util.List<java.lang.String?>;
+                    method public nonNullAnnotatedStringList(): java.util.List<java.lang.@test.pkg.TypeAnno String>;
+                  }
+                  @kotlin.annotation.Target(allowedTargets=kotlin.annotation.AnnotationTarget.TYPE) public @interface TypeAnno {
+                  }
+                }
+                """
+            )
+        ) {
+            val fooClass = codebase.assertClass("test.pkg.Foo")
+
+            val nonNullString = fooClass.assertMethod("nonNullString", emptyList()).returnType()
+            val nullableString = fooClass.assertMethod("nullableString", emptyList()).returnType()
+            val nonNullAnnotatedString =
+                fooClass.assertMethod("nonNullAnnotatedString", emptyList()).returnType()
+            assertThat(nonNullString.equalToType(nonNullString, true)).isTrue()
+            assertThat(nonNullString.equalToType(nullableString, true)).isFalse()
+            assertThat(nonNullString.equalToType(nonNullAnnotatedString, true)).isTrue()
+
+            val nonNullStringList =
+                fooClass.assertMethod("nonNullStringList", emptyList()).returnType()
+            val nullableStringList =
+                fooClass.assertMethod("nullableStringList", emptyList()).returnType()
+            val nonNullAnnotatedStringList =
+                fooClass.assertMethod("nonNullAnnotatedStringList", emptyList()).returnType()
+            assertThat(nonNullStringList.equalToType(nonNullStringList, true)).isTrue()
+            assertThat(nonNullStringList.equalToType(nullableStringList, true)).isFalse()
+            assertThat(nonNullStringList.equalToType(nonNullAnnotatedStringList, true)).isTrue()
         }
     }
 }

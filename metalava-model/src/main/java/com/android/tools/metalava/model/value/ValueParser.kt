@@ -23,11 +23,7 @@ import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ArrayTypeItem
 import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.ClassTypeItem
-import com.android.tools.metalava.model.DefaultAnnotationAttribute
-import com.android.tools.metalava.model.DefaultAnnotationAttributeValue
-import com.android.tools.metalava.model.DefaultAnnotationItem
 import com.android.tools.metalava.model.FieldItem
-import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterScope
@@ -63,26 +59,6 @@ class ValueParser(
         text: String,
         valueUseSite: ValueUseSite,
     ): CombinedValueProvider = CachingValueProvider(this, typeItem, text, valueUseSite)
-
-    /**
-     * Get a [CombinedValueProvider] that will create (and cache) a [Value] for attribute
-     * [attributeName] of [annotationItem] from [text].
-     *
-     * @param annotationItem the containing [AnnotationItem].
-     * @param attributeName the name of the attribute whose value it will provide.
-     * @param text the String value to be parsed.
-     */
-    fun providerForAnnotationValue(
-        annotationItem: AnnotationItem,
-        attributeName: String,
-        text: String
-    ): CombinedValueProvider =
-        CachingAnnotationValueProvider(
-            this,
-            annotationItem,
-            attributeName,
-            text,
-        )
 
     /**
      * Get a [CombinedValueProvider] that will create (and cache) a [Value] for attribute
@@ -130,12 +106,10 @@ class ValueParser(
             }
             optionalTypeItem is ArrayTypeItem -> {
                 // The type is an array so this is an example of not having to add curly braces
-                // around a
-                // single value in an annotation attribute. Create a value for the component type
-                // and
-                // then wrap it in an ArrayValue.
+                // around a single value in an annotation attribute. Create a value for the
+                // component type and then wrap it in an ArrayValue.
                 val singleValue = parseArrayElementValue(optionalTypeItem.componentType, text)
-                createArrayValue(listOf(singleValue))
+                createArrayValue(listOf(singleValue), wasUnwrappedInSource = true)
             }
             else -> {
                 parseArrayElementValue(optionalTypeItem, text)
@@ -153,8 +127,7 @@ class ValueParser(
                 val elements = buildList {
                     while (true) {
                         // The next token could be the end of the array or a value.
-                        // TODO(b/354633349): Handle annotations in arrays.
-                        val valueToken = tokenizer.requireToken()
+                        val valueToken = tokenizer.requireToken(purpose = TokenPurpose.VALUE)
 
                         // If it is the end of the array (because the array is empty) then break
                         // out.
@@ -198,7 +171,7 @@ class ValueParser(
             val typeString = matchResult.groups[TYPE_GROUP_INDEX]!!.value
             val classLiteralTypeItem =
                 typeItemParser.obtainTypeFromString(typeString, TypeParameterScope.empty)
-            return createClassObjectValue(classLiteralTypeItem)
+            return createClassObjectValue(classLiteralTypeItem, text)
         }
 
         // Check to see if it looks like a field reference.
@@ -208,6 +181,16 @@ class ValueParser(
             // it is safe to assume it is available.
             val className = matchResult.groups[CLASS_NAME_GROUP_INDEX]?.value ?: ""
             val fieldName = matchResult.groups[FIELD_NAME_GROUP_INDEX]!!.value
+
+            // If there was an explicit conversion function call on the field reference then make
+            // sure to track that.
+            val explicitConversionTo =
+                matchResult.groups[OPTIONAL_CONVERSION_FUNCTION_NAME_GROUP_INDEX]?.value?.let {
+                    conversionFunctionName ->
+                    PrimitiveTypeItem.Primitive.forKotlinNumericConversionFunctionName(
+                        conversionFunctionName
+                    )
+                }
 
             // Parse the class name to a type.
             val classTypeItem =
@@ -223,6 +206,7 @@ class ValueParser(
                 qualifiedClassName,
                 fieldName,
                 optionalTypeItem,
+                explicitConversionTo = explicitConversionTo,
             )
         }
 
@@ -249,7 +233,7 @@ class ValueParser(
     private fun parseConstant(optionalTypeItem: TypeItem?, text: String): ConstantValue? {
 
         knownSpecialValues[text]?.let { value ->
-            return createLiteralValue(optionalTypeItem, value)
+            return value.convertToType(optionalTypeItem)
         }
 
         val first = text.first()
@@ -306,7 +290,13 @@ class ValueParser(
                     } else {
                         text.toDouble()
                     }
-                return createLiteralValue(optionalTypeItem, number)
+                return createLiteralValue(
+                    optionalTypeItem,
+                    number,
+                    // Hexadecimal floating point numbers can only be present in the signature file
+                    // if they were present in the source.
+                    nonLiteralInSource = false,
+                )
             }
 
             // Remove the leading "0x"
@@ -319,11 +309,19 @@ class ValueParser(
             // larger than the largest positive int. They will become negative numbers. However,
             // that is what the original number was so it is ok.
             val int = withoutLeading0x.toLong(16).toInt()
-            return createLiteralValue(optionalTypeItem, int)
+            return createLiteralValue(
+                optionalTypeItem,
+                int,
+                // AnnotationItem.toSource() will use format ints obtained from literals as decimals
+                // and ints obtained from complex expressions as decimals so treat hexadecimals as
+                // if they are not literals. That should allow signature files to be read and then
+                // written out again without changing the formatting.
+                nonLiteralInSource = true
+            )
         }
 
         // Check the last character to see if it indicated the type of the number.
-        when (text.last()) {
+        when (val suffix = text.last()) {
             'L',
             'l' -> {
                 val long = text.substring(0, text.length - 1).toLong()
@@ -332,7 +330,10 @@ class ValueParser(
             'F',
             'f' -> {
                 val float = text.substring(0, text.length - 1).toFloat()
-                return createLiteralValue(optionalTypeItem, float)
+                // AnnotationItem.toSource() uses 'F' as the suffix for floats obtained from
+                // expressions and 'f' for those obtained from literals.
+                val nonLiteralInSource = suffix == 'F'
+                return createLiteralValue(optionalTypeItem, float, nonLiteralInSource)
             }
         }
 
@@ -371,11 +372,16 @@ class ValueParser(
     }
 
     /** Parse [text] to produce an [AnnotationItem], if possible. */
-    fun parseAnnotationItem(text: String): AnnotationItem? {
+    fun parseAnnotationItem(text: String, unshorten: Boolean = false): AnnotationItem? {
         val tokenizer = tokenizerOf(text)
 
         // Parse the annotation item from the tokenizer.
-        val annotationItem = parseAnnotationItem(tokenizer)
+        val annotationItem =
+            parseAnnotationItem(
+                tokenizer,
+                tokenizer.requireToken(),
+                unshorten,
+            )
 
         // Make sure that all the significant text was consumed.
         tokenizer.getToken()?.let { token ->
@@ -390,15 +396,23 @@ class ValueParser(
     /**
      * Parse stream of tokens produced by [tokenizer] to create an [AnnotationItem], if possible.
      *
-     * On entry [tokenizer] next token must be the annotation's class name, optionally prefixed with
-     * an `@`. On exit, the next token will be the one after the annotation.
+     * On entry [startingToken] must be the annotation's class name, optionally prefixed with an
+     * `@`. On exit, the next token will be the one after the annotation, if any..
      */
-    private fun parseAnnotationItem(tokenizer: Tokenizer): AnnotationItem? {
-        // May start with an '@', the remainder is the annotation class name.
+    fun parseAnnotationItem(
+        tokenizer: Tokenizer,
+        startingToken: String,
+        unshorten: Boolean,
+    ): AnnotationItem? {
+        // May start with an '@', the remainder is the annotation class name which may have been
+        // shortened.
+        val possiblyShortenedAnnotationClassName =
+            if (startingToken[0] == '@') startingToken.substring(1) else startingToken
+
+        // Unshorten, if necessary.
         val annotationClassName =
-            tokenizer.requireToken().let { token ->
-                if (token[0] == '@') token.substring(1) else token
-            }
+            if (unshorten) AnnotationItem.unshortenAnnotation(possiblyShortenedAnnotationClassName)
+            else possiblyShortenedAnnotationClassName
 
         val token = tokenizer.getToken()
         val attributes =
@@ -408,16 +422,19 @@ class ValueParser(
                         require(tokenizer.current == ")") {
                             "Expected ')' but found ${tokenizer.current}"
                         }
+
+                        // Get the next token, if any, after the ')'.
+                        tokenizer.getToken()
                     }
                 }
                 else -> emptyList()
             }
 
-        return DefaultAnnotationItem.createAttributesLazily(
+        return AnnotationItem.createWithAttributes(
             annotationContext,
             FileLocation.UNKNOWN,
             annotationClassName,
-            { attributes }
+            attributes
         )
     }
 
@@ -428,7 +445,7 @@ class ValueParser(
      * On entry [tokenizer]'s [Tokenizer.current] must be `(`. On exit, it will be the matching `)`.
      */
     private fun parseAnnotationAttributes(
-        @Suppress("UNUSED_PARAMETER") annotationClassName: String,
+        annotationClassName: String,
         tokenizer: Tokenizer
     ): List<AnnotationAttribute> {
         require(tokenizer.current == "(") { "Expected '(' but found ${tokenizer.current}" }
@@ -518,11 +535,9 @@ class ValueParser(
 
                 // Add the attribute to the list.
                 add(
-                    DefaultAnnotationAttribute(
+                    AnnotationAttribute.createLazyAttribute(
                         attributeName,
                         valueProvider,
-                        // Create legacy attribute value.
-                        DefaultAnnotationAttributeValue.create(valueText),
                     )
                 )
             } while (true)
@@ -546,7 +561,7 @@ class ValueParser(
          */
         private val specialFloats =
             mapOf(
-                Double.NaN to
+                DoubleValue.NaN to
                     listOf(
                         "(0.0/0.0)",
                         "0.0 / 0.0",
@@ -554,7 +569,7 @@ class ValueParser(
                         "java.lang.Double.NaN",
                         "kotlin.jvm.internal.DoubleCompanionObject.NaN",
                     ),
-                Double.NEGATIVE_INFINITY to
+                DoubleValue.NEGATIVE_INFINITY to
                     listOf(
                         "(-1.0/0.0)",
                         "-1.0 / 0.0",
@@ -562,7 +577,7 @@ class ValueParser(
                         "java.lang.Double.NEGATIVE_INFINITY",
                         "kotlin.jvm.internal.DoubleCompanionObject.NEGATIVE_INFINITY",
                     ),
-                Double.POSITIVE_INFINITY to
+                DoubleValue.POSITIVE_INFINITY to
                     listOf(
                         "(1.0/0.0)",
                         "1.0 / 0.0",
@@ -570,7 +585,7 @@ class ValueParser(
                         "java.lang.Double.POSITIVE_INFINITY",
                         "kotlin.jvm.internal.DoubleCompanionObject.POSITIVE_INFINITY",
                     ),
-                Float.NaN to
+                FloatValue.NaN to
                     listOf(
                         "(0.0f/0.0f)",
                         "0.0f / 0.0",
@@ -578,7 +593,7 @@ class ValueParser(
                         "java.lang.Float.NaN",
                         "kotlin.jvm.internal.FloatCompanionObject.NaN",
                     ),
-                Float.NEGATIVE_INFINITY to
+                FloatValue.NEGATIVE_INFINITY to
                     listOf(
                         "(-1.0f/0.0f)",
                         "-1.0f / 0.0",
@@ -587,7 +602,7 @@ class ValueParser(
                         "java.lang.Float.NEGATIVE_INFINITY",
                         "kotlin.jvm.internal.FloatCompanionObject.NEGATIVE_INFINITY",
                     ),
-                Float.POSITIVE_INFINITY to
+                FloatValue.POSITIVE_INFINITY to
                     listOf(
                         "(1.0f/0.0f)",
                         "1.0f / 0.0",
@@ -600,8 +615,8 @@ class ValueParser(
         /** A map of all the known special values. */
         private val knownSpecialValues =
             mapOf(
-                "false" to false,
-                "true" to true,
+                "false" to BooleanValue.FALSE,
+                "true" to BooleanValue.TRUE,
             ) + specialFloats.flatMap { (value, alternatives) -> alternatives.map { it to value } }
 
         /**
@@ -626,15 +641,22 @@ class ValueParser(
         /**
          * Pattern to match a field, including a class literal of the form `<class>.class` and an
          * unqualified field of the form `FIELD`.
+         *
+         * This also matches an optional call to a numeric conversion function, e.g. `Int.toLong()`.
          */
         internal val fieldReferencePattern =
-            Regex("""(?:([a-zA-Z0-9_]+(?:\.[a-zA-Z0-9_]+)*)\.)?([a-zA-Z0-9_]+)""")
+            Regex(
+                """(?:([a-zA-Z0-9_]+(?:\.[a-zA-Z0-9_]+)*)\.)?([a-zA-Z0-9_]+)(?:\.(to(?:Byte|Double|Float|Int|Long|Short))\(\))?"""
+            )
 
         /** Index of class name group in [fieldReferencePattern]. */
         private const val CLASS_NAME_GROUP_INDEX = 1
 
         /** Index of field name group in [fieldReferencePattern]. */
         private const val FIELD_NAME_GROUP_INDEX = 2
+
+        /** Index of optional conversion function name group in [fieldReferencePattern]. */
+        private const val OPTIONAL_CONVERSION_FUNCTION_NAME_GROUP_INDEX = 3
 
         /**
          * Pattern to match a Kotlin style annotation value which looks like a constructor call for

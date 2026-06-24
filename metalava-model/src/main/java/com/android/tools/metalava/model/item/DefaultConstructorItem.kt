@@ -18,9 +18,8 @@ package com.android.tools.metalava.model.item
 
 import com.android.tools.metalava.model.ApiVariantSelectorsFactory
 import com.android.tools.metalava.model.BaseModifierList
-import com.android.tools.metalava.model.CallableBody
-import com.android.tools.metalava.model.CallableBodyFactory
 import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.ConstructorItem
@@ -36,7 +35,7 @@ import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.createImmutableModifiers
 import com.android.tools.metalava.reporter.FileLocation
 
-open class DefaultConstructorItem(
+internal class DefaultConstructorItem(
     codebase: Codebase,
     fileLocation: FileLocation,
     sourceLanguage: SourceLanguage,
@@ -50,9 +49,8 @@ open class DefaultConstructorItem(
     returnType: ClassTypeItem,
     parameterItemsFactory: ParameterItemsFactory,
     throwsTypes: List<ExceptionTypeItem>,
-    callableBodyFactory: CallableBodyFactory,
     private val implicitConstructor: Boolean,
-    override val isPrimary: Boolean = false,
+    isPrimary: Boolean = false,
 ) :
     DefaultCallableItem(
         codebase = codebase,
@@ -68,22 +66,24 @@ open class DefaultConstructorItem(
         returnType = returnType,
         parameterItemsFactory = parameterItemsFactory,
         throwsTypes = throwsTypes,
-        callableBodyFactory = callableBodyFactory,
     ),
     ConstructorItem {
 
+    // If this is the canonical constructor then set it as the primary constructor.
+    override val isPrimary: Boolean = isPrimary || isCanonicalRecordConstructor()
+
     /** Override to specialize the return type. */
-    final override fun returnType() = super.returnType() as ClassTypeItem
+    override fun returnType() = super.returnType() as ClassTypeItem
 
     /** Override to make sure that [type] is a [ClassTypeItem]. */
-    final override fun setType(type: TypeItem) {
+    override fun setType(type: TypeItem) {
         super.setType(type as ClassTypeItem)
     }
 
-    final override fun isImplicitConstructor() = implicitConstructor
+    override fun isImplicitConstructor() = implicitConstructor
 
     companion object {
-        fun createDefaultConstructor(
+        fun createImplicitDefaultConstructor(
             codebase: Codebase,
             sourceLanguage: SourceLanguage,
             variantSelectorsFactory: ApiVariantSelectorsFactory,
@@ -109,11 +109,39 @@ open class DefaultConstructorItem(
                     returnType = containingClass.type(),
                     parameterItemsFactory = { emptyList() },
                     throwsTypes = emptyList(),
-                    callableBodyFactory = CallableBody.UNAVAILABLE_FACTORY,
-                    // This is not an implicit constructor as it was not created by the compiler.
-                    implicitConstructor = false,
+                    // This is an implicit constructor as it was not found in the source.
+                    implicitConstructor = true,
                 )
             return ctorItem
+        }
+
+        /**
+         * Check to see if this [ConstructorItem] is the canonical constructor of a record class.
+         *
+         * This will return `true` iff [ConstructorItem.parameters] has the same number and types as
+         * the record components.
+         */
+        private fun ConstructorItem.isCanonicalRecordConstructor(): Boolean {
+            val containingClass = containingClass()
+            if (containingClass.classKind != ClassKind.RECORD) {
+                return false
+            }
+            val parameters = parameters()
+            val components = containingClass.recordComponents
+            val count = components.size
+            if (count != parameters.size) {
+                return false
+            }
+
+            for (index in 0..<count) {
+                val component = components[index]
+                val parameter = parameters[index]
+                if (component.type != parameter.type()) {
+                    return false
+                }
+            }
+
+            return true
         }
     }
 }

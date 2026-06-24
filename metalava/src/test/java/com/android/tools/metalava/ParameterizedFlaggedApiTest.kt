@@ -17,14 +17,14 @@
 package com.android.tools.metalava
 
 import com.android.tools.lint.checks.infrastructure.TestFile
-import com.android.tools.metalava.cli.common.ARG_HIDE
+import com.android.tools.metalava.config.ApiFlagActionConfig.Mutability.IMMUTABLE
+import com.android.tools.metalava.config.ApiFlagActionConfig.Status.ENABLED
 import com.android.tools.metalava.config.ApiFlagConfig
-import com.android.tools.metalava.config.ApiFlagConfig.Mutability.IMMUTABLE
-import com.android.tools.metalava.config.ApiFlagConfig.Status.ENABLED
 import com.android.tools.metalava.config.ApiFlagsConfig
 import com.android.tools.metalava.config.Config
 import com.android.tools.metalava.config.writeTo
 import com.android.tools.metalava.model.ANDROID_ANNOTATION_PACKAGE
+import com.android.tools.metalava.model.ANDROID_REQUIRES_FLAG
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.testing.KnownJarFiles
@@ -35,13 +35,7 @@ import kotlin.test.assertEquals
 import org.junit.Test
 import org.junit.runners.Parameterized
 
-private val annotationsList = listOf(systemApiSource, nonNullSource)
-
-private const val FULLY_QUALIFIED_SYSTEM_API_SURFACE_ANNOTATION =
-    "android.annotation.SystemApi(client=android.annotation.SystemApi.Client.PRIVILEGED_APPS)"
-
-private const val FULLY_QUALIFIED_MODULE_LIB_API_SURFACE_ANNOTATION =
-    "android.annotation.SystemApi(client=android.annotation.SystemApi.Client.MODULE_LIBRARIES)"
+private val annotationsList = listOf(nonNullSource)
 
 /**
  * A parameterized test for the `android.annotation.FlaggedApi` annotation.
@@ -63,7 +57,7 @@ class ParameterizedFlaggedApiTest(private val config: Configuration) : DriverTes
         val surface: Surface,
         val flagged: Flagged,
     ) {
-        fun extraArguments(dir: File) = (surface.args + flagged.extraArguments(dir))
+        fun extraArguments(dir: File) = flagged.extraArguments(dir)
 
         override fun toString(): String {
             val surfaceText = surface.name.lowercase(Locale.US)
@@ -72,22 +66,10 @@ class ParameterizedFlaggedApiTest(private val config: Configuration) : DriverTes
     }
 
     /** The surfaces that this test will check. */
-    enum class Surface(val args: List<String>) {
-        PUBLIC(emptyList()),
-        SYSTEM(
-            listOf(
-                ARG_SHOW_ANNOTATION,
-                FULLY_QUALIFIED_SYSTEM_API_SURFACE_ANNOTATION,
-            )
-        ),
-        MODULE_LIB(
-            listOf(
-                ARG_SHOW_ANNOTATION,
-                FULLY_QUALIFIED_MODULE_LIB_API_SURFACE_ANNOTATION,
-                ARG_SHOW_FOR_STUB_PURPOSES_ANNOTATION,
-                FULLY_QUALIFIED_SYSTEM_API_SURFACE_ANNOTATION,
-            )
-        ),
+    enum class Surface(val knownApiSurface: KnownApiSurface) {
+        PUBLIC(KnownApiSurface.PUBLIC),
+        SYSTEM(KnownApiSurface.SYSTEM),
+        MODULE_LIB(KnownApiSurface.MODULE_LIB),
     }
 
     /** The different configurations of the flagged API that this test will check. */
@@ -109,14 +91,19 @@ class ParameterizedFlaggedApiTest(private val config: Configuration) : DriverTes
                     expectations.copy(
                         flagged = FINALIZE_FOO_BAR_APIS,
                         // Remove any FlaggedApi annotations from the signature files
-                        expectedApi =
-                            expectations.expectedApi.replace(flaggedApiInSignatureRegex, ""),
-                        // Remove any FlaggedApi annotations from the stubs files
-                        expectedStubs =
-                            expectations.expectedStubs
+                        expectedApiSignature =
+                            expectations.expectedApiSignature.replace(
+                                flaggedApiInSignatureRegex,
+                                ""
+                            ),
+                        // Remove any RequiresFlag (which is substituted for FlaggedApi) annotations
+                        // from the stubs files
+                        expectedStubFiles =
+                            expectations.expectedStubFiles
                                 .map {
                                     val copy = TestFile()
-                                    copy.contents = it.contents.replace(flaggedApiInStubsRegex, "")
+                                    copy.contents =
+                                        it.contents.replace(RequiresFlagInStubsRegex, "")
                                     copy.targetRelativePath = it.targetRelativePath
                                     copy
                                 }
@@ -151,6 +138,7 @@ class ParameterizedFlaggedApiTest(private val config: Configuration) : DriverTes
                             ApiFlagConfig(
                                 pkg = "test.pkg.flags",
                                 name = "foo_bar",
+                                isExported = true,
                                 mutability = IMMUTABLE,
                                 status = ENABLED,
                             ),
@@ -208,12 +196,15 @@ class ParameterizedFlaggedApiTest(private val config: Configuration) : DriverTes
         val flaggedApiInSignatureRegex = """@FlaggedApi\([^)]+\) """.toRegex()
 
         /**
-         * Regular expression that matches a FlaggedApi annotation in a stubs file. It is fully
+         * Regular expression that matches a RequiresFlag annotation in a stubs file. It is fully
          * qualified as annotations are fully qualified in stub files. It includes the following
          * newline or space as this is used to remove the annotation by replacing the matched text
          * with an empty string.
+         *
+         * All FlaggedApi annotations get converted to RequiresFlag in stub files
          */
-        val flaggedApiInStubsRegex = """@android\.annotation\.FlaggedApi\([^)]+\)[\n ]""".toRegex()
+        val RequiresFlagInStubsRegex =
+            """@android\.annotation\.RequiresFlag\([^)]+\)[\n ]""".toRegex()
 
         private val flagsFile =
             java(
@@ -232,10 +223,9 @@ class ParameterizedFlaggedApiTest(private val config: Configuration) : DriverTes
     data class Expectations(
         val surface: Surface,
         val flagged: Flagged,
-        val expectedApi: String,
-        val expectedFail: String = "",
+        val expectedApiSignature: String,
         val expectedIssues: String = "",
-        val expectedStubs: Array<TestFile> = emptyArray(),
+        val expectedStubFiles: Array<TestFile> = emptyArray(),
         val expectedStubPaths: Array<String>? = null,
         val expectedApiVersions: String = "",
     )
@@ -285,12 +275,10 @@ class ParameterizedFlaggedApiTest(private val config: Configuration) : DriverTes
                     arrayOf(
                         ARG_GENERATE_API_LEVELS,
                         apiVersionsXmlFile.path,
-                        ARG_FIRST_VERSION,
-                        "30",
-                        ARG_CURRENT_VERSION,
+                        ARG_API_VERSION_RANGE,
+                        "30:33",
+                        ARG_API_VERSION_FOR_SOURCES,
                         "32",
-                        ARG_CURRENT_CODENAME,
-                        "Current",
                         ARG_REMOVE_MISSING_CLASS_REFERENCES_IN_API_LEVELS,
                     ),
                     apiVersionsXmlFile,
@@ -309,6 +297,7 @@ class ParameterizedFlaggedApiTest(private val config: Configuration) : DriverTes
             )
 
         check(
+            apiSurface = config.surface.knownApiSurface,
             // Enable API linting against the previous API; only report issues in changes to that
             // API. Only pass in the API for the surface whose test is currently run as API lint
             // does not support passing in a list.
@@ -328,10 +317,9 @@ class ParameterizedFlaggedApiTest(private val config: Configuration) : DriverTes
                     .toTypedArray(),
             // Access android.annotation.FlaggedApi
             classpath = arrayOf(KnownJarFiles.stubAnnotationsTestFile),
-            api = expectations.expectedApi,
-            stubFiles = expectations.expectedStubs,
+            expectedApiSignature = expectations.expectedApiSignature,
+            expectedStubFiles = expectations.expectedStubFiles,
             stubPaths = expectations.expectedStubPaths,
-            expectedFail = expectations.expectedFail,
             expectedIssues = expectations.expectedIssues,
             // Do not include flags in the output but do not mark them as hide or removed.
             // This is needed to verify that the code to always inline the values of
@@ -376,7 +364,6 @@ class ParameterizedFlaggedApiTest(private val config: Configuration) : DriverTes
                         @FlaggedApi(Flags.FLAG_FOO_BAR)
                         public void flaggedPublicApi() {}
 
-                        /** @hide */
                         @SystemApi
                         @FlaggedApi(Flags.FLAG_FOO_BAR)
                         public void flaggedSystemApi() {}
@@ -400,7 +387,7 @@ class ParameterizedFlaggedApiTest(private val config: Configuration) : DriverTes
                     Expectations(
                         Surface.PUBLIC,
                         Flagged.KEEP_ALL,
-                        expectedApi =
+                        expectedApiSignature =
                             """
                                 // Signature format: 2.0
                                 package test.pkg {
@@ -410,7 +397,7 @@ class ParameterizedFlaggedApiTest(private val config: Configuration) : DriverTes
                                   }
                                 }
                             """,
-                        expectedStubs =
+                        expectedStubFiles =
                             arrayOf(
                                 java(
                                     """
@@ -418,7 +405,7 @@ class ParameterizedFlaggedApiTest(private val config: Configuration) : DriverTes
                                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                                     public class Foo {
                                     public Foo() { throw new RuntimeException("Stub!"); }
-                                    @android.annotation.FlaggedApi("test.pkg.flags.foo_bar")
+                                    @$ANDROID_REQUIRES_FLAG("test.pkg.flags.foo_bar")
                                     public void flaggedPublicApi() { throw new RuntimeException("Stub!"); }
                                     }
                                 """
@@ -428,7 +415,7 @@ class ParameterizedFlaggedApiTest(private val config: Configuration) : DriverTes
                     Expectations(
                         Surface.PUBLIC,
                         Flagged.REVERT_ALL,
-                        expectedApi =
+                        expectedApiSignature =
                             """
                                 // Signature format: 2.0
                                 package test.pkg {
@@ -437,7 +424,7 @@ class ParameterizedFlaggedApiTest(private val config: Configuration) : DriverTes
                                   }
                                 }
                             """,
-                        expectedStubs =
+                        expectedStubFiles =
                             arrayOf(
                                 java(
                                     """
@@ -453,7 +440,7 @@ class ParameterizedFlaggedApiTest(private val config: Configuration) : DriverTes
                     Expectations(
                         Surface.SYSTEM,
                         Flagged.KEEP_ALL,
-                        expectedApi =
+                        expectedApiSignature =
                             """
                                 // Signature format: 2.0
                                 package test.pkg {
@@ -462,7 +449,7 @@ class ParameterizedFlaggedApiTest(private val config: Configuration) : DriverTes
                                   }
                                 }
                             """,
-                        expectedStubs =
+                        expectedStubFiles =
                             arrayOf(
                                 java(
                                     """
@@ -470,10 +457,9 @@ class ParameterizedFlaggedApiTest(private val config: Configuration) : DriverTes
                                         @SuppressWarnings({"unchecked", "deprecation", "all"})
                                         public class Foo {
                                         public Foo() { throw new RuntimeException("Stub!"); }
-                                        @android.annotation.FlaggedApi("test.pkg.flags.foo_bar")
+                                        @$ANDROID_REQUIRES_FLAG("test.pkg.flags.foo_bar")
                                         public void flaggedPublicApi() { throw new RuntimeException("Stub!"); }
-                                        /** @hide */
-                                        @android.annotation.FlaggedApi("test.pkg.flags.foo_bar")
+                                        @$ANDROID_REQUIRES_FLAG("test.pkg.flags.foo_bar")
                                         public void flaggedSystemApi() { throw new RuntimeException("Stub!"); }
                                         }
                                     """
@@ -483,11 +469,11 @@ class ParameterizedFlaggedApiTest(private val config: Configuration) : DriverTes
                     Expectations(
                         Surface.SYSTEM,
                         Flagged.REVERT_ALL,
-                        expectedApi =
+                        expectedApiSignature =
                             """
                                 // Signature format: 2.0
                             """,
-                        expectedStubs =
+                        expectedStubFiles =
                             arrayOf(
                                 java(
                                     """
@@ -529,7 +515,6 @@ class ParameterizedFlaggedApiTest(private val config: Configuration) : DriverTes
                     import test.pkg.flags.Flags;
 
                     public class Bar {
-                        /** @hide */
                         @SystemApi
                         @FlaggedApi(Flags.FLAG_FOO_BAR)
                         public void flaggedSystemApi(@android.annotation.NonNull Foo foo) {}
@@ -553,7 +538,7 @@ class ParameterizedFlaggedApiTest(private val config: Configuration) : DriverTes
                     Expectations(
                         Surface.PUBLIC,
                         Flagged.KEEP_ALL,
-                        expectedApi =
+                        expectedApiSignature =
                             """
                                 // Signature format: 2.0
                                 package test.pkg {
@@ -569,7 +554,7 @@ class ParameterizedFlaggedApiTest(private val config: Configuration) : DriverTes
                     Expectations(
                         Surface.PUBLIC,
                         Flagged.REVERT_ALL,
-                        expectedApi =
+                        expectedApiSignature =
                             """
                                 // Signature format: 2.0
                                 package test.pkg {
@@ -582,7 +567,7 @@ class ParameterizedFlaggedApiTest(private val config: Configuration) : DriverTes
                     Expectations(
                         Surface.SYSTEM,
                         Flagged.KEEP_ALL,
-                        expectedApi =
+                        expectedApiSignature =
                             """
                                 // Signature format: 2.0
                                 package test.pkg {
@@ -595,7 +580,7 @@ class ParameterizedFlaggedApiTest(private val config: Configuration) : DriverTes
                     Expectations(
                         Surface.SYSTEM,
                         Flagged.REVERT_ALL,
-                        expectedApi =
+                        expectedApiSignature =
                             """
                                 // Signature format: 2.0
                             """,
@@ -619,7 +604,6 @@ class ParameterizedFlaggedApiTest(private val config: Configuration) : DriverTes
                         @FlaggedApi(Flags.FLAG_FOO_BAR)
                         public void flaggedMethod() {}
 
-                        /** @hide */
                         @SystemApi
                         @FlaggedApi(Flags.FLAG_FOO_BAR)
                         public void systemFlaggedMethod() {}
@@ -637,7 +621,6 @@ class ParameterizedFlaggedApiTest(private val config: Configuration) : DriverTes
                         @Override
                         public void flaggedMethod() {}
 
-                        /** @hide */
                         @SystemApi
                         @Override
                         public void systemFlaggedMethod() {}
@@ -664,7 +647,7 @@ class ParameterizedFlaggedApiTest(private val config: Configuration) : DriverTes
                     Expectations(
                         Surface.PUBLIC,
                         Flagged.KEEP_ALL,
-                        expectedApi =
+                        expectedApiSignature =
                             """
                                 // Signature format: 2.0
                                 package test.pkg {
@@ -681,7 +664,7 @@ class ParameterizedFlaggedApiTest(private val config: Configuration) : DriverTes
                     Expectations(
                         Surface.PUBLIC,
                         Flagged.REVERT_ALL,
-                        expectedApi =
+                        expectedApiSignature =
                             """
                                 // Signature format: 2.0
                                 package test.pkg {
@@ -697,7 +680,7 @@ class ParameterizedFlaggedApiTest(private val config: Configuration) : DriverTes
                     Expectations(
                         Surface.SYSTEM,
                         Flagged.KEEP_ALL,
-                        expectedApi =
+                        expectedApiSignature =
                             """
                                 // Signature format: 2.0
                                 package test.pkg {
@@ -710,7 +693,7 @@ class ParameterizedFlaggedApiTest(private val config: Configuration) : DriverTes
                     Expectations(
                         Surface.SYSTEM,
                         Flagged.REVERT_ALL,
-                        expectedApi =
+                        expectedApiSignature =
                             """
                                 // Signature format: 2.0
                             """,
@@ -720,7 +703,7 @@ class ParameterizedFlaggedApiTest(private val config: Configuration) : DriverTes
                                 "test/pkg/Foo.java",
                             ),
                         // Make sure that no FlaggedApi annotation appears in the stubs.
-                        expectedStubs =
+                        expectedStubFiles =
                             arrayOf(
                                 java(
                                     """
@@ -745,11 +728,11 @@ class ParameterizedFlaggedApiTest(private val config: Configuration) : DriverTes
                     Expectations(
                         Surface.MODULE_LIB,
                         Flagged.REVERT_ALL,
-                        expectedApi =
+                        expectedApiSignature =
                             """
                                 // Signature format: 2.0
                             """,
-                        expectedStubs =
+                        expectedStubFiles =
                             arrayOf(
                                 java(
                                     """
@@ -786,21 +769,12 @@ class ParameterizedFlaggedApiTest(private val config: Configuration) : DriverTes
                     import android.annotation.SystemApi;
                     import test.pkg.flags.Flags;
 
-                    /**
-                     * @hide
-                     */
                     @FlaggedApi(Flags.FLAG_FOO_BAR)
                     @SystemApi
                     public final class Foo {
-                        /**
-                         * @hide
-                         */
                         @SystemApi
                         public Foo() {}
 
-                        /**
-                         * @hide
-                         */
                         @SystemApi
                         public void method() {}
                     }
@@ -818,7 +792,7 @@ class ParameterizedFlaggedApiTest(private val config: Configuration) : DriverTes
                     Expectations(
                         Surface.PUBLIC,
                         Flagged.KEEP_ALL,
-                        expectedApi =
+                        expectedApiSignature =
                             """
                                 // Signature format: 2.0
                             """,
@@ -826,7 +800,7 @@ class ParameterizedFlaggedApiTest(private val config: Configuration) : DriverTes
                     Expectations(
                         Surface.PUBLIC,
                         Flagged.REVERT_ALL,
-                        expectedApi =
+                        expectedApiSignature =
                             """
                                 // Signature format: 2.0
                             """,
@@ -834,7 +808,7 @@ class ParameterizedFlaggedApiTest(private val config: Configuration) : DriverTes
                     Expectations(
                         Surface.SYSTEM,
                         Flagged.KEEP_ALL,
-                        expectedApi =
+                        expectedApiSignature =
                             """
                                 // Signature format: 2.0
                                 package test.pkg {
@@ -848,24 +822,15 @@ class ParameterizedFlaggedApiTest(private val config: Configuration) : DriverTes
                             arrayOf(
                                 "test/pkg/Foo.java",
                             ),
-                        expectedStubs =
+                        expectedStubFiles =
                             arrayOf(
                                 java(
                                     """
                                     package test.pkg;
-                                    /**
-                                     * @hide
-                                     */
                                     @SuppressWarnings({"unchecked", "deprecation", "all"})
-                                    @android.annotation.FlaggedApi("test.pkg.flags.foo_bar")
+                                    @$ANDROID_REQUIRES_FLAG("test.pkg.flags.foo_bar")
                                     public final class Foo {
-                                    /**
-                                     * @hide
-                                     */
                                     public Foo() { throw new RuntimeException("Stub!"); }
-                                    /**
-                                     * @hide
-                                     */
                                     public void method() { throw new RuntimeException("Stub!"); }
                                     }
                                 """
@@ -875,7 +840,7 @@ class ParameterizedFlaggedApiTest(private val config: Configuration) : DriverTes
                     Expectations(
                         Surface.SYSTEM,
                         Flagged.REVERT_ALL,
-                        expectedApi =
+                        expectedApiSignature =
                             """
                                 // Signature format: 2.0
                             """,
@@ -886,7 +851,7 @@ class ParameterizedFlaggedApiTest(private val config: Configuration) : DriverTes
                     Expectations(
                         Surface.MODULE_LIB,
                         Flagged.REVERT_ALL,
-                        expectedApi =
+                        expectedApiSignature =
                             """
                                 // Signature format: 2.0
                             """,
@@ -905,7 +870,7 @@ class ParameterizedFlaggedApiTest(private val config: Configuration) : DriverTes
                     """
                     package test.pkg;
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
-                    @android.annotation.FlaggedApi("test.pkg.flags.foo_bar")
+                    @$ANDROID_REQUIRES_FLAG("test.pkg.flags.foo_bar")
                     public final class Foo {
                     public Foo() { throw new RuntimeException("Stub!"); }
                     public void method() { throw new RuntimeException("Stub!"); }
@@ -984,7 +949,7 @@ class ParameterizedFlaggedApiTest(private val config: Configuration) : DriverTes
                     Expectations(
                         Surface.PUBLIC,
                         Flagged.KEEP_ALL,
-                        expectedApi =
+                        expectedApiSignature =
                             """
                                 // Signature format: 2.0
                                 package test.pkg {
@@ -995,7 +960,7 @@ class ParameterizedFlaggedApiTest(private val config: Configuration) : DriverTes
                                   }
                                 }
                             """,
-                        expectedStubs = stubsWithNewMembers,
+                        expectedStubFiles = stubsWithNewMembers,
                     ),
                     Expectations(
                         Surface.PUBLIC,
@@ -1004,7 +969,7 @@ class ParameterizedFlaggedApiTest(private val config: Configuration) : DriverTes
                         // because being annotated with @FlaggedApi does not cause it to be removed
                         // it was previously part of a released API. However, the new members did
                         // not exist in the previously released API so have been removed.
-                        expectedApi =
+                        expectedApiSignature =
                             """
                                 // Signature format: 2.0
                                 package test.pkg {
@@ -1012,7 +977,7 @@ class ParameterizedFlaggedApiTest(private val config: Configuration) : DriverTes
                                   }
                                 }
                             """,
-                        expectedStubs = stubsWithoutNewMembers,
+                        expectedStubFiles = stubsWithoutNewMembers,
                     ),
                     // The following system expectations verify what happens with a class that was
                     // previously released as part of the system API but which is annotated with
@@ -1021,14 +986,14 @@ class ParameterizedFlaggedApiTest(private val config: Configuration) : DriverTes
                         Surface.SYSTEM,
                         Flagged.KEEP_ALL,
                         // This is expected to be empty as the API has moved to public.
-                        expectedApi =
+                        expectedApiSignature =
                             """
                                 // Signature format: 2.0
                             """,
                         // The system API stubs with flagged APIs include the class and the new
                         // methods because while they are no longer system API they are public API
                         // and system API stubs include public API stubs.
-                        expectedStubs = stubsWithNewMembers,
+                        expectedStubFiles = stubsWithNewMembers,
                     ),
                     Expectations(
                         Surface.SYSTEM,
@@ -1037,7 +1002,7 @@ class ParameterizedFlaggedApiTest(private val config: Configuration) : DriverTes
                         // because being annotated with @FlaggedApi does not cause it to be removed
                         // it was previously part of a released API. However, the new members did
                         // not exist in the previously released API so have been removed.
-                        expectedApi =
+                        expectedApiSignature =
                             """
                                 // Signature format: 2.0
                                 package test.pkg {
@@ -1048,7 +1013,7 @@ class ParameterizedFlaggedApiTest(private val config: Configuration) : DriverTes
                         // The system API stubs without flagged APIs include the class but exclude
                         // the new methods because the class was present in the previously released
                         // system API but the methods were not.
-                        expectedStubs = stubsWithoutNewMembers,
+                        expectedStubFiles = stubsWithoutNewMembers,
                     ),
                     // The following module lib expectations verify what happens with a class that
                     // was previously released as part of the module lib API but which is annotated
@@ -1057,14 +1022,14 @@ class ParameterizedFlaggedApiTest(private val config: Configuration) : DriverTes
                         Surface.MODULE_LIB,
                         Flagged.KEEP_ALL,
                         // This is expected to be empty as the API has moved to public.
-                        expectedApi =
+                        expectedApiSignature =
                             """
                                 // Signature format: 2.0
                             """,
                         // The module lib API stubs with flagged APIs include the class and the new
                         // methods because while they are no longer module lib API they are public
                         // API and module lib API stubs include public API stubs.
-                        expectedStubs = stubsWithNewMembers,
+                        expectedStubFiles = stubsWithNewMembers,
                     ),
                     Expectations(
                         Surface.MODULE_LIB,
@@ -1073,7 +1038,7 @@ class ParameterizedFlaggedApiTest(private val config: Configuration) : DriverTes
                         // because being annotated with @FlaggedApi does not cause it to be removed
                         // it was previously part of a released API. However, the new members did
                         // not exist in the previously released API so have been removed.
-                        expectedApi =
+                        expectedApiSignature =
                             """
                                 // Signature format: 2.0
                                 package test.pkg {
@@ -1084,7 +1049,7 @@ class ParameterizedFlaggedApiTest(private val config: Configuration) : DriverTes
                         // The module lib API stubs without flagged APIs include the class but
                         // exclude the new methods because the class was present in the previously
                         // released module lib API but the methods were not.
-                        expectedStubs = stubsWithoutNewMembers,
+                        expectedStubFiles = stubsWithoutNewMembers,
                     ),
                 ),
         )
@@ -1097,9 +1062,8 @@ class ParameterizedFlaggedApiTest(private val config: Configuration) : DriverTes
                 java(
                     """
                     package test.pkg;
-                    /** @hide */
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
-                    @android.annotation.FlaggedApi("test.pkg.flags.foo_bar")
+                    @$ANDROID_REQUIRES_FLAG("test.pkg.flags.foo_bar")
                     public final class Foo {
                     public Foo() { throw new RuntimeException("Stub!"); }
                     public void method() { throw new RuntimeException("Stub!"); }
@@ -1114,7 +1078,6 @@ class ParameterizedFlaggedApiTest(private val config: Configuration) : DriverTes
                 java(
                     """
                     package test.pkg;
-                    /** @hide */
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public final class Foo {
                     Foo() { throw new RuntimeException("Stub!"); }
@@ -1132,7 +1095,6 @@ class ParameterizedFlaggedApiTest(private val config: Configuration) : DriverTes
                     import android.annotation.SystemApi;
                     import test.pkg.flags.Flags;
 
-                    /** @hide */
                     @SystemApi
                     @FlaggedApi(Flags.FLAG_FOO_BAR)
                     public final class Foo {
@@ -1182,7 +1144,7 @@ class ParameterizedFlaggedApiTest(private val config: Configuration) : DriverTes
                     Expectations(
                         Surface.SYSTEM,
                         Flagged.KEEP_ALL,
-                        expectedApi =
+                        expectedApiSignature =
                             """
                                 // Signature format: 2.0
                                 package test.pkg {
@@ -1193,7 +1155,7 @@ class ParameterizedFlaggedApiTest(private val config: Configuration) : DriverTes
                                   }
                                 }
                             """,
-                        expectedStubs = stubsWithNewMembers,
+                        expectedStubFiles = stubsWithNewMembers,
                     ),
                     Expectations(
                         Surface.SYSTEM,
@@ -1202,7 +1164,7 @@ class ParameterizedFlaggedApiTest(private val config: Configuration) : DriverTes
                         // because being annotated with @FlaggedApi does not cause it to be removed
                         // it was previously part of a released API. However, the new members did
                         // not exist in the previously released API so have been removed.
-                        expectedApi =
+                        expectedApiSignature =
                             """
                                 // Signature format: 2.0
                                 package test.pkg {
@@ -1210,7 +1172,7 @@ class ParameterizedFlaggedApiTest(private val config: Configuration) : DriverTes
                                   }
                                 }
                             """,
-                        expectedStubs = stubsWithoutNewMembers,
+                        expectedStubFiles = stubsWithoutNewMembers,
                     ),
                     // The following module lib expectations verify what happens with a class that
                     // was previously released as part of the module lib API but which is annotated
@@ -1219,14 +1181,14 @@ class ParameterizedFlaggedApiTest(private val config: Configuration) : DriverTes
                         Surface.MODULE_LIB,
                         Flagged.KEEP_ALL,
                         // This is expected to be empty as the API has moved to system.
-                        expectedApi =
+                        expectedApiSignature =
                             """
                                 // Signature format: 2.0
                             """,
                         // The module lib API stubs with flagged APIs include the class and the new
                         // methods because while they are no longer module lib API they are public
                         // API and module lib API stubs include public API stubs.
-                        expectedStubs = stubsWithNewMembers,
+                        expectedStubFiles = stubsWithNewMembers,
                     ),
                     Expectations(
                         Surface.MODULE_LIB,
@@ -1235,7 +1197,7 @@ class ParameterizedFlaggedApiTest(private val config: Configuration) : DriverTes
                         // because being annotated with @FlaggedApi does not cause it to be removed
                         // it was previously part of a released API. However, the new members did
                         // not exist in the previously released API so have been removed.
-                        expectedApi =
+                        expectedApiSignature =
                             """
                                 // Signature format: 2.0
                                 package test.pkg {
@@ -1246,7 +1208,7 @@ class ParameterizedFlaggedApiTest(private val config: Configuration) : DriverTes
                         // The module lib API stubs without flagged APIs include the class but
                         // exclude the new methods because the class was present in the previously
                         // released module lib API but the methods were not.
-                        expectedStubs = stubsWithoutNewMembers,
+                        expectedStubFiles = stubsWithoutNewMembers,
                     ),
                 ),
         )
@@ -1266,7 +1228,7 @@ class ParameterizedFlaggedApiTest(private val config: Configuration) : DriverTes
                         package test.pkg;
                         @SuppressWarnings({"unchecked", "deprecation", "all"})
                         public interface Foo {
-                        @android.annotation.FlaggedApi("test.pkg.flags.foo_bar") public static final int CONSTANT = 1; // 0x1
+                        @$ANDROID_REQUIRES_FLAG("test.pkg.flags.foo_bar") public static final int CONSTANT = 1;
                         }
                     """
                 ),
@@ -1315,7 +1277,7 @@ class ParameterizedFlaggedApiTest(private val config: Configuration) : DriverTes
                     Expectations(
                         Surface.PUBLIC,
                         Flagged.KEEP_ALL,
-                        expectedApi =
+                        expectedApiSignature =
                             """
                                 // Signature format: 2.0
                                 package test.pkg {
@@ -1325,12 +1287,12 @@ class ParameterizedFlaggedApiTest(private val config: Configuration) : DriverTes
                                 }
                             """,
                         expectedStubPaths = expectedStubPaths,
-                        expectedStubs = stubsWithFlaggedApi,
+                        expectedStubFiles = stubsWithFlaggedApi,
                     ),
                     Expectations(
                         Surface.PUBLIC,
                         Flagged.REVERT_ALL,
-                        expectedApi =
+                        expectedApiSignature =
                             """
                                 // Signature format: 2.0
                                 package test.pkg {
@@ -1339,27 +1301,27 @@ class ParameterizedFlaggedApiTest(private val config: Configuration) : DriverTes
                                 }
                             """,
                         expectedStubPaths = expectedStubPaths,
-                        expectedStubs = stubsWithoutFlaggedApi,
+                        expectedStubFiles = stubsWithoutFlaggedApi,
                     ),
                     Expectations(
                         Surface.SYSTEM,
                         Flagged.KEEP_ALL,
-                        expectedApi =
+                        expectedApiSignature =
                             """
                                 // Signature format: 2.0
                             """,
                         expectedStubPaths = expectedStubPaths,
-                        expectedStubs = stubsWithFlaggedApi,
+                        expectedStubFiles = stubsWithFlaggedApi,
                     ),
                     Expectations(
                         Surface.SYSTEM,
                         Flagged.REVERT_ALL,
-                        expectedApi =
+                        expectedApiSignature =
                             """
                                 // Signature format: 2.0
                             """,
                         expectedStubPaths = expectedStubPaths,
-                        expectedStubs = stubsWithoutFlaggedApi,
+                        expectedStubFiles = stubsWithoutFlaggedApi,
                     ),
                 ),
         )
@@ -1373,7 +1335,7 @@ class ParameterizedFlaggedApiTest(private val config: Configuration) : DriverTes
                     """
                         package test.pkg;
                         @SuppressWarnings({"unchecked", "deprecation", "all"})
-                        @android.annotation.FlaggedApi("test.pkg.flags.foo_bar")
+                        @$ANDROID_REQUIRES_FLAG("test.pkg.flags.foo_bar")
                         public class Foo {
                         public Foo() { throw new RuntimeException("Stub!"); }
                         public void abstractMethod() { throw new RuntimeException("Stub!"); }
@@ -1422,9 +1384,8 @@ class ParameterizedFlaggedApiTest(private val config: Configuration) : DriverTes
                 """
             ),
             extraArguments =
-                arrayOf(
-                    ARG_HIDE,
-                    Issues.REMOVED_FINAL_STRICT.name,
+                hiddenIssues(
+                    Issues.REMOVED_FINAL_STRICT,
                 ),
             // The previously released public api.
             previouslyReleasedApi =
@@ -1448,7 +1409,7 @@ class ParameterizedFlaggedApiTest(private val config: Configuration) : DriverTes
                     Expectations(
                         Surface.PUBLIC,
                         Flagged.KEEP_ALL,
-                        expectedApi =
+                        expectedApiSignature =
                             """
                                 // Signature format: 2.0
                                 package test.pkg {
@@ -1461,12 +1422,12 @@ class ParameterizedFlaggedApiTest(private val config: Configuration) : DriverTes
                                   }
                                 }
                             """,
-                        expectedStubs = stubsWithFlaggedApis,
+                        expectedStubFiles = stubsWithFlaggedApis,
                         expectedApiVersions =
                             """
                                 <?xml version="1.0" encoding="utf-8"?>
-                                <api version="3" min="33">
-                                  <class name="test/pkg/Foo" since="33">
+                                <api version="3" min="32">
+                                  <class name="test/pkg/Foo" since="32">
                                     <method name="&lt;init>()V"/>
                                     <method name="abstractMethod()V"/>
                                     <method name="method(Ljava/lang/String;)V"/>
@@ -1479,7 +1440,7 @@ class ParameterizedFlaggedApiTest(private val config: Configuration) : DriverTes
                     Expectations(
                         Surface.PUBLIC,
                         Flagged.REVERT_ALL,
-                        expectedApi =
+                        expectedApiSignature =
                             """
                                 // Signature format: 2.0
                                 package test.pkg {
@@ -1492,12 +1453,12 @@ class ParameterizedFlaggedApiTest(private val config: Configuration) : DriverTes
                                   }
                                 }
                             """,
-                        expectedStubs = stubsWithoutFlaggedApis,
+                        expectedStubFiles = stubsWithoutFlaggedApis,
                         expectedApiVersions =
                             """
                                 <?xml version="1.0" encoding="utf-8"?>
-                                <api version="3" min="33">
-                                  <class name="test/pkg/Foo" since="33">
+                                <api version="3" min="32">
+                                  <class name="test/pkg/Foo" since="32">
                                     <method name="&lt;init>()V"/>
                                     <method name="abstractMethod()V"/>
                                     <method name="method(Ljava/lang/String;)V"/>
@@ -1510,38 +1471,38 @@ class ParameterizedFlaggedApiTest(private val config: Configuration) : DriverTes
                     Expectations(
                         Surface.SYSTEM,
                         Flagged.KEEP_ALL,
-                        expectedApi =
+                        expectedApiSignature =
                             """
                                 // Signature format: 2.0
                             """,
-                        expectedStubs = stubsWithFlaggedApis,
+                        expectedStubFiles = stubsWithFlaggedApis,
                     ),
                     Expectations(
                         Surface.SYSTEM,
                         Flagged.REVERT_ALL,
-                        expectedApi =
+                        expectedApiSignature =
                             """
                                 // Signature format: 2.0
                             """,
-                        expectedStubs = stubsWithoutFlaggedApis,
+                        expectedStubFiles = stubsWithoutFlaggedApis,
                     ),
                     Expectations(
                         Surface.MODULE_LIB,
                         Flagged.KEEP_ALL,
-                        expectedApi =
+                        expectedApiSignature =
                             """
                                 // Signature format: 2.0
                             """,
-                        expectedStubs = stubsWithFlaggedApis,
+                        expectedStubFiles = stubsWithFlaggedApis,
                     ),
                     Expectations(
                         Surface.MODULE_LIB,
                         Flagged.REVERT_ALL,
-                        expectedApi =
+                        expectedApiSignature =
                             """
                                 // Signature format: 2.0
                             """,
-                        expectedStubs = stubsWithoutFlaggedApis,
+                        expectedStubFiles = stubsWithoutFlaggedApis,
                     ),
                 ),
         )
@@ -1563,7 +1524,7 @@ class ParameterizedFlaggedApiTest(private val config: Configuration) : DriverTes
                          */
                         @SuppressWarnings({"unchecked", "deprecation", "all"})
                         @Deprecated
-                        @android.annotation.FlaggedApi("test.pkg.flags.foo_bar")
+                        @$ANDROID_REQUIRES_FLAG("test.pkg.flags.foo_bar")
                         public class Bar {
                         /**
                          * A Bar constructor.
@@ -1589,7 +1550,7 @@ class ParameterizedFlaggedApiTest(private val config: Configuration) : DriverTes
                     """
                         package test.pkg;
                         @SuppressWarnings({"unchecked", "deprecation", "all"})
-                        @android.annotation.FlaggedApi("test.pkg.flags.foo_bar")
+                        @$ANDROID_REQUIRES_FLAG("test.pkg.flags.foo_bar")
                         public class Foo {
                         Foo() { throw new RuntimeException("Stub!"); }
                         public void method(@android.annotation.Nullable java.lang.String p) { throw new RuntimeException("Stub!"); }
@@ -1605,23 +1566,14 @@ class ParameterizedFlaggedApiTest(private val config: Configuration) : DriverTes
                 java(
                     """
                         package test.pkg;
-                        /**
-                         * A Bar class.
-                         *
-                         */
+                        /** A Bar class. */
                         @SuppressWarnings({"unchecked", "deprecation", "all"})
                         public class Bar {
-                        /**
-                         * A Bar constructor.
-                         */
+                        /** A Bar constructor. */
                         public Bar() { throw new RuntimeException("Stub!"); }
-                        /**
-                         * A method.
-                         */
+                        /** A method. */
                         public void method() { throw new RuntimeException("Stub!"); }
-                        /**
-                         * A field.
-                         */
+                        /** A field. */
                         public static int field;
                         }
                     """
@@ -1633,6 +1585,7 @@ class ParameterizedFlaggedApiTest(private val config: Configuration) : DriverTes
                         public class Foo {
                         Foo() { throw new RuntimeException("Stub!"); }
                         public void method(@android.annotation.Nullable java.lang.String p) { throw new RuntimeException("Stub!"); }
+                        /** */
                         public static int field;
                         }
                     """
@@ -1700,8 +1653,8 @@ class ParameterizedFlaggedApiTest(private val config: Configuration) : DriverTes
                     }
                 """
             ),
+            @Suppress("DeprecatedIsStillUsed")
             java(
-                @Suppress("DeprecatedIsStillUsed")
                 """
                     package test.pkg;
 
@@ -1746,7 +1699,7 @@ class ParameterizedFlaggedApiTest(private val config: Configuration) : DriverTes
                     Expectations(
                         Surface.PUBLIC,
                         Flagged.KEEP_ALL,
-                        expectedApi =
+                        expectedApiSignature =
                             """
                                 // Signature format: 2.0
                                 package test.pkg {
@@ -1766,24 +1719,24 @@ class ParameterizedFlaggedApiTest(private val config: Configuration) : DriverTes
                                   }
                                 }
                             """,
-                        expectedStubs = stubsWithFlaggedApis,
+                        expectedStubFiles = stubsWithFlaggedApis,
                         expectedApiVersions =
                             """
                                 <?xml version="1.0" encoding="utf-8"?>
-                                <api version="3" min="33">
-                                  <class name="test/pkg/Bar" since="33" deprecated="33">
+                                <api version="3" min="32">
+                                  <class name="test/pkg/Bar" since="32" deprecated="32">
                                     <method name="&lt;init>()V"/>
                                     <method name="method()V"/>
                                     <field name="field"/>
                                   </class>
-                                  <class name="test/pkg/Baz" since="33" deprecated="33">
+                                  <class name="test/pkg/Baz" since="32" deprecated="32">
                                     <method name="&lt;init>()V"/>
                                     <method name="method()V"/>
                                     <field name="field"/>
                                   </class>
-                                  <class name="test/pkg/Foo" since="33">
+                                  <class name="test/pkg/Foo" since="32">
                                     <method name="method(Ljava/lang/String;)V"/>
-                                    <field name="field" deprecated="33"/>
+                                    <field name="field" deprecated="32"/>
                                   </class>
                                 </api>
                             """,
@@ -1791,7 +1744,7 @@ class ParameterizedFlaggedApiTest(private val config: Configuration) : DriverTes
                     Expectations(
                         Surface.PUBLIC,
                         Flagged.REVERT_ALL,
-                        expectedApi =
+                        expectedApiSignature =
                             """
                                 // Signature format: 2.0
                                 package test.pkg {
@@ -1811,22 +1764,22 @@ class ParameterizedFlaggedApiTest(private val config: Configuration) : DriverTes
                                   }
                                 }
                             """,
-                        expectedStubs = stubsWithoutFlaggedApis,
+                        expectedStubFiles = stubsWithoutFlaggedApis,
                         expectedApiVersions =
                             """
                                 <?xml version="1.0" encoding="utf-8"?>
-                                <api version="3" min="33">
-                                  <class name="test/pkg/Bar" since="33">
+                                <api version="3" min="32">
+                                  <class name="test/pkg/Bar" since="32">
                                     <method name="&lt;init>()V"/>
                                     <method name="method()V"/>
                                     <field name="field"/>
                                   </class>
-                                  <class name="test/pkg/Baz" since="33" deprecated="33">
+                                  <class name="test/pkg/Baz" since="32" deprecated="32">
                                     <method name="&lt;init>()V"/>
                                     <method name="method()V"/>
                                     <field name="field"/>
                                   </class>
-                                  <class name="test/pkg/Foo" since="33">
+                                  <class name="test/pkg/Foo" since="32">
                                     <method name="method(Ljava/lang/String;)V"/>
                                     <field name="field"/>
                                   </class>
@@ -1836,38 +1789,38 @@ class ParameterizedFlaggedApiTest(private val config: Configuration) : DriverTes
                     Expectations(
                         Surface.SYSTEM,
                         Flagged.KEEP_ALL,
-                        expectedApi =
+                        expectedApiSignature =
                             """
                                 // Signature format: 2.0
                             """,
-                        expectedStubs = stubsWithFlaggedApis,
+                        expectedStubFiles = stubsWithFlaggedApis,
                     ),
                     Expectations(
                         Surface.SYSTEM,
                         Flagged.REVERT_ALL,
-                        expectedApi =
+                        expectedApiSignature =
                             """
                                 // Signature format: 2.0
                             """,
-                        expectedStubs = stubsWithoutFlaggedApis,
+                        expectedStubFiles = stubsWithoutFlaggedApis,
                     ),
                     Expectations(
                         Surface.MODULE_LIB,
                         Flagged.KEEP_ALL,
-                        expectedApi =
+                        expectedApiSignature =
                             """
                                 // Signature format: 2.0
                             """,
-                        expectedStubs = stubsWithFlaggedApis,
+                        expectedStubFiles = stubsWithFlaggedApis,
                     ),
                     Expectations(
                         Surface.MODULE_LIB,
                         Flagged.REVERT_ALL,
-                        expectedApi =
+                        expectedApiSignature =
                             """
                                 // Signature format: 2.0
                             """,
-                        expectedStubs = stubsWithoutFlaggedApis,
+                        expectedStubFiles = stubsWithoutFlaggedApis,
                     ),
                 ),
         )
@@ -1883,7 +1836,7 @@ class ParameterizedFlaggedApiTest(private val config: Configuration) : DriverTes
                         @SuppressWarnings({"unchecked", "deprecation", "all"})
                         public class Bar {
                         public Bar() { throw new RuntimeException("Stub!"); }
-                        @android.annotation.FlaggedApi("test.pkg.flags.foo_bar")
+                        @$ANDROID_REQUIRES_FLAG("test.pkg.flags.foo_bar")
                         public void method() { throw new RuntimeException("Stub!"); }
                         }
                     """
@@ -1970,7 +1923,7 @@ class ParameterizedFlaggedApiTest(private val config: Configuration) : DriverTes
                     Expectations(
                         Surface.PUBLIC,
                         Flagged.KEEP_ALL,
-                        expectedApi =
+                        expectedApiSignature =
                             """
                                 // Signature format: 2.0
                                 package test.pkg {
@@ -1982,12 +1935,12 @@ class ParameterizedFlaggedApiTest(private val config: Configuration) : DriverTes
                                   }
                                 }
                             """,
-                        expectedStubs = stubsWithFlaggedApis,
+                        expectedStubFiles = stubsWithFlaggedApis,
                     ),
                     Expectations(
                         Surface.PUBLIC,
                         Flagged.REVERT_ALL,
-                        expectedApi =
+                        expectedApiSignature =
                             // TODO(b/337840740): Foo should have method().
                             """
                                 // Signature format: 2.0
@@ -1999,43 +1952,43 @@ class ParameterizedFlaggedApiTest(private val config: Configuration) : DriverTes
                                   }
                                 }
                             """,
-                        expectedStubs = stubsWithoutFlaggedApis,
+                        expectedStubFiles = stubsWithoutFlaggedApis,
                     ),
                     Expectations(
                         Surface.SYSTEM,
                         Flagged.KEEP_ALL,
-                        expectedApi =
+                        expectedApiSignature =
                             """
                                 // Signature format: 2.0
                             """,
-                        expectedStubs = stubsWithFlaggedApis,
+                        expectedStubFiles = stubsWithFlaggedApis,
                     ),
                     Expectations(
                         Surface.SYSTEM,
                         Flagged.REVERT_ALL,
-                        expectedApi =
+                        expectedApiSignature =
                             """
                                 // Signature format: 2.0
                             """,
-                        expectedStubs = stubsWithoutFlaggedApis,
+                        expectedStubFiles = stubsWithoutFlaggedApis,
                     ),
                     Expectations(
                         Surface.MODULE_LIB,
                         Flagged.KEEP_ALL,
-                        expectedApi =
+                        expectedApiSignature =
                             """
                                 // Signature format: 2.0
                             """,
-                        expectedStubs = stubsWithFlaggedApis,
+                        expectedStubFiles = stubsWithFlaggedApis,
                     ),
                     Expectations(
                         Surface.MODULE_LIB,
                         Flagged.REVERT_ALL,
-                        expectedApi =
+                        expectedApiSignature =
                             """
                                 // Signature format: 2.0
                             """,
-                        expectedStubs = stubsWithoutFlaggedApis,
+                        expectedStubFiles = stubsWithoutFlaggedApis,
                     ),
                 ),
         )

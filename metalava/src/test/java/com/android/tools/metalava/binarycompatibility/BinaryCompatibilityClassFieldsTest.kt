@@ -22,12 +22,12 @@ import org.junit.Test
 class BinaryCompatibilityClassFieldsTest : DriverTest() {
 
     @Test
-    fun `Change type of API field (Incompatible)`() {
+    fun `Change type of API field - Incompatible`() {
         check(
             expectedIssues =
                 """
-                load-api.txt:4: error: Field test.pkg.Foo.bar has changed type from java.lang.String to int [ChangedType]
-            """,
+                load-api.txt:4: error: Binary breaking change: Field test.pkg.Foo.bar has changed type from java.lang.String to int [ChangedType]
+                """,
             signatureSource =
                 """
                 package test.pkg {
@@ -48,12 +48,12 @@ class BinaryCompatibilityClassFieldsTest : DriverTest() {
     }
 
     @Test
-    fun `Change value of API field, compile-time constant (Incompatible)`() {
+    fun `Change value of API field, compile-time constant - Incompatible`() {
         check(
             expectedIssues =
                 """
-                load-api.txt:4: error: Field test.pkg.Foo.bar has changed value from 8 to 7 [ChangedValue]
-            """,
+                load-api.txt:4: error: Binary breaking change: Field test.pkg.Foo.bar has changed value from 8 to 7 [ChangedValue]
+                """,
             signatureSource =
                 """
                 package test.pkg {
@@ -74,13 +74,13 @@ class BinaryCompatibilityClassFieldsTest : DriverTest() {
     }
 
     @Test
-    fun `Decrease access from protected to default or private, or public to protected, default, or private (Incompatible)`() {
+    fun `Decrease access from protected to default or private, or public to protected, default, or private - Incompatible`() {
         check(
             expectedIssues =
                 """
-                load-api.txt:4: error: Field test.pkg.Foo.bar changed visibility from protected to private [ChangedScope]
-                load-api.txt:5: error: Field test.pkg.Foo.baz changed visibility from public to protected [ChangedScope]
-            """,
+                load-api.txt:4: error: Binary breaking change: Field test.pkg.Foo.bar changed visibility from protected to private [ChangedScope]
+                load-api.txt:5: error: Binary breaking change: Field test.pkg.Foo.baz changed visibility from public to protected [ChangedScope]
+                """,
             signatureSource =
                 """
                 package test.pkg {
@@ -103,7 +103,7 @@ class BinaryCompatibilityClassFieldsTest : DriverTest() {
     }
 
     @Test
-    fun `Increase access, eg from protected to public (Compatible)`() {
+    fun `Increase access, eg from protected to public - Compatible`() {
         check(
             signatureSource =
                 """
@@ -127,7 +127,7 @@ class BinaryCompatibilityClassFieldsTest : DriverTest() {
     }
 
     @Test
-    fun `Change final to non-final, non-static (Compatible)`() {
+    fun `Change final to non-final, non-static - Compatible`() {
         check(
             signatureSource =
                 """
@@ -149,7 +149,7 @@ class BinaryCompatibilityClassFieldsTest : DriverTest() {
     }
 
     @Test
-    fun `Change final to non-final, static with compile-time constant value (Incompatible)`() {
+    fun `Change final to non-final, static with compile-time constant value - Incompatible`() {
         check(
             // The value change is caused by the removal of `final`. Removing `final` turns the
             // field from one that always has a value of `0` which is inlined by the compiler to a
@@ -157,8 +157,8 @@ class BinaryCompatibilityClassFieldsTest : DriverTest() {
             // inlined by the compiler.
             expectedIssues =
                 """
-                    load-api.txt:4: error: Field test.pkg.Foo.bar has changed value from 0 to nothing/not constant [ChangedValue]
-                    load-api.txt:4: error: Field test.pkg.Foo.bar has removed 'final' qualifier [RemovedFinal]
+                    load-api.txt:4: error: Binary breaking change: Field test.pkg.Foo.bar has changed value from 0 to nothing/not constant [ChangedValue]
+                    load-api.txt:4: error: Binary breaking change: Field test.pkg.Foo.bar has removed 'final' qualifier [RemovedFinal]
                 """,
             signatureSource =
                 """
@@ -180,12 +180,12 @@ class BinaryCompatibilityClassFieldsTest : DriverTest() {
     }
 
     @Test
-    fun `Change non-final to final (Incompatible)`() {
+    fun `Change non-final to final - Incompatible`() {
         check(
             expectedIssues =
                 """
-                load-api.txt:4: error: Field test.pkg.Foo.bar has added 'final' qualifier [AddedFinal]
-            """,
+                load-api.txt:4: error: Binary breaking change: Field test.pkg.Foo.bar has added 'final' qualifier [AddedFinal]
+                """,
             signatureSource =
                 """
                 package test.pkg {
@@ -206,12 +206,12 @@ class BinaryCompatibilityClassFieldsTest : DriverTest() {
     }
 
     @Test
-    fun `Change static to non-static (Incompatible)`() {
+    fun `Change static to non-static - Incompatible`() {
         check(
             expectedIssues =
                 """
-                load-api.txt:4: error: Field test.pkg.Foo.bar has changed 'static' qualifier [ChangedStatic]
-            """,
+                load-api.txt:4: error: Binary breaking change: Field test.pkg.Foo.bar has changed 'static' qualifier [ChangedStatic]
+                """,
             signatureSource =
                 """
                 package test.pkg {
@@ -232,12 +232,12 @@ class BinaryCompatibilityClassFieldsTest : DriverTest() {
     }
 
     @Test
-    fun `Change non-static to static (Incompatible)`() {
+    fun `Change non-static to static - Incompatible`() {
         check(
             expectedIssues =
                 """
-                load-api.txt:4: error: Field test.pkg.Foo.bar has changed 'static' qualifier [ChangedStatic]
-            """,
+                load-api.txt:4: error: Binary breaking change: Field test.pkg.Foo.bar has changed 'static' qualifier [ChangedStatic]
+                """,
             signatureSource =
                 """
                 package test.pkg {
@@ -258,7 +258,7 @@ class BinaryCompatibilityClassFieldsTest : DriverTest() {
     }
 
     @Test
-    fun `Change transient to non-transient (Compatible)`() {
+    fun `Change transient to non-transient - Compatible`() {
         check(
             signatureSource =
                 """
@@ -280,7 +280,7 @@ class BinaryCompatibilityClassFieldsTest : DriverTest() {
     }
 
     @Test
-    fun `Change non-transient to transient (Compatible)`() {
+    fun `Change non-transient to transient - Compatible`() {
         check(
             signatureSource =
                 """
