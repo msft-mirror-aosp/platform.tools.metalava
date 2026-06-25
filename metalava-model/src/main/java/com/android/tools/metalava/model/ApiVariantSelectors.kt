@@ -59,8 +59,8 @@ sealed class ApiVariantSelectors {
     /**
      * Indicates whether the [Item] should be included in the doc only API surface variant.
      *
-     * Initially set to `true` if the [SelectableItem.documentation] contains `@doconly` but updated
-     * due to inheritance.
+     * Initially set to `true` if the [SelectableItem.documentation] contains an
+     * `<api-surfaces>/<doc-only>` configured annotation. Updated due to inheritance.
      */
     abstract val docOnly: Boolean
 
@@ -163,9 +163,11 @@ sealed class ApiVariantSelectors {
      * Unless [hidden] is written before reading then it will default to `true` if
      * [originallyHidden] is `true` and it does not have any show annotations.
      *
-     * [docOnly] will be initialized to `true` if it's [item]'s documentation contains `@doconly`.
+     * [docOnly] will be initialized to `true` if its [item]'s documentation contains an
+     * `<api-surfaces>/<doc-only>` configured annotation.
      *
-     * [removed] will be initialized to `true` if it's [item]'s documentation contains `@removed`.
+     * [removed] will be initialized to `true` if its [item]'s documentation contains `@removed` or
+     * an `<api-surfaces>/<removed>` configured annotation.
      *
      * This uses bits in [propertyHasBeenSetBits] and [propertyValueBits] to handle lazy
      * initialization and store the value. The main purpose of using bit masks is not primarily
@@ -321,13 +323,16 @@ sealed class ApiVariantSelectors {
             get() =
                 lazyGet(DOCONLY_BIT_MASK) {
                     (item.parent()?.variantSelectors?.docOnly == true) ||
-                        item.documentation?.isDocOnly == true
+                        // Check if the item is annotated with a configured doc-only annotation.
+                        item.codebase.annotationManager.hasDocOnlyAnnotation(item)
                 }
 
         override var removed: Boolean
             get() =
                 lazyGet(REMOVED_BIT_MASK) {
                     (item.parent()?.variantSelectors?.removed == true) ||
+                        // Check if the item is annotated with a configured removed annotation.
+                        item.codebase.annotationManager.hasRemovedAnnotation(item) ||
                         item.documentation?.isRemoved == true
                 }
             // This is only used for testing.
@@ -738,8 +743,8 @@ private fun includeOnlyForStubPurposesRecursive(item: SelectableItem): Boolean {
         return membership == ApiMembership.BASE
     }
 
-    // If this item has neither --show-annotation nor --show-for-stub-purposes-annotation,
-    // Then defer to the "parent" item (i.e. the containing class or package).
+    // If this item has no show annotations then defer to the "parent" item (i.e. the containing
+    // class or package).
     return item.parent()?.let { includeOnlyForStubPurposesRecursive(it) } ?: false
 }
 

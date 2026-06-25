@@ -717,7 +717,6 @@ internal class PsiClassBuilder(
                     )
                 },
                 throwsTypes = throwsTypes(psiMethod, methodTypeItemFactory),
-                callableBodyFactory = { PsiCallableBody(psiCodebase, it, psiMethod) },
                 defaultValueProvider = defaultValueProvider,
                 isExtensionMethod = isExtensionMethod,
                 isKotlinProperty = psiMethod.isKotlinProperty(),
@@ -786,7 +785,6 @@ internal class PsiClassBuilder(
                     )
                 },
                 throwsTypes = throwsTypes(psiMethod, constructorTypeItemFactory),
-                callableBodyFactory = { PsiCallableBody(psiCodebase, it, psiMethod) },
                 implicitConstructor = false,
                 isPrimary = (psiMethod as? UMethod)?.isPrimaryConstructor == true
             )

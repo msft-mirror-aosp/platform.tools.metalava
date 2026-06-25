@@ -16,9 +16,9 @@
 
 package com.android.tools.metalava.model
 
+import com.android.tools.metalava.model.api.SelectedApi
 import com.android.tools.metalava.model.api.surface.ApiVariant
 import com.android.tools.metalava.model.api.surface.ApiVariantSet
-import com.android.tools.metalava.model.api.surface.MutableApiVariantSet
 import com.android.tools.metalava.model.doc.DocContent
 import com.android.tools.metalava.model.doc.DocContentOwner
 import com.android.tools.metalava.model.scope.ReferencableNameScope
@@ -34,17 +34,11 @@ import com.android.tools.metalava.model.scope.ReferencableNameScope
  * an indivisible part of the [ParameterItem.containingCallable].
  */
 interface SelectableItem : Item, ReferencableNameScope {
+    /** The [SelectedApi] for this [SelectableItem]. */
+    val selectedApi: SelectedApi
+
     /** The [ApiVariant]s for which this [Item] has been selected. */
     var selectedApiVariants: ApiVariantSet
-
-    /**
-     * Mutate [selectedApiVariants].
-     *
-     * Provides a [MutableApiVariantSet] of the [selectedApiVariants] that can be modified by
-     * [mutator]. Once the mutator exits [selectedApiVariants] will be updated. The
-     * [MutableApiVariantSet] must not be accessed from outside [mutator].
-     */
-    fun mutateSelectedApiVariants(mutator: MutableApiVariantSet.() -> Unit)
 
     /** Whether this element will be printed in the signature file */
     var emit: Boolean
@@ -92,7 +86,7 @@ interface SelectableItem : Item, ReferencableNameScope {
     val removed: Boolean
 
     /** True if this item is either hidden or removed */
-    fun isHiddenOrRemoved(): Boolean = hidden || removed
+    fun isHiddenOrRemoved(): Boolean = hidden() || removed
 
     /** Determines whether this item will be shown as part of the API or not. */
     val showability: Showability

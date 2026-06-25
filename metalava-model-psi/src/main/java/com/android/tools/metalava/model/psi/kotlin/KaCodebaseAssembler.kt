@@ -46,6 +46,7 @@ import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.TypeParameterScope
 import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.WellKnownTypes
+import com.android.tools.metalava.model.api.SelectedApi
 import com.android.tools.metalava.model.createImmutableModifiers
 import com.android.tools.metalava.model.createMutableModifiers
 import com.android.tools.metalava.model.item.CodebaseAssembler
@@ -200,6 +201,9 @@ internal class KaCodebaseAssembler(
                                     trustedApi = false,
                                     supportsDocumentation = false,
                                     assembler = assembler,
+                                    // Create a [SelectedApi] instance that will be initialized
+                                    // lazily from the source.
+                                    selectedApiFactory = SelectedApi.sourceFactory(config),
                                 )
                             }
                         tracer.trace(
@@ -535,7 +539,7 @@ private constructor(
             itemFactory.createClassItem(
                 fileLocation = PsiFileLocation.fromPsiElement(classifierSymbol.psi),
                 targetLanguages = TargetLanguageSet.KOTLIN_ONLY,
-                modifiers = kaModifierFactory.createForClass(classifierSymbol),
+                modifiers = kaModifierFactory.createForClass(classifierSymbol, containingClass),
                 source = null,
                 classKind = classifierSymbol.getClassKind(),
                 containingClass = containingClass,
@@ -964,6 +968,10 @@ private constructor(
             )
 
         val receiverType = propertySymbol.receiverType?.let { typeFactory.getGeneralType(it) }
+        // Context parameter types need to be computed to help find accessors.
+        @OptIn(KaExperimentalApi::class)
+        val contextParameterTypes =
+            propertySymbol.contextParameters.map { typeFactory.getGeneralType(it.returnType) }
 
         val getter =
             propertySymbol.getter?.let {
@@ -983,6 +991,7 @@ private constructor(
                     containingClass,
                     type,
                     receiverType,
+                    contextParameterTypes,
                     isGetter = true,
                     it.visibility,
                 )
@@ -997,6 +1006,7 @@ private constructor(
                     containingClass,
                     type,
                     receiverType,
+                    contextParameterTypes,
                     isGetter = false,
                     it.visibility,
                 )
@@ -1035,7 +1045,6 @@ private constructor(
         @OptIn(KaExperimentalApi::class)
         val contextParameterFactory = { propertyItem: PropertyItem ->
             propertySymbol.contextParameters.mapIndexed { index, parameterSymbol ->
-                val type = typeFactory.getGeneralType(parameterSymbol.returnType)
                 val name = parameterSymbol.name.identifierOrNullIfSpecial
                 itemFactory.createParameterItem(
                     fileLocation = PsiFileLocation.fromPsiElement(parameterSymbol.psi),
@@ -1045,7 +1054,8 @@ private constructor(
                     publicName = name,
                     containingItem = propertyItem,
                     parameterIndex = index,
-                    type = type,
+                    // Use the types computed above
+                    type = contextParameterTypes[index],
                     hasDefaultValue = false,
                     kind = ParameterKind.CONTEXT
                 )
@@ -1248,7 +1258,7 @@ private constructor(
 
     /**
      * Finds a property accessor with the given [name] in the [containingClass], based on the
-     * [propertyType] and [receiverType].
+     * [propertyType], [receiverType], and [contextParameterTypes].
      */
     private fun findAccessor(
         property: KaPropertySymbol,
@@ -1258,40 +1268,56 @@ private constructor(
         containingClass: ClassItem,
         propertyType: TypeItem,
         receiverType: TypeItem?,
+        contextParameterTypes: List<TypeItem>,
         isGetter: Boolean,
         visibility: KaSymbolVisibility,
     ): MethodItem? {
         // Generally, properties using a value class type cannot be accessed from Java. However, if
-        // JvmName is used, they can be, but the inlined type needs to be used to find the accessor
-        // instead of the value class type.
-        val (possiblyInlinedPropertyType, possiblyInlinedReceiverType) =
-            if (propertyType.isValueClassType || receiverType?.isValueClassType == true) {
-                if (accessor.annotations.any { it.classId?.asFqNameString() == JVM_NAME }) {
-                    typeItemFactory.inlineTypeIfNeeded(property.returnType, propertyType) to
-                        receiverType?.let {
-                            typeItemFactory.inlineTypeIfNeeded(
-                                property.receiverType!!,
-                                receiverType
-                            )
-                        }
-                } else {
-                    return null
-                }
+        // JvmName is used, they can be, but the inlined types need to be used to find the accessor
+        // instead of the value class types.
+        val possiblyInlinedPropertyType: TypeItem
+        val possiblyInlinedReceiverType: TypeItem?
+        val possiblyInlinedContextParameterTypes: List<TypeItem>
+        if (
+            propertyType.isValueClassType ||
+                receiverType?.isValueClassType == true ||
+                contextParameterTypes.any { it.isValueClassType }
+        ) {
+            if (accessor.annotations.any { it.classId?.asFqNameString() == JVM_NAME }) {
+                possiblyInlinedPropertyType =
+                    typeItemFactory.inlineTypeIfNeeded(property.returnType, propertyType)
+                possiblyInlinedReceiverType =
+                    receiverType?.let {
+                        typeItemFactory.inlineTypeIfNeeded(property.receiverType!!, receiverType)
+                    }
+                @OptIn(KaExperimentalApi::class)
+                possiblyInlinedContextParameterTypes =
+                    contextParameterTypes.mapIndexed { index, type ->
+                        typeItemFactory.inlineTypeIfNeeded(
+                            property.contextParameters[index].returnType,
+                            type
+                        )
+                    }
             } else {
-                propertyType to receiverType
+                return null
             }
+        } else {
+            possiblyInlinedPropertyType = propertyType
+            possiblyInlinedReceiverType = receiverType
+            possiblyInlinedContextParameterTypes = contextParameterTypes
+        }
 
         val parameters =
-            listOfNotNull(
-                    // Both the getter and setter have the receiver as the first parameter
-                    possiblyInlinedReceiverType,
+            buildList {
+                    // Both the getter and setter have the context parameters and receiver as the
+                    // first parameters, if they exist
+                    addAll(possiblyInlinedContextParameterTypes)
+                    possiblyInlinedReceiverType?.let { add(it) }
                     // The setter also has the property type as a parameter
-                    if (isGetter) {
-                        null
-                    } else {
-                        possiblyInlinedPropertyType
+                    if (!isGetter) {
+                        add(possiblyInlinedPropertyType)
                     }
-                )
+                }
                 // Compare types by erased string to work around differences like `List<String>` vs
                 // `List<? extends String>` that can exist in the two representations.
                 .map { it.toErasedTypeString() }

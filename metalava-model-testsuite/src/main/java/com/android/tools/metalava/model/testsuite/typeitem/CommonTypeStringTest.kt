@@ -186,7 +186,7 @@ class CommonTypeStringTest : BaseModelTest() {
             val type =
                 param.type().let { unfilteredType ->
                     val filter = parameters.filter ?: return@let unfilteredType
-                    unfilteredType.transform(typeUseAnnotationFilter(filter))
+                    unfilteredType.transform(filter.typeUseAnnotationFilter())
                 }
             val methodToTest = parameters.methodToTest
             val typeString = type.methodToTest(parameters.typeStringConfiguration)

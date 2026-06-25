@@ -92,8 +92,16 @@ sealed interface AnnotationFormatter {
                 annotationAttributeNameValueSeparator =
                     AnnotationAttributeNameValueSeparator.WITHOUT_SPACES,
                 annotationQualifiedNameGetter = { annotationItem, _ ->
+                    // @RequiresFlag replaces all occurrences of @FlaggedApi in stub files
+                    val qualifiedName =
+                        if (
+                            annotationItem.qualifiedName == ANDROID_FLAGGED_API &&
+                                target == AnnotationTarget.SDK_STUBS_FILE
+                        )
+                            ANDROID_REQUIRES_FLAG
+                        else annotationItem.qualifiedName
                     annotationItem.annotationContext.annotationManager.normalizeOutputName(
-                        annotationItem.qualifiedName,
+                        qualifiedName,
                         target
                     )
                 },
@@ -128,7 +136,7 @@ sealed interface AnnotationFormatter {
     }
 
     /** An [AnnotationFormatter] used when normalizing annotations e.g. for comparisons */
-    private class NormalizingFormatter() : AnnotationFormatter {
+    private class NormalizingFormatter : AnnotationFormatter {
         /** The default [ValueStringConfiguration] for normalization */
         private val defaultConfiguration =
             ValueStringConfiguration(
@@ -145,15 +153,9 @@ sealed interface AnnotationFormatter {
             purpose: AnnotationPurpose,
             context: Item?
         ) {
-            var configuration = defaultConfiguration
-            // b/483372828 - attribute values are loaded inconsistently for RestrictedForEnvironment
-            // so they will be ignored for now.
-            if (annotationItem.qualifiedName.contains("RestrictedForEnvironment")) {
-                configuration = configuration.copy(inlineFieldReferenceChecker = null)
-            }
             annotationItem.appendAnnotationStringTo(
                 builder,
-                configuration,
+                defaultConfiguration,
                 purpose,
             )
         }

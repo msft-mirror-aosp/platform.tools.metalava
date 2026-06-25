@@ -16,9 +16,13 @@
 
 package com.android.tools.metalava.config
 
+import com.android.tools.metalava.model.api.surface.ApiSurface
+import com.android.tools.metalava.model.api.surface.ApiVariantType
 import com.fasterxml.jackson.annotation.JsonIgnore
 import com.fasterxml.jackson.annotation.JsonValue
 import com.fasterxml.jackson.dataformat.xml.annotation.JacksonXmlProperty
+import com.fasterxml.jackson.dataformat.xml.annotation.JacksonXmlRootElement
+import kotlin.collections.plus
 
 // Neither Kotlin nor Java has an interface for an ordered collection of unique elements, i.e. an
 // ordered set. However, the standard Kotlin [Set] and [MutableSet] as returned by [setOf],
@@ -47,25 +51,72 @@ typealias MutableOrderedSet<E> = MutableSet<E>
 data class ApiSurfacesConfig(
     @field:JacksonXmlProperty(localName = "api-surface", namespace = CONFIG_NAMESPACE)
     val apiSurfaceList: List<ApiSurfaceConfig> = emptyList(),
-) : CombinableConfig<ApiSurfacesConfig> {
 
-    /** Combine with another [ApiSurfacesConfig] by concatenating the [apiSurfaceList]s. */
-    override fun combineWith(other: ApiSurfacesConfig) =
-        ApiSurfacesConfig(apiSurfaceList + other.apiSurfaceList)
+    /**
+     * Specifies the annotation patterns that determine if an item is a member of
+     * [ApiVariantType.DOC_ONLY].
+     */
+    @field:JacksonXmlProperty(localName = "doc-only", namespace = CONFIG_NAMESPACE)
+    val docOnly: ApiVariantTypeRuleConfig? = null,
+
+    /**
+     * Specifies the annotation patterns that determine if an item is a member of
+     * [ApiVariantType.REMOVED].
+     */
+    @field:JacksonXmlProperty(localName = "removed", namespace = CONFIG_NAMESPACE)
+    val removed: ApiVariantTypeRuleConfig? = null,
+) : CombinableConfig<ApiSurfacesConfig> {
+    /**
+     * Combine with another [ApiSurfacesConfig] by concatenating the [apiSurfaceList]s.
+     *
+     * Allows for the same surface to be defined in separate files as long as they are identical.
+     * This makes it possible to add separate config files that extend the standard API surfaces.
+     */
+    override fun combineWith(other: ApiSurfacesConfig): ApiSurfacesConfig {
+        val combined = apiSurfaceList + other.apiSurfaceList
+        val byName =
+            combined
+                .groupingBy { it.name }
+                .reduce { name, surface1, surface2 ->
+                    if (surface1 == surface2) {
+                        surface1
+                    } else {
+                        error(
+                            buildString {
+                                append("Found duplicate surfaces called `")
+                                append(name)
+                                append("`\n")
+                                append("    Definition #1:\n")
+                                val indent = "        "
+                                append(surface1.toConfigXml(indent))
+                                append("\n")
+                                append("    Definition #2:\n")
+                                append(surface2.toConfigXml(indent))
+                            }
+                        )
+                    }
+                }
+
+        return ApiSurfacesConfig(
+            byName.values.toList(),
+            docOnly = combine(docOnly, other.docOnly),
+            removed = combine(removed, other.removed),
+        )
+    }
 
     /**
      * Map of [ApiSurfaceConfig]s by [ApiSurfaceConfig.name].
      *
-     * Groups them by name, throws an exception if there are two surfaces with the same name.
+     * Groups them by name, throws an exception if there are two surfaces with the same name. This
+     * will only happen if a single file contains duplicate surfaces, which should not be allowed by
+     * the config.xsd schema.
      */
     @get:JsonIgnore
     val byName by
         lazy(LazyThreadSafetyMode.NONE) {
             apiSurfaceList
                 .groupingBy { it.name }
-                .reduce { name, surface1, surface2 ->
-                    error("Found duplicate surfaces called `$name`")
-                }
+                .reduce { name, _, _ -> error("Found duplicate surfaces called `$name`") }
         }
 
     /**
@@ -247,19 +298,43 @@ data class ApiSurfacesConfig(
 }
 
 /** An API surface that Metalava could generate. */
+@JacksonXmlRootElement(localName = "api-surface", namespace = CONFIG_NAMESPACE)
 data class ApiSurfaceConfig(
     /** The name of the API surface, e.g. `public`, `restricted`, etc. */
     @field:JacksonXmlProperty(isAttribute = true) val name: String,
 
     /** The optional name of the API surface that this surface extends, e.g. `public`. */
     @field:JacksonXmlProperty(isAttribute = true) val extends: String? = null,
+
+    /**
+     * Specifies the contents of this surface.
+     *
+     * Is only of significance if [extends] is not `null`. It defaults to [ContentsConfig.DELTA] if
+     * unspecified.
+     */
+    @field:JacksonXmlProperty(isAttribute = true) val contents: ContentsConfig? = null,
+
+    /** The selection criteria that determines what is included in this API surface. */
     @field:JacksonXmlProperty(localName = "selection-criteria", namespace = CONFIG_NAMESPACE)
-    val selectionCriteria: SelectionCriteria =
-        SelectionCriteria(unannotated = SelectionCriteriaEffect.SHOW),
+    val selectionCriteria: SelectionCriteriaConfig =
+        SelectionCriteriaConfig(unannotated = EffectConfig.SHOW),
 )
 
-/** Enumeration of the possible effects that [SelectionCriteria] may have an on an item. */
-enum class SelectionCriteriaEffect {
+/** Enumeration of the possible contents of this surface. */
+enum class ContentsConfig(val surfaceContents: ApiSurface.Contents) {
+    /** It is a delta on a surface that it extends. */
+    DELTA(ApiSurface.Contents.DELTA),
+
+    /** It is a standalone surface that includes everything that its extended surfaces contain. */
+    STANDALONE(ApiSurface.Contents.STANDALONE),
+    ;
+
+    /** Name to use when serializing and deserializing this [ContentsConfig] instance. */
+    @JsonValue fun forJackson() = name.lowercase()
+}
+
+/** Enumeration of the possible effects that [SelectionCriteriaConfig] may have an on an item. */
+enum class EffectConfig {
     /** Include the affected item in the API. */
     SHOW,
 
@@ -269,7 +344,7 @@ enum class SelectionCriteriaEffect {
     HIDE,
     ;
 
-    /** Name to use when serializing and deserializing this [SelectionCriteriaEffect] instance. */
+    /** Name to use when serializing and deserializing this [EffectConfig] instance. */
     @JsonValue fun forJackson() = name.lowercase()
 }
 
@@ -277,29 +352,53 @@ enum class SelectionCriteriaEffect {
  * The criteria that determine what belongs in the API surface represented by the referencing
  * [ApiSurfaceConfig].
  */
-data class SelectionCriteria(
+data class SelectionCriteriaConfig(
     /**
      * Determines what is done with items that are not annotated with one of the annotations in
      * [annotationRules].
      */
-    @field:JacksonXmlProperty(isAttribute = true) val unannotated: SelectionCriteriaEffect? = null,
+    @field:JacksonXmlProperty(isAttribute = true) val unannotated: EffectConfig? = null,
 
     /** Rules that determine what effect an annotation has on its annotated item. */
     @field:JacksonXmlProperty(localName = "annotation-rule", namespace = CONFIG_NAMESPACE)
-    val annotationRules: List<AnnotationRule> = emptyList(),
+    val annotationRules: List<AnnotationRuleConfig> = emptyList(),
 )
 
 /**
  * A rule that specifies the effect annotations have on annotated items and their enclosed items.
  */
-data class AnnotationRule(
+data class AnnotationRuleConfig(
     /** Determines which annotation instances are matched by this rule. */
     @field:JacksonXmlProperty(isAttribute = true) val pattern: String,
 
     /** The effect that the matching annotation has on its annotated item. */
-    @field:JacksonXmlProperty(isAttribute = true)
-    val effect: SelectionCriteriaEffect = SelectionCriteriaEffect.SHOW,
+    @field:JacksonXmlProperty(isAttribute = true) val effect: EffectConfig = EffectConfig.SHOW,
 
     /** Determines if [effect] also applies to an annotated item's enclosed items or not. */
     @field:JacksonXmlProperty(isAttribute = true) val recursive: Boolean = true,
+)
+
+/**
+ * Contains patterns that are used to select an API variant type, e.g. [ApiVariantType.DOC_ONLY].
+ *
+ * The [ApiVariantType] is determined by the [ApiSurfacesConfig] field that references this.
+ */
+data class ApiVariantTypeRuleConfig(
+    /** Rules that determine what effect an annotation has on its annotated item. */
+    @field:JacksonXmlProperty(localName = "annotation-rule", namespace = CONFIG_NAMESPACE)
+    val annotationRules: List<AnnotationPatternRuleConfig> = emptyList(),
+) : CombinableConfig<ApiVariantTypeRuleConfig> {
+    /** Combine with another [ApiVariantTypeRuleConfig] by concatenating the [annotationRules]s. */
+    override fun combineWith(other: ApiVariantTypeRuleConfig) =
+        ApiVariantTypeRuleConfig(annotationRules + other.annotationRules)
+}
+
+/**
+ * A rule that specifies an annotation pattern.
+ *
+ * Its effect is determined by the [ApiSurfacesConfig] field that references this.
+ */
+data class AnnotationPatternRuleConfig(
+    /** Determines which annotation instances are matched by this rule. */
+    @field:JacksonXmlProperty(isAttribute = true) val pattern: String,
 )

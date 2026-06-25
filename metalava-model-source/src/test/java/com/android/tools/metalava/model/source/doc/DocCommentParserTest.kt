@@ -213,6 +213,10 @@ class DocCommentParserTest : BaseDocCommentTest() {
                 """
                     /** @hide */
                 """,
+            expectedIssues =
+                """
+                    1:6: Use of '@hide' to affect the API surface is deprecated [DeprecatedSurfaceDocTag]
+                """,
         )
     }
 
@@ -239,6 +243,10 @@ class DocCommentParserTest : BaseDocCommentTest() {
                      * @hide
                      */
                 """,
+            expectedIssues =
+                """
+                    2:5: Use of '@hide' to affect the API surface is deprecated [DeprecatedSurfaceDocTag]
+                """,
         )
     }
 
@@ -264,6 +272,10 @@ class DocCommentParserTest : BaseDocCommentTest() {
                      * A block @hide tag.
                      * @hide
                      */
+                """,
+            expectedIssues =
+                """
+                    4:5: Use of '@hide' to affect the API surface is deprecated [DeprecatedSurfaceDocTag]
                 """,
         )
     }
@@ -315,6 +327,10 @@ class DocCommentParserTest : BaseDocCommentTest() {
                      * An unbalanced open {
                      * @hide
                      */
+                """,
+            expectedIssues =
+                """
+                    4:5: Use of '@hide' to affect the API surface is deprecated [DeprecatedSurfaceDocTag]
                 """,
         )
     }
@@ -381,6 +397,10 @@ class DocCommentParserTest : BaseDocCommentTest() {
                 """
                     /** An inline tag at the end of some text {@hide reason why hidden} */
                 """,
+            expectedIssues =
+                """
+                    2:44: Cannot use 'hide' as an inline tag [InvalidTagForm]
+                """,
         )
     }
 
@@ -406,6 +426,10 @@ class DocCommentParserTest : BaseDocCommentTest() {
                      * An inline tag.
                      * @see resolved.Something {@hide}
                      */
+                """,
+            expectedIssues =
+                """
+                    4:6: Cannot use 'hide' as an inline tag [InvalidTagForm]
                 """,
         )
     }
@@ -499,7 +523,11 @@ class DocCommentParserTest : BaseDocCommentTest() {
                      * @unknown
                      */
                 """,
-            expectedIssues = "11:5: Cannot use 'inheritDoc' as a block tag [InvalidTagForm]",
+            expectedIssues =
+                """
+                    3:5: Use of '@hide' to affect the API surface is deprecated [DeprecatedSurfaceDocTag]
+                    11:5: Cannot use 'inheritDoc' as a block tag [InvalidTagForm]
+                """,
         )
     }
 

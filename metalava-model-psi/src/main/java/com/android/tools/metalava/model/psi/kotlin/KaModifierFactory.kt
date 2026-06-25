@@ -218,7 +218,10 @@ internal class KaModifierFactory(private val processor: KaModuleProcessor) {
     }
 
     /** Creates modifiers for a class [symbol]. */
-    fun createForClass(symbol: KaNamedClassSymbol): MutableModifierList {
+    fun createForClass(
+        symbol: KaNamedClassSymbol,
+        containingClass: ClassItem?
+    ): MutableModifierList {
         val modifiers = createForDeclaration(symbol)
 
         if (symbol.isData) {
@@ -243,6 +246,12 @@ internal class KaModifierFactory(private val processor: KaModuleProcessor) {
             }
             KaSymbolModality.ABSTRACT -> modifiers.setAbstract(true)
             KaSymbolModality.OPEN -> modifiers.setFinal(false)
+        }
+
+        // In Java, a static class is a nested which does not have an instance of the outer class.
+        // The equivalent in Kotlin is a non-inner nested class.
+        if (!symbol.isInner && containingClass != null) {
+            modifiers.setStatic(true)
         }
 
         return modifiers

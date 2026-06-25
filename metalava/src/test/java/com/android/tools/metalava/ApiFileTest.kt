@@ -19,8 +19,6 @@
 package com.android.tools.metalava
 
 import com.android.tools.lint.checks.infrastructure.TestFiles.base64gzip
-import com.android.tools.metalava.cli.common.ARG_ERROR
-import com.android.tools.metalava.cli.common.ARG_HIDE
 import com.android.tools.metalava.cli.common.ARG_KOTLIN_SOURCE
 import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.testing.RequiresCapabilities
@@ -822,15 +820,11 @@ class ApiFileTest : DriverTest() {
                 """,
             format = FileFormat.V4,
             extraArguments =
-                arrayOf(
-                    ARG_HIDE,
-                    "ReferencesHidden",
-                    ARG_HIDE,
-                    "UnavailableSymbol",
-                    ARG_HIDE,
-                    "HiddenTypeParameter",
-                    ARG_HIDE,
-                    "HiddenSuperclass"
+                hiddenIssues(
+                    Issues.REFERENCES_HIDDEN,
+                    Issues.UNAVAILABLE_SYMBOL,
+                    Issues.HIDDEN_TYPE_PARAMETER,
+                    Issues.HIDDEN_SUPERCLASS,
                 )
         )
     }
@@ -966,13 +960,10 @@ class ApiFileTest : DriverTest() {
                 """,
             format = FileFormat.V4,
             extraArguments =
-                arrayOf(
-                    ARG_HIDE,
-                    "ReferencesHidden",
-                    ARG_HIDE,
-                    "UnavailableSymbol",
-                    ARG_HIDE,
-                    "HiddenTypeParameter"
+                hiddenIssues(
+                    Issues.REFERENCES_HIDDEN,
+                    Issues.UNAVAILABLE_SYMBOL,
+                    Issues.HIDDEN_TYPE_PARAMETER,
                 )
         )
     }
@@ -1812,7 +1803,10 @@ class ApiFileTest : DriverTest() {
                       }
                     }
                 """,
-            extraArguments = arrayOf(ARG_HIDE, "KotlinKeyword")
+            extraArguments =
+                hiddenIssues(
+                    Issues.KOTLIN_KEYWORD,
+                ),
         )
     }
 
@@ -2269,68 +2263,73 @@ class ApiFileTest : DriverTest() {
         // package is not marked @hide, but doclava now treats subpackages of a hidden package
         // as also hidden.
         check(
+            apiSurface = KnownApiSurface.PUBLIC,
             sourceFiles =
                 arrayOf(
+                    KnownSourceFiles.hideAnnotation,
+                    KnownSourceFiles.docOnlyAnnotation,
                     java(
                         """
-                    ${"/** @hide hidden package */" /* avoid dangling javadoc warning */}
-                    package test.pkg1;
-                    """
+                            @android.annotation.Hide
+                            package test.pkg1;
+                        """
                     ),
                     java(
                         """
-                    package test.pkg1;
-                    @SuppressWarnings("ALL")
-                    public class Foo {
-                        // Hidden by package hide
-                    }
-                    """
+                            package test.pkg1;
+                            @SuppressWarnings("ALL")
+                            public class Foo {
+                                // Hidden by package hide
+                            }
+                        """
                     ),
                     java(
                         """
-                    package test.pkg2;
-                    /** @hide hidden class in this package */
-                    @SuppressWarnings("ALL")
-                    public class Bar {
-                    }
-                    """
+                            package test.pkg2;
+                            import android.annotation.Hide;
+                            @Hide
+                            @SuppressWarnings("ALL")
+                            public class Bar {
+                            }
+                        """
                     ),
                     java(
                         """
-                    package test.pkg2;
-                    /** @doconly hidden class in this package */
-                    @SuppressWarnings("ALL")
-                    public class Baz {
-                    }
-                    """
+                            package test.pkg2;
+                            import android.annotation.DocOnly;
+                            @DocOnly
+                            @SuppressWarnings("ALL")
+                            public class Baz {
+                            }
+                        """
                     ),
                     java(
                         """
-                    package test.pkg1.sub;
-                    // Hidden by @hide in package above
-                    @SuppressWarnings("ALL")
-                    public class Test {
-                    }
-                    """
+                            package test.pkg1.sub;
+                            // Hidden by @hide in package above
+                            @SuppressWarnings("ALL")
+                            public class Test {
+                            }
+                        """
                     ),
                     java(
                         """
-                    package test.pkg3;
-                    // The only really visible class
-                    @SuppressWarnings("ALL")
-                    public class Boo {
-                    }
-                    """
-                    )
+                            package test.pkg3;
+                            // The only really visible class
+                            @SuppressWarnings("ALL")
+                            public class Boo {
+                            }
+                        """
+                    ),
                 ),
             expectedApiSignature =
                 """
-                package test.pkg3 {
-                  public class Boo {
-                    ctor public Boo();
-                  }
-                }
-                """
+                    package test.pkg3 {
+                      public class Boo {
+                        ctor public Boo();
+                      }
+                    }
+                """,
         )
     }
 
@@ -2684,7 +2683,10 @@ class ApiFileTest : DriverTest() {
                       }
                     }
             """,
-            extraArguments = arrayOf(ARG_HIDE, Issues.INHERIT_CHANGES_SIGNATURE.name),
+            extraArguments =
+                hiddenIssues(
+                    Issues.INHERIT_CHANGES_SIGNATURE,
+                ),
         )
     }
 
@@ -3296,9 +3298,6 @@ class ApiFileTest : DriverTest() {
                     package test.pkg2 {
                       public class MyChild extends test.pkg1.MyParent {
                         ctor public MyChild();
-                        field public static final long CONSTANT1 = 12345L; // 0x3039L
-                        field public static final long CONSTANT2 = 67890L; // 0x10932L
-                        field public static final long CONSTANT3 = 42L; // 0x2aL
                       }
                     }
                 """
@@ -3830,7 +3829,10 @@ class ApiFileTest : DriverTest() {
     fun `References Deprecated`() {
         check(
             extraArguments =
-                arrayOf(ARG_ERROR, "ReferencesDeprecated", ARG_ERROR, "ExtendsDeprecated"),
+                errorIssues(
+                    Issues.REFERENCES_DEPRECATED,
+                    Issues.EXTENDS_DEPRECATED,
+                ),
             expectedIssues =
                 """
             src/test/pkg/MyClass.java:2: error: Extending deprecated super class class test.pkg.DeprecatedClass from test.pkg.MyClass: this class should also be deprecated [ExtendsDeprecated]
@@ -4117,7 +4119,10 @@ class ApiFileTest : DriverTest() {
                   }
                 }
                 """,
-            extraArguments = arrayOf(ARG_HIDE, Issues.INHERIT_CHANGES_SIGNATURE.name),
+            extraArguments =
+                hiddenIssues(
+                    Issues.INHERIT_CHANGES_SIGNATURE,
+                ),
         )
     }
 
@@ -6295,6 +6300,7 @@ class ApiFileTest : DriverTest() {
     @Test
     fun `Partial signature files include affected subclass definitions in complex class hierarchy`() {
         check(
+            apiSurface = KnownApiSurface.TEST,
             format = FileFormat.V2,
             sourceFiles =
                 arrayOf(
@@ -6312,7 +6318,6 @@ class ApiFileTest : DriverTest() {
 
                         import android.annotation.SystemApi;
 
-                        /** @hide */
                         @SystemApi
                         public class SystemSubClass extends SomePublicClass {
                         }
@@ -6324,7 +6329,6 @@ class ApiFileTest : DriverTest() {
 
                         import android.annotation.TestApi;
 
-                        /** @hide */
                         @TestApi
                         public class TestSubClass extends SystemSubClass {
                         }
@@ -6336,7 +6340,6 @@ class ApiFileTest : DriverTest() {
 
                         import android.annotation.SystemApi;
 
-                        /** @hide */
                         @SystemApi
                         public class AnotherSystemSubClass extends TestSubClass {
                         }
@@ -6348,7 +6351,6 @@ class ApiFileTest : DriverTest() {
 
                         import android.annotation.TestApi;
 
-                        /** @hide */
                         @TestApi
                         public class AnotherTestSubClass extends AnotherSystemSubClass {
                         }
@@ -6362,8 +6364,6 @@ class ApiFileTest : DriverTest() {
                         }
                     """
                     ),
-                    systemApiSource,
-                    testApiSource,
                 ),
             expectedApiSignature =
                 """
@@ -6379,13 +6379,6 @@ class ApiFileTest : DriverTest() {
                   }
                 }
             """,
-            extraArguments =
-                arrayOf(
-                    ARG_SHOW_ANNOTATION,
-                    "android.annotation.TestApi",
-                    ARG_SHOW_FOR_STUB_PURPOSES_ANNOTATION,
-                    "android.annotation.SystemApi",
-                )
         )
     }
 

@@ -61,6 +61,13 @@
                         </xs:documentation>
                     </xs:annotation>
                 </xs:element>
+                <xs:element name="issues" type="config:IssuesType" minOccurs="0">
+                    <xs:annotation>
+                        <xs:documentation>
+                            The definitions of a set of issues.
+                        </xs:documentation>
+                    </xs:annotation>
+                </xs:element>
             </xs:choice>
         </xs:complexType>
 
@@ -106,7 +113,7 @@
                 The type of the `api-surfaces` element defined inside `config`.
             </xs:documentation>
         </xs:annotation>
-        <xs:choice>
+        <xs:sequence>
             <xs:element name="api-surface" type="config:ApiSurfaceType" minOccurs="0" maxOccurs="unbounded">
                 <xs:annotation>
                     <xs:documentation>
@@ -114,7 +121,21 @@
                     </xs:documentation>
                 </xs:annotation>
             </xs:element>
-        </xs:choice>
+            <xs:element name="doc-only" type="config:ApiVariantType" minOccurs="0" maxOccurs="unbounded">
+                <xs:annotation>
+                    <xs:documentation>
+                        The doc-only variant definition.
+                    </xs:documentation>
+                </xs:annotation>
+            </xs:element>
+            <xs:element name="removed" type="config:ApiVariantType" minOccurs="0" maxOccurs="unbounded">
+                <xs:annotation>
+                    <xs:documentation>
+                        The removed variant definition.
+                    </xs:documentation>
+                </xs:annotation>
+            </xs:element>
+        </xs:sequence>
     </xs:complexType>
 
     <xs:simpleType name="ApiSurfaceNameType">
@@ -156,6 +177,20 @@
                     The optional name of the surface that this surface extends.
                 </xs:documentation>
             </xs:annotation>
+        </xs:attribute>
+        <xs:attribute name="contents">
+            <xs:annotation>
+                <xs:documentation>
+                    Determines whether this surface is represented as a delta on the one it extends or is a standalone
+                    API. Is only of significance if `extends` is set. Defaults to `delta` if unspecified.
+                </xs:documentation>
+            </xs:annotation>
+            <xs:simpleType>
+                <xs:restriction base="xs:string">
+                    <xs:enumeration value="delta"/>
+                    <xs:enumeration value="standalone"/>
+                </xs:restriction>
+            </xs:simpleType>
         </xs:attribute>
     </xs:complexType>
 
@@ -246,6 +281,39 @@
         </xs:annotation>
         <xs:restriction base="xs:string"/>
     </xs:simpleType>
+
+    <xs:complexType name="ApiVariantType">
+        <xs:annotation>
+            <xs:documentation>
+                The type of api variant elements defined inside `api-surfaces`.
+            </xs:documentation>
+        </xs:annotation>
+        <xs:choice>
+            <xs:element name="annotation-rule" type="config:AnnotationPattern" minOccurs="0" maxOccurs="unbounded">
+                <xs:annotation>
+                    <xs:documentation>
+                        Annotation rule definition.
+                    </xs:documentation>
+                </xs:annotation>
+            </xs:element>
+        </xs:choice>
+    </xs:complexType>
+
+    <xs:complexType name="AnnotationPattern">
+        <xs:annotation>
+            <xs:documentation>
+                The type of the `annotation-rule` element defined inside `ApiVariantType`.
+            </xs:documentation>
+        </xs:annotation>
+        <xs:choice/>
+        <xs:attribute name="pattern" type="config:AnnotationRulePattern" use="required">
+            <xs:annotation>
+                <xs:documentation>
+                    The pattern that will match an annotation.
+                </xs:documentation>
+            </xs:annotation>
+        </xs:attribute>
+    </xs:complexType>
 
     <xs:complexType name="ApiFlagsType">
         <xs:annotation>
@@ -455,6 +523,71 @@
             </xs:documentation>
         </xs:annotation>
         <xs:restriction base="xs:string">
+        </xs:restriction>
+    </xs:simpleType>
+
+    <xs:complexType name="IssuesType">
+        <xs:annotation>
+            <xs:documentation>
+                The type of the `issues` element defined inside `config`.
+            </xs:documentation>
+        </xs:annotation>
+        <xs:choice>
+            <xs:element name="issue" type="config:IssueType" minOccurs="0" maxOccurs="unbounded">
+                <xs:annotation>
+                    <xs:documentation>
+                        Issue configuration.
+                    </xs:documentation>
+                </xs:annotation>
+            </xs:element>
+        </xs:choice>
+    </xs:complexType>
+
+    <xs:complexType name="IssueType">
+        <xs:annotation>
+            <xs:documentation>
+                The type of the `issue` element defined inside `IssuesType`.
+            </xs:documentation>
+        </xs:annotation>
+        <xs:attribute name="name" type="config:IssueNameType" use="required">
+            <xs:annotation>
+                <xs:documentation>
+                    The required name of the issue.
+                </xs:documentation>
+            </xs:annotation>
+        </xs:attribute>
+        <xs:attribute name="severity" type="config:IssueSeverityType" use="required">
+            <xs:annotation>
+                <xs:documentation>
+                    The required severity of the issue.
+                </xs:documentation>
+            </xs:annotation>
+        </xs:attribute>
+    </xs:complexType>
+
+    <xs:simpleType name="IssueNameType">
+        <xs:annotation>
+            <xs:documentation>
+                The type of an issue name.
+            </xs:documentation>
+        </xs:annotation>
+        <xs:restriction base="xs:string">
+            <xs:pattern value="([A-Z][a-z0-9]*)+"/>
+        </xs:restriction>
+    </xs:simpleType>
+
+    <xs:simpleType name="IssueSeverityType">
+        <xs:annotation>
+            <xs:documentation>
+                The type of an issue severity.
+            </xs:documentation>
+        </xs:annotation>
+        <xs:restriction base="xs:string">
+            <xs:enumeration value="hidden"/>
+            <xs:enumeration value="info"/>
+            <xs:enumeration value="warning"/>
+            <xs:enumeration value="error-when-new"/>
+            <xs:enumeration value="error"/>
         </xs:restriction>
     </xs:simpleType>
 </xs:schema>

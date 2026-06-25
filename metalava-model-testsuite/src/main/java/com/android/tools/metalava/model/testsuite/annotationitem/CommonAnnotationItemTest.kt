@@ -27,6 +27,7 @@ import com.android.tools.metalava.model.annotation.DefaultAnnotationManager
 import com.android.tools.metalava.model.api.ApiSurfaceRules
 import com.android.tools.metalava.model.api.ApiSurfaceSelector
 import com.android.tools.metalava.model.api.SurfaceSelectionRule
+import com.android.tools.metalava.model.api.surface.ApiSurfaces
 import com.android.tools.metalava.model.noOpAnnotationManager
 import com.android.tools.metalava.model.provider.InputFormat
 import com.android.tools.metalava.model.source.hasApiVisibility
@@ -1589,6 +1590,7 @@ class CommonAnnotationItemTest : BaseModelTest() {
         // Treat RestrictTo(Scope.LIBRARY) as a show annotation.
         val apiSurfaceRules =
             ApiSurfaceRules(
+                apiSurfaces = ApiSurfaces.DEFAULT,
                 byName =
                     mapOf(
                         "main" to

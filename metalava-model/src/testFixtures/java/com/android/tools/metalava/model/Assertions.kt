@@ -112,15 +112,19 @@ interface Assertions {
      * Return a dump of the state of [SelectableItem.selectedApiVariants] across this [Codebase].
      */
     private fun Codebase.dumpSelectedApiVariants() = buildString {
+        val apiSurfaces = apiSurfaces
         accept(
             object :
                 BaseItemVisitor(
                     preserveClassNesting = true,
+                    visitParameterItems = false,
                 ) {
                 private var indent = ""
 
                 override fun visitSelectableItem(item: SelectableItem) {
-                    append("$indent${item.describe()} - ${item.selectedApiVariants}\n")
+                    append(
+                        "$indent${item.describe()} - ${item.selectedApiVariants.formatFor(apiSurfaces)}\n"
+                    )
                     indent += "  "
                 }
 
@@ -471,13 +475,20 @@ interface Assertions {
      */
     fun MultiplatformClassItem.assertProperty(
         name: String,
-        receiverType: String? = null
+        receiverType: String? = null,
+        contextParameterTypeStrings: List<String> = emptyList(),
     ): MultiplatformPropertyItem {
         val propertyItem =
             properties.singleOrNull { property ->
                 property.name == name &&
                     property.receiver?.toTypeString(TypeStringConfiguration.DEFAULT_KOTLIN_NULLS) ==
-                        receiverType
+                        receiverType &&
+                    contextParameterTypeStrings ==
+                        property.contextParameterTypes.map { contextParameter ->
+                            contextParameter.toTypeString(
+                                TypeStringConfiguration.DEFAULT_KOTLIN_NULLS
+                            )
+                        }
             }
         assertNotNull(
             propertyItem,
@@ -487,7 +498,7 @@ interface Assertions {
     }
 
     /**
-     * Finds the property by [name] and [receiverType] in the [MultiplatformClassItem], failing if
+     * Finds the property by [name] and [receiverType] in the [MultiplatformPackageItem], failing if
      * it does not exist.
      *
      * [receiverType] is expected to be formatted according to
@@ -495,13 +506,20 @@ interface Assertions {
      */
     fun MultiplatformPackageItem.assertProperty(
         name: String,
-        receiverType: String? = null
+        receiverType: String? = null,
+        contextParameterTypeStrings: List<String> = emptyList(),
     ): MultiplatformPropertyItem {
         val propertyItem =
             topLevelProperties.singleOrNull { property ->
                 property.name == name &&
                     property.receiver?.toTypeString(TypeStringConfiguration.DEFAULT_KOTLIN_NULLS) ==
-                        receiverType
+                        receiverType &&
+                    contextParameterTypeStrings ==
+                        property.contextParameterTypes.map { contextParameter ->
+                            contextParameter.toTypeString(
+                                TypeStringConfiguration.DEFAULT_KOTLIN_NULLS
+                            )
+                        }
             }
         assertNotNull(
             propertyItem,

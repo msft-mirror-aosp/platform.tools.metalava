@@ -28,7 +28,6 @@ import com.android.tools.metalava.cli.common.SourceOptions
 import com.android.tools.metalava.cli.common.commonOptions
 import com.android.tools.metalava.cli.common.executionEnvironment
 import com.android.tools.metalava.cli.common.existingFile
-import com.android.tools.metalava.cli.common.progressTracker
 import com.android.tools.metalava.cli.common.registerPostCommandAction
 import com.android.tools.metalava.cli.common.stderr
 import com.android.tools.metalava.cli.common.stdout
@@ -49,8 +48,8 @@ import com.github.ajalt.clikt.parameters.groups.provideDelegate
 import java.io.File
 
 /**
- * A command that is passed to [MetalavaCommand.defaultCommand] when the main metalava functionality
- * needs to be run when no subcommand is provided.
+ * A command that is passed to [com.android.tools.metalava.cli.common.MetalavaCommand] when the main
+ * metalava functionality needs to be run when no subcommand is provided.
  */
 class MainCommand(
     commonOptions: CommonOptions,
@@ -99,7 +98,11 @@ class MainCommand(
         )
 
     /** Issue reporter configuration. */
-    private val issueReportingOptions by IssueReportingOptions(commonOptions)
+    private val issueReportingOptions by
+        IssueReportingOptions(
+            commonOptions,
+            issuesConfigProvider = { configFileOptions.config.issues },
+        )
 
     private val commonBaselineOptions by
         CommonBaselineOptions(
@@ -203,7 +206,6 @@ class MainCommand(
                     val driver =
                         Driver(
                             executionEnvironment,
-                            progressTracker,
                             tracer,
                             environmentManager,
                             reporterManager.reporter,
