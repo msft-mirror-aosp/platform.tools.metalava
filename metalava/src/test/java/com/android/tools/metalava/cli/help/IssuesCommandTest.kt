@@ -116,6 +116,7 @@ Available Issues                             |  Category                        
   GetterSetterNullability                    |  api_lint                             |   warning_error_when_new
   HeavyBitSet                                |  api_lint                             |   error
   HiddenAbstractMethod                       |  api_lint                             |   error
+  HiddenAbstractMethodInInterface            |  api_lint                             |   hidden
   HiddenShowAnnotation                       |  api_lint                             |   warning_error_when_new
   HiddenSuperclass                           |  documentation                        |   warning
   HiddenTypeParameter                        |  documentation                        |   warning

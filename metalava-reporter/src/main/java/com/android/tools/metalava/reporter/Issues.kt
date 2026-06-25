@@ -196,6 +196,7 @@ object Issues {
     val INVALID_PACKAGE by Issue(Severity.ERROR)
     val UNRESOLVED_IMPORT by Issue(Severity.INFO)
     val HIDDEN_ABSTRACT_METHOD by Issue(Severity.ERROR, Category.API_LINT)
+    val HIDDEN_ABSTRACT_METHOD_IN_INTERFACE by Issue(Severity.HIDDEN, Category.API_LINT)
 
     // API lint
     val START_WITH_LOWER by Issue(Severity.ERROR, Category.API_LINT)
