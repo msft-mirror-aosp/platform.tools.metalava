@@ -377,14 +377,19 @@ sealed class ApiVariantSelectors {
             if (item is PackageItem) {
                 showability.let { showability ->
                     when {
+                        // If this package is explicitly shown, its contents are not hidden.
                         showability.show() -> inheritableHidden = false
+                        // If this package is explicitly hidden, its contents are hidden.
                         showability.hide() -> inheritableHidden = true
+                        // Otherwise, inherit the hidden status from the parent package.
+                        else -> {
+                            val containingPackageSelectors =
+                                item.containingPackage()?.variantSelectors
+                            if (containingPackageSelectors?.inheritableHidden == true) {
+                                inheritableHidden = true
+                            }
+                        }
                     }
-                }
-                val containingPackageSelectors =
-                    item.containingPackage()?.variantSelectors ?: return
-                if (containingPackageSelectors.inheritableHidden) {
-                    inheritableHidden = true
                 }
                 return
             }

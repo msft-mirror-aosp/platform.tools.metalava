@@ -925,9 +925,8 @@ class ShowAnnotationTest : DriverTest() {
 
     @Test
     fun `Show annotation on sub-package package-info is respected when parent package is hidden`() {
-        // TODO: This behavior is not expected. A show annotation on a sub-package's package-info
-        //  should be respected even if the parent package is annotated with a hide annotation,
-        //  but currently it is ignored, and classes inside the sub-package remain hidden.
+        // A show annotation on a sub-package's package-info is respected even if the parent package
+        // is annotated with a hide annotation.
         check(
             apiSurface = KnownApiSurface.SYSTEM,
             sourceFiles =
@@ -956,6 +955,12 @@ class ShowAnnotationTest : DriverTest() {
                 ),
             expectedApiSignature =
                 """
+                    package test.pkg.sub {
+                      public class Foo {
+                        ctor public Foo();
+                        method public void bar();
+                      }
+                    }
                 """,
         )
     }

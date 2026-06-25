@@ -139,6 +139,17 @@ class ApiPredicate(
                 hasShowAnnotation = showClass.hasShowAnnotation()
                 showClass = showClass.containingClass()
             }
+            // Traverse up the package hierarchy to check if this item belongs to a shown package.
+            var showPackage = item.containingPackage()
+            while (showPackage != null && !hasShowAnnotation) {
+                // If an intermediate package is hidden, it prevents any show annotations on its
+                // parent packages from propagating down to this item.
+                if (showPackage.hidden) {
+                    break
+                }
+                hasShowAnnotation = showPackage.hasShowAnnotation()
+                showPackage = showPackage.containingPackage()
+            }
             if (!hasShowAnnotation) return false
         }
 
