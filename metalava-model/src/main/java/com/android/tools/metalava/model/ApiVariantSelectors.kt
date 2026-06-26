@@ -693,31 +693,9 @@ sealed class ApiVariantSelectors {
 /**
  * Check to see whether this [SelectableItem] was originally hidden, i.e. either had `@hide` block
  * tag in the documentation or was annotated with a hide annotation.
- *
- * @see canBeHidden
  */
 private fun SelectableItem.wasOriginallyHidden(): Boolean =
-    canBeHidden() && (documentation?.isHidden == true || hasHideAnnotation())
-
-/**
- * Check whether this item can be hidden.
- *
- * Items from the class path should not be hidden as any information that it might contain is likely
- * to be inconsistent, i.e. missing `@hide` doc tags, show/hide annotations with source only
- * retention.
- *
- * TODO(b/510724278): Remove this workaround.
- */
-internal fun SelectableItem.canBeHidden() =
-    codebase.config.hideItemsOnClassPath || !isFromClassPath()
-
-/**
- * Check whether this is from the class path.
- *
- * Always returns `false` for [PackageItem]s as they can be split across sources and class path.
- */
-private fun SelectableItem.isFromClassPath() =
-    this is ClassContentItem && origin == ClassOrigin.CLASS_PATH
+    documentation?.isHidden == true || hasHideAnnotation()
 
 /** Compute the [Showability] of this [SelectableItem]. */
 private fun SelectableItem.computeShowability(): Showability =

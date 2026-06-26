@@ -223,9 +223,6 @@ class Driver(
                 apiSurfaces = apiSelectionOptions.apiSurfaces,
                 reporter = reporter,
 
-                // TODO(b/510724278): Remove when Android supports hiding on the class path.
-                hideItemsOnClassPath = apiSelectionOptions.hideItemsOnClassPath,
-
                 // Pass whether API surfaces are configured in a config file. This determines
                 // whether the `@hide` Javadoc tag is ignored for hiding elements.
                 apiSurfacesConfigured = apiSelectionOptions.apiSurfacesConfigured,

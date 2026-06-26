@@ -516,23 +516,6 @@ class ApiSelectionOptions(
     val apiSurfacesConfigured: Boolean
         get() = apiSurfacesConfig?.apiSurfaceList?.isNotEmpty() == true
 
-    /**
-     * Allow hiding when --api-surface is not provided, or there is an <api-surface> that uses
-     * `androidx.annotation.RestrictTo`.
-     *
-     * This maintains backwards compatibility of not hiding APIs for any existing uses that have not
-     * been switched to use api surfaces while allowing AndroidX to switch to use API surfaces.
-     *
-     * TODO(b/510724278): Remove when Android supports hiding on the class path.
-     */
-    val hideItemsOnClassPath: Boolean
-        get() =
-            apiSurface == null ||
-                apiSurfacesConfig
-                    ?.apiSurfaceList
-                    ?.flatMap { it.selectionCriteria.annotationRules }
-                    ?.any { it.pattern.startsWith("androidx.annotation.RestrictTo") } == true
-
     companion object {
         /**
          * Create [ApiSurfaces] and associated [ApiSurface] objects from these options.
