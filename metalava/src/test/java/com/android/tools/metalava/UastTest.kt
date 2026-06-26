@@ -3211,4 +3211,61 @@ class UastTest : DriverTest() {
             assertEquals(method.name(), "android")
         }
     }
+
+    @Test
+    fun `Optional parameters on expect actual constructor`() {
+        // Test for https://youtrack.jetbrains.com/issue/KT-87343
+        val commonSource =
+            kotlin(
+                "src/commonMain/test/pkg/Expect.kt",
+                """
+                package test.pkg
+
+                // This uses a value class type so that the ConstructorItem is created through
+                // the analysis API.
+                expect class Foo(
+                    private val foo: IntValue,
+                    private val bar: IntValue = IntValue(0),
+                )
+
+                @JvmInline
+                value class IntValue(val value: Int)
+                """
+            )
+        val androidSource =
+            kotlin(
+                "src/androidMain/test/pkg/Actual.kt",
+                """
+                package test.pkg
+
+                actual class Foo actual constructor(
+                    private actual val foo: IntValue,
+                    private actual val bar: IntValue,
+                )
+                """
+            )
+        check(
+            format = FileFormat.V4,
+            sourceFiles = arrayOf(commonSource, androidSource),
+            projectDescription =
+                createProjectDescription(
+                    createCommonModuleDescription(arrayOf(commonSource)),
+                    createAndroidModuleDescription(arrayOf(androidSource)),
+                ),
+            expectedApiSignature =
+                """
+                // Signature format: 4.0
+                package test.pkg {
+                  public final class Foo {
+                    ctor @KotlinOnly public Foo(test.pkg.IntValue foo, optional test.pkg.IntValue bar);
+                  }
+                  public final value class IntValue {
+                    ctor @KotlinOnly public IntValue(int value);
+                    method @InaccessibleFromKotlin public int getValue();
+                    property public int value;
+                  }
+                }
+                """
+        )
+    }
 }
