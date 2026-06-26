@@ -23,6 +23,7 @@ import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.BaseItemVisitor
 import com.android.tools.metalava.model.BaseTypeVisitor
 import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.ClassOrigin
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.Codebase
@@ -593,6 +594,18 @@ class ApiAnalyzer(
                                 m,
                                 "${m.name()} cannot be hidden and abstract when " +
                                     "${cl.simpleName()} has a visible constructor, in case a " +
+                                    "third-party attempts to subclass it."
+                            )
+                        } else if (
+                            cl.classKind == ClassKind.INTERFACE &&
+                                !cl.modifiers.isSealed() &&
+                                m.modifiers.isAbstract()
+                        ) {
+                            reporter.report(
+                                Issues.HIDDEN_ABSTRACT_METHOD_IN_INTERFACE,
+                                m,
+                                "${m.name()} cannot be hidden and abstract when " +
+                                    "${cl.simpleName()} is a non-sealed interface, in case a " +
                                     "third-party attempts to subclass it."
                             )
                         }
