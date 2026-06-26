@@ -40,6 +40,13 @@ class PolicyDefinitionProxy(
     private val codebase = item.codebase
     private val reporter = codebase.reporter
 
+    private val allowedDpcTypesForLoginScreen =
+        listOf(
+            AllowedDpcType.DEVICE_OWNER,
+            AllowedDpcType.MANAGED_PROFILE_OWNER_OF_ORGANIZATION_OWNED_DEVICE,
+            AllowedDpcType.FINANCED_DEVICE_OWNER,
+        )
+
     init {
         // Validate the properties.
         if (allowedScopes.isEmpty()) {
@@ -125,6 +132,9 @@ class PolicyDefinitionProxy(
         } else if (scope == PolicyScope.DEVICE.id || scope == PolicyScope.PARENT_USER.id) {
             val crossUserDpcs = getDpcTypesWithCrossUserPermission(crossUserPermission)
             allowedDpcs.filter { it in crossUserDpcs }
+        } else if (scope == PolicyScope.LOGIN_SCREEN.id) {
+            val crossUserDpcs = getDpcTypesWithCrossUserPermission(crossUserPermission)
+            allowedDpcs.filter { it in crossUserDpcs && it in allowedDpcTypesForLoginScreen }
         } else {
             reporter.report(Issues.INVALID_DEVICE_POLICY_ANNOTATION, item, "Invalid scope: $scope")
             emptyList()
@@ -146,6 +156,7 @@ class PolicyDefinitionProxy(
             val hasUser = allowedScopes.contains(PolicyScope.USER.id)
             val hasDevice = allowedScopes.contains(PolicyScope.DEVICE.id)
             val hasParent = allowedScopes.contains(PolicyScope.PARENT_USER.id)
+            val hasLoginScreen = allowedScopes.contains(PolicyScope.LOGIN_SCREEN.id)
 
             if (hasUser) {
                 val allowedDpcDoc = getAllowedDpcForScopeDoc(PolicyScope.USER.id).ifEmpty { null }
@@ -180,6 +191,34 @@ class PolicyDefinitionProxy(
                             scope = scope,
                             permission = permission,
                             dpcTypes = allowedDpcDoc,
+                        )
+                    }
+                )
+            }
+
+            if (hasLoginScreen) {
+                val allowedDpcDoc =
+                    getAllowedDpcForScopeDoc(PolicyScope.LOGIN_SCREEN.id).ifEmpty { null }
+                val permission = formatPermissions(requiredPermission, requiredCrossUserPermission)
+                docLines.add(
+                    if (hasUser && (hasDevice || hasParent)) {
+                        formatAlsoSettableByEntry(
+                            scope = "<code>Login screen</code>",
+                            permission = permission,
+                            dpcTypes = allowedDpcDoc,
+                            leadingWords = "Moreover"
+                        )
+                    } else if (hasUser || hasDevice || hasParent) {
+                        formatAlsoSettableByEntry(
+                            scope = "<code>Login screen</code>",
+                            permission = permission,
+                            dpcTypes = allowedDpcDoc
+                        )
+                    } else {
+                        formatSettableByEntry(
+                            scope = "<code>Login screen</code>",
+                            permission = permission,
+                            dpcTypes = allowedDpcDoc
                         )
                     }
                 )
@@ -221,17 +260,18 @@ class PolicyDefinitionProxy(
     private fun formatAlsoSettableByEntry(
         scope: String,
         permission: String?,
-        dpcTypes: String?
+        dpcTypes: String?,
+        leadingWords: String = "In addition",
     ): String {
         return if (permission == null && dpcTypes == null) {
-            "<p>In addition, this policy can be set with scope ${scope}.</p>\n"
+            "<p>${leadingWords}, this policy can be set with scope ${scope}.</p>\n"
         } else if (permission == null) {
-            "<p>In addition, this policy can be set with scope ${scope} by the following DPC types: \n$dpcTypes</p>\n"
+            "<p>${leadingWords}, this policy can be set with scope ${scope} by the following DPC types: \n$dpcTypes</p>\n"
         } else if (dpcTypes == null) {
-            "<p>In addition, this policy can be set with scope ${scope} by anyone holding $permission.</p>\n"
+            "<p>${leadingWords}, this policy can be set with scope ${scope} by anyone holding $permission.</p>\n"
         } else {
             // Nothing is null
-            "<p>In addition, this policy can be set with scope ${scope} by anyone holding $permission, or the following DPC types: \n$dpcTypes</p>\n"
+            "<p>${leadingWords}, this policy can be set with scope ${scope} by anyone holding $permission, or the following DPC types: \n$dpcTypes</p>\n"
         }
     }
 
@@ -249,7 +289,8 @@ class PolicyDefinitionProxy(
 enum class PolicyScope(val scopeName: String, val id: Int) {
     USER("User", 1),
     DEVICE("Device", 2),
-    PARENT_USER("Parent User", 3);
+    PARENT_USER("Parent User", 3),
+    LOGIN_SCREEN("Login screen", 4);
 
     companion object {
         fun fromId(id: Int): PolicyScope? = entries.firstOrNull { it.id == id }
