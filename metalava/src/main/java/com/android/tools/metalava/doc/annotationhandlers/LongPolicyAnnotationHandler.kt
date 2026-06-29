@@ -58,7 +58,6 @@ data class LongPolicyDefinitionProxy(
             add(Pair("Policy value", renderPolicyValue("Long", policyValueValidations)))
         }
 
-        append("\n<p>Policy Type: Long</p>\n")
         append(renderTable(tableEntries))
     }
 }

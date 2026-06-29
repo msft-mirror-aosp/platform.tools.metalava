@@ -89,7 +89,6 @@ class StringPolicyAnnotationHandlerTest : DriverTest() {
                         /**
                          * A test policy for string policy definition with multiple scopes.
                          * <br>
-                         * <p>Policy Type: String</p>
                          * <table>
                          *  <tr>
                          *    <th colspan="2">Policy details</th>
@@ -188,7 +187,6 @@ class StringPolicyAnnotationHandlerTest : DriverTest() {
                         /**
                          * A test policy for string policy definition with a scope not settable by any DPC.
                          * <br>
-                         * <p>Policy Type: String</p>
                          * <table>
                          *  <tr>
                          *    <th colspan="2">Policy details</th>
@@ -286,7 +284,6 @@ class StringPolicyAnnotationHandlerTest : DriverTest() {
                         /**
                          * A test policy.
                          * <br>
-                         * <p>Policy Type: String</p>
                          * <table>
                          *  <tr>
                          *    <th colspan="2">Policy details</th>
@@ -386,7 +383,6 @@ class StringPolicyAnnotationHandlerTest : DriverTest() {
                         /**
                          * A test policy.
                          * <br>
-                         * <p>Policy Type: String</p>
                          * <table>
                          *  <tr>
                          *    <th colspan="2">Policy details</th>
@@ -485,7 +481,6 @@ class StringPolicyAnnotationHandlerTest : DriverTest() {
                         /**
                          * A test policy.
                          * <br>
-                         * <p>Policy Type: String</p>
                          * <table>
                          *  <tr>
                          *    <th colspan="2">Policy details</th>
@@ -593,7 +588,6 @@ class StringPolicyAnnotationHandlerTest : DriverTest() {
                         /**
                          * A test policy.
                          * <br>
-                         * <p>Policy Type: String</p>
                          * <table>
                          *  <tr>
                          *    <th colspan="2">Policy details</th>

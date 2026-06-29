@@ -38,7 +38,7 @@ abstract class BaseDevicePolicyAnnotationHandler(protected val context: DevicePo
 /** Renders a list of table entries into an HTML table format. */
 fun renderTable(tableEntries: List<Pair<String, String>>): String {
     return buildString {
-        append(" <table>\n")
+        append("\n <table>\n")
         append("  <tr>\n")
         append("    <th colspan=\"2\">Policy details</th>\n")
         append("  </tr>\n")
