@@ -344,16 +344,10 @@ class ApiSelectionOptionsTest :
                 )
         ) {
             options.apiSurfaceSelector.assertState(
-                // TODO(b/525781613): Should not implicitly hide PublishedApi.
                 expectedMatcherState =
                     """
                         AnnotationMatcher(
                             android.annotation.SystemApi -> {
-                                Entry(
-                                    result: HIDE
-                                )
-                            }
-                            kotlin.PublishedApi -> {
                                 Entry(
                                     result: HIDE
                                 )
