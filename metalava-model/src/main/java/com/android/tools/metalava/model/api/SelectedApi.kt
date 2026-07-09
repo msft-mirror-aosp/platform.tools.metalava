@@ -63,6 +63,7 @@ sealed class SelectedApi {
             // SelectedApi instances in the Codebase that uses tha factory.
             val selectedApiUpdater =
                 SelectedApiUpdater(
+                    config.reporter,
                     apiSurfaceSelector,
                 )
             return { item -> createFromSource(selectedApiUpdater, item) }

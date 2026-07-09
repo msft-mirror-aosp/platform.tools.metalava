@@ -22,9 +22,12 @@ import com.android.tools.metalava.model.api.SurfaceSelectionRule.Effect
 import com.android.tools.metalava.model.api.surface.ApiSurfaces
 import com.android.tools.metalava.model.api.surface.ApiVariant
 import com.android.tools.metalava.model.api.surface.ApiVariantSet
+import com.android.tools.metalava.reporter.Issues
+import com.android.tools.metalava.reporter.Reporter
 
 /** Provides support for updating [SourceSelectedApi] instances. */
 class SelectedApiUpdater(
+    private val reporter: Reporter,
     apiSurfaceSelector: ApiSurfaceSelector,
 ) {
     /** The [ApiSurfaces] with which this will associate [SelectableItem]s */
@@ -114,6 +117,23 @@ class SelectedApiUpdater(
             }
         }
 
+        // If any annotations matched then check for an overlap.
+        if (itemApiVariants.isNotEmpty()) {
+            val narrowestSurface = itemApiVariants.narrowestSurfaceFor(apiSurfaces)
+            if (
+                narrowestSurface != null &&
+                    narrowestSurface !== itemApiVariants.widestSurfaceFor(apiSurfaces)
+            ) {
+                reportOverlappingSurfaces(item)
+
+                itemApiVariants = itemApiVariants.intersectionWith(narrowestSurface.variantSet)
+                if (inheritableApiVariants.isNotEmpty()) {
+                    inheritableApiVariants =
+                        inheritableApiVariants.intersectionWith(narrowestSurface.variantSet)
+                }
+            }
+        }
+
         // Check to see if any show rules matched; if they had then they would have set
         // itemApiVariants to non-null.
         if (itemApiVariants.isEmpty()) {
@@ -146,5 +166,56 @@ class SelectedApiUpdater(
         // Store the variant set in selectedApi.
         selectedApi.itemApiVariants = itemApiVariants
         selectedApi.inheritableApiVariants = inheritableApiVariants
+    }
+
+    /**
+     * Called when [item] is annotated with multiple show annotations for at least two separate API
+     * surfaces.
+     *
+     * Analyzes the annotations and reports issues instructing which of the annotations should be
+     * removed.
+     */
+    private fun reportOverlappingSurfaces(item: SelectableItem) {
+        val annotations = item.modifiers.annotations()
+
+        // Map from matched surface to matched annotations.
+        val surfaceToAnnotations =
+            annotations
+                .mapNotNull { annotationItem ->
+                    annotationItem.surfaceData?.showSurface?.let { surface ->
+                        surface to annotationItem
+                    }
+                }
+                .groupBy({ it.first }) { it.second }
+
+        // Consistency check to ensure that the caller has detected overlaps correctly.
+        if (surfaceToAnnotations.size < 2) {
+            error("expected $item to have at least two surfaces")
+        }
+
+        // Find the narrowest surface in all the annotations.
+        val narrowestSurface = surfaceToAnnotations.keys.min()
+
+        // Get the associated annotation. There must be at least one otherwise there would be no
+        // entry in surfaceToAnnotations.
+        val narrowestAnnotation = surfaceToAnnotations[narrowestSurface]!!.first()
+
+        // Iterate over all the surface/annotations reporting issues on all but the narrowest
+        // surface.
+        for ((surface, annotations) in surfaceToAnnotations) {
+            // Ignore the narrowest surface.
+            if (surface === narrowestSurface) continue
+
+            // Iterate over all the annotations that are for wider surfaces, instructing to remove
+            // the annotation.
+            for (annotationItem in annotations) {
+                reporter.report(
+                    Issues.OVERLAPPING_API_SURFACES,
+                    item,
+                    "Remove $annotationItem from ${item.describe()} as it is superseded by $narrowestAnnotation",
+                    annotationItem.fileLocation,
+                )
+            }
+        }
     }
 }
