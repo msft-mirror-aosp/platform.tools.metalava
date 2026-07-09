@@ -91,7 +91,6 @@ class LongPolicyAnnotationHandlerTest : DriverTest() {
                          *
                          * Some other human handwritten comments.
                          * <br>
-                         * <p>Policy Type: Long</p>
                          * <table>
                          *  <tr>
                          *    <th colspan="2">Policy details</th>

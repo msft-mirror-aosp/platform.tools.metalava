@@ -308,4 +308,55 @@ class ApiSelectionOptionsTest :
             )
         }
     }
+
+    @Test
+    fun `Test PublishedApi is not implicitly hidden`() {
+        runTestWithConfig(
+            ARG_API_SURFACE,
+            "public",
+            apiSurfacesConfig =
+                ApiSurfacesConfig(
+                    listOf(
+                        ApiSurfaceConfig(
+                            name = "public",
+                            selectionCriteria =
+                                SelectionCriteriaConfig(
+                                    unannotated = EffectConfig.SHOW,
+                                ),
+                        ),
+                        ApiSurfaceConfig(
+                            name = "system",
+                            extends = "public",
+                            selectionCriteria =
+                                SelectionCriteriaConfig(
+                                    annotationRules =
+                                        listOf(
+                                            AnnotationRuleConfig(
+                                                pattern = "kotlin.PublishedApi",
+                                            ),
+                                            AnnotationRuleConfig(
+                                                pattern = "android.annotation.SystemApi",
+                                            ),
+                                        ),
+                                ),
+                        ),
+                    ),
+                )
+        ) {
+            options.apiSurfaceSelector.assertState(
+                expectedMatcherState =
+                    """
+                        AnnotationMatcher(
+                            android.annotation.SystemApi -> {
+                                Entry(
+                                    result: HIDE
+                                )
+                            }
+                        )
+                    """,
+                expectedShowUnannotated = true,
+                expectedUnannotatedSurfaceName = "public",
+            )
+        }
+    }
 }

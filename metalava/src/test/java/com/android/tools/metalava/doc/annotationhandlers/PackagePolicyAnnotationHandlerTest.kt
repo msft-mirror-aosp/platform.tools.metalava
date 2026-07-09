@@ -87,7 +87,6 @@ class PackagePolicyAnnotationHandlerTest : DriverTest() {
                          *
                          * Some other human handwritten comments.
                          * <br>
-                         * <p>Policy Type: Package</p>
                          * <table>
                          *  <tr>
                          *    <th colspan="2">Policy details</th>
