@@ -146,4 +146,23 @@ class ApiVariantSetTest {
             message = "set1 intersection empty"
         )
     }
+
+    @Test
+    fun `Test narrowest and widest surfaces`() {
+        val emptySet = ApiVariantSet.EMPTY
+        assertEquals(null, emptySet.narrowestSurfaceFor(apiSurfaces), "empty narrowest")
+        assertEquals(null, emptySet.widestSurfaceFor(apiSurfaces), "empty widest")
+
+        val mainSet = apiSurfaces.createVariantSet(mainCore, mainRemoved)
+        assertEquals(main, mainSet.narrowestSurfaceFor(apiSurfaces), "main only narrowest")
+        assertEquals(main, mainSet.widestSurfaceFor(apiSurfaces), "main only widest")
+
+        val baseSet = apiSurfaces.createVariantSet(baseRemoved, baseDocOnly)
+        assertEquals(base, baseSet.narrowestSurfaceFor(apiSurfaces), "base only narrowest")
+        assertEquals(base, baseSet.widestSurfaceFor(apiSurfaces), "base only widest")
+
+        val mixedSet = apiSurfaces.createVariantSet(mainCore, baseDocOnly)
+        assertEquals(base, mixedSet.narrowestSurfaceFor(apiSurfaces), "mixed narrowest")
+        assertEquals(main, mixedSet.widestSurfaceFor(apiSurfaces), "mixed widest")
+    }
 }
