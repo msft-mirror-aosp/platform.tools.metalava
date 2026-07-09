@@ -16,77 +16,45 @@
 
 package com.android.tools.metalava.lint
 
-import com.android.tools.metalava.ARG_API_LINT
+import com.android.tools.lint.checks.infrastructure.TestFiles.base64gzip
 import com.android.tools.metalava.DriverTest
-import com.android.tools.metalava.androidxNonNullSource
-import com.android.tools.metalava.androidxNullableSource
-import com.android.tools.metalava.cli.common.ARG_ERROR
-import com.android.tools.metalava.cli.common.ARG_HIDE
 import com.android.tools.metalava.model.provider.Capability
-import com.android.tools.metalava.model.testing.FilterAction
-import com.android.tools.metalava.model.testing.FilterByProvider
 import com.android.tools.metalava.model.testing.RequiresCapabilities
 import com.android.tools.metalava.nonNullSource
+import com.android.tools.metalava.reporter.Issues
+import com.android.tools.metalava.testing.KnownSourceFiles
+import com.android.tools.metalava.testing.createAndroidModuleDescription
+import com.android.tools.metalava.testing.createCommonModuleDescription
+import com.android.tools.metalava.testing.createNativeModuleDescription
+import com.android.tools.metalava.testing.createProjectDescription
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
+import org.jetbrains.kotlin.cfg.pseudocode.and
 import org.junit.Test
 
 class ApiLintTest : DriverTest() {
 
-    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Test names`() {
         // Make sure we only flag issues in new API
         check(
             apiLint = "", // enabled
-            extraArguments = arrayOf(ARG_HIDE, "MissingNullability"),
             expectedIssues =
                 """
-                src/Dp.kt:3: warning: Acronyms should not be capitalized in method names: was `badCALL`, should this be `badCall`? [AcronymName]
-                src/android/pkg/ALL_CAPS.java:3: warning: Acronyms should not be capitalized in class names: was `ALL_CAPS`, should this be `AllCaps`? [AcronymName]
-                src/android/pkg/HTMLWriter.java:3: warning: Acronyms should not be capitalized in class names: was `HTMLWriter`, should this be `HtmlWriter`? [AcronymName]
                 src/android/pkg/MyStringImpl.java:3: error: Don't expose your implementation details: `MyStringImpl` ends with `Impl` [EndsWithImpl]
-                src/android/pkg/badlyNamedClass.java:5: error: Class must start with uppercase char: badlyNamedClass [StartWithUpper]
-                src/android/pkg/badlyNamedClass.java:7: error: Method name must start with lowercase char: BadlyNamedMethod1 [StartWithLower]
-                src/android/pkg/badlyNamedClass.java:9: warning: Acronyms should not be capitalized in method names: was `fromHTMLToHTML`, should this be `fromHtmlToHtml`? [AcronymName]
-                src/android/pkg/badlyNamedClass.java:10: warning: Acronyms should not be capitalized in method names: was `toXML`, should this be `toXml`? [AcronymName]
-                src/android/pkg/badlyNamedClass.java:12: warning: Acronyms should not be capitalized in method names: was `getID`, should this be `getId`? [AcronymName]
-                src/android/pkg/badlyNamedClass.java:6: error: Constant field names must be named with only upper case characters: `android.pkg.badlyNamedClass#BadlyNamedField`, should be `BADLY_NAMED_FIELD`? [AllUpper]
+                src/android/pkg/badlyNamedClass.java:3: error: Class must start with uppercase char: badlyNamedClass [StartWithUpper]
+                src/android/pkg/badlyNamedClass.java:4: error: Constant field names must be named with only upper case characters: `android.pkg.badlyNamedClass#BadlyNamedField`, should be `BADLY_NAMED_FIELD`? [AllUpper]
+                src/android/pkg/badlyNamedClass.java:5: error: Method name must start with lowercase char: BadlyNamedMethod1 [StartWithLower]
                 """,
-            expectedFail = DefaultLintErrorMessage,
             sourceFiles =
                 arrayOf(
                     java(
                         """
                     package android.pkg;
 
-                    import androidx.annotation.Nullable;
-
                     public class badlyNamedClass {
                         public static final int BadlyNamedField = 1;
                         public void BadlyNamedMethod1() { }
-
-                        public void fromHTMLToHTML() { }
-                        public void toXML() { }
-                        @Nullable
-                        public String getID() { return null; }
-                        public void setZOrderOnTop() { } // OK
-                    }
-                    """
-                    ),
-                    java(
-                        """
-                    package android.pkg;
-
-                    public class ALL_CAPS { // like android.os.Build.VERSION_CODES
-                    }
-                    """
-                    ),
-                    java(
-                        """
-                    package android.pkg;
-
-                    public class HTMLWriter {
                     }
                     """
                     ),
@@ -98,66 +66,6 @@ class ApiLintTest : DriverTest() {
                     }
                     """
                     ),
-                    kotlin(
-                        """
-                    inline class Dp(val value: Float)
-                    fun greatCall(width: Dp)
-                    fun badCALL(width: Dp)
-                """
-                    ),
-                    androidxNullableSource
-                )
-        )
-    }
-
-    @Test
-    fun `Test names against previous API`() {
-        check(
-            apiLint =
-                """
-                package android.pkg {
-                  public class badlyNamedClass {
-                    ctor public badlyNamedClass();
-                    method public void BadlyNamedMethod1();
-                    method public void fromHTMLToHTML();
-                    method public String getID();
-                    method public void toXML();
-                    field public static final int BadlyNamedField = 1; // 0x1
-                  }
-                }
-            """
-                    .trimIndent(),
-            expectedIssues =
-                """
-                src/android/pkg/badlyNamedClass.java:8: warning: Acronyms should not be capitalized in method names: was `toXML2`, should this be `toXmL2`? [AcronymName]
-                src/android/pkg2/HTMLWriter.java:3: warning: Acronyms should not be capitalized in class names: was `HTMLWriter`, should this be `HtmlWriter`? [AcronymName]
-                src/android/pkg2/HTMLWriter.java:4: warning: Acronyms should not be capitalized in method names: was `fromHTMLToHTML`, should this be `fromHtmlToHtml`? [AcronymName]
-                """,
-            sourceFiles =
-                arrayOf(
-                    java(
-                        """
-                    package android.pkg;
-
-                    public class badlyNamedClass {
-                        public static final int BadlyNamedField = 1;
-
-                        public void fromHTMLToHTML() { }
-                        public void toXML() { }
-                        public void toXML2() { }
-                        public String getID() { return null; }
-                    }
-                    """
-                    ),
-                    java(
-                        """
-                    package android.pkg2;
-
-                    public class HTMLWriter {
-                        public void fromHTMLToHTML() { }
-                    }
-                    """
-                    )
                 )
         )
     }
@@ -168,13 +76,12 @@ class ApiLintTest : DriverTest() {
             apiLint = "", // enabled
             expectedIssues =
                 """
-                src/android/pkg/Constants.java:14: error: All constants must be defined at compile time: android.pkg.Constants#FOO [CompileTimeConstant]
-                src/android/pkg/Constants.java:12: warning: If min/max could change in future, make them dynamic methods: android.pkg.Constants#MAX_FOO [MinMaxConstant]
-                src/android/pkg/Constants.java:11: warning: If min/max could change in future, make them dynamic methods: android.pkg.Constants#MIN_FOO [MinMaxConstant]
-                src/android/pkg/Constants.java:10: error: Constant field names must be named with only upper case characters: `android.pkg.Constants#myStrings`, should be `MY_STRINGS`? [AllUpper]
                 src/android/pkg/Constants.java:8: error: Constant field names must be named with only upper case characters: `android.pkg.Constants#strings`, should be `STRINGS`? [AllUpper]
+                src/android/pkg/Constants.java:10: error: Constant field names must be named with only upper case characters: `android.pkg.Constants#myStrings`, should be `MY_STRINGS`? [AllUpper]
+                src/android/pkg/Constants.java:11: warning: If min/max could change in future, make them dynamic methods: android.pkg.Constants#MIN_FOO [MinMaxConstant]
+                src/android/pkg/Constants.java:12: warning: If min/max could change in future, make them dynamic methods: android.pkg.Constants#MAX_FOO [MinMaxConstant]
+                src/android/pkg/Constants.java:14: error: All constants must be defined at compile time: android.pkg.Constants#FOO [CompileTimeConstant]
                 """,
-            expectedFail = DefaultLintErrorMessage,
             sourceFiles =
                 arrayOf(
                     java(
@@ -196,8 +103,8 @@ class ApiLintTest : DriverTest() {
                     }
                     """
                     ),
-                    androidxNonNullSource,
-                    androidxNullableSource
+                    KnownSourceFiles.androidxNonNullJavaSource,
+                    KnownSourceFiles.androidxNullableJavaSource
                 )
         )
     }
@@ -210,7 +117,6 @@ class ApiLintTest : DriverTest() {
                 """
                 src/android/pkg/MyEnum.java:3: error: Enums are discouraged in Android APIs [Enum]
                 """,
-            expectedFail = DefaultLintErrorMessage,
             sourceFiles =
                 arrayOf(
                     java(
@@ -229,7 +135,10 @@ class ApiLintTest : DriverTest() {
     @Test
     fun `Test callbacks`() {
         check(
-            extraArguments = arrayOf(ARG_ERROR, "CallbackInterface"),
+            extraArguments =
+                errorIssues(
+                    Issues.CALLBACK_INTERFACE,
+                ),
             apiLint = "", // enabled
             expectedIssues =
                 """
@@ -238,7 +147,6 @@ class ApiLintTest : DriverTest() {
                 src/android/pkg/MyInterfaceCallback.java:3: error: Callbacks must be abstract class instead of interface to enable extension in future API levels: MyInterfaceCallback [CallbackInterface]
                 src/android/pkg/MyObserver.java:3: warning: Class should be named MyCallback [CallbackName]
                 """,
-            expectedFail = DefaultLintErrorMessage,
             sourceFiles =
                 arrayOf(
                     java(
@@ -306,7 +214,6 @@ class ApiLintTest : DriverTest() {
                 src/android/pkg/MyClassListener.java:3: error: Listeners should be an interface, or otherwise renamed Callback: MyClassListener [ListenerInterface]
                 src/android/pkg/MyListener.java:6: error: Listener method names must follow the on<Something> style: bar [CallbackMethodName]
                 """,
-            expectedFail = DefaultLintErrorMessage,
             sourceFiles =
                 arrayOf(
                     java(
@@ -321,7 +228,7 @@ class ApiLintTest : DriverTest() {
                         """
                     package android.pkg;
 
-                    public interface OnFooBarListener {
+                    public interface OnFooBarListener1 {
                         void bar();
                     }
                     """
@@ -330,7 +237,7 @@ class ApiLintTest : DriverTest() {
                         """
                     package android.pkg;
 
-                    public interface OnFooBarListener {
+                    public interface OnFooBarListener2 {
                         void onFooBar(); // OK
                     }
                     """
@@ -369,11 +276,10 @@ class ApiLintTest : DriverTest() {
             apiLint = "", // enabled
             expectedIssues =
                 """
-                src/android/accounts/Actions.java:7: error: Intent action constant name must be ACTION_FOO: ACCOUNT_ADDED [IntentName]
                 src/android/accounts/Actions.java:6: error: Inconsistent action value; expected `android.accounts.action.ACCOUNT_OPENED`, was `android.accounts.ACCOUNT_OPENED` [ActionValue]
+                src/android/accounts/Actions.java:7: error: Intent action constant name must be ACTION_FOO: ACCOUNT_ADDED [IntentName]
                 src/android/accounts/Actions.java:8: error: Intent action constant name must be ACTION_FOO: SOMETHING [IntentName]
                 """,
-            expectedFail = DefaultLintErrorMessage,
             sourceFiles =
                 arrayOf(
                     java(
@@ -400,10 +306,9 @@ class ApiLintTest : DriverTest() {
             expectedIssues =
                 """
                 src/android/accounts/Extras.java:5: error: Inconsistent extra value; expected `android.accounts.extra.AUTOMATIC_RULE_ID`, was `android.app.extra.AUTOMATIC_RULE_ID` [ActionValue]
-                src/android/accounts/Extras.java:7: error: Intent extra constant name must be EXTRA_FOO: RULE_ID [IntentName]
                 src/android/accounts/Extras.java:6: error: Intent extra constant name must be EXTRA_FOO: SOMETHING_EXTRA [IntentName]
+                src/android/accounts/Extras.java:7: error: Intent extra constant name must be EXTRA_FOO: RULE_ID [IntentName]
                 """,
-            expectedFail = DefaultLintErrorMessage,
             sourceFiles =
                 arrayOf(
                     java(
@@ -434,7 +339,6 @@ class ApiLintTest : DriverTest() {
                 src/android/pkg/NonFinalParcelable.java:5: error: Parcelable classes must be final: android.pkg.NonFinalParcelable is not final [ParcelNotFinal]
                 src/android/pkg/ParcelableConstructor.java:6: error: Parcelable inflation is exposed through CREATOR, not raw constructors, in android.pkg.ParcelableConstructor [ParcelConstructor]
                 """,
-            expectedFail = DefaultLintErrorMessage,
             sourceFiles =
                 arrayOf(
                     java(
@@ -508,7 +412,7 @@ class ApiLintTest : DriverTest() {
                     }
                     """
                     ),
-                    androidxNullableSource
+                    KnownSourceFiles.androidxNullableJavaSource
                 )
         )
     }
@@ -522,7 +426,6 @@ class ApiLintTest : DriverTest() {
                 src/android/pkg/MyClass.java:6: error: Protected methods not allowed; must be public: method android.pkg.MyClass.wrong()} [ProtectedMember]
                 src/android/pkg/MyClass.java:8: error: Protected fields not allowed; must be public: field android.pkg.MyClass.wrong} [ProtectedMember]
                 """,
-            expectedFail = DefaultLintErrorMessage,
             sourceFiles =
                 arrayOf(
                     java(
@@ -550,19 +453,18 @@ class ApiLintTest : DriverTest() {
             apiLint = "", // enabled
             expectedIssues =
                 """
-                src/android/pkg/MyClass.java:11: error: Non-static field ALSO_BAD_CONSTANT must be named using fooBar style [StartWithLower]
-                src/android/pkg/MyClass.java:11: error: Constant ALSO_BAD_CONSTANT must be marked static final [AllUpper]
-                src/android/pkg/MyClass.java:7: error: Non-static field AlsoBadName must be named using fooBar style [StartWithLower]
-                src/android/pkg/MyClass.java:10: error: Bare field BAD_CONSTANT must be marked final, or moved behind accessors if mutable [MutableBareField]
-                src/android/pkg/MyClass.java:10: error: Constant BAD_CONSTANT must be marked static final [AllUpper]
                 src/android/pkg/MyClass.java:5: error: Bare field badMutable must be marked final, or moved behind accessors if mutable [MutableBareField]
-                src/android/pkg/MyClass.java:9: error: Bare field badStaticMutable must be marked final, or moved behind accessors if mutable [MutableBareField]
                 src/android/pkg/MyClass.java:6: error: Internal field mBadName must not be exposed [InternalField]
+                src/android/pkg/MyClass.java:7: error: Non-static field AlsoBadName must be named using fooBar style [StartWithLower]
                 src/android/pkg/MyClass.java:8: error: Constant field names must be named with only upper case characters: `android.pkg.MyClass#sBadStaticName`, should be `S_BAD_STATIC_NAME`? [AllUpper]
                 src/android/pkg/MyClass.java:8: error: Internal field sBadStaticName must not be exposed [InternalField]
+                src/android/pkg/MyClass.java:9: error: Bare field badStaticMutable must be marked final, or moved behind accessors if mutable [MutableBareField]
+                src/android/pkg/MyClass.java:10: error: Constant BAD_CONSTANT must be marked static final [AllUpper]
+                src/android/pkg/MyClass.java:10: error: Bare field BAD_CONSTANT must be marked final, or moved behind accessors if mutable [MutableBareField]
+                src/android/pkg/MyClass.java:11: error: Constant ALSO_BAD_CONSTANT must be marked static final [AllUpper]
+                src/android/pkg/MyClass.java:11: error: Non-static field ALSO_BAD_CONSTANT must be named using fooBar style [StartWithLower]
                 src/android/pkg/MyClass.java:15: error: Internal field mBad must not be exposed [InternalField]
                 """,
-            expectedFail = DefaultLintErrorMessage,
             sourceFiles =
                 arrayOf(
                     java(
@@ -618,7 +520,10 @@ class ApiLintTest : DriverTest() {
                 src/android/pkg/MyClass.java:8: error: Use android.net.Uri instead of java.net.URI (parameter param in android.pkg.MyClass.bad2(java.util.List<java.net.URI> param)) [AndroidUri]
                 src/android/pkg/MyClass.java:9: error: Use android.net.Uri instead of android.net.URL (parameter param in android.pkg.MyClass.bad3(android.net.URL param)) [AndroidUri]
                 """,
-            expectedFail = DefaultLintErrorMessage,
+            extraArguments =
+                hiddenIssues(
+                    Issues.ACRONYM_NAME,
+                ),
             sourceFiles =
                 arrayOf(
                     java(
@@ -632,10 +537,25 @@ class ApiLintTest : DriverTest() {
                         public @NonNull java.net.URL bad1() { throw new RuntimeException(); }
                         public void bad2(@NonNull List<java.net.URI> param) { }
                         public void bad3(@NonNull android.net.URL param) { }
+                        public void good(@NonNull android.net.Uri param) { }
                     }
                     """
                     ),
-                    androidxNonNullSource
+                    java(
+                        """
+                            package android.net;
+                            public class URL {
+                                private URL() {}
+                            }
+                        """
+                    ),
+                    java(
+                        """
+                            package android.net;
+                            public class Uri {}
+                        """
+                    ),
+                    KnownSourceFiles.androidxNonNullJavaSource
                 )
         )
     }
@@ -650,11 +570,10 @@ class ApiLintTest : DriverTest() {
                 src/android/pkg/MyClass.java:10: error: Use ListenableFuture (library), or a combination of OutcomeReceiver<R,E>, Executor, and CancellationSignal (platform) instead of java.util.concurrent.CompletableFuture (parameter param in android.pkg.MyClass.bad2(java.util.concurrent.CompletableFuture<java.lang.String> param)) [BadFuture]
                 src/android/pkg/MyClass.java:11: error: Use ListenableFuture (library), or a combination of OutcomeReceiver<R,E>, Executor, and CancellationSignal (platform) instead of java.util.concurrent.Future (method android.pkg.MyClass.bad3()) [BadFuture]
                 src/android/pkg/MyClass.java:12: error: Use ListenableFuture (library), or a combination of OutcomeReceiver<R,E>, Executor, and CancellationSignal (platform) instead of java.util.concurrent.Future (parameter param in android.pkg.MyClass.bad4(java.util.concurrent.Future<java.lang.String> param)) [BadFuture]
-                src/android/pkg/MyClass.java:21: error: BadCompletableFuture should not extend `java.util.concurrent.CompletableFuture`. In AndroidX, use (but do not extend) ListenableFuture. In platform, use a combination of OutcomeReceiver<R,E>, Executor, and CancellationSignal`. [BadFuture]
                 src/android/pkg/MyClass.java:17: error: BadFuture should not extend `java.util.concurrent.Future`. In AndroidX, use (but do not extend) ListenableFuture. In platform, use a combination of OutcomeReceiver<R,E>, Executor, and CancellationSignal`. [BadFuture]
                 src/android/pkg/MyClass.java:19: error: BadFutureClass should not implement `java.util.concurrent.Future`. In AndroidX, use (but do not extend) ListenableFuture. In platform, use a combination of OutcomeReceiver<R,E>, Executor, and CancellationSignal`. [BadFuture]
+                src/android/pkg/MyClass.java:21: error: BadCompletableFuture should not extend `java.util.concurrent.CompletableFuture`. In AndroidX, use (but do not extend) ListenableFuture. In platform, use a combination of OutcomeReceiver<R,E>, Executor, and CancellationSignal`. [BadFuture]
                 """,
-            expectedFail = DefaultLintErrorMessage,
             sourceFiles =
                 arrayOf(
                     java(
@@ -693,7 +612,7 @@ class ApiLintTest : DriverTest() {
                     }
                     """
                     ),
-                    androidxNullableSource
+                    KnownSourceFiles.androidxNullableJavaSource
                 )
         )
     }
@@ -704,11 +623,10 @@ class ApiLintTest : DriverTest() {
             apiLint = "", // enabled
             expectedIssues =
                 """
+                src/android/pkg/MyClass.java:14: error: Don't expose @StringDef: SomeString must be hidden. [PublicTypedef]
                 src/android/pkg/MyClass.java:19: error: Don't expose @IntDef: SomeInt must be hidden. [PublicTypedef]
                 src/android/pkg/MyClass.java:24: error: Don't expose @LongDef: SomeLong must be hidden. [PublicTypedef]
-                src/android/pkg/MyClass.java:14: error: Don't expose @StringDef: SomeString must be hidden. [PublicTypedef]
                 """,
-            expectedFail = DefaultLintErrorMessage,
             sourceFiles =
                 arrayOf(
                     java(
@@ -758,7 +676,6 @@ class ApiLintTest : DriverTest() {
                 src/android/pkg/RegistrationMethods.java:19: error: Found removeMismatchedListener but not addMismatchedListener in android.pkg.RegistrationMethods [PairedRegistration]
                 src/android/pkg/RegistrationMethods.java:20: error: Found registerUnpairedListener but not unregisterUnpairedListener in android.pkg.RegistrationMethods [PairedRegistration]
                 """,
-            expectedFail = DefaultLintErrorMessage,
             sourceFiles =
                 arrayOf(
                     java(
@@ -797,7 +714,7 @@ class ApiLintTest : DriverTest() {
                     }
                     """
                     ),
-                    androidxNullableSource
+                    KnownSourceFiles.androidxNullableJavaSource
                 )
         )
     }
@@ -829,7 +746,7 @@ class ApiLintTest : DriverTest() {
                     }
                     """
                     ),
-                    androidxNullableSource
+                    KnownSourceFiles.androidxNullableJavaSource
                 )
         )
     }
@@ -840,16 +757,15 @@ class ApiLintTest : DriverTest() {
             apiLint = "", // enabled
             expectedIssues =
                 """
-                src/android/pkg/MyClass1.java:3: error: Inconsistent class name; should be `<Foo>Activity`, was `MyClass1` [ContextNameSuffix]
+                src/android/pkg/MyClass1.java:3: error: Inconsistent class name; should end with one of [`Activity`, `ActivityCompat`], but was `MyClass1` [ContextNameSuffix]
+                src/android/pkg/MyClass1.java:3: error: MyClass1 should not extend `Activity`. Activity subclasses are impossible to compose. Expose a composable API instead. [ForbiddenSuperClass]
                 src/android/pkg/MyClass1.java:6: warning: Methods implemented by developers should follow the on<Something> style, was `badlyNamedAbstractMethod` [OnNameExpected]
                 src/android/pkg/MyClass1.java:7: warning: If implemented by developer, should follow the on<Something> style; otherwise consider marking final [OnNameExpected]
-                src/android/pkg/MyClass1.java:3: error: MyClass1 should not extend `Activity`. Activity subclasses are impossible to compose. Expose a composable API instead. [ForbiddenSuperClass]
-                src/android/pkg/MyClass2.java:3: error: Inconsistent class name; should be `<Foo>Provider`, was `MyClass2` [ContextNameSuffix]
-                src/android/pkg/MyClass3.java:3: error: Inconsistent class name; should be `<Foo>Service`, was `MyClass3` [ContextNameSuffix]
-                src/android/pkg/MyClass4.java:3: error: Inconsistent class name; should be `<Foo>Receiver`, was `MyClass4` [ContextNameSuffix]
+                src/android/pkg/MyClass2.java:3: error: Inconsistent class name; should end with one of [`Provider`, `ProviderCompat`], but was `MyClass2` [ContextNameSuffix]
+                src/android/pkg/MyClass3.java:3: error: Inconsistent class name; should end with one of [`Service`, `ServiceCompat`], but was `MyClass3` [ContextNameSuffix]
+                src/android/pkg/MyClass4.java:3: error: Inconsistent class name; should end with one of [`Receiver`, `ReceiverCompat`], but was `MyClass4` [ContextNameSuffix]
                 src/android/pkg/MyOkActivity.java:3: error: MyOkActivity should not extend `Activity`. Activity subclasses are impossible to compose. Expose a composable API instead. [ForbiddenSuperClass]
                 """,
-            expectedFail = DefaultLintErrorMessage,
             sourceFiles =
                 arrayOf(
                     java(
@@ -905,6 +821,176 @@ class ApiLintTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
+    @Test
+    fun `Make sure helper classes that end with the appropriate Compat suffix are not flagged`() {
+        check(
+            apiLint = "", // enabled
+            extraArguments =
+                hiddenIssues(
+                    Issues.FORBIDDEN_SUPER_CLASS,
+                ),
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
+                        package android.pkg
+
+                        public class MyClass1ActivityCompat: android.app.Activity {
+                        }
+                        """
+                    ),
+                    java(
+                        """
+                        package android.pkg;
+
+                        public class MyClass2ActivityCompat extends android.app.Activity {
+                        }
+                        """
+                    ),
+                    kotlin(
+                        """
+                        package android.pkg
+
+                        public class MyClass3ContentProviderCompat: android.content.ContentProvider {
+                        }
+                        """
+                    ),
+                    java(
+                        """
+                        package android.pkg;
+
+                        public class MyClass4ContentProviderCompat extends android.content.ContentProvider {
+                        }
+                        """
+                    ),
+                    kotlin(
+                        """
+                        package android.pkg
+
+                        public class MyClass5ServiceCompat : android.app.Service {
+                        }
+                        """
+                    ),
+                    java(
+                        """
+                        package android.pkg;
+
+                        public class MyClass6ServiceCompat extends android.app.Service {
+                        }
+                        """
+                    ),
+                    kotlin(
+                        """
+                        package android.pkg
+
+                        public class MyClass7ReceiverCompat : android.content.BroadcastReceiver {
+                        }
+                        """
+                    ),
+                    java(
+                        """
+                        package android.pkg;
+
+                        public class MyClass8ReceiverCompat extends android.content.BroadcastReceiver {
+                        }
+                        """
+                    )
+                )
+        )
+    }
+
+    @RequiresCapabilities(Capability.KOTLIN)
+    @Test
+    fun `Make sure helper classes that end with a just Compat suffix are flagged`() {
+        check(
+            extraArguments =
+                hiddenIssues(
+                    Issues.FORBIDDEN_SUPER_CLASS,
+                ),
+            apiLint = "", // enabled
+            expectedIssues =
+                """
+                src/android/pkg/MyClass1Compat.kt:3: error: Inconsistent class name; should end with one of [`Activity`, `ActivityCompat`], but was `MyClass1Compat` [ContextNameSuffix]
+                src/android/pkg/MyClass2Compat.java:3: error: Inconsistent class name; should end with one of [`Activity`, `ActivityCompat`], but was `MyClass2Compat` [ContextNameSuffix]
+                src/android/pkg/MyClass3Compat.kt:3: error: Inconsistent class name; should end with one of [`Provider`, `ProviderCompat`], but was `MyClass3Compat` [ContextNameSuffix]
+                src/android/pkg/MyClass4Compat.java:3: error: Inconsistent class name; should end with one of [`Provider`, `ProviderCompat`], but was `MyClass4Compat` [ContextNameSuffix]
+                src/android/pkg/MyClass5Compat.kt:3: error: Inconsistent class name; should end with one of [`Service`, `ServiceCompat`], but was `MyClass5Compat` [ContextNameSuffix]
+                src/android/pkg/MyClass6Compat.java:3: error: Inconsistent class name; should end with one of [`Service`, `ServiceCompat`], but was `MyClass6Compat` [ContextNameSuffix]
+                src/android/pkg/MyClass7Compat.kt:3: error: Inconsistent class name; should end with one of [`Receiver`, `ReceiverCompat`], but was `MyClass7Compat` [ContextNameSuffix]
+                src/android/pkg/MyClass8Compat.java:3: error: Inconsistent class name; should end with one of [`Receiver`, `ReceiverCompat`], but was `MyClass8Compat` [ContextNameSuffix]
+            """
+                    .trimIndent(),
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
+                        package android.pkg
+
+                        public class MyClass1Compat: android.app.Activity {
+                        }
+                        """
+                    ),
+                    java(
+                        """
+                        package android.pkg;
+
+                        public class MyClass2Compat extends android.app.Activity {
+                        }
+                        """
+                    ),
+                    kotlin(
+                        """
+                        package android.pkg
+
+                        public class MyClass3Compat: android.content.ContentProvider {
+                        }
+                        """
+                    ),
+                    java(
+                        """
+                        package android.pkg;
+
+                        public class MyClass4Compat extends android.content.ContentProvider {
+                        }
+                        """
+                    ),
+                    kotlin(
+                        """
+                        package android.pkg
+
+                        public class MyClass5Compat : android.app.Service {
+                        }
+                        """
+                    ),
+                    java(
+                        """
+                        package android.pkg;
+
+                        public class MyClass6Compat extends android.app.Service {
+                        }
+                        """
+                    ),
+                    kotlin(
+                        """
+                        package android.pkg
+
+                        public class MyClass7Compat : android.content.BroadcastReceiver {
+                        }
+                        """
+                    ),
+                    java(
+                        """
+                        package android.pkg;
+
+                        public class MyClass8Compat extends android.content.BroadcastReceiver {
+                        }
+                        """
+                    )
+                )
+        )
+    }
+
     @Test
     fun `Check suppress works on inherited methods`() {
         check(
@@ -935,7 +1021,7 @@ class ApiLintTest : DriverTest() {
                 }
                 """
                     ),
-                    androidxNonNullSource
+                    KnownSourceFiles.androidxNonNullJavaSource
                 )
         )
     }
@@ -949,7 +1035,6 @@ class ApiLintTest : DriverTest() {
                 src/android/pkg/MyClass1.java:3: error: Raw AIDL interfaces must not be exposed: MyClass1 extends Binder [RawAidl]
                 src/android/pkg/MyClass2.java:3: error: Raw AIDL interfaces must not be exposed: MyClass2 implements IInterface [RawAidl]
                 """,
-            expectedFail = DefaultLintErrorMessage,
             sourceFiles =
                 arrayOf(
                     java(
@@ -964,7 +1049,7 @@ class ApiLintTest : DriverTest() {
                         """
                     package android.pkg;
 
-                    public abstract class MyClass2 implements android.os.IInterface {
+                    public interface MyClass2 extends android.os.IInterface {
                     }
                     """
                     ),
@@ -988,7 +1073,6 @@ class ApiLintTest : DriverTest() {
                 """
                 src/com/android/pkg/MyClass.java:3: error: Internal classes must not be exposed [InternalClasses]
                 """,
-            expectedFail = DefaultLintErrorMessage,
             sourceFiles =
                 arrayOf(
                     java(
@@ -1004,67 +1088,25 @@ class ApiLintTest : DriverTest() {
     }
 
     @Test
-    fun `Check package layering`() {
-        check(
-            apiLint = "", // enabled
-            expectedIssues =
-                """
-                src/android/content/MyClass1.java:8: warning: Field type `android.view.View` violates package layering: nothing in `package android.content` should depend on `package android.view` [PackageLayering]
-                src/android/content/MyClass1.java:8: warning: Method return type `android.view.View` violates package layering: nothing in `package android.content` should depend on `package android.view` [PackageLayering]
-                src/android/content/MyClass1.java:8: warning: Method parameter type `android.view.View` violates package layering: nothing in `package android.content` should depend on `package android.view` [PackageLayering]
-                src/android/content/MyClass1.java:8: warning: Method parameter type `android.view.View` violates package layering: nothing in `package android.content` should depend on `package android.view` [PackageLayering]
-                """,
-            sourceFiles =
-                arrayOf(
-                    java(
-                        """
-                    package android.content;
-
-                    import android.graphics.drawable.Drawable;
-                    import android.graphics.Bitmap;
-                    import android.view.View;
-                    import androidx.annotation.Nullable;
-
-                    public class MyClass1 {
-                        @Nullable
-                        public final View view = null;
-                        @Nullable
-                        public final Drawable drawable = null;
-                        @Nullable
-                        public final Bitmap bitmap = null;
-                        @Nullable
-                        public View ok(@Nullable View view, @Nullable Drawable drawable) { return null; }
-                        @Nullable
-                        public Bitmap wrong(@Nullable View view, @Nullable Bitmap bitmap) { return null; }
-                    }
-                    """
-                    ),
-                    androidxNullableSource
-                )
-        )
-    }
-
-    @Test
     fun `Check boolean getter and setter naming patterns`() {
         check(
             apiLint = "", // enabled
             expectedIssues =
                 """
-                    src/android/pkg/MyClass.java:21: error: Symmetric method for `isVisibleBad` must be named `setVisibleBad`; was `setIsVisibleBad` [GetterSetterNames]
-                    src/android/pkg/MyClass.java:24: error: Symmetric method for `hasTransientStateBad` must be named `setHasTransientStateBad`; was `setTransientStateBad` [GetterSetterNames]
-                    src/android/pkg/MyClass.java:28: error: Symmetric method for `setHasTransientStateAlsoBad` must be named `hasTransientStateAlsoBad`; was `isHasTransientStateAlsoBad` [GetterSetterNames]
-                    src/android/pkg/MyClass.java:31: error: Symmetric method for `setCanRecordBad` must be named `canRecordBad`; was `isCanRecordBad` [GetterSetterNames]
-                    src/android/pkg/MyClass.java:34: error: Symmetric method for `setShouldFitWidthBad` must be named `shouldFitWidthBad`; was `isShouldFitWidthBad` [GetterSetterNames]
-                    src/android/pkg/MyClass.java:37: error: Symmetric method for `setWiFiRoamingSettingEnabledBad` must be named `isWiFiRoamingSettingEnabledBad`; was `getWiFiRoamingSettingEnabledBad` [GetterSetterNames]
-                    src/android/pkg/MyClass.java:40: error: Symmetric method for `setEnabledBad` must be named `isEnabledBad`; was `getEnabledBad` [GetterSetterNames]
+                    src/android/pkg/MyClass.java:25: error: Symmetric method for `isVisibleBad` must be named `setVisibleBad`; was `setIsVisibleBad` [GetterSetterNames]
+                    src/android/pkg/MyClass.java:28: error: Symmetric method for `hasTransientStateBad` must be named `setHasTransientStateBad`; was `setTransientStateBad` [GetterSetterNames]
+                    src/android/pkg/MyClass.java:32: error: Symmetric method for `setHasTransientStateAlsoBad` must be named `hasTransientStateAlsoBad`; was `isHasTransientStateAlsoBad` [GetterSetterNames]
+                    src/android/pkg/MyClass.java:35: error: Symmetric method for `setCanRecordBad` must be named `canRecordBad`; was `isCanRecordBad` [GetterSetterNames]
+                    src/android/pkg/MyClass.java:38: error: Symmetric method for `setShouldFitWidthBad` must be named `shouldFitWidthBad`; was `isShouldFitWidthBad` [GetterSetterNames]
+                    src/android/pkg/MyClass.java:41: error: Symmetric method for `setWiFiRoamingSettingEnabledBad` must be named `isWiFiRoamingSettingEnabledBad`; was `getWiFiRoamingSettingEnabledBad` [GetterSetterNames]
+                    src/android/pkg/MyClass.java:44: error: Symmetric method for `setEnabledBad` must be named `isEnabledBad`; was `getEnabledBad` [GetterSetterNames]
                 """,
-            expectedFail = DefaultLintErrorMessage,
             sourceFiles =
                 arrayOf(
                     java(
                         """
                     package android.pkg;
-
+                    import androidx.annotation.NonNull;
                     public class MyClass {
                         // Correct
                         public void setVisible(boolean visible) {}
@@ -1081,6 +1123,10 @@ class ApiLintTest : DriverTest() {
 
                         public void setWiFiRoamingSettingEnabled(boolean enabled) {}
                         public boolean isWiFiRoamingSettingEnabled() { return false; }
+
+                        public boolean hasRoute() { return false; }
+                        public @NonNull String getRoute() { return ""; }
+                        public void setRoute(@NonNull String route) {}
 
                         // Bad
                         public void setIsVisibleBad(boolean visible) {}
@@ -1105,7 +1151,8 @@ class ApiLintTest : DriverTest() {
                         public boolean getEnabledBad() { return false; }
                     }
                     """
-                    )
+                    ),
+                    KnownSourceFiles.androidxNonNullJavaSource
                 )
         )
     }
@@ -1129,7 +1176,6 @@ class ApiLintTest : DriverTest() {
                     src/android/pkg/MyClass.kt:39: error: Getter for boolean property `canRecordGetterBad` is named `getCanRecordGetterBad` but should match the property name. Use `@get:JvmName` to rename. [GetterSetterNames]
                     src/android/pkg/MyClass.kt:41: error: Getter for boolean property `shouldFitWidthGetterBad` is named `getShouldFitWidthGetterBad` but should match the property name. Use `@get:JvmName` to rename. [GetterSetterNames]
             """,
-            expectedFail = DefaultLintErrorMessage,
             sourceFiles =
                 arrayOf(
                     kotlin(
@@ -1188,7 +1234,6 @@ class ApiLintTest : DriverTest() {
         check(
             apiLint = "", // enabled
             expectedIssues = expectedIssues,
-            expectedFail = DefaultLintErrorMessage,
             sourceFiles =
                 arrayOf(
                     kotlin(
@@ -1242,29 +1287,8 @@ class ApiLintTest : DriverTest() {
     }
 
     @RequiresCapabilities(Capability.KOTLIN)
-    @FilterByProvider("psi", "k2", action = FilterAction.EXCLUDE)
     @Test
-    fun `Check boolean constructor parameter accessor naming patterns in Kotlin -- K1`() {
-        `Check boolean constructor parameter accessor naming patterns in Kotlin`(
-            // missing errors for `isVisibleSetterBad`,
-            // `hasTransientStateGetterBad`, `canRecordGetterBad`, `shouldFitWidthGetterBad`
-            expectedIssues =
-                """
-                src/android/pkg/MyClass.kt:19: error: Invalid name for boolean property `visibleBad`. Should start with one of `has`, `can`, `should`, `is`. [GetterSetterNames]
-                src/android/pkg/MyClass.kt:25: error: Invalid name for boolean property `transientStateBad`. Should start with one of `has`, `can`, `should`, `is`. [GetterSetterNames]
-                src/android/pkg/MyClass.kt:27: error: Invalid prefix `isHas` for boolean property `isHasTransientStateAlsoBad`. [GetterSetterNames]
-                src/android/pkg/MyClass.kt:29: error: Invalid prefix `isCan` for boolean property `isCanRecordBad`. [GetterSetterNames]
-                src/android/pkg/MyClass.kt:31: error: Invalid prefix `isShould` for boolean property `isShouldFitWidthBad`. [GetterSetterNames]
-                src/android/pkg/MyClass.kt:33: error: Invalid name for boolean property `wiFiRoamingSettingEnabledBad`. Should start with one of `has`, `can`, `should`, `is`. [GetterSetterNames]
-                src/android/pkg/MyClass.kt:35: error: Invalid name for boolean property `enabledBad`. Should start with one of `has`, `can`, `should`, `is`. [GetterSetterNames]
-                              """,
-        )
-    }
-
-    @RequiresCapabilities(Capability.KOTLIN)
-    @FilterByProvider("psi", "k1", action = FilterAction.EXCLUDE)
-    @Test
-    fun `Check boolean constructor parameter accessor naming patterns in Kotlin -- K2`() {
+    fun `Check boolean constructor parameter accessor naming patterns in Kotlin`() {
         `Check boolean constructor parameter accessor naming patterns in Kotlin`(
             expectedIssues =
                 """
@@ -1290,10 +1314,9 @@ class ApiLintTest : DriverTest() {
             expectedIssues =
                 """
                 src/android/pkg/MyClass.java:6: error: Parameter type is concrete collection (`java.util.HashMap`); must be higher-level interface [ConcreteCollection]
-                src/android/pkg/MyClass.java:10: error: Return type is concrete collection (`java.util.Vector`); must be higher-level interface [ConcreteCollection]
                 src/android/pkg/MyClass.java:10: error: Parameter type is concrete collection (`java.util.LinkedList`); must be higher-level interface [ConcreteCollection]
+                src/android/pkg/MyClass.java:10: error: Return type is concrete collection (`java.util.Vector`); must be higher-level interface [ConcreteCollection]
                 """,
-            expectedFail = DefaultLintErrorMessage,
             sourceFiles =
                 arrayOf(
                     java(
@@ -1313,101 +1336,7 @@ class ApiLintTest : DriverTest() {
                     }
                     """
                     ),
-                    androidxNonNullSource
-                )
-        )
-    }
-
-    @Test
-    fun `Check nullable collections`() {
-        check(
-            apiLint = "", // enabled
-            expectedIssues =
-                """
-                src/android/pkg/MySubClass.java:5: warning: Public class android.pkg.MySubClass stripped of unavailable superclass android.pkg.MyHiddenInterface [HiddenSuperclass]
-                src/android/pkg/MyCallback.java:6: warning: Type of parameter list in android.pkg.MyCallback.onFoo(java.util.List<java.lang.String> list) is a nullable collection (`java.util.List`); must be non-null [NullableCollection]
-                src/android/pkg/MyClass.java:9: warning: Return type of method android.pkg.MyClass.getList(java.util.List<java.lang.String>) is a nullable collection (`java.util.List`); must be non-null [NullableCollection]
-                src/android/pkg/MyClass.java:13: warning: Type of field android.pkg.MyClass.STRINGS is a nullable collection (`java.lang.String[]`); must be non-null [NullableCollection]
-                src/android/pkg/MySubClass.java:14: warning: Return type of method android.pkg.MySubClass.getOtherList(java.util.List<java.lang.String>) is a nullable collection (`java.util.List`); must be non-null [NullableCollection]
-                """,
-            sourceFiles =
-                arrayOf(
-                    java(
-                        """
-                    package android.pkg;
-
-                    import androidx.annotation.Nullable;
-
-                    public class MyClass {
-                        public MyClass() { }
-
-                        @Nullable
-                        public java.util.List<String> getList(@Nullable java.util.List<String> list) {
-                            return null;
-                        }
-                        @Nullable
-                        public static final String[] STRINGS = null;
-
-                        /** @deprecated don't use this. */
-                        @Deprecated
-                        @Nullable
-                        public String[] ignoredBecauseDeprecated(@Nullable String[] ignored) {
-                            return null;
-                        }
-
-                        protected MyClass() {
-                        }
-                    }
-                    """
-                    ),
-                    java(
-                        """
-                    package android.pkg;
-
-                    import androidx.annotation.Nullable;
-
-                    /** @hide */
-                    public interface MyHiddenInterface {
-                        @Nullable
-                        java.util.List<String> getOtherList(@Nullable java.util.List<String> list);
-                    }
-                    """
-                    ),
-                    java(
-                        """
-                    package android.pkg;
-
-                    import androidx.annotation.Nullable;
-
-                    public class MySubClass extends MyClass implements MyHiddenInterface {
-                        @Nullable
-                        public java.util.List<String> getList(@Nullable java.util.List<String> list) {
-                            // Ignored because it has the same nullability as its super method
-                            return null;
-                        }
-
-                        @Override
-                        @Nullable
-                        public java.util.List<String> getOtherList(@Nullable java.util.List<String> list) {
-                            // Reported because the super method is hidden.
-                            return null;
-                        }
-                    }
-                    """
-                    ),
-                    java(
-                        """
-                    package android.pkg;
-
-                    import androidx.annotation.Nullable;
-
-                    public class MyCallback {
-                        public void onFoo(@Nullable java.util.List<String> list) {
-                        }
-                    }
-                    """
-                    ),
-                    androidxNullableSource
+                    KnownSourceFiles.androidxNonNullJavaSource
                 )
         )
     }
@@ -1428,18 +1357,18 @@ class ApiLintTest : DriverTest() {
 
                     public class OverlappingFlags {
                         private OverlappingFlags() { }
-                        public static final int DRAG_FLAG_GLOBAL_PREFIX_URI_PERMISSION = 128; // 0x80
-                        public static final int DRAG_FLAG_GLOBAL_URI_READ = 1; // 0x1
-                        public static final int DRAG_FLAG_GLOBAL_URI_WRITE = 2; // 0x2
-                        public static final int DRAG_FLAG_OPAQUE = 512; // 0x200
-                        public static final int SYSTEM_UI_FLAG_FULLSCREEN = 4; // 0x4
-                        public static final int SYSTEM_UI_FLAG_HIDE_NAVIGATION = 2; // 0x2
-                        public static final int SYSTEM_UI_FLAG_IMMERSIVE = 2048; // 0x800
-                        public static final int SYSTEM_UI_FLAG_IMMERSIVE_STICKY = 4096; // 0x1000
-                        public static final int SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN = 1024; // 0x400
-                        public static final int SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION = 512; // 0x200
-                        public static final int SYSTEM_UI_FLAG_LAYOUT_STABLE = 256; // 0x100
-                        public static final int SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR = 16; // 0x10
+                        public static final int DRAG_FLAG_GLOBAL_PREFIX_URI_PERMISSION = 128;
+                        public static final int DRAG_FLAG_GLOBAL_URI_READ = 1;
+                        public static final int DRAG_FLAG_GLOBAL_URI_WRITE = 2;
+                        public static final int DRAG_FLAG_OPAQUE = 512;
+                        public static final int SYSTEM_UI_FLAG_FULLSCREEN = 4;
+                        public static final int SYSTEM_UI_FLAG_HIDE_NAVIGATION = 2;
+                        public static final int SYSTEM_UI_FLAG_IMMERSIVE = 2048;
+                        public static final int SYSTEM_UI_FLAG_IMMERSIVE_STICKY = 4096;
+                        public static final int SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN = 1024;
+                        public static final int SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION = 512;
+                        public static final int SYSTEM_UI_FLAG_LAYOUT_STABLE = 256;
+                        public static final int SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR = 16;
 
                         public static final int TEST1_FLAG_FIRST = 1;
                         public static final int TEST1_FLAG_SECOND = 3;
@@ -1460,7 +1389,6 @@ class ApiLintTest : DriverTest() {
                 src/android/pkg/MyClass.java:4: error: Must never reference Google (`MyGoogleService`) [MentionsGoogle]
                 src/android/pkg/MyClass.java:5: error: Must never reference Google (`callGoogle`) [MentionsGoogle]
                 """,
-            expectedFail = DefaultLintErrorMessage,
             sourceFiles =
                 arrayOf(
                     java(
@@ -1479,81 +1407,6 @@ class ApiLintTest : DriverTest() {
     }
 
     @Test
-    fun `Check no usages of heavy BitSet`() {
-        check(
-            apiLint = "", // enabled
-            expectedIssues =
-                """
-                src/android/pkg/MyClass.java:9: error: Type must not be heavy BitSet (method android.pkg.MyClass.reverse(java.util.BitSet)) [HeavyBitSet]
-                src/android/pkg/MyClass.java:9: error: Type must not be heavy BitSet (parameter bitset in android.pkg.MyClass.reverse(java.util.BitSet bitset)) [HeavyBitSet]
-                src/android/pkg/MyClass.java:7: error: Type must not be heavy BitSet (field android.pkg.MyClass.bitset) [HeavyBitSet]
-                """,
-            expectedFail = DefaultLintErrorMessage,
-            sourceFiles =
-                arrayOf(
-                    java(
-                        """
-                    package android.pkg;
-                    import androidx.annotation.Nullable;
-                    import java.util.BitSet;
-
-                    public class MyClass {
-                        @Nullable
-                        public final BitSet bitset;
-                        @Nullable
-                        public BitSet reverse(@Nullable BitSet bitset) { return null; }
-                    }
-                    """
-                    ),
-                    androidxNullableSource
-                )
-        )
-    }
-
-    @Test
-    fun `Check Manager related issues`() {
-        check(
-            apiLint = "", // enabled
-            expectedIssues =
-                """
-                src/android/pkg/MyFirstManager.java:6: error: Managers must always be obtained from Context; no direct constructors [ManagerConstructor]
-                src/android/pkg/MyFirstManager.java:9: error: Managers must always be obtained from Context (`get`) [ManagerLookup]
-                """,
-            expectedFail = DefaultLintErrorMessage,
-            sourceFiles =
-                arrayOf(
-                    java(
-                        """
-                    package android.pkg;
-
-                    import androidx.annotation.Nullable;
-
-                    public class MyFirstManager {
-                        public MyFirstManager() {
-                        }
-                        @Nullable
-                        public MyFirstManager get() { return null; }
-                        @Nullable
-                        public MySecondManager ok() { return null; }
-                    }
-                    """
-                    ),
-                    java(
-                        """
-                    package android.pkg;
-
-                    public class MySecondManager {
-                        private MySecondManager() {
-                        }
-                    }
-                    """
-                    ),
-                    androidxNullableSource
-                )
-        )
-    }
-
-    @Test
     fun `Check static utilities`() {
         check(
             apiLint = "", // enabled
@@ -1562,7 +1415,6 @@ class ApiLintTest : DriverTest() {
                 src/android/pkg/MyUtils1.java:3: error: Fully-static utility classes must not have constructor [StaticUtils]
                 src/android/pkg/MyUtils2.java:3: error: Fully-static utility classes must not have constructor [StaticUtils]
                 """,
-            expectedFail = DefaultLintErrorMessage,
             sourceFiles =
                 arrayOf(
                     java(
@@ -1631,7 +1483,6 @@ class ApiLintTest : DriverTest() {
                 src/android/pkg/MyClass.java:12: error: ContentResolver is distinct, so it must be the first argument (method `wrong`) [ContextFirst]
                 src/android/pkg/test.kt:5: error: Context is distinct, so it must be the first argument (method `badCall`) [ContextFirst]
                 """,
-            expectedFail = DefaultLintErrorMessage,
             sourceFiles =
                 arrayOf(
                     java(
@@ -1660,7 +1511,65 @@ class ApiLintTest : DriverTest() {
                     fun String.badCall(value: Int, context: Context) {}
                     """
                     ),
-                    androidxNullableSource
+                    KnownSourceFiles.androidxNullableJavaSource
+                )
+        )
+    }
+
+    @RequiresCapabilities(Capability.KOTLIN)
+    @Test
+    fun `Check context first for suspend fun`() {
+        check(
+            apiLint = "", // enabled
+            expectedIssues =
+                """
+                src/android/pkg/test.kt:5: error: Context is distinct, so it must be the first argument (method `badCall`) [ContextFirst]
+                src/android/pkg/test.kt:8: error: Context is distinct, so it must be the first argument (method `badCallExtension`) [ContextFirst]
+                """,
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
+                    package android.pkg
+                    import android.content.Context
+
+                    suspend fun okCall(context: Context, value: Int) {}
+                    suspend fun badCall(value: Int, context: Context) {}
+
+                    suspend fun String.okCallExtension(context: Context, value: Int) {}
+                    suspend fun String.badCallExtension(value: Int, context: Context) {}
+                    """
+                    ),
+                )
+        )
+    }
+
+    @RequiresCapabilities(Capability.KOTLIN)
+    @Test
+    fun `Check context first for function with context parameters`() {
+        check(
+            apiLint = "", // enabled
+            // TODO(b/512120881): there should not be an error for the `okCallExtension`
+            expectedIssues =
+                """
+                src/android/pkg/test.kt:5: error: Context is distinct, so it must be the first argument (method `badCall`) [ContextFirst]
+                src/android/pkg/test.kt:7: error: Context is distinct, so it must be the first argument (method `okCallExtension`) [ContextFirst]
+                src/android/pkg/test.kt:8: error: Context is distinct, so it must be the first argument (method `badCallExtension`) [ContextFirst]
+                """,
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
+                    package android.pkg
+                    import android.content.Context
+
+                    context(s: String) fun okCall(context: Context, value: Int) {}
+                    context(s: String) fun badCall(value: Int, context: Context) {}
+
+                    context(s: String) fun String.okCallExtension(context: Context, value: Int) {}
+                    context(s: String) fun String.badCallExtension(value: Int, context: Context) {}
+                    """
+                    ),
                 )
         )
     }
@@ -1668,7 +1577,11 @@ class ApiLintTest : DriverTest() {
     @Test
     fun `Check listener last`() {
         check(
-            extraArguments = arrayOf(ARG_API_LINT, ARG_HIDE, "ExecutorRegistration"),
+            apiLint = "", // enabled
+            extraArguments =
+                hiddenIssues(
+                    Issues.EXECUTOR_REGISTRATION,
+                ),
             expectedIssues =
                 """
                 src/android/pkg/MyClass.java:7: warning: Listeners should always be at end of argument list (method `MyClass`) [ListenerLast]
@@ -1700,7 +1613,7 @@ class ApiLintTest : DriverTest() {
                     }
                     """
                     ),
-                    androidxNullableSource
+                    KnownSourceFiles.androidxNullableJavaSource
                 )
         )
     }
@@ -1709,7 +1622,11 @@ class ApiLintTest : DriverTest() {
     @Test
     fun `Check listener last for suspend functions`() {
         check(
-            extraArguments = arrayOf(ARG_API_LINT, ARG_HIDE, "ExecutorRegistration"),
+            apiLint = "", // enabled
+            extraArguments =
+                hiddenIssues(
+                    Issues.EXECUTOR_REGISTRATION,
+                ),
             expectedIssues =
                 """
                 src/android/pkg/MyClass.kt:6: warning: Listeners should always be at end of argument list (method `wrong`) [ListenerLast]
@@ -1745,7 +1662,8 @@ class ApiLintTest : DriverTest() {
         // TODO: This check is not yet hooked up
         check(
             apiLint = "", // enabled
-            expectedIssues = """
+            expectedIssues =
+                """
                 """,
             sourceFiles =
                 arrayOf(
@@ -1789,8 +1707,8 @@ class ApiLintTest : DriverTest() {
             apiLint = "", // enabled
             expectedIssues =
                 """
-                src/android/pkg/MyClass.java:16: warning: Registration methods should have overload that accepts delivery Executor: `registerWrongCallback` [ExecutorRegistration]
                 src/android/pkg/MyClass.java:6: warning: Registration methods should have overload that accepts delivery Executor: `MyClass` [ExecutorRegistration]
+                src/android/pkg/MyClass.java:16: warning: Registration methods should have overload that accepts delivery Executor: `registerWrongCallback` [ExecutorRegistration]
                 """,
             sourceFiles =
                 arrayOf(
@@ -1838,7 +1756,7 @@ class ApiLintTest : DriverTest() {
                     }
                     """
                     ),
-                    androidxNullableSource
+                    KnownSourceFiles.androidxNullableJavaSource
                 )
         )
     }
@@ -1854,7 +1772,6 @@ class ApiLintTest : DriverTest() {
                 src/android/R.java:20: error: Expected resource name in `android.R.layout` to be in the `foo_bar_baz` style, was `wrongNameStyle` [ResourceFieldName]
                 src/android/R.java:31: error: Expected resource name in `android.R.style` to be in the `FooBar_Baz` style, was `wrong_style_name` [ResourceStyleFieldName]
                 """,
-            expectedFail = DefaultLintErrorMessage,
             sourceFiles =
                 arrayOf(
                     java(
@@ -1904,8 +1821,8 @@ class ApiLintTest : DriverTest() {
             apiLint = "", // enabled
             expectedIssues =
                 """
-                src/android/pkg/CheckFiles.java:13: warning: Methods accepting `File` should also accept `FileDescriptor` or streams: method android.pkg.CheckFiles.error(int,java.io.File) [StreamFiles]
                 src/android/pkg/CheckFiles.java:9: warning: Methods accepting `File` should also accept `FileDescriptor` or streams: constructor android.pkg.CheckFiles(android.content.Context,java.io.File) [StreamFiles]
+                src/android/pkg/CheckFiles.java:13: warning: Methods accepting `File` should also accept `FileDescriptor` or streams: method android.pkg.CheckFiles.error(int,java.io.File) [StreamFiles]
                 """,
             sourceFiles =
                 arrayOf(
@@ -1927,7 +1844,7 @@ class ApiLintTest : DriverTest() {
                     }
                     """
                     ),
-                    androidxNullableSource
+                    KnownSourceFiles.androidxNullableJavaSource
                 )
         )
     }
@@ -1938,8 +1855,8 @@ class ApiLintTest : DriverTest() {
             apiLint = "", // enabled
             expectedIssues =
                 """
-                src/android/pkg/CheckFiles.java:13: warning: Methods accepting `File` should also accept `FileDescriptor` or streams: method android.pkg.CheckFiles.error(int,java.io.File) [StreamFiles]
                 src/android/pkg/CheckFiles.java:9: warning: Methods accepting `File` should also accept `FileDescriptor` or streams: constructor android.pkg.CheckFiles(android.content.Context,java.io.File) [StreamFiles]
+                src/android/pkg/CheckFiles.java:13: warning: Methods accepting `File` should also accept `FileDescriptor` or streams: method android.pkg.CheckFiles.error(int,java.io.File) [StreamFiles]
                 """,
             sourceFiles =
                 arrayOf(
@@ -1961,7 +1878,7 @@ class ApiLintTest : DriverTest() {
                     }
                     """
                     ),
-                    androidxNullableSource
+                    KnownSourceFiles.androidxNullableJavaSource
                 )
         )
     }
@@ -2008,7 +1925,6 @@ class ApiLintTest : DriverTest() {
                 src/android/pkg/MyClass.java:3: error: Trouble must be reported through an `Exception`, not an `Error` (`MyClass` extends `Error`) [ExtendsError]
                 src/android/pkg/MySomething.java:3: error: Exceptions must be named `FooException`, was `MySomething` [ExceptionName]
                 """,
-            expectedFail = DefaultLintErrorMessage,
             sourceFiles =
                 arrayOf(
                     java(
@@ -2034,7 +1950,11 @@ class ApiLintTest : DriverTest() {
     @Test
     fun `Check units and method names`() {
         check(
-            extraArguments = arrayOf(ARG_API_LINT, ARG_HIDE, "NoByteOrShort"),
+            apiLint = "", // enabled
+            extraArguments =
+                hiddenIssues(
+                    Issues.NO_BYTE_OR_SHORT,
+                ),
             expectedIssues =
                 """
                 src/android/pkg/UnitNameTest.java:7: error: Expected method name units to be `Hours`, was `Hr` in `getErrorHr` [MethodNameUnits]
@@ -2046,10 +1966,9 @@ class ApiLintTest : DriverTest() {
                 src/android/pkg/UnitNameTest.java:20: error: Percentage must use ints, was `float` in `setErrorPercentage` [PercentageInt]
                 src/android/pkg/UnitNameTest.java:22: error: Expected method name units to be `Bytes`, was `Byte` in `readSingleByte` [MethodNameUnits]
                 """,
-            expectedFail = DefaultLintErrorMessage,
             sourceFiles =
                 arrayOf(
-                    androidxNonNullSource,
+                    KnownSourceFiles.androidxNonNullJavaSource,
                     java(
                         """
                     package android.pkg;
@@ -2135,8 +2054,8 @@ class ApiLintTest : DriverTest() {
                         """
                     package android.pkg;
 
-                    public class MyInterface extends AutoCloseable {
-                        public void close() {}
+                    public interface MyInterface extends AutoCloseable {
+                        void close();
                     }
                     """
                     ),
@@ -2321,7 +2240,6 @@ class ApiLintTest : DriverTest() {
                 src/android/pkg/KotlinKeywordTest.java:7: error: Avoid method names that are Kotlin hard keywords ("fun"); see https://android.github.io/kotlin-guides/interop.html#no-hard-keywords [KotlinKeyword]
                 src/android/pkg/KotlinKeywordTest.java:8: error: Avoid field names that are Kotlin hard keywords ("as"); see https://android.github.io/kotlin-guides/interop.html#no-hard-keywords [KotlinKeyword]
                 """,
-            expectedFail = DefaultLintErrorMessage,
             sourceFiles =
                 arrayOf(
                     java(
@@ -2337,52 +2255,8 @@ class ApiLintTest : DriverTest() {
                     }
                     """
                     ),
-                    androidxNonNullSource,
-                    androidxNullableSource
-                )
-        )
-    }
-
-    @RequiresCapabilities(Capability.KOTLIN)
-    @Test
-    fun `Return collections instead of arrays`() {
-        check(
-            extraArguments = arrayOf(ARG_API_LINT, ARG_HIDE, "AutoBoxing"),
-            expectedIssues =
-                """
-                src/android/pkg/ArrayTest.java:13: warning: Method should return Collection<Object> (or subclass) instead of raw array; was `java.lang.Object[]` [ArrayReturn]
-                src/android/pkg/ArrayTest.java:14: warning: Method parameter should be Collection<Number> (or subclass) instead of raw array; was `java.lang.Number[]` [ArrayReturn]
-                """,
-            sourceFiles =
-                arrayOf(
-                    java(
-                        """
-                    package android.pkg;
-
-                    import androidx.annotation.NonNull;
-                    import androidx.annotation.Nullable;
-
-                    public class ArrayTest {
-                        @NonNull
-                        public int[] ok1() { throw new RuntimeException(); }
-                        @NonNull
-                        public String[] ok2() { throw new RuntimeException(); }
-                        public void ok3(@Nullable int[] i) { }
-                        @NonNull
-                        public Object[] error1() { throw new RuntimeException(); }
-                        public void error2(@NonNull Number[] i) { }
-                        public void ok(@NonNull Number... args) { }
-                    }
-                    """
-                    ),
-                    kotlin(
-                        """
-                    package test.pkg
-                    fun okMethod(vararg values: Integer, foo: Float, bar: Float)
-                    """
-                    ),
-                    androidxNonNullSource,
-                    androidxNullableSource,
+                    KnownSourceFiles.androidxNonNullJavaSource,
+                    KnownSourceFiles.androidxNullableJavaSource
                 )
         )
     }
@@ -2423,7 +2297,7 @@ class ApiLintTest : DriverTest() {
                     }
                     """
                     ),
-                    androidxNullableSource
+                    KnownSourceFiles.androidxNullableJavaSource
                 )
         )
     }
@@ -2464,11 +2338,10 @@ class ApiLintTest : DriverTest() {
             apiLint = "", // enabled
             expectedIssues =
                 """
+                src/android/content/Context.java:10: error: Inconsistent service value; expected `other`, was `something` (Note: Do not change the name of already released services, which will break tools using `adb shell dumpsys`. Instead add `@SuppressLint("ServiceName"))` [ServiceName]
                 src/android/content/Context.java:11: error: Inconsistent service constant name; expected `SOMETHING_SERVICE`, was `OTHER_MANAGER` [ServiceName]
                 src/android/content/Context.java:12: error: Inconsistent service constant name; expected `OTHER_SERVICE`, was `OTHER_MANAGER_SERVICE` [ServiceName]
-                src/android/content/Context.java:10: error: Inconsistent service value; expected `other`, was `something` (Note: Do not change the name of already released services, which will break tools using `adb shell dumpsys`. Instead add `@SuppressLint("ServiceName"))` [ServiceName]
                 """,
-            expectedFail = DefaultLintErrorMessage,
             sourceFiles =
                 arrayOf(
                     java(
@@ -2542,7 +2415,6 @@ class ApiLintTest : DriverTest() {
                 """
                 src/android/pkg/CloneTest.java:8: error: Provide an explicit copy constructor instead of implementing `clone()` [NoClone]
                 """,
-            expectedFail = DefaultLintErrorMessage,
             sourceFiles =
                 arrayOf(
                     java(
@@ -2558,7 +2430,7 @@ class ApiLintTest : DriverTest() {
                     }
                     """
                     ),
-                    androidxNonNullSource
+                    KnownSourceFiles.androidxNonNullJavaSource
                 )
         )
     }
@@ -2588,7 +2460,7 @@ class ApiLintTest : DriverTest() {
                     }
                     """
                     ),
-                    androidxNullableSource
+                    KnownSourceFiles.androidxNullableJavaSource
                 )
         )
     }
@@ -2602,7 +2474,6 @@ class ApiLintTest : DriverTest() {
                 src/android/pkg/PdfTest.java:6: error: Must use ParcelFileDescriptor instead of FileDescriptor in parameter fd in android.pkg.PdfTest.error1(java.io.FileDescriptor fd) [UseParcelFileDescriptor]
                 src/android/pkg/PdfTest.java:7: error: Must use ParcelFileDescriptor instead of FileDescriptor in method android.pkg.PdfTest.getFileDescriptor() [UseParcelFileDescriptor]
                 """,
-            expectedFail = DefaultLintErrorMessage,
             sourceFiles =
                 arrayOf(
                     java(
@@ -2643,7 +2514,7 @@ class ApiLintTest : DriverTest() {
                     }
                     """
                     ),
-                    androidxNullableSource,
+                    KnownSourceFiles.androidxNullableJavaSource,
                     nonNullSource
                 )
         )
@@ -2682,7 +2553,6 @@ class ApiLintTest : DriverTest() {
                 """
                 src/android/pkg/MySingleton.java:8: error: Singleton classes should use `getInstance()` methods: `MySingleton` [SingletonConstructor]
                 """,
-            expectedFail = DefaultLintErrorMessage,
             sourceFiles =
                 arrayOf(
                     java(
@@ -2713,7 +2583,7 @@ class ApiLintTest : DriverTest() {
                     }
                     """
                     ),
-                    androidxNullableSource
+                    KnownSourceFiles.androidxNullableJavaSource
                 )
         )
     }
@@ -2728,7 +2598,6 @@ class ApiLintTest : DriverTest() {
                 src/android/pkg/IndirectActivity.java:2: error: IndirectActivity should not extend `Activity`. Activity subclasses are impossible to compose. Expose a composable API instead. [ForbiddenSuperClass]
                 src/android/pkg/MyTask.java:2: error: MyTask should not extend `AsyncTask`. AsyncTask is an implementation detail. Expose a listener or, in androidx, a `ListenableFuture` API instead [ForbiddenSuperClass]
                 """,
-            expectedFail = DefaultLintErrorMessage,
             sourceFiles =
                 arrayOf(
                     java(
@@ -2759,213 +2628,14 @@ class ApiLintTest : DriverTest() {
         )
     }
 
-    @RequiresCapabilities(Capability.KOTLIN)
-    @Test
-    fun `Test fields, parameters and returns require nullability`() {
-        check(
-            apiLint = "", // enabled
-            extraArguments = arrayOf(ARG_API_LINT, ARG_HIDE, "AllUpper,StaticUtils,Enum"),
-            expectedIssues =
-                """
-                src/android/pkg/Foo.java:11: error: Missing nullability on parameter `name` in method `Foo` [MissingNullability]
-                src/android/pkg/Foo.java:12: error: Missing nullability on parameter `value` in method `setBadValue` [MissingNullability]
-                src/android/pkg/Foo.java:13: error: Missing nullability on method `getBadValue` return [MissingNullability]
-                src/android/pkg/Foo.java:20: error: Missing nullability on parameter `duration` in method `methodMissingParamAnnotations` [MissingNullability]
-                src/android/pkg/Foo.java:7: error: Missing nullability on field `badField` in class `class android.pkg.Foo` [MissingNullability]
-                """,
-            expectedFail = DefaultLintErrorMessage,
-            sourceFiles =
-                arrayOf(
-                    java(
-                        """
-                        package android.pkg;
-
-                        import androidx.annotation.NonNull;
-                        import androidx.annotation.Nullable;
-
-                        public class Foo<T> {
-                            public final Foo badField;
-                            @Nullable
-                            public final Foo goodField;
-
-                            public Foo(String name, int number) { }
-                            public void setBadValue(Foo value) { }
-                            public Foo getBadValue(int number) { throw UnsupportedOperationExceptions(); }
-                            public void setGoodValue(@Nullable Foo value) { }
-                            public void setGoodIgnoredGenericValue(T value) { }
-                            @NonNull
-                            public Foo getGoodValue(int number) { throw UnsupportedOperationExceptions(); }
-
-                            @NonNull
-                            public Foo methodMissingParamAnnotations(java.time.Duration duration) {
-                                throw UnsupportedOperationException();
-                            }
-                        }
-                    """
-                    ),
-                    java(
-                        """
-                    package test.pkg;
-                    @SuppressWarnings("ALL")
-                    public enum Foo {
-                        A, B;
-                    }
-                    """
-                    ),
-                    kotlin(
-                        """
-                    package test.pkg
-                    enum class Language {
-                        KOTLIN,
-                        JAVA
-                    }
-                    """
-                    ),
-                    kotlin(
-                        """
-                    package android.pkg
-
-                    object Bar
-
-                    class FooBar {
-                        companion object
-                    }
-
-                    class FooBarNamed {
-                        companion object Named
-                    }
-                    """
-                    ),
-                    androidxNullableSource,
-                    androidxNonNullSource
-                )
-        )
-    }
-
-    @Test
-    fun `Test type variable array requires nullability`() {
-        check(
-            apiLint = "", // enabled
-            extraArguments = arrayOf(ARG_API_LINT, ARG_HIDE, "ArrayReturn"),
-            expectedIssues =
-                """
-                src/test/pkg/Foo.java:4: error: Missing nullability on method `badTypeVarArrayReturn` return [MissingNullability]
-            """,
-            expectedFail = DefaultLintErrorMessage,
-            sourceFiles =
-                arrayOf(
-                    java(
-                        """
-                        package test.pkg;
-                        public class Foo<T> {
-                            public T goodTypeVarReturn() { return null; }
-                            public T[] badTypeVarArrayReturn() { return null; }
-                        }
-                    """
-                            .trimIndent()
-                    )
-                )
-        )
-    }
-
-    @Test
-    fun `Test equals, toString, non-null constants, enums and annotation members don't require nullability`() {
-        check(
-            apiLint = "", // enabled
-            expectedIssues = "",
-            sourceFiles =
-                arrayOf(
-                    java(
-                        """
-                        package android.pkg;
-
-                        import android.annotation.SuppressLint;
-
-                        public class Foo<T> {
-                            public static final String FOO_CONSTANT = "test";
-
-                            public boolean equals(Object other) {
-                                return other == this;
-                            }
-
-                            public int hashCode() {
-                                return 0;
-                            }
-
-                            public String toString() {
-                                return "Foo";
-                            }
-
-                            @SuppressLint("Enum")
-                            public enum FooEnum {
-                                FOO, BAR
-                            }
-
-                            public @interface FooAnnotation {
-                                String value() default "";
-                            }
-                        }
-                    """
-                    ),
-                    androidxNullableSource,
-                    androidxNonNullSource
-                )
-        )
-    }
-
-    @Test
-    fun `Nullability check for generic methods referencing parent type parameter`() {
-        check(
-            apiLint = "", // enabled
-            expectedIssues =
-                """
-                src/test/pkg/MyClass.java:14: error: Missing nullability on method `method4` return [MissingNullability]
-                src/test/pkg/MyClass.java:14: error: Missing nullability on parameter `input` in method `method4` [MissingNullability]
-            """,
-            expectedFail = DefaultLintErrorMessage,
-            sourceFiles =
-                arrayOf(
-                    java(
-                        """
-                    package test.pkg;
-
-                    import androidx.annotation.NonNull;
-                    import androidx.annotation.Nullable;
-
-                    public class MyClass extends HiddenParent<String> {
-                        public void method1() { }
-
-                        @NonNull
-                        @Override
-                        public String method3(@Nullable String input) { return null; }
-
-                        @Override
-                        public String method4(String input) { return null; }
-                    }
-                    """
-                    ),
-                    java(
-                        """
-                    package test.pkg;
-
-                    class HiddenParent<T> {
-                        public T method2(T t) { }
-                        public T method3(T t) { }
-                        public T method4(T t) { }
-                    }
-                    """
-                    ),
-                    androidxNullableSource,
-                    androidxNonNullSource
-                )
-        )
-    }
-
     @Test
     fun `No new setting keys`() {
         check(
             apiLint = "", // enabled
-            extraArguments = arrayOf(ARG_ERROR, "NoSettingsProvider"),
+            extraArguments =
+                errorIssues(
+                    Issues.NO_SETTINGS_PROVIDER,
+                ),
             expectedIssues =
                 """
                 src/android/provider/Settings.java:9: error: New setting keys are not allowed (Field: BAD1); use getters/setters in relevant manager class [NoSettingsProvider]
@@ -2973,7 +2643,6 @@ class ApiLintTest : DriverTest() {
                 src/android/provider/Settings.java:17: error: New setting keys are not allowed (Field: BAD1); use getters/setters in relevant manager class [NoSettingsProvider]
                 src/android/provider/Settings.java:21: error: New setting keys are not allowed (Field: BAD1); use getters/setters in relevant manager class [NoSettingsProvider]
             """,
-            expectedFail = DefaultLintErrorMessage,
             sourceFiles =
                 arrayOf(
                     java(
@@ -3007,7 +2676,7 @@ class ApiLintTest : DriverTest() {
                     }
                     """
                     ),
-                    androidxNullableSource
+                    KnownSourceFiles.androidxNullableJavaSource
                 )
         )
     }
@@ -3039,7 +2708,6 @@ class ApiLintTest : DriverTest() {
     fun `Inherited interface constants`() {
         check(
             expectedIssues = "",
-            expectedFail = "",
             apiLint =
                 """
                 package javax.microedition.khronos.egl {
@@ -3099,7 +2767,6 @@ class ApiLintTest : DriverTest() {
     fun `Inherited interface constants inherited through parents into children`() {
         check(
             expectedIssues = "",
-            expectedFail = "",
             apiLint =
                 """
                 package android.provider {
@@ -3141,26 +2808,6 @@ class ApiLintTest : DriverTest() {
         )
     }
 
-    @RequiresCapabilities(Capability.KOTLIN)
-    @Test
-    fun `No warnings about nullability on private constructor getters`() {
-        check(
-            expectedIssues = "",
-            apiLint = "",
-            sourceFiles =
-                arrayOf(
-                    kotlin(
-                        """
-                        package test.pkg
-                        class MyClass private constructor(
-                            val myParameter: Set<Int>
-                        )
-                    """
-                    )
-                )
-        )
-    }
-
     @Test
     fun `Methods returning ListenableFuture end with async`() {
         check(
@@ -3169,7 +2816,6 @@ class ApiLintTest : DriverTest() {
                 """
                 src/android/pkg/MyClass.java:7: error: Methods returning com.google.common.util.concurrent.ListenableFuture should have a suffix *Async to reserve unmodified name for a suspend function [AsyncSuffixFuture]
             """,
-            expectedFail = DefaultLintErrorMessage,
             sourceFiles =
                 arrayOf(
                     java(
@@ -3192,61 +2838,7 @@ class ApiLintTest : DriverTest() {
                     }
                     """
                     ),
-                    androidxNullableSource
-                )
-        )
-    }
-
-    @Test
-    fun `Listener replaceable with OutcomeReceiver or ListenableFuture`() {
-        check(
-            apiLint = "", // enabled
-            expectedIssues =
-                """
-                src/android/pkg/Cases.java:7: error: Cases.BadCallback can be replaced with OutcomeReceiver<R,E> (platform) or suspend fun / ListenableFuture (AndroidX). [GenericCallbacks]
-                src/android/pkg/Cases.java:15: error: Cases.BadGenericListener can be replaced with OutcomeReceiver<R,E> (platform) or suspend fun / ListenableFuture (AndroidX). [GenericCallbacks]
-                src/android/pkg/Cases.java:11: error: Cases.BadListener can be replaced with OutcomeReceiver<R,E> (platform) or suspend fun / ListenableFuture (AndroidX). [GenericCallbacks]
-            """,
-            expectedFail = DefaultLintErrorMessage,
-            sourceFiles =
-                arrayOf(
-                    java(
-                        """
-                    package android.pkg;
-
-                    import androidx.annotation.NonNull;
-                    import java.io.IOException;
-
-                    public final class Cases {
-                        public class BadCallback {
-                            public abstract void onSuccess(@NonNull String result);
-                            public void onFailure(@NonNull Throwable error) {}
-                        }
-                        public interface BadListener {
-                            void onResult(@NonNull Object result);
-                            void onError(@NonNull IOException error);
-                        }
-                        public interface BadGenericListener<R, E extends Throwable> {
-                            void onResult(@NonNull R result);
-                            void onError(@NonNull E error);
-                        }
-                        public interface OkListener {
-                            void onResult(@NonNull Object result);
-                            void onError(@NonNull int error);
-                        }
-                        public interface Ok2Listener {
-                            void onResult(@NonNull int result);
-                            void onError(@NonNull Throwable error);
-                        }
-                        public interface Ok3Listener {
-                            void onSuccess(@NonNull String result);
-                            void onOtherThing(@NonNull String result);
-                            void onFailure(@NonNull Throwable error);
-                        }
-                    }
-                    """
-                    ),
-                    androidxNonNullSource
+                    KnownSourceFiles.androidxNullableJavaSource
                 )
         )
     }
@@ -3296,361 +2888,7 @@ class ApiLintTest : DriverTest() {
                         }
                     """
                     ),
-                    androidxNonNullSource,
-                )
-        )
-    }
-
-    @RequiresCapabilities(Capability.KOTLIN)
-    @Test
-    fun `No error for nullability on synthetic methods`() {
-        check(
-            expectedIssues = "",
-            apiLint = "",
-            sourceFiles =
-                arrayOf(
-                    kotlin(
-                        """
-                        package test.pkg
-                        class Foo {
-                            @JvmSynthetic
-                            fun bar(): String {}
-                        }
-                    """
-                    )
-                )
-        )
-    }
-
-    @Test
-    fun `Constructors return types don't require nullability`() {
-        check(
-            expectedIssues = "",
-            apiLint = "",
-            sourceFiles =
-                arrayOf(
-                    java(
-                        """
-                        package test.pkg;
-                        import androidx.annotation.NonNull;
-                        public class Foo() {
-                            // Doesn't require nullability
-                            public Foo(@NonNull String bar);
-                            // Requires nullability
-                            public @NonNull String baz(@NonNull String whatever);
-                        }
-                    """
-                    ),
-                    androidxNonNullSource
-                )
-        )
-    }
-
-    @Test
-    fun `No nullability allowed on overrides of unannotated methods or parameters`() {
-        check(
-            expectedIssues =
-                """
-                src/test/pkg/Foo.java:16: error: Invalid nullability on method `bar` return. Overrides of unannotated super method cannot be Nullable. [InvalidNullabilityOverride]
-                src/test/pkg/Foo.java:16: error: Invalid nullability on parameter `baz` in method `bar`. Parameters of overrides cannot be NonNull if the super parameter is unannotated. [InvalidNullabilityOverride]
-                src/test/pkg/Foo.java:19: error: Invalid nullability on parameter `y` in method `x`. Parameters of overrides cannot be NonNull if the super parameter is unannotated. [InvalidNullabilityOverride]
-                src/test/pkg/Foo.java:8: error: Missing nullability on method `bar` return [MissingNullability]
-                src/test/pkg/Foo.java:8: error: Missing nullability on parameter `baz` in method `bar` [MissingNullability]
-                src/test/pkg/Foo.java:11: error: Missing nullability on parameter `y` in method `x` [MissingNullability]
-                """,
-            apiLint = "",
-            expectedFail = DefaultLintErrorMessage,
-            sourceFiles =
-                arrayOf(
-                    java(
-                        """
-                        package test.pkg;
-
-                        import androidx.annotation.NonNull;
-                        import androidx.annotation.Nullable;
-
-                        public class Foo {
-                            // Not annotated
-                            public String bar(String baz);
-
-                            // Partially annotated
-                            @Nullable public String x(String y);
-                        }
-                        public class Bar extends Foo {
-                            // Not allowed to mark override method Nullable if parent is not annotated
-                            // Not allowed to mark override parameter NonNull if parent is not annotated
-                            @Nullable @Override public String bar(@NonNull String baz);
-                            // It is allowed to mark the override method Nullable if the parent is Nullable.
-                            // Not allowed to mark override parameter if parent is not annotated.
-                            @Nullable @Override public String x(@NonNull String y);
-                        }
-                    """
-                    ),
-                    androidxNullableSource,
-                    androidxNonNullSource
-                )
-        )
-    }
-
-    @RequiresCapabilities(Capability.KOTLIN)
-    @Test
-    fun `Override enforcement on kotlin sourced child class`() {
-        check(
-            expectedIssues =
-                """
-                src/test/pkg/Bar.kt:5: error: Invalid nullability on parameter `baz` in method `bar`. Parameters of overrides cannot be NonNull if the super parameter is unannotated. [InvalidNullabilityOverride]
-                src/test/pkg/Foo.java:5: error: Missing nullability on method `bar` return [MissingNullability]
-                src/test/pkg/Foo.java:5: error: Missing nullability on parameter `baz` in method `bar` [MissingNullability]
-                """,
-            apiLint = "",
-            expectedFail = DefaultLintErrorMessage,
-            sourceFiles =
-                arrayOf(
-                    java(
-                        """
-                        package test.pkg;
-
-                        public class Foo {
-                            // Not annotated
-                            public String bar(String baz);
-                        }
-                        """
-                    ),
-                    kotlin(
-                        """
-                        package test.pkg
-                        // Not allowed to mark override method Nullable if parent is not annotated
-                        // Not allowed to mark override parameter NonNull if parent is not annotated
-                        class Bar : Foo {
-                            override fun bar(baz: String): String
-                        }
-                    """
-                    ),
-                    androidxNullableSource,
-                    androidxNonNullSource
-                )
-        )
-    }
-
-    @Test
-    fun `Overrides of non-null methods cannot be nullable`() {
-        check(
-            expectedIssues =
-                """
-                src/test/pkg/Foo.java:12: error: Invalid nullability on method `bar` return. Overrides of NonNull methods cannot be Nullable. [InvalidNullabilityOverride]
-                """,
-            apiLint = "",
-            expectedFail = DefaultLintErrorMessage,
-            sourceFiles =
-                arrayOf(
-                    java(
-                        """
-                        package test.pkg;
-
-                        import androidx.annotation.NonNull;
-                        import androidx.annotation.Nullable;
-
-                        public class Foo {
-                            @NonNull public String bar(@Nullable String baz);
-                        }
-
-                        // Not allowed to mark override method Nullable if parent is nonNull
-                        public class Bar extends Foo {
-                            @Nullable @Override public String bar(@Nullable String baz);
-                        }
-                    """
-                    ),
-                    androidxNullableSource,
-                    androidxNonNullSource
-                )
-        )
-    }
-
-    @Test
-    fun `Overrides of nullable parameters cannot be non-null`() {
-        check(
-            expectedIssues =
-                """
-                src/test/pkg/Foo.java:13: error: Invalid nullability on parameter `baz` in method `bar`. Parameters of overrides cannot be NonNull if super parameter is Nullable. [InvalidNullabilityOverride]
-                """,
-            apiLint = "",
-            expectedFail = DefaultLintErrorMessage,
-            sourceFiles =
-                arrayOf(
-                    java(
-                        """
-                        package test.pkg;
-
-                        import androidx.annotation.NonNull;
-                        import androidx.annotation.Nullable;
-
-                        public class Foo {
-                            // Not annotated
-                            @NonNull public String bar(@Nullable String baz);
-                        }
-
-                        // Not allowed to mark override parameter NonNull if parent is Nullable
-                        public class Bar extends Foo {
-                            @NonNull @Override public String bar(@NonNull String baz);
-                        }
-                    """
-                    ),
-                    androidxNullableSource,
-                    androidxNonNullSource
-                )
-        )
-    }
-
-    @RequiresCapabilities(Capability.KOTLIN)
-    @Test
-    fun `Nullability overrides in unbounded generics should be allowed`() {
-        check(
-            apiLint = "",
-            sourceFiles =
-                arrayOf(
-                    kotlin(
-                        """
-                        package test.pkg;
-
-                        interface Base<T> {
-                            fun method1(input: T): T
-                        }
-
-                        class Subject1 : Base<String> {
-                            override fun method1(input: String): String {
-                                TODO()
-                            }
-                        }
-
-                        class Subject2 : Base<String?> {
-                            override fun method1(input: String?): String? {
-                                TODO()
-                            }
-                        }
-                    """
-                    )
-                )
-        )
-    }
-
-    @RequiresCapabilities(Capability.KOTLIN)
-    @Test
-    fun `Nullability overrides in unbounded generics (Object to generic and back)`() {
-        check(
-            apiLint = "",
-            sourceFiles =
-                arrayOf(
-                    kotlin(
-                        """
-                        package test.pkg
-
-                        open class SimpleArrayMap<K, V> {
-                            open operator fun get(key: K): V? {
-                                TODO()
-                            }
-                        }
-                    """
-                    ),
-                    java(
-                        """
-                        package test.pkg;
-
-                        import java.util.Map;
-                        import androidx.annotation.NonNull;
-                        import androidx.annotation.Nullable;
-
-                        public class ArrayMap<K, V> extends SimpleArrayMap<K, V> implements Map<K, V> {
-                            @Override
-                            @Nullable
-                            public V get(@NonNull Object key) {
-                                return super.get((K) key);
-                            }
-                        }
-
-                    """
-                    ),
-                    androidxNonNullSource,
-                    androidxNullableSource,
-                )
-        )
-    }
-
-    @RequiresCapabilities(Capability.KOTLIN)
-    @Test
-    fun `Nullability overrides in unbounded generics (one super method lacks nullness info)`() {
-        check(
-            apiLint = "",
-            sourceFiles =
-                arrayOf(
-                    kotlin(
-                        """
-                        package test.pkg
-
-                        open class SimpleArrayMap<K, V> {
-                            open operator fun get(key: K): V? {
-                                TODO()
-                            }
-                        }
-                    """
-                    ),
-                    java(
-                        """
-                        package test.pkg;
-
-                        import java.util.Map;
-                        import androidx.annotation.Nullable;
-
-                        public class ArrayMap<K, V> extends SimpleArrayMap<K, V> implements Map<K, V> {
-                            @Override
-                            @Nullable
-                            public V get(@Nullable Object key) {
-                                return super.get((K) key);
-                            }
-                        }
-                    """
-                    ),
-                    androidxNullableSource
-                )
-        )
-    }
-
-    @RequiresCapabilities(Capability.KOTLIN)
-    @Test
-    fun `Nullability on vararg with inherited generic type`() {
-        check(
-            apiLint = "",
-            sourceFiles =
-                arrayOf(
-                    java(
-                        """
-                    package androidx.collection;
-
-                    import java.util.Collection;
-                    import java.util.HashSet;
-                    import java.util.Set;
-
-                    public class ArraySet<E> extends HashSet<E> implements Set<E> {
-                        public ArraySet() {
-                        }
-                    }
-                        """
-                    ),
-                    kotlin(
-                        "src/main/java/androidx/collection/ArraySet.kt",
-                        """
-                    package androidx.collection
-
-                    inline fun <T> arraySetOf(): ArraySet<T> = ArraySet()
-
-                    fun <T> arraySetOf(vararg values: T): ArraySet<T> {
-                        val set = ArraySet<T>(values.size)
-                        for (value in values) {
-                            set.add(value)
-                        }
-                        return set
-                    }
-                    """
-                    )
+                    KnownSourceFiles.androidxNonNullJavaSource,
                 )
         )
     }
@@ -3661,20 +2899,12 @@ class ApiLintTest : DriverTest() {
         check(
             apiLint = "", // enabled
             extraArguments =
-                arrayOf(
+                hiddenIssues(
                     // JvmOverloads warning, not what we want to test here
-                    ARG_HIDE,
-                    "MissingJvmstatic"
+                    Issues.MISSING_JVMSTATIC,
                 ),
             expectedIssues =
                 """
-src/android/pkg/Interface.kt:104: error: Parameter `default` has a default value and should come after all parameters without default values (except for a trailing lambda parameter) [KotlinDefaultParameterOrder]
-src/android/pkg/Interface.kt:114: error: Parameter `default` has a default value and should come after all parameters without default values (except for a trailing lambda parameter) [KotlinDefaultParameterOrder]
-src/android/pkg/Interface.kt:125: error: Parameter `default` has a default value and should come after all parameters without default values (except for a trailing lambda parameter) [KotlinDefaultParameterOrder]
-src/android/pkg/Interface.kt:136: error: Parameter `default` has a default value and should come after all parameters without default values (except for a trailing lambda parameter) [KotlinDefaultParameterOrder]
-src/android/pkg/Interface.kt:142: error: Parameter `default` has a default value and should come after all parameters without default values (except for a trailing lambda parameter) [KotlinDefaultParameterOrder]
-src/android/pkg/Interface.kt:152: error: Parameter `default` has a default value and should come after all parameters without default values (except for a trailing lambda parameter) [KotlinDefaultParameterOrder]
-src/android/pkg/Interface.kt:158: error: Parameter `default` has a default value and should come after all parameters without default values (except for a trailing lambda parameter) [KotlinDefaultParameterOrder]
 src/android/pkg/Interface.kt:18: error: Parameter `default` has a default value and should come after all parameters without default values (except for a trailing lambda parameter) [KotlinDefaultParameterOrder]
 src/android/pkg/Interface.kt:28: error: Parameter `default` has a default value and should come after all parameters without default values (except for a trailing lambda parameter) [KotlinDefaultParameterOrder]
 src/android/pkg/Interface.kt:39: error: Parameter `default` has a default value and should come after all parameters without default values (except for a trailing lambda parameter) [KotlinDefaultParameterOrder]
@@ -3684,9 +2914,15 @@ src/android/pkg/Interface.kt:66: error: Parameter `default` has a default value 
 src/android/pkg/Interface.kt:72: error: Parameter `default` has a default value and should come after all parameters without default values (except for a trailing lambda parameter) [KotlinDefaultParameterOrder]
 src/android/pkg/Interface.kt:82: error: Parameter `default` has a default value and should come after all parameters without default values (except for a trailing lambda parameter) [KotlinDefaultParameterOrder]
 src/android/pkg/Interface.kt:92: error: Parameter `default` has a default value and should come after all parameters without default values (except for a trailing lambda parameter) [KotlinDefaultParameterOrder]
+src/android/pkg/Interface.kt:104: error: Parameter `default` has a default value and should come after all parameters without default values (except for a trailing lambda parameter) [KotlinDefaultParameterOrder]
+src/android/pkg/Interface.kt:114: error: Parameter `default` has a default value and should come after all parameters without default values (except for a trailing lambda parameter) [KotlinDefaultParameterOrder]
+src/android/pkg/Interface.kt:125: error: Parameter `default` has a default value and should come after all parameters without default values (except for a trailing lambda parameter) [KotlinDefaultParameterOrder]
+src/android/pkg/Interface.kt:136: error: Parameter `default` has a default value and should come after all parameters without default values (except for a trailing lambda parameter) [KotlinDefaultParameterOrder]
+src/android/pkg/Interface.kt:142: error: Parameter `default` has a default value and should come after all parameters without default values (except for a trailing lambda parameter) [KotlinDefaultParameterOrder]
+src/android/pkg/Interface.kt:152: error: Parameter `default` has a default value and should come after all parameters without default values (except for a trailing lambda parameter) [KotlinDefaultParameterOrder]
+src/android/pkg/Interface.kt:158: error: Parameter `default` has a default value and should come after all parameters without default values (except for a trailing lambda parameter) [KotlinDefaultParameterOrder]
             """
                     .trimIndent(),
-            expectedFail = DefaultLintErrorMessage,
             sourceFiles =
                 arrayOf(
                     java(
@@ -3698,7 +2934,6 @@ src/android/pkg/Interface.kt:92: error: Parameter `default` has a default value 
                             void doSomethingElse();
                         }
                     """
-                            .trimIndent()
                     ),
                     java(
                         """
@@ -3708,7 +2943,6 @@ src/android/pkg/Interface.kt:92: error: Parameter `default` has a default value 
                             void doSomething();
                         }
                     """
-                            .trimIndent()
                     ),
                     kotlin(
                         """
@@ -3880,29 +3114,8 @@ src/android/pkg/Interface.kt:92: error: Parameter `default` has a default value 
 
     @RequiresCapabilities(Capability.KOTLIN)
     @Test
-    fun `No parameter ordering for sealed class constructor`() {
-        check(
-            expectedIssues = "",
-            apiLint = "",
-            sourceFiles =
-                arrayOf(
-                    kotlin(
-                        """
-                    package test.pkg
-
-                    sealed class Foo(
-                        default: Int = 0,
-                        required: () -> Unit,
-                    )
-                    """
-                    )
-                )
-        )
-    }
-
-    @RequiresCapabilities(Capability.KOTLIN)
-    @Test
-    fun `members in sealed class are not hidden abstract`() {
+    fun `throw unresolved error`() {
+        // Regression test from b/364736827
         check(
             expectedIssues = "",
             apiLint = "",
@@ -3912,14 +3125,229 @@ src/android/pkg/Interface.kt:92: error: Parameter `default` has a default value 
                         """
                         package test.pkg
 
-                        sealed class ModifierLocalMap() {
-                            internal abstract operator fun <T> set(key: ModifierLocal<T>, value: T)
-                            internal abstract operator fun <T> get(key: ModifierLocal<T>): T?
-                            internal abstract operator fun contains(key: ModifierLocal<*>): Boolean
+                        import kotlin.random.Random
+
+                        public class SubspaceSemanticsNodeInteraction() {
+                            /**
+                             * @throws [UnresolvedAssertionError] if failed
+                             */
+                            public fun assertDoesNotExist() {
+                                if (Random.nextBoolean()) {
+                                    throw UnresolvedAssertionError("Failed")
+                                }
+                            }
                         }
                     """
                     )
                 )
+        )
+    }
+
+    @RequiresCapabilities(Capability.KOTLIN)
+    @Test
+    fun `data class definition`() {
+        check(
+            apiLint = "",
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
+                            package test.pkg
+                            data class Foo(val v: Int)
+                        """
+                    )
+                ),
+            extraArguments =
+                errorIssues(
+                    Issues.DATA_CLASS_DEFINITION,
+                ),
+            expectedIssues =
+                "src/test/pkg/Foo.kt:2: error: Exposing data classes as public API is discouraged because they are difficult to update while maintaining binary compatibility. [DataClassDefinition]"
+        )
+    }
+
+    @RequiresCapabilities(Capability.KOTLIN)
+    @Test
+    fun `ExecutorRegistration check is skipped for suspend functions`() {
+        check(
+            apiLint = "", // enabled
+            // We expect a warning ONLY for the normal function, not the suspend one.
+            expectedIssues =
+                """
+            src/android/pkg/Registration.kt:8: warning: Registration methods should have overload that accepts delivery Executor: `registerNormalCallback` [ExecutorRegistration]
+            """,
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
+                package android.pkg
+
+                class Registration {
+                    // This is a suspend function, so it should NOT trigger a warning.
+                    suspend fun registerSuspendCallback(callback: MyCallback) { }
+
+                    // This is a normal function, so it SHOULD trigger a warning.
+                    fun registerNormalCallback(callback: MyCallback) { }
+
+                    // The unregister methods are needed to satisfy the PairedRegistration check.
+                    fun unregisterSuspendCallback(callback: MyCallback) { }
+                    fun unregisterNormalCallback(callback: MyCallback) { }
+                }
+                abstract class MyCallback
+                """
+                    )
+                )
+        )
+    }
+
+    @RequiresCapabilities(Capability.KOTLIN, Capability.JAR_WITH_SOURCES)
+    @Test
+    fun `Checks do not run on bytecode-only items`() {
+        check(
+            apiLint = "", // enabled
+            // Error is only on the source element, not the mangled version in bytecode.
+            expectedIssues =
+                "src/test/pkg/IntValue.kt:4: error: Method name must start with lowercase char: FunWithBadName [StartWithLower]",
+            extraArguments =
+                hiddenIssues(
+                    Issues.VALUE_CLASS_DEFINITION,
+                ),
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
+                        package test.pkg
+                        @JvmInline value class IntValue(val v: Int)
+                        class Foo {
+                            fun FunWithBadName(iv: IntValue) = Unit
+                        }
+                        """
+                    )
+                ),
+            // Compiled from the source above with [generateBase64gzipFromKotlin]
+            compiledSourceJar =
+                base64gzip(
+                    "test.jar",
+                    // kotlinc version info: kotlinc-jvm 1.9.23 (JRE 17.0.6+10-b802.1)
+                    "" +
+                        "H4sIAAAAAAAA/31VeTQUahufmBmyDsYu0vhKlhkNksmSO0bXDBljiwzGFsJg" +
+                        "ZoRLcxVuZrpXZUvKxRWR7HRlzT5mPpIlW7JkGcl6KVy56jvn+9T56nnP74/3" +
+                        "nPf5Pe/7nN/7/PA4XiAUwM/PDwAAlAH7AwoAAiwxtiaa5ufMEJYm58zNMDa2" +
+                        "cEuzj50AwJolh22B04T3COM01bo43eUErT7t8ekQONZSw9yyh1ZQQVjGagar" +
+                        "YTkcdfvlLgSLxZmanpzmAeBxfPzFEseL9fcK6O0B/83y0nugelGoiKBLFxHm" +
+                        "gVR7kj/NC+7hT6JQomxf2cjbQXdfpRf/2zs6/TmhLHMDPRKTcLTV6RE0J7OS" +
+                        "mWX30LqzVzy06Yey+CHL3IRaruv4NQRqa1xQFGUTXaotMplOT5wKW/RO1FKe" +
+                        "sggx7jKcvdy1eZ+ysUSn7/I2Ev1PqBiy10PWd0K6gmqzHX2dTmiBSy9WcZxb" +
+                        "qZ3VeSM/2bOYyi0Q+AWXW8pJLDmhQgwdjRbCKigER2yEBqSSKoIOUDJIHY8C" +
+                        "woRHjncP90fEToS0dUhFuAyTcy4/cK0arVA/bQ+LE4ub4x0prcMYx2THqRDU" +
+                        "gGay4oes0gauXmXn+A68TSlv1kqvnpvOnmpk1capy6Te8Y1jmYhlONy7yUgk" +
+                        "BE/vSrqmMshaqodEZOBeYM/iCbki3Ct509wh1VldIdL5f4WSxaNrcmtqCCOl" +
+                        "PDzNUMVk5SG0skhhmacfw5lWocs5/MhdrlwOudpyC1ZfWHzXu1U4sw1pltUw" +
+                        "vjY0K+TXO1RUt1ypU/vrw4p6NiQ/vMb+mjKth3GHjGYLiPL0B/FRxGd3QgUw" +
+                        "kiRHE+sC/aKXPim1TjB+HPfDBowj4qM+xCOqMogGv3PGhjNOeMggQS4NsFT9" +
+                        "JtWFl7WMd282nPpH/R75naLeepy2YFDomFHtEXGUFVYpmS1LColng/rebavQ" +
+                        "SWx5/fHTwL97uc9oyQmUZGYvb/IVZ1U1hyMVx3wSXhhZnHboqneRMza8MxVe" +
+                        "ZXCbIVC0Fjm30O5z/iCzowAOfdo+C82anwhOuZiwu1W1cxcyXABBE9I9OanC" +
+                        "ibEQmIoE0ZGQM5BItI090tOMtW3pqic5x2G5U6NJo2Pvr0cNKQrBQO4T5uVP" +
+                        "A3Qz0kYkcSmV9kh1TDmJ/dNhheFlzouPdx1FF+fNHg+pOib4h5sX6x3qLnLC" +
+                        "jFRy17Om+gx6y/OzbQPOgVLGbFZtTI45VvBnq2zeC9Q313h3Kz8VL8pttM7R" +
+                        "nRfUr18WjgSpzJn239QWk2nAya1q7gi4r8mkEjzOPl+H1R4tO/tnRIwefcXw" +
+                        "/ZkXYeyEaJa54JlAsJgq8qrE6PwT66e/+V7hSZe//3BdYtRoQfs69T6H2rtA" +
+                        "ub30hKuftcLvn0EILRv6i2v8rAGtQj0VJXAl5rLUX6ylad3Rmbc4J4/xFbrW" +
+                        "aJwCTDkNROroNczGgoOUlkDjZXCCOpz3rtGzSER2VbjB9R8zIinPpitAM8zo" +
+                        "ahTtRmx+/OvMj6iS0ACNSuaDLctGfkopbqb/Z/mi9+VNI5qwFx8AuOgNzUnT" +
+                        "+lbXaPJ8+/nFYgcDLWwnwp5ehyK2gan2cuofShANMUYrvO4Tv4uJrHf8BhnC" +
+                        "zVZjx//4eR6ouLkZ7L813718b4OIirLY9kDqVkGQJX7jErygwh4xK6GC9bwL" +
+                        "bnCj5i0pM6IP/KRzy9+0HswApgXT1xrlGpIw09l6jykrLSv9MnLiJnNi9/PM" +
+                        "seWKySCAAMAI3/dmjvj+mWNGJv9n3BCtLcm9ZyBRNecU2s1t8mJvg1WV6iqS" +
+                        "G32BxyDiGIYnlAHsMHxTYV4YKk/PXEC9kVmxGlcK4gk+Y/3nyh+Q8kAxJaPa" +
+                        "8DXvsYWurfbu4tcAg0Y4mngWu00+lncFwVZzExqrvnPQWIqbvxsSpvgrFSR1" +
+                        "bed8LsGYVLKx0YzqLCEm4UmqXO18GbmdBj5D98H5aW5838Wz7pEat+dcTlmN" +
+                        "0WYkkAugbWXeVG2wlJbOdqJFO3Ld1dTpRqyU5wyLky2P5LXjzXRZXa3Wcfxl" +
+                        "8MPNCc9qn5raVuKipjT8stBEUZYZJexS9dyqyGm1YqNh2/Cx1cKTS0lPqxxy" +
+                        "fei7TSmCasn3GLOFY2uMC6H2SqEozo0lJMVn6rWmzMndBdkcFDRYsSfqUsPm" +
+                        "Tnyu8O9eHn7EJbYOqiuRpBMFiztxXH7HX2USb/GAhcC8p6VYnbW2uuu5bZfh" +
+                        "l2aaZXu7wKpXp/cHtobdKWCetJ5SHrNH9PBoFkePjC6NXJbtysuOZD6Hmwo+" +
+                        "OfhWWvhh04NB08f4G5ukHqv0j2QNybbHzMkHPSW6Ovz6i9AdveBU94QkmtyS" +
+                        "sBvIBzzIXxKvbhqsmyn7EuwmoOkvircLkhwWqGpav1p4fBT/8Hgf/cAnVbQd" +
+                        "IUYOHAAAUnm+pwr5PfzXCANIvoHwS2Sqv2+gawDZk+bv5eHm5ua9B6D7ObAq" +
+                        "3v25O+Cz4taP1NZJ7GXKfHa5AzxQwP/Y9zvgJ5v9Mr5lul+z7Ne09BcM9G97" +
+                        "59ck+1sg/gXJGvD/fYav8/c/U/6L/IN8320bHgcCfzoG3FvQvQt48X3a/QMK" +
+                        "X7YyjwgAAA=="
+                )
+        )
+    }
+
+    @RequiresCapabilities(Capability.KOTLIN)
+    @Test
+    fun `Check typealias definition`() {
+        check(
+            apiLint = "",
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
+                        package test.pkg
+                        typealias PublicTypealias = String
+                        internal typealias InternalTypealias = String
+                        """
+                    )
+                ),
+            expectedIssues =
+                "src/test/pkg/test.kt:2: error: Exposing typealiases as public API is discouraged. [TypealiasDefinition]",
+        )
+    }
+
+    @RequiresCapabilities(Capability.MULTIPLATFORM)
+    @Test
+    fun `Check expect actual typealias definition`() {
+        val commonSource =
+            kotlin(
+                "commonMain/src/test/pkg/Common.kt",
+                """
+                package test.pkg
+                expect class ActualTypealiasInAndroid
+                expect class ActualTypealiasInNative
+                expect class ActualTypealiasInBoth
+                """
+            )
+        val androidSource =
+            kotlin(
+                "androidMain/src/test/pkg/Android.kt",
+                """
+                package test.pkg
+                actual typealias ActualTypealiasInAndroid = String
+                actual class ActualTypealiasInNative
+                actual typealias ActualTypealiasInBoth = String
+                """
+            )
+        val nativeSource =
+            kotlin(
+                "nativeMain/src/test/pkg/Native.kt",
+                """
+                package test.pkg
+                actual class ActualTypealiasInAndroid
+                actual typealias ActualTypealiasInNative = String
+                actual typealias ActualTypealiasInBoth = String
+                """
+            )
+        check(
+            apiLint = "",
+            sourceFiles = arrayOf(commonSource, androidSource, nativeSource),
+            projectDescription =
+                createProjectDescription(
+                    createCommonModuleDescription(arrayOf(commonSource)),
+                    createAndroidModuleDescription(arrayOf(androidSource)),
+                    createNativeModuleDescription(arrayOf(nativeSource)),
+                ),
+            enableMultiplatform = true,
+            expectedIssues =
+                """
+                androidMain/src/test/pkg/Android.kt:2: error: Exposing typealiases as public API is discouraged. [TypealiasDefinition]
+                androidMain/src/test/pkg/Android.kt:4: error: Exposing typealiases as public API is discouraged. [TypealiasDefinition]
+                nativeMain/src/test/pkg/Native.kt:3: error: Exposing typealiases as public API is discouraged. [TypealiasDefinition]
+                nativeMain/src/test/pkg/Native.kt:4: error: Exposing typealiases as public API is discouraged. [TypealiasDefinition]
+                """,
         )
     }
 }

@@ -17,34 +17,25 @@
 package com.android.tools.metalava.model.source
 
 import com.android.tools.metalava.model.Codebase
-import com.android.tools.metalava.model.noOpAnnotationManager
+import com.android.tools.metalava.model.multiplatform.MultiplatformCodebase
 import com.android.tools.metalava.model.provider.Capability
+import com.android.tools.metalava.model.provider.FilterableCodebaseCreator
 import com.android.tools.metalava.model.provider.InputFormat
+import com.android.tools.metalava.model.testing.transformer.CodebaseTransformer
+import com.android.tools.metalava.model.testsuite.JarSupport
 import com.android.tools.metalava.model.testsuite.ModelSuiteRunner
+import com.android.tools.metalava.model.testsuite.ModelSuiteRunner.SourceDir
 import com.android.tools.metalava.model.testsuite.ModelSuiteRunner.TestConfiguration
-import com.android.tools.metalava.reporter.BasicReporter
 import com.android.tools.metalava.testing.getAndroidJar
 import com.android.tools.metalava.testing.getKotlinStdlibPaths
+import com.android.tools.metalava.testing.getNoopTracer
 import java.io.File
-import java.io.PrintWriter
 
-/**
- * A [ModelSuiteRunner] that is implemented using a [SourceModelProvider].
- *
- * This expects to be loaded on a class path that contains a single [SourceModelProvider] service
- * (retrievable via [SourceModelProvider.getImplementation]).
- */
-// @AutoService(ModelSuiteRunner.class)
-class SourceModelSuiteRunner : ModelSuiteRunner {
-
-    /** Get the [SourceModelProvider] implementation that is available. */
-    private val sourceModelProvider = SourceModelProvider.getImplementation({ true }, "of any type")
-
-    override val providerName = sourceModelProvider.providerName
-
-    override val supportedInputFormats = sourceModelProvider.supportedInputFormats
-
-    override val capabilities: Set<Capability> = sourceModelProvider.capabilities
+/** A [ModelSuiteRunner] that is implemented using a [SourceModelProvider]. */
+class SourceModelSuiteRunner(private val sourceModelProvider: SourceModelProvider) :
+    ModelSuiteRunner,
+    // Delegate implementation to [sourceModelProvider].
+    FilterableCodebaseCreator by sourceModelProvider {
 
     override val testConfigurations: List<TestConfiguration> =
         supportedInputFormats.flatMap { inputFormat ->
@@ -55,14 +46,22 @@ class SourceModelSuiteRunner : ModelSuiteRunner {
 
     override fun createCodebaseAndRun(
         inputs: ModelSuiteRunner.TestInputs,
-        test: (Codebase) -> Unit
+        test: (Codebase?) -> Unit
     ) {
+        // Skip tests that require using compiled sources if the provider does not support it
+        if (
+            inputs.compiledSourceJar != null &&
+                !sourceModelProvider.capabilities.contains(Capability.JAR_WITH_SOURCES)
+        )
+            return
+
         sourceModelProvider.createEnvironmentManager(forTesting = true).use { environmentManager ->
             val classPath = buildList {
                 add(getAndroidJar())
                 if (inputs.inputFormat == InputFormat.KOTLIN) {
                     addAll(getKotlinStdlibPaths())
                 }
+                addAll(inputs.testFixture.additionalClassPath)
             }
             val codebase =
                 createTestCodebase(
@@ -70,33 +69,116 @@ class SourceModelSuiteRunner : ModelSuiteRunner {
                     inputs,
                     classPath,
                 )
-            test(codebase)
+
+            // If available, transform the codebase for testing, otherwise use the one provided.
+            val transformedCodebase = codebase?.let { CodebaseTransformer.transformIfAvailable(it) }
+
+            test(transformedCodebase)
         }
+    }
+
+    override fun createMultiplatformCodebaseAndRun(
+        inputs: ModelSuiteRunner.TestInputs,
+        test: (MultiplatformCodebase?) -> Unit
+    ) {
+        if (Capability.MULTIPLATFORM !in capabilities) return
+        return inputs.projectDescription?.let { projectDescription ->
+            // Make sure that the input files have been created.
+            sourceSet(inputs.mainSourceDir, inputs.additionalMainSourceDir)
+
+            // Create an EnvironmentManager and run the tests within it, closing it when finished.
+            sourceModelProvider.createEnvironmentManager(forTesting = true).use { environmentManager
+                ->
+                val testFixture = inputs.testFixture
+                val sourceParser =
+                    environmentManager.createSourceParser(
+                        codebaseConfig = testFixture.codebaseConfig,
+                        javaLanguageLevel = testFixture.javaLanguageLevel,
+                        modelOptions = inputs.modelOptions,
+                        tracer = getNoopTracer()
+                    )
+
+                val codebase = sourceParser.createMultiplatformCodebase(projectDescription)
+                test(codebase)
+            }
+        } ?: error("Project description file is required to create multiplatform codebase.")
     }
 
     private fun createTestCodebase(
         environmentManager: EnvironmentManager,
         inputs: ModelSuiteRunner.TestInputs,
         classPath: List<File>,
-    ): Codebase {
-        val reporter = BasicReporter(PrintWriter(System.err))
+    ): Codebase? {
+        val testFixture = inputs.testFixture
         val sourceParser =
             environmentManager.createSourceParser(
-                reporter = reporter,
-                annotationManager = noOpAnnotationManager,
+                codebaseConfig = testFixture.codebaseConfig,
+                javaLanguageLevel = testFixture.javaLanguageLevel,
                 modelOptions = inputs.modelOptions,
+                tracer = getNoopTracer()
             )
-        return sourceParser.parseSources(
-            sourceSet(inputs.mainSourceDir),
-            sourceSet(inputs.commonSourceDir),
-            description = "Test Codebase",
-            classPath = classPath,
-        )
+
+        val inputs =
+            SourceParser.Inputs(
+                sourceSet(inputs.mainSourceDir, inputs.additionalMainSourceDir),
+                description = "Test Codebase",
+                classPath = classPath,
+                apiPackages = testFixture.apiPackages,
+                projectDescription = inputs.projectDescription,
+                compiledSourceJar = inputs.compiledSourceJar?.createFile(inputs.mainSourceDir.dir),
+            )
+
+        return sourceParser.parseSources(inputs)
     }
 
-    private fun sourceSet(sourceDir: ModelSuiteRunner.SourceDir?) =
-        if (sourceDir == null) SourceSet.empty()
-        else SourceSet(sourceDir.createFiles(), listOf(sourceDir.dir))
+    /**
+     * Create a [SourceSet] from some [SourceDir] instances.
+     *
+     * @param sourceDir if supplied the files created from this will be added to the
+     *   [SourceSet.sources] list and its directory will be added to the [SourceSet.sourcePath]
+     *   list.
+     * @param sourcePathDir if supplied the root directories in which its files are created will be
+     *   added to the [SourceSet.sourcePath] but the files themselves will not be added to the
+     *   [SourceSet.sources] list.
+     */
+    private fun sourceSet(sourceDir: SourceDir?, sourcePathDir: SourceDir? = null) =
+        if (sourceDir == null && sourcePathDir == null) SourceSet.empty()
+        else {
+            // Create the files from which the Codebase will be created and add them to the sources.
+            val sources = sourceDir?.createFiles() ?: emptyList()
+
+            // Create additional files that will be on the source path and which can be referenced
+            // from the other source files but will not otherwise be part of the Codebase.
+            val sourcePath =
+                sourcePathDir?.let { additionalSourceDir ->
+                    additionalSourceDir.createFiles()
+                    listOf(additionalSourceDir.dir)
+                } ?: emptyList()
+
+            SourceSet(sources, sourcePath)
+        }
+
+    override fun createJarSupportAndRun(test: (JarSupport) -> Unit) {
+        sourceModelProvider.createEnvironmentManager(forTesting = true).use { environmentManager ->
+            val sourceParser =
+                environmentManager.createSourceParser(
+                    codebaseConfig = Codebase.Config(),
+                    tracer = getNoopTracer()
+                )
+
+            val jarSupport = SourceParserJarSupport(sourceParser)
+            test(jarSupport)
+        }
+    }
 
     override fun toString(): String = sourceModelProvider.providerName
+}
+
+/** A [JarSupport] implementation that delegates to [sourceParser]. */
+private class SourceParserJarSupport(private val sourceParser: SourceParser) : JarSupport {
+    override fun getClassPathResolver(classPath: List<File>) =
+        sourceParser.getClassPathResolver(classPath)
+
+    override fun loadFromJar(apiJar: File, classPath: List<File>) =
+        sourceParser.loadFromJar(apiJar, classPath)
 }

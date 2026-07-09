@@ -29,6 +29,10 @@ fun html(to: String, @Language("HTML") source: String): TestFile {
     return TestFiles.source(to, source.trimIndent())
 }
 
+fun xml(to: String, @Language("XML") source: String): TestFile {
+    return TestFiles.xml(to, source.trimIndent())
+}
+
 fun java(to: String, @Language("JAVA") source: String): TestFile {
     return TestFiles.java(to, source.trimIndent())
 }
@@ -57,4 +61,8 @@ fun signature(to: String, contents: String): TestFile {
     return source(to, contents.trimIndent())
 }
 
+/** Create a [File] in [dir] for each [TestFile] in this list. */
 fun List<TestFile>.createFiles(dir: File): List<File> = map { it.createFile(dir) }
+
+/** Create a [File] in [dir] for each [TestFile] in this array. */
+fun Array<TestFile>.createFiles(dir: File): List<File> = map { it.createFile(dir) }

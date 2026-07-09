@@ -21,13 +21,15 @@ import com.android.tools.metalava.model.TypeModifiers
 import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.VariableTypeItem
 
-class DefaultVariableTypeItem(
+internal class DefaultVariableTypeItem(
     modifiers: TypeModifiers,
     override val asTypeParameter: TypeParameterItem,
-) : VariableTypeItem, DefaultTypeItem(modifiers) {
+    isValueClassType: Boolean = false,
+) : VariableTypeItem, DefaultTypeItem(modifiers, isValueClassType) {
 
     override val name: String = asTypeParameter.name()
 
-    override fun duplicate(): VariableTypeItem =
-        DefaultVariableTypeItem(modifiers.duplicate(), asTypeParameter)
+    override fun substitute(modifiers: TypeModifiers) =
+        if (modifiers !== this.modifiers) DefaultVariableTypeItem(modifiers, asTypeParameter)
+        else this
 }

@@ -16,34 +16,26 @@
 
 package com.android.tools.metalava.cli.signature
 
-import com.android.tools.metalava.ApiType
-import com.android.tools.metalava.CodebaseComparator
-import com.android.tools.metalava.ComparisonVisitor
-import com.android.tools.metalava.DefaultAnnotationManager
 import com.android.tools.metalava.JDiffXmlWriter
-import com.android.tools.metalava.OptionsDelegate
+import com.android.tools.metalava.cli.common.DefaultSignatureFileLoader
 import com.android.tools.metalava.cli.common.MetalavaSubCommand
-import com.android.tools.metalava.cli.common.SignatureFileLoader
 import com.android.tools.metalava.cli.common.existingFile
 import com.android.tools.metalava.cli.common.newFile
-import com.android.tools.metalava.cli.common.progressTracker
-import com.android.tools.metalava.createReportFile
-import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.cli.common.stderr
+import com.android.tools.metalava.cli.common.tracer
+import com.android.tools.metalava.createFilteringVisitorForJDiffWriter
+import com.android.tools.metalava.createOutputFileFromCodebaseFragment
 import com.android.tools.metalava.model.Codebase
-import com.android.tools.metalava.model.ConstructorItem
-import com.android.tools.metalava.model.FieldItem
-import com.android.tools.metalava.model.MethodItem
-import com.android.tools.metalava.model.PackageItem
-import com.android.tools.metalava.model.PropertyItem
+import com.android.tools.metalava.model.CodebaseFragment
+import com.android.tools.metalava.model.annotation.DefaultAnnotationManager
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.model.text.SignatureFile
-import com.android.tools.metalava.model.text.TextCodebaseBuilder
-import com.android.tools.metalava.model.visitors.ApiVisitor
+import com.android.tools.metalava.model.text.SnapshotDeltaMaker
+import com.android.tools.metalava.reporter.BasicReporter
+import com.android.tools.metalava.trace
 import com.github.ajalt.clikt.parameters.arguments.argument
 import com.github.ajalt.clikt.parameters.options.convert
-import com.github.ajalt.clikt.parameters.options.flag
 import com.github.ajalt.clikt.parameters.options.option
-import java.io.File
 
 class SignatureToJDiffCommand :
     MetalavaSubCommand(
@@ -53,17 +45,6 @@ class SignatureToJDiffCommand :
             """
                 .trimIndent()
     ) {
-
-    private val strip by
-        option(
-                help =
-                    """
-                        Determines whether duplicate inherited methods should be stripped from the
-                        output or not.
-                    """
-                        .trimIndent()
-            )
-            .flag("--no-strip", default = false, defaultForHelp = "false")
 
     private val formatForLegacyFiles by
         option(
@@ -124,112 +105,57 @@ class SignatureToJDiffCommand :
             .newFile()
 
     override fun run() {
-        // Make sure that none of the code called by this command accesses the global `options`
-        // property.
-        OptionsDelegate.disallowAccess()
-
         val annotationManager = DefaultAnnotationManager()
-        val signatureFileLoader =
-            SignatureFileLoader(
+        val codebaseConfig =
+            Codebase.Config(
                 annotationManager = annotationManager,
+                reporter = BasicReporter(stderr),
+            )
+        val signatureFileLoader =
+            DefaultSignatureFileLoader(
+                codebaseConfig = codebaseConfig,
                 formatForLegacyFiles = formatForLegacyFiles,
             )
 
-        val signatureApi = signatureFileLoader.load(SignatureFile.fromFile(apiFile))
+        val signatureApi = signatureFileLoader.load(SignatureFile.fromFiles(apiFile))
 
-        val apiVisitorConfig = ApiVisitor.Config()
-        val apiPredicateConfig = apiVisitorConfig.apiPredicateConfig
-        val apiType = ApiType.ALL
-        val apiEmit = apiType.getEmitFilter(apiPredicateConfig)
-        val strip = strip
-        val apiReference =
-            if (strip) apiType.getEmitFilter(apiPredicateConfig)
-            else apiType.getReferenceFilter(apiPredicateConfig)
         val baseFile = baseApiFile
 
-        val outputApi =
+        val signatureFragment =
+            CodebaseFragment.create(signatureApi) { delegate ->
+                createFilteringVisitorForJDiffWriter(
+                    delegate,
+                    // Signature files are always pre-filtered so require no filtering.
+                    apiFilters = null,
+                )
+            }
+
+        val outputFragment =
             if (baseFile != null) {
                 // Convert base on a diff
-                val baseApi = signatureFileLoader.load(SignatureFile.fromFile(baseFile))
-                computeDelta(baseFile, baseApi, signatureApi, apiVisitorConfig)
+                val baseApi = signatureFileLoader.load(SignatureFile.fromFiles(baseFile))
+                SnapshotDeltaMaker.createDelta(
+                    baseApi,
+                    signatureFragment,
+                    checkMemberItemEquivalence = false,
+                    allowClassModifierChanges = false,
+                )
             } else {
-                signatureApi
+                signatureFragment
             }
 
         // See JDiff's XMLToAPI#nameAPI
         val apiName = xmlFile.nameWithoutExtension.replace(' ', '_')
-        createReportFile(progressTracker, outputApi, xmlFile, "JDiff File") { printWriter ->
-            JDiffXmlWriter(
-                printWriter,
-                apiEmit,
-                apiReference,
-                signatureApi.preFiltered && !strip,
-                apiName,
-                showUnannotated = false,
-                ApiVisitor.Config(),
-            )
+        tracer.trace("createOutputFileFromCodebaseFragment JDiff") {
+            createOutputFileFromCodebaseFragment(
+                outputFragment,
+                xmlFile,
+            ) { printWriter ->
+                JDiffXmlWriter(
+                    writer = printWriter,
+                    apiName = apiName,
+                )
+            }
         }
-    }
-}
-
-/**
- * Create a text [Codebase] that is a delta between [baseApi] and [signatureApi], i.e. it includes
- * all the [Item] that are in [signatureApi] but not in [baseApi].
- *
- * This is expected to be used where [signatureApi] is a super set of [baseApi] but that is not
- * enforced. If [baseApi] contains [Item]s which are not present in [signatureApi] then they will
- * not appear in the delta.
- *
- * [ClassItem]s are treated specially. If [signatureApi] and [baseApi] have [ClassItem]s with the
- * same name and [signatureApi]'s has members which are not present in [baseApi]'s then a
- * [ClassItem] containing the additional [signatureApi] members will appear in the delta, otherwise
- * it will not.
- *
- * @param baseFile the [Codebase.location] used for the resulting delta.
- * @param baseApi the base [Codebase] whose [Item]s will not appear in the delta.
- * @param signatureApi the extending [Codebase] whose [Item]s will appear in the delta as long as
- *   they are not part of [baseApi].
- */
-private fun computeDelta(
-    baseFile: File,
-    baseApi: Codebase,
-    signatureApi: Codebase,
-    apiVisitorConfig: ApiVisitor.Config,
-): Codebase {
-    // Compute just the delta
-    return TextCodebaseBuilder.build(baseFile, signatureApi.annotationManager) {
-        description = "Delta between $baseApi and $signatureApi"
-
-        CodebaseComparator(apiVisitorConfig = apiVisitorConfig)
-            .compare(
-                object : ComparisonVisitor() {
-                    override fun added(new: PackageItem) {
-                        addPackage(new)
-                    }
-
-                    override fun added(new: ClassItem) {
-                        addClass(new)
-                    }
-
-                    override fun added(new: ConstructorItem) {
-                        addConstructor(new)
-                    }
-
-                    override fun added(new: MethodItem) {
-                        addMethod(new)
-                    }
-
-                    override fun added(new: FieldItem) {
-                        addField(new)
-                    }
-
-                    override fun added(new: PropertyItem) {
-                        addProperty(new)
-                    }
-                },
-                baseApi,
-                signatureApi,
-                ApiType.ALL.getReferenceFilter(apiVisitorConfig.apiPredicateConfig)
-            )
     }
 }

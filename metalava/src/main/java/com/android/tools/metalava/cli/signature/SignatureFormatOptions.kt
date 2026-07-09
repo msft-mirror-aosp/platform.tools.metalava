@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.cli.signature
 
+import com.android.tools.metalava.cli.common.HARD_NEWLINE
 import com.android.tools.metalava.cli.common.existingFile
 import com.android.tools.metalava.cli.common.map
 import com.android.tools.metalava.model.text.FileFormat
@@ -30,18 +31,11 @@ const val ARG_USE_SAME_FORMAT_AS = "--use-same-format-as"
 /** The name of the group, can be used in help text to refer to the options in this group. */
 const val SIGNATURE_FORMAT_OUTPUT_GROUP = "Signature Format Output"
 
-private val versionToFileFormat =
-    mapOf(
-        "v2" to FileFormat.V2,
-        "v3" to FileFormat.V3,
-        "v4" to FileFormat.V4,
-        "latest" to FileFormat.LATEST,
-        "recommended" to FileFormat.V2,
-    )
-
 class SignatureFormatOptions(
     /** If true then the `migrating` property is allowed, otherwise it is not allowed at all. */
     private val migratingAllowed: Boolean = false,
+    /** The default [FileFormat]. */
+    defaultFileFormat: FileFormat = FileFormat.V2,
 ) :
     OptionGroup(
         name = SIGNATURE_FORMAT_OUTPUT_GROUP,
@@ -64,66 +58,50 @@ class SignatureFormatOptions(
 
                         A comma separated list of `<property>=<value>` assignments where
                         `<property>` is one of the following:
-                        '${FileFormat.defaultableProperties().joinToString(separator = "', '")}'.
+                        PLACEHOLDER
 
                         See `metalava help signature-file-formats` for more information on the
                         properties.
                     """
-                        .trimIndent(),
+                        .trimIndent()
+                        .replace(
+                            "PLACEHOLDER",
+                            FileFormat.defaultableProperties().joinToString("") {
+                                "$HARD_NEWLINE* `$it`"
+                            }
+                        ),
             )
             .convert { defaults -> FileFormat.parseDefaults(defaults) }
+
+    /** Apply optional defaults specified in [formatDefaults] to [base]. */
+    fun applyDefaultsTo(base: FileFormat) = base.copy(formatDefaults = formatDefaults)
 
     /** The output format version being used */
     private val formatSpecifier by
         option(
                 ARG_FORMAT,
-                metavar = "[v2|v3|v4|latest|recommended|<specifier>]",
+                metavar = "<specifier>",
                 help =
                     """
                         Specifies the output signature file format.
-
-                        The preferred way of specifying the format is to use one of the following
-                        values (in no particular order):
-
-                        latest - The latest in the supported versions. Only use this if you want to
-                        have the very latest and are prepared to update signature files on a
-                        continuous basis.
-
-                        recommended (default) - The recommended version to use. This is currently
-                        set to `v2` and will only change very infrequently so can be considered
-                        stable.
 
                         <specifier> - which has the following syntax:
                         ```
                         <version>[:<property>=<value>[,<property>=<value>]*]
                         ```
 
-                        Where:
-
-
-                        The following values are still supported but should be considered
-                        deprecated.
-
-                        v2 - The main version used in Android.
-
-                        v3 - Adds support for using kotlin style syntax to embed nullability
-                        information instead of using explicit and verbose @NonNull and @Nullable
-                        annotations. This can be used for Java files and Kotlin files alike.
-
-                        v4 - Adds support for using concise default values in parameters. Instead
-                        of specifying the actual default values it just uses the `default` keyword.
+                        See `metalava help signature-file-formats` for more help including a list
+                        of the available `<version>`s and `<property>=<value>`s.
                     """
                         .trimIndent(),
             )
             .convert { specifier ->
-                versionToFileFormat[specifier]
-                    ?: FileFormat.parseSpecifier(
-                        specifier = specifier,
-                        migratingAllowed = migratingAllowed,
-                        extraVersions = versionToFileFormat.keys,
-                    )
+                FileFormat.parseSpecifier(
+                    specifier = specifier,
+                    migratingAllowed = migratingAllowed,
+                )
             }
-            .default(FileFormat.V2, defaultForHelp = "recommended")
+            .default(defaultFileFormat, defaultForHelp = defaultFileFormat.specifier())
 
     private val useSameFormatAs by
         option(
@@ -152,6 +130,27 @@ class SignatureFormatOptions(
                 file?.reader(Charsets.UTF_8)?.use { FileFormat.parseHeader(file.toPath(), it) }
             }
 
+    private val formatOverrides by
+        option(
+            "--format-overrides",
+            metavar = "<overrides>",
+            help =
+                """
+                    Specifies overrides for format properties. Intended for use with
+                    $ARG_USE_SAME_FORMAT_AS to change individual properties within a signature file.
+
+                    A comma separated list of `<property>=<value>` assignments where `<property>`
+                    can be any property supported by signature file formats.
+
+                    See `metalava help signature-file-formats` for more information on the
+                    properties.
+                """,
+        )
+
+    /** Apply optional overrides specified in [formatOverrides] to [base]. */
+    private fun applyOverridesTo(base: FileFormat) =
+        formatOverrides?.let { overrides -> FileFormat.parseOverrides(base, overrides) } ?: base
+
     /**
      * The [FileFormat] produced by merging all the format related options into one cohesive set of
      * format related properties. It combines the defaults
@@ -162,7 +161,10 @@ class SignatureFormatOptions(
             // fall back to the other options.
             val format = useSameFormatAs ?: formatSpecifier
 
-            // Apply any additional overrides.
-            formatDefaults?.let { format.copy(formatDefaults = it) } ?: format
+            // Apply any overrides.
+            val withOverrides = applyOverridesTo(format)
+
+            // Apply any additional defaults.
+            applyDefaultsTo(withOverrides)
         }
 }

@@ -18,6 +18,9 @@ package com.android.tools.metalava
 
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Item
+import com.android.tools.metalava.model.PackageFilter
+import com.android.tools.metalava.model.visitors.ApiFilters
+import com.android.tools.metalava.model.visitors.ApiPredicate
 import com.android.tools.metalava.model.visitors.ApiVisitor
 
 /**
@@ -26,12 +29,12 @@ import com.android.tools.metalava.model.visitors.ApiVisitor
  * If you want to compare a previous API and a current API and migrate only the APIs that changed
  * between the two, then see {@link com.android.tools.metalava.NullnessMigration} instead.
  */
-class MarkPackagesAsRecent(val filter: PackageFilter) :
+class MarkPackagesAsRecent(
+    private val filter: PackageFilter,
+    config: ApiPredicate.Config,
+) :
     ApiVisitor(
-        filterEmit = apiPredicate(),
-        filterReference = apiPredicate(),
-        includeEmptyOuterClasses = true,
-        config = @Suppress("DEPRECATION") options.apiVisitorConfig,
+        apiFilters = apiFilters(config),
     ) {
     override fun include(cls: ClassItem): Boolean {
         return filter.matches(cls.containingPackage())
@@ -42,6 +45,8 @@ class MarkPackagesAsRecent(val filter: PackageFilter) :
     }
 }
 
-@Suppress("DEPRECATION")
-private fun apiPredicate() =
-    ApiPredicate(config = options.apiPredicateConfig.copy(ignoreShown = true))
+private fun apiPredicate(config: ApiPredicate.Config) =
+    ApiPredicate(config = config.copy(ignoreShown = true))
+
+private fun apiFilters(config: ApiPredicate.Config) =
+    apiPredicate(config).let { ApiFilters(emit = it, reference = it) }

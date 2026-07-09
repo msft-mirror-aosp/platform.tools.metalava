@@ -16,7 +16,12 @@
 
 package com.android.tools.metalava.model.psi
 
+import com.android.tools.metalava.model.provider.InputFormat
+import com.android.tools.metalava.model.testing.SupportedInputFormats
 import com.android.tools.metalava.model.testsuite.BaseModelTest
+import com.android.tools.metalava.testing.createAndroidModuleDescription
+import com.android.tools.metalava.testing.createCommonModuleDescription
+import com.android.tools.metalava.testing.createProjectDescription
 import com.android.tools.metalava.testing.kotlin
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -27,6 +32,7 @@ import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
 class PsiParameterItemTest : BaseModelTest() {
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `primary constructor parameters have properties`() {
         runCodebaseTest(kotlin("class Foo(val property: Int, parameter: Int)")) {
@@ -40,6 +46,7 @@ class PsiParameterItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `actuals get params from expects`() {
         val commonSource =
@@ -56,11 +63,10 @@ class PsiParameterItemTest : BaseModelTest() {
                     }
                 """
             )
-        runCodebaseTest(
-            inputSet(
-                kotlin(
-                    "jvmMain/src/Actual.kt",
-                    """
+        val androidSource =
+            kotlin(
+                "androidMain/src/Actual.kt",
+                """
                     actual suspend fun String.testFun(param: String) {}
                     actual class Test actual constructor(param: String) {
                         actual fun something(
@@ -70,14 +76,21 @@ class PsiParameterItemTest : BaseModelTest() {
                         ) {}
                     }
                     """
-                ),
+            )
+        runCodebaseTest(
+            inputSet(
+                androidSource,
                 commonSource,
             ),
-            commonSources = arrayOf(inputSet(commonSource)),
+            projectDescription =
+                createProjectDescription(
+                    createAndroidModuleDescription(arrayOf(androidSource)),
+                    createCommonModuleDescription(arrayOf(commonSource)),
+                )
         ) {
             // Expect classes are ignored by UAST/Kotlin light classes, verify we test actual
             // classes.
-            val actualFile = codebase.assertClass("ActualKt").getSourceFile()
+            val actualFile = codebase.assertClass("ActualKt").sourceFile()
 
             val functionItem = codebase.assertClass("ActualKt").methods().single()
             with(functionItem) {
@@ -89,20 +102,21 @@ class PsiParameterItemTest : BaseModelTest() {
 
                 val parameter = parameters[1]
                 assertTrue(parameter.hasDefaultValue())
-                assertEquals("\"\"", parameter.defaultValue())
 
                 // continuation
                 assertFalse(parameters[2].hasDefaultValue())
             }
 
             val classItem = codebase.assertClass("Test")
-            assertEquals(actualFile, classItem.getSourceFile())
+            assertSame(actualFile, classItem.sourceFile())
 
-            val constructorItem = classItem.constructors().single()
+            // When a default constructor has a single optional parameter the compiler generates a
+            // no-args constructor overload.
+            classItem.assertConstructor(emptyList())
+            val constructorItem = classItem.assertConstructor(listOf("java.lang.String"))
             with(constructorItem) {
                 val parameter = parameters().single()
                 assertTrue(parameter.hasDefaultValue())
-                assertEquals("\"\"", parameter.defaultValue())
             }
 
             val methodItem = classItem.methods().single()
@@ -111,10 +125,8 @@ class PsiParameterItemTest : BaseModelTest() {
                 assertEquals(3, parameters.size)
 
                 assertTrue(parameters[0].hasDefaultValue())
-                assertEquals("\"\"", parameters[0].defaultValue())
 
                 assertTrue(parameters[1].hasDefaultValue())
-                assertEquals("param + \"\"", parameters[1].defaultValue())
 
                 assertFalse(parameters[2].hasDefaultValue())
             }

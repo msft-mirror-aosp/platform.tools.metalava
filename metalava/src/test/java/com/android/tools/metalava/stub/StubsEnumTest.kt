@@ -49,7 +49,9 @@ class StubsEnumTest : AbstractStubsTest() {
                 @Deprecated
                 B;
                 }
-                """
+                """,
+            // Includes documentation so cannot match what is generated from signature file.
+            checkTextStubEquivalence = false,
         )
     }
 
@@ -97,10 +99,12 @@ class StubsEnumTest : AbstractStubsTest() {
                 /** My 2nd documentation */
                 DEF;
                 protected void foo() { throw new RuntimeException("Stub!"); }
-                public static int field1 = 1; // 0x1
-                public int field2 = 2; // 0x2
+                public static int field1;
+                public int field2;
                 }
-                """
+                """,
+            // Includes documentation so cannot match what is generated from signature file.
+            checkTextStubEquivalence = false,
         )
     }
 
@@ -139,9 +143,9 @@ class StubsEnumTest : AbstractStubsTest() {
                 package test.pkg;
                 @SuppressWarnings({"unchecked", "deprecation", "all"})
                 public enum Alignment {
+                ALIGN_CENTER,
                 ALIGN_NORMAL,
-                ALIGN_OPPOSITE,
-                ALIGN_CENTER;
+                ALIGN_OPPOSITE;
                 }
             """
         )
@@ -193,14 +197,16 @@ class StubsEnumTest : AbstractStubsTest() {
                 package test.pkg;
                 @SuppressWarnings({"unchecked", "deprecation", "all"})
                 public enum ChronUnit implements test.pkg.TempUnit {
-                C,
+                A,
                 B,
-                A;
+                C;
+                public java.lang.String toString() { throw new RuntimeException("Stub!"); }
                 public java.lang.String valueOf(int x) { throw new RuntimeException("Stub!"); }
                 public java.lang.String values(java.lang.String separator) { throw new RuntimeException("Stub!"); }
-                public java.lang.String toString() { throw new RuntimeException("Stub!"); }
                 }
-            """
+            """,
+            // Includes an extra override that is not present in the signature file.
+            checkTextStubEquivalence = false,
         )
     }
 }

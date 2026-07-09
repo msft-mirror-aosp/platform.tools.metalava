@@ -16,7 +16,7 @@
 
 package com.android.tools.metalava.model
 
-interface MutableModifierList : ModifierList {
+interface MutableModifierList : BaseModifierList {
     fun setVisibilityLevel(level: VisibilityLevel)
 
     fun setStatic(static: Boolean)
@@ -37,11 +37,19 @@ interface MutableModifierList : ModifierList {
 
     fun setDefault(default: Boolean)
 
+    fun setDeprecated(deprecated: Boolean)
+
     fun setSealed(sealed: Boolean)
+
+    fun setNonSealed(nonSealed: Boolean)
+
+    fun setExhaustive(exhaustive: Boolean)
 
     fun setFunctional(functional: Boolean)
 
     fun setInfix(infix: Boolean)
+
+    fun setConst(const: Boolean)
 
     fun setOperator(operator: Boolean)
 
@@ -61,11 +69,26 @@ interface MutableModifierList : ModifierList {
 
     fun setActual(actual: Boolean)
 
-    fun addAnnotation(annotation: AnnotationItem)
+    fun addAnnotation(annotation: AnnotationItem?) {
+        if (annotation != null) mutateAnnotations { add(annotation) }
+    }
 
-    fun removeAnnotation(annotation: AnnotationItem)
+    /**
+     * Mutate the [annotations] list.
+     *
+     * Provides a [MutableList] of the [annotations] that can be modified by [mutator]. Once the
+     * mutator exits the [annotations] list will be updated. The [MutableList] must not be accessed
+     * from outside [mutator].
+     */
+    fun mutateAnnotations(mutator: MutableList<AnnotationItem>.() -> Unit)
 
-    fun removeAnnotations(predicate: (AnnotationItem) -> Boolean)
-
-    fun clearAnnotations(annotation: AnnotationItem)
+    /**
+     * Updates this modifier list to be [ModifierList.equivalentTo] the [other] list.
+     *
+     * This means that for any modifiers which are significant for equivalence, the value in this
+     * list after calling this function will be the value of that modifier in [other]. For any
+     * modifiers which are not significant for equivalence, the value in this list after calling
+     * this function will be unchanged from before.
+     */
+    fun makeEquivalentTo(other: ModifierList)
 }

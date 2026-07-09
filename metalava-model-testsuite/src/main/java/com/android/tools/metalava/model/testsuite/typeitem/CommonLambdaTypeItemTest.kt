@@ -16,11 +16,15 @@
 
 package com.android.tools.metalava.model.testsuite.typeitem
 
+import com.android.tools.metalava.model.provider.InputFormat
+import com.android.tools.metalava.model.testing.SupportedInputFormats
+import com.android.tools.metalava.model.testing.testTypeString
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.testing.kotlin
 import com.google.common.truth.Truth.assertThat
 import org.junit.Test
 
+@SupportedInputFormats(InputFormat.KOTLIN)
 class CommonLambdaTypeItemTest : BaseModelTest() {
 
     @Test
@@ -312,16 +316,18 @@ class CommonLambdaTypeItemTest : BaseModelTest() {
             lambdaType.assertLambdaTypeItem {
                 // Verify that the default string representation of the lambda type is the same as
                 // the string representation of the extended class type.
-                assertThat(toTypeString(kotlinStyleNulls = true))
+                assertThat(testTypeString(kotlinStyleNulls = true))
                     .isEqualTo(
                         "kotlin.jvm.functions.Function2<java.lang.Integer,kotlin.coroutines.Continuation<? super java.lang.String?>,java.lang.Object?>"
                     )
 
                 assertThat(isSuspend).isTrue()
                 assertThat(receiverType).isNull()
-                assertThat(parameterTypes.joinToString { it.toTypeString(kotlinStyleNulls = true) })
+                assertThat(
+                        parameterTypes.joinToString { it.testTypeString(kotlinStyleNulls = true) }
+                    )
                     .isEqualTo("int, kotlin.coroutines.Continuation<? super java.lang.String?>")
-                assertThat(returnType.toTypeString(kotlinStyleNulls = true))
+                assertThat(returnType.testTypeString(kotlinStyleNulls = true))
                     .isEqualTo("java.lang.Object?")
             }
         }
@@ -345,16 +351,18 @@ class CommonLambdaTypeItemTest : BaseModelTest() {
             lambdaType.assertLambdaTypeItem {
                 // Verify that the default string representation of the lambda type is the same as
                 // the string representation of the extended class type.
-                assertThat(toTypeString(kotlinStyleNulls = true))
+                assertThat(testTypeString(kotlinStyleNulls = true))
                     .isEqualTo(
                         "kotlin.jvm.functions.Function3<java.lang.Number,java.lang.Integer,kotlin.coroutines.Continuation<? super java.lang.String?>,java.lang.Object?>"
                     )
 
                 assertThat(isSuspend).isTrue()
                 assertThat(receiverType.toString()).isEqualTo("java.lang.Number")
-                assertThat(parameterTypes.joinToString { it.toTypeString(kotlinStyleNulls = true) })
+                assertThat(
+                        parameterTypes.joinToString { it.testTypeString(kotlinStyleNulls = true) }
+                    )
                     .isEqualTo("int, kotlin.coroutines.Continuation<? super java.lang.String?>")
-                assertThat(returnType.toTypeString(kotlinStyleNulls = true))
+                assertThat(returnType.testTypeString(kotlinStyleNulls = true))
                     .isEqualTo("java.lang.Object?")
             }
         }
@@ -378,17 +386,51 @@ class CommonLambdaTypeItemTest : BaseModelTest() {
             lambdaType.assertLambdaTypeItem {
                 // Verify that the default string representation of the lambda type is the same as
                 // the string representation of the extended class type.
-                assertThat(toTypeString(kotlinStyleNulls = true))
+                assertThat(testTypeString(kotlinStyleNulls = true))
                     .isEqualTo(
                         "kotlin.jvm.functions.Function3<java.lang.Number,java.lang.Integer,kotlin.coroutines.Continuation<? super kotlin.Unit>,java.lang.Object?>"
                     )
 
                 assertThat(isSuspend).isTrue()
                 assertThat(receiverType.toString()).isEqualTo("java.lang.Number")
-                assertThat(parameterTypes.joinToString { it.toTypeString(kotlinStyleNulls = true) })
+                assertThat(
+                        parameterTypes.joinToString { it.testTypeString(kotlinStyleNulls = true) }
+                    )
                     .isEqualTo("int, kotlin.coroutines.Continuation<? super kotlin.Unit>")
-                assertThat(returnType.toTypeString(kotlinStyleNulls = true))
+                assertThat(returnType.testTypeString(kotlinStyleNulls = true))
                     .isEqualTo("java.lang.Object?")
+            }
+        }
+    }
+
+    @Test
+    fun `Test lambda returns Nothing`() {
+        runCodebaseTest(
+            kotlin(
+                """
+                    package test.pkg
+                    class Foo {
+                        val field: (Throwable) -> Nothing = {throw it}
+                    }
+                """
+            ),
+        ) {
+            val fooClass = codebase.assertClass("test.pkg.Foo")
+            val lambdaType = fooClass.fields().single().type()
+
+            lambdaType.assertLambdaTypeItem {
+                // Verify that the default string representation of the lambda type is the same as
+                // the string representation of the extended class type.
+                assertThat(testTypeString(kotlinStyleNulls = true))
+                    .isEqualTo("kotlin.jvm.functions.Function1<java.lang.Throwable,java.lang.Void>")
+
+                assertThat(receiverType).isNull()
+                assertThat(
+                        parameterTypes.joinToString { it.testTypeString(kotlinStyleNulls = true) }
+                    )
+                    .isEqualTo("java.lang.Throwable")
+                assertThat(returnType.testTypeString(kotlinStyleNulls = true))
+                    .isEqualTo("java.lang.Void")
             }
         }
     }
