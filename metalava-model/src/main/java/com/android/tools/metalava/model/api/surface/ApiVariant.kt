@@ -87,6 +87,9 @@ value class ApiVariantSet(internal val bits: Int) {
      */
     operator fun minus(other: ApiVariantSet) = ApiVariantSet(bits and other.bits.inv())
 
+    /** Return the intersection of this [ApiVariantSet] with the [other] [ApiVariantSet]. */
+    fun intersectionWith(other: ApiVariantSet): ApiVariantSet = ApiVariantSet(bits and other.bits)
+
     /** Represent the values as binary number starting with a `0b` prefix. */
     override fun toString() = "0b${Integer.toBinaryString(bits)}"
 
