@@ -259,7 +259,12 @@ class ApiSurfaceSelector(
     }
 }
 
-/** Associates a list of [SurfaceSelectionRule]s with each [ApiSurface] in [ApiSurfaces.all]. */
+/**
+ * Associates a list of [SurfaceSelectionRule]s with each [ApiSurface] in [ApiSurfaces.all].
+ *
+ * @property variantRules variant rules (such as doc-only and removed) that are applicable across
+ *   all surfaces.
+ */
 class ApiSurfaceRules(
     val apiSurfaces: ApiSurfaces,
     private val byName: Map<String, List<SurfaceSelectionRule>>,
@@ -330,7 +335,7 @@ class ApiSurfaceRules(
                 }
                 .toMap()
 
-        return ApiSurfaceRules(apiSurfaces, subsetRules)
+        return ApiSurfaceRules(apiSurfaces, subsetRules, variantRules)
     }
 
     companion object {
