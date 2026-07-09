@@ -32,6 +32,9 @@ sealed class SelectedApi {
     /** Checks to see if the associated [SelectableItem] contains any doconly annotations. */
     open fun hasDocOnlyAnnotation(): Boolean = false
 
+    /** Checks to see if the associated [SelectableItem] contains any removed annotations. */
+    open fun hasRemovedAnnotation(): Boolean = false
+
     /**
      * Initialize this instance.
      *
@@ -122,6 +125,14 @@ internal sealed class SourceSelectedApi<S : SelectableItem>(
         internal set
 
     /**
+     * Indicates whether the associated [SelectableItem] has a removed annotation.
+     *
+     * Initialized by [SelectedApiUpdater.updateSelectedApi] called from [updateFromSelectableItem].
+     */
+    var removed: Boolean = false
+        internal set
+
+    /**
      * The [ApiVariantSet] for the [item].
      *
      * This is initialized in [initialize] which must have been called and which must initialize
@@ -145,6 +156,9 @@ internal sealed class SourceSelectedApi<S : SelectableItem>(
 
     /** Checks to see if the associated [SelectableItem] contains any doconly annotations. */
     override fun hasDocOnlyAnnotation() = docOnly
+
+    /** Checks to see if the associated [SelectableItem] contains any removed annotations. */
+    override fun hasRemovedAnnotation() = removed
 
     final override fun initialize() {
         // Initialize the parent first.

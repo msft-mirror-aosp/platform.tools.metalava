@@ -332,7 +332,7 @@ sealed class ApiVariantSelectors {
                 lazyGet(REMOVED_BIT_MASK) {
                     (item.parent()?.variantSelectors?.removed == true) ||
                         // Check if the item is annotated with a configured removed annotation.
-                        item.codebase.annotationManager.hasRemovedAnnotation(item) ||
+                        item.selectedApi.hasRemovedAnnotation() ||
                         item.documentation?.isRemoved == true
                 }
             // This is only used for testing.

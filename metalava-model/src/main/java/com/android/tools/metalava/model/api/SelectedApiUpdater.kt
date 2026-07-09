@@ -108,7 +108,7 @@ class SelectedApiUpdater(
                         }
                     }
                     Effect.REMOVED -> {
-                        // TODO: Implement this if needed.
+                        selectedApi.removed = true
                     }
                 }
             }

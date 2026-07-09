@@ -62,7 +62,6 @@ import com.android.tools.metalava.model.Showability.Companion.REVERT_UNSTABLE_AP
 import com.android.tools.metalava.model.TypedefMode
 import com.android.tools.metalava.model.annotation.DefaultAnnotationManager.Config
 import com.android.tools.metalava.model.api.ApiSurfaceSelector
-import com.android.tools.metalava.model.api.SurfaceSelectionRule.Effect
 import com.android.tools.metalava.model.api.flags.ApiFlag
 import com.android.tools.metalava.model.api.flags.ApiFlags
 import com.android.tools.metalava.model.api.flags.optionalFlagName
@@ -550,15 +549,6 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
             return false
         }
         return modifiers.hasAnnotation(AnnotationItem::isHideAnnotation)
-    }
-
-    override fun hasRemovedAnnotation(item: SelectableItem): Boolean {
-        // If there are no removed annotations then this can never return true.
-        if (!apiSurfaceSelector.hasAnyRemovedAnnotations) {
-            return false
-        }
-
-        return item.modifiers.hasAnnotation { it.surfaceData?.effect == Effect.REMOVED }
     }
 
     override fun hasSuppressCompatibilityMetaAnnotations(modifiers: ModifierList): Boolean {

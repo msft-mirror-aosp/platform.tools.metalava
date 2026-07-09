@@ -37,9 +37,6 @@ class ApiSurfaceSelector(
     /** True if this has any annotations that can hide a [SelectableItem] from the public API. */
     val hasAnyHideAnnotations: Boolean
 
-    /** True if this has any annotations that mark a [SelectableItem] as removed. */
-    val hasAnyRemovedAnnotations: Boolean
-
     /**
      * Associates an annotation pattern, e.g. `--show-annotation android.annotation.TestApi` with
      * its [SurfaceAnnotationData].
@@ -56,7 +53,6 @@ class ApiSurfaceSelector(
         var unannotatedSurface: ApiSurface? = null
         var hasShowForStubs = false
         var hasHideAnnotations = false
-        var hasRemovedAnnotations = false
 
         val matcherRules = buildList {
             fun addMatcherRule(
@@ -133,9 +129,7 @@ class ApiSurfaceSelector(
 
                 when (val effect = rule.effect) {
                     Effect.DOC_ONLY -> {}
-                    Effect.REMOVED -> {
-                        hasRemovedAnnotations = true
-                    }
+                    Effect.REMOVED -> {}
                     else -> {
                         error("Unsupported effect $effect in variant $rule")
                     }
@@ -156,7 +150,6 @@ class ApiSurfaceSelector(
         showUnannotated = unannotatedSurface?.isMain == true
 
         hasAnyHideAnnotations = hasHideAnnotations
-        hasAnyRemovedAnnotations = hasRemovedAnnotations
         hasAnyShowForStubPurposesAnnotations = hasShowForStubs
         unannotatedApiSurface = unannotatedSurface
     }
