@@ -552,18 +552,6 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
         return modifiers.hasAnnotation(AnnotationItem::isHideAnnotation)
     }
 
-    override fun hasDocOnlyAnnotation(item: SelectableItem): Boolean {
-        // If there are no doc only annotations then this can never return true.
-        if (!apiSurfaceSelector.hasAnyDocOnlyAnnotations) {
-            return false
-        }
-
-        // Doc-only is currently only supported/applied to classes.
-        if (item !is ClassItem) return false
-
-        return item.modifiers.hasAnnotation { it.surfaceData?.effect == Effect.DOC_ONLY }
-    }
-
     override fun hasRemovedAnnotation(item: SelectableItem): Boolean {
         // If there are no removed annotations then this can never return true.
         if (!apiSurfaceSelector.hasAnyRemovedAnnotations) {

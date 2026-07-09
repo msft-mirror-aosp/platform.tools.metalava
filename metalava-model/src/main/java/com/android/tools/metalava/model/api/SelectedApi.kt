@@ -29,6 +29,9 @@ sealed class SelectedApi {
     /** The [ApiVariantSet] for the [SelectableItem]. */
     abstract var itemApiVariants: ApiVariantSet
 
+    /** Checks to see if the associated [SelectableItem] contains any doconly annotations. */
+    open fun hasDocOnlyAnnotation(): Boolean = false
+
     /**
      * Initialize this instance.
      *
@@ -111,6 +114,14 @@ internal sealed class SourceSelectedApi<S : SelectableItem>(
     protected lateinit var parent: SourceSelectedApi<*>
 
     /**
+     * Indicates whether the associated [SelectableItem] has a doc only annotation.
+     *
+     * Initialized by [SelectedApiUpdater.updateSelectedApi] called from [updateFromSelectableItem].
+     */
+    var docOnly: Boolean = false
+        internal set
+
+    /**
      * The [ApiVariantSet] for the [item].
      *
      * This is initialized in [initialize] which must have been called and which must initialize
@@ -131,6 +142,9 @@ internal sealed class SourceSelectedApi<S : SelectableItem>(
      *   the aggregate of all its classes.
      */
     var inheritableApiVariants = ApiVariantSet.EMPTY
+
+    /** Checks to see if the associated [SelectableItem] contains any doconly annotations. */
+    override fun hasDocOnlyAnnotation() = docOnly
 
     final override fun initialize() {
         // Initialize the parent first.

@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model.api
 
+import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.api.SurfaceSelectionRule.Effect
 import com.android.tools.metalava.model.api.surface.ApiSurfaces
@@ -101,7 +102,10 @@ class SelectedApiUpdater(
                         hide = true
                     }
                     Effect.DOC_ONLY -> {
-                        // TODO(b/512093496): Implement this.
+                        // Only track doc only on classes.
+                        if (item is ClassItem) {
+                            selectedApi.docOnly = true
+                        }
                     }
                     Effect.REMOVED -> {
                         // TODO: Implement this if needed.

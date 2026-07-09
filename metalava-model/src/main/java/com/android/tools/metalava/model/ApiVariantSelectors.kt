@@ -324,7 +324,7 @@ sealed class ApiVariantSelectors {
                 lazyGet(DOCONLY_BIT_MASK) {
                     (item.parent()?.variantSelectors?.docOnly == true) ||
                         // Check if the item is annotated with a configured doc-only annotation.
-                        item.codebase.annotationManager.hasDocOnlyAnnotation(item)
+                        item.selectedApi.hasDocOnlyAnnotation()
                 }
 
         override var removed: Boolean

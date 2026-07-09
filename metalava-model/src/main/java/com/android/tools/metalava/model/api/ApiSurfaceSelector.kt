@@ -37,9 +37,6 @@ class ApiSurfaceSelector(
     /** True if this has any annotations that can hide a [SelectableItem] from the public API. */
     val hasAnyHideAnnotations: Boolean
 
-    /** True if this has any annotations that mark a [SelectableItem] as doc-only. */
-    val hasAnyDocOnlyAnnotations: Boolean
-
     /** True if this has any annotations that mark a [SelectableItem] as removed. */
     val hasAnyRemovedAnnotations: Boolean
 
@@ -59,7 +56,6 @@ class ApiSurfaceSelector(
         var unannotatedSurface: ApiSurface? = null
         var hasShowForStubs = false
         var hasHideAnnotations = false
-        var hasDocOnlyAnnotations = false
         var hasRemovedAnnotations = false
 
         val matcherRules = buildList {
@@ -135,11 +131,8 @@ class ApiSurfaceSelector(
                     error("$rule is not a SelectAnnotated")
                 }
 
-                val effect = rule.effect
-                when (effect) {
-                    Effect.DOC_ONLY -> {
-                        hasDocOnlyAnnotations = true
-                    }
+                when (val effect = rule.effect) {
+                    Effect.DOC_ONLY -> {}
                     Effect.REMOVED -> {
                         hasRemovedAnnotations = true
                     }
@@ -163,7 +156,6 @@ class ApiSurfaceSelector(
         showUnannotated = unannotatedSurface?.isMain == true
 
         hasAnyHideAnnotations = hasHideAnnotations
-        hasAnyDocOnlyAnnotations = hasDocOnlyAnnotations
         hasAnyRemovedAnnotations = hasRemovedAnnotations
         hasAnyShowForStubPurposesAnnotations = hasShowForStubs
         unannotatedApiSurface = unannotatedSurface
