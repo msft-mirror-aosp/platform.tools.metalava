@@ -65,6 +65,7 @@ import com.android.tools.metalava.model.ANDROID_ANNOTATION_PACKAGE
 import com.android.tools.metalava.model.Assertions
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.StripJavaLangPrefix
+import com.android.tools.metalava.model.api.surface.ApiVariantType
 import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.source.SourceModelProvider
 import com.android.tools.metalava.model.source.SourceSet
@@ -391,8 +392,8 @@ abstract class DriverTest :
         stubPaths: Array<String>? = null,
         /**
          * Whether the stubs should be written as documentation stubs instead of plain stubs.
-         * Decides whether the stubs include @doconly elements, uses rewritten/migration
-         * annotations, etc
+         * Decides whether the stubs include [ApiVariantType.DOC_ONLY] items, uses
+         * rewritten/migration annotations, etc
          */
         docStubs: Boolean = false,
         /** Signature file format */

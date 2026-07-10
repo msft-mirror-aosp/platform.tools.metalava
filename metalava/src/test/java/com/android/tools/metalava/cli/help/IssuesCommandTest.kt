@@ -116,6 +116,7 @@ Available Issues                             |  Category                        
   GetterSetterNullability                    |  api_lint                             |   warning_error_when_new
   HeavyBitSet                                |  api_lint                             |   error
   HiddenAbstractMethod                       |  api_lint                             |   error
+  HiddenAbstractMethodInInterface            |  api_lint                             |   hidden
   HiddenShowAnnotation                       |  api_lint                             |   warning_error_when_new
   HiddenSuperclass                           |  documentation                        |   warning
   HiddenTypeParameter                        |  documentation                        |   warning
@@ -145,6 +146,7 @@ Available Issues                             |  Category                        
   InvalidNullabilityAnnotationWarning        |  unknown                              |   warning
   InvalidNullabilityOverride                 |  api_lint                             |   error
   InvalidPackage                             |  unknown                              |   error
+  InvalidSources                             |  unknown                              |   error
   InvalidSyntax                              |  unknown                              |   error
   InvalidTagForm                             |  documentation                        |   warning_error_when_new
   IoError                                    |  unknown                              |   error
@@ -152,7 +154,6 @@ Available Issues                             |  Category                        
   KmpExperimentalMismatch                    |  api_lint                             |   error
   KmpHideShowAnnotationMismatch              |  api_lint                             |   error
   KmpModifierMismatch                        |  api_lint                             |   error
-  KmpOriginMismatch                          |  api_lint                             |   error
   KmpReifiedMismatch                         |  api_lint                             |   error
   KmpSignatureClash                          |  api_lint                             |   error
   KmpVisibilityMismatch                      |  api_lint                             |   error
@@ -266,6 +267,7 @@ Available Issues                             |  Category                        
   UnqualifiedTypeError                       |  unknown                              |   hidden
   UnresolvedImport                           |  unknown                              |   info
   UnresolvedLink                             |  documentation                        |   warning_error_when_new
+  UnsupportedDocTag                          |  documentation                        |   error
   UseIcu                                     |  api_lint                             |   warning
   UseParcelFileDescriptor                    |  api_lint                             |   error
   UserHandle                                 |  api_lint                             |   warning

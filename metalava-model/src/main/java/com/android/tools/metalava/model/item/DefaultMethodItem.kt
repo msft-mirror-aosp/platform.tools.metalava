@@ -113,7 +113,8 @@ internal class DefaultMethodItem(
         // Create a [TypeItemConverter] wrapper around `typeVariableMap`.
         val typeConverter = typeVariableMap.toTypeConverter()
 
-        return DefaultMethodItem(
+        val duplicate =
+            DefaultMethodItem(
                 // Create it in the same codebase as targetContainingClass.
                 codebase = targetContainingClass.codebase,
                 fileLocation = fileLocation,
@@ -135,11 +136,17 @@ internal class DefaultMethodItem(
                 isExtensionMethod = isExtensionMethod,
                 isKotlinProperty = isKotlinProperty,
             )
-            .also { duplicated ->
-                duplicated.inheritedFrom = containingClass()
 
-                duplicated.updateCopiedMethodState()
-            }
+        duplicate.inheritedFrom = containingClass()
+
+        if (duplicate.modifiers.isDefault() && !duplicate.containingClass().isInterface()) {
+            duplicate.mutateModifiers { setDefault(false) }
+        }
+
+        // Make sure that the deprecated status is set correctly.
+        duplicate.updateDeprecatedFromJavadocIfNeeded()
+
+        return duplicate
     }
 
     /**
@@ -232,19 +239,6 @@ internal class DefaultMethodItem(
             }
                 // A method could not be found in this interface so search its interfaces.
                 ?: appendSuperMethodsFromInterfaces(methods, itfClass)
-        }
-    }
-
-    /**
-     * Update the state of a [MethodItem] that has been copied from one [ClassItem] to another.
-     *
-     * This will update the [MethodItem] on which it is called to ensure that it is consistent with
-     * the [ClassItem] to which it now belongs. Called from the implementations of
-     * [MethodItem.duplicate].
-     */
-    protected fun updateCopiedMethodState() {
-        if (modifiers.isDefault() && !containingClass().isInterface()) {
-            mutateModifiers { setDefault(false) }
         }
     }
 }

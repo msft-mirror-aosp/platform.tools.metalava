@@ -21,6 +21,7 @@ import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.testing.EntryPoint
 import com.android.tools.metalava.testing.EntryPointCallerRule
 import com.android.tools.metalava.testing.EntryPointCallerTracker
+import com.android.tools.metalava.testing.KnownSourceFiles
 import com.android.tools.metalava.testing.java
 import org.junit.AssumptionViolatedException
 import org.junit.Rule
@@ -86,9 +87,9 @@ class ParameterizedUnhiddenSystemApiTest : DriverTest() {
                 TestParams(
                     apiSurface = KnownApiSurface.SYSTEM,
                     expectedIssuesForConfig =
-                        "src/test/pkg/Foo.java:8: warning: @android.annotation.SystemApi APIs must not be marked @hide: method test.pkg.Foo.method2() (ErrorWhenNew) [HiddenShowAnnotation]",
+                        "src/test/pkg/Foo.java:9: warning: @android.annotation.SystemApi APIs must not be marked @hide: method test.pkg.Foo.method2() (ErrorWhenNew) [HiddenShowAnnotation]",
                     expectedIssuesForOptions =
-                        "src/test/pkg/Foo.java:14: error: @android.annotation.SystemApi APIs must also be marked @hide: method test.pkg.Foo.method4() [UnhiddenSystemApi]",
+                        "src/test/pkg/Foo.java:16: error: @android.annotation.SystemApi APIs must also be marked @hide: method test.pkg.Foo.method4() [UnhiddenSystemApi]",
                     expectedApiForConfig =
                         """
                             package test.pkg {
@@ -102,9 +103,9 @@ class ParameterizedUnhiddenSystemApiTest : DriverTest() {
                 TestParams(
                     apiSurface = KnownApiSurface.MODULE_LIB,
                     expectedIssuesForConfig =
-                        "src/test/pkg/Foo.java:8: warning: @android.annotation.SystemApi APIs must not be marked @hide: method test.pkg.Foo.method2() (ErrorWhenNew) [HiddenShowAnnotation]",
+                        "src/test/pkg/Foo.java:9: warning: @android.annotation.SystemApi APIs must not be marked @hide: method test.pkg.Foo.method2() (ErrorWhenNew) [HiddenShowAnnotation]",
                     expectedIssuesForOptions =
-                        "src/test/pkg/Foo.java:14: error: @android.annotation.SystemApi APIs must also be marked @hide: method test.pkg.Foo.method4() [UnhiddenSystemApi]",
+                        "src/test/pkg/Foo.java:16: error: @android.annotation.SystemApi APIs must also be marked @hide: method test.pkg.Foo.method4() [UnhiddenSystemApi]",
                     expectedApiForConfig = "",
                 ),
             )
@@ -126,6 +127,7 @@ class ParameterizedUnhiddenSystemApiTest : DriverTest() {
             sourceFiles =
                 arrayOf(
                     *extraSourceFiles,
+                    KnownSourceFiles.hideAnnotation,
                     java(
                         """
                             package test.pkg;
@@ -134,10 +136,12 @@ class ParameterizedUnhiddenSystemApiTest : DriverTest() {
                                 public void method1() { }
 
                                 /** @hide */
+                                @android.annotation.Hide
                                 @SystemApi
                                 public void method2() { }
 
-                                /** @hide Always hidden */
+                                /** @hide */
+                                @android.annotation.Hide
                                 public void method3() { }
 
                                 @SystemApi

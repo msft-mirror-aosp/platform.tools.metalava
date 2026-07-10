@@ -110,7 +110,15 @@ abstract class SourceCodebaseAssembler : DefaultCodebaseAssembler() {
                     ?.firstOrNull()
             if (pkg == null) {
                 // Strip the longest prefix source root.
-                val prefix = sortedSourceRoots.firstOrNull { file.startsWith(it) }?.path ?: ""
+                val prefix = sortedSourceRoots.firstOrNull { file.startsWith(it) }?.path
+                if (prefix == null) {
+                    codebase.reporter.report(
+                        Issues.INVALID_SOURCES,
+                        file,
+                        "Could not find source root for $file",
+                    )
+                    continue
+                }
                 pkg = file.parentFile.path.substring(prefix.length).trim('/').replace("/", ".")
             }
 
