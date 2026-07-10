@@ -23,6 +23,7 @@ import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.BaseItemVisitor
 import com.android.tools.metalava.model.BaseTypeVisitor
 import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.ClassOrigin
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.Codebase
@@ -545,9 +546,15 @@ class ApiAnalyzer(
         if (
             item.hasShowAnnotation() &&
                 // Only check for @hide doc tag. Testing for annotations would complicate this
-                // because
-                // it would be necessary to differentiate between
-                item.documentation?.isHidden == true &&
+                // because it would be necessary to differentiate between an annotation that hides
+                // items from all API surfaces and one that is hiding items that are part of a
+                // different API surface.
+                //
+                // We check the block tag physically (using `hasBlockTagOfType("hide")`) instead of
+                // calling `isHidden` because when API surfaces are configured in a config file,
+                // `isHidden` returns false for `@hide` Javadoc tags. However, we still want to
+                // flag this warning if the developer explicitly included a `@hide` tag.
+                item.documentation?.hasBlockTagOfType("hide") == true &&
                 !item.showability.showNonRecursive()
         ) {
             item.modifiers
@@ -587,6 +594,18 @@ class ApiAnalyzer(
                                 m,
                                 "${m.name()} cannot be hidden and abstract when " +
                                     "${cl.simpleName()} has a visible constructor, in case a " +
+                                    "third-party attempts to subclass it."
+                            )
+                        } else if (
+                            cl.classKind == ClassKind.INTERFACE &&
+                                !cl.modifiers.isSealed() &&
+                                m.modifiers.isAbstract()
+                        ) {
+                            reporter.report(
+                                Issues.HIDDEN_ABSTRACT_METHOD_IN_INTERFACE,
+                                m,
+                                "${m.name()} cannot be hidden and abstract when " +
+                                    "${cl.simpleName()} is a non-sealed interface, in case a " +
                                     "third-party attempts to subclass it."
                             )
                         }

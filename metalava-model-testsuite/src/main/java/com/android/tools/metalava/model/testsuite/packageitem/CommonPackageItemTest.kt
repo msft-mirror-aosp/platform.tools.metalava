@@ -663,4 +663,36 @@ class CommonPackageItemTest : BaseModelTest() {
             packageItem.assertPrintedDocumentation(expectedOutput = "/** Some text */")
         }
     }
+
+    @SupportedInputFormats(InputFormat.JAVA)
+    @Test
+    fun `Test INVALID_SOURCES is reported for package html outside source roots`() {
+        runSourceCodebaseTest(
+            inputSet(
+                java(
+                    """
+                        package test.pkg;
+                        public class Test {}
+                    """
+                ),
+                html(
+                    "outside/package.html",
+                    """
+                        <HTML>
+                        <BODY>
+                        Summary.
+                        </BODY>
+                        </HTML>
+                    """
+                ),
+            ),
+        ) {
+            assertAndRemoveReportedIssues(
+                expectedIssues =
+                    """
+                        MAIN_SRC/outside/package.html: error: Could not find source root for MAIN_SRC/outside/package.html [InvalidSources]
+                    """,
+            )
+        }
+    }
 }

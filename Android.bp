@@ -93,3 +93,12 @@ droiddoc_exported_dir {
     name: "metalava-manual",
     path: "manual",
 }
+
+// A filegroup containing the sources of stub-annotations.
+// This is used to compile stub-annotations from source in core library stubs
+// (where we cannot depend on the stub-annotations JAR due to circular dependencies).
+filegroup {
+    name: "stub-annotations-sources",
+    srcs: ["stub-annotations/src/main/java/**/*.java"],
+    visibility: ["//visibility:public"],
+}

@@ -59,7 +59,6 @@ data class StringPolicyDefinitionProxy(
             add(Pair("Policy value", renderPolicyValue("String", policyValueValidations)))
         }
 
-        append("\n<p>Policy Type: String</p>\n")
         append(renderTable(tableEntries))
     }
 }

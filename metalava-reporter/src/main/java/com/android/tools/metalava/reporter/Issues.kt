@@ -159,6 +159,7 @@ object Issues {
     val HIDDEN_TYPEDEF_CONSTANT by Issue(Severity.ERROR)
     val INTERNAL_ERROR by Issue(Severity.ERROR)
     val BOTH_PACKAGE_INFO_AND_HTML by Issue(Severity.WARNING, Category.DOCUMENTATION)
+    val INVALID_SOURCES by Issue(Severity.ERROR, Category.UNKNOWN)
 
     val MISSING_ANNOTATIONS_XML_ITEM by Issue(Severity.HIDDEN, Category.API_LINT)
     val UNMATCHED_MERGE_ANNOTATION by Issue(Severity.ERROR, Category.API_LINT)
@@ -178,6 +179,9 @@ object Issues {
     // Javadoc does not mean it is an issue with the documentation.
     val DEPRECATED_SURFACE_DOC_TAG by Issue(Severity.HIDDEN, Category.UNKNOWN)
 
+    // Reported when using unsupported doc tags like @doconly.
+    val UNSUPPORTED_DOC_TAG by Issue(Severity.ERROR, Category.DOCUMENTATION)
+
     val SHOWING_MEMBER_IN_HIDDEN_CLASS by Issue(Severity.ERROR, Category.API_LINT)
     val INVALID_NULLABILITY_ANNOTATION by Issue(Severity.ERROR)
     val REFERENCES_HIDDEN by Issue(Severity.ERROR, Category.API_LINT)
@@ -192,6 +196,7 @@ object Issues {
     val INVALID_PACKAGE by Issue(Severity.ERROR)
     val UNRESOLVED_IMPORT by Issue(Severity.INFO)
     val HIDDEN_ABSTRACT_METHOD by Issue(Severity.ERROR, Category.API_LINT)
+    val HIDDEN_ABSTRACT_METHOD_IN_INTERFACE by Issue(Severity.HIDDEN, Category.API_LINT)
 
     // API lint
     val START_WITH_LOWER by Issue(Severity.ERROR, Category.API_LINT)
@@ -321,7 +326,6 @@ object Issues {
     val KMP_HIDE_SHOW_ANNOTATION_MISMATCH by Issue(Severity.ERROR, Category.API_LINT)
     val KMP_EXPERIMENTAL_MISMATCH by Issue(Severity.ERROR, Category.API_LINT)
     val KMP_REIFIED_MISMATCH by Issue(Severity.ERROR, Category.API_LINT)
-    val KMP_ORIGIN_MISMATCH by Issue(Severity.ERROR, Category.API_LINT)
     val KMP_SIGNATURE_CLASH by Issue(Severity.ERROR, Category.API_LINT)
 
     fun findIssueById(id: String?): Issue? {

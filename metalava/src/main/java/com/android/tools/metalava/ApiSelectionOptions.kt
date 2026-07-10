@@ -377,6 +377,11 @@ class ApiSelectionOptions(
                 .filter { it.name !in trackedSurfaces }
                 // Flatten all the rules.
                 .flatMap { it.selectionCriteria.annotationRules }
+                // Ignore all non-show annotations.
+                .filter { it.effect == EffectConfig.SHOW }
+                // Ignore kotlin.PublishedApi as it can only be used on internal APIs and so does
+                // not need hiding.
+                .filter { rule -> rule.pattern != "kotlin.PublishedApi" }
                 // Sort by pattern.
                 .sortedBy { it.pattern }
                 .toSet()
@@ -502,6 +507,14 @@ class ApiSelectionOptions(
                 apiSurfacesConfig,
             )
         }
+
+    /**
+     * Whether API surfaces have been configured via a configuration file (e.g. using the
+     * `--api-surface` flag and associated config XML). When true, Javadoc `@hide` block tags are
+     * ignored for hiding.
+     */
+    val apiSurfacesConfigured: Boolean
+        get() = apiSurfacesConfig?.apiSurfaceList?.isNotEmpty() == true
 
     companion object {
         /**

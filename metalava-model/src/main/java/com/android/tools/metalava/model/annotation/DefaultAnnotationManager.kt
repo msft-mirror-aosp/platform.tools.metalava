@@ -67,7 +67,6 @@ import com.android.tools.metalava.model.api.flags.ApiFlag
 import com.android.tools.metalava.model.api.flags.ApiFlags
 import com.android.tools.metalava.model.api.flags.optionalFlagName
 import com.android.tools.metalava.model.api.surface.ApiSurface
-import com.android.tools.metalava.model.canBeHidden
 import com.android.tools.metalava.model.computeTypeNullability
 import com.android.tools.metalava.model.hasAnnotation
 import com.android.tools.metalava.model.isNonNullAnnotation
@@ -588,9 +587,6 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
         // * `recurse=true` beats `recurse=false`
         // * `forStubsOnly=false` beats `forStubsOnly=true`
 
-        // Check whether this item can be hidden.
-        val cannotBeHidden = !item.canBeHidden()
-
         // The resulting showability of the item.
         var itemShowability = Showability.NO_EFFECT
 
@@ -617,9 +613,6 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
             val showability = annotation.showability
             if (showability == Showability.NO_EFFECT) {
                 // NO_EFFECT has no effect on the result so just ignore it.
-                continue
-            } else if (cannotBeHidden && showability.hide()) {
-                // Hide is ignored as the item cannot be hidden.
                 continue
             }
             itemShowability = itemShowability.combineWith(showability)
