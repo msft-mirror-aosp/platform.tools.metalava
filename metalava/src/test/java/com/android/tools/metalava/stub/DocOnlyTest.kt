@@ -119,4 +119,24 @@ class DocOnlyTest : AbstractStubsTest() {
                 ),
         )
     }
+
+    @Test
+    fun `Test @doconly Javadoc tag reports error`() {
+        check(
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            /** @doconly */
+                            public class Test {}
+                        """
+                    ),
+                ),
+            expectedIssues =
+                """
+                    src/test/pkg/Test.java:2: error: Use of '@doconly' is no longer supported, use an <api-surfaces>/<doc-only> configured annotation [UnsupportedDocTag]
+                """,
+        )
+    }
 }

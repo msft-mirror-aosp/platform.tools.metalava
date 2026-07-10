@@ -67,8 +67,16 @@ internal abstract class AbstractItemDocumentation(
         return apiFlags[flagName].action != ApiFlagAction.REVERT
     }
 
-    override val isHidden
-        get() = hasBlockTagOfType("hide")
+    override val isHidden: Boolean
+        get() {
+            // When API surfaces are configured in a configuration file, the Javadoc `@hide` block
+            // tag is ignored as a mechanism for hiding elements. Instead, explicit annotations
+            // (e.g. `@android.annotation.Hide`) must be used.
+            if (item.codebase.config.apiSurfacesConfigured) {
+                return false
+            }
+            return hasBlockTagOfType("hide")
+        }
 
     /**
      * Return the ordinal for the first item that matches [predicate].
@@ -127,11 +135,16 @@ internal abstract class AbstractItemDocumentation(
     override val docTypeParser: DocTypeParser
         get() = DocTypeParser.create(reporter = this, item)
 
-    override val isDocOnly
-        get() = hasBlockTagOfType("doconly")
-
-    override val isRemoved
-        get() = hasBlockTagOfType("removed")
+    override val isRemoved: Boolean
+        get() {
+            // When API surfaces are configured in a configuration file, the Javadoc `@removed`
+            // block tag is ignored as a mechanism for removing elements. Instead, explicit
+            // annotations (e.g. `@android.annotation.RemovedFromApi`) must be used.
+            if (item.codebase.config.apiSurfacesConfigured) {
+                return false
+            }
+            return hasBlockTagOfType("removed")
+        }
 
     override fun hasBlockTagOfType(blockTagType: String) =
         docComment.hasBlockTagOfType(blockTagType)

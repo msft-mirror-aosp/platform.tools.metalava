@@ -19,6 +19,7 @@ package com.android.tools.metalava.config
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties
 import com.fasterxml.jackson.dataformat.xml.annotation.JacksonXmlProperty
 import com.fasterxml.jackson.dataformat.xml.annotation.JacksonXmlRootElement
+import java.io.StringWriter
 
 /** The top level configuration object. */
 @JacksonXmlRootElement(localName = "config", namespace = CONFIG_NAMESPACE)
@@ -64,4 +65,12 @@ interface CombinableConfig<T : CombinableConfig<T>> {
  */
 internal fun <T : CombinableConfig<T>> combine(t1: T?, t2: T?): T? {
     return if (t1 == null) t2 else if (t2 == null) t1 else t1.combineWith(t2)
+}
+
+/** Format [this] as XML in the same format as [ConfigParser] reads. */
+fun Any.toConfigXml(indent: String = ""): String {
+    val xmlMapper = ConfigParser.configXmlMapper()
+    val writer = StringWriter()
+    xmlMapper.writeValue(writer, this)
+    return writer.toString().trimEnd().prependIndent(indent)
 }

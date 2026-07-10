@@ -691,6 +691,17 @@ private constructor(
                 constructorSymbol.typeParameters
             )
 
+        // Workaround for b/530135723: `hasDefaultValue` isn't correct for actual constructor
+        // parameters, so it needs to be pulled from the expects.
+        @OptIn(KaExperimentalApi::class)
+        val expectConstructorParameters =
+            if (constructorSymbol.isActual) {
+                (constructorSymbol.getExpectsForActual().firstOrNull() as? KaConstructorSymbol)
+                    ?.valueParameters
+            } else {
+                null
+            }
+
         val modifiers = kaModifierFactory.createForDeclaration(constructorSymbol)
         val constructorItem =
             itemFactory.createConstructorItem(
@@ -716,7 +727,8 @@ private constructor(
                             MethodFingerprint(
                                 containingClass.simpleName(),
                                 constructorSymbol.valueParameters.count()
-                            )
+                            ),
+                        expectParameters = expectConstructorParameters,
                     )
                 },
                 throwsTypes = throwsTypesFromModifiers(modifiers),
@@ -1104,6 +1116,8 @@ private constructor(
         isSuspend: Boolean,
         returnType: TypeItem,
         fingerprint: MethodFingerprint,
+        // TODO: remove when https://youtrack.jetbrains.com/issue/KT-87343 is fixed
+        expectParameters: List<KaValueParameterSymbol>? = null,
     ): List<ParameterItem> {
         val contextParameters =
             kaContextParameters.mapIndexed { sourceIndex, parameterSymbol ->
@@ -1179,7 +1193,11 @@ private constructor(
                     containingItem = containingCallable,
                     parameterIndex = index,
                     type = type,
-                    hasDefaultValue = parameterSymbol.hasDefaultValue,
+                    // Workaround b/530135723: parameters on actual constructors aren't getting the
+                    // default value from the expects.
+                    hasDefaultValue =
+                        parameterSymbol.hasDefaultValue ||
+                            expectParameters?.getOrNull(index)?.hasDefaultValue == true,
                     kind = ParameterKind.VALUE,
                 )
             }

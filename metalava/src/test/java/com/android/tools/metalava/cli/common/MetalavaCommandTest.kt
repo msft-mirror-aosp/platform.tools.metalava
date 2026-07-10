@@ -173,7 +173,7 @@ $separator
             args += listOf(ARG_NO_COLOR, "--version")
 
             expectedStderr = ""
-            expectedStdout = "metalava version: 1.0.0-alpha14"
+            expectedStdout = "metalava version: 1.0.0-alpha15"
         }
     }
 }

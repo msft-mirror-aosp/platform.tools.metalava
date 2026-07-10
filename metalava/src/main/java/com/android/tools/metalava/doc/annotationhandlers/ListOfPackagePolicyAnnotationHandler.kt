@@ -57,7 +57,6 @@ data class ListOfPackagePolicyDefinitionProxy(
             add(Pair("Policy value", renderPolicyValue("List<Package>", policyValueValidations)))
         }
 
-        append("\n<p>Policy Type: List of Package</p>\n")
         append(renderTable(tableEntries))
     }
 }
