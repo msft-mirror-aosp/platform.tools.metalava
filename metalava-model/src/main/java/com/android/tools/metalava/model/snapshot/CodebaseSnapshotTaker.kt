@@ -210,6 +210,7 @@ private constructor(
     /** Copy [SelectableItem.selectedApiVariants] from [original] to this. */
     private fun <T : SelectableItem> T.copySelectedApiVariants(original: T) {
         selectedApiVariants = original.selectedApiVariants
+        contentApiVariants = original.contentApiVariants
     }
 
     /**

@@ -40,6 +40,9 @@ interface SelectableItem : Item, ReferencableNameScope {
     /** The [ApiVariant]s for which this [Item] has been selected. */
     var selectedApiVariants: ApiVariantSet
 
+    /** The [ApiVariant]s for child items. */
+    var contentApiVariants: ApiVariantSet
+
     /** Whether this element will be printed in the signature file */
     var emit: Boolean
 

@@ -84,6 +84,12 @@ internal sealed class DefaultSelectableItem(
             selectedApi.itemApiVariants = value
         }
 
+    final override var contentApiVariants
+        get() = selectedApi.contentApiVariants
+        set(value) {
+            selectedApi.contentApiVariants = value
+        }
+
     // Default to true, may be updated later
     final override var emit = true
 

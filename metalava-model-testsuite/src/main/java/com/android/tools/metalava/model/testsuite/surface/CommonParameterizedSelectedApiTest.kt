@@ -180,8 +180,10 @@ class CommonParameterizedSelectedApiTest : BaseModelTest() {
                         """
                             package test.pkg
                                    self - ApiVariantSet[public(C)]
+                                content - ApiVariantSet[]
                               class test.pkg.Test
                                      self - ApiVariantSet[public(C)]
+                                  content - ApiVariantSet[]
                         """,
                 )
             }
@@ -207,8 +209,10 @@ class CommonParameterizedSelectedApiTest : BaseModelTest() {
                         """
                             package test
                                    self - ApiVariantSet[]
+                                content - ApiVariantSet[]
                               class test.Hidden
                                      self - ApiVariantSet[]
+                                  content - ApiVariantSet[]
                         """,
                 )
             }
@@ -234,8 +238,10 @@ class CommonParameterizedSelectedApiTest : BaseModelTest() {
                         """
                             package test
                                    self - ApiVariantSet[]
+                                content - ApiVariantSet[]
                               class test.Hidden
                                      self - ApiVariantSet[]
+                                  content - ApiVariantSet[]
                         """,
                 )
             }
@@ -287,20 +293,28 @@ class CommonParameterizedSelectedApiTest : BaseModelTest() {
                         """
                             package test.pkg
                                    self - ApiVariantSet[public(C)]
+                                content - ApiVariantSet[]
                               class test.pkg.Test
                                      self - ApiVariantSet[public(C)]
+                                  content - ApiVariantSet[]
                                 constructor test.pkg.Test(int)
                                        self - ApiVariantSet[public(C)]
+                                    content - ApiVariantSet[]
                                 method test.pkg.Test.method()
                                        self - ApiVariantSet[public(C)]
+                                    content - ApiVariantSet[]
                               class test.pkg.ClassOnly
                                      self - ApiVariantSet[public(C)]
+                                  content - ApiVariantSet[]
                                 constructor test.pkg.ClassOnly()
                                        self - ApiVariantSet[]
+                                    content - ApiVariantSet[]
                                 method test.pkg.ClassOnly.notIncluded()
                                        self - ApiVariantSet[]
+                                    content - ApiVariantSet[]
                               class test.pkg.Unannotated
                                      self - ApiVariantSet[]
+                                  content - ApiVariantSet[]
                         """,
                 )
             }
@@ -329,16 +343,22 @@ class CommonParameterizedSelectedApiTest : BaseModelTest() {
                         """
                             package test.pkg
                                    self - ApiVariantSet[]
+                                content - ApiVariantSet[]
                               class test.pkg.Outer
                                      self - ApiVariantSet[]
+                                  content - ApiVariantSet[]
                                 constructor test.pkg.Outer()
                                        self - ApiVariantSet[]
+                                    content - ApiVariantSet[]
                                 class test.pkg.Outer.Inner
                                        self - ApiVariantSet[]
+                                    content - ApiVariantSet[]
                                   constructor test.pkg.Outer.Inner()
                                          self - ApiVariantSet[]
+                                      content - ApiVariantSet[]
                                   method test.pkg.Outer.Inner.method()
                                          self - ApiVariantSet[]
+                                      content - ApiVariantSet[]
                         """,
                 )
             }
@@ -367,16 +387,22 @@ class CommonParameterizedSelectedApiTest : BaseModelTest() {
                         """
                             package test.pkg
                                    self - ApiVariantSet[public(C)]
+                                content - ApiVariantSet[]
                               class test.pkg.Outer
                                      self - ApiVariantSet[public(C)]
+                                  content - ApiVariantSet[]
                                 constructor test.pkg.Outer()
                                        self - ApiVariantSet[public(C)]
+                                    content - ApiVariantSet[]
                                 class test.pkg.Outer.Inner
                                        self - ApiVariantSet[]
+                                    content - ApiVariantSet[]
                                   constructor test.pkg.Outer.Inner()
                                          self - ApiVariantSet[]
+                                      content - ApiVariantSet[]
                                   method test.pkg.Outer.Inner.method()
                                          self - ApiVariantSet[]
+                                      content - ApiVariantSet[]
                         """,
                 )
             }
@@ -424,14 +450,19 @@ class CommonParameterizedSelectedApiTest : BaseModelTest() {
                         """
                             package test.pkg
                                    self - ApiVariantSet[public(C)]
+                                content - ApiVariantSet[]
                               class test.pkg.Outer
                                      self - ApiVariantSet[public(C)]
+                                  content - ApiVariantSet[]
                                 constructor test.pkg.Outer()
                                        self - ApiVariantSet[public(C)]
+                                    content - ApiVariantSet[]
                                 method test.pkg.Outer.revertedMethod()
                                        self - ApiVariantSet[public(C)]
+                                    content - ApiVariantSet[]
                                 method test.pkg.Outer.removedMethod()
                                        self - ApiVariantSet[]
+                                    content - ApiVariantSet[]
                         """,
                 )
             }
@@ -456,12 +487,16 @@ class CommonParameterizedSelectedApiTest : BaseModelTest() {
                         """
                             package test.pkg
                                    self - ApiVariantSet[public(C)]
+                                content - ApiVariantSet[]
                               class test.pkg.MyRecord
                                      self - ApiVariantSet[public(C)]
+                                  content - ApiVariantSet[]
                                 constructor test.pkg.MyRecord(int)
                                        self - ApiVariantSet[public(C)]
+                                    content - ApiVariantSet[]
                                 method test.pkg.MyRecord.x()
                                        self - ApiVariantSet[public(C)]
+                                    content - ApiVariantSet[]
                         """,
                 )
             }
@@ -492,18 +527,25 @@ class CommonParameterizedSelectedApiTest : BaseModelTest() {
                         """
                             package test.pkg
                                    self - ApiVariantSet[public(CD)]
+                                content - ApiVariantSet[]
                               class test.pkg.DocOnlyClass
                                      self - ApiVariantSet[public(D)]
+                                  content - ApiVariantSet[]
                                 constructor test.pkg.DocOnlyClass()
                                        self - ApiVariantSet[public(D)]
+                                    content - ApiVariantSet[]
                                 method test.pkg.DocOnlyClass.method()
                                        self - ApiVariantSet[public(D)]
+                                    content - ApiVariantSet[]
                               class test.pkg.Test
                                      self - ApiVariantSet[public(C)]
+                                  content - ApiVariantSet[]
                                 constructor test.pkg.Test()
                                        self - ApiVariantSet[public(C)]
+                                    content - ApiVariantSet[]
                                 method test.pkg.Test.docOnlyMethod()
                                        self - ApiVariantSet[public(C)]
+                                    content - ApiVariantSet[]
                         """,
                 )
             }
@@ -534,18 +576,25 @@ class CommonParameterizedSelectedApiTest : BaseModelTest() {
                         """
                             package test.pkg
                                    self - ApiVariantSet[public(CR)]
+                                content - ApiVariantSet[]
                               class test.pkg.RemovedClass
                                      self - ApiVariantSet[public(R)]
+                                  content - ApiVariantSet[]
                                 constructor test.pkg.RemovedClass()
                                        self - ApiVariantSet[public(R)]
+                                    content - ApiVariantSet[]
                                 method test.pkg.RemovedClass.method()
                                        self - ApiVariantSet[public(R)]
+                                    content - ApiVariantSet[]
                               class test.pkg.Test
                                      self - ApiVariantSet[public(C)]
+                                  content - ApiVariantSet[]
                                 constructor test.pkg.Test()
                                        self - ApiVariantSet[public(C)]
+                                    content - ApiVariantSet[]
                                 method test.pkg.Test.removedMethod()
                                        self - ApiVariantSet[public(R)]
+                                    content - ApiVariantSet[]
                         """,
                 )
             }
@@ -578,18 +627,25 @@ class CommonParameterizedSelectedApiTest : BaseModelTest() {
                         """
                             package test.pkg
                                    self - ApiVariantSet[public(CR)]
+                                content - ApiVariantSet[]
                               class test.pkg.DocOnlyAndRemovedClass
                                      self - ApiVariantSet[public(R)]
+                                  content - ApiVariantSet[]
                                 constructor test.pkg.DocOnlyAndRemovedClass()
                                        self - ApiVariantSet[public(R)]
+                                    content - ApiVariantSet[]
                                 method test.pkg.DocOnlyAndRemovedClass.method()
                                        self - ApiVariantSet[public(R)]
+                                    content - ApiVariantSet[]
                               class test.pkg.Test
                                      self - ApiVariantSet[public(C)]
+                                  content - ApiVariantSet[]
                                 constructor test.pkg.Test()
                                        self - ApiVariantSet[public(C)]
+                                    content - ApiVariantSet[]
                                 method test.pkg.Test.docOnlyAndRemovedMethod()
                                        self - ApiVariantSet[public(R)]
+                                    content - ApiVariantSet[]
                         """,
                 )
             }
@@ -620,18 +676,25 @@ class CommonParameterizedSelectedApiTest : BaseModelTest() {
                         """
                             package test.pkg
                                    self - ApiVariantSet[public(CR)]
+                                content - ApiVariantSet[]
                               class test.pkg.RemovedClass
                                      self - ApiVariantSet[public(R)]
+                                  content - ApiVariantSet[]
                                 constructor test.pkg.RemovedClass()
                                        self - ApiVariantSet[public(R)]
+                                    content - ApiVariantSet[]
                                 method test.pkg.RemovedClass.method()
                                        self - ApiVariantSet[public(R)]
+                                    content - ApiVariantSet[]
                               class test.pkg.Test
                                      self - ApiVariantSet[public(C)]
+                                  content - ApiVariantSet[]
                                 constructor test.pkg.Test()
                                        self - ApiVariantSet[public(C)]
+                                    content - ApiVariantSet[]
                                 method test.pkg.Test.removedMethod()
                                        self - ApiVariantSet[public(R)]
+                                    content - ApiVariantSet[]
                         """,
                 )
             }

@@ -31,6 +31,9 @@ sealed class SelectedApi {
     /** The [ApiVariantSet] for the [SelectableItem]. */
     abstract var itemApiVariants: ApiVariantSet
 
+    /** The [ApiVariantSet] for child items. */
+    abstract var contentApiVariants: ApiVariantSet
+
     /**
      * The [SelectableItem] from the previously released API that matches this item, if this item is
      * to be reverted.
@@ -100,6 +103,8 @@ sealed class SelectedApi {
 /** A simple [SelectedApi] that just stores [itemApiVariants]. */
 private class SimpleSelectedApi : SelectedApi() {
     override var itemApiVariants = ApiVariantSet.EMPTY
+
+    override var contentApiVariants = ApiVariantSet.EMPTY
 
     override val revertItem: SelectableItem?
         get() = null
@@ -182,6 +187,8 @@ internal sealed class SourceSelectedApi<S : SelectableItem>(
      */
     override var itemApiVariants = ApiVariantSet.EMPTY
 
+    override var contentApiVariants = ApiVariantSet.EMPTY
+
     /**
      * The [ApiVariantSet] that will be inherited by [SelectableItem]s enclosed within [item].
      *
@@ -252,6 +259,8 @@ internal sealed class SourceSelectedApi<S : SelectableItem>(
         append(itemApiVariants.formatFor(selectedApiUpdater.apiSurfaces))
         append(", inheritableApiVariants=")
         append(inheritableApiVariants.formatFor(selectedApiUpdater.apiSurfaces))
+        append(", contentApiVariants=")
+        append(contentApiVariants.formatFor(selectedApiUpdater.apiSurfaces))
         append(", revert=")
         append(revert)
         append(", revertItem=")
@@ -266,13 +275,13 @@ private class PackageSelectedApi(
     item: PackageItem,
 ) : SourceSelectedApi<PackageItem>(selectedApiUpdater, item) {
     override fun itemSpecificInitialization() {
-
         updateFromSelectableItem()
 
         // Packages do not belong to an API surface in their own right. They belong to the union of
         // the API surfaces to which their contained classes belong. So, reset this to empty to
         // ignore the default values.
         itemApiVariants = ApiVariantSet.EMPTY
+        contentApiVariants = ApiVariantSet.EMPTY
 
         // At this point itemApiVariants has been set which means it is now safe to compute the
         // selectedApi for the contained classes which may access itemApiVariants.

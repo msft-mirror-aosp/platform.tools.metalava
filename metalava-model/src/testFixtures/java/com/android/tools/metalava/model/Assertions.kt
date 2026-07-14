@@ -127,6 +127,9 @@ interface Assertions {
                     append(
                         "$indent       self - ${selectedApi.itemApiVariants.formatFor(apiSurfaces)}\n"
                     )
+                    append(
+                        "$indent    content - ${selectedApi.contentApiVariants.formatFor(apiSurfaces)}\n"
+                    )
                     indent += "  "
                 }
 

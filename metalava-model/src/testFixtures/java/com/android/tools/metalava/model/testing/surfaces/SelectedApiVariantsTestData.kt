@@ -124,24 +124,34 @@ val selectedApiVariantsTestData =
                 """
                     package test.pkg
                            self - ApiVariantSet[main(CR)]
+                        content - ApiVariantSet[]
                       class test.pkg.Test
                              self - ApiVariantSet[main(CR)]
+                          content - ApiVariantSet[]
                         constructor test.pkg.Test()
                                self - ApiVariantSet[main(C)]
+                            content - ApiVariantSet[]
                         method test.pkg.Test.foo(int)
                                self - ApiVariantSet[main(C)]
+                            content - ApiVariantSet[]
                         field test.pkg.Test.field
                                self - ApiVariantSet[main(C)]
+                            content - ApiVariantSet[]
                         field test.pkg.Test.removed
                                self - ApiVariantSet[main(R)]
+                            content - ApiVariantSet[]
                         class test.pkg.Test.Nested
                                self - ApiVariantSet[main(C)]
+                            content - ApiVariantSet[]
                           constructor test.pkg.Test.Nested()
                                  self - ApiVariantSet[main(C)]
+                              content - ApiVariantSet[]
                         class test.pkg.Test.Removed
                                self - ApiVariantSet[main(R)]
+                            content - ApiVariantSet[]
                           constructor test.pkg.Test.Removed()
                                  self - ApiVariantSet[main(R)]
+                              content - ApiVariantSet[]
                 """,
         ),
         // A test consisting of a base and extending API.
@@ -219,30 +229,43 @@ val selectedApiVariantsTestData =
                 """
                     package test.pkg
                            self - ApiVariantSet[base(C),main(C)]
+                        content - ApiVariantSet[]
                       class test.pkg.Base
                              self - ApiVariantSet[base(C)]
+                          content - ApiVariantSet[]
                         constructor test.pkg.Base()
                                self - ApiVariantSet[base(C)]
+                            content - ApiVariantSet[]
                         method test.pkg.Base.baseMethod(int)
                                self - ApiVariantSet[base(C)]
+                            content - ApiVariantSet[]
                         field test.pkg.Base.baseField
                                self - ApiVariantSet[base(C)]
+                            content - ApiVariantSet[]
                       class test.pkg.Test
                              self - ApiVariantSet[base(C),main(C)]
+                          content - ApiVariantSet[]
                         constructor test.pkg.Test()
                                self - ApiVariantSet[base(C)]
+                            content - ApiVariantSet[]
                         method test.pkg.Test.baseMethod(int)
                                self - ApiVariantSet[base(C)]
+                            content - ApiVariantSet[]
                         method test.pkg.Test.method(int)
                                self - ApiVariantSet[main(C)]
+                            content - ApiVariantSet[]
                         field test.pkg.Test.baseField
                                self - ApiVariantSet[base(C)]
+                            content - ApiVariantSet[]
                         field test.pkg.Test.field
                                self - ApiVariantSet[main(C)]
+                            content - ApiVariantSet[]
                         class test.pkg.Test.Nested
                                self - ApiVariantSet[main(C)]
+                            content - ApiVariantSet[]
                           constructor test.pkg.Test.Nested()
                                  self - ApiVariantSet[main(C)]
+                              content - ApiVariantSet[]
                 """,
         )
     )
