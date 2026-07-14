@@ -34,7 +34,6 @@ import com.android.tools.metalava.model.testing.value.arrayValueFromAny
 import com.android.tools.metalava.model.testing.value.classObjectValue
 import com.android.tools.metalava.model.testing.value.fieldReferenceValue
 import com.android.tools.metalava.model.value.asInt
-import com.android.tools.metalava.testing.KnownSourceFiles
 import com.android.tools.metalava.testing.java
 import com.google.common.truth.Truth.assertThat
 import kotlin.test.assertEquals
@@ -1025,7 +1024,7 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
         val variantRules =
             listOf(
                 SurfaceSelectionRule.createAnnotationRule(
-                    "android.annotation.DocOnly",
+                    "test.annotation.DocOnly",
                     effect = SurfaceSelectionRule.Effect.DOC_ONLY,
                 ),
             )
@@ -1033,11 +1032,25 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
 
         runSourceCodebaseTest(
             inputSet(
-                KnownSourceFiles.docOnlyAnnotation,
+                // Define a custom DocOnly annotation with no @Target constraint so that it targets
+                // all element types. This is necessary because the test applies it to a field, and
+                // omitting the target constraint ensures that it is not dropped during annotation
+                // binding, allowing the models to behave consistently.
+                java(
+                    """
+                        package test.annotation;
+                        import java.lang.annotation.Retention;
+                        import java.lang.annotation.RetentionPolicy;
+
+                        @Retention(RetentionPolicy.SOURCE)
+                        public @interface DocOnly {
+                        }
+                    """
+                ),
                 java(
                     """
                         package test.pkg;
-                        import android.annotation.DocOnly;
+                        import test.annotation.DocOnly;
 
                         public class Test {
                             @DocOnly

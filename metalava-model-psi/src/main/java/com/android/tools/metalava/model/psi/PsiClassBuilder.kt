@@ -554,19 +554,40 @@ internal class PsiClassBuilder(
 
         // Create a type for the field, taking into account the modifiers, whether it is an
         // enum constant and whether the field's initial value is non-null.
+        val isInitialValueNonNull = {
+            // The initial value is non-null if the field initializer is a method that is annotated
+            // as being non-null so would produce a non-null value, or the value is a literal which
+            // is not null.
+            psiField.isFieldInitializerNonNull()
+        }
         val fieldType =
-            enclosingClassTypeItemFactory.getFieldType(
-                underlyingType = PsiTypeInfo(psiField.type, psiField),
-                itemAnnotations = modifiers.annotations(),
-                isEnumConstant = isEnumConstant,
-                isFinal = modifiers.isFinal(),
-                isInitialValueNonNull = {
-                    // The initial value is non-null if the field initializer is a method that
-                    // is annotated as being non-null so would produce a non-null value, or the
-                    // value is a literal which is not null.
-                    psiField.isFieldInitializerNonNull()
-                },
-            )
+            try {
+                enclosingClassTypeItemFactory.getFieldType(
+                    underlyingType = PsiTypeInfo(psiField.type, psiField),
+                    itemAnnotations = modifiers.annotations(),
+                    isEnumConstant = isEnumConstant,
+                    isFinal = modifiers.isFinal(),
+                    isInitialValueNonNull = isInitialValueNonNull,
+                )
+            } catch (e: IllegalStateException) {
+                // Workaround for b/529762241: the type from the UField is missing the class name
+                // and parameters when a property is initialized through an anonymous object,
+                // without an explicit type declaration.
+                val typeFromJavaPsi =
+                    ((psiField as? UField)?.javaPsi as? PsiField)?.type
+                        ?: throw IllegalStateException(
+                            "Failed to resolve field type for `${psiField.name}` in `${containingClass.qualifiedName()}`",
+                            e
+                        )
+                @Suppress("UElementAsPsi") // Necessary to work around UAST issue.
+                enclosingClassTypeItemFactory.getFieldType(
+                    underlyingType = PsiTypeInfo(typeFromJavaPsi, psiField),
+                    itemAnnotations = modifiers.annotations(),
+                    isEnumConstant = isEnumConstant,
+                    isFinal = modifiers.isFinal(),
+                    isInitialValueNonNull = isInitialValueNonNull,
+                )
+            }
 
         // Check to see whether the field could have a constant value.
         val couldHaveConstantValue =

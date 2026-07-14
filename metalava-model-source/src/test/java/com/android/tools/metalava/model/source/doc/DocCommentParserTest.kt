@@ -441,7 +441,6 @@ class DocCommentParserTest : BaseDocCommentTest() {
                 """
                     /**
                      * @serial some reason
-                     * @hide
                      * @throws
                      * @version current
                      * @author me
@@ -470,7 +469,6 @@ class DocCommentParserTest : BaseDocCommentTest() {
                 """
                     description: <<>>
                     @serial <<some reason>>
-                    @hide <<>>
                     @throws <<>>
                     @version <<current>>
                     @author <<me>>
@@ -516,7 +514,6 @@ class DocCommentParserTest : BaseDocCommentTest() {
                      * @serialData some other reason
                      * @serialField field name and type and explanation
                      * @deprecated
-                     * @hide
                      * @apiSince 12
                      * @sdkExtSince 7
                      * @mysterious
@@ -525,8 +522,7 @@ class DocCommentParserTest : BaseDocCommentTest() {
                 """,
             expectedIssues =
                 """
-                    3:5: Use of '@hide' to affect the API surface is deprecated [DeprecatedSurfaceDocTag]
-                    11:5: Cannot use 'inheritDoc' as a block tag [InvalidTagForm]
+                    10:5: Cannot use 'inheritDoc' as a block tag [InvalidTagForm]
                 """,
         )
     }

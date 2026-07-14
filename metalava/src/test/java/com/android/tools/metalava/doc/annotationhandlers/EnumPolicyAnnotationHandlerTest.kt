@@ -90,7 +90,6 @@ class EnumPolicyAnnotationHandlerTest : DriverTest() {
                         public class TestPolicy {
                         public TestPolicy() { throw new RuntimeException("Stub!"); }
                         /**
-                         * <p>Policy Type: Enum</p>
                          * <table>
                          *  <tr>
                          *    <th colspan="2">Policy details</th>
@@ -115,7 +114,7 @@ class EnumPolicyAnnotationHandlerTest : DriverTest() {
                          *  <tr>
                          *    <td>Policy value</td>
                          *    <td>
-                         *      <code>Integer</code>: Value is one of the following:
+                         *      <code>Integer</code>, value is one of the following:
                          *      <ul>
                          *        <li>{@link android.processor.devicepolicy.EnumPolicyValues#ENUM_POLICY_VALUE_1} (default)</li>
                          *        <li>{@link android.processor.devicepolicy.EnumPolicyValues#ENUM_POLICY_VALUE_2}</li>
@@ -192,7 +191,6 @@ class EnumPolicyAnnotationHandlerTest : DriverTest() {
                         public class TestPolicy {
                         public TestPolicy() { throw new RuntimeException("Stub!"); }
                         /**
-                         * <p>Policy Type: Enum</p>
                          * <table>
                          *  <tr>
                          *    <th colspan="2">Policy details</th>
@@ -221,7 +219,7 @@ class EnumPolicyAnnotationHandlerTest : DriverTest() {
                          *  <tr>
                          *    <td>Policy value</td>
                          *    <td>
-                         *      <code>Integer</code>: Value is one of the following:
+                         *      <code>Integer</code>, value is one of the following:
                          *      <ul>
                          *        <li>{@link android.processor.devicepolicy.EnumPolicyValues#ENUM_POLICY_VALUE_1} (default)</li>
                          *        <li>{@link android.processor.devicepolicy.EnumPolicyValues#ENUM_POLICY_VALUE_2}</li>
@@ -303,7 +301,6 @@ class EnumPolicyAnnotationHandlerTest : DriverTest() {
                         public class TestPolicy {
                         public TestPolicy() { throw new RuntimeException("Stub!"); }
                         /**
-                         * <p>Policy Type: Enum</p>
                          * <table>
                          *  <tr>
                          *    <th colspan="2">Policy details</th>
@@ -330,7 +327,7 @@ class EnumPolicyAnnotationHandlerTest : DriverTest() {
                          *  <tr>
                          *    <td>Policy value</td>
                          *    <td>
-                         *      <code>Integer</code>: Value is one of the following:
+                         *      <code>Integer</code>, value is one of the following:
                          *      <ul>
                          *        <li>{@link android.processor.devicepolicy.EnumPolicyValues#ENUM_POLICY_VALUE_1} (default)</li>
                          *        <li>{@link android.processor.devicepolicy.EnumPolicyValues#ENUM_POLICY_VALUE_2}</li>

@@ -196,6 +196,7 @@ object Issues {
     val INVALID_PACKAGE by Issue(Severity.ERROR)
     val UNRESOLVED_IMPORT by Issue(Severity.INFO)
     val HIDDEN_ABSTRACT_METHOD by Issue(Severity.ERROR, Category.API_LINT)
+    val HIDDEN_ABSTRACT_METHOD_IN_INTERFACE by Issue(Severity.HIDDEN, Category.API_LINT)
 
     // API lint
     val START_WITH_LOWER by Issue(Severity.ERROR, Category.API_LINT)
@@ -325,7 +326,6 @@ object Issues {
     val KMP_HIDE_SHOW_ANNOTATION_MISMATCH by Issue(Severity.ERROR, Category.API_LINT)
     val KMP_EXPERIMENTAL_MISMATCH by Issue(Severity.ERROR, Category.API_LINT)
     val KMP_REIFIED_MISMATCH by Issue(Severity.ERROR, Category.API_LINT)
-    val KMP_ORIGIN_MISMATCH by Issue(Severity.ERROR, Category.API_LINT)
     val KMP_SIGNATURE_CLASH by Issue(Severity.ERROR, Category.API_LINT)
 
     fun findIssueById(id: String?): Issue? {

@@ -69,7 +69,6 @@ data class ListOfStringPolicyDefinitionProxy(
             add(Pair("Policy value", renderPolicyValue("List<String>", policyValueValidations)))
         }
 
-        append("\n<p>Policy Type: List Of String</p>\n")
         append(renderTable(tableEntries))
     }
 }

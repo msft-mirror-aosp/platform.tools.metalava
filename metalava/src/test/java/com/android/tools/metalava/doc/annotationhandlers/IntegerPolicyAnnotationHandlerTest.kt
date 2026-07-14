@@ -90,7 +90,6 @@ class IntegerPolicyAnnotationHandlerTest : DriverTest() {
                         /**
                          * A test policy for integer policy definition with multiple scopes.
                          * <br>
-                         * <p>Policy Type: Integer</p>
                          * <table>
                          *  <tr>
                          *    <th colspan="2">Policy details</th>

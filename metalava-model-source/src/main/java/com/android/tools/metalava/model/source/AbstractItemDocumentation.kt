@@ -135,8 +135,16 @@ internal abstract class AbstractItemDocumentation(
     override val docTypeParser: DocTypeParser
         get() = DocTypeParser.create(reporter = this, item)
 
-    override val isRemoved
-        get() = hasBlockTagOfType("removed")
+    override val isRemoved: Boolean
+        get() {
+            // When API surfaces are configured in a configuration file, the Javadoc `@removed`
+            // block tag is ignored as a mechanism for removing elements. Instead, explicit
+            // annotations (e.g. `@android.annotation.RemovedFromApi`) must be used.
+            if (item.codebase.config.apiSurfacesConfigured) {
+                return false
+            }
+            return hasBlockTagOfType("removed")
+        }
 
     override fun hasBlockTagOfType(blockTagType: String) =
         docComment.hasBlockTagOfType(blockTagType)

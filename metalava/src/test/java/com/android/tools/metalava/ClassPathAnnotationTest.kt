@@ -25,7 +25,6 @@ import com.android.tools.metalava.testing.cacheIn
 import com.android.tools.metalava.testing.jarFromSources
 import com.android.tools.metalava.testing.java
 import kotlin.test.assertEquals
-import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 import org.junit.ClassRule
 import org.junit.Test
@@ -91,7 +90,7 @@ class ClassPathAnnotationTest : DriverTest() {
                 """
                     package test.pkg {
                       public class Test {
-                        method @RequiresPermission(test.jar.Constants.STRING_CONSTANT) public void method();
+                        method @RequiresPermission("Constant") public void method();
                       }
                     }
                 """,
@@ -99,8 +98,15 @@ class ClassPathAnnotationTest : DriverTest() {
             codebase ?: error("No code base")
             val field =
                 codebase.assertResolvedClass("test.jar.Constants").assertField("STRING_CONSTANT")
-            assertEquals(Showability.NO_EFFECT, field.showability)
-            assertFalse(field.hidden)
+            assertEquals(
+                Showability(
+                    show = ShowOrHide.HIDE,
+                    recursive = ShowOrHide.HIDE,
+                    forStubsOnly = ShowOrHide.NO_EFFECT,
+                ),
+                field.showability
+            )
+            assertTrue(field.hidden)
         }
     }
 
