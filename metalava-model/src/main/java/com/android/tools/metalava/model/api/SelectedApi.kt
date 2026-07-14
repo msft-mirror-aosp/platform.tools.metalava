@@ -251,7 +251,7 @@ internal sealed class SourceSelectedApi<S : SelectableItem>(
     /** Propagate the variants from a [child] to this parent item. */
     fun propagateFromChild(child: SourceSelectedApi<*>) {
         val childVariants = child.itemApiVariants
-        itemApiVariants += childVariants
+        contentApiVariants += childVariants
     }
 
     override fun toString() = buildString {
