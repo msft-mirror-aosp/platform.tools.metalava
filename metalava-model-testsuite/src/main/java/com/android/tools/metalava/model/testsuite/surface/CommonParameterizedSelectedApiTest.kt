@@ -249,7 +249,7 @@ class CommonParameterizedSelectedApiTest : BaseModelTest() {
                                      self - ApiVariantSet[]
                                   content - ApiVariantSet[]
                                 method test.Hidden.method()
-                                       self - ApiVariantSet[public(C)]
+                                       self - ApiVariantSet[]
                                     content - ApiVariantSet[]
                         """,
                 )
@@ -766,7 +766,6 @@ class CommonParameterizedSelectedApiTest : BaseModelTest() {
             ) {
                 surfaceTest(
                     surface = "system",
-                    // TODO(b/512093496): This is wrong as the systemMethod() should be hidden.
                     expected =
                         """
                             package test.pkg
@@ -779,7 +778,7 @@ class CommonParameterizedSelectedApiTest : BaseModelTest() {
                                        self - ApiVariantSet[]
                                     content - ApiVariantSet[]
                                 method test.pkg.Test.systemMethod()
-                                       self - ApiVariantSet[system(C)]
+                                       self - ApiVariantSet[]
                                     content - ApiVariantSet[]
                         """,
                 )

@@ -96,6 +96,13 @@ class SelectedApiUpdater(
             return
         }
 
+        // If the parent needs to hide its children then mark this child as hidden and return
+        // immediately.
+        if (parent.areChildrenCompletelyHidden()) {
+            selectedApi.markAsHidden(revert = false)
+            return
+        }
+
         // Mark selectedApi as accessible so that enclosed items can inherit accessibility from it.
         selectedApi.accessible = true
 

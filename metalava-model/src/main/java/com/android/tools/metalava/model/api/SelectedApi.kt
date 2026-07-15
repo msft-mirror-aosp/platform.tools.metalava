@@ -254,6 +254,15 @@ internal sealed class SourceSelectedApi<S : SelectableItem>(
         contentApiVariants += childVariants
     }
 
+    /**
+     * Returns whether the children of this [SourceSelectedApi] are completely hidden, i.e. in all
+     * API surfaces.
+     *
+     * If it returns `true` then all the children of the [item] will be marked as hidden in all API
+     * surfaces.
+     */
+    abstract fun areChildrenCompletelyHidden(): Boolean
+
     override fun toString() = buildString {
         append("SourceSelectedApi(")
 
@@ -289,6 +298,12 @@ private class PackageSelectedApi(
         itemApiVariants = ApiVariantSet.EMPTY
         contentApiVariants = ApiVariantSet.EMPTY
     }
+
+    /**
+     * A package never hides its children (i.e. classes) as a package's API variants is the union of
+     * all its children classes' API variants.
+     */
+    override fun areChildrenCompletelyHidden() = false
 }
 
 /** Base [SelectedApi] class for source [ClassItem]s. */
@@ -307,6 +322,8 @@ private class ClassSelectedApi(
             parent.propagateFromChild(this)
         }
     }
+
+    override fun areChildrenCompletelyHidden() = itemApiVariants.isEmpty()
 }
 
 /** Base [SelectedApi] class for source [MemberItem]s. */
@@ -319,6 +336,9 @@ private open class MemberSelectedApi<M : MemberItem>(
     override fun itemSpecificInitialization() {
         updateFromSelectableItem()
     }
+
+    override fun areChildrenCompletelyHidden() =
+        throw NotImplementedError("class members do not have any children")
 }
 
 /**
