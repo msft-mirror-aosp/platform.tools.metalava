@@ -246,6 +246,74 @@ class CommonParameterizedSelectedApiTest : BaseModelTest() {
                         """,
                 )
             }
+
+            buildTests(
+                name = "public class in package private class",
+                surfaceRules = publicSystemModuleRules,
+                sources =
+                    listOf(
+                        java(
+                            """
+                                package test.pkg;
+                                class Outer {
+                                    public class Inner {
+                                        public Inner() {}
+                                        public void method() {}
+                                    }
+                                }
+                            """
+                        ),
+                    ),
+            ) {
+                // TODO: Fix incorrect behavior where an inaccessible class is selected as part of
+                // an API.
+                surfaceTest(
+                    surface = "public",
+                    expected =
+                        """
+                            package test.pkg - ApiVariantSet[public(C)]
+                              class test.pkg.Outer - ApiVariantSet[public(C)]
+                                constructor test.pkg.Outer() - ApiVariantSet[public(C)]
+                                class test.pkg.Outer.Inner - ApiVariantSet[public(C)]
+                                  constructor test.pkg.Outer.Inner() - ApiVariantSet[public(C)]
+                                  method test.pkg.Outer.Inner.method() - ApiVariantSet[public(C)]
+                        """,
+                )
+            }
+
+            buildTests(
+                name = "package private class in public class",
+                surfaceRules = publicSystemModuleRules,
+                sources =
+                    listOf(
+                        java(
+                            """
+                                package test.pkg;
+                                public class Outer {
+                                    class Inner {
+                                        public Inner() {}
+                                        public void method() {}
+                                    }
+                                }
+                            """
+                        ),
+                    ),
+            ) {
+                // TODO: Fix incorrect behavior where an inaccessible class is selected as part of
+                // an API.
+                surfaceTest(
+                    surface = "public",
+                    expected =
+                        """
+                            package test.pkg - ApiVariantSet[public(C)]
+                              class test.pkg.Outer - ApiVariantSet[public(C)]
+                                constructor test.pkg.Outer() - ApiVariantSet[public(C)]
+                                class test.pkg.Outer.Inner - ApiVariantSet[public(C)]
+                                  constructor test.pkg.Outer.Inner() - ApiVariantSet[public(C)]
+                                  method test.pkg.Outer.Inner.method() - ApiVariantSet[public(C)]
+                        """,
+                )
+            }
         }
     }
 
