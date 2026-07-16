@@ -86,7 +86,12 @@ internal class DefaultFieldItem(
                 isEnumConstant = isEnumConstant,
                 constantValueProvider = constantValueProvider,
             )
-            .also { duplicated -> duplicated.inheritedFrom = containingClass() }
+            .also { duplicated ->
+                duplicated.inheritedFrom = containingClass()
+
+                // Make sure that the deprecated status is set correctly.
+                duplicated.updateDeprecatedFromJavadocIfNeeded()
+            }
 
     override val constantValue
         get() = constantValueProvider?.optionalValue?.let { it as ConstantValue }

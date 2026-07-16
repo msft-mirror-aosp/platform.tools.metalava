@@ -40,10 +40,11 @@ Api Selection:
   --api-surface <surface>                    The API surface currently being generated. Must correspond to an
                                              <api-surface> element in a --config-file.
   --show-unannotated                         Include un-annotated public APIs in the signature file as well. (default:
-                                             true if no --show*-annotation options specified)
+                                             true if no --show*-annotation options specified) (deprecated)
   --show-annotation <annotation-filter>      Unhide any hidden elements that are also annotated with the given
-                                             annotation.
+                                             annotation. (deprecated)
   --hide-annotation <annotation-filter>      Treat any elements annotated with the given annotation as hidden.
+                                             (deprecated)
   --exclude-annotation <annotation-classes>  A comma separated list of fully qualified names of annotation classes that
                                              must be stripped from metalava's outputs.
   --pass-through-annotation <annotation-classes>

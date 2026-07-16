@@ -37,12 +37,6 @@ class ApiSurfaceSelector(
     /** True if this has any annotations that can hide a [SelectableItem] from the public API. */
     val hasAnyHideAnnotations: Boolean
 
-    /** True if this has any annotations that mark a [SelectableItem] as doc-only. */
-    val hasAnyDocOnlyAnnotations: Boolean
-
-    /** True if this has any annotations that mark a [SelectableItem] as removed. */
-    val hasAnyRemovedAnnotations: Boolean
-
     /**
      * Associates an annotation pattern, e.g. `--show-annotation android.annotation.TestApi` with
      * its [SurfaceAnnotationData].
@@ -59,8 +53,6 @@ class ApiSurfaceSelector(
         var unannotatedSurface: ApiSurface? = null
         var hasShowForStubs = false
         var hasHideAnnotations = false
-        var hasDocOnlyAnnotations = false
-        var hasRemovedAnnotations = false
 
         val matcherRules = buildList {
             fun addMatcherRule(
@@ -135,14 +127,9 @@ class ApiSurfaceSelector(
                     error("$rule is not a SelectAnnotated")
                 }
 
-                val effect = rule.effect
-                when (effect) {
-                    Effect.DOC_ONLY -> {
-                        hasDocOnlyAnnotations = true
-                    }
-                    Effect.REMOVED -> {
-                        hasRemovedAnnotations = true
-                    }
+                when (val effect = rule.effect) {
+                    Effect.DOC_ONLY -> {}
+                    Effect.REMOVED -> {}
                     else -> {
                         error("Unsupported effect $effect in variant $rule")
                     }
@@ -163,8 +150,6 @@ class ApiSurfaceSelector(
         showUnannotated = unannotatedSurface?.isMain == true
 
         hasAnyHideAnnotations = hasHideAnnotations
-        hasAnyDocOnlyAnnotations = hasDocOnlyAnnotations
-        hasAnyRemovedAnnotations = hasRemovedAnnotations
         hasAnyShowForStubPurposesAnnotations = hasShowForStubs
         unannotatedApiSurface = unannotatedSurface
     }
@@ -259,7 +244,12 @@ class ApiSurfaceSelector(
     }
 }
 
-/** Associates a list of [SurfaceSelectionRule]s with each [ApiSurface] in [ApiSurfaces.all]. */
+/**
+ * Associates a list of [SurfaceSelectionRule]s with each [ApiSurface] in [ApiSurfaces.all].
+ *
+ * @property variantRules variant rules (such as doc-only and removed) that are applicable across
+ *   all surfaces.
+ */
 class ApiSurfaceRules(
     val apiSurfaces: ApiSurfaces,
     private val byName: Map<String, List<SurfaceSelectionRule>>,
@@ -330,7 +320,7 @@ class ApiSurfaceRules(
                 }
                 .toMap()
 
-        return ApiSurfaceRules(apiSurfaces, subsetRules)
+        return ApiSurfaceRules(apiSurfaces, subsetRules, variantRules)
     }
 
     companion object {
