@@ -146,8 +146,9 @@ class CommonItemDocumentationTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
-    fun `Test accessing documentation comment before inline comment - bug 391104222`() {
+    fun `Test accessing documentation comment before inline comment - bug 391104222 - java`() {
         runCodebaseTest(
             java(
                 """
@@ -171,6 +172,22 @@ class CommonItemDocumentationTest : BaseModelTest() {
                     }
                 """
             ),
+        ) {
+            val testClass = codebase.assertClass("test.pkg.Test")
+            testClass.assertPrintedDocumentation(expectedOutput = "/** Doc */", message = "class")
+
+            val testMethod = testClass.methods().last()
+            testMethod.assertPrintedDocumentation(
+                expectedOutput = "/** Method Doc */",
+                message = "method"
+            )
+        }
+    }
+
+    @SupportedInputFormats(InputFormat.KOTLIN)
+    @Test
+    fun `Test accessing documentation comment before inline comment - bug 391104222 - kotlin`() {
+        runCodebaseTest(
             kotlin(
                 """
                     package test.pkg
