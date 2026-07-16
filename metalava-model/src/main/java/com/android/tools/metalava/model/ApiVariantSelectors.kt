@@ -59,8 +59,8 @@ sealed class ApiVariantSelectors {
     /**
      * Indicates whether the [Item] should be included in the doc only API surface variant.
      *
-     * Initially set to `true` if the [SelectableItem.documentation] contains `@doconly` but updated
-     * due to inheritance.
+     * Initially set to `true` if the [SelectableItem.documentation] contains an
+     * `<api-surfaces>/<doc-only>` configured annotation. Updated due to inheritance.
      */
     abstract val docOnly: Boolean
 
@@ -163,9 +163,11 @@ sealed class ApiVariantSelectors {
      * Unless [hidden] is written before reading then it will default to `true` if
      * [originallyHidden] is `true` and it does not have any show annotations.
      *
-     * [docOnly] will be initialized to `true` if it's [item]'s documentation contains `@doconly`.
+     * [docOnly] will be initialized to `true` if its [item]'s documentation contains an
+     * `<api-surfaces>/<doc-only>` configured annotation.
      *
-     * [removed] will be initialized to `true` if it's [item]'s documentation contains `@removed`.
+     * [removed] will be initialized to `true` if its [item]'s documentation contains `@removed` or
+     * an `<api-surfaces>/<removed>` configured annotation.
      *
      * This uses bits in [propertyHasBeenSetBits] and [propertyValueBits] to handle lazy
      * initialization and store the value. The main purpose of using bit masks is not primarily
@@ -322,8 +324,7 @@ sealed class ApiVariantSelectors {
                 lazyGet(DOCONLY_BIT_MASK) {
                     (item.parent()?.variantSelectors?.docOnly == true) ||
                         // Check if the item is annotated with a configured doc-only annotation.
-                        item.codebase.annotationManager.hasDocOnlyAnnotation(item) ||
-                        item.documentation?.isDocOnly == true
+                        item.selectedApi.hasDocOnlyAnnotation()
                 }
 
         override var removed: Boolean
@@ -331,7 +332,7 @@ sealed class ApiVariantSelectors {
                 lazyGet(REMOVED_BIT_MASK) {
                     (item.parent()?.variantSelectors?.removed == true) ||
                         // Check if the item is annotated with a configured removed annotation.
-                        item.codebase.annotationManager.hasRemovedAnnotation(item) ||
+                        item.selectedApi.hasRemovedAnnotation() ||
                         item.documentation?.isRemoved == true
                 }
             // This is only used for testing.
@@ -376,14 +377,19 @@ sealed class ApiVariantSelectors {
             if (item is PackageItem) {
                 showability.let { showability ->
                     when {
+                        // If this package is explicitly shown, its contents are not hidden.
                         showability.show() -> inheritableHidden = false
+                        // If this package is explicitly hidden, its contents are hidden.
                         showability.hide() -> inheritableHidden = true
+                        // Otherwise, inherit the hidden status from the parent package.
+                        else -> {
+                            val containingPackageSelectors =
+                                item.containingPackage()?.variantSelectors
+                            if (containingPackageSelectors?.inheritableHidden == true) {
+                                inheritableHidden = true
+                            }
+                        }
                     }
-                }
-                val containingPackageSelectors =
-                    item.containingPackage()?.variantSelectors ?: return
-                if (containingPackageSelectors.inheritableHidden) {
-                    inheritableHidden = true
                 }
                 return
             }
@@ -687,31 +693,9 @@ sealed class ApiVariantSelectors {
 /**
  * Check to see whether this [SelectableItem] was originally hidden, i.e. either had `@hide` block
  * tag in the documentation or was annotated with a hide annotation.
- *
- * @see canBeHidden
  */
 private fun SelectableItem.wasOriginallyHidden(): Boolean =
-    canBeHidden() && (documentation?.isHidden == true || hasHideAnnotation())
-
-/**
- * Check whether this item can be hidden.
- *
- * Items from the class path should not be hidden as any information that it might contain is likely
- * to be inconsistent, i.e. missing `@hide` doc tags, show/hide annotations with source only
- * retention.
- *
- * TODO(b/510724278): Remove this workaround.
- */
-internal fun SelectableItem.canBeHidden() =
-    codebase.config.hideItemsOnClassPath || !isFromClassPath()
-
-/**
- * Check whether this is from the class path.
- *
- * Always returns `false` for [PackageItem]s as they can be split across sources and class path.
- */
-private fun SelectableItem.isFromClassPath() =
-    this is ClassContentItem && origin == ClassOrigin.CLASS_PATH
+    documentation?.isHidden == true || hasHideAnnotation()
 
 /** Compute the [Showability] of this [SelectableItem]. */
 private fun SelectableItem.computeShowability(): Showability =

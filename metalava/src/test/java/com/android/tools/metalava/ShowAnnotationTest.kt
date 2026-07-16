@@ -21,6 +21,7 @@ import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.testing.RequiresCapabilities
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.reporter.Issues
+import com.android.tools.metalava.testing.KnownSourceFiles
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
 import com.android.tools.metalava.testing.xml
@@ -82,6 +83,7 @@ class ShowAnnotationTest : DriverTest() {
             apiSurface = KnownApiSurface.SYSTEM_WITH_PUBLIC,
             sourceFiles =
                 arrayOf(
+                    KnownSourceFiles.hideAnnotation,
                     java(
                         """
                     package test.pkg;
@@ -95,9 +97,7 @@ class ShowAnnotationTest : DriverTest() {
                         @SystemApi
                         public void method2() { }
 
-                        /**
-                         * @hide Always hidden
-                         */
+                        @android.annotation.Hide
                         public void method3() { }
                     }
                     """
@@ -920,6 +920,48 @@ class ShowAnnotationTest : DriverTest() {
                             .trimIndent()
                     ),
                 ),
+        )
+    }
+
+    @Test
+    fun `Show annotation on sub-package package-info is respected when parent package is hidden`() {
+        // A show annotation on a sub-package's package-info is respected even if the parent package
+        // is annotated with a hide annotation.
+        check(
+            apiSurface = KnownApiSurface.SYSTEM,
+            sourceFiles =
+                arrayOf(
+                    KnownSourceFiles.hideAnnotation,
+                    java(
+                        """
+                            @android.annotation.Hide
+                            package test.pkg;
+                        """
+                    ),
+                    java(
+                        """
+                            @android.annotation.SystemApi
+                            package test.pkg.sub;
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg.sub;
+                            public class Foo {
+                                public void bar() {}
+                            }
+                        """
+                    ),
+                ),
+            expectedApiSignature =
+                """
+                    package test.pkg.sub {
+                      public class Foo {
+                        ctor public Foo();
+                        method public void bar();
+                      }
+                    }
+                """,
         )
     }
 }

@@ -19,6 +19,7 @@ package com.android.tools.metalava.lint
 import com.android.tools.lint.checks.infrastructure.TestFile
 import com.android.tools.lint.checks.infrastructure.TestFiles.base64gzip
 import com.android.tools.metalava.DriverTest
+import com.android.tools.metalava.model.ClassOrigin
 import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.testing.RequiresCapabilities
 import com.android.tools.metalava.reporter.Issues
@@ -695,12 +696,32 @@ class MultiplatformLintTest : DriverTest() {
                 ),
             enableMultiplatform = true,
             apiLint = "", // enabled
-            expectedIssues =
-                """
-                androidMain/src/test/pkg/Mismatch.kt:2: error: multiplatform class test.pkg.Mismatch has different origins in different source sets: COMMAND_LINE in [androidMain], CLASS_PATH in [jvmMain] [KmpOriginMismatch]
-                """,
         ) {
-            multiplatformCodebase!!.resolveClass("test.pkg.Mismatch")
+            // Because lint is run on top level classes from source, the mismatch issue doesn't end
+            // up reported.
+            val className = "test.pkg.Mismatch"
+            val pkg = multiplatformCodebase!!.findPackage("test.pkg")!!
+            val mismatchInitial = pkg.topLevelClasses().single { it.qualifiedName == className }
+            mismatchInitial.assertSourceSets("androidMain")
+            mismatchInitial.origin.assertSourceSetValues(
+                "androidMain" to ClassOrigin.COMMAND_LINE,
+            )
+
+            multiplatformCodebase.resolveClass(className)
+            val mismatchAfterResolve =
+                pkg.topLevelClasses().single { it.qualifiedName == className }
+            mismatchAfterResolve.assertSourceSets("androidMain", "jvmMain")
+            mismatchAfterResolve.origin.assertSourceSetValues(
+                "androidMain" to ClassOrigin.COMMAND_LINE,
+                "jvmMain" to ClassOrigin.CLASS_PATH
+            )
+
+            val mismatchFromSource =
+                pkg.topLevelClassesFromSource.single { it.qualifiedName == className }
+            mismatchFromSource.assertSourceSets("androidMain")
+            mismatchFromSource.origin.assertSourceSetValues(
+                "androidMain" to ClassOrigin.COMMAND_LINE,
+            )
         }
     }
 

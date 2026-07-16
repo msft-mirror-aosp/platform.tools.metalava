@@ -250,12 +250,32 @@ class MultiplatformPackageItem(
         visitor.visit(this)
     }
 
-    /** All the top-level (not nested) classes defined in this package in any source set. */
+    /**
+     * All the top-level (not nested) classes defined in this package in any source set, not
+     * including classes loaded from the classpath.
+     */
+    val topLevelClassesFromSource: List<MultiplatformClassItem> = aggregateClasses {
+        topLevelClasses().filter { it.origin == ClassOrigin.COMMAND_LINE }
+    }
+
+    /**
+     * All the top-level (not nested) classes defined in this package in any source set, including
+     * classes loaded from the classpath.
+     *
+     * This is a snapshot of the classes in this package and will not be affected by any additional
+     * classes added to the package after the list is returned.
+     */
     fun topLevelClasses(): List<MultiplatformClassItem> {
+        return aggregateClasses { topLevelClasses() }
+    }
+
+    private fun aggregateClasses(
+        classAccessor: PackageItem.() -> List<ClassItem>
+    ): List<MultiplatformClassItem> {
         return aggregateChildren(
             // Do not include file facade classes. Their members will be listed in
             // [topLevelFunctions] and [topLevelProperties].
-            childAccessor = { topLevelClasses().filter { !it.isFileFacade } },
+            childAccessor = { classAccessor().filter { !it.isFileFacade } },
             childIdentifier = { qualifiedName() },
             multiplatformChildCreator = { qualifiedName, sourceSetToClassItem ->
                 MultiplatformClassItem(qualifiedName, sourceSetToClassItem)

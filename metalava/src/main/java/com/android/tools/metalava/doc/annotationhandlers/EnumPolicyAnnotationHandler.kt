@@ -69,7 +69,7 @@ data class EnumPolicyDefinitionProxy(
             }
             if (enumValueToCodeReference.isNotEmpty()) {
                 val valuesDoc = buildString {
-                    append("<code>Integer</code>: Value is one of the following:\n")
+                    append("<code>Integer</code>, value is one of the following:\n")
                     append("<ul>\n")
                     enumValueToCodeReference.entries.forEach { entry ->
                         if (entry.key == defaultValue) {
@@ -91,10 +91,7 @@ data class EnumPolicyDefinitionProxy(
             }
         }
 
-        return buildString {
-            append("\n<p>Policy Type: Enum</p>\n")
-            append(renderTable(tableEntries))
-        }
+        return buildString { append(renderTable(tableEntries)) }
     }
 
     /**

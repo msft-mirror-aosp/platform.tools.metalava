@@ -24,6 +24,7 @@ import com.android.tools.metalava.model.testing.RequiresCapabilities
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.testing.KnownSourceFiles
+import com.android.tools.metalava.testing.KnownSourceFiles.hideAnnotation
 import com.android.tools.metalava.testing.KnownSourceFiles.systemApiSource
 import com.android.tools.metalava.testing.createAndroidModuleDescription
 import com.android.tools.metalava.testing.createCommonModuleDescription
@@ -139,6 +140,41 @@ class ApiAnalyzerTest : DriverTest() {
                     ),
                     systemApiSource
                 )
+        )
+    }
+
+    @RequiresCapabilities(Capability.KOTLIN)
+    @Test
+    fun `Hidden abstract method in interface for public API`() {
+        check(
+            extraArguments = errorIssues(Issues.HIDDEN_ABSTRACT_METHOD_IN_INTERFACE),
+            hideAnnotations = arrayOf("android.annotation.Hide"),
+            expectedIssues =
+                """
+                src/test/pkg/Interface.kt:6: error: errorAbstract cannot be hidden and abstract when Interface is a non-sealed interface, in case a third-party attempts to subclass it. [HiddenAbstractMethodInInterface]
+                """,
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
+                        package test.pkg;
+                        import android.annotation.Hide;
+
+                        interface Interface {
+                            @Hide
+                            fun errorAbstract(): Int
+                            @Hide
+                            fun okDefault(): Int = 0
+                        }
+
+                        sealed interface SealedInterface {
+                            @Hide
+                            fun okAbstract(): Int
+                        }
+                        """
+                    ),
+                    hideAnnotation
+                ),
         )
     }
 
@@ -642,12 +678,13 @@ class ApiAnalyzerTest : DriverTest() {
             apiSurface = KnownApiSurface.SYSTEM_WITH_PUBLIC,
             sourceFiles =
                 arrayOf(
+                    KnownSourceFiles.hideAnnotation,
                     // Package "test.a" is hidden but "test.a.B" os marked with a show annotation so
                     // that should cause "test.a" to be unhidden. However, "test.a.C" should still
                     // be hidden as it inherits that from "test.a".
                     java(
                         """
-                            /** @hide */
+                            @android.annotation.Hide
                             package test.a;
                         """
                     ),

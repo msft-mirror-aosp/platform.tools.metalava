@@ -29,6 +29,12 @@ sealed class SelectedApi {
     /** The [ApiVariantSet] for the [SelectableItem]. */
     abstract var itemApiVariants: ApiVariantSet
 
+    /** Checks to see if the associated [SelectableItem] contains any doconly annotations. */
+    open fun hasDocOnlyAnnotation(): Boolean = false
+
+    /** Checks to see if the associated [SelectableItem] contains any removed annotations. */
+    open fun hasRemovedAnnotation(): Boolean = false
+
     /**
      * Initialize this instance.
      *
@@ -57,6 +63,7 @@ sealed class SelectedApi {
             // SelectedApi instances in the Codebase that uses tha factory.
             val selectedApiUpdater =
                 SelectedApiUpdater(
+                    config.reporter,
                     apiSurfaceSelector,
                 )
             return { item -> createFromSource(selectedApiUpdater, item) }
@@ -111,6 +118,22 @@ internal sealed class SourceSelectedApi<S : SelectableItem>(
     protected lateinit var parent: SourceSelectedApi<*>
 
     /**
+     * Indicates whether the associated [SelectableItem] has a doc only annotation.
+     *
+     * Initialized by [SelectedApiUpdater.updateSelectedApi] called from [updateFromSelectableItem].
+     */
+    var docOnly: Boolean = false
+        internal set
+
+    /**
+     * Indicates whether the associated [SelectableItem] has a removed annotation.
+     *
+     * Initialized by [SelectedApiUpdater.updateSelectedApi] called from [updateFromSelectableItem].
+     */
+    var removed: Boolean = false
+        internal set
+
+    /**
      * The [ApiVariantSet] for the [item].
      *
      * This is initialized in [initialize] which must have been called and which must initialize
@@ -131,6 +154,12 @@ internal sealed class SourceSelectedApi<S : SelectableItem>(
      *   the aggregate of all its classes.
      */
     var inheritableApiVariants = ApiVariantSet.EMPTY
+
+    /** Checks to see if the associated [SelectableItem] contains any doconly annotations. */
+    override fun hasDocOnlyAnnotation() = docOnly
+
+    /** Checks to see if the associated [SelectableItem] contains any removed annotations. */
+    override fun hasRemovedAnnotation() = removed
 
     final override fun initialize() {
         // Initialize the parent first.
