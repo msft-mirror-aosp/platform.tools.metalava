@@ -1047,6 +1047,72 @@ class CommonTypeItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
+    @Test
+    fun `Test inner type when using an anonymous object initializer`() {
+        // Regression test for b/529762241
+        runCodebaseTest(
+            kotlin(
+                """
+                package test.pkg
+                class SomeClass {
+                    val callbackWithType: Callback.Stub = object : Callback.Stub() {}
+                    val callbackWithoutType = object : Callback.Stub() {}
+                }
+                interface Callback {
+                    abstract class Stub
+                }
+                """
+            )
+        ) {
+            val someClass = codebase.assertClass("test.pkg.SomeClass")
+            val callbackWithType = someClass.assertProperty("callbackWithType").type()
+            callbackWithType.assertClassTypeItem {
+                assertThat(className).isEqualTo("Stub")
+                assertThat(qualifiedName).endsWith("test.pkg.Callback.Stub")
+                assertThat(outerClassType).isNotNull()
+                assertThat(outerClassType!!.qualifiedName).isEqualTo("test.pkg.Callback")
+            }
+            val callbackWithoutType = someClass.assertProperty("callbackWithoutType").type()
+            callbackWithoutType.assertClassTypeItem {
+                assertThat(className).isEqualTo("Stub")
+                assertThat(qualifiedName).endsWith("test.pkg.Callback.Stub")
+                assertThat(outerClassType).isNotNull()
+                assertThat(outerClassType!!.qualifiedName).isEqualTo("test.pkg.Callback")
+            }
+        }
+    }
+
+    @SupportedInputFormats(InputFormat.KOTLIN)
+    @Test
+    fun `Test using an anonymous object initializer with multiple supertypes`() {
+        // Regression test for b/529762241
+        runCodebaseTest(
+            kotlin(
+                """
+                package test.pkg
+                class SomeClass {
+                    // The compiler doesn't actually allow this (`Right-hand side has an anonymous
+                    // type. Specify the type explicitly.`). It is allowed if the property is
+                    // private, but then metalava doesn't create the field.
+                    val multipleInterfaces = object : A, B, C {}
+                }
+                interface A
+                interface B
+                interface C
+                """
+            )
+        ) {
+            val someClass = codebase.assertClass("test.pkg.SomeClass")
+            val multipleInterfaces = someClass.assertProperty("multipleInterfaces").type()
+            // Psi selects the first type implemented
+            multipleInterfaces.assertClassTypeItem {
+                assertThat(className).isEqualTo("A")
+                assertThat(qualifiedName).endsWith("test.pkg.A")
+            }
+        }
+    }
+
     @Test
     fun `Test superclass and interface types using type variables`() {
         runCodebaseTest(

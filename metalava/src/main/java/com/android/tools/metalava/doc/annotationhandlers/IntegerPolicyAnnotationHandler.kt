@@ -60,7 +60,6 @@ data class IntegerPolicyDefinitionProxy(
             add(Pair("Policy value", renderPolicyValue("Integer", policyValueValidations)))
         }
 
-        append("\n<p>Policy Type: Integer</p>\n")
         append(renderTable(tableEntries))
     }
 }

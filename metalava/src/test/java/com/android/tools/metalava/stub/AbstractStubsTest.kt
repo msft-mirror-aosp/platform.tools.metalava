@@ -20,6 +20,7 @@ import com.android.tools.lint.checks.infrastructure.TestFile
 import com.android.tools.metalava.DEFAULT_SKIP_EMIT_PACKAGES
 import com.android.tools.metalava.DriverTest
 import com.android.tools.metalava.cli.common.TestEnvironment
+import com.android.tools.metalava.model.api.surface.ApiVariantType
 import com.android.tools.metalava.model.text.FORMAT_V5_WITH_JAVA_STYLE
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.testing.java
@@ -56,8 +57,8 @@ abstract class AbstractStubsTest : DriverTest() {
 
         /**
          * Whether the stubs should be written as documentation stubs instead of plain stubs.
-         * Decides whether the stubs include @doconly elements, uses rewritten/migration
-         * annotations, etc
+         * Decides whether the stubs include [ApiVariantType.DOC_ONLY] items, uses
+         * rewritten/migration annotations, etc
          */
         docStubs: Boolean = false,
 

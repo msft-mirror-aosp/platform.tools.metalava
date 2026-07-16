@@ -35,6 +35,7 @@ import com.android.tools.metalava.model.api.surface.ApiSurface.Contents
 import com.android.tools.metalava.model.api.surface.ApiSurfaces
 import com.github.ajalt.clikt.parameters.groups.OptionGroup
 import com.github.ajalt.clikt.parameters.options.default
+import com.github.ajalt.clikt.parameters.options.deprecated
 import com.github.ajalt.clikt.parameters.options.multiple
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.options.switch
@@ -53,6 +54,10 @@ const val ARG_PASS_THROUGH_ANNOTATION = "--pass-through-annotation"
 const val ARG_SUPPRESS_COMPATIBILITY_META_ANNOTATION = "--suppress-compatibility-meta-annotation"
 
 const val ARG_TYPEDEFS_IN_SIGNATURES = "--typedefs-in-signatures"
+
+const val DEPRECATED_API_SURFACE_OPTION_MESSAGE =
+    "This option is deprecated. Use a configuration file and --api-surface instead. " +
+        "See `metalava help api-surfaces` for details."
 
 /** The name of the group, can be used in help text to refer to the options in this group. */
 const val API_SELECTION_OPTIONS_GROUP = "Api Selection"
@@ -117,6 +122,7 @@ class ApiSelectionOptions(
                 ShowUnannotated.UNSPECIFIED,
                 defaultForHelp = "true if no --show*-annotation options specified",
             )
+            .deprecated(DEPRECATED_API_SURFACE_OPTION_MESSAGE)
 
     /**
      * Convert [optionalShowUnannotated] into a [Boolean], defaulting to `true` if no show options
@@ -150,6 +156,7 @@ class ApiSelectionOptions(
                 metavar = "<annotation-filter>",
             )
             .multiple()
+            .deprecated(DEPRECATED_API_SURFACE_OPTION_MESSAGE)
 
     private val hideAnnotationValues by
         option(
@@ -158,6 +165,7 @@ class ApiSelectionOptions(
                 metavar = "<annotation-filter>",
             )
             .multiple()
+            .deprecated(DEPRECATED_API_SURFACE_OPTION_MESSAGE)
 
     /**
      * Select the [ApiSurfaceRules] to use between the [apiSurfaceRulesFromConfig] and
@@ -377,6 +385,11 @@ class ApiSelectionOptions(
                 .filter { it.name !in trackedSurfaces }
                 // Flatten all the rules.
                 .flatMap { it.selectionCriteria.annotationRules }
+                // Ignore all non-show annotations.
+                .filter { it.effect == EffectConfig.SHOW }
+                // Ignore kotlin.PublishedApi as it can only be used on internal APIs and so does
+                // not need hiding.
+                .filter { rule -> rule.pattern != "kotlin.PublishedApi" }
                 // Sort by pattern.
                 .sortedBy { it.pattern }
                 .toSet()
@@ -502,6 +515,14 @@ class ApiSelectionOptions(
                 apiSurfacesConfig,
             )
         }
+
+    /**
+     * Whether API surfaces have been configured via a configuration file (e.g. using the
+     * `--api-surface` flag and associated config XML). When true, Javadoc `@hide` block tags are
+     * ignored for hiding.
+     */
+    val apiSurfacesConfigured: Boolean
+        get() = apiSurfacesConfig?.apiSurfaceList?.isNotEmpty() == true
 
     companion object {
         /**

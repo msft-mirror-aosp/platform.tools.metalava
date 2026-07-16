@@ -91,7 +91,6 @@ class ListOfPackagePolicyAnnotationHandlerTest : DriverTest() {
                          *
                          * Some other human handwritten comments.
                          * <br>
-                         * <p>Policy Type: List of Package</p>
                          * <table>
                          *  <tr>
                          *    <th colspan="2">Policy details</th>
@@ -185,7 +184,6 @@ class ListOfPackagePolicyAnnotationHandlerTest : DriverTest() {
                         public class TestPolicy {
                         public TestPolicy() { throw new RuntimeException("Stub!"); }
                         /**
-                         * <p>Policy Type: List of Package</p>
                          * <table>
                          *  <tr>
                          *    <th colspan="2">Policy details</th>
