@@ -200,16 +200,14 @@ internal sealed class SourceSelectedApi<S : SelectableItem>(
      */
     abstract fun itemSpecificInitialization()
 
-    override fun toString(): String {
-        return buildString {
-            append("SourceSelectedApi(")
+    override fun toString() = buildString {
+        append("SourceSelectedApi(")
 
-            append("item=")
-            append(item)
-            append(", itemApiVariants=")
-            append(itemApiVariants.formatFor(selectedApiUpdater.apiSurfaces))
-            append(")")
-        }
+        append("item=")
+        append(item)
+        append(", itemApiVariants=")
+        append(itemApiVariants.formatFor(selectedApiUpdater.apiSurfaces))
+        append(")")
     }
 }
 
