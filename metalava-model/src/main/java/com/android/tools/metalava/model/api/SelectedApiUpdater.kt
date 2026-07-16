@@ -16,8 +16,11 @@
 
 package com.android.tools.metalava.model.api
 
+import com.android.tools.metalava.model.BaseModifierList
 import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.KOTLIN_PUBLISHED_API
 import com.android.tools.metalava.model.SelectableItem
+import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.api.SurfaceSelectionRule.Effect
 import com.android.tools.metalava.model.api.surface.ApiSurfaces
 import com.android.tools.metalava.model.api.surface.ApiVariant
@@ -63,6 +66,17 @@ class SelectedApiUpdater(
     ) {
         // Get the item that owns selectedApi.
         val item = selectedApi.item
+
+        // An item inside an inaccessible enclosing item (or an item without API visibility)
+        // is inaccessible and cannot be selected as part of an API surface.
+        val accessible = parent.accessible && item.modifiers.hasApiVisibility
+        if (!accessible) {
+            selectedApi.markAsHidden()
+            return
+        }
+
+        // Mark selectedApi as accessible so that enclosed items can inherit accessibility from it.
+        selectedApi.accessible = true
 
         val enclosingApiVariants = parent.inheritableApiVariants
 
@@ -219,3 +233,19 @@ class SelectedApiUpdater(
         }
     }
 }
+
+/**
+ * Check if the [BaseModifierList] is accessible as part of an API.
+ *
+ * If this has [VisibilityLevel.INTERNAL] then it is only accessible if it is annotated with the
+ * [PublishedApi] annotation.
+ */
+val BaseModifierList.hasApiVisibility
+    get() =
+        when (getVisibilityLevel()) {
+            VisibilityLevel.PUBLIC,
+            VisibilityLevel.PROTECTED -> true
+            VisibilityLevel.INTERNAL ->
+                annotations().any { it.qualifiedName == KOTLIN_PUBLISHED_API }
+            else -> false
+        }

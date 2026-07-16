@@ -118,6 +118,15 @@ internal sealed class SourceSelectedApi<S : SelectableItem>(
     protected lateinit var parent: SourceSelectedApi<*>
 
     /**
+     * Indicates whether the associated [SelectableItem] is accessible as part of an API.
+     *
+     * An item is accessible if its enclosing item (parent) is accessible and its visibility level
+     * allows API access.
+     */
+    var accessible: Boolean = false
+        internal set
+
+    /**
      * Indicates whether the associated [SelectableItem] has a doc only annotation.
      *
      * Initialized by [SelectedApiUpdater.updateSelectedApi] called from [updateFromSelectableItem].
@@ -171,7 +180,7 @@ internal sealed class SourceSelectedApi<S : SelectableItem>(
                     // done here as otherwise this will be accessed in [updateFromSelectableItem]
                     // before it is initialized.
                     inheritableApiVariants = selectedApiUpdater.defaultVariantSet
-
+                    accessible = true
                     // Use this as its own parent to avoid having to make parent nullable.
                     this
                 } else {
@@ -205,6 +214,8 @@ internal sealed class SourceSelectedApi<S : SelectableItem>(
 
         append("item=")
         append(item)
+        append(", accessible=")
+        append(accessible)
         append(", itemApiVariants=")
         append(itemApiVariants.formatFor(selectedApiUpdater.apiSurfaces))
         append(")")
