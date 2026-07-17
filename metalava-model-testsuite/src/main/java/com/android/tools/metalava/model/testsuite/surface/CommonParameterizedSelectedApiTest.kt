@@ -134,8 +134,10 @@ class CommonParameterizedSelectedApiTest : BaseModelTest() {
                     surface = "public",
                     expected =
                         """
-                            package test.pkg - ApiVariantSet[public(C)]
-                              class test.pkg.Test - ApiVariantSet[public(C)]
+                            package test.pkg
+                                   self - ApiVariantSet[public(C)]
+                              class test.pkg.Test
+                                     self - ApiVariantSet[public(C)]
                         """,
                 )
             }
@@ -159,8 +161,10 @@ class CommonParameterizedSelectedApiTest : BaseModelTest() {
                     surface = "public",
                     expected =
                         """
-                            package test - ApiVariantSet[]
-                              class test.Hidden - ApiVariantSet[]
+                            package test
+                                   self - ApiVariantSet[]
+                              class test.Hidden
+                                     self - ApiVariantSet[]
                         """,
                 )
             }
@@ -184,8 +188,10 @@ class CommonParameterizedSelectedApiTest : BaseModelTest() {
                     surface = "public",
                     expected =
                         """
-                            package test - ApiVariantSet[]
-                              class test.Hidden - ApiVariantSet[]
+                            package test
+                                   self - ApiVariantSet[]
+                              class test.Hidden
+                                     self - ApiVariantSet[]
                         """,
                 )
             }
@@ -235,14 +241,22 @@ class CommonParameterizedSelectedApiTest : BaseModelTest() {
                     surface = "public",
                     expected =
                         """
-                            package test.pkg - ApiVariantSet[public(C)]
-                              class test.pkg.Test - ApiVariantSet[public(C)]
-                                constructor test.pkg.Test(int) - ApiVariantSet[public(C)]
-                                method test.pkg.Test.method() - ApiVariantSet[public(C)]
-                              class test.pkg.ClassOnly - ApiVariantSet[public(C)]
-                                constructor test.pkg.ClassOnly() - ApiVariantSet[]
-                                method test.pkg.ClassOnly.notIncluded() - ApiVariantSet[]
-                              class test.pkg.Unannotated - ApiVariantSet[]
+                            package test.pkg
+                                   self - ApiVariantSet[public(C)]
+                              class test.pkg.Test
+                                     self - ApiVariantSet[public(C)]
+                                constructor test.pkg.Test(int)
+                                       self - ApiVariantSet[public(C)]
+                                method test.pkg.Test.method()
+                                       self - ApiVariantSet[public(C)]
+                              class test.pkg.ClassOnly
+                                     self - ApiVariantSet[public(C)]
+                                constructor test.pkg.ClassOnly()
+                                       self - ApiVariantSet[]
+                                method test.pkg.ClassOnly.notIncluded()
+                                       self - ApiVariantSet[]
+                              class test.pkg.Unannotated
+                                     self - ApiVariantSet[]
                         """,
                 )
             }
@@ -269,12 +283,18 @@ class CommonParameterizedSelectedApiTest : BaseModelTest() {
                     surface = "public",
                     expected =
                         """
-                            package test.pkg - ApiVariantSet[]
-                              class test.pkg.Outer - ApiVariantSet[]
-                                constructor test.pkg.Outer() - ApiVariantSet[]
-                                class test.pkg.Outer.Inner - ApiVariantSet[]
-                                  constructor test.pkg.Outer.Inner() - ApiVariantSet[]
-                                  method test.pkg.Outer.Inner.method() - ApiVariantSet[]
+                            package test.pkg
+                                   self - ApiVariantSet[]
+                              class test.pkg.Outer
+                                     self - ApiVariantSet[]
+                                constructor test.pkg.Outer()
+                                       self - ApiVariantSet[]
+                                class test.pkg.Outer.Inner
+                                       self - ApiVariantSet[]
+                                  constructor test.pkg.Outer.Inner()
+                                         self - ApiVariantSet[]
+                                  method test.pkg.Outer.Inner.method()
+                                         self - ApiVariantSet[]
                         """,
                 )
             }
@@ -301,12 +321,18 @@ class CommonParameterizedSelectedApiTest : BaseModelTest() {
                     surface = "public",
                     expected =
                         """
-                            package test.pkg - ApiVariantSet[public(C)]
-                              class test.pkg.Outer - ApiVariantSet[public(C)]
-                                constructor test.pkg.Outer() - ApiVariantSet[public(C)]
-                                class test.pkg.Outer.Inner - ApiVariantSet[]
-                                  constructor test.pkg.Outer.Inner() - ApiVariantSet[]
-                                  method test.pkg.Outer.Inner.method() - ApiVariantSet[]
+                            package test.pkg
+                                   self - ApiVariantSet[public(C)]
+                              class test.pkg.Outer
+                                     self - ApiVariantSet[public(C)]
+                                constructor test.pkg.Outer()
+                                       self - ApiVariantSet[public(C)]
+                                class test.pkg.Outer.Inner
+                                       self - ApiVariantSet[]
+                                  constructor test.pkg.Outer.Inner()
+                                         self - ApiVariantSet[]
+                                  method test.pkg.Outer.Inner.method()
+                                         self - ApiVariantSet[]
                         """,
                 )
             }
