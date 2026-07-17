@@ -23,6 +23,8 @@ import com.android.tools.metalava.model.ANDROID_SYSTEM_API
 import com.android.tools.metalava.model.FlaggedApiInheritance
 import com.android.tools.metalava.model.text.CustomizableProperty.Companion.FLAGGED_API_INHERITANCE
 import com.android.tools.metalava.model.text.FileFormat
+import com.android.tools.metalava.testing.KnownSourceFiles.flaggedApiSource
+import com.android.tools.metalava.testing.KnownSourceFiles.requiresFlagSource
 import com.android.tools.metalava.testing.java
 import org.junit.Test
 
