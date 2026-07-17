@@ -17,8 +17,15 @@
 package com.android.tools.metalava.model.testsuite.surface
 
 import com.android.tools.lint.checks.infrastructure.TestFile
+import com.android.tools.metalava.model.AnnotationManager
 import com.android.tools.metalava.model.Codebase
+import com.android.tools.metalava.model.PackageFilter
+import com.android.tools.metalava.model.annotation.DefaultAnnotationManager
 import com.android.tools.metalava.model.api.ApiSurfaceRules
+import com.android.tools.metalava.model.api.ApiSurfaceSelector
+import com.android.tools.metalava.model.api.flags.ApiFlag
+import com.android.tools.metalava.model.api.flags.ApiFlagAction.*
+import com.android.tools.metalava.model.api.flags.ApiFlags
 import com.android.tools.metalava.model.provider.InputFormat
 import com.android.tools.metalava.model.testing.SupportedInputFormats
 import com.android.tools.metalava.model.testing.surfaces.TestableApiSurfaces.HIDE
@@ -31,7 +38,9 @@ import com.android.tools.metalava.testing.EntryPoint
 import com.android.tools.metalava.testing.EntryPointCallerRule
 import com.android.tools.metalava.testing.EntryPointCallerTracker
 import com.android.tools.metalava.testing.ExitPoint
+import com.android.tools.metalava.testing.KnownSourceFiles
 import com.android.tools.metalava.testing.java
+import kotlin.collections.plus
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runners.Parameterized
@@ -55,6 +64,10 @@ class CommonParameterizedSelectedApiTest : BaseModelTest() {
         val sources: List<TestFile>,
         val surface: String,
         val expected: String,
+        /** Optional configured [ApiFlags] to use when resolving flagged APIs. */
+        val apiFlags: ApiFlags? = null,
+        /** Optional previously released codebase sources, used to test API reverting/stability. */
+        val previouslyReleasedSources: List<TestFile>? = null,
     ) {
         /**
          * Record the stack trace of the creation of this which can be used to provide a stack trace
@@ -66,12 +79,20 @@ class CommonParameterizedSelectedApiTest : BaseModelTest() {
     }
 
     companion object {
+        private val extraSources =
+            listOf(
+                KnownSourceFiles.hideAnnotation,
+                KnownSourceFiles.flaggedApiSource,
+            )
+
         /**
          * Build [TestParams] and add them to this list.
          *
          * @param name the [TestParams.name].
          * @param surfaceRules the [TestParams.surfaceRules].
          * @param sources the [TestParams.sources].
+         * @param apiFlags the [TestParams.apiFlags].
+         * @param previouslyReleasedSources the [TestParams.previouslyReleasedSources].
          * @param body lambda that will add tests for specific surfaces using [Builder.surfaceTest]
          *   which creates a [TestParams] using the above plus some surface specific information.
          */
@@ -80,9 +101,19 @@ class CommonParameterizedSelectedApiTest : BaseModelTest() {
             name: String,
             surfaceRules: ApiSurfaceRules,
             sources: List<TestFile>,
+            apiFlags: ApiFlags? = null,
+            previouslyReleasedSources: List<TestFile>? = null,
             body: Builder.() -> Unit,
         ) {
-            val builder = Builder(this, name, surfaceRules, sources)
+            val builder =
+                Builder(
+                    this,
+                    name,
+                    surfaceRules,
+                    sources,
+                    apiFlags,
+                    previouslyReleasedSources,
+                )
             buildSurfaceTests(builder, body)
         }
 
@@ -102,6 +133,8 @@ class CommonParameterizedSelectedApiTest : BaseModelTest() {
             private val name: String,
             private val surfaceRules: ApiSurfaceRules,
             private val sources: List<TestFile>,
+            private val apiFlags: ApiFlags? = null,
+            private val previouslyReleasedSources: List<TestFile>? = null,
         ) {
             /**
              * Create a test for [surface] that expects [expected] to be the result of calling
@@ -109,7 +142,17 @@ class CommonParameterizedSelectedApiTest : BaseModelTest() {
              */
             @EntryPoint
             fun surfaceTest(surface: String, expected: String) {
-                params.add(TestParams("$name/$surface", surfaceRules, sources, surface, expected))
+                params.add(
+                    TestParams(
+                        "$name/$surface",
+                        surfaceRules,
+                        sources + extraSources,
+                        surface,
+                        expected,
+                        apiFlags,
+                        previouslyReleasedSources,
+                    )
+                )
             }
         }
 
@@ -343,14 +386,43 @@ class CommonParameterizedSelectedApiTest : BaseModelTest() {
     fun `Test selected api variants`() {
         val rules = params.surfaceRules.retargetAt(params.surface)
 
-        runCodebaseTest(
-            inputSet(params.sources),
-            testFixture =
-                TestFixture(
-                    apiSurfaceRules = rules,
-                ),
-        ) {
-            codebase.assertSelectedApiVariants(params.expected)
+        fun runSelectedApiTest(annotationManagerFactory: (TestFixture.() -> AnnotationManager)?) {
+            runCodebaseTest(
+                inputSet(params.sources),
+                testFixture =
+                    TestFixture(
+                        apiPackages = PackageFilter.parse("test.*"),
+                        apiSurfaceRules = rules,
+                        apiFlags = params.apiFlags,
+                        annotationManagerFactory = annotationManagerFactory,
+                    ),
+            ) {
+                codebase.assertSelectedApiVariants(params.expected)
+            }
+        }
+
+        val previouslyReleasedSources = params.previouslyReleasedSources
+
+        if (previouslyReleasedSources != null) {
+            runCodebaseTest(
+                inputSet(previouslyReleasedSources),
+            ) {
+                val releasedCodebase = codebase
+                val annotationManagerFactory: TestFixture.() -> AnnotationManager = {
+                    DefaultAnnotationManager(
+                        DefaultAnnotationManager.Config(
+                            reporter = recordingReporter,
+                            apiSurfaceSelector = ApiSurfaceSelector(rules),
+                            apiFlags = params.apiFlags,
+                            previouslyReleasedCodebaseProvider = { releasedCodebase }
+                        )
+                    )
+                }
+
+                runSelectedApiTest(annotationManagerFactory)
+            }
+        } else {
+            runSelectedApiTest(annotationManagerFactory = null)
         }
     }
 }
