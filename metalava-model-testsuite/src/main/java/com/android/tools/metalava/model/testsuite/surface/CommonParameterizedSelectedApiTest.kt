@@ -434,6 +434,38 @@ class CommonParameterizedSelectedApiTest : BaseModelTest() {
                         """,
                 )
             }
+
+            buildTests(
+                name = "record component",
+                surfaceRules = annotatedOnlyRules,
+                sources =
+                    listOf(
+                        java(
+                            """
+                                package test.pkg;
+                                $UNANNOTATED_NON_RECURSIVE_API
+                                public record MyRecord(int x) {}
+                            """
+                        ),
+                    ),
+            ) {
+                surfaceTest(
+                    surface = "public",
+                    // TODO: The record constructor and accessors should be in the same API as the
+                    // class.
+                    expected =
+                        """
+                            package test.pkg
+                                   self - ApiVariantSet[public(C)]
+                              class test.pkg.MyRecord
+                                     self - ApiVariantSet[public(C)]
+                                constructor test.pkg.MyRecord(int)
+                                       self - ApiVariantSet[]
+                                method test.pkg.MyRecord.x()
+                                       self - ApiVariantSet[]
+                        """,
+                )
+            }
         }
     }
 
@@ -450,6 +482,7 @@ class CommonParameterizedSelectedApiTest : BaseModelTest() {
                         apiSurfaceRules = rules,
                         apiFlags = params.apiFlags,
                         annotationManagerFactory = annotationManagerFactory,
+                        javaLanguageLevel = "17",
                     ),
             ) {
                 codebase.assertSelectedApiVariants(params.expected)
