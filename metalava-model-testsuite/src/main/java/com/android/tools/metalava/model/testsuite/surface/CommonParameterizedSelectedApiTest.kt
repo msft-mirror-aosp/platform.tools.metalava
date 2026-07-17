@@ -451,8 +451,6 @@ class CommonParameterizedSelectedApiTest : BaseModelTest() {
             ) {
                 surfaceTest(
                     surface = "public",
-                    // TODO: The record constructor and accessors should be in the same API as the
-                    // class.
                     expected =
                         """
                             package test.pkg
@@ -460,9 +458,9 @@ class CommonParameterizedSelectedApiTest : BaseModelTest() {
                               class test.pkg.MyRecord
                                      self - ApiVariantSet[public(C)]
                                 constructor test.pkg.MyRecord(int)
-                                       self - ApiVariantSet[]
+                                       self - ApiVariantSet[public(C)]
                                 method test.pkg.MyRecord.x()
-                                       self - ApiVariantSet[]
+                                       self - ApiVariantSet[public(C)]
                         """,
                 )
             }

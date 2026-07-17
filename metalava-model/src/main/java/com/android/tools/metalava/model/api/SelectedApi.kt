@@ -18,7 +18,9 @@ package com.android.tools.metalava.model.api
 
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
+import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.MemberItem
+import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.api.surface.ApiVariantSet
@@ -86,6 +88,8 @@ sealed class SelectedApi {
         ): SelectedApi =
             when (item) {
                 is ClassItem -> ClassSelectedApi(selectedApiUpdater, item)
+                is MethodItem -> MethodSelectedApi(selectedApiUpdater, item)
+                is ConstructorItem -> ConstructorSelectedApi(selectedApiUpdater, item)
                 is MemberItem -> MemberSelectedApi(selectedApiUpdater, item)
                 is PackageItem -> PackageSelectedApi(selectedApiUpdater, item)
                 else -> error("unknown selectable item: $item")
@@ -296,11 +300,54 @@ private class ClassSelectedApi(
 }
 
 /** Base [SelectedApi] class for source [MemberItem]s. */
-private class MemberSelectedApi(
+private open class MemberSelectedApi<M : MemberItem>(
     selectedApiUpdater: SelectedApiUpdater,
-    item: MemberItem,
-) : SourceSelectedApi<MemberItem>(selectedApiUpdater, item) {
+    item: M,
+) : SourceSelectedApi<M>(selectedApiUpdater, item) {
+
+    /** This does not initialize [inheritableApiVariants] as [MemberItem]s do not have children. */
     override fun itemSpecificInitialization() {
         updateFromSelectableItem()
+    }
+}
+
+/**
+ * Selected API class for methods, ensuring record component getter methods inherit the parent
+ * class's API variants.
+ */
+private class MethodSelectedApi(
+    selectedApiUpdater: SelectedApiUpdater,
+    item: MethodItem,
+) : MemberSelectedApi<MethodItem>(selectedApiUpdater, item) {
+
+    override fun itemSpecificInitialization() {
+        // Make sure that the record component getters are all in the same API surfaces as the
+        // class.
+        if (item.isRecordComponentGetter) {
+            itemApiVariants = parent.itemApiVariants
+            return
+        }
+
+        super.itemSpecificInitialization()
+    }
+}
+
+/**
+ * Selected API class for constructors, ensuring canonical record constructors inherit the parent
+ * class's API variants.
+ */
+private class ConstructorSelectedApi(
+    selectedApiUpdater: SelectedApiUpdater,
+    item: ConstructorItem,
+) : MemberSelectedApi<ConstructorItem>(selectedApiUpdater, item) {
+
+    override fun itemSpecificInitialization() {
+        // Make sure that the canonical record constructor is in the same API surfaces as the class.
+        if (item.isCanonicalRecordComponentConstructor) {
+            itemApiVariants = parent.itemApiVariants
+            return
+        }
+
+        super.itemSpecificInitialization()
     }
 }
