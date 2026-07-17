@@ -637,7 +637,7 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
      * Local cache of the previously released codebase to avoid calling the provider for every
      * affected item.
      */
-    private val previouslyReleasedCodebase by
+    override val previouslyReleasedCodebase by
         lazy(LazyThreadSafetyMode.NONE) { config.previouslyReleasedCodebaseProvider() }
 
     /**

@@ -27,6 +27,9 @@ interface AnnotationManager {
      */
     val apiSurfaceSelector: ApiSurfaceSelector
 
+    /** The optional previously released [Codebase] to check against when reverting flagged APIs. */
+    val previouslyReleasedCodebase: Codebase?
+
     /** Get the [AnnotationInfo] for the specified [annotation]. */
     fun getAnnotationInfo(annotation: AnnotationItem): AnnotationInfo
 
@@ -145,6 +148,9 @@ abstract class BaseAnnotationManager : AnnotationManager {
 internal class NoOpAnnotationManager : BaseAnnotationManager() {
 
     override val apiSurfaceSelector: ApiSurfaceSelector = ApiSurfaceSelector.DEFAULT
+
+    override val previouslyReleasedCodebase: Codebase?
+        get() = null
 
     override fun getKeyForAnnotationItem(annotationItem: AnnotationItem): String {
         // Just use the qualified name as the key as [computeAnnotationInfo] does not use anything
