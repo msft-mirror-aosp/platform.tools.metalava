@@ -29,6 +29,12 @@ sealed class SelectedApi {
     /** The [ApiVariantSet] for the [SelectableItem]. */
     abstract var itemApiVariants: ApiVariantSet
 
+    /**
+     * The [SelectableItem] from the previously released API that matches this item, if this item is
+     * to be reverted.
+     */
+    abstract val revertItem: SelectableItem?
+
     /** Checks to see if the associated [SelectableItem] contains any doconly annotations. */
     open fun hasDocOnlyAnnotation(): Boolean = false
 
@@ -58,6 +64,9 @@ sealed class SelectedApi {
             // Get the ApiSurfaceSelector that is used by the AnnotationManager.
             val annotationManager = config.annotationManager
             val apiSurfaceSelector = annotationManager.apiSurfaceSelector
+            val previouslyReleasedCodebaseProvider = {
+                annotationManager.previouslyReleasedCodebase
+            }
 
             // Create an updater that will be captured by the factory below and will be used by all
             // SelectedApi instances in the Codebase that uses tha factory.
@@ -65,6 +74,7 @@ sealed class SelectedApi {
                 SelectedApiUpdater(
                     config.reporter,
                     apiSurfaceSelector,
+                    previouslyReleasedCodebaseProvider,
                 )
             return { item -> createFromSource(selectedApiUpdater, item) }
         }
@@ -86,6 +96,9 @@ sealed class SelectedApi {
 /** A simple [SelectedApi] that just stores [itemApiVariants]. */
 private class SimpleSelectedApi : SelectedApi() {
     override var itemApiVariants = ApiVariantSet.EMPTY
+
+    override val revertItem: SelectableItem?
+        get() = null
 
     override fun initialize() {}
 }
@@ -141,6 +154,21 @@ internal sealed class SourceSelectedApi<S : SelectableItem>(
      */
     var removed: Boolean = false
         internal set
+
+    /**
+     * Indicates whether the associated [SelectableItem] is being reverted.
+     *
+     * Initialized by [SelectedApiUpdater.updateSelectedApi] called from [updateFromSelectableItem].
+     */
+    var revert: Boolean = false
+
+    /**
+     * The [SelectableItem] from the previously released API that matches this item, if this item is
+     * being reverted.
+     *
+     * Initialized by [SelectedApiUpdater.updateSelectedApi] called from [updateFromSelectableItem].
+     */
+    override var revertItem: SelectableItem? = null
 
     /**
      * The [ApiVariantSet] for the [item].
@@ -220,6 +248,10 @@ internal sealed class SourceSelectedApi<S : SelectableItem>(
         append(itemApiVariants.formatFor(selectedApiUpdater.apiSurfaces))
         append(", inheritableApiVariants=")
         append(inheritableApiVariants.formatFor(selectedApiUpdater.apiSurfaces))
+        append(", revert=")
+        append(revert)
+        append(", revertItem=")
+        append(revertItem)
         append(")")
     }
 }

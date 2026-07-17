@@ -18,7 +18,9 @@ package com.android.tools.metalava.model.api
 
 import com.android.tools.metalava.model.BaseModifierList
 import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.KOTLIN_PUBLISHED_API
+import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.api.SurfaceSelectionRule.Effect
@@ -32,6 +34,7 @@ import com.android.tools.metalava.reporter.Reporter
 class SelectedApiUpdater(
     private val reporter: Reporter,
     apiSurfaceSelector: ApiSurfaceSelector,
+    previouslyReleasedCodebaseProvider: () -> Codebase?,
 ) {
     /** The [ApiSurfaces] with which this will associate [SelectableItem]s */
     internal val apiSurfaces = apiSurfaceSelector.apiSurfaces
@@ -49,8 +52,30 @@ class SelectedApiUpdater(
     private val SelectableItem.hasHideDocTag: Boolean
         get() = documentation?.isHidden == true
 
+    private val previouslyReleasedCodebase by
+        lazy(LazyThreadSafetyMode.NONE) { previouslyReleasedCodebaseProvider() }
+
+    /**
+     * Find the item to which [item] will be reverted.
+     *
+     * Searches the previously released API (if available).
+     */
+    private fun findRevertItem(item: SelectableItem) =
+        previouslyReleasedCodebase.let { codebase ->
+            if (codebase == null) {
+                reporter.report(
+                    Issues.NO_PREVIOUSLY_RELEASED_API,
+                    item,
+                    "Cannot revert $item (or any other API item) as no previously released API has been provided"
+                )
+                null
+            } else item.findCorrespondingItemIn(codebase)
+        }
+
     /** Mark this [SourceSelectedApi] as being hidden. */
-    private fun SourceSelectedApi<*>.markAsHidden() {
+    private fun SourceSelectedApi<*>.markAsHidden(revert: Boolean) {
+        this.revert = revert
+        this.revertItem = null
         // A hidden item does not belong to any API surfaces.
         itemApiVariants = ApiVariantSet.EMPTY
         inheritableApiVariants = ApiVariantSet.EMPTY
@@ -71,7 +96,7 @@ class SelectedApiUpdater(
         // is inaccessible and cannot be selected as part of an API surface.
         val accessible = parent.accessible && item.modifiers.hasApiVisibility
         if (!accessible) {
-            selectedApi.markAsHidden()
+            selectedApi.markAsHidden(revert = false)
             return
         }
 
@@ -92,6 +117,8 @@ class SelectedApiUpdater(
         // annotations have been checked. Hide annotations are always recursive so this just tracks
         // whether one has been seen.
         var hide = false
+
+        var revert = false
 
         // Iterate over the annotations, checking to see if any match the surface rules.
         val annotations = item.modifiers.annotations()
@@ -129,6 +156,32 @@ class SelectedApiUpdater(
                     }
                 }
             }
+                ?: annotationItem.apiFlag?.let { apiFlag ->
+                    if (apiFlag.revert) {
+                        revert = true
+                    }
+                }
+        }
+
+        if (!revert) {
+            if (item.containingClass()?.isMarkedForRevert() == true) {
+                revert = true
+            } else if (item is MethodItem) {
+                // If any of a method's super methods are part of a unstable API that needs to be
+                // reverted then treat the method as if it is too.
+                revert = item.superMethods().any { methodItem -> methodItem.isMarkedForRevert() }
+            }
+        }
+
+        var revertedItem: SelectableItem? = null
+        if (revert) {
+            revertedItem = findRevertItem(item)
+            if (revertedItem == null) {
+                // If the item was hidden then neither the context item nor its enclosed items
+                // belong to any api variants.
+                selectedApi.markAsHidden(revert = true)
+                return
+            }
         }
 
         // If any annotations matched then check for an overlap.
@@ -160,7 +213,7 @@ class SelectedApiUpdater(
 
             if (hide) {
                 // Mark the selectedApi as being hidden.
-                selectedApi.markAsHidden()
+                selectedApi.markAsHidden(revert = false)
 
                 // Return immediately to avoid falling through.
                 return
@@ -178,6 +231,8 @@ class SelectedApiUpdater(
         }
 
         // Store the variant set in selectedApi.
+        selectedApi.revert = revert
+        selectedApi.revertItem = revertedItem
         selectedApi.itemApiVariants = itemApiVariants
         selectedApi.inheritableApiVariants = inheritableApiVariants
     }
@@ -231,6 +286,12 @@ class SelectedApiUpdater(
                 )
             }
         }
+    }
+
+    /** Check if this [SelectableItem] is marked to be reverted. */
+    private fun SelectableItem.isMarkedForRevert(): Boolean {
+        val sourceSelectedApi = selectedApi as SourceSelectedApi<*>
+        return sourceSelectedApi.revert
     }
 }
 

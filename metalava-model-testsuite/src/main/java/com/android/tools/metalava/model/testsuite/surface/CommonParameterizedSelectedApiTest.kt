@@ -379,9 +379,6 @@ class CommonParameterizedSelectedApiTest : BaseModelTest() {
                         """,
                 )
             }
-            // TODO: The expected behavior for removedMethod should be ApiVariantSet[]
-            //  as it is a reverted flagged API with no previously released API, but currently
-            //  it incorrectly resolves to ApiVariantSet[public(C)].
             buildTests(
                 name = "flagged APIs",
                 surfaceRules = publicSystemModuleRules,
@@ -433,7 +430,7 @@ class CommonParameterizedSelectedApiTest : BaseModelTest() {
                                 method test.pkg.Outer.revertedMethod()
                                        self - ApiVariantSet[public(C)]
                                 method test.pkg.Outer.removedMethod()
-                                       self - ApiVariantSet[public(C)]
+                                       self - ApiVariantSet[]
                         """,
                 )
             }
