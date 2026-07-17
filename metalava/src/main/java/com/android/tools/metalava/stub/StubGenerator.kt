@@ -30,6 +30,7 @@ import com.android.tools.metalava.model.CodebaseFragment
 import com.android.tools.metalava.model.EMITTED_ONLY
 import com.android.tools.metalava.model.FilterPredicate
 import com.android.tools.metalava.model.PackageFilter
+import com.android.tools.metalava.model.api.surface.ApiSurfacePredicate
 import com.android.tools.metalava.model.visitors.ApiFilters
 import com.android.tools.metalava.model.visitors.ApiPredicate
 import com.android.tools.metalava.model.visitors.MatchOverridingMethodPredicate
@@ -151,9 +152,9 @@ internal class StubGenerator(
                 // as public API when generating system stubs) so code compiling against stubs can
                 // resolve all referenced and inherited APIs.
                 val filterReference =
-                    ApiPredicate(
+                    ApiSurfacePredicate.forStubs(
+                        codebase.apiSurfaces.main,
                         includeDocOnly = isDocStubs,
-                        config = apiPredicateConfig,
                     )
                 val filterEmit =
                     MatchOverridingMethodPredicate(
@@ -190,6 +191,7 @@ internal class StubGenerator(
                     },
                     // Include documentation if required for writing the stubs.
                     includeDocumentation = config.stubWriterConfig.includeDocumentationInStubs,
+                    revertItemGetter = { it.selectedApi.revertItem },
                 )
         }
 
@@ -198,9 +200,10 @@ internal class StubGenerator(
             if (codebaseFragment.codebase.preFiltered) {
                 FilterPredicate { true }
             } else {
-                // Synthetic stub constructors may need to be added to non-emitted classes in the
-                // hierarchy so that emitted subclasses can delegate to them.
-                ApiPredicate(config = apiPredicateConfig)
+                ApiSurfacePredicate.forStubs(
+                    codebase.apiSurfaces.main,
+                    includeDocOnly = isDocStubs,
+                )
             }
         val stubConstructorManager = StubConstructorManager(codebaseFragment.codebase)
         stubConstructorManager.addConstructors(filterEmit)

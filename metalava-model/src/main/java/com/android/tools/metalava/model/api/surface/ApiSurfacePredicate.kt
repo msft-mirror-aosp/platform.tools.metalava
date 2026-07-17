@@ -46,6 +46,9 @@ object ApiSurfacePredicate {
     /** [ApiVariantType]s for core-only APIs. */
     private val coreOnlyVariantTypes = listOf(ApiVariantType.CORE)
 
+    /** [ApiVariantType]s for core APIs and doc-only APIs. */
+    private val corePlusDocOnlyVariantTypes = listOf(ApiVariantType.CORE, ApiVariantType.DOC_ONLY)
+
     /**
      * Return a [FilterPredicate] that matches any item that belongs to the core [ApiVariant] of
      * [apiSurface] or any surface that it includes.
@@ -93,5 +96,18 @@ object ApiSurfacePredicate {
     private class ItemApiVariantsPredicate(private val inclusionMask: Int) : FilterPredicate {
         override fun test(t: SelectableItem) =
             t.selectedApi.itemApiVariants.bits and inclusionMask != 0
+    }
+
+    /**
+     * Return a [FilterPredicate] for stub generation that matches any item that belongs to the core
+     * [ApiVariant] (and optionally [ApiVariantType.DOC_ONLY] if [includeDocOnly] is `true`) of
+     * [apiSurface] or any surface that it includes.
+     */
+    fun forStubs(
+        apiSurface: ApiSurface,
+        includeDocOnly: Boolean,
+    ): FilterPredicate {
+        val variantTypes = if (includeDocOnly) corePlusDocOnlyVariantTypes else coreOnlyVariantTypes
+        return wholeApiForVariants(apiSurface, variantTypes)
     }
 }
