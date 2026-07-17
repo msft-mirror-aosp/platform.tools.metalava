@@ -218,6 +218,8 @@ internal sealed class SourceSelectedApi<S : SelectableItem>(
         append(accessible)
         append(", itemApiVariants=")
         append(itemApiVariants.formatFor(selectedApiUpdater.apiSurfaces))
+        append(", inheritableApiVariants=")
+        append(inheritableApiVariants.formatFor(selectedApiUpdater.apiSurfaces))
         append(")")
     }
 }
