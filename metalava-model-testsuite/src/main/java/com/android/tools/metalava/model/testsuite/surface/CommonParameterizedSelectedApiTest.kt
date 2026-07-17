@@ -379,6 +379,64 @@ class CommonParameterizedSelectedApiTest : BaseModelTest() {
                         """,
                 )
             }
+            // TODO: The expected behavior for removedMethod should be ApiVariantSet[]
+            //  as it is a reverted flagged API with no previously released API, but currently
+            //  it incorrectly resolves to ApiVariantSet[public(C)].
+            buildTests(
+                name = "flagged APIs",
+                surfaceRules = publicSystemModuleRules,
+                sources =
+                    listOf(
+                        java(
+                            """
+                                package test.pkg;
+                                import android.annotation.FlaggedApi;
+                                public class Outer {
+                                    @FlaggedApi("reverted_flag")
+                                    public void revertedMethod() {}
+
+                                    @FlaggedApi("removed_flag")
+                                    public void removedMethod() {}
+                                }
+                            """
+                        ),
+                    ),
+                apiFlags =
+                    ApiFlags(
+                        listOf(
+                            ApiFlag("reverted_flag", REVERT),
+                            ApiFlag("removed_flag", REVERT),
+                        )
+                    ),
+                previouslyReleasedSources =
+                    listOf(
+                        java(
+                            """
+                                package test.pkg;
+                                public class Outer {
+                                    public void revertedMethod() {}
+                                }
+                            """
+                        )
+                    ),
+            ) {
+                surfaceTest(
+                    surface = "public",
+                    expected =
+                        """
+                            package test.pkg
+                                   self - ApiVariantSet[public(C)]
+                              class test.pkg.Outer
+                                     self - ApiVariantSet[public(C)]
+                                constructor test.pkg.Outer()
+                                       self - ApiVariantSet[public(C)]
+                                method test.pkg.Outer.revertedMethod()
+                                       self - ApiVariantSet[public(C)]
+                                method test.pkg.Outer.removedMethod()
+                                       self - ApiVariantSet[public(C)]
+                        """,
+                )
+            }
         }
     }
 
