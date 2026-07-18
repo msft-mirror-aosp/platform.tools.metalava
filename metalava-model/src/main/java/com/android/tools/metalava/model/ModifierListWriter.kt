@@ -371,10 +371,22 @@ class ModifierListWriter(
                 annotations = annotations.filter { it.qualifiedName != ANDROID_REQUIRES_FLAG }
             }
 
-            // Remove @FlaggedApi annotations in stub files for finalized APIs (i.e. APIs that have
-            // a previously released item) where the only change is to its annotations list. These
-            // changes do not need to be flagged.
-            if (item is SelectableItem && item !is ClassItem) {
+            // Inherit @FlaggedApi from enclosing classes if not present (for public APIs),
+            // and remove @FlaggedApi if the item was part of a previously released API.
+            if (item is SelectableItem && modifierList.isPublic() or modifierList.isProtected()) {
+                if (annotations.findFlaggedApiAnnotation() == null) {
+                    var containingClassItem: ClassItem? = item.containingClass()
+                    while (containingClassItem != null) {
+                        val flaggedApiAnnotation =
+                            containingClassItem.modifiers.annotations().findFlaggedApiAnnotation()
+                        if (flaggedApiAnnotation != null) {
+                            annotations = annotations + flaggedApiAnnotation
+                            break
+                        }
+                        containingClassItem = containingClassItem.containingClass()
+                    }
+                }
+
                 val previousItem =
                     item.codebase.config.annotationManager.findPreviouslyReleasedItem(item)
                 if (previousItem != null) {
