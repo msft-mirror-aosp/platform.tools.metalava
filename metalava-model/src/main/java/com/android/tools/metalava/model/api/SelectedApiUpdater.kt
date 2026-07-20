@@ -234,13 +234,27 @@ class SelectedApiUpdater(
                 "$itemApiVariants must not contain multiple surfaces"
             }
 
+            // If this item is not already removed but is enclosed within a removed parent then
+            // make it removed.
+            if (!selectedApi.removed && parent.removed) {
+                selectedApi.removed = true
+            }
+
             // If this item is not already doc-only but is enclosed within a doc-only parent then
             // make it doc-only.
             if (!selectedApi.docOnly && parent.docOnly) {
                 selectedApi.docOnly = true
             }
 
-            if (selectedApi.docOnly) {
+            // If the item is removed or doc-only then update its api variants. The removed state is
+            // checked first because removed takes priority over doc-only, i.e. a removed item in a
+            // doc-only class will not be documented because it has been removed.
+            if (selectedApi.removed) {
+                // The item is marked as removed, or a member of a removed class so set the API
+                // variants to only contain the removed variant in the target surface.
+                val variant = surface.variantFor(ApiVariantType.REMOVED)
+                itemApiVariants = apiSurfaces.createVariantSet(variant)
+            } else if (selectedApi.docOnly) {
                 // The item is marked as doc-only, or a member of a doc-only class so set the API
                 // variants to only contain the doc-only variant in the target surface.
                 val variant = surface.variantFor(ApiVariantType.DOC_ONLY)
