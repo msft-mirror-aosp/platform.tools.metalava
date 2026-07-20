@@ -28,7 +28,9 @@ import com.android.tools.metalava.model.api.flags.ApiFlagAction.*
 import com.android.tools.metalava.model.api.flags.ApiFlags
 import com.android.tools.metalava.model.provider.InputFormat
 import com.android.tools.metalava.model.testing.SupportedInputFormats
+import com.android.tools.metalava.model.testing.surfaces.TestableApiSurfaces.DOC_ONLY
 import com.android.tools.metalava.model.testing.surfaces.TestableApiSurfaces.HIDE
+import com.android.tools.metalava.model.testing.surfaces.TestableApiSurfaces.REMOVED_FROM_API
 import com.android.tools.metalava.model.testing.surfaces.TestableApiSurfaces.UNANNOTATED_API
 import com.android.tools.metalava.model.testing.surfaces.TestableApiSurfaces.UNANNOTATED_NON_RECURSIVE_API
 import com.android.tools.metalava.model.testing.surfaces.TestableApiSurfaces.annotatedOnlyRules
@@ -40,7 +42,6 @@ import com.android.tools.metalava.testing.EntryPointCallerTracker
 import com.android.tools.metalava.testing.ExitPoint
 import com.android.tools.metalava.testing.KnownSourceFiles
 import com.android.tools.metalava.testing.java
-import kotlin.collections.plus
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runners.Parameterized
@@ -460,6 +461,185 @@ class CommonParameterizedSelectedApiTest : BaseModelTest() {
                                 constructor test.pkg.MyRecord(int)
                                        self - ApiVariantSet[public(C)]
                                 method test.pkg.MyRecord.x()
+                                       self - ApiVariantSet[public(C)]
+                        """,
+                )
+            }
+
+            buildTests(
+                name = "doconly",
+                surfaceRules = publicSystemModuleRules,
+                sources =
+                    listOf(
+                        java(
+                            """
+                                package test.pkg;
+                                $DOC_ONLY
+                                public class DocOnlyClass {
+                                    public void method() {}
+                                }
+                                public class Test {
+                                    $DOC_ONLY
+                                    public void docOnlyMethod() {}
+                                }
+                            """
+                        ),
+                    ),
+            ) {
+                // TODO: The behavior shown below is not correct as it does not track
+                // ApiVariantType.DOC_ONLY and will be fixed in a follow up change.
+                surfaceTest(
+                    surface = "public",
+                    expected =
+                        """
+                            package test.pkg
+                                   self - ApiVariantSet[public(C)]
+                              class test.pkg.DocOnlyClass
+                                     self - ApiVariantSet[public(C)]
+                                constructor test.pkg.DocOnlyClass()
+                                       self - ApiVariantSet[public(C)]
+                                method test.pkg.DocOnlyClass.method()
+                                       self - ApiVariantSet[public(C)]
+                              class test.pkg.Test
+                                     self - ApiVariantSet[public(C)]
+                                constructor test.pkg.Test()
+                                       self - ApiVariantSet[public(C)]
+                                method test.pkg.Test.docOnlyMethod()
+                                       self - ApiVariantSet[public(C)]
+                        """,
+                )
+            }
+
+            buildTests(
+                name = "removed",
+                surfaceRules = publicSystemModuleRules,
+                sources =
+                    listOf(
+                        java(
+                            """
+                                package test.pkg;
+                                $REMOVED_FROM_API
+                                public class RemovedClass {
+                                    public void method() {}
+                                }
+                                public class Test {
+                                    $REMOVED_FROM_API
+                                    public void removedMethod() {}
+                                }
+                            """
+                        ),
+                    ),
+            ) {
+                // TODO: The behavior shown below is not correct as it does not track
+                // ApiVariantType.REMOVED and will be fixed in a follow up change.
+                surfaceTest(
+                    surface = "public",
+                    expected =
+                        """
+                            package test.pkg
+                                   self - ApiVariantSet[public(C)]
+                              class test.pkg.RemovedClass
+                                     self - ApiVariantSet[public(C)]
+                                constructor test.pkg.RemovedClass()
+                                       self - ApiVariantSet[public(C)]
+                                method test.pkg.RemovedClass.method()
+                                       self - ApiVariantSet[public(C)]
+                              class test.pkg.Test
+                                     self - ApiVariantSet[public(C)]
+                                constructor test.pkg.Test()
+                                       self - ApiVariantSet[public(C)]
+                                method test.pkg.Test.removedMethod()
+                                       self - ApiVariantSet[public(C)]
+                        """,
+                )
+            }
+
+            buildTests(
+                name = "doconly and removed",
+                surfaceRules = publicSystemModuleRules,
+                sources =
+                    listOf(
+                        java(
+                            """
+                                package test.pkg;
+                                $DOC_ONLY
+                                $REMOVED_FROM_API
+                                public class DocOnlyAndRemovedClass {
+                                    public void method() {}
+                                }
+                                public class Test {
+                                    $DOC_ONLY
+                                    $REMOVED_FROM_API
+                                    public void docOnlyAndRemovedMethod() {}
+                                }
+                            """
+                        ),
+                    ),
+            ) {
+                // TODO: The behavior shown below is not correct as it does not track
+                // ApiVariantType.DOC_ONLY or ApiVariantType.REMOVED and will be fixed in a
+                // follow up change.
+                surfaceTest(
+                    surface = "public",
+                    expected =
+                        """
+                            package test.pkg
+                                   self - ApiVariantSet[public(C)]
+                              class test.pkg.DocOnlyAndRemovedClass
+                                     self - ApiVariantSet[public(C)]
+                                constructor test.pkg.DocOnlyAndRemovedClass()
+                                       self - ApiVariantSet[public(C)]
+                                method test.pkg.DocOnlyAndRemovedClass.method()
+                                       self - ApiVariantSet[public(C)]
+                              class test.pkg.Test
+                                     self - ApiVariantSet[public(C)]
+                                constructor test.pkg.Test()
+                                       self - ApiVariantSet[public(C)]
+                                method test.pkg.Test.docOnlyAndRemovedMethod()
+                                       self - ApiVariantSet[public(C)]
+                        """,
+                )
+            }
+
+            buildTests(
+                name = "@removed doctag",
+                surfaceRules = publicSystemModuleRules,
+                sources =
+                    listOf(
+                        java(
+                            """
+                                package test.pkg;
+                                /** @removed */
+                                public class RemovedClass {
+                                    public void method() {}
+                                }
+                                public class Test {
+                                    /** @removed */
+                                    public void removedMethod() {}
+                                }
+                            """
+                        ),
+                    ),
+            ) {
+                // TODO: The behavior shown below is not correct as it does not track
+                // ApiVariantType.REMOVED and will be fixed in a follow up change.
+                surfaceTest(
+                    surface = "public",
+                    expected =
+                        """
+                            package test.pkg
+                                   self - ApiVariantSet[public(C)]
+                              class test.pkg.RemovedClass
+                                     self - ApiVariantSet[public(C)]
+                                constructor test.pkg.RemovedClass()
+                                       self - ApiVariantSet[public(C)]
+                                method test.pkg.RemovedClass.method()
+                                       self - ApiVariantSet[public(C)]
+                              class test.pkg.Test
+                                     self - ApiVariantSet[public(C)]
+                                constructor test.pkg.Test()
+                                       self - ApiVariantSet[public(C)]
+                                method test.pkg.Test.removedMethod()
                                        self - ApiVariantSet[public(C)]
                         """,
                 )
