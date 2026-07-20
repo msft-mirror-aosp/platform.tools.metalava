@@ -16,16 +16,25 @@
 
 package com.android.tools.metalava.model
 
-import com.android.tools.metalava.model.item.FieldValue
 import com.android.tools.metalava.model.value.ConstantValue
-import com.android.tools.metalava.model.value.Value
+import com.android.tools.metalava.model.value.asAny
 import java.io.PrintWriter
 
 @MetalavaApi
-interface FieldItem : MemberItem, InheritableItem {
-    /** The property this field backs; inverse of [PropertyItem.backingField] */
-    val property: PropertyItem?
-        get() = null
+interface FieldItem : MemberItem, InheritableItem, ReferencableItem, PossiblyPropertyRelated {
+    /**
+     * The property this field backs; inverse of [PropertyItem.backingField].
+     *
+     * Overridden to provide more specific documentation.
+     */
+    override var property: PropertyItem?
+
+    override fun describe(capitalize: Boolean) =
+        if (isEnumConstant()) {
+            "${if (capitalize) "Enum" else "enum"} constant ${containingClass().qualifiedName()}.${name()}"
+        } else {
+            "${if (capitalize) "Field" else "field"} ${containingClass().qualifiedName()}.${name()}"
+        }
 
     /** The type of this field */
     @MetalavaApi override fun type(): TypeItem
@@ -37,39 +46,16 @@ interface FieldItem : MemberItem, InheritableItem {
     ) = containingClass().findCorrespondingItemIn(codebase)?.findField(name())
 
     /**
-     * The optional value of this [FieldItem].
+     * The optional constant value of the field.
      *
-     * This is called `legacy` because this an old, inconsistent representation of the field value
-     * that exposes implementation details. It will be replaced by a properly modelled value
-     * representation.
+     * This is the [constantValue] provided in the source or in the jar and will be part of the API
+     * if the [FieldItem] is.
+     *
+     * The [ConstantValue] is the result of a constant expression as defined by JLS 15.28, i.e. a
+     * value of a primitive or [String] type (see [ConstantValue]) on a field which is `static` and
+     * `final`.
      */
-    val legacyFieldValue: FieldValue?
-
-    /**
-     * The legacy initial/constant value, if any. If [requireConstant] the initial value will only
-     * be returned if it's constant.
-     *
-     * This is called `legacy` because this an old, inconsistent representation of the field value
-     * that exposes implementation details. It will be replaced by a properly modelled value
-     * representation.
-     */
-    fun legacyInitialValue(requireConstant: Boolean = true): Any?
-
-    /**
-     * The optional initial value of the field.
-     *
-     * Replacement for [legacyInitialValue] and [legacyFieldValue].
-     *
-     * The [Value] may be the result of a constant expression as defined by JLS 15.28, i.e. a value
-     * of a primitive or [String] type (see [ConstantValue]), or it could be some other value, e.g.
-     * enum, class literal, etc.
-     *
-     * When migrating code from [legacyInitialValue] to [initialValue] it is important that the
-     * behavior is correctly maintained, i.e.:
-     * * `legacyInitialValue(true)` will become `initialValue as? ConstantValue`.
-     * * `legacyInitialValue(false)` will become `initialValue`.
-     */
-    val initialValue: Value?
+    val constantValue: ConstantValue?
 
     /**
      * An enum can contain both enum constants and fields; this method provides a way to distinguish
@@ -101,153 +87,96 @@ interface FieldItem : MemberItem, InheritableItem {
         return name().hashCode()
     }
 
-    override fun toStringForItem() = "field ${containingClass().fullName()}.${name()}"
-
-    /**
-     * Check the declared value with a typed comparison, not a string comparison, to accommodate
-     * toolchains with different fp -> string conversions.
-     */
-    fun hasSameValue(other: FieldItem): Boolean {
-        val thisConstant = legacyInitialValue()
-        val otherConstant = other.legacyInitialValue()
-        if (thisConstant == null != (otherConstant == null)) {
-            return false
-        }
-
-        // Null values are considered equal
-        if (thisConstant == null) {
-            return true
-        }
-
-        if (type() != other.type()) {
-            return false
-        }
-
-        if (thisConstant == otherConstant) {
-            return true
-        }
-
-        if (thisConstant.toString() == otherConstant.toString()) {
-            // e.g. Integer(3) and Short(3) are the same; when comparing
-            // with signature files we sometimes don't have the right
-            // types from signatures
-            return true
-        }
-
-        return false
-    }
-
     companion object {
         val comparator: java.util.Comparator<FieldItem> = Comparator { a, b ->
             a.name().compareTo(b.name())
         }
-
-        /**
-         * Comparator that will order [FieldItem]s such that those for which
-         * [FieldItem.isEnumConstant] returns `true` will come before those for which it is `false`.
-         */
-        val comparatorEnumConstantFirst: java.util.Comparator<FieldItem> =
-            Comparator.comparing(FieldItem::isEnumConstant).reversed().thenComparing(comparator)
     }
 
     /**
      * If this field has no initial value, it just writes ";", otherwise it writes " = value;" with
-     * the correct Java syntax for the initial value
+     * the correct Java syntax for the initial value.
+     *
+     * @param writer the [PrintWriter] to which this will write the field value.
      */
-    fun writeValueWithSemicolon(
-        writer: PrintWriter,
-        allowDefaultValue: Boolean = false,
-        requireInitialValue: Boolean = false
-    ) {
-        val value =
-            legacyInitialValue(!allowDefaultValue)
-                ?: if (allowDefaultValue && !containingClass().isClass()) type().defaultValue()
-                else null
-        if (value != null) {
-            when (value) {
-                is Int -> {
-                    writer.print(" = ")
-                    writer.print(value)
-                    writer.print("; // 0x")
-                    writer.print(Integer.toHexString(value))
-                }
-                is String -> {
-                    writer.print(" = ")
-                    writer.print('"')
-                    writer.print(javaEscapeString(value))
-                    writer.print('"')
-                    writer.print(";")
-                }
-                is Long -> {
-                    writer.print(" = ")
-                    writer.print(value)
-                    writer.print(String.format("L; // 0x%xL", value))
-                }
-                is Boolean -> {
-                    writer.print(" = ")
-                    writer.print(value)
-                    writer.print(";")
-                }
-                is Byte -> {
-                    writer.print(" = ")
-                    writer.print(value)
-                    writer.print("; // 0x")
-                    writer.print(Integer.toHexString(value.toInt()))
-                }
-                is Short -> {
-                    writer.print(" = ")
-                    writer.print(value)
-                    writer.print("; // 0x")
-                    writer.print(Integer.toHexString(value.toInt()))
-                }
-                is Float -> {
-                    writer.print(" = ")
-                    when {
-                        value == Float.POSITIVE_INFINITY -> writer.print("(1.0f/0.0f);")
-                        value == Float.NEGATIVE_INFINITY -> writer.print("(-1.0f/0.0f);")
-                        java.lang.Float.isNaN(value) -> writer.print("(0.0f/0.0f);")
-                        // Force MIN_NORMAL to use the String representation created by
-                        // java.lang.Float.toString() before the bug fix in JDK 19  - see
-                        // https://inside.java/2022/09/23/quality-heads-up/ for details.
-                        value == java.lang.Float.MIN_NORMAL ->
-                            writer.format("1.17549435E-38f;", value)
-                        else -> {
-                            writer.print(value.toString())
-                            writer.print("f;")
-                        }
+    fun writeValueWithSemicolon(writer: PrintWriter) {
+        // Use [constantValue] which is only non-null on static final fields.
+        when (val value = constantValue?.asAny()) {
+            is Int -> {
+                writer.print(" = ")
+                writer.print(value)
+                writer.print("; // 0x")
+                writer.print(Integer.toHexString(value))
+            }
+            is String -> {
+                writer.print(" = ")
+                writer.print('"')
+                writer.print(javaEscapeString(value))
+                writer.print('"')
+                writer.print(";")
+            }
+            is Long -> {
+                writer.print(" = ")
+                writer.print(value)
+                writer.print(String.format("L; // 0x%xL", value))
+            }
+            is Boolean -> {
+                writer.print(" = ")
+                writer.print(value)
+                writer.print(";")
+            }
+            is Byte -> {
+                writer.print(" = ")
+                writer.print(value)
+                writer.print("; // 0x")
+                writer.print(Integer.toHexString(value.toInt()))
+            }
+            is Short -> {
+                writer.print(" = ")
+                writer.print(value)
+                writer.print("; // 0x")
+                writer.print(Integer.toHexString(value.toInt()))
+            }
+            is Float -> {
+                writer.print(" = ")
+                when {
+                    value == Float.POSITIVE_INFINITY -> writer.print("(1.0f/0.0f);")
+                    value == Float.NEGATIVE_INFINITY -> writer.print("(-1.0f/0.0f);")
+                    java.lang.Float.isNaN(value) -> writer.print("(0.0f/0.0f);")
+                    // Force MIN_NORMAL to use the String representation created by
+                    // java.lang.Float.toString() before the bug fix in JDK 19  - see
+                    // https://inside.java/2022/09/23/quality-heads-up/ for details.
+                    value == java.lang.Float.MIN_NORMAL -> writer.format("1.17549435E-38f;", value)
+                    else -> {
+                        writer.print(value.toString())
+                        writer.print("f;")
                     }
                 }
-                is Double -> {
-                    writer.print(" = ")
-                    when {
-                        value == Double.POSITIVE_INFINITY -> writer.print("(1.0/0.0);")
-                        value == Double.NEGATIVE_INFINITY -> writer.print("(-1.0/0.0);")
-                        java.lang.Double.isNaN(value) -> writer.print("(0.0/0.0);")
-                        else -> {
-                            writer.print(value.toString())
-                            writer.print(";")
-                        }
+            }
+            is Double -> {
+                writer.print(" = ")
+                when {
+                    value == Double.POSITIVE_INFINITY -> writer.print("(1.0/0.0);")
+                    value == Double.NEGATIVE_INFINITY -> writer.print("(-1.0/0.0);")
+                    java.lang.Double.isNaN(value) -> writer.print("(0.0/0.0);")
+                    else -> {
+                        writer.print(value.toString())
+                        writer.print(";")
                     }
                 }
-                is Char -> {
-                    writer.print(" = ")
-                    val intValue = value.code
-                    writer.print(intValue)
-                    writer.print("; // ")
-                    writer.print(
-                        String.format("0x%04x '%s'", intValue, javaEscapeString(value.toString()))
-                    )
-                }
-                else -> {
-                    writer.print(';')
-                }
             }
-        } else {
-            // in interfaces etc we must have an initial value
-            if (requireInitialValue && !containingClass().isClass()) {
-                writer.print(" = null")
+            is Char -> {
+                writer.print(" = ")
+                val intValue = value.code
+                writer.print(intValue)
+                writer.print("; // ")
+                writer.print(
+                    String.format("0x%04x '%s'", intValue, javaEscapeString(value.toString()))
+                )
             }
-            writer.print(';')
+            else -> {
+                writer.print(';')
+            }
         }
     }
 }

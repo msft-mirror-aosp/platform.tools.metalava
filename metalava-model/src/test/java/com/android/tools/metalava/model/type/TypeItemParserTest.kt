@@ -20,18 +20,22 @@ import com.android.tools.metalava.model.AnnotationContext
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ArrayTypeItem
 import com.android.tools.metalava.model.ClassTypeItem
-import com.android.tools.metalava.model.DefaultAnnotationItem
 import com.android.tools.metalava.model.TypeItem
-import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.TypeParameterScope
 import com.google.common.truth.Truth.assertThat
-import org.junit.Assert
 import org.junit.Test
 
 class TypeItemParserTest {
     private val typeParser =
         TypeItemParser(
-            AnnotationContext.DEFAULT,
+            // This context is needed because this test compares types with annotations that have
+            // been created from text. Comparing those annotations requires comparing the value of
+            // the annotation attributes. Getting an attribute value requires resolving the
+            // annotation class in order to find the attribute type so that the value can be
+            // converted into the correct type. The default context throws an exception when
+            // resolving the annotation class. This one returns `null` when resolving the annotation
+            // class which just means the value type will be determined from the text.
+            AnnotationContext.DEFAULT_RESOLVE_NULL,
             UnqualifiedClassHandler.PREFIX_WITH_JAVA_LANG_OR_REPORT_ERROR,
         )
 
@@ -92,41 +96,6 @@ class TypeItemParserTest {
             .isEqualTo(Pair(listOf("X", "Y", "Z"), ".Inner<A, B, C>"))
     }
 
-    @Test
-    fun `Test splitting Kotlin nullability suffix`() {
-        assertThat(TypeItemParser.splitNullabilitySuffix("String!", true))
-            .isEqualTo(Pair("String", TypeNullability.PLATFORM))
-        assertThat(TypeItemParser.splitNullabilitySuffix("String?", true))
-            .isEqualTo(Pair("String", TypeNullability.NULLABLE))
-        assertThat(TypeItemParser.splitNullabilitySuffix("String", true))
-            .isEqualTo(Pair("String", TypeNullability.NONNULL))
-        // Check that wildcards work
-        assertThat(TypeItemParser.splitNullabilitySuffix("?", true))
-            .isEqualTo(Pair("?", TypeNullability.UNDEFINED))
-        assertThat(TypeItemParser.splitNullabilitySuffix("T", true))
-            .isEqualTo(Pair("T", TypeNullability.NONNULL))
-    }
-
-    @Test
-    fun `Test splitting Kotlin nullability suffix when kotlinStyleNulls is false`() {
-        assertThat(TypeItemParser.splitNullabilitySuffix("String", false))
-            .isEqualTo(Pair("String", null))
-        assertThat(TypeItemParser.splitNullabilitySuffix("?", false)).isEqualTo(Pair("?", null))
-
-        Assert.assertThrows(
-            "Format does not support Kotlin-style null type syntax: String!",
-            IllegalStateException::class.java
-        ) {
-            TypeItemParser.splitNullabilitySuffix("String!", false)
-        }
-        Assert.assertThrows(
-            "Format does not support Kotlin-style null type syntax: String?",
-            IllegalStateException::class.java
-        ) {
-            TypeItemParser.splitNullabilitySuffix("String?", false)
-        }
-    }
-
     /**
      * Tests that calling [annotationFunction] on [original] splits the string into a pair
      * containing the [expectedType] and [expectedAnnotations]
@@ -141,7 +110,7 @@ class TypeItemParserTest {
         assertThat(type).isEqualTo(expectedType)
         val expectedAnnotationItems =
             expectedAnnotations.map {
-                DefaultAnnotationItem.create(typeParser.annotationContext, it)
+                AnnotationItem.createFromSource(typeParser.annotationContext, it)
             }
         assertThat(annotations).isEqualTo(expectedAnnotationItems)
     }
@@ -291,7 +260,7 @@ class TypeItemParserTest {
         assertThat(params).isEqualTo(expectedParams)
         val expectedAnnotationItems =
             expectedAnnotations.map {
-                DefaultAnnotationItem.create(typeParser.annotationContext, it)
+                AnnotationItem.createFromSource(typeParser.annotationContext, it)
             }
         assertThat(annotations).isEqualTo(expectedAnnotationItems)
     }
