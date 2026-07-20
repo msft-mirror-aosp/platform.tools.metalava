@@ -16,35 +16,33 @@
 
 package com.android.tools.metalava.cli.common
 
-import com.android.tools.metalava.DefaultReporter
-import com.android.tools.metalava.DefaultReporterEnvironment
-import com.android.tools.metalava.ReporterEnvironment
+import com.android.tools.metalava.config.IssuesConfig
+import com.android.tools.metalava.reporter.DefaultReporter
 import com.android.tools.metalava.reporter.ERROR_WHEN_NEW_SUFFIX
 import com.android.tools.metalava.reporter.IssueConfiguration
 import com.android.tools.metalava.reporter.Issues
-import com.android.tools.metalava.reporter.Reporter
 import com.android.tools.metalava.reporter.Severity
 import com.github.ajalt.clikt.parameters.groups.OptionGroup
 import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.flag
+import com.github.ajalt.clikt.parameters.options.multiple
 import com.github.ajalt.clikt.parameters.options.option
+import com.github.ajalt.clikt.parameters.options.validate
+import com.github.ajalt.clikt.parameters.types.choice
 import com.github.ajalt.clikt.parameters.types.int
 import com.github.ajalt.clikt.parameters.types.restrictTo
-import java.io.File
 
 const val ARG_ERROR = "--error"
 const val ARG_ERROR_WHEN_NEW = "--error-when-new"
 const val ARG_WARNING = "--warning"
-const val ARG_LINT = "--lint"
 const val ARG_HIDE = "--hide"
 const val ARG_ERROR_CATEGORY = "--error-category"
 const val ARG_ERROR_WHEN_NEW_CATEGORY = "--error-when-new-category"
 const val ARG_WARNING_CATEGORY = "--warning-category"
-const val ARG_LINT_CATEGORY = "--lint-category"
 const val ARG_HIDE_CATEGORY = "--hide-category"
 
-const val ARG_LINTS_AS_ERRORS = "--lints-as-errors"
 const val ARG_WARNINGS_AS_ERRORS = "--warnings-as-errors"
+const val ARG_TREAT_AS_ERROR = "--treat-as-error"
 
 const val ARG_REPORT_EVEN_IF_SUPPRESSED = "--report-even-if-suppressed"
 
@@ -52,8 +50,8 @@ const val ARG_REPORT_EVEN_IF_SUPPRESSED = "--report-even-if-suppressed"
 const val REPORTING_OPTIONS_GROUP = "Issue Reporting"
 
 class IssueReportingOptions(
-    reporterEnvironment: ReporterEnvironment = DefaultReporterEnvironment(),
     commonOptions: CommonOptions = CommonOptions(),
+    issuesConfigProvider: () -> IssuesConfig? = { null },
 ) :
     OptionGroup(
         name = REPORTING_OPTIONS_GROUP,
@@ -68,20 +66,48 @@ class IssueReportingOptions(
                 .trimIndent()
     ) {
 
-    /** The [IssueConfiguration] that is configured by these options. */
-    val issueConfiguration = IssueConfiguration()
+    /** The internal [IssueConfiguration] that is configured by these options. */
+    private val internalIssueConfiguration = IssueConfiguration()
+
+    /** The optional [IssuesConfig]. */
+    private val issuesConfig by
+        lazy(LazyThreadSafetyMode.NONE) {
+            try {
+                issuesConfigProvider()
+            } catch (_: Exception) {
+                // Ignore exceptions thrown when reading the configuration. That is because this may
+                // be accessed during exception handling in the command and throwing another
+                // exception
+                // then just causes confusion.
+                null
+            }
+        }
 
     /**
-     * The [Reporter] that is used to report issues encountered while parsing these options.
-     *
-     * A slight complexity is that this [Reporter] and its [IssueConfiguration] are both modified
-     * and used during the process of processing the options.
+     * The [IssueConfiguration] that was configured by these options and incorporates configuration
+     * from [issuesConfigProvider].
      */
-    internal val bootstrapReporter: Reporter =
-        DefaultReporter(
-            reporterEnvironment,
-            issueConfiguration,
-        )
+    val issueConfiguration by
+        lazy(LazyThreadSafetyMode.NONE) {
+            // Apply configuration, if available.
+            issuesConfig?.let { issuesConfig ->
+                for (issueConfig in issuesConfig.issues) {
+                    val issue =
+                        Issues.findIssueById(issueConfig.name)
+                            // Ignore unknown issues.
+                            ?: continue
+
+                    val severity = issueConfig.severity.issueSeverity
+
+                    // Only apply the configuration severity if it has not already been overridden
+                    // on the command line as the command line takes precedence over configuration.
+                    internalIssueConfiguration.setSeverityIfNotAlreadyOverridden(issue, severity)
+                }
+            }
+
+            // Return the internal configuration.
+            internalIssueConfiguration
+        }
 
     init {
         // Create a Clikt option for handling the issue options and updating them as a side effect.
@@ -97,13 +123,10 @@ class IssueReportingOptions(
         // However, when processed after grouping they would be equivalent to one of the following
         // depending on which was processed last:
         //     --hide Foo,Bar
-        //     --error Foo,Bar
+        //     --error Bar,Foo
         //
-        // Instead, this creates a single Clikt option to handle all the issue options but they are
-        // still collated before processing so if they are interleaved with other options whose
-        // parsing makes use of the `reporter` then there is the potential for a change in behavior.
-        // However, currently it does not look as though that is the case except for reporting
-        // issues with deprecated options which is tested.
+        // Instead, this creates a single Clikt option to handle all the issue options, but they are
+        // still collated before processing.
         //
         // Having a single Clikt option with lots of different option names does make the help hard
         // to read as it produces a single line with all the option names on it. So, this uses a
@@ -112,19 +135,16 @@ class IssueReportingOptions(
         val issueOption =
             compositeSideEffectOption(
                 // Create one side effect option per label.
-                ConfigLabel.values().map {
-                    sideEffectOption(it.optionName, help = it.help) {
+                ConfigLabel.entries.map { label ->
+                    sideEffectOption(label.optionName, help = label.help) { optionValue ->
                         // if `--hide id1,id2` was supplied on the command line then this will split
-                        // it into
-                        // ["id1", "id2"]
-                        val values = it.split(",")
-
-                        // Get the label from the name of the option.
-                        val label = ConfigLabel.fromOptionName(name)
+                        // it into ["id1", "id2"]
+                        val values = optionValue.split(",")
 
                         // Update the configuration immediately
-                        values.forEach {
-                            label.setAspectForId(bootstrapReporter, issueConfiguration, it.trim())
+                        for (value in values) {
+                            val trimmed = value.trim()
+                            label.setAspectForId(internalIssueConfiguration, trimmed)
                         }
                     }
                 }
@@ -134,27 +154,46 @@ class IssueReportingOptions(
         registerOption(issueOption)
     }
 
-    private val lintsAsErrors: Boolean by
-        option(
-                ARG_LINTS_AS_ERRORS,
-                help =
-                    """
-                        Promote all API lint issues to errors.
-                    """
-                        .trimIndent()
-            )
-            .flag()
-
+    @Suppress("unused") // Present for the side effect.
     private val warningsAsErrors: Boolean by
         option(
                 ARG_WARNINGS_AS_ERRORS,
                 help =
                     """
-                        Promote all warnings to errors.
+                        Promote all warnings to errors. That includes both `warning` and
+                        `warning-error-when-new`.
                     """
                         .trimIndent()
             )
             .flag()
+            .validate { value ->
+                if (value) {
+                    internalIssueConfiguration.severityMap =
+                        mapOf(
+                            Severity.WARNING to Severity.ERROR,
+                            Severity.WARNING_ERROR_WHEN_NEW to Severity.ERROR,
+                        )
+                }
+            }
+
+    @Suppress("unused") // Present for the side effect.
+    private val treatAsError by
+        option(
+                ARG_TREAT_AS_ERROR,
+                help =
+                    """
+                Treat all issues of the specified severity as if they were errors.
+            """
+                        .trimIndent()
+            )
+            .choice(Severity.entries.associateBy { it.name.lowercase() })
+            .multiple()
+            .validate { list ->
+                if (list.isNotEmpty()) {
+                    val severityToError = list.associateBy({ it }) { Severity.ERROR }
+                    internalIssueConfiguration.severityMap = severityToError
+                }
+            }
 
     /** Writes a list of all errors, even if they were suppressed in baseline or via annotation. */
     private val reportEvenIfSuppressedFile by
@@ -185,9 +224,7 @@ class IssueReportingOptions(
             val reportEvenIfSuppressedWriter = reportEvenIfSuppressedFile?.printWriter()
 
             DefaultReporter.Config(
-                lintsAsErrors = lintsAsErrors,
-                warningsAsErrors = warningsAsErrors,
-                terminal = commonOptions.terminal,
+                outputReportFormatter = TerminalReportFormatter.forTerminal(commonOptions.terminal),
                 reportEvenIfSuppressedWriter = reportEvenIfSuppressedWriter,
             )
         }
@@ -198,23 +235,13 @@ private enum class ConfigurableAspect {
     /** A single issue needs configuring. */
     ISSUE {
         override fun setAspectSeverityForId(
-            reporter: Reporter,
             configuration: IssueConfiguration,
             optionName: String,
             severity: Severity,
             id: String
         ) {
             val issue =
-                Issues.findIssueById(id)
-                    ?: Issues.findIssueByIdIgnoringCase(id)?.also {
-                        reporter.report(
-                            Issues.DEPRECATED_OPTION,
-                            null as File?,
-                            "Case-insensitive issue matching is deprecated, use " +
-                                "$optionName ${it.name} instead of $optionName $id"
-                        )
-                    }
-                        ?: throw MetalavaCliException("Unknown issue id: '$optionName' '$id'")
+                Issues.findIssueById(id) ?: cliError("Unknown issue id: '$optionName' '$id'")
 
             configuration.setSeverity(issue, severity)
         }
@@ -222,23 +249,23 @@ private enum class ConfigurableAspect {
     /** A whole category of issues needs configuring. */
     CATEGORY {
         override fun setAspectSeverityForId(
-            reporter: Reporter,
             configuration: IssueConfiguration,
             optionName: String,
             severity: Severity,
             id: String
         ) {
-            val issues =
-                Issues.findCategoryById(id)?.let { Issues.findIssuesByCategory(it) }
-                    ?: throw MetalavaCliException("Unknown category: $optionName $id")
+            try {
+                val issues = Issues.findCategoryById(id).let { Issues.findIssuesByCategory(it) }
 
-            issues.forEach { configuration.setSeverity(it, severity) }
+                issues.forEach { configuration.setSeverity(it, severity) }
+            } catch (e: Exception) {
+                throw MetalavaCliException("Option $optionName is invalid: ${e.message}", cause = e)
+            }
         }
     };
 
     /** Configure the [IssueConfiguration] appropriately. */
     abstract fun setAspectSeverityForId(
-        reporter: Reporter,
         configuration: IssueConfiguration,
         optionName: String,
         severity: Severity,
@@ -277,12 +304,6 @@ private enum class ConfigLabel(
         ConfigurableAspect.ISSUE,
         "Report issues of the given id as warnings.",
     ),
-    LINT(
-        ARG_LINT,
-        Severity.LINT,
-        ConfigurableAspect.ISSUE,
-        "Report issues of the given id as having lint-severity.",
-    ),
     HIDE(
         ARG_HIDE,
         Severity.HIDDEN,
@@ -307,12 +328,6 @@ private enum class ConfigLabel(
         ConfigurableAspect.CATEGORY,
         "Report all issues in the given category as warnings.",
     ),
-    LINT_CATEGORY(
-        ARG_LINT_CATEGORY,
-        Severity.LINT,
-        ConfigurableAspect.CATEGORY,
-        "Report all issues in the given category as having lint-severity.",
-    ),
     HIDE_CATEGORY(
         ARG_HIDE_CATEGORY,
         Severity.HIDDEN,
@@ -321,17 +336,7 @@ private enum class ConfigLabel(
     );
 
     /** Configure the aspect identified by [id] into the [configuration]. */
-    fun setAspectForId(reporter: Reporter, configuration: IssueConfiguration, id: String) {
-        aspect.setAspectSeverityForId(reporter, configuration, optionName, severity, id)
-    }
-
-    companion object {
-        private val optionNameToLabel = ConfigLabel.values().associateBy { it.optionName }
-
-        /**
-         * Get the label for the option name. This is only called with an option name that has been
-         * obtained from [ConfigLabel.optionName] so it is known that it must match.
-         */
-        fun fromOptionName(option: String): ConfigLabel = optionNameToLabel[option]!!
+    fun setAspectForId(configuration: IssueConfiguration, id: String) {
+        aspect.setAspectSeverityForId(configuration, optionName, severity, id)
     }
 }

@@ -1,0 +1,180 @@
+/*
+ * Copyright (C) 2024 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package com.android.tools.metalava
+
+import com.android.tools.metalava.model.api.surface.ApiSurfaces
+import com.android.tools.metalava.testing.java
+import kotlin.test.assertNotNull
+import kotlin.test.assertNull
+import kotlin.test.assertSame
+import org.junit.Test
+
+class ApiSurfacesTest : DriverTest() {
+
+    /** Encapsulate the data to check in the lambda supplied to [checkApiSurfaces], */
+    private class ApiSurfacesContext(val apiSurfaces: ApiSurfaces)
+
+    /**
+     * Check the API surfaces that are configured based off the [apiSurface].
+     *
+     * @param apiSurface the [KnownApiSurface] to use.
+     * @param checker the lambda that is invoked on [ApiSurfacesContext] and which checks its
+     *   [ApiSurfacesContext.apiSurfaces] property to make sure that the [ApiSurfaces] were
+     *   configured as expected.
+     */
+    private fun checkApiSurfaces(
+        apiSurface: KnownApiSurface,
+        checker: ApiSurfacesContext.() -> Unit,
+    ) {
+        check(
+            apiSurface = apiSurface,
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            public class Foo {
+                            }
+                        """
+                    ),
+                ),
+            postAnalysisChecker = {
+                val apiSurfaces = codebase!!.config.apiSurfaces
+                val context = ApiSurfacesContext(apiSurfaces)
+                context.checker()
+            },
+        )
+    }
+
+    @Test
+    fun `Test generating public API does not need to track the base API surface`() {
+        checkApiSurfaces(KnownApiSurface.PUBLIC) {
+            // The public API surface does not extend another API surface so there is no need to
+            // track the base API surface.
+            apiSurfaces.assertBaseWasNotCreated()
+        }
+    }
+
+    /**
+     * This is equivalent to the restricted API surface in AndroidX. That is effectively an
+     * extension of the public (unannotated API) but unlike Android it does not just write the delta
+     * to the `*restricted.txt` signature files it writes the whole API. It does that by specifying
+     * `--show-unannotated` (to include the public API) alongside the `--show-annotation` (to
+     * include the restricted extensions).
+     */
+    @Test
+    fun `Test generating system + public API does not need to track the base API surface`() {
+        checkApiSurfaces(KnownApiSurface.SYSTEM_WITH_PUBLIC) {
+            // The system API surface that includes public does not extend public so there is no
+            // need to track the base API surface.
+            apiSurfaces.assertBaseWasNotCreated()
+        }
+    }
+
+    @Test
+    fun `Test generating system API as delta on public does need to track the base API surface`() {
+        checkApiSurfaces(KnownApiSurface.SYSTEM) {
+            // The system API surface that extends public does need to track the base API surface.
+            apiSurfaces.assertBaseWasCreated()
+        }
+    }
+
+    @Test
+    fun `Test generating test API as delta on system does need to track the base API surface`() {
+        checkApiSurfaces(KnownApiSurface.TEST) { apiSurfaces.assertBaseWasCreated() }
+    }
+
+    @Test
+    fun `Test no show annotations with signature sources`() {
+        check(
+            apiSurface = KnownApiSurface.SYSTEM,
+            signatureSource =
+                """
+                    package test.pkg {
+                        public class Foo {
+                            ctor public Foo();
+                        }
+                    }
+                """,
+        ) {
+            val apiSurfaces = codebase!!.config.apiSurfaces
+            apiSurfaces.assertBaseWasCreated()
+        }
+    }
+
+    @Test
+    fun `Test that @hide doc tag hides the class when API surfaces are NOT configured`() {
+        check(
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            /**
+                             * @hide
+                             */
+                            public class Foo {
+                                public void bar() {}
+                            }
+                        """
+                    ),
+                ),
+            expectedApiSignature = ""
+        )
+    }
+
+    @Test
+    fun `Test that @hide doc tag is ignored when API surfaces are configured`() {
+        check(
+            apiSurface = KnownApiSurface.PUBLIC,
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            /**
+                             * @hide
+                             */
+                            public class Foo {
+                                public void bar() {}
+                            }
+                        """
+                    ),
+                ),
+            expectedApiSignature =
+                """
+                    // Signature format: 5.0
+                    package test.pkg {
+                      public class Foo {
+                        ctor public Foo();
+                        method public void bar();
+                      }
+                    }
+                """
+        )
+    }
+}
+
+fun ApiSurfaces.assertBaseWasNotCreated() {
+    assertNull(base, message = "base")
+    assertNull(main.extends, message = "main.extends")
+}
+
+fun ApiSurfaces.assertBaseWasCreated() {
+    assertNotNull(base, message = "base")
+    assertSame(base, main.extends, message = "main.extends")
+}

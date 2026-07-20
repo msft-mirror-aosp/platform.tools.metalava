@@ -16,60 +16,66 @@
 
 package com.android.tools.metalava.cli.signature
 
-import com.android.tools.metalava.ApiType
-import com.android.tools.metalava.DexApiWriter
-import com.android.tools.metalava.OptionsDelegate
+import com.android.tools.metalava.cli.common.DefaultSignatureFileLoader
 import com.android.tools.metalava.cli.common.MetalavaSubCommand
-import com.android.tools.metalava.cli.common.SignatureFileLoader
 import com.android.tools.metalava.cli.common.existingFile
 import com.android.tools.metalava.cli.common.newFile
-import com.android.tools.metalava.cli.common.progressTracker
-import com.android.tools.metalava.createReportFile
-import com.android.tools.metalava.model.noOpAnnotationManager
+import com.android.tools.metalava.cli.common.tracer
+import com.android.tools.metalava.createOutputFileFromCodebaseFragment
+import com.android.tools.metalava.model.Codebase
+import com.android.tools.metalava.model.CodebaseFragment
 import com.android.tools.metalava.model.text.SignatureFile
-import com.android.tools.metalava.model.visitors.ApiVisitor
+import com.android.tools.metalava.model.visitors.FilteringApiVisitor
+import com.android.tools.metalava.trace
 import com.github.ajalt.clikt.parameters.arguments.argument
+import com.github.ajalt.clikt.parameters.arguments.multiple
+import com.github.ajalt.clikt.parameters.options.option
+import com.github.ajalt.clikt.parameters.options.required
+
+const val ARG_OUT = "--out"
 
 class SignatureToDexCommand :
     MetalavaSubCommand(
-        help = "Convert an API signature file into a file containing a list of DEX signatures.",
+        help = "Convert API signature files into a file containing a list of DEX signatures.",
     ) {
 
-    private val apiFile by
+    private val apiFiles by
         argument(
                 name = "<api-file>",
-                help = "API signature file to convert to DEX signatures.",
+                help = "API signature files to convert to DEX signatures.",
             )
             .existingFile()
+            .multiple(required = true)
 
-    private val dexFile by
-        argument(
-                name = "<dex-file>",
+    private val outFile by
+        option(
+                ARG_OUT,
                 help = "Output DEX signatures file.",
             )
             .newFile()
+            .required()
 
     override fun run() {
-        // Make sure that none of the code called by this command accesses the global `options`
-        // property.
-        OptionsDelegate.disallowAccess()
+        val codebaseConfig = Codebase.Config.NOOP
+        val signatureFileLoader = DefaultSignatureFileLoader(codebaseConfig)
+        val signatureApi = signatureFileLoader.load(SignatureFile.fromFiles(apiFiles))
 
-        val signatureFileLoader = SignatureFileLoader(annotationManager = noOpAnnotationManager)
-        val signatureApi = signatureFileLoader.load(SignatureFile.fromFile(apiFile))
+        val codebaseFragment =
+            CodebaseFragment.create(signatureApi) { delegatedVisitor ->
+                FilteringApiVisitor(
+                    delegatedVisitor,
+                    // Pre-filtered so does not need any filters.
+                    apiFilters = null,
+                )
+            }
 
-        val apiVisitorConfig = ApiVisitor.Config()
-        val apiPredicateConfig = apiVisitorConfig.apiPredicateConfig
-        val apiType = ApiType.ALL
-        val apiEmit = apiType.getEmitFilter(apiPredicateConfig)
-        val apiReference = apiType.getReferenceFilter(apiPredicateConfig)
-
-        createReportFile(progressTracker, signatureApi, dexFile, "DEX API") { printWriter ->
-            DexApiWriter(
-                printWriter,
-                apiEmit,
-                apiReference,
-                apiVisitorConfig,
-            )
+        tracer.trace("createOutputFileFromCodebaseFragment DEX API") {
+            createOutputFileFromCodebaseFragment(
+                codebaseFragment,
+                outFile,
+            ) { printWriter ->
+                DexApiWriter(printWriter)
+            }
         }
     }
 }

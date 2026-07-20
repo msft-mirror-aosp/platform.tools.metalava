@@ -16,7 +16,11 @@
 
 package com.android.tools.metalava.cli.common
 
+import com.android.tools.metalava.Driver
+import com.android.tools.metalava.MiscellaneousOptions
+import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.ModelOptions
+import com.android.tools.metalava.model.multiplatform.MultiplatformCodebase
 import com.android.tools.metalava.model.source.SourceModelProvider
 
 /**
@@ -36,4 +40,26 @@ class TestEnvironment(
     val skipEmitPackages: List<String>,
     val sourceModelProvider: SourceModelProvider,
     val modelOptions: ModelOptions,
+
+    /**
+     * An optional lambda that is called on the [CheckerContext] after the analysis phase has
+     * completed.
+     *
+     * This is set by tests to check the state of the objects referenced from [CheckerContext] like
+     * [Codebase] and [MiscellaneousOptions] that are not easily verifiable through other means.
+     */
+    val postAnalysisChecker: CheckerFunction? = null,
 )
+
+/**
+ * Encapsulates some internal state of the main metalava command for checking in
+ * [TestEnvironment.postAnalysisChecker] lambda.
+ */
+class CheckerContext(
+    val driver: Driver,
+    val codebase: Codebase?,
+    val multiplatformCodebase: MultiplatformCodebase?,
+)
+
+/** Alias for a lambda that is invoked on [CheckerContext] to check its state as part of a test. */
+typealias CheckerFunction = CheckerContext.() -> Unit

@@ -19,6 +19,9 @@ package com.android.tools.metalava.model.psi
 import com.android.tools.lint.checks.infrastructure.TestFile
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.PrimitiveTypeItem
+import com.android.tools.metalava.model.noOpAnnotationManager
+import com.android.tools.metalava.model.provider.InputFormat
+import com.android.tools.metalava.model.testing.SupportedInputFormats
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
@@ -37,7 +40,6 @@ class PsiAnnotationMixtureTest : BaseModelTest() {
                     public @A <T> T foo3() {}
                 }
             """
-                    .trimIndent()
             )
         val kotlinUsageSource =
             kotlin(
@@ -49,7 +51,6 @@ class PsiAnnotationMixtureTest : BaseModelTest() {
                     fun <T> foo3(): @A T {}
                 }
             """
-                    .trimIndent()
             )
         val javaAnnotationSource =
             java(
@@ -58,7 +59,6 @@ class PsiAnnotationMixtureTest : BaseModelTest() {
                 @java.lang.annotation.Target(java.lang.annotation.ElementType.TYPE_USE)
                 public @interface A {}
             """
-                    .trimIndent()
             )
         val kotlinAnnotationSource =
             kotlin(
@@ -67,7 +67,6 @@ class PsiAnnotationMixtureTest : BaseModelTest() {
                 @Target(AnnotationTarget.TYPE)
                 annotation class A
             """
-                    .trimIndent()
             )
     }
 
@@ -75,7 +74,15 @@ class PsiAnnotationMixtureTest : BaseModelTest() {
         annotationUsageSource: TestFile,
         annotationDefinitionSource: TestFile,
     ) {
-        runCodebaseTest(inputSet(annotationDefinitionSource, annotationUsageSource)) {
+        runCodebaseTest(
+            inputSet(annotationDefinitionSource, annotationUsageSource),
+            testFixture =
+                TestFixture(
+                    // Use the noOpAnnotationManager to avoid annotation name normalizing as the
+                    // annotation names are important for this test.
+                    annotationManager = noOpAnnotationManager,
+                ),
+        ) {
             val methods = codebase.assertClass("test.pkg.Foo").methods()
             assertThat(methods).hasSize(3)
 
@@ -92,7 +99,7 @@ class PsiAnnotationMixtureTest : BaseModelTest() {
             assertThat(string).isInstanceOf(ClassTypeItem::class.java)
             assertThat(string.annotationNames()).containsExactly("test.pkg.A")
             val stringMethodAnnotations = stringMethod.annotationNames()
-            if ((stringMethod as PsiMethodItem).psiMethod.isKotlin()) {
+            if (stringMethod.isKotlin()) {
                 // The Kotlin version puts a nullability annotation on the method
                 assertThat(stringMethodAnnotations)
                     .containsExactly("org.jetbrains.annotations.NotNull")
@@ -110,21 +117,25 @@ class PsiAnnotationMixtureTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `Test java usage, java definition`() {
         runMixtureAnnotationTest(javaUsageSource, javaAnnotationSource)
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test java usage, kotlin definition`() {
         runMixtureAnnotationTest(javaUsageSource, kotlinAnnotationSource)
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test kotlin usage, java definition`() {
         runMixtureAnnotationTest(kotlinUsageSource, javaAnnotationSource)
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test kotlin usage, kotlin definition`() {
         runMixtureAnnotationTest(kotlinUsageSource, kotlinAnnotationSource)

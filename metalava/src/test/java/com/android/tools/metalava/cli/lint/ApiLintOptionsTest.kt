@@ -38,6 +38,8 @@ Api Lint:
 
                                              API Lint issues found in the previously released API will be ignored.
   --error-message:api-lint <message>         If set, this is output when errors are detected in --api-lint.
+  --api-lint-allowed-acronym <acronym>       An acronym that should be allowed by API lint. Can be specified multiple
+                                             times.
   --baseline:api-lint <file>                 An optional baseline file that contains a list of known API lint issues
                                              which should be ignored. If this does not exist and
                                              --update-baseline:api-lint is not specified then it will be created and
@@ -60,8 +62,7 @@ class ApiLintOptionsTest :
 
     @Test
     fun `api lint previous api`() {
-        val file =
-            signature("released.txt", "// Signature format: 2.0\n").createFile(temporaryFolder.root)
+        val file = signature("released.txt", "// Signature format: 2.0\n").toFile()
         runTest(ARG_API_LINT_PREVIOUS_API, file.path) {
             assertThat(options.apiLintPreviousApis).isEqualTo(listOf(file))
         }

@@ -1,0 +1,147 @@
+/*
+ * Copyright (C) 2023 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package com.android.tools.metalava.model.item
+
+import com.android.tools.metalava.model.ApiVariantSelectorsFactory
+import com.android.tools.metalava.model.BaseModifierList
+import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.ClassKind
+import com.android.tools.metalava.model.ClassTypeItem
+import com.android.tools.metalava.model.Codebase
+import com.android.tools.metalava.model.ConstructorItem
+import com.android.tools.metalava.model.ExceptionTypeItem
+import com.android.tools.metalava.model.ItemDocumentation
+import com.android.tools.metalava.model.ItemDocumentationFactory
+import com.android.tools.metalava.model.SourceLanguage
+import com.android.tools.metalava.model.TargetLanguage
+import com.android.tools.metalava.model.TargetLanguageSet
+import com.android.tools.metalava.model.TypeItem
+import com.android.tools.metalava.model.TypeParameterList
+import com.android.tools.metalava.model.VisibilityLevel
+import com.android.tools.metalava.model.createImmutableModifiers
+import com.android.tools.metalava.reporter.FileLocation
+
+internal class DefaultConstructorItem(
+    codebase: Codebase,
+    fileLocation: FileLocation,
+    sourceLanguage: SourceLanguage,
+    targetLanguages: Set<TargetLanguage>,
+    modifiers: BaseModifierList,
+    documentationFactory: ItemDocumentationFactory,
+    variantSelectorsFactory: ApiVariantSelectorsFactory,
+    name: String,
+    containingClass: ClassItem,
+    typeParameterList: TypeParameterList,
+    returnType: ClassTypeItem,
+    parameterItemsFactory: ParameterItemsFactory,
+    throwsTypes: List<ExceptionTypeItem>,
+    private val implicitConstructor: Boolean,
+    isPrimary: Boolean = false,
+) :
+    DefaultCallableItem(
+        codebase = codebase,
+        fileLocation = fileLocation,
+        sourceLanguage = sourceLanguage,
+        targetLanguages = targetLanguages,
+        modifiers = modifiers,
+        documentationFactory = documentationFactory,
+        variantSelectorsFactory = variantSelectorsFactory,
+        name = name,
+        containingClass = containingClass,
+        typeParameterList = typeParameterList,
+        returnType = returnType,
+        parameterItemsFactory = parameterItemsFactory,
+        throwsTypes = throwsTypes,
+    ),
+    ConstructorItem {
+
+    // If this is the canonical constructor then set it as the primary constructor.
+    override val isPrimary: Boolean = isPrimary || isCanonicalRecordConstructor()
+
+    /** Override to specialize the return type. */
+    override fun returnType() = super.returnType() as ClassTypeItem
+
+    /** Override to make sure that [type] is a [ClassTypeItem]. */
+    override fun setType(type: TypeItem) {
+        super.setType(type as ClassTypeItem)
+    }
+
+    override fun isImplicitConstructor() = implicitConstructor
+
+    companion object {
+        fun createImplicitDefaultConstructor(
+            codebase: Codebase,
+            sourceLanguage: SourceLanguage,
+            variantSelectorsFactory: ApiVariantSelectorsFactory,
+            containingClass: ClassItem,
+            visibility: VisibilityLevel,
+        ): ConstructorItem {
+            val name = containingClass.simpleName()
+            val modifiers = createImmutableModifiers(visibility)
+
+            val ctorItem =
+                DefaultConstructorItem(
+                    codebase = codebase,
+                    // Use the location of the containing class for the default constructor.
+                    fileLocation = containingClass.fileLocation,
+                    sourceLanguage = sourceLanguage,
+                    targetLanguages = TargetLanguageSet.ALL,
+                    modifiers = modifiers,
+                    documentationFactory = ItemDocumentation.NONE_FACTORY,
+                    variantSelectorsFactory = variantSelectorsFactory,
+                    name = name,
+                    containingClass = containingClass,
+                    typeParameterList = TypeParameterList.NONE,
+                    returnType = containingClass.type(),
+                    parameterItemsFactory = { emptyList() },
+                    throwsTypes = emptyList(),
+                    // This is an implicit constructor as it was not found in the source.
+                    implicitConstructor = true,
+                )
+            return ctorItem
+        }
+
+        /**
+         * Check to see if this [ConstructorItem] is the canonical constructor of a record class.
+         *
+         * This will return `true` iff [ConstructorItem.parameters] has the same number and types as
+         * the record components.
+         */
+        private fun ConstructorItem.isCanonicalRecordConstructor(): Boolean {
+            val containingClass = containingClass()
+            if (containingClass.classKind != ClassKind.RECORD) {
+                return false
+            }
+            val parameters = parameters()
+            val components = containingClass.recordComponents
+            val count = components.size
+            if (count != parameters.size) {
+                return false
+            }
+
+            for (index in 0..<count) {
+                val component = components[index]
+                val parameter = parameters[index]
+                if (component.type != parameter.type()) {
+                    return false
+                }
+            }
+
+            return true
+        }
+    }
+}

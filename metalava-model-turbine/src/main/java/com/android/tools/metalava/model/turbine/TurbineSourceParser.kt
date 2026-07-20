@@ -16,98 +16,74 @@
 
 package com.android.tools.metalava.model.turbine
 
-import com.android.tools.metalava.model.AnnotationManager
-import com.android.tools.metalava.model.ClassResolver
-import com.android.tools.metalava.model.source.SourceCodebase
+import com.android.tools.metalava.model.Codebase
+import com.android.tools.metalava.model.api.SelectedApi
+import com.android.tools.metalava.model.item.DefaultCodebase
+import com.android.tools.metalava.model.multiplatform.MultiplatformCodebase
+import com.android.tools.metalava.model.source.AbstractSourceParser
 import com.android.tools.metalava.model.source.SourceParser
-import com.android.tools.metalava.model.source.SourceSet
-import com.android.tools.metalava.model.source.utils.findPackage
-import com.google.turbine.diag.SourceFile
-import com.google.turbine.parse.Parser
+import com.google.turbine.binder.ClassPathBinder
+import com.google.turbine.binder.JimageClassBinder
+import com.google.turbine.diag.TurbineError
 import java.io.File
 
 internal class TurbineSourceParser(
-    private val annotationManager: AnnotationManager,
-    private val allowReadingComments: Boolean
-) : SourceParser {
-
-    private val hiddenPackages = mutableSetOf<String>()
-
-    override fun getClassResolver(classPath: List<File>): ClassResolver {
-        TODO("implement it")
-    }
-
+    private val codebaseConfig: Codebase.Config,
+    private val jdkHome: File?,
+) : AbstractSourceParser(codebaseConfig.reporter) {
     /**
      * Returns a codebase initialized from the given Java source files, with the given description.
      */
-    override fun parseSources(
-        sourceSet: SourceSet,
-        commonSourceSet: SourceSet,
-        description: String,
-        classPath: List<File>,
-    ): TurbineBasedCodebase {
+    override fun processInputs(inputs: SourceParser.Inputs): Codebase? {
+        if (inputs.projectDescription != null) {
+            error("Turbine model does not support --project")
+        }
+        if (inputs.compiledSourceJar != null) {
+            error("Turbine model does not support --compiled-jar")
+        }
+
+        val classpath = ClassPathBinder.bindClasspath(inputs.classPath.map { it.toPath() })
+        val bootclasspath =
+            jdkHome?.let { home -> JimageClassBinder.bind(home.path) }
+                ?: ClassPathBinder.bindClasspath(listOf())
+
+        val sourceSet = inputs.sourceSet
+
         val rootDir = sourceSet.sourcePath.firstOrNull() ?: File("").canonicalFile
-        val codebase =
-            TurbineBasedCodebase(rootDir, description, annotationManager, allowReadingComments)
 
-        identifyHiddenPackages(sourceSet.sources)
+        val assembler =
+            TurbineCodebaseInitialiser(
+                codebaseFactory = { assembler ->
+                    DefaultCodebase(
+                        location = rootDir,
+                        description = inputs.description,
+                        preFiltered = false,
+                        config = codebaseConfig,
+                        trustedApi = false,
+                        supportsDocumentation = true,
+                        assembler = assembler,
+                        // Create a [SelectedApi] instance that will be initialized lazily from the
+                        // source.
+                        selectedApiFactory = SelectedApi.sourceFactory(codebaseConfig),
+                    )
+                },
+                bootclasspath = bootclasspath,
+                classpath = classpath,
+            )
 
-        val sourceFiles = getSourceFiles(sourceSet.sources)
-        val units = sourceFiles.map { Parser.parse(it) }
-        codebase.initialize(units, classPath, hiddenPackages)
+        try {
+            // Initialize the codebase.
+            assembler.initialize(sourceSet, inputs.apiPackages)
+        } catch (_: TurbineError) {
+            // Processing was aborted so the `codebase` is not valid so return `null`.
+            return null
+        }
 
-        return codebase
+        // Return the newly created and initialized codebase.
+        return assembler.codebase
     }
 
-    private fun getSourceFiles(sources: List<File>): List<SourceFile> {
-        return sources
-            .filter { it.isFile && it.extension == "java" } // Ensure only Java files are included
-            .map { SourceFile(it.path, it.readText()) }
-    }
-
-    override fun loadFromJar(apiJar: File): SourceCodebase {
-        TODO("b/299044569 handle this")
-    }
-
-    /**
-     * Identifies directories and packages that should be hidden based on the contents of
-     * package.html files.
-     */
-    private fun identifyHiddenPackages(files: List<File>) {
-        files
-            .filter { it.isFile && it.name == "package.html" }
-            .forEach { file ->
-                val content = file.readText()
-                if (content.contains("@hide")) {
-                    val packageName = findPackageName(file)
-                    if (packageName != null) {
-                        hiddenPackages.add(packageName)
-                    }
-                }
-            }
-    }
-
-    /**
-     * Attempts to find the package name by looking for any Java class files in the same directory,
-     * if unsuccessful, it will guess based on the directory structure.
-     */
-    private fun findPackageName(file: File): String? {
-        // First try to find a package name using the utility method which might analyze the java
-        // file
-        file.parentFile
-            .listFiles()
-            ?.filter { it.isFile && it.extension == "java" }
-            ?.forEach { javaFile ->
-                findPackage(javaFile)?.let {
-                    return it
-                }
-            }
-
-        // If no class file with package declaration was found, deduce from the directory structure
-        return file.parentFile.absolutePath
-            .split(File.separatorChar)
-            .dropWhile { it != "java" }
-            .drop(1)
-            .joinToString(".")
+    override fun createMultiplatformCodebase(projectDescription: File): MultiplatformCodebase {
+        error("Turbine model does not support multiplatform codebase creation")
     }
 }

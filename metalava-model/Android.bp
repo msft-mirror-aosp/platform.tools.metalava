@@ -23,4 +23,10 @@ java_library_host {
         "src/main/java/**/*.java",
         "src/main/java/**/*.kt",
     ],
+    libs: [
+        "kotlin-reflect",
+    ],
+    static_libs: [
+        "metalava-reporter",
+    ],
 }

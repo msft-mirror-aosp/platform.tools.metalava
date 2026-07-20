@@ -16,7 +16,7 @@
 
 package com.android.tools.metalava
 
-import com.android.tools.metalava.cli.common.ARG_HIDE
+import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.testing.java
 import org.junit.Test
 
@@ -49,8 +49,8 @@ class KeepFileTest : DriverTest() {
                     @SuppressWarnings("ALL")
                     public interface MyInterface2<T extends Number>
                             extends MyBaseInterface {
-                        class TtsSpan<C extends MyInterface<?>> { }
-                        abstract class Range<T extends Comparable<? super T>> {
+                        public class TtsSpan<C extends MyInterface<?>> { }
+                        public abstract class Range<T extends Comparable<? super T>> {
                             protected String myString;
                         }
                     }
@@ -84,7 +84,10 @@ class KeepFileTest : DriverTest() {
                     <init>();
                 }
                 """,
-            extraArguments = arrayOf(ARG_HIDE, "KotlinKeyword")
+            extraArguments =
+                hiddenIssues(
+                    Issues.KOTLIN_KEYWORD,
+                ),
         )
     }
 
@@ -117,7 +120,10 @@ class KeepFileTest : DriverTest() {
                     public byte testMethodE(byte);
                 }
                 """,
-            extraArguments = arrayOf(ARG_HIDE, "KotlinKeyword")
+            extraArguments =
+                hiddenIssues(
+                    Issues.KOTLIN_KEYWORD,
+                ),
         )
     }
 
@@ -148,7 +154,10 @@ class KeepFileTest : DriverTest() {
                     public byte testMethodD(byte[]);
                 }
                 """,
-            extraArguments = arrayOf(ARG_HIDE, "KotlinKeyword")
+            extraArguments =
+                hiddenIssues(
+                    Issues.KOTLIN_KEYWORD,
+                ),
         )
     }
 
@@ -177,7 +186,10 @@ class KeepFileTest : DriverTest() {
                     public void testMethodC(java.lang.Integer[]);
                 }
                 """,
-            extraArguments = arrayOf(ARG_HIDE, "KotlinKeyword")
+            extraArguments =
+                hiddenIssues(
+                    Issues.KOTLIN_KEYWORD,
+                ),
         )
     }
 
@@ -210,7 +222,10 @@ class KeepFileTest : DriverTest() {
                     <init>();
                 }
                 """,
-            extraArguments = arrayOf(ARG_HIDE, "KotlinKeyword")
+            extraArguments =
+                hiddenIssues(
+                    Issues.KOTLIN_KEYWORD,
+                ),
         )
     }
 
@@ -268,7 +283,10 @@ class KeepFileTest : DriverTest() {
                     <init>();
                 }
                 """,
-            extraArguments = arrayOf(ARG_HIDE, "KotlinKeyword")
+            extraArguments =
+                hiddenIssues(
+                    Issues.KOTLIN_KEYWORD,
+                ),
         )
     }
 
@@ -312,7 +330,10 @@ class KeepFileTest : DriverTest() {
                     <init>();
                 }
                 """,
-            extraArguments = arrayOf(ARG_HIDE, "KotlinKeyword")
+            extraArguments =
+                hiddenIssues(
+                    Issues.KOTLIN_KEYWORD,
+                ),
         )
     }
 
@@ -366,7 +387,10 @@ class KeepFileTest : DriverTest() {
                     <init>();
                 }
                 """,
-            extraArguments = arrayOf(ARG_HIDE, "KotlinKeyword")
+            extraArguments =
+                hiddenIssues(
+                    Issues.KOTLIN_KEYWORD,
+                ),
         )
     }
 }

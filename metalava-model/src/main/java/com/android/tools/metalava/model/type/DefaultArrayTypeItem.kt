@@ -21,12 +21,27 @@ import com.android.tools.metalava.model.DefaultTypeItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeModifiers
 
-class DefaultArrayTypeItem(
+internal class DefaultArrayTypeItem(
     modifiers: TypeModifiers,
     override val componentType: TypeItem,
     override val isVarargs: Boolean,
-) : ArrayTypeItem, DefaultTypeItem(modifiers) {
-    override fun duplicate(componentType: TypeItem): ArrayTypeItem {
-        return DefaultArrayTypeItem(modifiers.duplicate(), componentType, isVarargs)
-    }
+    isValueClassType: Boolean = false,
+) : ArrayTypeItem, DefaultTypeItem(modifiers, isValueClassType) {
+
+    override fun substitute(
+        modifiers: TypeModifiers,
+        componentType: TypeItem,
+        isVarargs: Boolean,
+    ) =
+        if (
+            modifiers !== this.modifiers ||
+                componentType !== this.componentType ||
+                isVarargs != this.isVarargs
+        )
+            DefaultArrayTypeItem(
+                modifiers,
+                componentType,
+                isVarargs,
+            )
+        else this
 }
