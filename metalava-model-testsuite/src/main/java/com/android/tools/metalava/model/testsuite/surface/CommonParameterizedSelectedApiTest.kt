@@ -486,20 +486,18 @@ class CommonParameterizedSelectedApiTest : BaseModelTest() {
                         ),
                     ),
             ) {
-                // TODO: The behavior shown below is not correct as it does not track
-                // ApiVariantType.DOC_ONLY and will be fixed in a follow up change.
                 surfaceTest(
                     surface = "public",
                     expected =
                         """
                             package test.pkg
-                                   self - ApiVariantSet[public(C)]
+                                   self - ApiVariantSet[public(CD)]
                               class test.pkg.DocOnlyClass
-                                     self - ApiVariantSet[public(C)]
+                                     self - ApiVariantSet[public(D)]
                                 constructor test.pkg.DocOnlyClass()
-                                       self - ApiVariantSet[public(C)]
+                                       self - ApiVariantSet[public(D)]
                                 method test.pkg.DocOnlyClass.method()
-                                       self - ApiVariantSet[public(C)]
+                                       self - ApiVariantSet[public(D)]
                               class test.pkg.Test
                                      self - ApiVariantSet[public(C)]
                                 constructor test.pkg.Test()
@@ -576,21 +574,21 @@ class CommonParameterizedSelectedApiTest : BaseModelTest() {
                         ),
                     ),
             ) {
-                // TODO: The behavior shown below is not correct as it does not track
-                // ApiVariantType.DOC_ONLY or ApiVariantType.REMOVED and will be fixed in a
-                // follow up change.
+                // TODO: The test below shows the current behavior which is incorrect as it does not
+                //  track ApiVariantType.REMOVED which should take precedence over
+                //  ApiVariantType.DOC_ONLY.
                 surfaceTest(
                     surface = "public",
                     expected =
                         """
                             package test.pkg
-                                   self - ApiVariantSet[public(C)]
+                                   self - ApiVariantSet[public(CD)]
                               class test.pkg.DocOnlyAndRemovedClass
-                                     self - ApiVariantSet[public(C)]
+                                     self - ApiVariantSet[public(D)]
                                 constructor test.pkg.DocOnlyAndRemovedClass()
-                                       self - ApiVariantSet[public(C)]
+                                       self - ApiVariantSet[public(D)]
                                 method test.pkg.DocOnlyAndRemovedClass.method()
-                                       self - ApiVariantSet[public(C)]
+                                       self - ApiVariantSet[public(D)]
                               class test.pkg.Test
                                      self - ApiVariantSet[public(C)]
                                 constructor test.pkg.Test()

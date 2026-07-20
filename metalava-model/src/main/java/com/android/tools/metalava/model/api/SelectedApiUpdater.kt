@@ -27,6 +27,7 @@ import com.android.tools.metalava.model.api.SurfaceSelectionRule.Effect
 import com.android.tools.metalava.model.api.surface.ApiSurfaces
 import com.android.tools.metalava.model.api.surface.ApiVariant
 import com.android.tools.metalava.model.api.surface.ApiVariantSet
+import com.android.tools.metalava.model.api.surface.ApiVariantType
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
 
@@ -184,6 +185,8 @@ class SelectedApiUpdater(
             ) {
                 reportOverlappingSurfaces(item)
 
+                // If an item is in multiple surfaces then restrict it to the narrowest surface as
+                // that will also make it available in any extending surfaces.
                 itemApiVariants = itemApiVariants.intersectionWith(narrowestSurface.variantSet)
                 if (inheritableApiVariants.isNotEmpty()) {
                     inheritableApiVariants =
@@ -219,6 +222,30 @@ class SelectedApiUpdater(
                     ApiVariantSet.EMPTY
                 }
             inheritableApiVariants = enclosingApiVariants
+        }
+
+        // Get the API surface to which the item belongs.
+        val surface = itemApiVariants.narrowestSurfaceFor(apiSurfaces)
+        if (surface != null) {
+            // Verify that the item is in only a single surface. That should be guaranteed by the
+            // code above that handles overlapping surfaces. However, it is possible that some
+            // problems with the enclosing API variants may break that guarantee so verify it here
+            require(surface === itemApiVariants.widestSurfaceFor(apiSurfaces)) {
+                "$itemApiVariants must not contain multiple surfaces"
+            }
+
+            // If this item is not already doc-only but is enclosed within a doc-only parent then
+            // make it doc-only.
+            if (!selectedApi.docOnly && parent.docOnly) {
+                selectedApi.docOnly = true
+            }
+
+            if (selectedApi.docOnly) {
+                // The item is marked as doc-only, or a member of a doc-only class so set the API
+                // variants to only contain the doc-only variant in the target surface.
+                val variant = surface.variantFor(ApiVariantType.DOC_ONLY)
+                itemApiVariants = apiSurfaces.createVariantSet(variant)
+            }
         }
 
         // Store the variant set in selectedApi.
