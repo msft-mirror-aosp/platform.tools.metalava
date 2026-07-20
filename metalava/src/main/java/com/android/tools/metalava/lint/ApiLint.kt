@@ -18,6 +18,7 @@ package com.android.tools.metalava.lint
 
 import com.android.sdklib.SdkVersionInfo
 import com.android.tools.metalava.KotlinInteropChecks
+import com.android.tools.metalava.lint.ApiLint.PackageRank.Companion.INVALID_RANK
 import com.android.tools.metalava.lint.ResourceType.AAPT
 import com.android.tools.metalava.lint.ResourceType.ANIM
 import com.android.tools.metalava.lint.ResourceType.ANIMATOR
@@ -56,6 +57,7 @@ import com.android.tools.metalava.model.ArrayTypeItem
 import com.android.tools.metalava.model.BaseTypeVisitor
 import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.ClassOrVariableTypeItem
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.Codebase
@@ -73,9 +75,12 @@ import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.MultipleTypeVisitor
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
+import com.android.tools.metalava.model.ParameterKind
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.PrimitiveTypeItem.Primitive
 import com.android.tools.metalava.model.PropertyItem
+import com.android.tools.metalava.model.RecordComponentItem
+import com.android.tools.metalava.model.SourceLanguage
 import com.android.tools.metalava.model.TargetLanguageSet
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeNullability
@@ -109,6 +114,7 @@ import com.android.tools.metalava.reporter.Issues.CALLBACK_METHOD_NAME
 import com.android.tools.metalava.reporter.Issues.CALLBACK_NAME
 import com.android.tools.metalava.reporter.Issues.COMPILE_TIME_CONSTANT
 import com.android.tools.metalava.reporter.Issues.CONCRETE_COLLECTION
+import com.android.tools.metalava.reporter.Issues.CONCRETE_SEALED_CLASS
 import com.android.tools.metalava.reporter.Issues.CONFIG_FIELD_NAME
 import com.android.tools.metalava.reporter.Issues.CONTEXT_FIRST
 import com.android.tools.metalava.reporter.Issues.CONTEXT_NAME_SUFFIX
@@ -118,6 +124,7 @@ import com.android.tools.metalava.reporter.Issues.ENUM
 import com.android.tools.metalava.reporter.Issues.EQUALS_AND_HASH_CODE
 import com.android.tools.metalava.reporter.Issues.EXCEPTION_NAME
 import com.android.tools.metalava.reporter.Issues.EXECUTOR_REGISTRATION
+import com.android.tools.metalava.reporter.Issues.EXHAUSTIVE_SEALED_CLASS
 import com.android.tools.metalava.reporter.Issues.EXTENDS_ERROR
 import com.android.tools.metalava.reporter.Issues.FORBIDDEN_SUPER_CLASS
 import com.android.tools.metalava.reporter.Issues.FRACTION_FLOAT
@@ -182,6 +189,7 @@ import com.android.tools.metalava.reporter.Issues.STATIC_FINAL_BUILDER
 import com.android.tools.metalava.reporter.Issues.STATIC_UTILS
 import com.android.tools.metalava.reporter.Issues.STREAM_FILES
 import com.android.tools.metalava.reporter.Issues.TOP_LEVEL_BUILDER
+import com.android.tools.metalava.reporter.Issues.TYPEALIAS_DEFINITION
 import com.android.tools.metalava.reporter.Issues.TYPE_PARAMETER_NAME
 import com.android.tools.metalava.reporter.Issues.UNIQUE_KOTLIN_OPERATOR
 import com.android.tools.metalava.reporter.Issues.USER_HANDLE
@@ -217,6 +225,9 @@ private constructor(
 
         /** The list of allowed acronyms. */
         val allowedAcronyms: List<String> = emptyList(),
+
+        /** Whether to run Java-Kotlin interop checks. */
+        val enableInteropChecks: Boolean = true,
     )
 
     private val manifest
@@ -241,18 +252,23 @@ private constructor(
         codebase.accept(this)
     }
 
-    private val kotlinInterop: KotlinInteropChecks = KotlinInteropChecks(this.filteredReporter)
+    private val kotlinInterop: KotlinInteropChecks? =
+        if (config.enableInteropChecks) {
+            KotlinInteropChecks(this.filteredReporter)
+        } else {
+            null
+        }
 
     override fun visitClass(cls: ClassItem) {
         val methods = cls.filteredMethods(filterReference).asSequence()
-        val fields = cls.filteredFields(filterReference, showUnannotated).asSequence()
+        val fields = cls.filteredFields(filterReference).asSequence()
         val constructors = cls.filteredConstructors(filterReference)
         val superClass = cls.filteredSuperclass(filterReference)
         val interfaces = cls.filteredInterfaceTypes(filterReference).asSequence()
         val allCallables = methods.asSequence() + constructors.asSequence()
         filteredReporter.withContext(cls) {
             checkClass(cls, methods, constructors, allCallables, fields, superClass, interfaces)
-            kotlinInterop.checkClass(cls, allCallables + fields)
+            kotlinInterop?.checkClass(cls, allCallables + fields)
         }
     }
 
@@ -290,12 +306,12 @@ private constructor(
             checkCallbackOrListenerMethod(method)
             checkMethodSuffixListenableFutureReturn(method)
             checkTypeParameterNames(method)
-            kotlinInterop.checkMethod(method)
+            kotlinInterop?.checkMethod(method)
         }
     }
 
     override fun visitConstructor(constructor: ConstructorItem) {
-        filteredReporter.withContext(constructor) { kotlinInterop.checkConstructor(constructor) }
+        filteredReporter.withContext(constructor) { kotlinInterop?.checkConstructor(constructor) }
     }
 
     override fun visitField(field: FieldItem) {
@@ -303,12 +319,12 @@ private constructor(
             checkField(field)
             val type = field.type()
             checkEveryType(type, field, TypeUseSite.FIELD)
-            kotlinInterop.checkField(field)
+            kotlinInterop?.checkField(field)
         }
     }
 
     override fun visitProperty(property: PropertyItem) {
-        filteredReporter.withContext(property) { kotlinInterop.checkProperty(property) }
+        filteredReporter.withContext(property) { kotlinInterop?.checkProperty(property) }
     }
 
     /**
@@ -347,6 +363,30 @@ private constructor(
         checkUri(typeString, item)
         checkFutures(typeString, item)
         // DO NOT ADD ANY MORE CHECKS TO THIS, ADD THEM TO [checkEveryType] INSTEAD.
+    }
+
+    /** Check [component]. */
+    fun checkRecordComponent(component: RecordComponentItem) {
+        val type = component.type
+
+        // Perform common checks on the component type.
+        checkEveryType(type, component, TypeUseSite.RECORD_COMPONENT)
+
+        var foundArrayType = false
+        type.accept(
+            object : BaseTypeVisitor() {
+                override fun visitArrayType(arrayType: ArrayTypeItem) {
+                    foundArrayType = true
+                }
+            }
+        )
+        if (foundArrayType) {
+            report(
+                Issues.ARRAY_RECORD_COMPONENT,
+                component,
+                "${component.describe(capitalize = true)} type '${type.toTypeString()}' contains an array type; they do not work correctly with Record methods"
+            )
+        }
     }
 
     // Enforce type parameter naming rules:
@@ -435,19 +475,23 @@ private constructor(
         checkTypedef(cls)
         checkAccessorNullabilityMatches(methods)
         checkDataClass(cls)
+        checkSealedClass(cls)
+        checkTypealias(cls)
 
         // Check class types.
         for (typeParameterItem in cls.typeParameterList) {
             checkEveryType(typeParameterItem.type(), cls, TypeUseSite.TYPE_PARAMETER)
-        }
-        for (component in cls.recordComponents) {
-            checkEveryType(component.type, component, TypeUseSite.RECORD_COMPONENT)
         }
         superClass?.let {
             cls.superClassType()?.let { checkEveryType(it, cls, TypeUseSite.SUPER_CLASS) }
         }
         for (interfaceType in interfaces) {
             checkEveryType(interfaceType, cls, TypeUseSite.INTERFACE)
+        }
+
+        // Check record components.
+        for (component in cls.recordComponents) {
+            checkRecordComponent(component)
         }
     }
 
@@ -840,7 +884,12 @@ private constructor(
     private fun isEqualsMethod(method: MethodItem): Boolean {
         return method.name() == "equals" &&
             method.parameters().size == 1 &&
-            method.parameters()[0].type().isJavaLangObject() &&
+            (method.parameters()[0].type().isJavaLangObject() ||
+                // For a Kotlin-version of the equals method (which will be used in a multiplatform
+                // codebase, the parameter type will `Any`, which maps to `Object` for JVM.
+                (method.targetLanguages == TargetLanguageSet.KOTLIN_ONLY &&
+                    (method.parameters()[0].type() as? ClassTypeItem)?.qualifiedName ==
+                        "kotlin.Any")) &&
             !method.modifiers.isStatic()
     }
 
@@ -1021,37 +1070,14 @@ private constructor(
     }
 
     private fun checkSynchronized(method: MethodItem) {
-
-        /**
-         * Report an error.
-         *
-         * @param synchronizedStatementLocation an optional [FileLocation] of the synchronized
-         *   statement that is the root of the problem.
-         */
-        fun reportError(synchronizedStatementLocation: FileLocation? = null) {
-            val message = StringBuilder("Internal locks must not be exposed")
-            if (synchronizedStatementLocation != null) {
-                message.append(" (synchronizing on this or class is still externally observable)")
-            }
-            message.append(": ")
-            message.append(method.describe())
-            val location = synchronizedStatementLocation ?: FileLocation.UNKNOWN
-            report(VISIBLY_SYNCHRONIZED, method, message.toString(), location)
-        }
-
         if (method.modifiers.isSynchronized()) {
             // The synchronizing is being done implicitly bny the method so there is no more
             // specific location to provide.
-            reportError()
-        } else {
-            // Find any visible synchronized statements in the method body.
-            val synchronizedLocations = method.body.findVisiblySynchronizedLocations()
-
-            for (location in synchronizedLocations) {
-                // Report the location of the synchronized statement that is synchronizing on
-                // `this` or the `class` object and causing the problem.
-                reportError(location)
-            }
+            val message = StringBuilder("Internal locks must not be exposed")
+            message.append(": ")
+            message.append(method.describe())
+            val location = FileLocation.UNKNOWN
+            report(VISIBLY_SYNCHRONIZED, method, message.toString(), location)
         }
     }
 
@@ -1868,7 +1894,7 @@ private constructor(
         }
     }
 
-    private fun checkExceptions(callable: CallableItem, filterReference: FilterPredicate) {
+    private fun checkExceptions(callable: CallableItem, filterReference: FilterPredicate?) {
         for (throwableType in callable.filteredThrowsTypes(filterReference)) {
             // Get the throwable class, which for a type parameter will be the lower bound. A
             // method that throws a type parameter is treated as if it throws its lower bound, so
@@ -2111,8 +2137,8 @@ private constructor(
         } else {
             when (item) {
                 is ParameterItem -> {
-                    // We don't enforce this check on constructor params
-                    if (item.containingCallable().isConstructor()) return
+                    // We don't enforce this check on constructor params or property context params
+                    if (item.possibleContainingMethod() == null) return
                     if (type.modifiers.isNonNull) {
                         // TODO (b/344859664): Skip warning for inner type
                         if (supers.anyTypeHasNullability(TypeNullability.PLATFORM) && !isInner) {
@@ -2358,11 +2384,15 @@ private constructor(
 
     private fun checkContextFirst(callable: CallableItem) {
         val parameters = callable.parameters()
-        // The first parameter for a Kotlin extension method is the receiver
+        // Skip context and receiver parameters (
         val effectivelyFirstParameterPosition =
-            if (callable is MethodItem && callable.isExtensionMethod()) 1 else 0
+            callable.parameters().indexOfFirst { it.kind == ParameterKind.VALUE }
         val effectivelySecondParameterPosition = effectivelyFirstParameterPosition + 1
-        if (parameters.size <= effectivelySecondParameterPosition) return
+        if (
+            effectivelyFirstParameterPosition == -1 ||
+                parameters.size <= effectivelySecondParameterPosition
+        )
+            return
         val firstParameterTypeString =
             parameters[effectivelyFirstParameterPosition].type().toTypeString()
         if (firstParameterTypeString != "android.content.Context") {
@@ -3391,6 +3421,38 @@ private constructor(
                 "Exposing data classes as public API is discouraged because they are " +
                     "difficult to update while maintaining binary compatibility."
             )
+        }
+    }
+
+    private fun checkSealedClass(cls: ClassItem) {
+        val modifiers = cls.modifiers
+        if (!modifiers.isSealed()) return
+
+        // Only report for Java to avoid breaking any existing Kotlin APIs.
+        if (cls.sourceLanguage != SourceLanguage.JAVA) return
+
+        // Exhaustive sealed classes cannot be extended.
+        if (modifiers.isExhaustive()) {
+            report(
+                EXHAUSTIVE_SEALED_CLASS,
+                cls,
+                "`exhaustive` sealed classes cannot be extended without breaking source compatibility; add a subclass that is not in the API to make it `non-exhaustive`"
+            )
+        }
+
+        // Sealed classes should be abstract.
+        if (!modifiers.isAbstract()) {
+            report(
+                CONCRETE_SEALED_CLASS,
+                cls,
+                "Concrete sealed classes are harder to use; make it `abstract` instead"
+            )
+        }
+    }
+
+    private fun checkTypealias(cls: ClassItem) {
+        if (cls.classKind == ClassKind.TYPEALIAS) {
+            report(TYPEALIAS_DEFINITION, cls, "Exposing typealiases as public API is discouraged.")
         }
     }
 

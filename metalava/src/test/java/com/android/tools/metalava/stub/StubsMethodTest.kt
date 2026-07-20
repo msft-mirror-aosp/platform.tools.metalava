@@ -42,7 +42,7 @@ class StubsMethodTest : AbstractStubsTest() {
                         """
                     ),
                 ),
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
@@ -81,7 +81,7 @@ class StubsMethodTest : AbstractStubsTest() {
                         """
                     ),
                 ),
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """

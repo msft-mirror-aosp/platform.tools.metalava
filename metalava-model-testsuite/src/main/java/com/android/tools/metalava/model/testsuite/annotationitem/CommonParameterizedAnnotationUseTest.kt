@@ -135,8 +135,16 @@ class CommonParameterizedAnnotationUseTest : BaseModelTest() {
 
     @Test
     fun `Test annotation use`() {
+        val testFixture =
+            TestFixture(
+                // Disable the supported InputFormat check as this test is already parameterized and
+                // filtered by InputFormat.
+                checkSupportedInputFormats = false,
+            )
+
         runCodebaseTest(
             params.testFile,
+            testFixture = testFixture,
         ) {
             val testClass = codebase.assertClass(params.className)
             assertEquals(params.expectedAnnotationUse, testClass.annotationClass.annotationUse)

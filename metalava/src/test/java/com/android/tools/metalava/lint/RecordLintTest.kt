@@ -37,7 +37,7 @@ class RecordLintTest : DriverTest() {
                 """
                     src/android/pkg/Test.java:$testOtherGetterLocation error: Return type of method android.pkg.Test.other() contains java.lang.Record, that can cause issues for desugared record classes, please use java.lang.Object instead [UsingJavaLangRecord]
                     src/android/pkg/Test.java:$testConstructorLocation error: Type of parameter other in android.pkg.Test(int a, Record other) contains java.lang.Record, that can cause issues for desugared record classes, please use java.lang.Object instead [UsingJavaLangRecord]
-                    src/android/pkg/Test.java:5: error: Record component of record component android.pkg.Test#other contains java.lang.Record, that can cause issues for desugared record classes, please use java.lang.Object instead [UsingJavaLangRecord]
+                    src/android/pkg/Test.java:5: error: Type of record component android.pkg.Test.other contains java.lang.Record, that can cause issues for desugared record classes, please use java.lang.Object instead [UsingJavaLangRecord]
                     src/android/pkg/UsingJavaLangRecord.java:5: error: Implemented interface of class android.pkg.UsingJavaLangRecord contains java.lang.Record, that can cause issues for desugared record classes, please use java.lang.Object instead [UsingJavaLangRecord]
                     src/android/pkg/UsingJavaLangRecord.java:5: error: Super class of class android.pkg.UsingJavaLangRecord contains java.lang.Record, that can cause issues for desugared record classes, please use java.lang.Object instead [UsingJavaLangRecord]
                     src/android/pkg/UsingJavaLangRecord.java:6: error: Type of field android.pkg.UsingJavaLangRecord.field contains java.lang.Record, that can cause issues for desugared record classes, please use java.lang.Object instead [UsingJavaLangRecord]
@@ -85,7 +85,8 @@ class RecordLintTest : DriverTest() {
                             }
                         """
                     ),
-                )
+                ),
+            javaLanguageLevel = "16", // required for records
         )
     }
 
@@ -116,7 +117,7 @@ class RecordLintTest : DriverTest() {
                         """
                     ),
                 ),
-            api =
+            expectedApiSignature =
                 """
                     package test.pkg {
                       public record Test {
@@ -128,7 +129,7 @@ class RecordLintTest : DriverTest() {
                       }
                     }
                 """,
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
@@ -141,6 +142,7 @@ class RecordLintTest : DriverTest() {
                         """
                     ),
                 ),
+            javaLanguageLevel = "16", // required for records
         )
     }
 
@@ -158,7 +160,7 @@ class RecordLintTest : DriverTest() {
             expectedIssues =
                 """
                     src/test/pkg/Test.java$componentAGetterLocation: error: Cannot hide record component getter method test.pkg.Test.a() as it is an indivisible part of a record class [HidingRecordComponent]
-                    src/test/pkg/Test.java:$componentCLocation: error: Cannot hide record component test.pkg.Test#c as record components are an indivisible part of a record class [HidingRecordComponent]
+                    src/test/pkg/Test.java:$componentCLocation: error: Cannot hide record component test.pkg.Test.c as record components are an indivisible part of a record class [HidingRecordComponent]
                     src/test/pkg/Test.java:16: error: Cannot hide canonical constructor test.pkg.Test(int,int,int) as it is an indivisible part of a record class [HidingRecordComponent]
                     src/test/pkg/Test.java:20: error: Cannot hide record component getter method test.pkg.Test.b() as it is an indivisible part of a record class [HidingRecordComponent]
                 """,
@@ -204,7 +206,7 @@ class RecordLintTest : DriverTest() {
                         """
                     ),
                 ),
-            api =
+            expectedApiSignature =
                 """
                     package test.pkg {
                       public record Test {
@@ -218,7 +220,7 @@ class RecordLintTest : DriverTest() {
                       }
                     }
                 """,
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
@@ -232,6 +234,62 @@ class RecordLintTest : DriverTest() {
                         """
                     ),
                 ),
+            javaLanguageLevel = "16", // required for records
+        )
+    }
+
+    @Test
+    fun `Test using arrays in record component types`() {
+        check(
+            format = FORMAT_V6_WITH_JAVA_STYLE,
+            apiLint = "", // enabled
+            expectedIssues =
+                """
+                    src/test/pkg/Test.java:4: error: Record component test.pkg.Test.a type 'int[]' contains an array type; they do not work correctly with Record methods [ArrayRecordComponent]
+                    src/test/pkg/Test.java:4: error: Record component test.pkg.Test.b type 'java.util.List<long[]>' contains an array type; they do not work correctly with Record methods [ArrayRecordComponent]
+                """,
+            sourceFiles =
+                arrayOf(
+                    KnownSourceFiles.typeUseOnlyNonNullSource,
+                    java(
+                        """
+                            package test.pkg;
+                            import java.util.List;
+                            import type.use.only.NonNull;
+                            public record Test(int @NonNull [] a, @NonNull List<long @NonNull[]> b) {}
+                        """
+                    ),
+                ),
+            expectedApiSignature =
+                """
+                    // Signature format: 6.0
+                    // - style=java
+                    package test.pkg {
+                      public record Test {
+                        record_component #0 @NonNull a: int[];
+                        record_component #1 @NonNull b: java.util.List<long[]>;
+                        ctor public Test(@NonNull int[], @NonNull java.util.List<long[]>);
+                        method @NonNull public int[] a();
+                        method @NonNull public java.util.List<long[]> b();
+                      }
+                    }
+                """,
+            expectedStubFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            @SuppressWarnings({"unchecked", "deprecation", "all"})
+                            public record Test(@android.annotation.NonNull int[] a, @android.annotation.NonNull java.util.List<long[]> b) {
+                            @android.annotation.NonNull
+                            public int[] a() { throw new RuntimeException("Stub!"); }
+                            @android.annotation.NonNull
+                            public java.util.List<long[]> b() { throw new RuntimeException("Stub!"); }
+                            }
+                        """
+                    ),
+                ),
+            javaLanguageLevel = "16", // required for records
         )
     }
 }

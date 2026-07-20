@@ -17,7 +17,6 @@
 package com.android.tools.metalava.model.snapshot
 
 import com.android.tools.metalava.model.ApiVariantSelectors
-import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.ClassTypeItem
@@ -28,6 +27,7 @@ import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.ItemDocumentationFactory
 import com.android.tools.metalava.model.ItemVisitor
+import com.android.tools.metalava.model.MemberItem
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ModifierList
 import com.android.tools.metalava.model.PackageItem
@@ -42,6 +42,7 @@ import com.android.tools.metalava.model.SourceFile
 import com.android.tools.metalava.model.SourceLanguage
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
+import com.android.tools.metalava.model.api.SelectedApi
 import com.android.tools.metalava.model.item.AbstractSourceFile
 import com.android.tools.metalava.model.item.DefaultCodebase
 import com.android.tools.metalava.model.item.DefaultCodebaseAssembler
@@ -58,6 +59,7 @@ class CodebaseSnapshotTaker
 private constructor(
     referenceVisitorFactory: (DelegatedVisitor) -> ItemVisitor,
     private val includeDocumentation: Boolean,
+    private val revertItemGetter: (SelectableItem) -> SelectableItem?,
 ) : DefaultCodebaseAssembler(), DelegatedVisitor {
 
     /**
@@ -123,6 +125,9 @@ private constructor(
                 // Supports documentation if the copied codebase does.
                 supportsDocumentation = codebase.supportsDocumentation(),
                 assembler = this,
+                // Create a simple [SelectedApi] instance that will be populated from information
+                // retrieved from the original [SelectedApi].
+                selectedApiFactory = SelectedApi.SIMPLE_FACTORY,
             )
 
         this.snapshotCodebase = newCodebase
@@ -228,6 +233,20 @@ private constructor(
         )
 
     /**
+     * Get the actual item to snapshot, this takes into account whether the item has been reverted.
+     *
+     * The [Showability.revertItem] is only set to a non-null value if changes to this
+     * [SelectableItem] have been reverted AND this [SelectableItem] existed in the previously
+     * released API.
+     *
+     * This casts the [Showability.revertItem] to the same type as this is called upon. That is safe
+     * as, if set to a non-null value the [Showability.revertItem] will always point to a
+     * [SelectableItem] of the same type.
+     */
+    private val <reified T : SelectableItem> T.actualItemToSnapshot: T
+        inline get() = (revertItemGetter(this) ?: this) as T
+
+    /**
      * Take a snapshot of the [RecordComponentItem]s in this [RecordComponents].
      *
      * @param containingClass the containing [ClassItem] for the snapshots.
@@ -264,6 +283,9 @@ private constructor(
         val snapshotInterfaceTypes =
             classToSnapshot.interfaceTypes().map { classTypeItemFactory.getInterfaceType(it) }
 
+        val snapshotPermitTypes =
+            classToSnapshot.permitTypes.map { classTypeItemFactory.getHierarchicalClassType(it) }
+
         val classKind = classToSnapshot.classKind
         val optionalAliasedType =
             if (classKind == ClassKind.TYPEALIAS) {
@@ -289,6 +311,7 @@ private constructor(
                 origin = classToSnapshot.origin,
                 superClassType = snapshotSuperClassType,
                 interfaceTypes = snapshotInterfaceTypes,
+                permitTypes = snapshotPermitTypes,
                 optionalAliasedType = optionalAliasedType,
                 recordComponentItemsFactory =
                     if (classKind == ClassKind.RECORD)
@@ -337,13 +360,14 @@ private constructor(
                     typeParameterList = typeParameterList,
                     returnType = constructorToSnapshot.returnType().snapshot(),
                     parameterItemsFactory = { containingCallable ->
-                        constructorToSnapshot.parameters().snapshot(containingCallable, constructor)
+                        constructorToSnapshot
+                            .parameters()
+                            .snapshot(containingCallable, constructor.parameters())
                     },
                     throwsTypes =
                         constructorToSnapshot.throwsTypes().map {
                             typeItemFactory.getExceptionType(it)
                         },
-                    callableBodyFactory = constructorToSnapshot.body::snapshot,
                     implicitConstructor = constructorToSnapshot.isImplicitConstructor(),
                     isPrimary = constructorToSnapshot.isPrimary,
                 )
@@ -381,11 +405,12 @@ private constructor(
                     typeParameterList = typeParameterList,
                     returnType = methodToSnapshot.returnType().snapshot(),
                     parameterItemsFactory = { containingCallable ->
-                        methodToSnapshot.parameters().snapshot(containingCallable, method)
+                        methodToSnapshot
+                            .parameters()
+                            .snapshot(containingCallable, method.parameters())
                     },
                     throwsTypes =
                         methodToSnapshot.throwsTypes().map { typeItemFactory.getExceptionType(it) },
-                    callableBodyFactory = methodToSnapshot.body::snapshot,
                     defaultValueProvider = defaultValueSnapshot.provider(),
                     isExtensionMethod = methodToSnapshot.isExtensionMethod(),
                 )
@@ -451,6 +476,12 @@ private constructor(
                     receiver = property.receiver?.snapshot(),
                     typeParameterList = typeParameterList,
                     setterVisibility = property.setterVisibility,
+                    contextParameterFactory = { containingProperty ->
+                        propertyToSnapshot.contextParameters.snapshot(
+                            containingProperty,
+                            property.contextParameters
+                        )
+                    },
                 )
             }
         newProperty.copySelectedApiVariants(propertyToSnapshot)
@@ -498,11 +529,17 @@ private constructor(
             definitionVisitorFactory: (DelegatedVisitor) -> ItemVisitor,
             referenceVisitorFactory: (DelegatedVisitor) -> ItemVisitor,
             includeDocumentation: Boolean,
+            revertItemGetter: (SelectableItem) -> SelectableItem? = { it.showability.revertItem },
         ): Codebase {
             // Create a snapshot taker that will construct the snapshot. Pass in the
             // referenceVisitorFactory so it can create the reference visitor for use in creating
             // Items that are referenced from the snapshot.
-            val taker = CodebaseSnapshotTaker(referenceVisitorFactory, includeDocumentation)
+            val taker =
+                CodebaseSnapshotTaker(
+                    referenceVisitorFactory,
+                    includeDocumentation,
+                    revertItemGetter,
+                )
 
             // Wrap it in a visitor that will determine which Items are defined in the snapshot and
             // then apply that visitor to the input codebase.
@@ -553,8 +590,8 @@ private constructor(
 
         /** Create a snapshot of this list of [ParameterItem]s. */
         internal fun List<ParameterItem>.snapshot(
-            containingCallable: CallableItem,
-            currentCallable: CallableItem
+            containingItem: MemberItem,
+            currentParameters: List<ParameterItem>,
         ): List<ParameterItem> {
             return map { parameterItem ->
                 // Retrieve the public name immediately to remove any dependencies on this in the
@@ -574,8 +611,7 @@ private constructor(
                 val name =
                     if (publicName != null) parameterItem.name()
                     else {
-                        val namedParameter =
-                            currentCallable.parameters()[parameterItem.parameterIndex]
+                        val namedParameter = currentParameters[parameterItem.parameterIndex]
                         namedParameter.name()
                     }
 
@@ -585,28 +621,16 @@ private constructor(
                     modifiers = parameterItem.modifiers.snapshot(),
                     name = name,
                     publicName = publicName,
-                    containingCallable = containingCallable,
+                    containingItem = containingItem,
                     parameterIndex = parameterItem.parameterIndex,
                     type = parameterItem.type().snapshot(),
                     hasDefaultValue = parameterItem.hasDefaultValue(),
+                    kind = parameterItem.kind,
                 )
             }
         }
     }
 }
-
-/**
- * Get the actual item to snapshot, this takes into account whether the item has been reverted.
- *
- * The [Showability.revertItem] is only set to a non-null value if changes to this [SelectableItem]
- * have been reverted AND this [SelectableItem] existed in the previously released API.
- *
- * This casts the [Showability.revertItem] to the same type as this is called upon. That is safe as,
- * if set to a non-null value the [Showability.revertItem] will always point to a [SelectableItem]
- * of the same type.
- */
-private val <reified T : SelectableItem> T.actualItemToSnapshot: T
-    inline get() = (showability.revertItem ?: this) as T
 
 /**
  * Creates [SourceFile] snapshots on demand for a [SourceFile] and caches the result for reuse.

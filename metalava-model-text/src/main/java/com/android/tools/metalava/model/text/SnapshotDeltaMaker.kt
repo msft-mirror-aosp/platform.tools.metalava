@@ -194,6 +194,15 @@ private constructor(
                 if (!equivalentTypeParameters(baseProperty, property)) {
                     return@let
                 }
+
+                // Check if a change in a context parameter requires emitting the property.
+                val zippedParameters =
+                    baseProperty.contextParameters.zip(property.contextParameters)
+                for ((baseParameter, callableParameter) in zippedParameters) {
+                    if (!equivalentModifiers(baseParameter, callableParameter)) {
+                        return@let
+                    }
+                }
             }
 
             return

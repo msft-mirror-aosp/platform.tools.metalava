@@ -59,8 +59,8 @@ sealed class ApiVariantSelectors {
     /**
      * Indicates whether the [Item] should be included in the doc only API surface variant.
      *
-     * Initially set to `true` if the [SelectableItem.documentation] contains `@doconly` but updated
-     * due to inheritance.
+     * Initially set to `true` if the [SelectableItem.documentation] contains an
+     * `<api-surfaces>/<doc-only>` configured annotation. Updated due to inheritance.
      */
     abstract val docOnly: Boolean
 
@@ -74,6 +74,13 @@ sealed class ApiVariantSelectors {
 
     /** Determines whether this item will be shown as part of the API or not. */
     abstract val showability: Showability
+
+    /**
+     * Is true, if an item should be included only for "stub" purposes; that is, the item does have
+     * at least one [AnnotationItem.isShowAnnotation] annotation and all those annotations are also
+     * an [AnnotationItem.isShowForStubPurposes] annotation.
+     */
+    abstract val includeOnlyForStubPurposes: Boolean
 
     /** Create a duplicate of this for the specified [Item]. */
     abstract fun duplicate(item: Item): ApiVariantSelectors
@@ -137,6 +144,9 @@ sealed class ApiVariantSelectors {
         override val showability: Showability
             get() = Showability.NO_EFFECT
 
+        override val includeOnlyForStubPurposes
+            get() = false
+
         override fun duplicate(item: Item): ApiVariantSelectors = this
 
         override fun inheritInto() = error("Cannot inheritInto() $this")
@@ -153,9 +163,11 @@ sealed class ApiVariantSelectors {
      * Unless [hidden] is written before reading then it will default to `true` if
      * [originallyHidden] is `true` and it does not have any show annotations.
      *
-     * [docOnly] will be initialized to `true` if it's [item]'s documentation contains `@doconly`.
+     * [docOnly] will be initialized to `true` if its [item]'s documentation contains an
+     * `<api-surfaces>/<doc-only>` configured annotation.
      *
-     * [removed] will be initialized to `true` if it's [item]'s documentation contains `@removed`.
+     * [removed] will be initialized to `true` if its [item]'s documentation contains `@removed` or
+     * an `<api-surfaces>/<removed>` configured annotation.
      *
      * This uses bits in [propertyHasBeenSetBits] and [propertyValueBits] to handle lazy
      * initialization and store the value. The main purpose of using bit masks is not primarily
@@ -311,13 +323,16 @@ sealed class ApiVariantSelectors {
             get() =
                 lazyGet(DOCONLY_BIT_MASK) {
                     (item.parent()?.variantSelectors?.docOnly == true) ||
-                        item.documentation?.isDocOnly == true
+                        // Check if the item is annotated with a configured doc-only annotation.
+                        item.selectedApi.hasDocOnlyAnnotation()
                 }
 
         override var removed: Boolean
             get() =
                 lazyGet(REMOVED_BIT_MASK) {
                     (item.parent()?.variantSelectors?.removed == true) ||
+                        // Check if the item is annotated with a configured removed annotation.
+                        item.selectedApi.hasRemovedAnnotation() ||
                         item.documentation?.isRemoved == true
                 }
             // This is only used for testing.
@@ -335,6 +350,9 @@ sealed class ApiVariantSelectors {
                         _showability = item.computeShowability()
                         _showability!!
                     }
+
+        override val includeOnlyForStubPurposes
+            get() = lazyGet(FOR_STUB_PURPOSES_BIT_MASK) { includeOnlyForStubPurposes(item) }
 
         override fun duplicate(item: Item): ApiVariantSelectors = Mutable(item as SelectableItem)
 
@@ -359,14 +377,19 @@ sealed class ApiVariantSelectors {
             if (item is PackageItem) {
                 showability.let { showability ->
                     when {
+                        // If this package is explicitly shown, its contents are not hidden.
                         showability.show() -> inheritableHidden = false
+                        // If this package is explicitly hidden, its contents are hidden.
                         showability.hide() -> inheritableHidden = true
+                        // Otherwise, inherit the hidden status from the parent package.
+                        else -> {
+                            val containingPackageSelectors =
+                                item.containingPackage()?.variantSelectors
+                            if (containingPackageSelectors?.inheritableHidden == true) {
+                                inheritableHidden = true
+                            }
+                        }
                     }
-                }
-                val containingPackageSelectors =
-                    item.containingPackage()?.variantSelectors ?: return
-                if (containingPackageSelectors.inheritableHidden) {
-                    inheritableHidden = true
                 }
                 return
             }
@@ -577,8 +600,12 @@ sealed class ApiVariantSelectors {
             private const val INHERIT_INTO_BIT_POSITION = REMOVED_BIT_POSITION + 1
             private const val INHERIT_INTO_BIT_MASK = 1 shl INHERIT_INTO_BIT_POSITION
 
+            /** [includeOnlyForStubPurposes] related constants. */
+            private const val FOR_STUB_PURPOSES_BIT_POSITION = INHERIT_INTO_BIT_POSITION + 1
+            private const val FOR_STUB_PURPOSES_BIT_MASK = 1 shl FOR_STUB_PURPOSES_BIT_POSITION
+
             /** The count of the number of bits used. */
-            private const val COUNT_BITS_USED = INHERIT_INTO_BIT_POSITION + 1
+            private const val COUNT_BITS_USED = FOR_STUB_PURPOSES_BIT_POSITION + 1
 
             /**
              * Value of [propertyValueBits] that will ensure that the associated [item] is not
@@ -605,6 +632,7 @@ sealed class ApiVariantSelectors {
                         array[DOCONLY_BIT_POSITION] = "docOnly"
                         array[REMOVED_BIT_POSITION] = "removed"
                         array[INHERIT_INTO_BIT_POSITION] = "inheritIntoWasCalled"
+                        array[FOR_STUB_PURPOSES_BIT_POSITION] = "forStubPurposes"
                     }
         }
     }
@@ -672,3 +700,102 @@ private fun SelectableItem.wasOriginallyHidden(): Boolean =
 /** Compute the [Showability] of this [SelectableItem]. */
 private fun SelectableItem.computeShowability(): Showability =
     codebase.annotationManager.getShowabilityForItem(this)
+
+/**
+ * Returns true, if an item should be included only for "stub" purposes; that is, the item does have
+ * at least one [AnnotationItem.isShowAnnotation] annotation and all those annotations are also an
+ * [AnnotationItem.isShowForStubPurposes] annotation.
+ */
+private fun includeOnlyForStubPurposes(item: SelectableItem): Boolean {
+    if (!item.codebase.annotationManager.hasAnyStubPurposesAnnotations()) {
+        return false
+    }
+
+    return includeOnlyForStubPurposesRecursive(item)
+}
+
+/**
+ * Recursively check [item] and its [SelectableItem.parent]s to see if they were included solely for
+ * inclusion in the stubs.
+ */
+private fun includeOnlyForStubPurposesRecursive(item: SelectableItem): Boolean {
+    // Get the item's API membership. If it belongs to an API surface then return `true` if the
+    // API surface to which it belongs is the base API, and false otherwise.
+    val membership = item.apiMembership()
+    if (membership != ApiMembership.NONE_OR_UNANNOTATED) {
+        return membership == ApiMembership.BASE
+    }
+
+    // If this item has no show annotations then defer to the "parent" item (i.e. the containing
+    // class or package).
+    return item.parent()?.let { includeOnlyForStubPurposesRecursive(it) } ?: false
+}
+
+/**
+ * Indicates which API, if any, an annotated item belongs to.
+ *
+ * This does not take into account unannotated items which are part of an API; they will be treated
+ * as being in no API, i.e. have a membership of [NONE_OR_UNANNOTATED].
+ */
+private enum class ApiMembership {
+    /**
+     * An item is not part of any API, at least not one which is defined through an annotation. It
+     * could be part of the unannotated API, i.e. `--show-unannotated`.
+     */
+    NONE_OR_UNANNOTATED,
+
+    /**
+     * An item is part of the base API, i.e. the API which the [CURRENT] API extends.
+     *
+     * Items in this API will be output to stub files (which must include the whole API surface) but
+     * not signature files (which only include a delta on the base API surface).
+     */
+    BASE,
+
+    /**
+     * An item is part of the current API, i.e. the API being generated by this invocation of
+     * metalava.
+     *
+     * Items in this API will be output to stub and signature files.
+     */
+    CURRENT
+}
+
+/** Get the API to which this [SelectableItem] belongs, according to the annotations. */
+private fun SelectableItem.apiMembership(): ApiMembership {
+    // If the item has a "show" annotation, then return whether it *only* has a "for stubs"
+    // show annotation or not.
+    //
+    // Note, If the item does not have a show annotation, then it can't have a "for stubs" one,
+    // because the later must be a subset of the former, which we don't detect in *this*
+    // run (unfortunately it's hard to do so due to how things work), but when metalava
+    // is executed for the parent API, we'd detect it as
+    // [Issues.SHOWING_MEMBER_IN_HIDDEN_CLASS].
+    val showability = this.showability
+    if (showability.show()) {
+        return if (showability.showForStubsOnly()) {
+            ApiMembership.BASE
+        } else {
+            ApiMembership.CURRENT
+        }
+    }
+
+    // Unlike classes or fields, methods implicitly inherits visibility annotations, and for
+    // some visibility calculation we need to take it into account.
+    //
+    // See ShowAnnotationTest.`Methods inherit showAnnotations but fields and classes don't`.
+    var membership = ApiMembership.NONE_OR_UNANNOTATED
+    if (this is MethodItem) {
+        // Find the maximum API membership inherited from an overridden method.
+        for (superMethod in superMethods()) {
+            val superMethodMembership = superMethod.apiMembership()
+            membership = maxOf(membership, superMethodMembership)
+            // Break out if membership == CURRENT as that is the maximum allowable
+            // [ApiMembership] so there is no point in checking any other methods.
+            if (membership == ApiMembership.CURRENT) {
+                break
+            }
+        }
+    }
+    return membership
+}

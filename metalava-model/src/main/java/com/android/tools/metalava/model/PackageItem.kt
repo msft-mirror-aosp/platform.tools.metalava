@@ -52,11 +52,6 @@ interface PackageItem : SelectableItem, ReferencableItem, QualifiedNameScope {
         return topLevelClasses().asSequence().flatMap { it.allClasses() }
     }
 
-    override fun describe(capitalize: Boolean): String {
-        val suffix = qualifiedName().let { if (it.isEmpty()) "<root>" else it }
-        return "${if (capitalize) "Package" else "package"} $suffix"
-    }
-
     override fun type(): TypeItem? = null
 
     override fun setType(type: TypeItem) =
@@ -95,8 +90,11 @@ interface PackageItem : SelectableItem, ReferencableItem, QualifiedNameScope {
         return qualifiedName().hashCode()
     }
 
-    override fun toStringForItem() =
-        "package ${qualifiedName().let { if (it == "") "<root>" else it}}"
+    override fun describe(capitalize: Boolean) = buildString {
+        append(if (capitalize) "Package" else "package")
+        append(" ")
+        append(qualifiedName().let { if (it == "") "<root>" else it })
+    }
 
     companion object {
         val comparator: Comparator<PackageItem> = Comparator { a, b ->

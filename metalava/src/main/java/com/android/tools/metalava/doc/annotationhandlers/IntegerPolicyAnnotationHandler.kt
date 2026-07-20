@@ -17,82 +17,75 @@
 package com.android.tools.metalava.doc.annotationhandlers
 
 import com.android.tools.metalava.model.AnnotationItem
-import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.Item
-import com.android.tools.metalava.model.SelectableItem
-import com.android.tools.metalava.model.value.AnnotationValue
+import com.android.tools.metalava.model.annotation.binding.bindTo
 import com.android.tools.metalava.reporter.Issues
-import com.android.tools.metalava.reporter.Reporter
-import java.util.function.Predicate
 
 /** Handles @android.processor.devicepolicy.IntegerPolicyDefinition annotation. */
 class IntegerPolicyAnnotationHandler(
-    codebase: Codebase,
-    reporter: Reporter,
-    filterReference: Predicate<SelectableItem>
-) : BaseDevicePolicyAnnotationHandler(codebase, reporter, filterReference) {
-    private val policyHandler =
-        PolicyDefinitionAnnotationHandler(codebase, reporter, filterReference)
-
+    context: DevicePolicyContext,
+) : BaseDevicePolicyAnnotationHandler(context) {
     /**
-     * Processes the [IntegerPolicyDefinition] annotation and returns the documentation for the
-     * policy.
+     * Processes the [IntegerPolicyDefinitionProxy] and returns the documentation for the policy.
      */
     override fun processPolicyAnnotation(annotation: AnnotationItem, item: Item): String {
-        val minValue = annotation.getIntAttribute("minValue") ?: Integer.MIN_VALUE
-        val maxValue = annotation.getIntAttribute("maxValue") ?: Integer.MAX_VALUE
-
-        val basePolicyDefinition =
-            annotation.getPolicyDefinitionAttribute("base").elseReportMissing(item, "base")
-        val baseDocs =
-            basePolicyDefinition?.let {
-                policyHandler.processPolicyAnnotation(basePolicyDefinition, item)
-            } ?: ""
-
-        val resolutionMechanismDoc = buildIntegerResolutionMechanismDoc(annotation, item)
-
-        return buildString {
-            append("\n<p>Policy Type: Integer</p>\n <ul>\n")
-            append(baseDocs)
-            append("   <li>Resolution Mechanism: $resolutionMechanismDoc</li>\n")
-            append(
-                "   <li>Min Value: ${if (minValue == Integer.MIN_VALUE) "No limit" else minValue}</li>\n"
-            )
-            append(
-                "   <li>Max Value: ${if (maxValue == Integer.MAX_VALUE) "No limit" else maxValue}</li>\n"
-            )
-            append(" </ul>\n")
-        }
+        val proxy = annotation.bindTo<IntegerPolicyDefinitionProxy>(item)
+        return proxy?.generateDocs() ?: ""
     }
+}
 
-    private fun buildIntegerResolutionMechanismDoc(annotation: AnnotationItem, item: Item): String {
-        val resolutionMechanismValue = annotation.findAttribute("resolutionMechanism")?.value
-        val resolutionMechanismAnnotation =
-            (resolutionMechanismValue as? AnnotationValue)?.annotationItem
-
-        var resolutionMechanismDoc = ""
-
-        if (resolutionMechanismAnnotation != null) {
-            val custom = resolutionMechanismAnnotation.getBooleanAttribute("custom") ?: false
-            val notCoexistable =
-                resolutionMechanismAnnotation.getBooleanAttribute("notCoexistable") ?: false
-
-            if (custom) {
-                resolutionMechanismDoc = "custom"
-            } else if (notCoexistable) {
-                resolutionMechanismDoc = "notCoexistable"
-            } else {
-                reporter.report(
-                    Issues.INVALID_DEVICE_POLICY_ANNOTATION,
-                    item,
-                    "IntegerResolutionMechanism must have either 'custom' or 'notCoexistable' set to true."
-                )
+/**
+ * Proxy class bound to an instance of the `android.processor.devicepolicy.IntegerPolicyDefinition`
+ * annotation class.
+ *
+ * @see bindTo
+ */
+data class IntegerPolicyDefinitionProxy(
+    val base: PolicyDefinitionProxy,
+    val minValue: Int,
+    val maxValue: Int,
+    val resolutionMechanism: IntegerResolutionMechanismProxy,
+) {
+    fun generateDocs() = buildString {
+        val tableEntries = buildList {
+            addAll(base.getTableEntries())
+            val resolutionMechanismDoc = resolutionMechanism.generateDocs()
+            if (resolutionMechanismDoc.isNotEmpty()) {
+                add(Pair("Conflict resolution mechanism", resolutionMechanismDoc))
             }
-        } else {
-            // Should not fall into this branch because resolutionMechanism is a required field.
-            // Missing it will cause Java compiler errors.
-            reportOnMissingFields("resolutionMechanism", item)
+            val policyValueValidations = buildList {
+                if (minValue != Integer.MIN_VALUE) add("Minimum value $minValue")
+                if (maxValue != Integer.MAX_VALUE) add("Maximum value $maxValue")
+            }
+            add(Pair("Policy value", renderPolicyValue("Integer", policyValueValidations)))
         }
-        return resolutionMechanismDoc
+
+        append(renderTable(tableEntries))
     }
+}
+
+/**
+ * Proxy class bound to an instance of the
+ * `android.processor.devicepolicy.IntegerResolutionMechanism` annotation class.
+ *
+ * @see bindTo
+ */
+data class IntegerResolutionMechanismProxy(
+    val item: Item,
+    val custom: Boolean,
+    val notCoexistable: Boolean,
+) {
+    fun generateDocs() =
+        if (custom) {
+            ""
+        } else if (notCoexistable) {
+            "This policy can not be set by multiple admins at the same time. When multiple values are set, the resulting behavior is undefined and is monitored to avoid widespread usage."
+        } else {
+            item.codebase.reporter.report(
+                Issues.INVALID_DEVICE_POLICY_ANNOTATION,
+                item,
+                "IntegerResolutionMechanism must have either 'custom' or 'notCoexistable' set to true."
+            )
+            ""
+        }
 }

@@ -44,25 +44,26 @@ class StubsRecordClassTest : AbstractStubsTest() {
             api =
                 """
                     package test.pkg {
-                      public class Test {
+                      public final class Test {
                         ctor public Test(int);
                         method public int c();
                       }
                     }
                 """,
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
                             package test.pkg;
                             @SuppressWarnings({"unchecked", "deprecation", "all"})
-                            public class Test {
+                            public final class Test {
                             public Test(int c) { throw new RuntimeException("Stub!"); }
                             public int c() { throw new RuntimeException("Stub!"); }
                             }
                         """
                     ),
                 ),
+            javaLanguageLevel = "16", // required for records
         )
     }
 
@@ -101,7 +102,7 @@ class StubsRecordClassTest : AbstractStubsTest() {
                       }
                     }
                 """,
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
@@ -116,6 +117,7 @@ class StubsRecordClassTest : AbstractStubsTest() {
                         """
                     ),
                 ),
+            javaLanguageLevel = "16", // required for records
         )
     }
 
@@ -154,7 +156,7 @@ class StubsRecordClassTest : AbstractStubsTest() {
                       }
                     }
                 """,
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
@@ -172,6 +174,7 @@ class StubsRecordClassTest : AbstractStubsTest() {
                         """
                     ),
                 ),
+            javaLanguageLevel = "16", // required for records
         )
     }
 
@@ -215,7 +218,7 @@ class StubsRecordClassTest : AbstractStubsTest() {
                 """,
             // Includes extra overrides that are not present in the signature file.
             checkTextStubEquivalence = false,
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
@@ -231,6 +234,7 @@ class StubsRecordClassTest : AbstractStubsTest() {
                         """
                     ),
                 ),
+            javaLanguageLevel = "16", // required for records
         )
     }
 
@@ -258,7 +262,7 @@ class StubsRecordClassTest : AbstractStubsTest() {
                       }
                     }
                """,
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
@@ -270,6 +274,7 @@ class StubsRecordClassTest : AbstractStubsTest() {
                         """
                     ),
                 ),
+            javaLanguageLevel = "16", // required for records
         )
     }
 
@@ -309,7 +314,7 @@ class StubsRecordClassTest : AbstractStubsTest() {
                       }
                     }
                """,
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
@@ -321,6 +326,7 @@ class StubsRecordClassTest : AbstractStubsTest() {
                         """
                     ),
                 ),
+            javaLanguageLevel = "16", // required for records
         )
     }
 }

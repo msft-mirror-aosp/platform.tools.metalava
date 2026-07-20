@@ -18,9 +18,6 @@ package com.android.tools.metalava.model.item
 
 import com.android.tools.metalava.model.ApiVariantSelectorsFactory
 import com.android.tools.metalava.model.BaseModifierList
-import com.android.tools.metalava.model.CallableBody
-import com.android.tools.metalava.model.CallableBodyFactory
-import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.ClassOrigin
@@ -31,9 +28,11 @@ import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.ItemDocumentationFactory
+import com.android.tools.metalava.model.MemberItem
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
+import com.android.tools.metalava.model.ParameterKind
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.RecordComponentItem
 import com.android.tools.metalava.model.RecordComponentItemsFactory
@@ -100,11 +99,12 @@ class DefaultItemFactory(
         classKind: ClassKind,
         containingClass: ClassItem?,
         containingPackage: PackageItem,
-        qualifiedName: String = "",
+        qualifiedName: String,
         typeParameterList: TypeParameterList,
         origin: ClassOrigin,
         superClassType: ClassTypeItem?,
         interfaceTypes: List<ClassTypeItem>,
+        permitTypes: List<ClassTypeItem> = emptyList(),
         optionalAliasedType: TypeItem? = null,
         isFileFacade: Boolean = false,
         isMultiFileClass: Boolean = false,
@@ -127,6 +127,7 @@ class DefaultItemFactory(
             origin,
             superClassType,
             interfaceTypes,
+            permitTypes,
             isFileFacade = isFileFacade,
             optionalAliasedType = optionalAliasedType,
             isMultiFileClass = isMultiFileClass,
@@ -146,7 +147,6 @@ class DefaultItemFactory(
         returnType: ClassTypeItem,
         parameterItemsFactory: ParameterItemsFactory,
         throwsTypes: List<ExceptionTypeItem>,
-        callableBodyFactory: CallableBodyFactory = CallableBody.UNAVAILABLE_FACTORY,
         implicitConstructor: Boolean,
         isPrimary: Boolean = false,
     ): ConstructorItem =
@@ -164,7 +164,6 @@ class DefaultItemFactory(
             returnType,
             parameterItemsFactory,
             throwsTypes,
-            callableBodyFactory,
             implicitConstructor,
             isPrimary,
         )
@@ -210,7 +209,6 @@ class DefaultItemFactory(
         returnType: TypeItem,
         parameterItemsFactory: ParameterItemsFactory,
         throwsTypes: List<ExceptionTypeItem>,
-        callableBodyFactory: CallableBodyFactory = CallableBody.UNAVAILABLE_FACTORY,
         defaultValueProvider: OptionalValueProvider?,
         isExtensionMethod: Boolean,
         isKotlinProperty: Boolean = false,
@@ -229,7 +227,6 @@ class DefaultItemFactory(
             returnType,
             parameterItemsFactory,
             throwsTypes,
-            callableBodyFactory,
             defaultValueProvider,
             isExtensionMethod,
             isKotlinProperty,
@@ -242,10 +239,11 @@ class DefaultItemFactory(
         modifiers: BaseModifierList,
         name: String,
         publicName: String?,
-        containingCallable: CallableItem,
+        containingItem: MemberItem,
         parameterIndex: Int,
         type: TypeItem,
         hasDefaultValue: Boolean,
+        kind: ParameterKind,
     ): ParameterItem =
         DefaultParameterItem(
             codebase,
@@ -254,10 +252,11 @@ class DefaultItemFactory(
             modifiers,
             name,
             publicName,
-            containingCallable,
+            containingItem,
             parameterIndex,
             type,
             hasDefaultValue,
+            kind,
         )
 
     /** Create a [PropertyItem]. */
@@ -272,6 +271,7 @@ class DefaultItemFactory(
         receiver: TypeItem?,
         typeParameterList: TypeParameterList,
         setterVisibility: VisibilityLevel?,
+        contextParameterFactory: (PropertyItem) -> List<ParameterItem>,
         getter: MethodItem? = null,
         setter: MethodItem? = null,
         constructorParameter: ParameterItem? = null,
@@ -294,6 +294,7 @@ class DefaultItemFactory(
             receiver,
             typeParameterList,
             setterVisibility,
+            contextParameterFactory,
         )
 
     /** Create a [PropertyItem] for use as a record component. */
@@ -350,6 +351,8 @@ class DefaultItemFactory(
             // normal classes.
             superClassType = null,
             interfaceTypes = emptyList(),
+            // Typealiases don't have a permits list since they cannot be sealed classes.
+            permitTypes = emptyList(),
             isFileFacade = false,
             optionalAliasedType = aliasedType,
         )

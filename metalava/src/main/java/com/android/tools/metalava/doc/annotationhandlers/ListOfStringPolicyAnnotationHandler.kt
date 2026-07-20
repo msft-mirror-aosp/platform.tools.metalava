@@ -17,91 +17,58 @@
 package com.android.tools.metalava.doc.annotationhandlers
 
 import com.android.tools.metalava.model.AnnotationItem
-import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.Item
-import com.android.tools.metalava.model.SelectableItem
-import com.android.tools.metalava.model.value.AnnotationValue
-import com.android.tools.metalava.reporter.Issues
-import com.android.tools.metalava.reporter.Reporter
-import java.util.function.Predicate
+import com.android.tools.metalava.model.annotation.binding.bindTo
 
 /** Handles @android.processor.devicepolicy.ListOfStringPolicyDefinition annotation. */
 class ListOfStringPolicyAnnotationHandler(
-    codebase: Codebase,
-    reporter: Reporter,
-    filterReference: Predicate<SelectableItem>
-) : BaseDevicePolicyAnnotationHandler(codebase, reporter, filterReference) {
-    private val policyHandler =
-        PolicyDefinitionAnnotationHandler(codebase, reporter, filterReference)
+    context: DevicePolicyContext,
+) : BaseDevicePolicyAnnotationHandler(context) {
 
     /**
-     * Processes the [ListOfStringPolicyDefinition] annotation and returns the documentation for the
+     * Processes the [ListOfStringPolicyDefinitionProxy] and returns the documentation for the
      * policy.
      */
     override fun processPolicyAnnotation(annotation: AnnotationItem, item: Item): String {
-        val emptyListAllowed = annotation.getBooleanAttribute("emptyListAllowed") ?: false
-        val emptyStringAllowed = annotation.getBooleanAttribute("emptyStringAllowed") ?: false
-        val unprintableCharactersAllowed =
-            annotation.getBooleanAttribute("unprintableCharactersAllowed") ?: false
-
-        val basePolicyDefinition =
-            annotation.getPolicyDefinitionAttribute("base").elseReportMissing(item, "base")
-        val baseDocs =
-            basePolicyDefinition?.let {
-                policyHandler.processPolicyAnnotation(basePolicyDefinition, item)
-            } ?: ""
-
-        return buildString {
-            append("\n<p>Policy Type: List Of String</p>\n <ul>\n")
-            append(baseDocs)
-            buildListResolutionMechanismDoc(annotation, item)
-            appendAllowed("Empty list", emptyListAllowed, leadingSpaces = "   ")
-            appendAllowed("Empty string", emptyStringAllowed, leadingSpaces = "   ")
-            appendAllowed(
-                "Unprintable characters",
-                unprintableCharactersAllowed,
-                leadingSpaces = "   "
-            )
-            append(" </ul>\n")
-        }
+        val proxy = annotation.bindTo<ListOfStringPolicyDefinitionProxy>(item)
+        return proxy?.generateDocs() ?: ""
     }
+}
 
-    /**
-     * Builds the documentation for the `resolutionMechanism` field of a
-     * ListOfStringPolicyDefinition.
-     *
-     * @param annotation The ListOfStringPolicyDefinition annotation.
-     * @param item The item to which the annotation is applied.
-     */
-    private fun StringBuilder.buildListResolutionMechanismDoc(
-        annotation: AnnotationItem,
-        item: Item,
-        leadingSpaces: String = "   "
-    ) {
-        val resolutionMechanismValue = annotation.findAttribute("resolutionMechanism")?.value
-        val resolutionMechanismAnnotation =
-            (resolutionMechanismValue as? AnnotationValue)?.annotationItem
-
-        if (resolutionMechanismAnnotation != null) {
-            val custom = resolutionMechanismAnnotation.getBooleanAttribute("custom") ?: false
-            val union = resolutionMechanismAnnotation.getBooleanAttribute("union") ?: false
-
-            // TODO(b/492421367): Enrich the doc for resolution mechanism.
-            if (custom) {
-                append("$leadingSpaces<li>Resolution Mechanism: custom</li>\n")
-            } else if (union) {
-                append("$leadingSpaces<li>Resolution Mechanism: union</li>\n")
-            } else {
-                reporter.report(
-                    Issues.INVALID_DEVICE_POLICY_ANNOTATION,
-                    item,
-                    "ListResolutionMechanism must have either 'custom' or 'union' set to true."
-                )
+/**
+ * Proxy class bound to an instance of the
+ * `android.processor.devicepolicy.ListOfStringPolicyDefinition` annotation class.
+ *
+ * @see bindTo
+ */
+data class ListOfStringPolicyDefinitionProxy(
+    val base: PolicyDefinitionProxy,
+    val resolutionMechanism: ListResolutionMechanismProxy,
+    val emptyListAllowed: Boolean,
+    val emptyStringAllowed: Boolean,
+    val unprintableCharactersAllowed: Boolean,
+    val pureWhitespaceAllowed: Boolean,
+    val unstrippedStringAllowed: Boolean,
+    val maxListLength: Int,
+) {
+    fun generateDocs() = buildString {
+        val tableEntries = buildList {
+            addAll(base.getTableEntries())
+            val resMechDocs = resolutionMechanism.generateDocs(base.item)
+            if (resMechDocs.isNotEmpty()) {
+                add(Pair("Conflict resolution mechanism", resMechDocs))
             }
-        } else {
-            // Should not fall into this branch because resolutionMechanism is a required field.
-            // Missing it will cause Java compiler errors.
-            reportOnMissingFields("resolutionMechanism", item)
+            val policyValueValidations = buildList {
+                if (maxListLength != Int.MAX_VALUE) add("Length max $maxListLength items")
+                if (!emptyListAllowed) add("No empty list allowed")
+                if (!emptyStringAllowed) add("No empty string allowed")
+                if (!unprintableCharactersAllowed) add("No unprintable characters allowed")
+                if (!pureWhitespaceAllowed) add("No pure whitespace allowed")
+                if (!unstrippedStringAllowed) add("No unstripped string allowed")
+            }
+            add(Pair("Policy value", renderPolicyValue("List<String>", policyValueValidations)))
         }
+
+        append(renderTable(tableEntries))
     }
 }

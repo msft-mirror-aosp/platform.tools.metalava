@@ -296,17 +296,11 @@ class JDiffXmlWriter(
  */
 fun createFilteringVisitorForJDiffWriter(
     delegate: DelegatedVisitor,
-    apiFilters: ApiFilters,
-    preFiltered: Boolean,
-    showUnannotated: Boolean,
-    filterSuperClassType: Boolean = true,
+    apiFilters: ApiFilters?,
 ): ApiVisitor =
     FilteringApiVisitor(
         delegate,
-        inlineInheritedFields = true,
         interfaceListComparator = TypeItem.totalComparator,
         apiFilters = apiFilters,
-        preFiltered = preFiltered,
-        filterSuperClassType = filterSuperClassType,
-        showUnannotated = showUnannotated,
+        showUnannotated = false,
     )

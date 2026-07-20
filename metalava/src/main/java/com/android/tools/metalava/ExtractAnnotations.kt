@@ -33,10 +33,10 @@ import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.JAVA_LANG_PREFIX
 import com.android.tools.metalava.model.MemberItem
-import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.findAnnotation
+import com.android.tools.metalava.model.testOrTrue
 import com.android.tools.metalava.model.value.AnnotationValue
 import com.android.tools.metalava.model.value.FieldReferenceValue
 import com.android.tools.metalava.model.value.SingleArrayElementFormat
@@ -149,7 +149,7 @@ class ExtractAnnotations(
             when (item) {
                 is ClassItem -> item.containingPackage()
                 is MemberItem -> item.containingClass().containingPackage()
-                is ParameterItem -> item.containingCallable().containingClass().containingPackage()
+                is ParameterItem -> item.containingClass().containingPackage()
                 else -> return
             }
 
@@ -230,13 +230,6 @@ class ExtractAnnotations(
 
                     classToAnnotationHolder[className] = typeDefAnnotation
                     addItem(item, typeDefAnnotation)
-
-                    if (
-                        item is MethodItem &&
-                            !reporter.isSuppressed(Issues.RETURNING_UNEXPECTED_CONSTANT)
-                    ) {
-                        item.body.verifyReturnedConstants(typeDefAnnotation, typeDefClass)
-                    }
                 }
             }
         }
@@ -298,9 +291,7 @@ class ExtractAnnotations(
                 return escapeXml(containingClass().qualifiedName()) + " " + name()
             }
             is ParameterItem -> {
-                return containingCallable().getExternalAnnotationSignature() +
-                    " " +
-                    this.parameterIndex
+                return parent().getExternalAnnotationSignature() + " " + this.parameterIndex
             }
         }
 
@@ -355,7 +346,7 @@ class ExtractAnnotations(
                                 if (keepFieldReferences) {
                                     // If keeping the field then make sure it can be referenced from
                                     // the API. If not then discard it.
-                                    if (!filterReference.test(fieldItem)) {
+                                    if (!filterReference.testOrTrue(fieldItem)) {
                                         // This field is not visible: remove from typedef
                                         reporter.report(
                                             Issues.HIDDEN_TYPEDEF_CONSTANT,
@@ -489,7 +480,7 @@ class ExtractAnnotations(
          */
         private val EXTRACT_VALUE_STRING_CONFIGURATION =
             ValueStringConfiguration(
-                singleArrayElementFormat = SingleArrayElementFormat.UNWRAP,
+                singleArrayElementFormat = SingleArrayElementFormat.WRAP,
             )
     }
 }

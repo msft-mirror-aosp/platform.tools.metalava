@@ -16,6 +16,8 @@
 
 package com.android.tools.metalava.model.testsuite.documentation
 
+import com.android.tools.metalava.model.provider.InputFormat
+import com.android.tools.metalava.model.testing.SupportedInputFormats
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.model.testsuite.value.ValueExample
 import com.android.tools.metalava.testing.EntryPoint
@@ -28,6 +30,7 @@ import org.junit.Test
 import org.junit.runners.Parameterized
 
 /** Common tests for tags that handle all references. */
+@SupportedInputFormats(InputFormat.JAVA)
 class CommonParameterizedDocReferenceTest : BaseModelTest() {
 
     /** Set of tags that handle the references. */

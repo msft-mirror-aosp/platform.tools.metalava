@@ -23,14 +23,21 @@ import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.MemberItem
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.Showability
+import com.android.tools.metalava.model.api.ApiSurfaceRules
+import com.android.tools.metalava.model.api.SurfaceSelectionRule
+import com.android.tools.metalava.model.api.surface.ApiSurfaces
 import com.android.tools.metalava.model.provider.Capability
+import com.android.tools.metalava.model.provider.InputFormat
 import com.android.tools.metalava.model.testing.RequiresCapabilities
+import com.android.tools.metalava.model.testing.SupportedInputFormats
+import com.android.tools.metalava.testing.KnownSourceFiles
 import com.android.tools.metalava.testing.java
 import kotlin.test.assertEquals
 import org.junit.Test
 
 /** Common tests for [ApiVariantSelectors]. */
 @RequiresCapabilities(Capability.API_VARIANT_SELECTORS)
+@SupportedInputFormats(InputFormat.JAVA)
 class CommonApiVariantSelectorsTest : BaseModelTest() {
 
     /**
@@ -80,6 +87,7 @@ class CommonApiVariantSelectorsTest : BaseModelTest() {
                         docOnly=<not-set>,
                         removed=<not-set>,
                         inheritIntoWasCalled=<not-set>,
+                        forStubPurposes=<not-set>,
                         showability=<not-set>,
                     }
                 """
@@ -94,6 +102,7 @@ class CommonApiVariantSelectorsTest : BaseModelTest() {
             selectors.docOnly
             selectors.removed
             selectors.showability
+            selectors.includeOnlyForStubPurposes
 
             assertEquals(
                 """
@@ -105,6 +114,7 @@ class CommonApiVariantSelectorsTest : BaseModelTest() {
                         docOnly=false,
                         removed=false,
                         inheritIntoWasCalled=true,
+                        forStubPurposes=false,
                         showability=Showability(show=NO_EFFECT, recursive=NO_EFFECT, forStubsOnly=NO_EFFECT, revertItem=null),
                     }
                 """
@@ -256,45 +266,58 @@ class CommonApiVariantSelectorsTest : BaseModelTest() {
 
     @Test
     fun `Test docOnly`() {
+        val apiSurfaces = ApiSurfaces.create()
+        val rulesByName = mapOf("public" to listOf(SurfaceSelectionRule.unannotated))
+        val variantRules =
+            listOf(
+                SurfaceSelectionRule.createAnnotationRule(
+                    "android.annotation.DocOnly",
+                    effect = SurfaceSelectionRule.Effect.DOC_ONLY,
+                ),
+            )
+        val apiSurfaceRules = ApiSurfaceRules(apiSurfaces, rulesByName, variantRules)
+
         runCodebaseTest(
             inputSet(
-                java(
-                    """
-                        /** @doconly */
-                        package test.pkg;
-                    """
-                ),
+                KnownSourceFiles.docOnlyAnnotation,
                 java(
                     """
                         package test.pkg;
-                        public class Foo {
+                        import android.annotation.DocOnly;
+
+                        @DocOnly
+                        public class Outer {
+                            public class Inner {
+                            }
                         }
                     """
                 ),
             ),
+            testFixture = TestFixture(apiSurfaceRules = apiSurfaceRules),
         ) {
-            val pkgItem = codebase.assertPackage("test.pkg")
-            val fooClass = codebase.assertClass("test.pkg.Foo")
+            val outerClass = codebase.assertClass("test.pkg.Outer")
+            val innerClass = codebase.assertClass("test.pkg.Outer.Inner")
 
-            val pkgSelectors = pkgItem.variantSelectors
-            val fooSelectors = fooClass.variantSelectors
+            val outerSelectors = outerClass.variantSelectors
+            val innerSelectors = innerClass.variantSelectors
 
-            var pkgSelectorsState = TestableSelectorsState(item = pkgItem)
-            var fooSelectorsState = TestableSelectorsState(item = fooClass)
+            var outerSelectorsState = TestableSelectorsState(item = outerClass)
+            var innerSelectorsState = TestableSelectorsState(item = innerClass)
 
             // Check the states before initializing any property.
-            pkgSelectors.assertEquals(pkgSelectorsState, message = "initial pkg")
-            fooSelectors.assertEquals(fooSelectorsState, message = "initial foo")
+            outerSelectors.assertEquals(outerSelectorsState, message = "initial outer")
+            innerSelectors.assertEquals(innerSelectorsState, message = "initial inner")
 
-            // Get the `docOnly` property, do foo first to show it can inherit properly.
-            assertEquals(true, fooSelectors.docOnly, message = "foo docOnly")
+            // Get the `docOnly` property, do inner first to show it can inherit properly from outer
+            // class.
+            assertEquals(true, innerSelectors.docOnly, message = "inner docOnly")
 
             // Check the states after initializing `docOnly`.
-            pkgSelectorsState = pkgSelectorsState.copy(docOnly = true)
-            pkgSelectors.assertEquals(pkgSelectorsState, message = "after pkg")
+            outerSelectorsState = outerSelectorsState.copy(docOnly = true)
+            outerSelectors.assertEquals(outerSelectorsState, message = "after outer")
 
-            fooSelectorsState = fooSelectorsState.copy(docOnly = true)
-            fooSelectors.assertEquals(fooSelectorsState, message = "after foo")
+            innerSelectorsState = innerSelectorsState.copy(docOnly = true)
+            innerSelectors.assertEquals(innerSelectorsState, message = "after inner")
         }
     }
 
