@@ -614,26 +614,24 @@ class CommonParameterizedSelectedApiTest : BaseModelTest() {
                         ),
                     ),
             ) {
-                // TODO: The behavior shown below is not correct as it does not track
-                // ApiVariantType.REMOVED and will be fixed in a follow up change.
                 surfaceTest(
                     surface = "public",
                     expected =
                         """
                             package test.pkg
-                                   self - ApiVariantSet[public(C)]
+                                   self - ApiVariantSet[public(CR)]
                               class test.pkg.RemovedClass
-                                     self - ApiVariantSet[public(C)]
+                                     self - ApiVariantSet[public(R)]
                                 constructor test.pkg.RemovedClass()
-                                       self - ApiVariantSet[public(C)]
+                                       self - ApiVariantSet[public(R)]
                                 method test.pkg.RemovedClass.method()
-                                       self - ApiVariantSet[public(C)]
+                                       self - ApiVariantSet[public(R)]
                               class test.pkg.Test
                                      self - ApiVariantSet[public(C)]
                                 constructor test.pkg.Test()
                                        self - ApiVariantSet[public(C)]
                                 method test.pkg.Test.removedMethod()
-                                       self - ApiVariantSet[public(C)]
+                                       self - ApiVariantSet[public(R)]
                         """,
                 )
             }

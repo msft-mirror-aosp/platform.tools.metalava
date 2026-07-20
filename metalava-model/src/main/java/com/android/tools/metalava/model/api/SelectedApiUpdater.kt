@@ -53,6 +53,10 @@ class SelectedApiUpdater(
     private val SelectableItem.hasHideDocTag: Boolean
         get() = documentation?.isHidden == true
 
+    /** Check whether this [SelectableItem] has an `@removed` doc tag. */
+    private val SelectableItem.hasRemovedDocTag: Boolean
+        get() = documentation?.isRemoved == true
+
     private val previouslyReleasedCodebase by
         lazy(LazyThreadSafetyMode.NONE) { previouslyReleasedCodebaseProvider() }
 
@@ -234,9 +238,9 @@ class SelectedApiUpdater(
                 "$itemApiVariants must not contain multiple surfaces"
             }
 
-            // If this item is not already removed but is enclosed within a removed parent then
-            // make it removed.
-            if (!selectedApi.removed && parent.removed) {
+            // If this item is not already removed but is enclosed within a removed parent or has a
+            // doc tag of @removed then make it removed.
+            if (!selectedApi.removed && (parent.removed || item.hasRemovedDocTag)) {
                 selectedApi.removed = true
             }
 
