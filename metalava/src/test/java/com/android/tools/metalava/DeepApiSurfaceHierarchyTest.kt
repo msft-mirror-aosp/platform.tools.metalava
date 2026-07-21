@@ -38,6 +38,8 @@ class DeepApiSurfaceHierarchyTest : DriverTest() {
                 Issues.REFERENCES_HIDDEN.name,
                 ARG_ERROR,
                 Issues.OVERLAPPING_API_SURFACES.name,
+                ARG_ERROR,
+                Issues.HIDING_API_METHOD_OVERRIDE.name,
             )
 
         private val SOURCE_FILES_A =
@@ -618,7 +620,11 @@ class DeepApiSurfaceHierarchyTest : DriverTest() {
                         method public void subMethod();
                       }
                     }
+                """,
+            expectedIssues =
                 """
+                    src/test/pkg/PublicSubClass.java:16: error: Attempting to hide method test.pkg.PublicSubClass.systemMethodHiddenInSub() which overrides method test.pkg.PublicClass.systemMethodHiddenInSub() which is already part of the API [HidingApiMethodOverride]
+                """,
         )
     }
 
@@ -647,7 +653,11 @@ class DeepApiSurfaceHierarchyTest : DriverTest() {
                         method public void subMethod();
                       }
                     }
+                """,
+            expectedIssues =
                 """
+                    src/test/pkg/PublicSubClass.java:16: error: Attempting to hide method test.pkg.PublicSubClass.systemMethodHiddenInSub() which overrides method test.pkg.PublicClass.systemMethodHiddenInSub() which is already part of the API [HidingApiMethodOverride]
+                """,
         )
     }
 
@@ -671,7 +681,11 @@ class DeepApiSurfaceHierarchyTest : DriverTest() {
                         method public void bar();
                       }
                     }
+                """,
+            expectedIssues =
                 """
+                    src/test/pkg/PublicSubClass.java:16: error: Attempting to hide method test.pkg.PublicSubClass.systemMethodHiddenInSub() which overrides method test.pkg.PublicClass.systemMethodHiddenInSub() which is already part of the API [HidingApiMethodOverride]
+                """,
         )
     }
 

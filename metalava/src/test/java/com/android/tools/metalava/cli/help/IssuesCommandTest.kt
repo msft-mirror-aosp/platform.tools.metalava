@@ -121,6 +121,7 @@ Available Issues                             |  Category                        
   HiddenSuperclass                           |  documentation                        |   warning
   HiddenTypeParameter                        |  documentation                        |   warning
   HiddenTypedefConstant                      |  unknown                              |   error
+  HidingApiMethodOverride                    |  api_lint                             |   hidden
   HidingRecordComponent                      |  api_lint                             |   error
   IgnoringSymlink                            |  unknown                              |   info
   InconsistentMergeAnnotation                |  api_lint                             |   warning_error_when_new

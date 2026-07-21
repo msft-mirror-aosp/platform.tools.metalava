@@ -18,6 +18,7 @@ package com.android.tools.metalava.stub
 
 import com.android.tools.lint.checks.infrastructure.TestFile
 import com.android.tools.metalava.KnownApiSurface
+import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.testing.java
 import org.junit.Test
 
@@ -25,6 +26,7 @@ class StubsMethodTest : AbstractStubsTest() {
     @Test
     fun `Test hiding override of public method`() {
         check(
+            extraArguments = errorIssues(Issues.HIDING_API_METHOD_OVERRIDE),
             apiSurface = KnownApiSurface.PUBLIC,
             sourceFiles =
                 arrayOf(
@@ -48,6 +50,10 @@ class StubsMethodTest : AbstractStubsTest() {
                         """
                     ),
                 ),
+            expectedIssues =
+                """
+                    src/test/pkg/Child.java:6: error: Attempting to hide method test.pkg.Child.method() which overrides method test.pkg.Parent.method() which is already part of the API [HidingApiMethodOverride]
+                """,
             expectedApiSignature =
                 """
                     // Signature format: 5.0
@@ -95,6 +101,7 @@ class StubsMethodTest : AbstractStubsTest() {
     @Test
     fun `Test hiding override of removed method`() {
         check(
+            extraArguments = errorIssues(Issues.HIDING_API_METHOD_OVERRIDE),
             apiSurface = KnownApiSurface.PUBLIC,
             sourceFiles =
                 arrayOf(
@@ -120,6 +127,10 @@ class StubsMethodTest : AbstractStubsTest() {
                         """
                     ),
                 ),
+            expectedIssues =
+                """
+                    src/test/pkg/Child.java:6: error: Attempting to hide method test.pkg.Child.method() which overrides method test.pkg.Parent.method() which was part of the API but has now been removed [HidingApiMethodOverride]
+                """,
             expectedApiSignature =
                 """
                     // Signature format: 5.0
@@ -178,6 +189,7 @@ class StubsMethodTest : AbstractStubsTest() {
      */
     private fun checkPublicOverrideOfSystemApiMethod(
         apiSurface: KnownApiSurface,
+        extraArguments: Array<String> = emptyArray(),
         expectedIssues: String? = "",
         expectedApiSignature: String,
         stubPaths: Array<String>,
@@ -185,6 +197,7 @@ class StubsMethodTest : AbstractStubsTest() {
     ) {
         check(
             apiSurface = apiSurface,
+            extraArguments = extraArguments,
             sourceFiles =
                 arrayOf(
                     java(
@@ -256,6 +269,11 @@ class StubsMethodTest : AbstractStubsTest() {
     fun `Test hiding of public override of SystemApi method in system API`() {
         checkPublicOverrideOfSystemApiMethod(
             apiSurface = KnownApiSurface.SYSTEM,
+            extraArguments = errorIssues(Issues.HIDING_API_METHOD_OVERRIDE),
+            expectedIssues =
+                """
+                    src/test/pkg/Child.java:6: error: Attempting to hide method test.pkg.Child.method() which overrides method test.pkg.Parent.method() which is already part of the API [HidingApiMethodOverride]
+                """,
             expectedApiSignature =
                 """
                     // Signature format: 5.0
@@ -307,6 +325,7 @@ class StubsMethodTest : AbstractStubsTest() {
      */
     private fun checkSystemApiOverrideOfPublicMethod(
         apiSurface: KnownApiSurface,
+        extraArguments: Array<String> = emptyArray(),
         expectedIssues: String? = "",
         expectedApiSignature: String,
         stubPaths: Array<String>,
@@ -314,6 +333,7 @@ class StubsMethodTest : AbstractStubsTest() {
     ) {
         check(
             apiSurface = apiSurface,
+            extraArguments = extraArguments,
             sourceFiles =
                 arrayOf(
                     java(
@@ -347,6 +367,11 @@ class StubsMethodTest : AbstractStubsTest() {
     fun `Test SystemApi override of public method in public API`() {
         checkSystemApiOverrideOfPublicMethod(
             apiSurface = KnownApiSurface.PUBLIC,
+            extraArguments = errorIssues(Issues.HIDING_API_METHOD_OVERRIDE),
+            expectedIssues =
+                """
+                    src/test/pkg/Child.java:6: error: Attempting to hide method test.pkg.Child.method() which overrides method test.pkg.Parent.method() which is already part of the API [HidingApiMethodOverride]
+                """,
             expectedApiSignature =
                 """
                     // Signature format: 5.0
