@@ -126,7 +126,7 @@ interface Item : Reportable {
     fun hashCodeForItem(): Int
 
     /** Provides a string representation of the item, suitable for use while debugging. */
-    fun toStringForItem(): String
+    fun toStringForItem(): String = describe()
 
     /**
      * The language in which this was written, or [SourceLanguage.UNKNOWN] if not known, e.g. when

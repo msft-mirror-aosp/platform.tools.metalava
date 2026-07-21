@@ -75,7 +75,7 @@ class ApiFlags(
     /**
      * Get the [ApiFlag] by qualified name.
      *
-     * If no such [ApiFlag] exists then return [ApiFlag] with [ApiFlagAction.REVERT].
+     * If no such [ApiFlag] exists then return [ApiFlag] with [unknownFlagAction].
      */
     operator fun get(qualifiedName: String) =
         byQualifiedName.computeIfAbsent(qualifiedName) {

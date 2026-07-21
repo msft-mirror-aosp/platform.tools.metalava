@@ -17,6 +17,7 @@
 package com.android.tools.metalava.model
 
 import com.android.tools.metalava.model.annotation.AnnotationClass
+import com.android.tools.metalava.model.api.SurfaceAnnotationData
 import com.android.tools.metalava.model.api.flags.ApiFlag
 import com.android.tools.metalava.model.api.flags.ApiFlags
 
@@ -41,6 +42,12 @@ interface AnnotationInfo {
     val typeNullability: TypeNullability?
 
     /**
+     * The [SurfaceAnnotationData] associated with this annotation, `null` if it is not a surface
+     * annotation.
+     */
+    val surfaceData: SurfaceAnnotationData?
+
+    /**
      * Determines whether this annotation affects whether the annotated item is shown or hidden and
      * if so how.
      */
@@ -50,8 +57,7 @@ interface AnnotationInfo {
      * The [ApiFlag] referenced by the annotation.
      *
      * This will be `null` if no [ApiFlags] have been provided or the annotation type is not
-     * [ANDROID_FLAGGED_API]. Otherwise, it will be one of the instances of [ApiFlag], e.g.
-     * [ApiFlag.REVERT_FLAGGED_API].
+     * [ANDROID_FLAGGED_API]. Otherwise, it will be an instance of [ApiFlag].
      */
     val apiFlag: ApiFlag?
 
@@ -144,11 +150,10 @@ data class Showability(
      * API.
      *
      * If [ShowOrHide.show] is `true` then the annotated [SelectableItem] will be shown as part of
-     * the API. That is the case for annotations that match `--show-annotation`, or
-     * `--show-single-annotation`, but not `--show-for-stub-purposes-annotation`.
+     * the API. That is the case for any show annotation on the target API surface.
      *
      * If [ShowOrHide.hide] is `true` then the annotated [SelectableItem] will NOT be shown as part
-     * of the API. That is the case for annotations that match `--hide-annotation`.
+     * of the API. That is the case for hide annotations.
      *
      * If neither of the above is then this has no effect on whether an annotated [SelectableItem]
      * will be shown or not, that decision will be determined by its container's
@@ -161,35 +166,35 @@ data class Showability(
      * the API.
      *
      * If [ShowOrHide.show] is `true` then the contents of the annotated [Item] will be included in
-     * the API unless overridden by a closer annotation. That is the case for annotations that match
-     * `--show-annotation`, but not `--show-single-annotation`, or
-     * `--show-for-stub-purposes-annotation`.
+     * the API unless overridden by a closer annotation. That is the case for recursive show
+     * annotations but not non-recursive show annotations.
      *
      * If [ShowOrHide.hide] is `true` then the contents of the annotated [Item] will NOT be included
-     * in the API unless overridden by a closer annotation. That is the case for annotations that
-     * match `--hide-annotation`.
+     * in the API unless overridden by a closer annotation. That is the case for hide annotations.
      */
     private val recursive: ShowOrHide,
 
     /**
-     * Determines whether an API [Item] ands its contents is considered to be part of the base API
-     * and so must be included in the stubs but not the signature files.
+     * Determines whether an API [Item] ands its contents is considered to be part of an API surface
+     * extended (possibly indirectly) by the target API surface and so must be included in the stubs
+     * but not the signature files.
      *
      * If [ShowOrHide.show] is `true` then the API [Item] ands its contents are considered to be
-     * part of the base API. That is the case for annotations that match
-     * `--show-for-stub-purposes-annotation` but not `--show-annotation`, or
-     * `--show-single-annotation`.
+     * part of the base API. That is the case for show annotations on an API surface extended by the
+     * target API surface but not on the target API surface itself.
      */
     private val forStubsOnly: ShowOrHide,
 
     /** The item to which this item should be reverted. Null if no such item exists. */
     val revertItem: SelectableItem? = null,
+
+    /** Optional name, makes it easier to understand while testing and debug. */
+    val name: String? = null,
 ) {
     /**
      * Check whether the annotated item should be considered part of the API or not.
      *
-     * Returns `true` if the item is annotated with a `--show-annotation`,
-     * `--show-single-annotation`, or `--show-for-stub-purposes-annotation`.
+     * Returns `true` if the item is annotated with a show annotation.
      */
     fun show() = show.show(revertItem) || forStubsOnly.show(revertItem)
 
@@ -197,8 +202,8 @@ data class Showability(
      * Check whether the annotated item should only be considered part of the API when generating
      * stubs.
      *
-     * Returns `true` if the item is annotated with a `--show-for-stub-purposes-annotation`. Such
-     * items will be part of an API surface that the API being generated extends.
+     * Returns `true` if the item is annotated with a show annotation for an API surface extended by
+     * the target API surface.
      */
     fun showForStubsOnly() = forStubsOnly.show(revertItem)
 
@@ -265,6 +270,10 @@ data class Showability(
 
         return Showability(newShow, newRecursive, forStubsOnly)
     }
+
+    override fun toString() =
+        name
+            ?: "Showability(show=$show, recursive=$recursive, forStubsOnly=$forStubsOnly, revertItem=$revertItem)"
 
     companion object {
         /** The annotation does not affect whether an annotated item is shown. */

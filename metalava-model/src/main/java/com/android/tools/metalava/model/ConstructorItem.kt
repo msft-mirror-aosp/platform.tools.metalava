@@ -38,21 +38,27 @@ interface ConstructorItem : CallableItem {
     /** Returns the internal name of the class, as seen in bytecode */
     override fun internalName(): String = "<init>"
 
-    /**
-     * Override to specialize return type.
-     *
-     * Returned [ConstructorItem]s will always have [ConstructorItem.isPrimary] set to `false.
-     */
-    override fun createOverload(parameters: List<ParameterItem>): ConstructorItem
-
     override fun findCorrespondingItemIn(
         codebase: Codebase,
         superMethods: Boolean,
         duplicate: Boolean,
     ) = containingClass().findCorrespondingItemIn(codebase)?.findConstructor(this)
 
-    /** True if this is the primary constructor in Kotlin. */
+    /**
+     * True if this is the primary constructor in Kotlin, or the canonical constructor of a Java
+     * record class.
+     */
     val isPrimary: Boolean
+
+    /** True if this is the canonical constructor of a Java record class. */
+    val isCanonicalRecordComponentConstructor: Boolean
+        get() = isPrimary && containingClass().classKind == ClassKind.RECORD
+
+    override val isRecordComponentRelated: Boolean
+        get() = isCanonicalRecordComponentConstructor
+
+    override val recordComponentRelationship: String?
+        get() = if (isRecordComponentRelated) "canonical" else null
 
     /**
      * True if this is a [ConstructorItem] that was created implicitly by the compiler and so does

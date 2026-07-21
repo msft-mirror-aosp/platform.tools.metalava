@@ -24,13 +24,16 @@ import com.android.tools.metalava.model.MemberItem
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.Showability
 import com.android.tools.metalava.model.provider.Capability
+import com.android.tools.metalava.model.provider.InputFormat
 import com.android.tools.metalava.model.testing.RequiresCapabilities
+import com.android.tools.metalava.model.testing.SupportedInputFormats
 import com.android.tools.metalava.testing.java
 import kotlin.test.assertEquals
 import org.junit.Test
 
 /** Common tests for [ApiVariantSelectors]. */
 @RequiresCapabilities(Capability.API_VARIANT_SELECTORS)
+@SupportedInputFormats(InputFormat.JAVA)
 class CommonApiVariantSelectorsTest : BaseModelTest() {
 
     /**
@@ -38,7 +41,7 @@ class CommonApiVariantSelectorsTest : BaseModelTest() {
      * [expectedState]
      */
     fun ApiVariantSelectors.assertEquals(expectedState: TestableSelectorsState, message: String) {
-        assertEquals(expectedState.createSelectorsforTesting(), this, message = message)
+        assertEquals(expectedState.createSelectorsForTesting(), this, message = message)
 
         // The preceding check will verify that val properties like originallyHidden are either set
         // or not set as expected. The following checks test to make that they have the expected
@@ -80,6 +83,7 @@ class CommonApiVariantSelectorsTest : BaseModelTest() {
                         docOnly=<not-set>,
                         removed=<not-set>,
                         inheritIntoWasCalled=<not-set>,
+                        forStubPurposes=<not-set>,
                         showability=<not-set>,
                     }
                 """
@@ -94,6 +98,7 @@ class CommonApiVariantSelectorsTest : BaseModelTest() {
             selectors.docOnly
             selectors.removed
             selectors.showability
+            selectors.includeOnlyForStubPurposes
 
             assertEquals(
                 """
@@ -105,6 +110,7 @@ class CommonApiVariantSelectorsTest : BaseModelTest() {
                         docOnly=false,
                         removed=false,
                         inheritIntoWasCalled=true,
+                        forStubPurposes=false,
                         showability=Showability(show=NO_EFFECT, recursive=NO_EFFECT, forStubsOnly=NO_EFFECT, revertItem=null),
                     }
                 """

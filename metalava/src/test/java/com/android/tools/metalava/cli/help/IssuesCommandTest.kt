@@ -36,7 +36,6 @@ Available Issues                             |  Category                        
   AbstractInner                              |  api_lint                             |   warning
   AcronymName                                |  api_lint                             |   warning
   ActionValue                                |  api_lint                             |   error
-  AddSealed                                  |  source_compatibility_only            |   error
   AddedAbstractMethod                        |  binary_and_source_compatibility      |   error
   AddedAbstractProperty                      |  source_compatibility_only            |   error
   AddedAnnotation                            |  other_compatibility                  |   error
@@ -48,11 +47,15 @@ Available Issues                             |  Category                        
   AddedMethod                                |  other_compatibility                  |   hidden
   AddedPackage                               |  other_compatibility                  |   hidden
   AddedProperty                              |  other_compatibility                  |   hidden
+  AddedRecordComponent                       |  binary_and_source_compatibility      |   error
   AddedReified                               |  binary_compatibility_only            |   error
+  AddedSealed                                |  source_compatibility_only            |   error
+  AddedSourceSet                             |  source_compatibility_only            |   info
   AddedSubclassToSealedClass                 |  source_compatibility_only            |   error
   AllUpper                                   |  api_lint                             |   error
   AndroidUri                                 |  api_lint                             |   error
   AnnotationExtraction                       |  unknown                              |   error
+  ArrayRecordComponent                       |  api_lint                             |   error
   ArrayReturn                                |  api_lint                             |   warning
   AsyncSuffixFuture                          |  api_lint                             |   error
   AutoBoxing                                 |  api_lint                             |   error
@@ -71,6 +74,7 @@ Available Issues                             |  Category                        
   ChangedDefault                             |  binary_and_source_compatibility      |   error
   ChangedDeprecated                          |  source_compatibility_only            |   hidden
   ChangedNative                              |  other_compatibility                  |   hidden
+  ChangedRecordComponent                     |  binary_and_source_compatibility      |   error
   ChangedScope                               |  binary_and_source_compatibility      |   error
   ChangedStatic                              |  binary_and_source_compatibility      |   error
   ChangedSuperclass                          |  binary_and_source_compatibility      |   error
@@ -80,6 +84,7 @@ Available Issues                             |  Category                        
   ChangedVolatile                            |  other_compatibility                  |   error
   CompileTimeConstant                        |  api_lint                             |   error
   ConcreteCollection                         |  api_lint                             |   error
+  ConcreteSealedClass                        |  api_lint                             |   warning
   ConditionalRequiresPermissionNotExplained  |  api_lint                             |   hidden
   ConfigFieldName                            |  api_lint                             |   error
   ContextFirst                               |  api_lint                             |   error
@@ -87,14 +92,15 @@ Available Issues                             |  Category                        
   DataClassDefinition                        |  api_lint                             |   hidden
   DefaultValueChange                         |  source_compatibility_only            |   error
   Deprecated                                 |  documentation                        |   hidden
+  DeprecatedSurfaceDocTag                    |  unknown                              |   hidden
   DeprecationMismatch                        |  documentation                        |   error
-  DocumentExceptions                         |  api_lint                             |   error
   DuplicateSourceClass                       |  unknown                              |   warning
   EndsWithImpl                               |  api_lint                             |   error
   Enum                                       |  api_lint                             |   error
   EqualsAndHashCode                          |  api_lint                             |   error
   ExceptionName                              |  api_lint                             |   error
   ExecutorRegistration                       |  api_lint                             |   warning
+  ExhaustiveSealedClass                      |  api_lint                             |   warning
   ExtendsDeprecated                          |  api_lint                             |   hidden
   ExtendsError                               |  api_lint                             |   error
   FacadeClassJvmName                         |  api_lint                             |   hidden
@@ -110,9 +116,11 @@ Available Issues                             |  Category                        
   GetterSetterNullability                    |  api_lint                             |   warning_error_when_new
   HeavyBitSet                                |  api_lint                             |   error
   HiddenAbstractMethod                       |  api_lint                             |   error
+  HiddenShowAnnotation                       |  api_lint                             |   warning_error_when_new
   HiddenSuperclass                           |  documentation                        |   warning
   HiddenTypeParameter                        |  documentation                        |   warning
   HiddenTypedefConstant                      |  unknown                              |   error
+  HidingRecordComponent                      |  api_lint                             |   error
   IgnoringSymlink                            |  unknown                              |   info
   InconsistentMergeAnnotation                |  api_lint                             |   warning_error_when_new
   InfixRemoval                               |  source_compatibility_only            |   error
@@ -124,7 +132,9 @@ Available Issues                             |  Category                        
   InternalClasses                            |  api_lint                             |   error
   InternalError                              |  unknown                              |   error
   InternalField                              |  api_lint                             |   error
+  InvalidAnnotationBinding                   |  api_lint                             |   error
   InvalidBlockTagUse                         |  documentation                        |   error
+  InvalidDevicePolicyAnnotation              |  documentation                        |   error
   InvalidDocThrowsType                       |  documentation                        |   error
   InvalidFeatureEnforcement                  |  documentation                        |   error
   InvalidIfTag                               |  documentation                        |   error
@@ -162,12 +172,13 @@ Available Issues                             |  Category                        
   MissingBuildMethod                         |  api_lint                             |   warning
   MissingColumn                              |  documentation                        |   warning
   MissingEnvironmentsValue                   |  api_lint                             |   error
-  MissingFromValue                           |  api_lint                             |   error
   MissingGetterMatchingBuilder               |  api_lint                             |   warning
   MissingInnerNullability                    |  api_lint                             |   hidden
   MissingJvmstatic                           |  api_lint                             |   warning
   MissingNullability                         |  api_lint                             |   error
   MissingPermission                          |  documentation                        |   error
+  MissingRequiredAttribute                   |  api_lint                             |   error
+  MultipleFlagging                           |  api_lint                             |   error
   MultipleThreadAnnotations                  |  documentation                        |   error
   MutableBareField                           |  api_lint                             |   error
   NoByteOrShort                              |  api_lint                             |   warning
@@ -181,9 +192,11 @@ Available Issues                             |  Category                        
   OnNameExpected                             |  api_lint                             |   warning
   OperatorRemoval                            |  source_compatibility_only            |   error
   OptionalBuilderConstructorArgument         |  api_lint                             |   warning
+  OverlappingApiSurfaces                     |  api_lint                             |   warning_error_when_new
   OverlappingConstants                       |  api_lint                             |   warning
   PackageLayering                            |  api_lint                             |   warning
   PairedRegistration                         |  api_lint                             |   error
+  ParameterKindChange                        |  source_compatibility_only            |   error
   ParameterNameChange                        |  source_compatibility_only            |   error
   ParcelConstructor                          |  api_lint                             |   error
   ParcelCreator                              |  api_lint                             |   error
@@ -213,13 +226,15 @@ Available Issues                             |  Category                        
   RemovedMethod                              |  binary_and_source_compatibility      |   error
   RemovedPackage                             |  binary_and_source_compatibility      |   error
   RemovedProperty                            |  source_compatibility_only            |   error
+  RemovedRecordComponent                     |  binary_and_source_compatibility      |   error
+  RemovedSourceSet                           |  source_compatibility_only            |   error
   RemovedTypeAlias                           |  source_compatibility_only            |   error
   RequiresPermission                         |  documentation                        |   error
+  RequiresSystemPermission                   |  documentation                        |   hidden
   ResourceFieldName                          |  api_lint                             |   error
   ResourceStyleFieldName                     |  api_lint                             |   error
   ResourceValueFieldName                     |  api_lint                             |   error
   RethrowRemoteException                     |  api_lint                             |   error
-  ReturningUnexpectedConstant                |  unknown                              |   warning
   SamShouldBeLast                            |  api_lint                             |   warning
   SdkConstant                                |  documentation                        |   error
   SealedClassExhaustivityChanged             |  source_compatibility_only            |   error
@@ -240,6 +255,7 @@ Available Issues                             |  Category                        
   TopLevelBuilder                            |  api_lint                             |   warning
   TypeParameterName                          |  api_lint                             |   warning_error_when_new
   TypeParseError                             |  unknown                              |   error
+  TypealiasDefinition                        |  api_lint                             |   error
   UnavailableSymbol                          |  documentation                        |   warning
   UnclosedInlineTag                          |  documentation                        |   error
   UnexportedFlaggedApi                       |  api_lint                             |   warning_error_when_new
@@ -254,6 +270,7 @@ Available Issues                             |  Category                        
   UseParcelFileDescriptor                    |  api_lint                             |   error
   UserHandle                                 |  api_lint                             |   warning
   UserHandleName                             |  api_lint                             |   warning
+  UsingJavaLangRecord                        |  api_lint                             |   error
   ValueClassDefinition                       |  api_lint                             |   error
   ValueClassUsageFromConstructor             |  api_lint                             |   hidden
   ValueClassUsageWithoutJvmName              |  api_lint                             |   hidden
@@ -282,7 +299,7 @@ Available Issues                             |  Category                        
                 """
                 Aborting: Usage: metalava help issues <issue>?
 
-                Error: no such issue: "AdddFinal". (Possible issues: AddedFinal, AddedField, AddedFinalUninstantiable)
+                Error: no such issue: "AdddFinal". (Possible issues: AddedFinal, AddedField, AddedFinalUninstantiable, AddedSealed)
             """
                     .trimIndent()
         }

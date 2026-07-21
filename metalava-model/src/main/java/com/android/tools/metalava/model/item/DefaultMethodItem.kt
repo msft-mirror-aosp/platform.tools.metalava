@@ -18,13 +18,11 @@ package com.android.tools.metalava.model.item
 
 import com.android.tools.metalava.model.ApiVariantSelectorsFactory
 import com.android.tools.metalava.model.BaseModifierList
-import com.android.tools.metalava.model.CallableBodyFactory
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.ExceptionTypeItem
 import com.android.tools.metalava.model.ItemDocumentationFactory
 import com.android.tools.metalava.model.MethodItem
-import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.SourceLanguage
 import com.android.tools.metalava.model.TargetLanguage
@@ -48,7 +46,6 @@ internal class DefaultMethodItem(
     returnType: TypeItem,
     parameterItemsFactory: ParameterItemsFactory,
     throwsTypes: List<ExceptionTypeItem>,
-    callableBodyFactory: CallableBodyFactory,
     private val defaultValueProvider: OptionalValueProvider?,
     private val isExtensionMethod: Boolean,
     override val isKotlinProperty: Boolean = false,
@@ -67,7 +64,6 @@ internal class DefaultMethodItem(
         returnType,
         parameterItemsFactory,
         throwsTypes,
-        callableBodyFactory,
     ),
     MethodItem {
 
@@ -77,6 +73,9 @@ internal class DefaultMethodItem(
 
     override val defaultValue
         get() = defaultValueProvider?.optionalValue
+
+    override val isRecordComponentGetter: Boolean =
+        if (parameters.isEmpty()) name in containingClass.recordComponents else false
 
     override var property: PropertyItem? = null
 
@@ -115,7 +114,8 @@ internal class DefaultMethodItem(
         val typeConverter = typeVariableMap.toTypeConverter()
 
         return DefaultMethodItem(
-                codebase = codebase,
+                // Create it in the same codebase as targetContainingClass.
+                codebase = targetContainingClass.codebase,
                 fileLocation = fileLocation,
                 sourceLanguage = sourceLanguage,
                 targetLanguages = targetLanguages,
@@ -131,7 +131,6 @@ internal class DefaultMethodItem(
                     parameters.map { it.duplicate(containingCallable, typeConverter) }
                 },
                 throwsTypes = throwsTypes,
-                callableBodyFactory = body::duplicate,
                 defaultValueProvider = defaultValueProvider,
                 isExtensionMethod = isExtensionMethod,
                 isKotlinProperty = isKotlinProperty,
@@ -142,26 +141,6 @@ internal class DefaultMethodItem(
                 duplicated.updateCopiedMethodState()
             }
     }
-
-    override fun createOverload(parameters: List<ParameterItem>): MethodItem =
-        DefaultMethodItem(
-            codebase,
-            fileLocation,
-            sourceLanguage,
-            targetLanguages,
-            modifiers,
-            documentation.duplicatingFactory(),
-            variantSelectors::duplicate,
-            name(),
-            containingClass(),
-            typeParameterList,
-            returnType(),
-            parameterItemsFactory = overloadParameterItemFactory(parameters),
-            throwsTypes,
-            body::duplicate,
-            defaultValueProvider,
-            isExtensionMethod(),
-        )
 
     /**
      * Compute the super methods of this method.
