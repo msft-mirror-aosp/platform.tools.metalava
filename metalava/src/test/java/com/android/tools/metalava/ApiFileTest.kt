@@ -2266,8 +2266,6 @@ class ApiFileTest : DriverTest() {
             apiSurface = KnownApiSurface.PUBLIC,
             sourceFiles =
                 arrayOf(
-                    KnownSourceFiles.hideAnnotation,
-                    KnownSourceFiles.docOnlyAnnotation,
                     java(
                         """
                             @android.annotation.Hide
