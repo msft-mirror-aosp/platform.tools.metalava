@@ -21,7 +21,6 @@ import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.testing.RequiresCapabilities
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.reporter.Issues
-import com.android.tools.metalava.testing.KnownSourceFiles
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
 import com.android.tools.metalava.testing.xml
@@ -83,7 +82,6 @@ class ShowAnnotationTest : DriverTest() {
             apiSurface = KnownApiSurface.SYSTEM_WITH_PUBLIC,
             sourceFiles =
                 arrayOf(
-                    KnownSourceFiles.hideAnnotation,
                     java(
                         """
                     package test.pkg;
@@ -931,7 +929,6 @@ class ShowAnnotationTest : DriverTest() {
             apiSurface = KnownApiSurface.SYSTEM,
             sourceFiles =
                 arrayOf(
-                    KnownSourceFiles.hideAnnotation,
                     java(
                         """
                             @android.annotation.Hide

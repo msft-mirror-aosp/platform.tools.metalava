@@ -2192,6 +2192,9 @@ data class KnownApiSurface(
     companion object {
         val additionalAndroidSourceFiles =
             listOf(
+                KnownSourceFiles.hideAnnotation,
+                KnownSourceFiles.docOnlyAnnotation,
+                KnownSourceFiles.removedFromApiAnnotation,
                 KnownSourceFiles.systemApiSource,
                 KnownSourceFiles.testApiSource,
             )
