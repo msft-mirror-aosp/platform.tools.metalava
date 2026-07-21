@@ -16,10 +16,81 @@
 
 package com.android.tools.metalava.stub
 
+import com.android.tools.metalava.KnownApiSurface
 import com.android.tools.metalava.testing.java
 import org.junit.Test
 
 class StubsMethodTest : AbstractStubsTest() {
+    @Test
+    fun `Test hiding override of public method`() {
+        check(
+            apiSurface = KnownApiSurface.PUBLIC,
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            public class Parent {
+                                public void method() {}
+                            }
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+                            import android.annotation.Hide;
+                            public class Child extends Parent {
+                                @Hide
+                                @Override
+                                public void method() {}
+                            }
+                        """
+                    ),
+                ),
+            expectedApiSignature =
+                """
+                    // Signature format: 5.0
+                    package test.pkg {
+                      public class Child extends test.pkg.Parent {
+                        ctor public Child();
+                      }
+                      public class Parent {
+                        ctor public Parent();
+                        method public void method();
+                      }
+                    }
+                """,
+            stubPaths =
+                arrayOf(
+                    "test/pkg/Child.java",
+                    "test/pkg/Parent.java",
+                ),
+            expectedStubFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            @SuppressWarnings({"unchecked", "deprecation", "all"})
+                            public class Child extends test.pkg.Parent {
+                            public Child() { throw new RuntimeException("Stub!"); }
+                            public void method() { throw new RuntimeException("Stub!"); }
+                            }
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+                            @SuppressWarnings({"unchecked", "deprecation", "all"})
+                            public class Parent {
+                            public Parent() { throw new RuntimeException("Stub!"); }
+                            public void method() { throw new RuntimeException("Stub!"); }
+                            }
+                        """
+                    ),
+                ),
+        )
+    }
+
     @Test
     fun `Test final and non-final methods inherited into final class`() {
         checkStubs(
