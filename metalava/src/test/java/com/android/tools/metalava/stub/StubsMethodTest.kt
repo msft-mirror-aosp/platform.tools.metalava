@@ -221,6 +221,137 @@ class StubsMethodTest : AbstractStubsTest() {
         )
     }
 
+    /**
+     * Helper to test marking an override of a public method as `@SystemApi`.
+     *
+     * Defines a public class `test.pkg.Parent` with a public method, and a subclass
+     * `test.pkg.Child` that overrides the method and marks it as `@SystemApi`.
+     */
+    private fun checkSystemApiOverrideOfPublicMethod(
+        apiSurface: KnownApiSurface,
+        expectedIssues: String? = "",
+        expectedApiSignature: String,
+        stubPaths: Array<String>,
+        expectedStubFiles: Array<TestFile>,
+    ) {
+        check(
+            apiSurface = apiSurface,
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            public class Parent {
+                                public void method() {}
+                            }
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+                            import android.annotation.SystemApi;
+                            public class Child extends Parent {
+                                @SystemApi
+                                @Override
+                                public void method() {}
+                            }
+                        """
+                    ),
+                ),
+            expectedIssues = expectedIssues,
+            expectedApiSignature = expectedApiSignature,
+            stubPaths = stubPaths,
+            expectedStubFiles = expectedStubFiles,
+        )
+    }
+
+    @Test
+    fun `Test SystemApi override of public method in public API`() {
+        checkSystemApiOverrideOfPublicMethod(
+            apiSurface = KnownApiSurface.PUBLIC,
+            expectedApiSignature =
+                """
+                    // Signature format: 5.0
+                    package test.pkg {
+                      public class Child extends test.pkg.Parent {
+                        ctor public Child();
+                      }
+                      public class Parent {
+                        ctor public Parent();
+                        method public void method();
+                      }
+                    }
+                """,
+            stubPaths =
+                arrayOf(
+                    "test/pkg/Child.java",
+                    "test/pkg/Parent.java",
+                ),
+            expectedStubFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            @SuppressWarnings({"unchecked", "deprecation", "all"})
+                            public class Child extends test.pkg.Parent {
+                            public Child() { throw new RuntimeException("Stub!"); }
+                            public void method() { throw new RuntimeException("Stub!"); }
+                            }
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+                            @SuppressWarnings({"unchecked", "deprecation", "all"})
+                            public class Parent {
+                            public Parent() { throw new RuntimeException("Stub!"); }
+                            public void method() { throw new RuntimeException("Stub!"); }
+                            }
+                        """
+                    ),
+                ),
+        )
+    }
+
+    @Test
+    fun `Test SystemApi override of public method in system API`() {
+        checkSystemApiOverrideOfPublicMethod(
+            apiSurface = KnownApiSurface.SYSTEM,
+            expectedApiSignature =
+                """
+                    // Signature format: 5.0
+                """,
+            stubPaths =
+                arrayOf(
+                    "test/pkg/Child.java",
+                    "test/pkg/Parent.java",
+                ),
+            expectedStubFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            @SuppressWarnings({"unchecked", "deprecation", "all"})
+                            public class Child extends test.pkg.Parent {
+                            public Child() { throw new RuntimeException("Stub!"); }
+                            public void method() { throw new RuntimeException("Stub!"); }
+                            }
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+                            @SuppressWarnings({"unchecked", "deprecation", "all"})
+                            public class Parent {
+                            public Parent() { throw new RuntimeException("Stub!"); }
+                            public void method() { throw new RuntimeException("Stub!"); }
+                            }
+                        """
+                    ),
+                ),
+        )
+    }
+
     @Test
     fun `Test final and non-final methods inherited into final class`() {
         checkStubs(
