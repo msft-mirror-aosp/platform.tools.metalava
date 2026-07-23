@@ -23,6 +23,8 @@ import com.android.tools.metalava.model.ANDROID_SYSTEM_API
 import com.android.tools.metalava.model.FlaggedApiInheritance
 import com.android.tools.metalava.model.text.CustomizableProperty.Companion.FLAGGED_API_INHERITANCE
 import com.android.tools.metalava.model.text.FileFormat
+import com.android.tools.metalava.testing.KnownSourceFiles.flaggedApiSource
+import com.android.tools.metalava.testing.KnownSourceFiles.requiresFlagSource
 import com.android.tools.metalava.testing.java
 import org.junit.Test
 
@@ -518,6 +520,186 @@ class FlaggedApiEdgeCasesTest : DriverTest() {
                         """
                     )
                 ),
+        )
+    }
+
+    @Test
+    fun `Test FlaggedApi annotation is removed from stubs for finalized APIs that become deprecated`() {
+        check(
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            import android.annotation.FlaggedApi;
+
+                            public class Test {
+                                /** @deprecated */
+                                @Deprecated
+                                @FlaggedApi("flag.name")
+                                public void method() {}
+                            }
+                        """
+                    ),
+                    flaggedApiSource
+                ),
+            checkCompatibilityApiReleased =
+                """
+                // Signature format: 2.0
+                package test.pkg {
+                  public class Test {
+                    ctor public Test();
+                    method public void method();
+                  }
+                }
+            """,
+            expectedApiSignature =
+                """
+                // Signature format: 5.0
+                package test.pkg {
+                  public class Test {
+                    ctor public Test();
+                    method @Deprecated @FlaggedApi("flag.name") public void method();
+                  }
+                }
+            """,
+            expectedStubFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            @SuppressWarnings({"unchecked", "deprecation", "all"})
+                            public class Test {
+                            public Test() { throw new RuntimeException("Stub!"); }
+                            /** @deprecated */
+                            @Deprecated
+                            public void method() { throw new RuntimeException("Stub!"); }
+                            }
+                        """
+                    )
+                ),
+            extraArguments = arrayOf("--check-compatibility", "disabled")
+        )
+    }
+
+    @Test
+    fun `Test FlaggedApi annotation is removed from stubs for finalized API with annotation updates`() {
+        check(
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            import android.annotation.FlaggedApi;
+                            import android.annotation.Nullable;
+
+                            public class Test {
+                                @FlaggedApi("flag.name")
+                                @Nullable
+                                public Object method() { return null; }
+                            }
+                        """
+                    ),
+                    flaggedApiSource,
+                    nullableSource
+                ),
+            checkCompatibilityApiReleased =
+                """
+                // Signature format: 2.0
+                package test.pkg {
+                  public class Test {
+                    ctor public Test();
+                    method public java.lang.Object method();
+                  }
+                }
+            """,
+            expectedApiSignature =
+                """
+                // Signature format: 5.0
+                package test.pkg {
+                  public class Test {
+                    ctor public Test();
+                    method @FlaggedApi("flag.name") public Object? method();
+                  }
+                }
+            """,
+            expectedStubFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            @SuppressWarnings({"unchecked", "deprecation", "all"})
+                            public class Test {
+                            public Test() { throw new RuntimeException("Stub!"); }
+                            @android.annotation.Nullable
+                            public java.lang.Object method() { throw new RuntimeException("Stub!"); }
+                            }
+                        """
+                    )
+                ),
+            extraArguments = arrayOf("--check-compatibility", "disabled")
+        )
+    }
+
+    @Test
+    fun `Test FlaggedApi annotation is not removed from stubs for finalized Class Apis`() {
+        check(
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            import android.annotation.FlaggedApi;
+                            /** @deprecated */
+                            @Deprecated
+                            @FlaggedApi("flag.name")
+                            public class Test {
+                                public Object method() { return null; }
+                            }
+                        """
+                    ),
+                    flaggedApiSource,
+                    nullableSource
+                ),
+            checkCompatibilityApiReleased =
+                """
+                // Signature format: 2.0
+                package test.pkg {
+                  public class Test {
+                    ctor public Test();
+                    method public java.lang.Object method();
+                  }
+                }
+            """,
+            expectedApiSignature =
+                """
+                // Signature format: 5.0
+                package test.pkg {
+                  @Deprecated @FlaggedApi("flag.name") public class Test {
+                    ctor @Deprecated public Test();
+                    method @Deprecated public Object! method();
+                  }
+                }
+            """,
+            expectedStubFiles =
+                arrayOf(
+                    java(
+                        """
+                             package test.pkg;
+                             /** @deprecated */
+                             @SuppressWarnings({"unchecked", "deprecation", "all"})
+                             @Deprecated
+                             @android.annotation.RequiresFlag("flag.name")
+                             public class Test {
+                             @Deprecated
+                             public Test() { throw new RuntimeException("Stub!"); }
+                             @Deprecated
+                             public java.lang.Object method() { throw new RuntimeException("Stub!"); }
+                             }
+                        """
+                    )
+                ),
+            extraArguments = arrayOf("--check-compatibility", "disabled")
         )
     }
 }

@@ -28,6 +28,7 @@ import com.android.tools.metalava.model.ANDROID_REQUIRES_FLAG
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.testing.KnownJarFiles
+import com.android.tools.metalava.testing.KnownSourceFiles
 import com.android.tools.metalava.testing.java
 import java.io.File
 import java.util.Locale
@@ -35,7 +36,11 @@ import kotlin.test.assertEquals
 import org.junit.Test
 import org.junit.runners.Parameterized
 
-private val annotationsList = listOf(nonNullSource)
+private val annotationsList =
+    listOf(
+        nonNullSource,
+        KnownSourceFiles.removedFromApiAnnotation,
+    )
 
 /**
  * A parameterized test for the `android.annotation.FlaggedApi` annotation.
@@ -905,7 +910,7 @@ class ParameterizedFlaggedApiTest(private val config: Configuration) : DriverTes
                     public final class Foo {
                         public Foo() {}
                         public void method() {}
-                        /** @removed */
+                        @android.annotation.RemovedFromApi
                         public void removedMethod() {}
                         public final int field = 2;
                     }
@@ -1100,7 +1105,7 @@ class ParameterizedFlaggedApiTest(private val config: Configuration) : DriverTes
                     public final class Foo {
                         public Foo() {}
                         public void method() {}
-                        /** @removed */
+                        @android.annotation.RemovedFromApi
                         public void removedMethod() {}
                         public final int field = 2;
                     }

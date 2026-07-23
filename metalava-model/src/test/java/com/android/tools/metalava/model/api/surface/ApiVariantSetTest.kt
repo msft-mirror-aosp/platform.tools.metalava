@@ -113,4 +113,56 @@ class ApiVariantSetTest {
         )
         assertEquals("ApiVariantSet[base(R)]", (set2 - set1).format(), message = "set2 - set1")
     }
+
+    @Test
+    fun `Test intersectionWith`() {
+        val set1 = apiSurfaces.createVariantSet(mainCore, mainRemoved, baseDocOnly)
+        val set2 = apiSurfaces.createVariantSet(mainCore, baseRemoved)
+        val set3 = apiSurfaces.createVariantSet(baseRemoved, baseDocOnly)
+
+        assertEquals(
+            "ApiVariantSet[main(C)]",
+            set1.intersectionWith(set2).format(),
+            message = "set1 intersection set2"
+        )
+        assertEquals(
+            "ApiVariantSet[main(C)]",
+            set2.intersectionWith(set1).format(),
+            message = "set2 intersection set1"
+        )
+        assertEquals(
+            "ApiVariantSet[base(D)]",
+            set1.intersectionWith(set3).format(),
+            message = "set1 intersection set3"
+        )
+        assertEquals(
+            "ApiVariantSet[base(R)]",
+            set2.intersectionWith(set3).format(),
+            message = "set2 intersection set3"
+        )
+        assertEquals(
+            "ApiVariantSet[]",
+            set1.intersectionWith(ApiVariantSet.EMPTY).format(),
+            message = "set1 intersection empty"
+        )
+    }
+
+    @Test
+    fun `Test narrowest and widest surfaces`() {
+        val emptySet = ApiVariantSet.EMPTY
+        assertEquals(null, emptySet.narrowestSurfaceFor(apiSurfaces), "empty narrowest")
+        assertEquals(null, emptySet.widestSurfaceFor(apiSurfaces), "empty widest")
+
+        val mainSet = apiSurfaces.createVariantSet(mainCore, mainRemoved)
+        assertEquals(main, mainSet.narrowestSurfaceFor(apiSurfaces), "main only narrowest")
+        assertEquals(main, mainSet.widestSurfaceFor(apiSurfaces), "main only widest")
+
+        val baseSet = apiSurfaces.createVariantSet(baseRemoved, baseDocOnly)
+        assertEquals(base, baseSet.narrowestSurfaceFor(apiSurfaces), "base only narrowest")
+        assertEquals(base, baseSet.widestSurfaceFor(apiSurfaces), "base only widest")
+
+        val mixedSet = apiSurfaces.createVariantSet(mainCore, baseDocOnly)
+        assertEquals(base, mixedSet.narrowestSurfaceFor(apiSurfaces), "mixed narrowest")
+        assertEquals(main, mixedSet.widestSurfaceFor(apiSurfaces), "mixed widest")
+    }
 }

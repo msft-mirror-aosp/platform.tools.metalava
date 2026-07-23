@@ -136,4 +136,16 @@ interface SelectableItem : Item, ReferencableNameScope {
 
     override val descriptionOwner: DocContentOwner
         get() = requiredDocumentation.mainDescriptionOwner
+
+    /**
+     * Updates the deprecated status of this item from Javadoc if needed.
+     *
+     * In Java, an item can be deprecated using the `@deprecated` Javadoc tag or the `@Deprecated`
+     * annotation. This method checks the Javadoc documentation for a `@deprecated` tag and, if
+     * found, marks the item as deprecated in its modifiers.
+     *
+     * This check is deferred from initialization to avoid the overhead of parsing documentation for
+     * every item when constructing the codebase model.
+     */
+    fun updateDeprecatedFromJavadocIfNeeded()
 }

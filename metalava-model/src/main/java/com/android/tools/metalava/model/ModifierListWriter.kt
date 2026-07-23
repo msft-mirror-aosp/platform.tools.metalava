@@ -343,8 +343,8 @@ class ModifierListWriter(
             }
         }
 
-        val list = item.modifiers
-        var annotations = list.annotations()
+        val modifierList = item.modifiers
+        var annotations = modifierList.annotations()
 
         // Check to see if a FlaggedApi annotation needs to be inherited onto this item and if it
         // does add it to this list. It will be sorted into the correct position below.
@@ -352,21 +352,35 @@ class ModifierListWriter(
             annotations = annotations + flaggedApiAnnotation
         }
 
-        // @FlaggedApi annotations are always converted to @RequiresFlag in stub files.
-        // Developers are not allowed to add @RequiresFlag to flagged APIs to avoid duplicate
-        // @RequiresFlag compilation errors in stubs
-        if (
-            target.isStubsFile() &&
+        // Modifiers may be written differently for stubs to remove superfluous information that the
+        // consumers of the stubs (e.g. linters) don't need
+        if (target.isStubsFile()) {
+            // @FlaggedApi annotations are always converted to @RequiresFlag in stub files.
+            // Developers are not allowed to add @RequiresFlag to flagged APIs to avoid duplicate
+            // @RequiresFlag compilation errors in stubs
+            if (
                 annotations.any { it.qualifiedName == ANDROID_FLAGGED_API } &&
-                annotations.any { it.qualifiedName == ANDROID_REQUIRES_FLAG }
-        ) {
-            item.codebase.reporter.report(
-                Issues.MULTIPLE_FLAGGING,
-                item,
-                "@RequiresFlag can not be placed on APIs that are already flagged.",
-            )
+                    annotations.any { it.qualifiedName == ANDROID_REQUIRES_FLAG }
+            ) {
+                item.codebase.reporter.report(
+                    Issues.MULTIPLE_FLAGGING,
+                    item,
+                    "@RequiresFlag can not be placed on APIs that are already flagged.",
+                )
 
-            annotations = annotations.filter { it.qualifiedName != ANDROID_REQUIRES_FLAG }
+                annotations = annotations.filter { it.qualifiedName != ANDROID_REQUIRES_FLAG }
+            }
+
+            // Remove @FlaggedApi annotations in stub files for finalized APIs (i.e. APIs that have
+            // a previously released item) where the only change is to its annotations list. These
+            // changes do not need to be flagged.
+            if (item is SelectableItem && item !is ClassItem) {
+                val previousItem =
+                    item.codebase.config.annotationManager.findPreviouslyReleasedItem(item)
+                if (previousItem != null) {
+                    annotations = annotations.filter { it.qualifiedName != ANDROID_FLAGGED_API }
+                }
+            }
         }
 
         if (annotations.isEmpty()) {

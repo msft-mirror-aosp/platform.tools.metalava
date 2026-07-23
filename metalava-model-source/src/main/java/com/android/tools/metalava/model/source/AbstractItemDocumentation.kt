@@ -24,7 +24,6 @@ import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ReferencableItem
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.TypeParameterListOwner
-import com.android.tools.metalava.model.api.flags.ApiFlagAction
 import com.android.tools.metalava.model.doc.DocContent
 import com.android.tools.metalava.model.doc.DocContentOwner
 import com.android.tools.metalava.model.doc.DocContentPredicate
@@ -64,7 +63,7 @@ internal abstract class AbstractItemDocumentation(
     /** Implements [ExprContext.isFlagEnabled]. */
     override fun isFlagEnabled(flagName: String): Boolean {
         val apiFlags = item.codebase.config.apiFlags ?: return true
-        return apiFlags[flagName].action != ApiFlagAction.REVERT
+        return !apiFlags[flagName].action.revert
     }
 
     override val isHidden: Boolean
@@ -135,8 +134,16 @@ internal abstract class AbstractItemDocumentation(
     override val docTypeParser: DocTypeParser
         get() = DocTypeParser.create(reporter = this, item)
 
-    override val isRemoved
-        get() = hasBlockTagOfType("removed")
+    override val isRemoved: Boolean
+        get() {
+            // When API surfaces are configured in a configuration file, the Javadoc `@removed`
+            // block tag is ignored as a mechanism for removing elements. Instead, explicit
+            // annotations (e.g. `@android.annotation.RemovedFromApi`) must be used.
+            if (item.codebase.config.apiSurfacesConfigured) {
+                return false
+            }
+            return hasBlockTagOfType("removed")
+        }
 
     override fun hasBlockTagOfType(blockTagType: String) =
         docComment.hasBlockTagOfType(blockTagType)

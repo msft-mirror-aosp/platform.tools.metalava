@@ -87,6 +87,38 @@ value class ApiVariantSet(internal val bits: Int) {
      */
     operator fun minus(other: ApiVariantSet) = ApiVariantSet(bits and other.bits.inv())
 
+    /** Return the intersection of this [ApiVariantSet] with the [other] [ApiVariantSet]. */
+    fun intersectionWith(other: ApiVariantSet): ApiVariantSet = ApiVariantSet(bits and other.bits)
+
+    /**
+     * Find the narrowest [ApiSurface] in [apiSurfaces] that has at least one of its variants
+     * present in this [ApiVariantSet].
+     *
+     * Returns `null` if this set is empty.
+     */
+    fun narrowestSurfaceFor(apiSurfaces: ApiSurfaces): ApiSurface? {
+        if (isEmpty()) return null
+
+        val lowestBitIndex = Integer.numberOfTrailingZeros(bits)
+        val surfaceIndex = lowestBitIndex / ApiVariantType.entries.size
+        return apiSurfaces.all[surfaceIndex]
+    }
+
+    /**
+     * Find the widest [ApiSurface] in [apiSurfaces] that has at least one of its variants present
+     * in this [ApiVariantSet].
+     *
+     * Returns `null` if this set is empty.
+     */
+    fun widestSurfaceFor(apiSurfaces: ApiSurfaces): ApiSurface? {
+        if (isEmpty()) return null
+
+        val highestOneBit = Integer.highestOneBit(bits)
+        val highestBitIndex = Integer.numberOfTrailingZeros(highestOneBit)
+        val surfaceIndex = highestBitIndex / ApiVariantType.entries.size
+        return apiSurfaces.all[surfaceIndex]
+    }
+
     /** Represent the values as binary number starting with a `0b` prefix. */
     override fun toString() = "0b${Integer.toBinaryString(bits)}"
 

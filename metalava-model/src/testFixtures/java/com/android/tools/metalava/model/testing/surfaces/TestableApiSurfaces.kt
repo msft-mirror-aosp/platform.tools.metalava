@@ -31,6 +31,12 @@ object TestableApiSurfaces {
     /** An annotation that will be used to hide APIs. */
     val HIDE = createAnnotation("test.api.Hide")
 
+    /** An annotation that will be used to remove an item. */
+    val REMOVED_FROM_API = createAnnotation("test.api.RemovedFromApi")
+
+    /** An annotation that will be used to only include an item for documentation purposes. */
+    val DOC_ONLY = createAnnotation("test.api.DocOnly")
+
     /** An annotation that will be used to include an item in the unannotated API. */
     val UNANNOTATED_API = createAnnotation("test.api.UnannotatedApi")
 
@@ -58,6 +64,19 @@ object TestableApiSurfaces {
     /** A set of API surfaces that includes a single `public` surface. */
     private val publicOnlySurfaces = ApiSurfaces.build { createSurface("public", isMain = true) }
 
+    /** Variant rules (such as doc-only and removed) that are applicable across all surfaces. */
+    private val variantRules =
+        listOf(
+            SurfaceSelectionRule.createAnnotationRule(
+                DOC_ONLY.qualifiedName,
+                effect = SurfaceSelectionRule.Effect.DOC_ONLY,
+            ),
+            SurfaceSelectionRule.createAnnotationRule(
+                REMOVED_FROM_API.qualifiedName,
+                effect = SurfaceSelectionRule.Effect.REMOVED,
+            ),
+        )
+
     /**
      * [ApiSurfaceRules] that define a simple public API that does not include any unannotated
      * items.
@@ -79,6 +98,7 @@ object TestableApiSurfaces {
                         ),
                     ),
             ),
+            variantRules,
         )
 
     /** A set of API surfaces that includes `public`, `system` and `module` surfaces. */
@@ -116,5 +136,6 @@ object TestableApiSurfaces {
                         ),
                     ),
             ),
+            variantRules,
         )
 }
