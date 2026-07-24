@@ -17,6 +17,7 @@
 package com.android.tools.metalava.cli.help
 
 import com.android.tools.metalava.cli.common.BaseCommandTest
+import com.android.tools.metalava.reporter.Issues
 import org.junit.Test
 
 class IssuesCommandTest : BaseCommandTest<HelpCommand>({ HelpCommand() }) {
@@ -287,7 +288,7 @@ Available Issues                             |  Category                        
     @Test
     fun `Test issue help`() {
         commandTest {
-            args += arrayOf("help", "issues", "AddedFinal")
+            args += arrayOf("help", "issues", Issues.ADDED_FINAL.name)
 
             expectedStdout = "Under construction. No additional help available at the moment."
         }
