@@ -294,8 +294,7 @@ class ParameterizedFlaggedApiTest(private val config: Configuration) : DriverTes
 
         val args =
             arrayOf(
-                "--warning",
-                "UnflaggedApi",
+                *warningIssues(Issues.UNFLAGGED_API),
                 *apiVersionsArgs,
                 *config.extraArguments(temporaryFolder.root).toTypedArray(),
                 *extraArguments,

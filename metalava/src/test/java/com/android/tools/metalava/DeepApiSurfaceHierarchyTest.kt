@@ -20,7 +20,6 @@ import com.android.tools.metalava.KnownApiSurface.Companion.TEST_HIDE_ANNOTATION
 import com.android.tools.metalava.KnownApiSurface.Companion.TEST_MODULE_API_ANNOTATION
 import com.android.tools.metalava.KnownApiSurface.Companion.TEST_MODULE_API_SURFACE
 import com.android.tools.metalava.KnownApiSurface.Companion.TEST_SYSTEM_API_ANNOTATION
-import com.android.tools.metalava.cli.common.ARG_ERROR
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.testing.java
@@ -29,17 +28,12 @@ import org.junit.Test
 class DeepApiSurfaceHierarchyTest : DriverTest() {
     companion object {
         private val EXTRA_ARGS =
-            arrayOf(
-                ARG_ERROR,
-                Issues.UNAVAILABLE_SYMBOL.name,
-                ARG_ERROR,
-                Issues.HIDDEN_TYPE_PARAMETER.name,
-                ARG_ERROR,
-                Issues.REFERENCES_HIDDEN.name,
-                ARG_ERROR,
-                Issues.OVERLAPPING_API_SURFACES.name,
-                ARG_ERROR,
-                Issues.HIDING_API_METHOD_OVERRIDE.name,
+            errorIssues(
+                Issues.UNAVAILABLE_SYMBOL,
+                Issues.HIDDEN_TYPE_PARAMETER,
+                Issues.REFERENCES_HIDDEN,
+                Issues.OVERLAPPING_API_SURFACES,
+                Issues.HIDING_API_METHOD_OVERRIDE,
             )
 
         private val SOURCE_FILES_A =
