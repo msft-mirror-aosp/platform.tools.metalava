@@ -99,6 +99,78 @@ class StubsMethodTest : AbstractStubsTest() {
     }
 
     @Test
+    fun `Test hiding override of protected method in final class`() {
+        check(
+            extraArguments = errorIssues(Issues.HIDING_API_METHOD_OVERRIDE),
+            apiSurface = KnownApiSurface.PUBLIC,
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            public class Parent {
+                                protected void method() {}
+                            }
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+                            import android.annotation.Hide;
+                            public final class Child extends Parent {
+                                @Hide
+                                @Override
+                                protected void method() {}
+                            }
+                        """
+                    ),
+                ),
+            // TODO: The error message below should not be reported as there is no way to call
+            //  a method of a final class through a protected method of the super class.
+            expectedIssues =
+                """
+                    src/test/pkg/Child.java:6: error: Attempting to hide method test.pkg.Child.method() which overrides method test.pkg.Parent.method() which is already part of the API [HidingApiMethodOverride]
+                """,
+            expectedApiSignature =
+                """
+                    // Signature format: 5.0
+                    package test.pkg {
+                      public final class Child extends test.pkg.Parent {
+                        ctor public Child();
+                      }
+                      public class Parent {
+                        ctor public Parent();
+                        method protected void method();
+                      }
+                    }
+                """,
+            expectedStubFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            @SuppressWarnings({"unchecked", "deprecation", "all"})
+                            public final class Child extends test.pkg.Parent {
+                            public Child() { throw new RuntimeException("Stub!"); }
+                            protected void method() { throw new RuntimeException("Stub!"); }
+                            }
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+                            @SuppressWarnings({"unchecked", "deprecation", "all"})
+                            public class Parent {
+                            public Parent() { throw new RuntimeException("Stub!"); }
+                            protected void method() { throw new RuntimeException("Stub!"); }
+                            }
+                        """
+                    ),
+                ),
+        )
+    }
+
+    @Test
     fun `Test hiding override of removed method`() {
         check(
             extraArguments = errorIssues(Issues.HIDING_API_METHOD_OVERRIDE),
