@@ -232,6 +232,7 @@ object Issues {
     val TOP_LEVEL_BUILDER by Issue(Severity.WARNING, Category.API_LINT)
     val MISSING_BUILD_METHOD by Issue(Severity.WARNING, Category.API_LINT)
     val BUILDER_SET_STYLE by Issue(Severity.WARNING, Category.API_LINT)
+    val EMPTY_BUILDER by Issue(Severity.WARNING, Category.API_LINT)
     val SETTER_RETURNS_THIS by Issue(Severity.WARNING, Category.API_LINT)
     val RAW_AIDL by Issue(Severity.ERROR, Category.API_LINT)
     val INTERNAL_CLASSES by Issue(Severity.ERROR, Category.API_LINT)

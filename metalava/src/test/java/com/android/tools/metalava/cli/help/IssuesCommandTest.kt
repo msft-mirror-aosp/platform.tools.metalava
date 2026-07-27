@@ -96,6 +96,7 @@ Available Issues                             |  Category                        
   DeprecatedSurfaceDocTag                    |  unknown                              |   hidden
   DeprecationMismatch                        |  documentation                        |   error
   DuplicateSourceClass                       |  unknown                              |   warning
+  EmptyBuilder                               |  api_lint                             |   warning
   EndsWithImpl                               |  api_lint                             |   error
   Enum                                       |  api_lint                             |   error
   EqualsAndHashCode                          |  api_lint                             |   error
