@@ -555,6 +555,10 @@ class ApiAnalyzer(
                  * If the overridden method is from the class path then do not report an error as it
                  * may not be possible to determine if a method in a jar matches a specific API
                  * version.
+                 *
+                 * Do not report an error if a final class hides a protected method from its
+                 * superclass, as there is no way to call a method of a final class through a
+                 * protected method of the superclass.
                  */
                 private inline fun MethodItem.reportIfOverridingApiMethod(
                     predicate: FilterPredicate?,
@@ -562,7 +566,9 @@ class ApiAnalyzer(
                 ): Boolean =
                     findPredicateSuperMethod(predicate)
                         ?.takeIf { overriddenMethod ->
-                            overriddenMethod.origin != ClassOrigin.CLASS_PATH
+                            overriddenMethod.origin != ClassOrigin.CLASS_PATH &&
+                                !(containingClass().modifiers.isFinal() &&
+                                    overriddenMethod.modifiers.isProtected())
                         }
                         ?.also { overriddenMethod ->
                             reporter.report(

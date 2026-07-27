@@ -125,12 +125,6 @@ class StubsMethodTest : AbstractStubsTest() {
                         """
                     ),
                 ),
-            // TODO: The error message below should not be reported as there is no way to call
-            //  a method of a final class through a protected method of the super class.
-            expectedIssues =
-                """
-                    src/test/pkg/Child.java:6: error: Attempting to hide method test.pkg.Child.method() which overrides method test.pkg.Parent.method() which is already part of the API [HidingApiMethodOverride]
-                """,
             expectedApiSignature =
                 """
                     // Signature format: 5.0
