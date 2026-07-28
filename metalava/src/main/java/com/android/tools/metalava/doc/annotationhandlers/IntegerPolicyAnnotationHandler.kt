@@ -50,25 +50,16 @@ data class IntegerPolicyDefinitionProxy(
         val tableEntries = buildList {
             addAll(base.getTableEntries())
             val resolutionMechanismDoc = resolutionMechanism.generateDocs()
-            add(Pair("Resolution Mechanism", resolutionMechanismDoc))
+            if (resolutionMechanismDoc.isNotEmpty()) {
+                add(Pair("Conflict resolution mechanism", resolutionMechanismDoc))
+            }
             val policyValueValidations = buildList {
-                add(
-                    Pair(
-                        "Min Value",
-                        if (minValue == Integer.MIN_VALUE) "No limit" else minValue.toString()
-                    )
-                )
-                add(
-                    Pair(
-                        "Max Value",
-                        if (maxValue == Integer.MAX_VALUE) "No limit" else maxValue.toString()
-                    )
-                )
+                if (minValue != Integer.MIN_VALUE) add("Minimum value $minValue")
+                if (maxValue != Integer.MAX_VALUE) add("Maximum value $maxValue")
             }
             add(Pair("Policy value", renderPolicyValue("Integer", policyValueValidations)))
         }
 
-        append("\n<p>Policy Type: Integer</p>\n")
         append(renderTable(tableEntries))
     }
 }
@@ -86,9 +77,9 @@ data class IntegerResolutionMechanismProxy(
 ) {
     fun generateDocs() =
         if (custom) {
-            "custom"
+            ""
         } else if (notCoexistable) {
-            "notCoexistable"
+            "This policy can not be set by multiple admins at the same time. When multiple values are set, the resulting behavior is undefined and is monitored to avoid widespread usage."
         } else {
             item.codebase.reporter.report(
                 Issues.INVALID_DEVICE_POLICY_ANNOTATION,

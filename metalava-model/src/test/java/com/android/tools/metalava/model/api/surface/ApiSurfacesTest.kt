@@ -156,7 +156,7 @@ class ApiSurfacesTest {
 
         assertEquals(
             "ApiVariantSet[public(C)]",
-            apiSurfaces.byName["public"]?.defaultVariantSet.toString(),
+            apiSurfaces.byName["public"]?.defaultVariantSet?.formatFor(apiSurfaces),
             message = "public ApiSurface.defaultVariantSet"
         )
     }

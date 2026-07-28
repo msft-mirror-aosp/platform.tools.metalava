@@ -20,12 +20,13 @@ import com.android.tools.metalava.cli.common.DefaultSignatureFileLoader
 import com.android.tools.metalava.cli.common.MetalavaSubCommand
 import com.android.tools.metalava.cli.common.existingFile
 import com.android.tools.metalava.cli.common.newFile
-import com.android.tools.metalava.cli.common.progressTracker
+import com.android.tools.metalava.cli.common.tracer
 import com.android.tools.metalava.createOutputFileFromCodebaseFragment
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.CodebaseFragment
 import com.android.tools.metalava.model.text.SignatureFile
 import com.android.tools.metalava.model.visitors.FilteringApiVisitor
+import com.android.tools.metalava.trace
 import com.github.ajalt.clikt.parameters.arguments.argument
 import com.github.ajalt.clikt.parameters.arguments.multiple
 import com.github.ajalt.clikt.parameters.options.option
@@ -68,13 +69,13 @@ class SignatureToDexCommand :
                 )
             }
 
-        createOutputFileFromCodebaseFragment(
-            progressTracker,
-            codebaseFragment,
-            outFile,
-            "DEX API"
-        ) { printWriter ->
-            DexApiWriter(printWriter)
+        tracer.trace("createOutputFileFromCodebaseFragment DEX API") {
+            createOutputFileFromCodebaseFragment(
+                codebaseFragment,
+                outFile,
+            ) { printWriter ->
+                DexApiWriter(printWriter)
+            }
         }
     }
 }

@@ -203,7 +203,7 @@ class ApiSurfacesConfigTest : BaseConfigParserTest() {
     }
 
     @Test
-    fun `Duplicate api-surfaces across config files`() {
+    fun `Duplicate api-surfaces across config files - identical`() {
         runTest(
             xml(
                 "config1.xml",
@@ -229,7 +229,67 @@ class ApiSurfacesConfigTest : BaseConfigParserTest() {
                     </config>
                 """,
             ),
-            expectedFail = "Found duplicate surfaces called `public`"
+        ) {
+            assertEquals(
+                Config(
+                    apiSurfaces =
+                        ApiSurfacesConfig(
+                            apiSurfaceList =
+                                listOf(
+                                    ApiSurfaceConfig(
+                                        name = "public",
+                                    ),
+                                ),
+                        ),
+                ),
+                config
+            )
+        }
+    }
+
+    @Test
+    fun `Duplicate api-surfaces across config files - different`() {
+        runTest(
+            xml(
+                "config1.xml",
+                """
+                    <config xmlns="http://www.google.com/tools/metalava/config">
+                      <api-surfaces>
+                        <api-surface name="public">
+                            <selection-criteria unannotated="show"/>
+                        </api-surface>
+                      </api-surfaces>
+                    </config>
+                """,
+            ),
+            xml(
+                "config2.xml",
+                """
+                    <config xmlns="http://www.google.com/tools/metalava/config">
+                      <api-surfaces>
+                        <api-surface name="public">
+                            <selection-criteria unannotated="hide">
+                                <annotation-rule pattern="android.annotation.PublicApi"/>
+                            </selection-criteria>
+                        </api-surface>
+                      </api-surfaces>
+                    </config>
+                """,
+            ),
+            expectedFail =
+                """
+                    Found duplicate surfaces called `public`
+                        Definition #1:
+                            <api-surface xmlns="http://www.google.com/tools/metalava/config" name="public">
+                              <selection-criteria unannotated="show"/>
+                            </api-surface>
+                        Definition #2:
+                            <api-surface xmlns="http://www.google.com/tools/metalava/config" name="public">
+                              <selection-criteria unannotated="hide">
+                                <annotation-rule pattern="android.annotation.PublicApi" effect="show" recursive="true"/>
+                              </selection-criteria>
+                            </api-surface>
+                """,
         )
     }
 
@@ -575,6 +635,90 @@ class ApiSurfacesConfigTest : BaseConfigParserTest() {
                         <annotation-rule pattern="test.api.RestrictedApi" effect="show" recursive="false"/>
                       </selection-criteria>
                     </api-surface>
+                  </api-surfaces>
+                </config>
+            """
+        )
+    }
+
+    @Test
+    fun `api-surfaces doc-only`() {
+        roundTrip(
+            Config(
+                apiSurfaces =
+                    ApiSurfacesConfig(
+                        apiSurfaceList =
+                            listOf(
+                                ApiSurfaceConfig(
+                                    name = "public",
+                                    selectionCriteria =
+                                        SelectionCriteriaConfig(
+                                            unannotated = EffectConfig.SHOW,
+                                        ),
+                                ),
+                            ),
+                        docOnly =
+                            ApiVariantTypeRuleConfig(
+                                annotationRules =
+                                    listOf(
+                                        AnnotationPatternRuleConfig(
+                                            pattern = "test.api.DocOnly",
+                                        )
+                                    )
+                            ),
+                    ),
+            ),
+            """
+                <config xmlns="http://www.google.com/tools/metalava/config">
+                  <api-surfaces>
+                    <api-surface name="public">
+                      <selection-criteria unannotated="show"/>
+                    </api-surface>
+                    <doc-only>
+                      <annotation-rule pattern="test.api.DocOnly"/>
+                    </doc-only>
+                  </api-surfaces>
+                </config>
+            """
+        )
+    }
+
+    @Test
+    fun `api-surfaces removed`() {
+        roundTrip(
+            Config(
+                apiSurfaces =
+                    ApiSurfacesConfig(
+                        apiSurfaceList =
+                            listOf(
+                                ApiSurfaceConfig(
+                                    name = "public",
+                                    selectionCriteria =
+                                        SelectionCriteriaConfig(
+                                            unannotated = EffectConfig.SHOW,
+                                        ),
+                                ),
+                            ),
+                        removed =
+                            ApiVariantTypeRuleConfig(
+                                annotationRules =
+                                    listOf(
+                                        AnnotationPatternRuleConfig(
+                                            pattern = "android.annotation.RemovedFromApi",
+                                        )
+                                    )
+                            ),
+                    ),
+            ),
+            """
+                <config xmlns="http://www.google.com/tools/metalava/config">
+                  <api-surfaces>
+                    <api-surface name="public">
+                      <selection-criteria unannotated="show"/>
+                    </api-surface>
+                    <removed>
+                      <annotation-rule pattern="android.annotation.RemovedFromApi"/>
+                    </removed>
                   </api-surfaces>
                 </config>
             """

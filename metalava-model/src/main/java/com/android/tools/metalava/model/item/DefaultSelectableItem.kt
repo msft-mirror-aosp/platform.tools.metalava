@@ -28,8 +28,6 @@ import com.android.tools.metalava.model.Showability
 import com.android.tools.metalava.model.SourceLanguage
 import com.android.tools.metalava.model.TargetLanguage
 import com.android.tools.metalava.model.api.SelectedApi
-import com.android.tools.metalava.model.api.surface.ApiVariantSet
-import com.android.tools.metalava.model.api.surface.MutableApiVariantSet
 import com.android.tools.metalava.reporter.FileLocation
 
 internal sealed class DefaultSelectableItem(
@@ -61,12 +59,6 @@ internal sealed class DefaultSelectableItem(
         if (modifiers.isPrivate()) null
         else @Suppress("LeakingThis") documentationFactory.create(this)
 
-    init {
-        if (!modifiers.isDeprecated() && documentation?.hasBlockTagOfType("deprecated") == true) {
-            @Suppress("LeakingThis") mutateModifiers { setDeprecated(true) }
-        }
-    }
-
     private lateinit var _selectedApi: SelectedApi
 
     /** Create a [SelectedApi] appropriate for this [SelectableItem] on demand. */
@@ -86,17 +78,11 @@ internal sealed class DefaultSelectableItem(
         }
 
     /** Delegate to [selectedApi]'s [SelectedApi.itemApiVariants]. */
-    final override var selectedApiVariants: ApiVariantSet
+    final override var selectedApiVariants
         get() = selectedApi.itemApiVariants
         set(value) {
             selectedApi.itemApiVariants = value
         }
-
-    override fun mutateSelectedApiVariants(mutator: MutableApiVariantSet.() -> Unit) {
-        val mutable = selectedApiVariants.toMutable()
-        mutable.mutator()
-        selectedApiVariants = mutable.toImmutable()
-    }
 
     // Default to true, may be updated later
     final override var emit = true
@@ -129,5 +115,19 @@ internal sealed class DefaultSelectableItem(
 
     override fun includeOnlyForStubPurposes(): Boolean {
         return variantSelectors.includeOnlyForStubPurposes
+    }
+
+    override fun updateDeprecatedFromJavadocIfNeeded() {
+        // Only Java items can get deprecated status from javadoc.
+        if (sourceLanguage != SourceLanguage.JAVA) return
+
+        // If the item is already deprecated then no point in checking javadoc, at least no here.
+        if (modifiers.isDeprecated()) return
+
+        // If the documentation does not have an @deprecated block then the item is not deprecated.
+        if (documentation?.hasBlockTagOfType("deprecated") != true) return
+
+        // The item is deprecated.
+        mutateModifiers { setDeprecated(true) }
     }
 }

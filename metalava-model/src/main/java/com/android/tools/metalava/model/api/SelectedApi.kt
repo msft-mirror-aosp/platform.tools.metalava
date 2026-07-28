@@ -29,6 +29,12 @@ sealed class SelectedApi {
     /** The [ApiVariantSet] for the [SelectableItem]. */
     abstract var itemApiVariants: ApiVariantSet
 
+    /** Checks to see if the associated [SelectableItem] contains any doconly annotations. */
+    open fun hasDocOnlyAnnotation(): Boolean = false
+
+    /** Checks to see if the associated [SelectableItem] contains any removed annotations. */
+    open fun hasRemovedAnnotation(): Boolean = false
+
     /**
      * Initialize this instance.
      *
@@ -39,10 +45,10 @@ sealed class SelectedApi {
 
     companion object {
         /**
-         * Create a simple [SelectedApi] that simply stores an [itemApiVariants] that is populated
-         * based off information outside the [SelectableItem], e.g. signature files.
+         * Return a [SelectedApi] factory that will create [SelectedApi] instances suitable for
+         * being populated based off information outside the [SelectableItem], e.g. signature files.
          */
-        fun createSimple(item: SelectableItem): SelectedApi = SimpleSelectedApi(item)
+        val SIMPLE_FACTORY: (SelectableItem) -> SelectedApi = { SimpleSelectedApi() }
 
         /**
          * Create a [SelectedApi] factory that will create [SelectedApi] instances suitable for a
@@ -57,6 +63,7 @@ sealed class SelectedApi {
             // SelectedApi instances in the Codebase that uses tha factory.
             val selectedApiUpdater =
                 SelectedApiUpdater(
+                    config.reporter,
                     apiSurfaceSelector,
                 )
             return { item -> createFromSource(selectedApiUpdater, item) }
@@ -76,9 +83,9 @@ sealed class SelectedApi {
     }
 }
 
-/** A simple [SelectedApi] that just stores [itemApiVariants] for [item]. */
-private class SimpleSelectedApi(item: SelectableItem) : SelectedApi() {
-    override var itemApiVariants = item.codebase.apiSurfaces.emptyVariantSet
+/** A simple [SelectedApi] that just stores [itemApiVariants]. */
+private class SimpleSelectedApi : SelectedApi() {
+    override var itemApiVariants = ApiVariantSet.EMPTY
 
     override fun initialize() {}
 }
@@ -111,12 +118,28 @@ internal sealed class SourceSelectedApi<S : SelectableItem>(
     protected lateinit var parent: SourceSelectedApi<*>
 
     /**
+     * Indicates whether the associated [SelectableItem] has a doc only annotation.
+     *
+     * Initialized by [SelectedApiUpdater.updateSelectedApi] called from [updateFromSelectableItem].
+     */
+    var docOnly: Boolean = false
+        internal set
+
+    /**
+     * Indicates whether the associated [SelectableItem] has a removed annotation.
+     *
+     * Initialized by [SelectedApiUpdater.updateSelectedApi] called from [updateFromSelectableItem].
+     */
+    var removed: Boolean = false
+        internal set
+
+    /**
      * The [ApiVariantSet] for the [item].
      *
      * This is initialized in [initialize] which must have been called and which must initialize
      * this before it is accessed.
      */
-    override lateinit var itemApiVariants: ApiVariantSet
+    override var itemApiVariants = ApiVariantSet.EMPTY
 
     /**
      * The [ApiVariantSet] that will be inherited by [SelectableItem]s enclosed within [item].
@@ -130,13 +153,23 @@ internal sealed class SourceSelectedApi<S : SelectableItem>(
      * * [itemApiVariants] can be modified by enclosed items, e.g. a package's [itemApiVariants] is
      *   the aggregate of all its classes.
      */
-    lateinit var inheritableApiVariants: ApiVariantSet
+    var inheritableApiVariants = ApiVariantSet.EMPTY
+
+    /** Checks to see if the associated [SelectableItem] contains any doconly annotations. */
+    override fun hasDocOnlyAnnotation() = docOnly
+
+    /** Checks to see if the associated [SelectableItem] contains any removed annotations. */
+    override fun hasRemovedAnnotation() = removed
 
     final override fun initialize() {
         // Initialize the parent first.
         parent =
             item.parent().let { parentItem ->
                 if (parentItem == null) {
+                    // Initialize inheritableApiVariants for the root package to the default variant
+                    // set so that any unannotated items will inherit the correct surfaces. This is
+                    // done here as otherwise this will be accessed in [updateFromSelectableItem]
+                    // before it is initialized.
                     inheritableApiVariants = selectedApiUpdater.defaultVariantSet
 
                     // Use this as its own parent to avoid having to make parent nullable.
@@ -168,15 +201,13 @@ internal sealed class SourceSelectedApi<S : SelectableItem>(
     abstract fun itemSpecificInitialization()
 
     override fun toString(): String {
-        val itemApiVariantsString =
-            if (::itemApiVariants.isInitialized) itemApiVariants.toString() else "UNSET"
         return buildString {
             append("SourceSelectedApi(")
 
             append("item=")
             append(item)
             append(", itemApiVariants=")
-            append(itemApiVariantsString)
+            append(itemApiVariants.formatFor(selectedApiUpdater.apiSurfaces))
             append(")")
         }
     }
@@ -194,7 +225,7 @@ private class PackageSelectedApi(
         // Packages do not belong to an API surface in their own right. They belong to the union of
         // the API surfaces to which their contained classes belong. So, reset this to empty to
         // ignore the default values.
-        itemApiVariants = selectedApiUpdater.emptyVariantSet
+        itemApiVariants = ApiVariantSet.EMPTY
 
         // At this point itemApiVariants has been set which means it is now safe to compute the
         // selectedApi for the contained classes which may access itemApiVariants.
@@ -217,7 +248,7 @@ private class ClassSelectedApi(
 
         // Propagate information from this to the parent, which may be a containing class or
         // package.
-        parent.itemApiVariants = parent.itemApiVariants.unionWith(itemApiVariants).toImmutable()
+        parent.itemApiVariants += itemApiVariants
     }
 }
 

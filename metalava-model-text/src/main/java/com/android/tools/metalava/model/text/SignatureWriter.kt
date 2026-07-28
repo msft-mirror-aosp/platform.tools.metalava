@@ -512,8 +512,7 @@ class SignatureWriter(
         private val SIGNATURE_FILE_MODIFIER_LIST_WRITER_CONFIG =
             ModifierListWriter.Config(
                 target = AnnotationTarget.SIGNATURE_FILE,
-                annotationFormatter =
-                    AnnotationFormatter.legacyAnnotationFormatter(AnnotationTarget.SIGNATURE_FILE),
+                annotationFormatter = AnnotationFormatter.legacyAnnotationFormatter(),
                 runtimeAnnotationsOnly = false,
                 skipNullnessAnnotations = false,
             )

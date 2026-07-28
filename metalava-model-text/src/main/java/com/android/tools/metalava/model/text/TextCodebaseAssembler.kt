@@ -203,7 +203,7 @@ internal class TextCodebaseAssembler(
                             assembler = assembler,
                             // Create a simple [SelectedApi] instance that will be populated
                             // while parsing the signature files.
-                            selectedApiFactory = SelectedApi::createSimple,
+                            selectedApiFactory = SelectedApi.SIMPLE_FACTORY,
                         )
                     },
                     classPathResolver = classPathResolver,

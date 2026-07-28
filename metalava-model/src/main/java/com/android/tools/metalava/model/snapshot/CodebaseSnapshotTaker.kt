@@ -126,7 +126,7 @@ private constructor(
                 assembler = this,
                 // Create a simple [SelectedApi] instance that will be populated from information
                 // retrieved from the original [SelectedApi].
-                selectedApiFactory = SelectedApi::createSimple,
+                selectedApiFactory = SelectedApi.SIMPLE_FACTORY,
             )
 
         this.snapshotCodebase = newCodebase

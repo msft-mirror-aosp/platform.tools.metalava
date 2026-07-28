@@ -19,6 +19,7 @@ package com.android.tools.metalava.config
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties
 import com.fasterxml.jackson.dataformat.xml.annotation.JacksonXmlProperty
 import com.fasterxml.jackson.dataformat.xml.annotation.JacksonXmlRootElement
+import java.io.StringWriter
 
 /** The top level configuration object. */
 @JacksonXmlRootElement(localName = "config", namespace = CONFIG_NAMESPACE)
@@ -44,14 +45,6 @@ data class Config(
             issues = combine(issues, other.issues),
         )
 
-    /**
-     * Combined two possibly nullable objects, if either are null then return the other, otherwise
-     * invoke [CombinableConfig.combineWith].
-     */
-    internal fun <T : CombinableConfig<T>> combine(t1: T?, t2: T?): T? {
-        return if (t1 == null) t2 else if (t2 == null) t1 else t1.combineWith(t2)
-    }
-
     /** Validate this object, i.e. check to make sure that the contained objects are consistent. */
     internal fun validate() {
         apiFlags?.validate()
@@ -64,4 +57,20 @@ data class Config(
 interface CombinableConfig<T : CombinableConfig<T>> {
     /** Combine this with [other] returning a new instance. */
     fun combineWith(other: T): T
+}
+
+/**
+ * Combined two possibly nullable objects, if either are null then return the other, otherwise
+ * invoke [CombinableConfig.combineWith].
+ */
+internal fun <T : CombinableConfig<T>> combine(t1: T?, t2: T?): T? {
+    return if (t1 == null) t2 else if (t2 == null) t1 else t1.combineWith(t2)
+}
+
+/** Format [this] as XML in the same format as [ConfigParser] reads. */
+fun Any.toConfigXml(indent: String = ""): String {
+    val xmlMapper = ConfigParser.configXmlMapper()
+    val writer = StringWriter()
+    xmlMapper.writeValue(writer, this)
+    return writer.toString().trimEnd().prependIndent(indent)
 }

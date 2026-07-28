@@ -21,8 +21,8 @@ import com.android.tools.metalava.cli.common.DefaultSignatureFileLoader
 import com.android.tools.metalava.cli.common.MetalavaSubCommand
 import com.android.tools.metalava.cli.common.existingFile
 import com.android.tools.metalava.cli.common.newFile
-import com.android.tools.metalava.cli.common.progressTracker
 import com.android.tools.metalava.cli.common.stderr
+import com.android.tools.metalava.cli.common.tracer
 import com.android.tools.metalava.createFilteringVisitorForJDiffWriter
 import com.android.tools.metalava.createOutputFileFromCodebaseFragment
 import com.android.tools.metalava.model.Codebase
@@ -32,6 +32,7 @@ import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.model.text.SignatureFile
 import com.android.tools.metalava.model.text.SnapshotDeltaMaker
 import com.android.tools.metalava.reporter.BasicReporter
+import com.android.tools.metalava.trace
 import com.github.ajalt.clikt.parameters.arguments.argument
 import com.github.ajalt.clikt.parameters.options.convert
 import com.github.ajalt.clikt.parameters.options.option
@@ -145,16 +146,16 @@ class SignatureToJDiffCommand :
 
         // See JDiff's XMLToAPI#nameAPI
         val apiName = xmlFile.nameWithoutExtension.replace(' ', '_')
-        createOutputFileFromCodebaseFragment(
-            progressTracker,
-            outputFragment,
-            xmlFile,
-            "JDiff File"
-        ) { printWriter ->
-            JDiffXmlWriter(
-                writer = printWriter,
-                apiName = apiName,
-            )
+        tracer.trace("createOutputFileFromCodebaseFragment JDiff") {
+            createOutputFileFromCodebaseFragment(
+                outputFragment,
+                xmlFile,
+            ) { printWriter ->
+                JDiffXmlWriter(
+                    writer = printWriter,
+                    apiName = apiName,
+                )
+            }
         }
     }
 }

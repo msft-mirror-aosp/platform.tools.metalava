@@ -89,53 +89,30 @@ class StringPolicyAnnotationHandlerTest : DriverTest() {
                         /**
                          * A test policy for string policy definition with multiple scopes.
                          * <br>
-                         * <p>Policy Type: String</p>
                          * <table>
                          *  <tr>
                          *    <th colspan="2">Policy details</th>
                          *  </tr>
                          *  <tr>
-                         *    <td>Allowed Scopes</td>
+                         *    <td>Settable by</td>
                          *    <td>
+                         *      <p>This policy can be set with scope <code>User</code> by anyone holding {@link android.Manifest.permission#TEST android.permission.TEST}, or the following DPC types:
                          *      <ul>
-                         *        <li>User. Settable by:
-                         *          <ul>
-                         *            <li>Profile Owner on User 0</li>
-                         *          </ul>
-                         *        </li>
+                         *          <li>Profile Owner on User 0</li>
                          *      </ul>
+                         *      </p>
                          *    </td>
                          *  </tr>
                          *  <tr>
-                         *    <td>Affected Resource</td>
-                         *    <td>Device Wide</td>
-                         *  </tr>
-                         *  <tr>
-                         *    <td>Required Permission</td>
-                         *    <td>{@link android.Manifest.permission#TEST android.permission.TEST}</td>
-                         *  </tr>
-                         *  <tr>
-                         *    <td>Required Cross User Permission</td>
-                         *    <td>{@link android.Manifest.permission#MANAGE_DEVICE_POLICY_ACROSS_USERS android.permission.MANAGE_DEVICE_POLICY_ACROSS_USERS}</td>
-                         *  </tr>
-                         *  <tr>
-                         *    <td>Allowed DPC Types</td>
-                         *    <td>
-                         *      <ul>
-                         *        <li>Profile Owner on User 0</li>
-                         *      </ul>
-                         *    </td>
+                         *    <td>Resources affected</td>
+                         *    <td>This policy takes effect device-wide, so it affects all users.</td>
                          *  </tr>
                          *  <tr>
                          *    <td>Policy value</td>
                          *    <td>
                          *      <code>String</code> with the following restrictions:
                          *      <ul>
-                         *        <li>Empty string: Allowed</li>
-                         *        <li>Unprintable characters: Allowed</li>
-                         *        <li>Pure whitespace: Allowed</li>
-                         *        <li>Unstripped string: Allowed</li>
-                         *        <li>Max Length: 100</li>
+                         *        <li>Length max 100 characters</li>
                          *      </ul>
                          *    </td>
                          *  </tr>
@@ -210,54 +187,450 @@ class StringPolicyAnnotationHandlerTest : DriverTest() {
                         /**
                          * A test policy for string policy definition with a scope not settable by any DPC.
                          * <br>
-                         * <p>Policy Type: String</p>
                          * <table>
                          *  <tr>
                          *    <th colspan="2">Policy details</th>
                          *  </tr>
                          *  <tr>
-                         *    <td>Allowed Scopes</td>
+                         *    <td>Settable by</td>
                          *    <td>
+                         *      <p>This policy can be set with scope <code>User</code> by anyone holding {@link android.Manifest.permission#TEST android.permission.TEST}, or the following DPC types:
                          *      <ul>
-                         *        <li>User. Settable by:
-                         *          <ul>
-                         *            <li>Profile Owner on User 0</li>
-                         *          </ul>
-                         *        </li>
-                         *        <li>Parent User. Not settable by any DPC type.</li>
+                         *          <li>Profile Owner on User 0</li>
                          *      </ul>
+                         *      </p>
+                         *      <p>In addition, this policy can be set with scope <code>Parent User</code> by anyone holding {@link android.Manifest.permission#TEST android.permission.TEST} and {@link android.Manifest.permission#MANAGE_DEVICE_POLICY_ACROSS_USERS android.permission.MANAGE_DEVICE_POLICY_ACROSS_USERS}.</p>
                          *    </td>
                          *  </tr>
                          *  <tr>
-                         *    <td>Affected Resource</td>
-                         *    <td>Device Wide</td>
-                         *  </tr>
-                         *  <tr>
-                         *    <td>Required Permission</td>
-                         *    <td>{@link android.Manifest.permission#TEST android.permission.TEST}</td>
-                         *  </tr>
-                         *  <tr>
-                         *    <td>Required Cross User Permission</td>
-                         *    <td>{@link android.Manifest.permission#MANAGE_DEVICE_POLICY_ACROSS_USERS android.permission.MANAGE_DEVICE_POLICY_ACROSS_USERS}</td>
-                         *  </tr>
-                         *  <tr>
-                         *    <td>Allowed DPC Types</td>
-                         *    <td>
-                         *      <ul>
-                         *        <li>Profile Owner on User 0</li>
-                         *      </ul>
-                         *    </td>
+                         *    <td>Resources affected</td>
+                         *    <td>This policy takes effect device-wide, so it affects all users.</td>
                          *  </tr>
                          *  <tr>
                          *    <td>Policy value</td>
                          *    <td>
                          *      <code>String</code> with the following restrictions:
                          *      <ul>
-                         *        <li>Empty string: Allowed</li>
-                         *        <li>Unprintable characters: Allowed</li>
-                         *        <li>Pure whitespace: Not allowed</li>
-                         *        <li>Unstripped string: Not allowed</li>
-                         *        <li>Max Length: 100</li>
+                         *        <li>Length max 100 characters</li>
+                         *        <li>No pure whitespace allowed</li>
+                         *        <li>No unstripped string allowed</li>
+                         *      </ul>
+                         *    </td>
+                         *  </tr>
+                         * </table>
+                         * See also: {@link android.app.admin.DevicePolicyManager#setPolicy DevicePolicyManager.setPolicy}, {@link android.app.admin.DevicePolicyManager#getPolicy DevicePolicyManager.getPolicy}
+                         */
+                        public static final java.lang.String POLICY_FIELD = "";
+                        }
+                        """
+                    )
+                )
+        )
+    }
+
+    @Test
+    fun `Test StringPolicyDefinition with device and parent scopes generates docs`() {
+        check(
+            sourceFiles =
+                arrayOf(
+                    ANDROID_MANIFEST_SOURCE,
+                    POLICY_DEFINITION_SOURCE,
+                    java(
+                        """
+                        package test.pkg;
+                        import android.processor.devicepolicy.StringPolicyDefinition;
+                        import android.processor.devicepolicy.PolicyDefinition;
+                        import android.processor.devicepolicy.AllowedDpcTypes;
+                        import static android.processor.devicepolicy.AllowedDpcTypes.ALLOWED;
+                        import static android.processor.devicepolicy.AllowedDpcTypes.DISALLOWED;
+
+                        @Retention(RetentionPolicy.SOURCE)
+                        public class TestPolicy {
+                            private static final int SCOPE_DEVICE = 2;
+                            private static final int SCOPE_PARENT_USER = 3;
+                            private static final int RESOURCE_DEVICE_WIDE = 1;
+                          /**
+                           * A test policy.
+                           */
+                            @StringPolicyDefinition(
+                                base = @PolicyDefinition(
+                                    allowedScopes = {SCOPE_DEVICE, SCOPE_PARENT_USER},
+                                    affectedResource = RESOURCE_DEVICE_WIDE,
+                                    allowedDpcTypes = @AllowedDpcTypes(
+                                        deviceOwner = ALLOWED,
+                                        managedProfileOwnerOfOrganizationOwnedDevice = ALLOWED,
+                                        managedProfileOwnerOfPersonalOwnedDevice = DISALLOWED,
+                                        profileOwnerOnUser0 = ALLOWED,
+                                        fullUserProfileOwner = DISALLOWED
+                                    )
+                                ),
+                                maxLength = 100
+                            )
+                            public static final String POLICY_FIELD = "";
+                        }
+                        """
+                    )
+                ),
+            checkCompilation = true,
+            docStubs = true,
+            expectedStubFiles =
+                arrayOf(
+                    java(
+                        """
+                        package test.pkg;
+                        @SuppressWarnings({"unchecked", "deprecation", "all"})
+                        public class TestPolicy {
+                        public TestPolicy() { throw new RuntimeException("Stub!"); }
+                        /**
+                         * A test policy.
+                         * <br>
+                         * <table>
+                         *  <tr>
+                         *    <th colspan="2">Policy details</th>
+                         *  </tr>
+                         *  <tr>
+                         *    <td>Settable by</td>
+                         *    <td>
+                         *      <p>This policy can be set with scope <code>Device</code> and <code>Parent User</code> by the following DPC types:
+                         *      <ul>
+                         *          <li>Device Owner</li>
+                         *          <li>Managed Profile Owner (Of Organization Owned Device)</li>
+                         *          <li>Profile Owner on User 0</li>
+                         *      </ul>
+                         *      </p>
+                         *    </td>
+                         *  </tr>
+                         *  <tr>
+                         *    <td>Resources affected</td>
+                         *    <td>This policy takes effect device-wide, so it affects all users.</td>
+                         *  </tr>
+                         *  <tr>
+                         *    <td>Policy value</td>
+                         *    <td>
+                         *      <code>String</code> with the following restrictions:
+                         *      <ul>
+                         *        <li>Length max 100 characters</li>
+                         *        <li>No empty string allowed</li>
+                         *        <li>No unprintable characters allowed</li>
+                         *        <li>No pure whitespace allowed</li>
+                         *        <li>No unstripped string allowed</li>
+                         *      </ul>
+                         *    </td>
+                         *  </tr>
+                         * </table>
+                         * See also: {@link android.app.admin.DevicePolicyManager#setPolicy DevicePolicyManager.setPolicy}, {@link android.app.admin.DevicePolicyManager#getPolicy DevicePolicyManager.getPolicy}
+                         */
+                        public static final java.lang.String POLICY_FIELD = "";
+                        }
+                        """
+                    )
+                )
+        )
+    }
+
+    @Test
+    fun `Test StringPolicyDefinition with device scope only without permissions`() {
+        check(
+            sourceFiles =
+                arrayOf(
+                    ANDROID_MANIFEST_SOURCE,
+                    POLICY_DEFINITION_SOURCE,
+                    java(
+                        """
+                        package test.pkg;
+                        import android.processor.devicepolicy.StringPolicyDefinition;
+                        import android.processor.devicepolicy.PolicyDefinition;
+                        import android.processor.devicepolicy.AllowedDpcTypes;
+                        import static android.processor.devicepolicy.AllowedDpcTypes.ALLOWED;
+                        import static android.processor.devicepolicy.AllowedDpcTypes.DISALLOWED;
+
+                        @Retention(RetentionPolicy.SOURCE)
+                        public class TestPolicy {
+                            private static final int SCOPE_DEVICE = 2;
+                            private static final int RESOURCE_DEVICE_WIDE = 1;
+                          /**
+                           * A test policy.
+                           */
+                            @StringPolicyDefinition(
+                                base = @PolicyDefinition(
+                                    allowedScopes = {SCOPE_DEVICE},
+                                    affectedResource = RESOURCE_DEVICE_WIDE,
+                                    allowedDpcTypes = @AllowedDpcTypes(
+                                        deviceOwner = ALLOWED,
+                                        managedProfileOwnerOfOrganizationOwnedDevice = DISALLOWED,
+                                        managedProfileOwnerOfPersonalOwnedDevice = DISALLOWED,
+                                        profileOwnerOnUser0 = DISALLOWED,
+                                        fullUserProfileOwner = DISALLOWED
+                                    )
+                                ),
+                                maxLength = 100
+                            )
+                            public static final String POLICY_FIELD = "";
+                        }
+                        """
+                    )
+                ),
+            checkCompilation = true,
+            docStubs = true,
+            expectedStubFiles =
+                arrayOf(
+                    java(
+                        """
+                        package test.pkg;
+                        @SuppressWarnings({"unchecked", "deprecation", "all"})
+                        public class TestPolicy {
+                        public TestPolicy() { throw new RuntimeException("Stub!"); }
+                        /**
+                         * A test policy.
+                         * <br>
+                         * <table>
+                         *  <tr>
+                         *    <th colspan="2">Policy details</th>
+                         *  </tr>
+                         *  <tr>
+                         *    <td>Settable by</td>
+                         *    <td>
+                         *      <p>This policy can be set with scope <code>Device</code> by the following DPC types:
+                         *      <ul>
+                         *          <li>Device Owner</li>
+                         *      </ul>
+                         *      </p>
+                         *    </td>
+                         *  </tr>
+                         *  <tr>
+                         *    <td>Resources affected</td>
+                         *    <td>This policy takes effect device-wide, so it affects all users.</td>
+                         *  </tr>
+                         *  <tr>
+                         *    <td>Policy value</td>
+                         *    <td>
+                         *      <code>String</code> with the following restrictions:
+                         *      <ul>
+                         *        <li>Length max 100 characters</li>
+                         *        <li>No empty string allowed</li>
+                         *        <li>No unprintable characters allowed</li>
+                         *        <li>No pure whitespace allowed</li>
+                         *        <li>No unstripped string allowed</li>
+                         *      </ul>
+                         *    </td>
+                         *  </tr>
+                         * </table>
+                         * See also: {@link android.app.admin.DevicePolicyManager#setPolicy DevicePolicyManager.setPolicy}, {@link android.app.admin.DevicePolicyManager#getPolicy DevicePolicyManager.getPolicy}
+                         */
+                        public static final java.lang.String POLICY_FIELD = "";
+                        }
+                        """
+                    )
+                )
+        )
+    }
+
+    @Test
+    fun `Test StringPolicyDefinition with user and login screen scopes generates docs`() {
+        check(
+            sourceFiles =
+                arrayOf(
+                    ANDROID_MANIFEST_SOURCE,
+                    POLICY_DEFINITION_SOURCE,
+                    java(
+                        """
+                        package test.pkg;
+                        import android.processor.devicepolicy.StringPolicyDefinition;
+                        import android.processor.devicepolicy.PolicyDefinition;
+                        import android.processor.devicepolicy.AllowedDpcTypes;
+                        import static android.processor.devicepolicy.AllowedDpcTypes.ALLOWED;
+                        import static android.processor.devicepolicy.AllowedDpcTypes.DISALLOWED;
+
+                        @Retention(RetentionPolicy.SOURCE)
+                        public class TestPolicy {
+                            private static final int SCOPE_USER = 1;
+                            private static final int SCOPE_LOGIN_SCREEN = 4;
+                            private static final int RESOURCE_DEVICE_WIDE = 1;
+                          /**
+                           * A test policy.
+                           */
+                            @StringPolicyDefinition(
+                                base = @PolicyDefinition(
+                                    allowedScopes = {SCOPE_USER, SCOPE_LOGIN_SCREEN},
+                                    affectedResource = RESOURCE_DEVICE_WIDE,
+                                    allowedDpcTypes = @AllowedDpcTypes(
+                                        deviceOwner = ALLOWED,
+                                        managedProfileOwnerOfOrganizationOwnedDevice = ALLOWED,
+                                        managedProfileOwnerOfPersonalOwnedDevice = ALLOWED,
+                                        profileOwnerOnUser0 = DISALLOWED,
+                                        fullUserProfileOwner = DISALLOWED
+                                    )
+                                ),
+                                maxLength = 100
+                            )
+                            public static final String POLICY_FIELD = "";
+                        }
+                        """
+                    )
+                ),
+            checkCompilation = true,
+            docStubs = true,
+            expectedStubFiles =
+                arrayOf(
+                    java(
+                        """
+                        package test.pkg;
+                        @SuppressWarnings({"unchecked", "deprecation", "all"})
+                        public class TestPolicy {
+                        public TestPolicy() { throw new RuntimeException("Stub!"); }
+                        /**
+                         * A test policy.
+                         * <br>
+                         * <table>
+                         *  <tr>
+                         *    <th colspan="2">Policy details</th>
+                         *  </tr>
+                         *  <tr>
+                         *    <td>Settable by</td>
+                         *    <td>
+                         *      <p>This policy can be set with scope <code>User</code> by the following DPC types:
+                         *      <ul>
+                         *          <li>Device Owner</li>
+                         *          <li>Managed Profile Owner (Of Organization Owned Device)</li>
+                         *          <li>Managed Profile Owner (Of Personally Owned Device)</li>
+                         *      </ul>
+                         *      </p>
+                         *      <p>In addition, this policy can be set with scope <code>Login screen</code> by the following DPC types:
+                         *      <ul>
+                         *          <li>Device Owner</li>
+                         *          <li>Managed Profile Owner (Of Organization Owned Device)</li>
+                         *      </ul>
+                         *      </p>
+                         *    </td>
+                         *  </tr>
+                         *  <tr>
+                         *    <td>Resources affected</td>
+                         *    <td>This policy takes effect device-wide, so it affects all users.</td>
+                         *  </tr>
+                         *  <tr>
+                         *    <td>Policy value</td>
+                         *    <td>
+                         *      <code>String</code> with the following restrictions:
+                         *      <ul>
+                         *        <li>Length max 100 characters</li>
+                         *        <li>No empty string allowed</li>
+                         *        <li>No unprintable characters allowed</li>
+                         *        <li>No pure whitespace allowed</li>
+                         *        <li>No unstripped string allowed</li>
+                         *      </ul>
+                         *    </td>
+                         *  </tr>
+                         * </table>
+                         * See also: {@link android.app.admin.DevicePolicyManager#setPolicy DevicePolicyManager.setPolicy}, {@link android.app.admin.DevicePolicyManager#getPolicy DevicePolicyManager.getPolicy}
+                         */
+                        public static final java.lang.String POLICY_FIELD = "";
+                        }
+                        """
+                    )
+                )
+        )
+    }
+
+    @Test
+    fun `Test StringPolicyDefinition with user, device and login screen scopes generates docs`() {
+        check(
+            sourceFiles =
+                arrayOf(
+                    ANDROID_MANIFEST_SOURCE,
+                    POLICY_DEFINITION_SOURCE,
+                    java(
+                        """
+                        package test.pkg;
+                        import android.processor.devicepolicy.StringPolicyDefinition;
+                        import android.processor.devicepolicy.PolicyDefinition;
+                        import android.processor.devicepolicy.AllowedDpcTypes;
+                        import static android.processor.devicepolicy.AllowedDpcTypes.ALLOWED;
+                        import static android.processor.devicepolicy.AllowedDpcTypes.DISALLOWED;
+
+                        @Retention(RetentionPolicy.SOURCE)
+                        public class TestPolicy {
+                            private static final int SCOPE_USER = 1;
+                            private static final int SCOPE_DEVICE = 2;
+                            private static final int SCOPE_LOGIN_SCREEN = 4;
+                            private static final int RESOURCE_DEVICE_WIDE = 1;
+                          /**
+                           * A test policy.
+                           */
+                            @StringPolicyDefinition(
+                                base = @PolicyDefinition(
+                                    allowedScopes = {SCOPE_USER, SCOPE_DEVICE, SCOPE_LOGIN_SCREEN},
+                                    affectedResource = RESOURCE_DEVICE_WIDE,
+                                    allowedDpcTypes = @AllowedDpcTypes(
+                                        deviceOwner = ALLOWED,
+                                        managedProfileOwnerOfOrganizationOwnedDevice = ALLOWED,
+                                        managedProfileOwnerOfPersonalOwnedDevice = ALLOWED,
+                                        profileOwnerOnUser0 = DISALLOWED,
+                                        fullUserProfileOwner = DISALLOWED
+                                    )
+                                ),
+                                maxLength = 100
+                            )
+                            public static final String POLICY_FIELD = "";
+                        }
+                        """
+                    )
+                ),
+            checkCompilation = true,
+            docStubs = true,
+            expectedStubFiles =
+                arrayOf(
+                    java(
+                        """
+                        package test.pkg;
+                        @SuppressWarnings({"unchecked", "deprecation", "all"})
+                        public class TestPolicy {
+                        public TestPolicy() { throw new RuntimeException("Stub!"); }
+                        /**
+                         * A test policy.
+                         * <br>
+                         * <table>
+                         *  <tr>
+                         *    <th colspan="2">Policy details</th>
+                         *  </tr>
+                         *  <tr>
+                         *    <td>Settable by</td>
+                         *    <td>
+                         *      <p>This policy can be set with scope <code>User</code> by the following DPC types:
+                         *      <ul>
+                         *          <li>Device Owner</li>
+                         *          <li>Managed Profile Owner (Of Organization Owned Device)</li>
+                         *          <li>Managed Profile Owner (Of Personally Owned Device)</li>
+                         *      </ul>
+                         *      </p>
+                         *      <p>In addition, this policy can be set with scope <code>Device</code> by the following DPC types:
+                         *      <ul>
+                         *          <li>Device Owner</li>
+                         *          <li>Managed Profile Owner (Of Organization Owned Device)</li>
+                         *          <li>Managed Profile Owner (Of Personally Owned Device)</li>
+                         *      </ul>
+                         *      </p>
+                         *      <p>Moreover, this policy can be set with scope <code>Login screen</code> by the following DPC types:
+                         *      <ul>
+                         *          <li>Device Owner</li>
+                         *          <li>Managed Profile Owner (Of Organization Owned Device)</li>
+                         *      </ul>
+                         *      </p>
+                         *    </td>
+                         *  </tr>
+                         *  <tr>
+                         *    <td>Resources affected</td>
+                         *    <td>This policy takes effect device-wide, so it affects all users.</td>
+                         *  </tr>
+                         *  <tr>
+                         *    <td>Policy value</td>
+                         *    <td>
+                         *      <code>String</code> with the following restrictions:
+                         *      <ul>
+                         *        <li>Length max 100 characters</li>
+                         *        <li>No empty string allowed</li>
+                         *        <li>No unprintable characters allowed</li>
+                         *        <li>No pure whitespace allowed</li>
+                         *        <li>No unstripped string allowed</li>
                          *      </ul>
                          *    </td>
                          *  </tr>

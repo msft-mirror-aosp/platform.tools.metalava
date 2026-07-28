@@ -37,9 +37,6 @@ sealed interface ApiSurfaces {
     /** The optional base [ApiSurface]. */
     val base: ApiSurface?
 
-    /** An immutable, empty set of variants. */
-    val emptyVariantSet: ApiVariantSet
-
     /** Map from [ApiSurface.name] to [ApiSurface]. */
     val byName: Map<String, ApiSurface>
 
@@ -90,12 +87,13 @@ sealed interface ApiSurfaces {
     fun createVariantSet(vararg variants: ApiVariant) = createVariantSet(variants.asList())
 
     /** Create an [ApiVariantSet] from a list of [variants]. */
-    fun createVariantSet(variants: List<ApiVariant>) =
-        ApiVariantSet.build(this) {
-            for (variant in variants) {
-                add(variant)
-            }
+    fun createVariantSet(variants: List<ApiVariant>) = let {
+        var result = ApiVariantSet.EMPTY
+        for (variant in variants) {
+            result += variant
         }
+        result
+    }
 
     /**
      * Provides support for creating a more complicated [ApiSurfaces] instance than is supported by
@@ -150,8 +148,6 @@ private class DefaultApiSurfaces(initializer: ApiSurfaces.Builder.() -> Unit) : 
 
         byName = all.associateBy { it.name }
     }
-
-    override val emptyVariantSet: ApiVariantSet = ApiVariantSet.emptySet(this)
 
     /** Provides support for initializing [apiSurfaces] by implementing [ApiSurfaces.Builder]. */
     private class BuilderImpl(private val apiSurfaces: DefaultApiSurfaces) : ApiSurfaces.Builder {

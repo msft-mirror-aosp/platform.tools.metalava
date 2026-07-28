@@ -96,68 +96,35 @@ class ListOfStringPolicyAnnotationHandlerTest : DriverTest() {
                          *
                          * Some other human handwritten comments.
                          * <br>
-                         * <p>Policy Type: List Of String</p>
                          * <table>
                          *  <tr>
                          *    <th colspan="2">Policy details</th>
                          *  </tr>
                          *  <tr>
-                         *    <td>Allowed Scopes</td>
+                         *    <td>Settable by</td>
                          *    <td>
+                         *      <p>This policy can be set with scope <code>User</code> by anyone holding {@link android.Manifest.permission#TEST android.permission.TEST}, or the following DPC types:
                          *      <ul>
-                         *        <li>User. Settable by:
-                         *          <ul>
-                         *            <li>Device Owner</li>
-                         *            <li>Managed Profile Owner (Of Organization Owned Device)</li>
-                         *            <li>Managed Profile Owner (Of Personally Owned Device)</li>
-                         *            <li>Unaffiliated Full User Profile Owner</li>
-                         *            <li>Profile Owner on User 0</li>
-                         *            <li>Affiliated Full User Profile Owner</li>
-                         *          </ul>
-                         *        </li>
+                         *          <li>Device Owner</li>
+                         *          <li>Managed Profile Owner (Of Organization Owned Device)</li>
+                         *          <li>Managed Profile Owner (Of Personally Owned Device)</li>
+                         *          <li>Unaffiliated Full User Profile Owner</li>
+                         *          <li>Profile Owner on User 0</li>
+                         *          <li>Affiliated Full User Profile Owner</li>
                          *      </ul>
+                         *      </p>
                          *    </td>
                          *  </tr>
                          *  <tr>
-                         *    <td>Affected Resource</td>
-                         *    <td>Device Wide</td>
-                         *  </tr>
-                         *  <tr>
-                         *    <td>Required Permission</td>
-                         *    <td>{@link android.Manifest.permission#TEST android.permission.TEST}</td>
-                         *  </tr>
-                         *  <tr>
-                         *    <td>Required Cross User Permission</td>
-                         *    <td>{@link android.Manifest.permission#MANAGE_DEVICE_POLICY_ACROSS_USERS android.permission.MANAGE_DEVICE_POLICY_ACROSS_USERS}</td>
-                         *  </tr>
-                         *  <tr>
-                         *    <td>Allowed DPC Types</td>
-                         *    <td>
-                         *      <ul>
-                         *        <li>Device Owner</li>
-                         *        <li>Managed Profile Owner (Of Organization Owned Device)</li>
-                         *        <li>Managed Profile Owner (Of Personally Owned Device)</li>
-                         *        <li>Unaffiliated Full User Profile Owner</li>
-                         *        <li>Profile Owner on User 0</li>
-                         *        <li>Affiliated Full User Profile Owner</li>
-                         *      </ul>
-                         *    </td>
-                         *  </tr>
-                         *  <tr>
-                         *    <td>Resolution Mechanism</td>
-                         *    <td>custom</td>
+                         *    <td>Resources affected</td>
+                         *    <td>This policy takes effect device-wide, so it affects all users.</td>
                          *  </tr>
                          *  <tr>
                          *    <td>Policy value</td>
                          *    <td>
-                         *      <code>List Of String</code> with the following restrictions:
+                         *      <code>List<String></code> with the following restrictions:
                          *      <ul>
-                         *        <li>Empty list: Allowed</li>
-                         *        <li>Empty string: Allowed</li>
-                         *        <li>Unprintable characters: Allowed</li>
-                         *        <li>Pure whitespace: Allowed</li>
-                         *        <li>Unstripped string: Allowed</li>
-                         *        <li>Max list length: 5</li>
+                         *        <li>Length max 5 items</li>
                          *      </ul>
                          *    </td>
                          *  </tr>
@@ -224,64 +191,39 @@ class ListOfStringPolicyAnnotationHandlerTest : DriverTest() {
                         public class TestPolicy {
                         public TestPolicy() { throw new RuntimeException("Stub!"); }
                         /**
-                         * <p>Policy Type: List Of String</p>
                          * <table>
                          *  <tr>
                          *    <th colspan="2">Policy details</th>
                          *  </tr>
                          *  <tr>
-                         *    <td>Allowed Scopes</td>
+                         *    <td>Settable by</td>
                          *    <td>
+                         *      <p>This policy can be set with scope <code>User</code> by anyone holding {@link android.Manifest.permission#TEST android.permission.TEST}, or the following DPC types:
                          *      <ul>
-                         *        <li>User. Settable by:
-                         *          <ul>
-                         *            <li>Device Owner</li>
-                         *            <li>Managed Profile Owner (Of Organization Owned Device)</li>
-                         *            <li>Managed Profile Owner (Of Personally Owned Device)</li>
-                         *            <li>Unaffiliated Full User Profile Owner</li>
-                         *            <li>Profile Owner on User 0</li>
-                         *            <li>Affiliated Full User Profile Owner</li>
-                         *          </ul>
-                         *        </li>
+                         *          <li>Device Owner</li>
+                         *          <li>Managed Profile Owner (Of Organization Owned Device)</li>
+                         *          <li>Managed Profile Owner (Of Personally Owned Device)</li>
+                         *          <li>Unaffiliated Full User Profile Owner</li>
+                         *          <li>Profile Owner on User 0</li>
+                         *          <li>Affiliated Full User Profile Owner</li>
                          *      </ul>
+                         *      </p>
                          *    </td>
                          *  </tr>
                          *  <tr>
-                         *    <td>Affected Resource</td>
-                         *    <td>Device Wide</td>
-                         *  </tr>
-                         *  <tr>
-                         *    <td>Required Permission</td>
-                         *    <td>{@link android.Manifest.permission#TEST android.permission.TEST}</td>
-                         *  </tr>
-                         *  <tr>
-                         *    <td>Required Cross User Permission</td>
-                         *    <td>{@link android.Manifest.permission#MANAGE_DEVICE_POLICY_ACROSS_USERS android.permission.MANAGE_DEVICE_POLICY_ACROSS_USERS}</td>
-                         *  </tr>
-                         *  <tr>
-                         *    <td>Allowed DPC Types</td>
-                         *    <td>
-                         *      <ul>
-                         *        <li>Device Owner</li>
-                         *        <li>Managed Profile Owner (Of Organization Owned Device)</li>
-                         *        <li>Managed Profile Owner (Of Personally Owned Device)</li>
-                         *        <li>Unaffiliated Full User Profile Owner</li>
-                         *        <li>Profile Owner on User 0</li>
-                         *        <li>Affiliated Full User Profile Owner</li>
-                         *      </ul>
-                         *    </td>
+                         *    <td>Resources affected</td>
+                         *    <td>This policy takes effect device-wide, so it affects all users.</td>
                          *  </tr>
                          *  <tr>
                          *    <td>Policy value</td>
                          *    <td>
-                         *      <code>List Of String</code> with the following restrictions:
+                         *      <code>List<String></code> with the following restrictions:
                          *      <ul>
-                         *        <li>Empty list: Not allowed</li>
-                         *        <li>Empty string: Not allowed</li>
-                         *        <li>Unprintable characters: Not allowed</li>
-                         *        <li>Pure whitespace: Not allowed</li>
-                         *        <li>Unstripped string: Not allowed</li>
-                         *        <li>Max list length: No limit</li>
+                         *        <li>No empty list allowed</li>
+                         *        <li>No empty string allowed</li>
+                         *        <li>No unprintable characters allowed</li>
+                         *        <li>No pure whitespace allowed</li>
+                         *        <li>No unstripped string allowed</li>
                          *      </ul>
                          *    </td>
                          *  </tr>

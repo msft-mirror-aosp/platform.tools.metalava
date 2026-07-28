@@ -56,37 +56,19 @@ data class ListOfStringPolicyDefinitionProxy(
             addAll(base.getTableEntries())
             val resMechDocs = resolutionMechanism.generateDocs(base.item)
             if (resMechDocs.isNotEmpty()) {
-                add(Pair("Resolution Mechanism", resMechDocs))
+                add(Pair("Conflict resolution mechanism", resMechDocs))
             }
             val policyValueValidations = buildList {
-                add(Pair("Empty list", if (emptyListAllowed) "Allowed" else "Not allowed"))
-                add(Pair("Empty string", if (emptyStringAllowed) "Allowed" else "Not allowed"))
-                add(
-                    Pair(
-                        "Unprintable characters",
-                        if (unprintableCharactersAllowed) "Allowed" else "Not allowed"
-                    )
-                )
-                add(
-                    Pair("Pure whitespace", if (pureWhitespaceAllowed) "Allowed" else "Not allowed")
-                )
-                add(
-                    Pair(
-                        "Unstripped string",
-                        if (unstrippedStringAllowed) "Allowed" else "Not allowed"
-                    )
-                )
-                add(
-                    Pair(
-                        "Max list length",
-                        if (maxListLength == Int.MAX_VALUE) "No limit" else maxListLength.toString()
-                    )
-                )
+                if (maxListLength != Int.MAX_VALUE) add("Length max $maxListLength items")
+                if (!emptyListAllowed) add("No empty list allowed")
+                if (!emptyStringAllowed) add("No empty string allowed")
+                if (!unprintableCharactersAllowed) add("No unprintable characters allowed")
+                if (!pureWhitespaceAllowed) add("No pure whitespace allowed")
+                if (!unstrippedStringAllowed) add("No unstripped string allowed")
             }
-            add(Pair("Policy value", renderPolicyValue("List Of String", policyValueValidations)))
+            add(Pair("Policy value", renderPolicyValue("List<String>", policyValueValidations)))
         }
 
-        append("\n<p>Policy Type: List Of String</p>\n")
         append(renderTable(tableEntries))
     }
 }
