@@ -17,9 +17,12 @@
 package com.android.tools.metalava.model.testsuite.constructoritem
 
 import com.android.tools.metalava.model.MethodItem
+import com.android.tools.metalava.model.provider.InputFormat
+import com.android.tools.metalava.model.testing.SupportedInputFormats
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
+import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 import org.junit.Test
@@ -87,6 +90,52 @@ class CommonConstructorItemTest : BaseModelTest() {
         }
     }
 
+    @Test
+    fun `Test constructor of inner class has no implicit parameter`() {
+        runCodebaseTest(
+            signature(
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public class Outer {
+                      }
+                      public class Outer.Inner {
+                        ctor public Inner();
+                      }
+                    }
+                """
+            ),
+            java(
+                """
+                    package test.pkg;
+
+                    public class Outer {
+                        private Outer() {}
+
+                        public class Inner {
+                            public Inner() {}
+                        }
+                    }
+                """
+            ),
+            kotlin(
+                """
+                    package test.pkg
+
+                    class Outer private constructor() {
+                        inner class Inner() {}
+                    }
+                """
+            ),
+        ) {
+            val testConstructor =
+                codebase.assertClass("test.pkg.Outer.Inner").constructors().single()
+
+            assertEquals("constructor test.pkg.Outer.Inner()", testConstructor.describe())
+        }
+    }
+
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test Kotlin primary constructor`() {
         runCodebaseTest(

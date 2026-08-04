@@ -20,8 +20,8 @@ import com.android.tools.metalava.cli.common.MetalavaSubCommand
 import com.android.tools.metalava.cli.common.executionEnvironment
 import com.android.tools.metalava.cli.common.existingFile
 import com.android.tools.metalava.cli.common.newFile
-import com.android.tools.metalava.cli.common.progressTracker
 import com.android.tools.metalava.cli.common.stderr
+import com.android.tools.metalava.cli.common.tracer
 import com.android.tools.metalava.jar.StandaloneJarCodebaseLoader
 import com.android.tools.metalava.model.CodebaseFragment
 import com.android.tools.metalava.model.visitors.ApiPredicate
@@ -66,41 +66,33 @@ class JarToJDiffCommand :
             .newFile()
 
     override fun run() {
-        // Make sure that none of the code called by this command accesses the global `options`
-        // property.
-        OptionsDelegate.disallowAccess()
-
         StandaloneJarCodebaseLoader.create(
                 executionEnvironment.disableStderrDumping(),
-                progressTracker,
+                tracer,
                 BasicReporter(stderr)
             )
             .use { jarCodebaseLoader ->
                 val codebase = jarCodebaseLoader.loadFromJarFile(jarFile)
 
-                val apiType = ApiType.PUBLIC_API
-                val apiPredicateConfig = ApiPredicate.Config()
-                val apiFilters = apiType.getApiFilters(apiPredicateConfig)
+                val apiFilters = ApiType.PUBLIC_API.getApiFilters(ApiPredicate.Config())
 
                 val codebaseFragment =
                     CodebaseFragment.create(codebase) { delegate ->
                         createFilteringVisitorForJDiffWriter(
                             delegate,
                             apiFilters = apiFilters,
-                            preFiltered = false,
-                            showUnannotated = false,
                         )
                     }
 
-                createOutputFileFromCodebaseFragment(
-                    progressTracker,
-                    codebaseFragment,
-                    xmlFile,
-                    "JDiff File"
-                ) { printWriter ->
-                    JDiffXmlWriter(
-                        writer = printWriter,
-                    )
+                tracer.trace("createOutputFileFromCodebaseFragment JDiff") {
+                    createOutputFileFromCodebaseFragment(
+                        codebaseFragment,
+                        xmlFile,
+                    ) { printWriter ->
+                        JDiffXmlWriter(
+                            writer = printWriter,
+                        )
+                    }
                 }
             }
     }

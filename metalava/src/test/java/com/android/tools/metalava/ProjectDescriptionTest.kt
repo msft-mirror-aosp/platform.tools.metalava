@@ -96,7 +96,7 @@ class ProjectDescriptionTest : DriverTest() {
                         </project>
                     """
                 ),
-            api =
+            expectedApiSignature =
                 """
                 package some.pkg {
                   public final class Foo {
@@ -155,14 +155,15 @@ class ProjectDescriptionTest : DriverTest() {
                         </project>
                     """
                 ),
-            api =
+            expectedApiSignature =
                 """
                 // Signature format: 5.0
                 package some.pkg {
                   public final class Foo {
                     ctor public Foo();
                     method public static String foo(String x);
-                    method public void renamed();
+                    method @InaccessibleFromKotlin public void renamed();
+                    method @KotlinOnly public void wrongName();
                     field public static final some.pkg.Foo.Companion Companion;
                   }
                   public static final class Foo.Companion {
@@ -202,7 +203,7 @@ class ProjectDescriptionTest : DriverTest() {
                         </project>
                     """
                 ),
-            api =
+            expectedApiSignature =
                 """
                 // Signature format: 5.0
                 package some.pkg {
@@ -241,7 +242,7 @@ class ProjectDescriptionTest : DriverTest() {
                     createAndroidModuleDescription(arrayOf(androidSrc)),
                     createCommonModuleDescription(arrayOf(commonSrc)),
                 ),
-            api =
+            expectedApiSignature =
                 """
                 package test.pkg {
                   public final class Android {
