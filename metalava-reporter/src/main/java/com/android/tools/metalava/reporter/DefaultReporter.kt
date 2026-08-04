@@ -57,9 +57,6 @@ class DefaultReporter(
      * for the bootstrapping reporter. That receives a default instance of this.
      */
     class Config(
-        /** If true, treat all warnings as errors */
-        val warningsAsErrors: Boolean = false,
-
         /** Formats the report suitable for use in a file. */
         val fileReportFormatter: ReportFormatter = DefaultReportFormatter.DEFAULT,
 
@@ -88,15 +85,9 @@ class DefaultReporter(
         maximumSeverity: Severity,
     ): Boolean {
         val severity = issueConfiguration.getSeverity(id)
-        val upgradedSeverity =
-            if (severity == WARNING && config.warningsAsErrors) {
-                ERROR
-            } else {
-                severity
-            }
 
         // Limit the Severity to the maximum allowed.
-        val effectiveSeverity = minOf(upgradedSeverity, maximumSeverity)
+        val effectiveSeverity = minOf(severity, maximumSeverity)
         if (effectiveSeverity == HIDDEN) {
             return false
         }
@@ -196,8 +187,9 @@ class DefaultReporter(
     private fun Path.relativizeLocationPath(): String {
         // b/255575766: Note that `relativize` requires two paths to compare to have same types:
         // either both of them are absolute paths or both of them are not absolute paths.
-        val path = environment.rootFolder.toPath().relativize(this) ?: this
-        return path.toString()
+        val path = environment.rootFolder.toPath().relativize(this).toString()
+        if (path.startsWith("../")) return toString()
+        return path
     }
 
     /** Alias to allow method reference to `dispatch` in [report] */
@@ -233,6 +225,18 @@ class DefaultReporter(
         // Sort the reports in place. This will ensure that the errors output in [printErrors] are
         // also sorted in the same order as that is called after this.
         reports.sortWith(reportComparator)
+
+        // Remove duplicates from the sorted list.
+        var previous: Report? = null
+        val reportIterator = reports.iterator()
+        while (reportIterator.hasNext()) {
+            val report = reportIterator.next()
+            if (report == previous) {
+                reportIterator.remove()
+            } else {
+                previous = report
+            }
+        }
 
         // Print out all the save reports.
         for (report in reports) {

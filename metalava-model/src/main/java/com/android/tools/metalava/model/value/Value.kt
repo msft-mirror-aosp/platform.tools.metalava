@@ -18,6 +18,7 @@ package com.android.tools.metalava.model.value
 
 import com.android.tools.metalava.model.AnnotationAttribute
 import com.android.tools.metalava.model.AnnotationItem
+import com.android.tools.metalava.model.AnnotationPurpose
 import com.android.tools.metalava.model.ArrayTypeItem
 import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.ClassTypeItem
@@ -27,7 +28,6 @@ import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.PrimitiveTypeItem.Primitive
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.javaEscapeString
-import com.android.tools.metalava.model.value.Value.Companion.toString
 import java.util.EnumSet
 import java.util.Objects
 import kotlin.reflect.KClass
@@ -246,6 +246,9 @@ fun Value.asString() = (asLiteralValue() as? StringValue)?.underlyingValue
  * @param annotationQualifiedNameGetter The lambda to call to retrieve the qualified class name for
  *   an [AnnotationItem].
  * @param classObjectValueFormat How to format a [ClassObjectValue].
+ * @param inlineFieldReferenceChecker Optional lambda that checks whether a [FieldReferenceValue]
+ *   should be inlined (returns `true`) or not (returns `false`). If it is not provided then the
+ *   [FieldReferenceValue] is never inlined.
  * @param nestedValueAppender The function to use to append nested [Value]s to a [StringBuilder].
  * @param nonLiteralFloatSuffix The suffix to use for a [FloatValue] that was represented in the
  *   source as an expression (including negative numbers which are represented as a unary minus
@@ -267,8 +270,12 @@ fun Value.asString() = (asLiteralValue() as? StringValue)?.underlyingValue
 data class ValueStringConfiguration(
     val annotationAttributeNameValueSeparator: AnnotationAttributeNameValueSeparator =
         AnnotationAttributeNameValueSeparator.WITH_SPACES,
-    val annotationQualifiedNameGetter: (AnnotationItem) -> String = { it.qualifiedName },
+    val annotationQualifiedNameGetter: (AnnotationItem, AnnotationPurpose) -> String =
+        { annotationItem, _ ->
+            annotationItem.qualifiedName
+        },
     val classObjectValueFormat: ClassObjectValueFormat = ClassObjectValueFormat.JAVA,
+    val inlineFieldReferenceChecker: ((FieldReferenceValue) -> Boolean)? = null,
     val showKotlinCompanionClass: Boolean = false,
     val showKotlinConversionFunction: Boolean = false,
     val nestedValueAppender: (Value, StringBuilder, ValueStringConfiguration) -> Unit =
@@ -743,7 +750,7 @@ sealed interface AnnotationValue : ArrayElementValue {
         annotationItem.appendAnnotationStringTo(
             builder,
             configuration,
-            annotationIsValue = true,
+            AnnotationPurpose.VALUE,
         )
 }
 

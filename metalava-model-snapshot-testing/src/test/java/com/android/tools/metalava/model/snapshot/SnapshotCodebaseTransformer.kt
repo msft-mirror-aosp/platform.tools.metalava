@@ -28,11 +28,13 @@ class SnapshotCodebaseTransformer : CodebaseTransformer {
             CodebaseFragment.create(
                     codebase,
                     // Copy every Item from the input.
-                    ::NonFilteringDelegatingVisitor,
+                    factory = ::NonFilteringDelegatingVisitor,
                 )
                 .snapshotIncludingRevertedItems(
                     // Allow references to any Item in the original.
                     ::NonFilteringDelegatingVisitor,
+                    // Include documentation as many tests rely on them.
+                    includeDocumentation = true,
                 )
         return fragment.codebase
     }

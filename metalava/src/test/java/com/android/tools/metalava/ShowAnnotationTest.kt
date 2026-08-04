@@ -17,12 +17,13 @@
 package com.android.tools.metalava
 
 import com.android.tools.lint.checks.infrastructure.TestFiles.base64gzip
-import com.android.tools.metalava.lint.DefaultLintErrorMessage
 import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.testing.RequiresCapabilities
 import com.android.tools.metalava.model.text.FileFormat
+import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
+import com.android.tools.metalava.testing.xml
 import org.junit.Test
 
 /** Tests for the --show-annotation functionality */
@@ -31,10 +32,7 @@ class ShowAnnotationTest : DriverTest() {
     @Test
     fun `Basic showAnnotation test`() {
         check(
-            includeSystemApiAnnotations = SystemApiType.PRIVILEGED_APPS,
-            expectedIssues =
-                "src/test/pkg/Foo.java:18: error: @SystemApi APIs must also be marked @hide: method test.pkg.Foo.method4() [UnhiddenSystemApi]",
-            expectedFail = DefaultLintErrorMessage,
+            apiSurface = KnownApiSurface.SYSTEM,
             sourceFiles =
                 arrayOf(
                     java(
@@ -45,7 +43,7 @@ class ShowAnnotationTest : DriverTest() {
                         public void method1() { }
 
                         /**
-                         * @hide Only for use by WebViewProvider implementations
+                         * Only for use by WebViewProvider implementations
                          */
                         @SystemApi
                         public void method2() { }
@@ -54,10 +52,6 @@ class ShowAnnotationTest : DriverTest() {
                          * @hide Always hidden
                          */
                         public void method3() { }
-
-                        @SystemApi
-                        public void method4() { }
-
                     }
                     """
                     ),
@@ -68,14 +62,12 @@ class ShowAnnotationTest : DriverTest() {
                     }
                 """
                     ),
-                    systemApiSource,
                 ),
-            api =
+            expectedApiSignature =
                 """
                 package test.pkg {
                   public class Foo {
                     method public void method2();
-                    method public void method4();
                   }
                 }
                 """
@@ -85,11 +77,9 @@ class ShowAnnotationTest : DriverTest() {
     @Test
     fun `Basic showAnnotation with showUnannotated test`() {
         check(
-            includeSystemApiAnnotations = SystemApiType.PRIVILEGED_APPS,
-            showUnannotated = true,
-            expectedIssues =
-                "src/test/pkg/Foo.java:18: error: @SystemApi APIs must also be marked @hide: method test.pkg.Foo.method4() [UnhiddenSystemApi]",
-            expectedFail = DefaultLintErrorMessage,
+            // Use system-with-public as it is equivalent to `--show-annotation` and
+            // `--show-unannotated`.
+            apiSurface = KnownApiSurface.SYSTEM_WITH_PUBLIC,
             sourceFiles =
                 arrayOf(
                     java(
@@ -100,19 +90,13 @@ class ShowAnnotationTest : DriverTest() {
                         public void method1() { }
 
                         /**
-                         * @hide Only for use by WebViewProvider implementations
+                         * Only for use by WebViewProvider implementations
                          */
                         @SystemApi
                         public void method2() { }
 
-                        /**
-                         * @hide Always hidden
-                         */
+                        @android.annotation.Hide
                         public void method3() { }
-
-                        @SystemApi
-                        public void method4() { }
-
                     }
                     """
                     ),
@@ -123,9 +107,8 @@ class ShowAnnotationTest : DriverTest() {
                     }
                 """
                     ),
-                    systemApiSource,
                 ),
-            api =
+            expectedApiSignature =
                 """
                 package foo.bar {
                   public class Bar {
@@ -137,7 +120,6 @@ class ShowAnnotationTest : DriverTest() {
                     ctor public Foo();
                     method public void method1();
                     method public void method2();
-                    method public void method4();
                   }
                 }
                 """
@@ -147,7 +129,7 @@ class ShowAnnotationTest : DriverTest() {
     @Test
     fun `Check @TestApi handling`() {
         check(
-            includeSystemApiAnnotations = SystemApiType.TEST,
+            apiSurface = KnownApiSurface.TEST,
             sourceFiles =
                 arrayOf(
                     java(
@@ -157,7 +139,6 @@ class ShowAnnotationTest : DriverTest() {
 
                     /**
                      * Blah blah blah
-                     * @hide
                      */
                     @TestApi
                     public class Bar {
@@ -180,9 +161,8 @@ class ShowAnnotationTest : DriverTest() {
                     }
                     """
                     ),
-                    testApiSource,
                 ),
-            api =
+            expectedApiSignature =
                 """
                 package test.pkg {
                   public class Bar {
@@ -202,6 +182,7 @@ class ShowAnnotationTest : DriverTest() {
         // and the additional API made visible with annotations. However,
         // in the *stubs*, we have to include everything.
         check(
+            apiSurface = KnownApiSurface.SYSTEM,
             sourceFiles =
                 arrayOf(
                     java(
@@ -233,7 +214,7 @@ class ShowAnnotationTest : DriverTest() {
                     """
                     ),
                 ),
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
@@ -241,9 +222,6 @@ class ShowAnnotationTest : DriverTest() {
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class MyChild extends test.pkg1.MyParent {
                     public MyChild() { throw new RuntimeException("Stub!"); }
-                    public static final long CONSTANT1 = 12345L; // 0x3039L
-                    public static final long CONSTANT2 = 67890L; // 0x10932L
-                    public static final long CONSTANT3 = 42L; // 0x2aL
                     }
                     """
                     ),
@@ -253,25 +231,22 @@ class ShowAnnotationTest : DriverTest() {
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class MyParent implements java.io.Closeable {
                     public MyParent() { throw new RuntimeException("Stub!"); }
-                    public static final long CONSTANT1 = 12345L; // 0x3039L
-                    public static final long CONSTANT2 = 67890L; // 0x10932L
-                    public static final long CONSTANT3 = 42L; // 0x2aL
+                    public static final long CONSTANT1 = 12345L;
+                    public static final long CONSTANT2 = 67890L;
+                    public static final long CONSTANT3 = 42L;
                     }
                     """
                     )
                 ),
             // Empty API: showUnannotated=false
-            api =
-                """
-            """
-                    .trimIndent(),
-            includeSystemApiAnnotations = SystemApiType.TEST,
+            expectedApiSignature = "",
         )
     }
 
     @Test
-    fun `No UnhiddenSystemApi warning for --show-single-annotations`() {
+    fun `No UnhiddenSystemApi warning for non-recursive show annotation`() {
         check(
+            apiSurface = KnownApiSurface.NON_RECURSIVE_SYSTEM,
             expectedIssues = "",
             sourceFiles =
                 arrayOf(
@@ -306,14 +281,8 @@ class ShowAnnotationTest : DriverTest() {
                     }
                 """
                     ),
-                    systemApiSource,
                 ),
-            extraArguments =
-                arrayOf(
-                    ARG_SHOW_SINGLE_ANNOTATION,
-                    "android.annotation.SystemApi",
-                ),
-            api =
+            expectedApiSignature =
                 """
                 package test.pkg {
                   public class Foo {
@@ -374,7 +343,6 @@ class ShowAnnotationTest : DriverTest() {
                     src/test/pkg/Class1.java:12: error: Attempting to unhide class test.pkg.Class1.InnerClass1, but surrounding class test.pkg.Class1 is hidden and should also be annotated with @android.annotation.SystemApi [ShowingMemberInHiddenClass]
                     src/test/pkg/Class2.java:11: error: Attempting to unhide method test.pkg.Class2.InnerClass2.method2(), but surrounding class test.pkg.Class2.InnerClass2 is hidden and should also be annotated with @android.annotation.SystemApi [ShowingMemberInHiddenClass]
                 """,
-            expectedFail = DefaultLintErrorMessage,
         )
     }
 
@@ -419,7 +387,7 @@ class ShowAnnotationTest : DriverTest() {
                     ARG_SHOW_ANNOTATION,
                     "androidx.annotation.RestrictTo(androidx.annotation.RestrictTo.Scope.LIBRARY_GROUP)",
                 ),
-            api =
+            expectedApiSignature =
                 """
                 package test.pkg {
                   public class Foo {
@@ -479,7 +447,7 @@ class ShowAnnotationTest : DriverTest() {
                     ARG_SHOW_ANNOTATION,
                     "test.annotation.Api(type=test.annotation.Api.Type.A)",
                 ),
-            api =
+            expectedApiSignature =
                 """
                 package test.pkg {
                   public class Foo {
@@ -503,24 +471,21 @@ class ShowAnnotationTest : DriverTest() {
                         """
                     package androidx.room;
 
-                    import androidx.annotation.IntDef;
+                    import android.annotation.IntDef;
 
                     @IntDef(OnConflictStrategy.REPLACE)
                     public @interface OnConflictStrategy {
                         int REPLACE = 1;
                     }
                     """
-                    )
+                    ),
+                    intDefAnnotationSource,
                 ),
-            expectedIssues =
-                """
-                src/androidx/room/OnConflictStrategy.java:3: info: Unresolved import: `androidx.annotation.IntDef` [UnresolvedImport]
-                """,
-            api =
+            expectedApiSignature =
                 """
                 // Signature format: 4.0
                 package androidx.room {
-                  @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.CLASS) public @interface OnConflictStrategy {
+                  @IntDef(androidx.room.OnConflictStrategy.REPLACE) @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.CLASS) public @interface OnConflictStrategy {
                     field public static final int REPLACE = 1; // 0x1
                   }
                 }
@@ -580,7 +545,7 @@ class ShowAnnotationTest : DriverTest() {
                     restrictToSource,
                 ),
             expectedIssues = null,
-            api =
+            expectedApiSignature =
                 """
                 // Signature format: 4.0
                 package a {
@@ -663,7 +628,7 @@ class ShowAnnotationTest : DriverTest() {
                     ARG_SHOW_ANNOTATION,
                     "test.annotation.Api",
                 ),
-            api =
+            expectedApiSignature =
                 """
                 package test.pkg {
                   public class Foo {
@@ -686,8 +651,8 @@ class ShowAnnotationTest : DriverTest() {
                         """
                     package test.pkg
                     /**
-                    * @suppress
-                    */
+                     * @hide
+                     */
                     @PublishedApi
                     internal class WeAreSoCool()
                     """
@@ -695,12 +660,53 @@ class ShowAnnotationTest : DriverTest() {
                     publishedApiSource
                 ),
             extraArguments = arrayOf(ARG_SHOW_ANNOTATION, "kotlin.PublishedApi"),
-            api =
+            expectedApiSignature =
                 """
                 // Signature format: 4.0
                 package test.pkg {
                   @kotlin.PublishedApi internal final class WeAreSoCool {
                     ctor public WeAreSoCool();
+                  }
+                }
+                """
+        )
+    }
+
+    @RequiresCapabilities(Capability.KOTLIN)
+    @Test
+    fun `Check @PublishedApi handling on properties`() {
+        check(
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
+                        package test.pkg
+                        object Foo {
+                            @PublishedApi internal const val CONST = 0
+
+                            @PublishedApi @JvmField internal var jvmField = 0
+
+                            @PublishedApi internal var regularProperty = 0
+                        }
+                        """
+                    )
+                ),
+            extraArguments =
+                hiddenIssues(
+                    Issues.UNHIDDEN_SYSTEM_API,
+                ) + arrayOf(ARG_SHOW_ANNOTATION, "kotlin.PublishedApi", ARG_SHOW_UNANNOTATED),
+            expectedApiSignature =
+                """
+                package test.pkg {
+                  public final class Foo {
+                    method @InaccessibleFromKotlin @kotlin.PublishedApi internal int getRegularProperty();
+                    method @InaccessibleFromKotlin @kotlin.PublishedApi internal void setRegularProperty(int);
+                    property @kotlin.PublishedApi internal static int CONST;
+                    property @kotlin.PublishedApi internal int jvmField;
+                    property @kotlin.PublishedApi internal int regularProperty;
+                    field @kotlin.PublishedApi internal static final int CONST = 0; // 0x0
+                    field public static final test.pkg.Foo INSTANCE;
+                    field @kotlin.PublishedApi internal static int jvmField;
                   }
                 }
                 """
@@ -717,6 +723,7 @@ class ShowAnnotationTest : DriverTest() {
         // and if a client refers to Class2.FIELD, that resolves to Class*1*.FIELD.
         // - Class3 is (very naturally) hidden even though the super class is visible.
         check(
+            extraArguments = errorIssues(Issues.HIDING_API_METHOD_OVERRIDE),
             format = FileFormat.V2,
             sourceFiles =
                 arrayOf(
@@ -769,8 +776,9 @@ class ShowAnnotationTest : DriverTest() {
             showAnnotations = arrayOf("android.annotation.SystemApi"),
             expectedIssues =
                 """
+                    src/test/pkg/Class2.java:11: error: Attempting to hide method test.pkg.Class2.member() which overrides method test.pkg.Class1.member() which is already part of the API [HidingApiMethodOverride]
                 """,
-            api =
+            expectedApiSignature =
                 """
                 package test.pkg {
                   public class Class1 {
@@ -783,18 +791,18 @@ class ShowAnnotationTest : DriverTest() {
                   }
                 }
                 """,
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
                     package test.pkg;
-                    /** @hide */
+                    /** */
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class Class1 {
                     public Class1() { throw new RuntimeException("Stub!"); }
-                    /** @hide */
+                    /** */
                     public void member() { throw new RuntimeException("Stub!"); }
-                    /** @hide */
+                    /** */
                     public static final java.lang.String FIELD = "Class1.FIELD";
                     }
                     """
@@ -802,11 +810,11 @@ class ShowAnnotationTest : DriverTest() {
                     java(
                         """
                     package test.pkg;
-                    /** @hide */
+                    /** */
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class Class2 extends test.pkg.Class1 {
                     public Class2() { throw new RuntimeException("Stub!"); }
-                    /** @hide */
+                    /** */
                     public void member() { throw new RuntimeException("Stub!"); }
                     }
                     """
@@ -816,8 +824,39 @@ class ShowAnnotationTest : DriverTest() {
     }
 
     @Test
-    fun `Mixing for stubs only and single show annotations`() {
+    fun `Mixing recursive and non-recursive annotations`() {
+        val apiSurface =
+            KnownApiSurface(
+                surface = "test",
+                configFile =
+                    xml(
+                        "config-known-test-surfaces.xml",
+                        """
+                            <config xmlns="http://www.google.com/tools/metalava/config"
+                                xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                                xsi:schemaLocation="http://www.google.com/tools/metalava/config ../../../../../resources/schemas/config.xsd">
+                                <api-surfaces>
+                                    <api-surface name="public">
+                                        <selection-criteria unannotated="show"/>
+                                    </api-surface>
+                                    <api-surface name="system" extends="public">
+                                        <selection-criteria>
+                                            <annotation-rule pattern="android.annotation.SystemApi(client=android.annotation.SystemApi.Client.PRIVILEGED_APPS)"/>
+                                        </selection-criteria>
+                                    </api-surface>
+                                    <api-surface name="test" extends="system">
+                                        <selection-criteria>
+                                            <annotation-rule pattern="android.annotation.TestApi" recursive='false'/>
+                                        </selection-criteria>
+                                    </api-surface>
+                                </api-surfaces>
+                            </config>
+                        """
+                    ),
+            )
+
         check(
+            apiSurface = apiSurface,
             sourceFiles =
                 arrayOf(
                     java(
@@ -846,13 +885,15 @@ class ShowAnnotationTest : DriverTest() {
                     testApiSource,
                 ),
             extraArguments =
-                arrayOf(
-                    ARG_SHOW_SINGLE_ANNOTATION,
-                    "android.annotation.SystemApi",
-                    ARG_SHOW_FOR_STUB_PURPOSES_ANNOTATION,
-                    "android.annotation.TestApi",
+                errorIssues(
+                    Issues.OVERLAPPING_API_SURFACES,
                 ),
-            api =
+            expectedIssues =
+                """
+                    src/test/pkg/Foo.java:9: error: Remove @android.annotation.TestApi from method test.pkg.Foo.method1() as it is superseded by @android.annotation.SystemApi [OverlappingApiSurfaces]
+                    src/test/pkg/Foo.java:15: error: Remove @android.annotation.TestApi from method test.pkg.Foo.method2() as it is superseded by @android.annotation.SystemApi [OverlappingApiSurfaces]
+                """,
+            expectedApiSignature =
                 """
                 package test.pkg {
                   public class Foo {
@@ -861,7 +902,7 @@ class ShowAnnotationTest : DriverTest() {
                   }
                 }
                 """,
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         "test/pkg/Foo.java",
@@ -870,19 +911,56 @@ class ShowAnnotationTest : DriverTest() {
                   @SuppressWarnings({"unchecked", "deprecation", "all"})
                   public class Foo {
                   public Foo() { throw new RuntimeException("Stub!"); }
-                  /**
-                   * @hide
-                   */
+                  /** */
                   public void method1() { throw new RuntimeException("Stub!"); }
-                  /**
-                   * @hide
-                   */
+                  /** */
                   public void method2() { throw new RuntimeException("Stub!"); }
                   }
               """
                             .trimIndent()
                     ),
                 ),
+        )
+    }
+
+    @Test
+    fun `Show annotation on sub-package package-info is respected when parent package is hidden`() {
+        // A show annotation on a sub-package's package-info is respected even if the parent package
+        // is annotated with a hide annotation.
+        check(
+            apiSurface = KnownApiSurface.SYSTEM,
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            @android.annotation.Hide
+                            package test.pkg;
+                        """
+                    ),
+                    java(
+                        """
+                            @android.annotation.SystemApi
+                            package test.pkg.sub;
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg.sub;
+                            public class Foo {
+                                public void bar() {}
+                            }
+                        """
+                    ),
+                ),
+            expectedApiSignature =
+                """
+                    package test.pkg.sub {
+                      public class Foo {
+                        ctor public Foo();
+                        method public void bar();
+                      }
+                    }
+                """,
         )
     }
 }

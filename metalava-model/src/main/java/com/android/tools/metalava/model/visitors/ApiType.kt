@@ -57,22 +57,7 @@ enum class ApiType(val flagName: String, val displayName: String = flagName) {
             )
         }
     },
-
-    /** Everything */
-    ALL("all", "all") {
-
-        override fun getNonElidingFilter(apiPredicateConfig: ApiPredicate.Config): FilterPredicate {
-            return FilterPredicate { it.emit }
-        }
-
-        override fun getEmitFilter(apiPredicateConfig: ApiPredicate.Config): FilterPredicate {
-            return FilterPredicate { it.emit }
-        }
-
-        override fun getReferenceFilter(apiPredicateConfig: ApiPredicate.Config): FilterPredicate {
-            return FilterPredicate { true }
-        }
-    };
+    ;
 
     protected abstract fun getNonElidingFilter(
         apiPredicateConfig: ApiPredicate.Config
