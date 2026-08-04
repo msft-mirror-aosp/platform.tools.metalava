@@ -53,6 +53,9 @@ class Tokenizer(
         throw exceptionCreator(message, fileLocation())
     }
 
+    /** Get the remainder. */
+    fun remainder(): String = String(buffer, position, buffer.size - position)
+
     /**
      * Eat whitespace, including newline characters.
      *
@@ -128,6 +131,15 @@ class Tokenizer(
      */
     fun getStringFromOffset(offset: Int): String {
         return String(buffer, offset, position - offset)
+    }
+
+    /**
+     * Append the contents of [buffer] from [offset] to [position] to [builder].
+     *
+     * @param offset an offset previously returned by [offset].
+     */
+    fun appendStringFromOffsetTo(builder: StringBuilder, offset: Int) {
+        builder.append(buffer, offset, position - offset)
     }
 
     /** The current token. */
