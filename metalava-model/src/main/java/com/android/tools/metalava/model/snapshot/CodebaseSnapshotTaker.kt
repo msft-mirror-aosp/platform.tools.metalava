@@ -59,6 +59,7 @@ class CodebaseSnapshotTaker
 private constructor(
     referenceVisitorFactory: (DelegatedVisitor) -> ItemVisitor,
     private val includeDocumentation: Boolean,
+    private val revertItemGetter: (SelectableItem) -> SelectableItem?,
 ) : DefaultCodebaseAssembler(), DelegatedVisitor {
 
     /**
@@ -230,6 +231,20 @@ private constructor(
             type = classTypeItemFactory.getGeneralType(type),
             recordComponentIndex = recordComponentIndex,
         )
+
+    /**
+     * Get the actual item to snapshot, this takes into account whether the item has been reverted.
+     *
+     * The [Showability.revertItem] is only set to a non-null value if changes to this
+     * [SelectableItem] have been reverted AND this [SelectableItem] existed in the previously
+     * released API.
+     *
+     * This casts the [Showability.revertItem] to the same type as this is called upon. That is safe
+     * as, if set to a non-null value the [Showability.revertItem] will always point to a
+     * [SelectableItem] of the same type.
+     */
+    private val <reified T : SelectableItem> T.actualItemToSnapshot: T
+        inline get() = (revertItemGetter(this) ?: this) as T
 
     /**
      * Take a snapshot of the [RecordComponentItem]s in this [RecordComponents].
@@ -514,11 +529,17 @@ private constructor(
             definitionVisitorFactory: (DelegatedVisitor) -> ItemVisitor,
             referenceVisitorFactory: (DelegatedVisitor) -> ItemVisitor,
             includeDocumentation: Boolean,
+            revertItemGetter: (SelectableItem) -> SelectableItem? = { it.showability.revertItem },
         ): Codebase {
             // Create a snapshot taker that will construct the snapshot. Pass in the
             // referenceVisitorFactory so it can create the reference visitor for use in creating
             // Items that are referenced from the snapshot.
-            val taker = CodebaseSnapshotTaker(referenceVisitorFactory, includeDocumentation)
+            val taker =
+                CodebaseSnapshotTaker(
+                    referenceVisitorFactory,
+                    includeDocumentation,
+                    revertItemGetter,
+                )
 
             // Wrap it in a visitor that will determine which Items are defined in the snapshot and
             // then apply that visitor to the input codebase.
@@ -610,19 +631,6 @@ private constructor(
         }
     }
 }
-
-/**
- * Get the actual item to snapshot, this takes into account whether the item has been reverted.
- *
- * The [Showability.revertItem] is only set to a non-null value if changes to this [SelectableItem]
- * have been reverted AND this [SelectableItem] existed in the previously released API.
- *
- * This casts the [Showability.revertItem] to the same type as this is called upon. That is safe as,
- * if set to a non-null value the [Showability.revertItem] will always point to a [SelectableItem]
- * of the same type.
- */
-private val <reified T : SelectableItem> T.actualItemToSnapshot: T
-    inline get() = (showability.revertItem ?: this) as T
 
 /**
  * Creates [SourceFile] snapshots on demand for a [SourceFile] and caches the result for reuse.

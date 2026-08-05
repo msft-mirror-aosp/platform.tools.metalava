@@ -49,6 +49,7 @@ private constructor(
     fun snapshotIncludingRevertedItems(
         referenceVisitorFactory: (DelegatedVisitor) -> ItemVisitor,
         includeDocumentation: Boolean = false,
+        revertItemGetter: (SelectableItem) -> SelectableItem? = { it.showability.revertItem },
     ): CodebaseFragment {
         return LazyCodebaseFragment(
             {
@@ -57,6 +58,7 @@ private constructor(
                     definitionVisitorFactory = visitorFactory,
                     referenceVisitorFactory = referenceVisitorFactory,
                     includeDocumentation,
+                    revertItemGetter,
                 )
             },
             callableComparator,
