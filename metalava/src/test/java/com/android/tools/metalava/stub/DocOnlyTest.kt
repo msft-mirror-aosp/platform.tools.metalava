@@ -17,7 +17,6 @@
 package com.android.tools.metalava.stub
 
 import com.android.tools.metalava.KnownApiSurface
-import com.android.tools.metalava.testing.KnownSourceFiles
 import com.android.tools.metalava.testing.java
 import org.junit.Test
 
@@ -51,8 +50,6 @@ class DocOnlyTest : AbstractStubsTest() {
             apiSurface = KnownApiSurface.PUBLIC,
             sourceFiles =
                 arrayOf(
-                    KnownSourceFiles.hideAnnotation,
-                    KnownSourceFiles.docOnlyAnnotation,
                     docOnlyClass,
                     publicClass,
                 ),
@@ -83,8 +80,6 @@ class DocOnlyTest : AbstractStubsTest() {
             apiSurface = KnownApiSurface.PUBLIC,
             sourceFiles =
                 arrayOf(
-                    KnownSourceFiles.hideAnnotation,
-                    KnownSourceFiles.docOnlyAnnotation,
                     docOnlyClass,
                     publicClass,
                 ),

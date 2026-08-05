@@ -17,8 +17,8 @@
 package com.android.tools.metalava.compatibility
 
 import com.android.tools.metalava.DriverTest
-import com.android.tools.metalava.cli.common.ARG_HIDE
-import com.android.tools.metalava.cli.common.ARG_WARNING
+import com.android.tools.metalava.reporter.Issues
+import com.android.tools.metalava.reporter.Issues.Issue
 import com.android.tools.metalava.testing.getAndroidTxt
 import org.junit.AssumptionViolatedException
 import org.junit.Test
@@ -38,28 +38,21 @@ abstract class CompatibilityCheckAndroidApisTest(
 
     companion object {
         private val DEFAULT_HIDDEN_ISSUES =
-            listOf(
-                "AddedClass",
-                "AddedField",
-                "AddedInterface",
-                "AddedMethod",
-                "AddedPackage",
-                "ChangedDeprecated",
-                "RemovedClass",
-                "RemovedDeprecatedClass",
-                "RemovedField",
+            arrayOf(
+                Issues.ADDED_CLASS,
+                Issues.ADDED_FIELD,
+                Issues.ADDED_INTERFACE,
+                Issues.ADDED_METHOD,
+                Issues.ADDED_PACKAGE,
+                Issues.CHANGED_DEPRECATED,
+                Issues.REMOVED_CLASS,
+                Issues.REMOVED_DEPRECATED_CLASS,
+                Issues.REMOVED_FIELD,
             )
-        private val DEFAULT_HIDDEN_ISSUES_STRING = DEFAULT_HIDDEN_ISSUES.joinToString(",")
 
-        private fun joinIssues(issues: Array<out String>): String = issues.joinToString(",")
+        fun hide(vararg issues: Issue) = hiddenIssues(*issues).toList()
 
-        fun hide(vararg issues: String): List<String> {
-            return listOf(ARG_HIDE, joinIssues(issues))
-        }
-
-        fun warning(vararg issues: String): List<String> {
-            return listOf(ARG_WARNING, issues.joinToString(","))
-        }
+        fun warning(vararg issues: Issue) = warningIssues(*issues).toList()
 
         /** Data for each api version to check. */
         private val data =
@@ -70,9 +63,9 @@ abstract class CompatibilityCheckAndroidApisTest(
                         load-api.txt:14736: warning: Source breaking change: Method android.view.Surface.lockCanvas added thrown exception java.lang.IllegalArgumentException [ChangedThrows]
                     """,
                     hide(
-                        DEFAULT_HIDDEN_ISSUES_STRING,
-                        "AddedAbstractMethod",
-                    ) + warning("ChangedThrows"),
+                        *DEFAULT_HIDDEN_ISSUES,
+                        Issues.ADDED_ABSTRACT_METHOD,
+                    ) + warning(Issues.CHANGED_THROWS),
                 ),
                 ApiLevelCheck(
                     6,
@@ -82,11 +75,11 @@ abstract class CompatibilityCheckAndroidApisTest(
                         load-api.txt:15728: warning: Binary breaking change: Field android.view.WindowManager.LayoutParams.TYPE_STATUS_BAR_PANEL has changed value from 2008 to 2014 [ChangedValue]
                     """,
                     hide(
-                        DEFAULT_HIDDEN_ISSUES_STRING,
+                        *DEFAULT_HIDDEN_ISSUES,
                     ) +
                         warning(
-                            "ChangedThrows",
-                            "ChangedValue",
+                            Issues.CHANGED_THROWS,
+                            Issues.CHANGED_VALUE,
                         ),
                 ),
                 ApiLevelCheck(
@@ -95,12 +88,12 @@ abstract class CompatibilityCheckAndroidApisTest(
                         released-api.txt:15404: error: Binary breaking change: Removed field android.view.ViewGroup.FLAG_USE_CHILD_DRAWING_ORDER [RemovedField]
                     """,
                     hide(
-                        "AddedClass",
-                        "AddedField",
-                        "AddedInterface",
-                        "AddedMethod",
-                        "AddedPackage",
-                        "ChangedDeprecated",
+                        Issues.ADDED_CLASS,
+                        Issues.ADDED_FIELD,
+                        Issues.ADDED_INTERFACE,
+                        Issues.ADDED_METHOD,
+                        Issues.ADDED_PACKAGE,
+                        Issues.CHANGED_DEPRECATED,
                     ),
                 ),
                 ApiLevelCheck(
@@ -133,12 +126,12 @@ abstract class CompatibilityCheckAndroidApisTest(
                         released-api.txt:31151: error: Binary breaking change: Removed constructor javax.xml.XMLConstants() [RemovedMethod]
                     """,
                     hide(
-                        DEFAULT_HIDDEN_ISSUES_STRING,
-                        "AddedAbstractMethod",
+                        *DEFAULT_HIDDEN_ISSUES,
+                        Issues.ADDED_ABSTRACT_METHOD,
                     ) +
                         warning(
-                            "AddedFinal",
-                            "ChangedThrows",
+                            Issues.ADDED_FINAL,
+                            Issues.CHANGED_THROWS,
                         ),
                 ),
                 ApiLevelCheck(
@@ -151,17 +144,17 @@ abstract class CompatibilityCheckAndroidApisTest(
                         released-api.txt:19763: error: Binary breaking change: Removed class android.renderscript.ProgramStore [RemovedClass]
                     """,
                     hide(
-                        "AddedClass",
-                        "AddedField",
-                        "AddedFinal",
-                        "AddedInterface",
-                        "AddedMethod",
-                        "AddedPackage",
-                        "ChangedDeprecated",
-                        "ChangedThrows",
-                        "ChangedType",
-                        "RemovedDeprecatedClass",
-                        "RemovedMethod",
+                        Issues.ADDED_CLASS,
+                        Issues.ADDED_FIELD,
+                        Issues.ADDED_FINAL,
+                        Issues.ADDED_INTERFACE,
+                        Issues.ADDED_METHOD,
+                        Issues.ADDED_PACKAGE,
+                        Issues.CHANGED_DEPRECATED,
+                        Issues.CHANGED_THROWS,
+                        Issues.CHANGED_TYPE,
+                        Issues.REMOVED_DEPRECATED_CLASS,
+                        Issues.REMOVED_METHOD,
                     ),
                 ),
                 ApiLevelCheck(
@@ -184,13 +177,13 @@ abstract class CompatibilityCheckAndroidApisTest(
                     // The last warning above is not right; seems to be a PSI jar loading bug. It
                     // returns the wrong return type!
                     hide(
-                        DEFAULT_HIDDEN_ISSUES_STRING,
-                        "AddedAbstractMethod",
+                        *DEFAULT_HIDDEN_ISSUES,
+                        Issues.ADDED_ABSTRACT_METHOD,
                     ) +
                         warning(
-                            "AddedFinal",
-                            "ChangedType",
-                            "ChangedValue",
+                            Issues.ADDED_FINAL,
+                            Issues.CHANGED_TYPE,
+                            Issues.CHANGED_VALUE,
                         ),
                 ),
                 ApiLevelCheck(
@@ -201,11 +194,11 @@ abstract class CompatibilityCheckAndroidApisTest(
                         released-api.txt:26148: error: Binary breaking change: Removed method android.util.TypedValue.complexToDimensionNoisy(int,android.util.DisplayMetrics) [RemovedMethod]
                     """,
                     hide(
-                        DEFAULT_HIDDEN_ISSUES_STRING,
-                        "AddedAbstractMethod",
+                        *DEFAULT_HIDDEN_ISSUES,
+                        Issues.ADDED_ABSTRACT_METHOD,
                     ) +
                         warning(
-                            "ChangedType",
+                            Issues.CHANGED_TYPE,
                         ),
                 ),
                 ApiLevelCheck(
@@ -215,39 +208,39 @@ abstract class CompatibilityCheckAndroidApisTest(
                         load-api.txt:10848: warning: Binary breaking change: Field android.content.pm.PermissionInfo.PROTECTION_MASK_FLAGS has changed value from 4080 to 65520 [ChangedValue]
                     """,
                     hide(
-                        "AddedAbstractMethod",
-                        "AddedClass",
-                        "AddedField",
-                        "AddedFinal",
-                        "AddedInterface",
-                        "AddedMethod",
-                        "AddedPackage",
-                        "ChangedAbstract",
-                        "ChangedDeprecated",
-                        "ChangedThrows",
-                        "ChangedType",
-                        "RemovedClass",
-                        "RemovedDeprecatedClass",
-                        "RemovedMethod",
+                        Issues.ADDED_ABSTRACT_METHOD,
+                        Issues.ADDED_CLASS,
+                        Issues.ADDED_FIELD,
+                        Issues.ADDED_FINAL,
+                        Issues.ADDED_INTERFACE,
+                        Issues.ADDED_METHOD,
+                        Issues.ADDED_PACKAGE,
+                        Issues.CHANGED_ABSTRACT,
+                        Issues.CHANGED_DEPRECATED,
+                        Issues.CHANGED_THROWS,
+                        Issues.CHANGED_TYPE,
+                        Issues.REMOVED_CLASS,
+                        Issues.REMOVED_DEPRECATED_CLASS,
+                        Issues.REMOVED_METHOD,
                     ) +
                         warning(
-                            "ChangedValue",
+                            Issues.CHANGED_VALUE,
                         ),
                 ),
                 ApiLevelCheck(
                     27,
                     "",
                     hide(
-                        "AddedClass",
-                        "AddedField",
-                        "AddedFinal",
-                        "AddedInterface",
-                        "AddedMethod",
-                        "AddedPackage",
-                        "ChangedAbstract",
-                        "ChangedDeprecated",
-                        "ChangedThrows",
-                        "RemovedMethod",
+                        Issues.ADDED_CLASS,
+                        Issues.ADDED_FIELD,
+                        Issues.ADDED_FINAL,
+                        Issues.ADDED_INTERFACE,
+                        Issues.ADDED_METHOD,
+                        Issues.ADDED_PACKAGE,
+                        Issues.CHANGED_ABSTRACT,
+                        Issues.CHANGED_DEPRECATED,
+                        Issues.CHANGED_THROWS,
+                        Issues.REMOVED_METHOD,
                     ),
                 ),
             )
