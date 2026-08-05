@@ -34,6 +34,7 @@ import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
 import com.google.common.collect.ImmutableList
 import com.google.common.collect.ImmutableMap
+import com.google.common.util.concurrent.MoreExecutors
 import com.google.turbine.binder.Binder
 import com.google.turbine.binder.Binder.BindingResult
 import com.google.turbine.binder.ClassPath
@@ -162,16 +163,19 @@ internal class TurbineCodebaseInitialiser(
                     SourceVersion.latest()
                 )
 
-            // Bind the units
-            bindingResult =
-                Binder.bind(
-                    log,
-                    allUnits,
-                    classpath,
-                    annotationProcessorInfo,
-                    bootclasspath,
-                    Optional.empty()
-                )!!
+            MoreExecutors.newDirectExecutorService().use { executor ->
+                // Bind the units
+                bindingResult =
+                    Binder.bind(
+                        executor,
+                        log,
+                        allUnits,
+                        classpath,
+                        annotationProcessorInfo,
+                        bootclasspath,
+                        Optional.empty()
+                    )!!
+            }
         } catch (e: TurbineError) {
             // Catch the [TurbineError] and extract its diagnostics. An exception will be rethrown
             // below after reporting the diagnostics because [bindingResult] will not have been set.

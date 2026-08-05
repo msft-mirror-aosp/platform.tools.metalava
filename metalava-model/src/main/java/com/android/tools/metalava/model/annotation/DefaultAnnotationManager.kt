@@ -637,7 +637,7 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
      * Local cache of the previously released codebase to avoid calling the provider for every
      * affected item.
      */
-    private val previouslyReleasedCodebase by
+    override val previouslyReleasedCodebase by
         lazy(LazyThreadSafetyMode.NONE) { config.previouslyReleasedCodebaseProvider() }
 
     /**
@@ -656,6 +656,11 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
                 null
             } else item.findCorrespondingItemIn(codebase)
         }
+
+    /** Finds the corresponding item in the previously released API, if available. */
+    override fun findPreviouslyReleasedItem(item: SelectableItem): SelectableItem? {
+        return previouslyReleasedCodebase?.let { item.findCorrespondingItemIn(it) }
+    }
 
     override val typedefMode: TypedefMode = config.typedefMode
 }

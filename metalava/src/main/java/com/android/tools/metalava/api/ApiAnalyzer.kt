@@ -48,6 +48,7 @@ import com.android.tools.metalava.model.testOrTrue
 import com.android.tools.metalava.model.value.asString
 import com.android.tools.metalava.model.visitors.ApiFilters
 import com.android.tools.metalava.model.visitors.ApiPredicate
+import com.android.tools.metalava.model.visitors.ApiType
 import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.android.tools.metalava.permission.getRequiresPermissionProxy
 import com.android.tools.metalava.reporter.Issues
@@ -434,6 +435,11 @@ class ApiAnalyzer(
                     // Don't run checks on elements that only exist in bytecode.
                     targetLanguages = TargetLanguageSet.SOURCE,
                 ) {
+
+                /** A [FilterPredicate] that will match removed items. */
+                private val removedFilterPredicate =
+                    ApiType.REMOVED.getApiFilters(config.apiPredicateConfig).emit
+
                 override fun visitParameter(parameter: ParameterItem) {
                     checkTypeReferencesHidden(parameter, parameter.type())
                 }
@@ -489,6 +495,13 @@ class ApiAnalyzer(
                             }
                         }
                     }
+
+                    // Check if any method in the class attempts to hide an overridden method that
+                    // is already part of the API. Call it here as it has to check methods which are
+                    // not part of the API surface.
+                    for (method in cls.methods()) {
+                        checkHidingApiMethodOverride(method)
+                    }
                 }
 
                 override fun visitField(field: FieldItem) {
@@ -505,6 +518,89 @@ class ApiAnalyzer(
                         method.returnType()
                     ) // returnType is nullable only for constructors
                 }
+
+                /**
+                 * Checks whether a method attempts to hide an override of a method that is already
+                 * part of the API.
+                 *
+                 * It is an error to attempt to hide a method in a class if the method overrides an
+                 * API method in a superclass or interface, unless hiding from a narrower API
+                 * surface (e.g. a public class hiding a system API override).
+                 */
+                private fun checkHidingApiMethodOverride(method: MethodItem) {
+                    if (reporter.isSuppressed(Issues.HIDING_API_METHOD_OVERRIDE)) return
+
+                    val cls = method.containingClass()
+                    // Check if the containing class is part of the API surface, but this method is
+                    // hidden from it
+                    if (
+                        filterEmit.testOrTrue(cls) &&
+                            method.variantSelectors.originallyHidden &&
+                            !method.variantSelectors.showability.show()
+                    ) {
+                        // Check to see if the method overrides an API method, if so report an
+                        // issue.
+                        if (!checkIfHiddenMethodIsOverridingApiMethod(method)) {
+                            // Check to see if the method overrides a method that was previously
+                            // part of the API but has since been removed.
+                            checkIfHiddenMethodIsOverridingRemovedMethod(method)
+                        }
+                    }
+                }
+
+                /**
+                 * Report an [Issues.HIDING_API_METHOD_OVERRIDE] issue if this method overrides a
+                 * method that matches [predicate].
+                 *
+                 * If the overridden method is from the class path then do not report an error as it
+                 * may not be possible to determine if a method in a jar matches a specific API
+                 * version.
+                 *
+                 * Do not report an error if a final class hides a protected method from its
+                 * superclass, as there is no way to call a method of a final class through a
+                 * protected method of the superclass.
+                 */
+                private inline fun MethodItem.reportIfOverridingApiMethod(
+                    predicate: FilterPredicate?,
+                    reportMessageProvider: (MethodItem, MethodItem) -> String,
+                ): Boolean =
+                    findPredicateSuperMethod(predicate)
+                        ?.takeIf { overriddenMethod ->
+                            overriddenMethod.origin != ClassOrigin.CLASS_PATH &&
+                                !(containingClass().modifiers.isFinal() &&
+                                    overriddenMethod.modifiers.isProtected())
+                        }
+                        ?.also { overriddenMethod ->
+                            reporter.report(
+                                Issues.HIDING_API_METHOD_OVERRIDE,
+                                this,
+                                reportMessageProvider(this, overriddenMethod),
+                            )
+                        } != null
+
+                /**
+                 * See if there are any super methods that are part of the API.
+                 *
+                 * If there are then report an [Issues.HIDING_API_METHOD_OVERRIDE] issue.
+                 */
+                private fun checkIfHiddenMethodIsOverridingApiMethod(method: MethodItem) =
+                    method.reportIfOverridingApiMethod(filterReference) { method, overriddenMethod
+                        ->
+                        "Attempting to hide ${method.describe()} which overrides ${overriddenMethod.describe()} which is already part of the API"
+                    }
+
+                /**
+                 * See if there are any super methods that were part of the API but have since been
+                 * removed.
+                 *
+                 * If there are then report an [Issues.HIDING_API_METHOD_OVERRIDE] issue.
+                 */
+                private fun checkIfHiddenMethodIsOverridingRemovedMethod(method: MethodItem) =
+                    method.reportIfOverridingApiMethod(removedFilterPredicate) {
+                        method,
+                        overriddenMethod ->
+                        "Attempting to hide ${method.describe()} which overrides ${overriddenMethod.describe()} which was part of the API but has now been removed"
+                    }
 
                 /** Check that the type doesn't refer to any hidden classes. */
                 private fun checkTypeReferencesHidden(item: Item, type: TypeItem) {
