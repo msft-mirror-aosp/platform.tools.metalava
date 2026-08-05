@@ -24,7 +24,6 @@ import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ReferencableItem
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.TypeParameterListOwner
-import com.android.tools.metalava.model.api.flags.ApiFlagAction
 import com.android.tools.metalava.model.doc.DocContent
 import com.android.tools.metalava.model.doc.DocContentOwner
 import com.android.tools.metalava.model.doc.DocContentPredicate
@@ -64,7 +63,7 @@ internal abstract class AbstractItemDocumentation(
     /** Implements [ExprContext.isFlagEnabled]. */
     override fun isFlagEnabled(flagName: String): Boolean {
         val apiFlags = item.codebase.config.apiFlags ?: return true
-        return apiFlags[flagName].action != ApiFlagAction.REVERT
+        return !apiFlags[flagName].action.revert
     }
 
     override val isHidden: Boolean

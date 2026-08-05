@@ -2266,8 +2266,6 @@ class ApiFileTest : DriverTest() {
             apiSurface = KnownApiSurface.PUBLIC,
             sourceFiles =
                 arrayOf(
-                    KnownSourceFiles.hideAnnotation,
-                    KnownSourceFiles.docOnlyAnnotation,
                     java(
                         """
                             @android.annotation.Hide
@@ -3168,6 +3166,7 @@ class ApiFileTest : DriverTest() {
     @Test
     fun `Test include overridden @Deprecated even if annotated with @hide`() {
         check(
+            extraArguments = errorIssues(Issues.HIDING_API_METHOD_OVERRIDE),
             format = FileFormat.V2,
             sourceFiles =
                 arrayOf(
@@ -3216,6 +3215,10 @@ class ApiFileTest : DriverTest() {
                       }
                     }
                     """,
+            expectedIssues =
+                """
+                    src/test/pkg/Child.java:9: error: Attempting to hide method test.pkg.Child.toString() which overrides method test.pkg.Parent.toString() which is already part of the API [HidingApiMethodOverride]
+                """,
         )
     }
 

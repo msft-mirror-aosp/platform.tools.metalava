@@ -21,7 +21,6 @@ import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.testing.EntryPoint
 import com.android.tools.metalava.testing.EntryPointCallerRule
 import com.android.tools.metalava.testing.EntryPointCallerTracker
-import com.android.tools.metalava.testing.KnownSourceFiles
 import com.android.tools.metalava.testing.java
 import org.junit.AssumptionViolatedException
 import org.junit.Rule
@@ -127,7 +126,6 @@ class ParameterizedUnhiddenSystemApiTest : DriverTest() {
             sourceFiles =
                 arrayOf(
                     *extraSourceFiles,
-                    KnownSourceFiles.hideAnnotation,
                     java(
                         """
                             package test.pkg;
