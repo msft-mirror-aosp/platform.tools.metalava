@@ -81,6 +81,7 @@ import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.model.text.SignatureFile
 import com.android.tools.metalava.model.text.assertSignatureFilesMatch
 import com.android.tools.metalava.model.text.prepareSignatureFileForTest
+import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Issues.Issue
 import com.android.tools.metalava.reporter.ReporterEnvironment
 import com.android.tools.metalava.reporter.Severity
@@ -730,8 +731,7 @@ abstract class DriverTest :
                     args.add(signatureFile.path)
                 }
                 if (!includeStrippedSuperclassWarnings) {
-                    args.add(ARG_HIDE)
-                    args.add("HiddenSuperclass") // Suppress warning #111
+                    args.addAll(hiddenIssues(Issues.HIDDEN_SUPERCLASS)) // Suppress warning #111
                 }
                 args.toTypedArray()
             } else if (apiJar != null) {
@@ -1523,19 +1523,28 @@ abstract class DriverTest :
         }
     }
 
-    private inline fun <T> Array<T>.prefixWith(prefix: String, lamba: (T) -> String) =
-        flatMap { listOf(prefix, lamba(it)) }.toTypedArray()
-
     /** Issues that should be treated as [ARG_HIDE]. */
-    fun hiddenIssues(vararg issues: Issue) = issues.prefixWith(ARG_HIDE) { it.name }
+    fun hiddenIssues(vararg issues: Issue) = Companion.hiddenIssues(*issues)
 
     /** Issues that should be treated as [ARG_WARNING]. */
-    fun warningIssues(vararg issues: Issue) = issues.prefixWith(ARG_WARNING) { it.name }
+    fun warningIssues(vararg issues: Issue) = Companion.warningIssues(*issues)
 
     /** Issues that should be treated as [ARG_ERROR]. */
-    fun errorIssues(vararg issues: Issue) = issues.prefixWith(ARG_ERROR) { it.name }
+    fun errorIssues(vararg issues: Issue) = Companion.errorIssues(*issues)
 
     companion object {
+        private inline fun <T> Array<T>.prefixWith(prefix: String, lamba: (T) -> String) =
+            flatMap { listOf(prefix, lamba(it)) }.toTypedArray()
+
+        /** Issues that should be treated as [ARG_HIDE]. */
+        fun hiddenIssues(vararg issues: Issue) = issues.prefixWith(ARG_HIDE) { it.name }
+
+        /** Issues that should be treated as [ARG_WARNING]. */
+        fun warningIssues(vararg issues: Issue) = issues.prefixWith(ARG_WARNING) { it.name }
+
+        /** Issues that should be treated as [ARG_ERROR]. */
+        fun errorIssues(vararg issues: Issue) = issues.prefixWith(ARG_ERROR) { it.name }
+
         /** Read a text file, filtering out any blank lines and removing whitespace from the end. */
         @JvmStatic
         protected fun readFileFilterBlankLines(file: File): String {
@@ -1885,56 +1894,6 @@ val requiresApiSource: TestFile =
         )
         .indented()
 
-val flaggedApiSource: TestFile =
-    java(
-            """
-        package android.annotation;
-        import static java.lang.annotation.ElementType.ANNOTATION_TYPE;
-        import static java.lang.annotation.ElementType.CONSTRUCTOR;
-        import static java.lang.annotation.ElementType.FIELD;
-        import static java.lang.annotation.ElementType.METHOD;
-        import static java.lang.annotation.ElementType.TYPE;
-
-        import java.lang.annotation.Retention;
-        import java.lang.annotation.RetentionPolicy;
-        import java.lang.annotation.Target;
-        /** @hide */
-        @Target({TYPE, METHOD, CONSTRUCTOR, FIELD, ANNOTATION_TYPE})
-        @Retention(RetentionPolicy.CLASS)
-        public @interface FlaggedApi {
-            String value();
-        }
-    """
-        )
-        .indented()
-
-val requiresFlagSource: TestFile =
-    java(
-            """
-        package android.annotation;
-        import static java.lang.annotation.ElementType.ANNOTATION_TYPE;
-        import static java.lang.annotation.ElementType.CONSTRUCTOR;
-        import static java.lang.annotation.ElementType.FIELD;
-        import static java.lang.annotation.ElementType.METHOD;
-        import static java.lang.annotation.ElementType.TYPE;
-
-        import java.lang.annotation.Retention;
-        import java.lang.annotation.RetentionPolicy;
-        import java.lang.annotation.Target;
-
-        @Target({TYPE, METHOD, CONSTRUCTOR, FIELD, ANNOTATION_TYPE})
-        @Retention(RetentionPolicy.CLASS)
-        public @interface RequiresFlag {
-            /**
-             * The aconfig flag used to guard the functionality of the annotated element. Use the aconfig
-             * auto-generated constant to refer to the flag, e.g. {@code @RequiresFlag(Flags.FLAG_FOOBAR)}.
-             */
-            String value();
-        }
-    """
-        )
-        .indented()
-
 private fun restrictedForEnvironmentClass(packageName: String): TestFile =
     java(
             """
@@ -2242,6 +2201,9 @@ data class KnownApiSurface(
     companion object {
         val additionalAndroidSourceFiles =
             listOf(
+                KnownSourceFiles.hideAnnotation,
+                KnownSourceFiles.docOnlyAnnotation,
+                KnownSourceFiles.removedFromApiAnnotation,
                 KnownSourceFiles.systemApiSource,
                 KnownSourceFiles.testApiSource,
             )

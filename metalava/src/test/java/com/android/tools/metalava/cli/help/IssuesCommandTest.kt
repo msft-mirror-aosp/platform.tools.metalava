@@ -17,6 +17,7 @@
 package com.android.tools.metalava.cli.help
 
 import com.android.tools.metalava.cli.common.BaseCommandTest
+import com.android.tools.metalava.reporter.Issues
 import org.junit.Test
 
 class IssuesCommandTest : BaseCommandTest<HelpCommand>({ HelpCommand() }) {
@@ -95,6 +96,7 @@ Available Issues                             |  Category                        
   DeprecatedSurfaceDocTag                    |  unknown                              |   hidden
   DeprecationMismatch                        |  documentation                        |   error
   DuplicateSourceClass                       |  unknown                              |   warning
+  EmptyBuilder                               |  api_lint                             |   warning
   EndsWithImpl                               |  api_lint                             |   error
   Enum                                       |  api_lint                             |   error
   EqualsAndHashCode                          |  api_lint                             |   error
@@ -121,6 +123,7 @@ Available Issues                             |  Category                        
   HiddenSuperclass                           |  documentation                        |   warning
   HiddenTypeParameter                        |  documentation                        |   warning
   HiddenTypedefConstant                      |  unknown                              |   error
+  HidingApiMethodOverride                    |  api_lint                             |   hidden
   HidingRecordComponent                      |  api_lint                             |   error
   IgnoringSymlink                            |  unknown                              |   info
   InconsistentMergeAnnotation                |  api_lint                             |   warning_error_when_new
@@ -286,7 +289,7 @@ Available Issues                             |  Category                        
     @Test
     fun `Test issue help`() {
         commandTest {
-            args += arrayOf("help", "issues", "AddedFinal")
+            args += arrayOf("help", "issues", Issues.ADDED_FINAL.name)
 
             expectedStdout = "Under construction. No additional help available at the moment."
         }
