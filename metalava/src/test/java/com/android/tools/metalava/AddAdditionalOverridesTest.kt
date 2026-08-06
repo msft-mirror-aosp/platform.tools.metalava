@@ -19,6 +19,7 @@
 package com.android.tools.metalava
 
 import com.android.tools.lint.checks.infrastructure.TestFile
+import com.android.tools.metalava.model.text.CustomizableProperty.Companion.ADD_ADDITIONAL_OVERRIDES
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.testing.java
 import org.junit.Test
@@ -36,15 +37,15 @@ class AddAdditionalOverridesTest : DriverTest() {
         check(
             format = format,
             sourceFiles = sourceFiles,
-            api = apiOriginal,
+            expectedApiSignature = apiOriginal,
             extraArguments = extraArguments,
         )
 
         // Signature content with additional overrides check
         check(
-            format = format.copy(specifiedAddAdditionalOverrides = true),
+            format = format.buildCopy { this[ADD_ADDITIONAL_OVERRIDES] = true },
             sourceFiles = sourceFiles,
-            api = apiWithAdditionalOverrides,
+            expectedApiSignature = apiWithAdditionalOverrides,
             extraArguments = extraArguments,
         )
     }
@@ -724,7 +725,7 @@ class AddAdditionalOverridesTest : DriverTest() {
                     ),
                 ),
             format = FileFormat.V2,
-            api =
+            expectedApiSignature =
                 """
                     // Signature format: 2.0
                     package test.pkg {
@@ -734,6 +735,72 @@ class AddAdditionalOverridesTest : DriverTest() {
                       }
                       public class PublicClass2 extends test.pkg.PublicClass1 {
                         ctor public PublicClass2();
+                      }
+                    }
+                """,
+        )
+    }
+
+    @Test
+    fun `Test abstract method override of concrete method that implements abstract method`() {
+        check(
+            sourceFiles =
+                arrayOf(
+                    // Without this, it works as expected. The ElidingPredicate searches for super
+                    // methods of Derived.bar that have the same signature, including modifiers. It
+                    // cannot find one because `Parent.bar` does not match as it is not `abstract`
+                    // and so it treats `Derived.bar` as different to its overridden method and
+                    // includes it in the API surface as expected.
+                    //
+                    // With this, it breaks. The ElidingPredicate searches for super methods of
+                    // `Derived.bar` that have the same signature, including modifiers. It skips
+                    // `Parent.bar` because as explained above it does not match. However, it
+                    // continues searching, finds `GrandParent.bar` and so elides `Parent.bar` as it
+                    // is different to the same as `GrandParent.bar`. That is wrong, it should stop
+                    // at `Parent.bar`.
+                    java(
+                        """
+                            package test.pkg;
+
+                            public interface GrandParent<E> {
+                                Parent<E> bar(int i);
+                            }
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+
+                            public abstract class Parent<E> implements GrandParent<E> {
+                                public Parent<E> bar(int i) {}
+                            }
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+
+                            public abstract class Derived<E> extends Parent<E> {
+                                public abstract Parent<E> bar(int i);
+                            }
+                        """
+                    ),
+                ),
+            format = FileFormat.V2,
+            expectedApiSignature =
+                // TODO(b/293283969): Should include Derived.bar as it is an abstract overload of
+                //   its super method and so has significance in the API.
+                """
+                    package test.pkg {
+                      public abstract class Derived<E> extends test.pkg.Parent<E> {
+                        ctor public Derived();
+                      }
+                      public interface GrandParent<E> {
+                        method public test.pkg.Parent<E> bar(int);
+                      }
+                      public abstract class Parent<E> implements test.pkg.GrandParent<E> {
+                        ctor public Parent();
+                        method public test.pkg.Parent<E> bar(int);
                       }
                     }
                 """,
