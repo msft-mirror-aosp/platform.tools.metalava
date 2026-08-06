@@ -21,6 +21,7 @@ import com.android.tools.metalava.androidRestrictedForEnvironment
 import com.android.tools.metalava.androidXRestrictedForEnvironment
 import com.android.tools.metalava.model.ANDROIDX_ANNOTATION_PACKAGE
 import com.android.tools.metalava.model.ANDROID_ANNOTATION_PACKAGE
+import com.android.tools.metalava.testing.KnownSourceFiles
 import com.android.tools.metalava.testing.java
 import org.junit.Test
 
@@ -32,7 +33,6 @@ class RestrictedForEnvironmentTest : DriverTest() {
         packageName: String = ANDROIDX_ANNOTATION_PACKAGE,
         restrictedForEnvironmentClass: TestFile = androidXRestrictedForEnvironment,
     ) {
-        val packageDir = packageName.replace(".", "/")
         check(
             sourceFiles =
                 arrayOf(
@@ -50,11 +50,12 @@ class RestrictedForEnvironmentTest : DriverTest() {
                         """
                     ),
                     restrictedForEnvironmentClass,
+                    KnownSourceFiles.stringDefSource,
                 ),
-            api =
+            expectedApiSignature =
                 """
                     package test.pkg {
-                      @RestrictedForEnvironment(environments=$packageName.RestrictedForEnvironment.ENVIRONMENT_SDK_RUNTIME, from=14) public class MyClass1 {
+                      @RestrictedForEnvironment(environments="SDK Runtime", from=14) public class MyClass1 {
                         ctor public MyClass1();
                       }
                     }
@@ -69,20 +70,20 @@ class RestrictedForEnvironmentTest : DriverTest() {
                             <root>
                               <item name="test.pkg.MyClass1">
                                 <annotation name="androidx.annotation.RestrictedForEnvironment">
-                                  <val name="environments" val="&quot;SDK Runtime&quot;" />
+                                  <val name="environments" val="{&quot;SDK Runtime&quot;}" />
                                   <val name="from" val="14" />
                                 </annotation>
                               </item>
                             </root>
                         """
                 ),
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
                             package test.pkg;
                             /**
-                             * Javadoc for MyClass1
+                             * Javadoc for MyClass1.
                              * <br>
                              * Restricted for SDK Runtime environment in API level 14.
                              */
@@ -150,6 +151,7 @@ class RestrictedForEnvironmentTest : DriverTest() {
                         """
                     ),
                     androidXRestrictedForEnvironment,
+                    KnownSourceFiles.stringDefSource,
                 ),
             docStubs = true,
             skipEmitPackages = listOf("androidx.annotation"),
@@ -161,24 +163,24 @@ class RestrictedForEnvironmentTest : DriverTest() {
                             <root>
                               <item name="test.pkg.MyClass1">
                                 <annotation name="androidx.annotation.RestrictedForEnvironment">
-                                  <val name="environments" val="&quot;SDK Runtime&quot;" />
+                                  <val name="environments" val="{&quot;SDK Runtime&quot;}" />
                                   <val name="from" val="14" />
                                 </annotation>
                                 <annotation name="androidx.annotation.RestrictedForEnvironment">
-                                  <val name="environments" val="&quot;SDK Runtime&quot;" />
+                                  <val name="environments" val="{&quot;SDK Runtime&quot;}" />
                                   <val name="from" val="16" />
                                 </annotation>
                               </item>
                             </root>
                         """
                 ),
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
                             package test.pkg;
                             /**
-                             * Javadoc for MyClass1
+                             * Javadoc for MyClass1.
                              * <br>
                              * Restricted for SDK Runtime environment in API level 14.
                              * <br>
