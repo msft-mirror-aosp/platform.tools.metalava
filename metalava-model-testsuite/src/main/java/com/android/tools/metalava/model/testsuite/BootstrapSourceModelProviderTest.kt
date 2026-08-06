@@ -16,17 +16,30 @@
 
 package com.android.tools.metalava.model.testsuite
 
+import com.android.tools.metalava.model.ANNOTATION_ATTR_VALUE
 import com.android.tools.metalava.model.AnnotationRetention
 import com.android.tools.metalava.model.ClassTypeItem
-import com.android.tools.metalava.model.DefaultAnnotationSingleAttributeValue
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.VariableTypeItem
+import com.android.tools.metalava.model.api.ApiSurfaceRules
+import com.android.tools.metalava.model.api.SurfaceSelectionRule
+import com.android.tools.metalava.model.api.surface.ApiSurfaces
 import com.android.tools.metalava.model.noOpAnnotationManager
+import com.android.tools.metalava.model.provider.InputFormat
+import com.android.tools.metalava.model.testing.SupportedInputFormats
+import com.android.tools.metalava.model.testing.classTypeItem
+import com.android.tools.metalava.model.testing.value.annotationItem
+import com.android.tools.metalava.model.testing.value.arrayValue
+import com.android.tools.metalava.model.testing.value.arrayValueFromAny
+import com.android.tools.metalava.model.testing.value.classObjectValue
+import com.android.tools.metalava.model.testing.value.fieldReferenceValue
+import com.android.tools.metalava.model.value.asInt
 import com.android.tools.metalava.testing.java
 import com.google.common.truth.Truth.assertThat
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
+import kotlin.test.assertSame
 import org.junit.Test
 
 /**
@@ -36,6 +49,7 @@ import org.junit.Test
  * previous test so that a developer would start by running the first test, making it pass,
  * submitting the changes and then moving on to the next test.
  */
+@SupportedInputFormats(InputFormat.JAVA)
 class BootstrapSourceModelProviderTest : BaseModelTest() {
 
     @Test
@@ -117,7 +131,7 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
             ),
         ) {
             val testClass = codebase.assertClass("test.pkg.Test")
-            val methodItem = testClass.assertMethod("method", "")
+            val methodItem = testClass.assertMethod("method", emptyList())
             assertEquals("method", methodItem.name())
         }
     }
@@ -136,7 +150,7 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
             ),
         ) {
             val testClass = codebase.assertClass("test.pkg.Test")
-            val constructorItem = testClass.assertConstructor("")
+            val constructorItem = testClass.assertConstructor(emptyList())
             assertEquals("Test", constructorItem.name())
         }
     }
@@ -376,7 +390,7 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
             assertEquals(2, classItem.interfaceTypes().count())
 
             assertNotNull(superClassType)
-            assertEquals(null, superClassType.asClass())
+            assertEquals(null, superClassType.resolveClass(codebase))
         }
     }
 
@@ -471,31 +485,42 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
 
             assertEquals(3, customAnno1.attributes.count())
             assertEquals(false, customAnno1.isRetention())
-            assertEquals(
-                true,
-                listOf("child1", "child2").toTypedArray() contentEquals
-                    custAnno1Attr1.legacyValue.value() as Array<*>
-            )
-            assertEquals(5, custAnno1Attr2.legacyValue.value())
-            assertEquals("test.SimpleClass", custAnno1Attr3.legacyValue.value())
+            assertEquals(arrayValueFromAny("child1", "child2"), custAnno1Attr1.value)
+            assertEquals(5, custAnno1Attr2.value.asInt())
+            assertEquals(classObjectValue(classTypeItem("test.SimpleClass")), custAnno1Attr3.value)
             assertEquals(annoClassItem1, customAnno1.resolve())
             assertEquals(true, retAnno.isRetention())
-            assertEquals(AnnotationRetention.RUNTIME, annoClassItem1.getRetention())
+            assertEquals(AnnotationRetention.RUNTIME, annoClassItem1.annotationClass.retention)
 
             assertEquals(annoClassItem2, customAnno2.resolve())
-            assertEquals(12, custAnno2Attr1.legacyValue.value())
+            assertEquals(12, custAnno2Attr1.value.asInt())
 
-            assertEquals("@test.Nullable", nullAnno.toSource())
+            assertEquals(annotationItem("test.Nullable"), nullAnno)
 
             assertEquals(
-                "@java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME)",
-                retAnno.toSource()
+                annotationItem(
+                    "java.lang.annotation.Retention",
+                    ANNOTATION_ATTR_VALUE to
+                        fieldReferenceValue("java.lang.annotation.RetentionPolicy", "RUNTIME"),
+                ),
+                retAnno
             )
             assertEquals(
-                "@java.lang.annotation.Target(java.lang.annotation.ElementType.FIELD)",
-                tarAnno.toSource()
+                annotationItem(
+                    "java.lang.annotation.Target",
+                    ANNOTATION_ATTR_VALUE to
+                        arrayValue(
+                            fieldReferenceValue("java.lang.annotation.ElementType", "FIELD"),
+                        ),
+                ),
+                tarAnno
             )
-            assertEquals(true, tarAnnoAttr1.legacyValue is DefaultAnnotationSingleAttributeValue)
+            assertEquals(
+                arrayValue(
+                    fieldReferenceValue("java.lang.annotation.ElementType", "FIELD"),
+                ),
+                tarAnnoAttr1.value
+            )
         }
     }
 
@@ -538,21 +563,21 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
             ),
         ) {
             val itfCls1 = codebase.assertClass("test.pkg.Interface1")
-            val itf1Mtd1 = itfCls1.assertMethod("method1", "")
-            val itf1Mtd2 = itfCls1.assertMethod("method2", "java.lang.Object")
+            val itf1Mtd1 = itfCls1.assertMethod("method1", emptyList())
+            val itf1Mtd2 = itfCls1.assertMethod("method2", listOf("T"))
 
             val itfCls2 = codebase.assertClass("test.pkg.Interface2")
-            val itf2Mtd1 = itfCls2.assertMethod("method1", "")
+            val itf2Mtd1 = itfCls2.assertMethod("method1", emptyList())
 
             val classItem1 = codebase.assertClass("test.pkg.Test1")
-            val cls1Mtd1 = classItem1.assertMethod("method1", "")
-            val cls1Mtd2 = classItem1.assertMethod("method2", "java.lang.Object")
+            val cls1Mtd1 = classItem1.assertMethod("method1", emptyList())
+            val cls1Mtd2 = classItem1.assertMethod("method2", listOf("Integer"))
 
             val classItem2 = codebase.assertClass("test.pkg.Test2")
-            val cls2Mtd1 = classItem2.assertMethod("method1", "")
+            val cls2Mtd1 = classItem2.assertMethod("method1", emptyList())
 
             val classItem3 = codebase.assertClass("test.pkg.Test3")
-            val cls3Mtd1 = classItem3.assertMethod("method1", "")
+            val cls3Mtd1 = classItem3.assertMethod("method1", emptyList())
 
             assertEquals(listOf(itf2Mtd1), cls1Mtd1.superMethods())
             assertEquals(listOf(itf2Mtd1, itf1Mtd1), cls1Mtd1.allSuperMethods().toList())
@@ -670,7 +695,7 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
             val typeParameter1 = testClass1.typeParameterList.single()
             typeArgument1.assertReferencesTypeParameter(typeParameter1)
             assertEquals("S", (typeArgument1 as VariableTypeItem).toString())
-            assertEquals(0, typeParameter1.typeBounds().count())
+            typeParameter1.assertUsesDefaultTypeBounds()
             assertEquals("test.pkg.Test1<S>", testClassType1.toString())
             assertEquals(null, testClassType1.outerClassType)
 
@@ -706,19 +731,18 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
             ),
         ) {
             val testClass = codebase.assertClass("test.pkg.Test")
-            assertEquals(false, testClass.hasImplicitDefaultConstructor())
             assertEquals(2, testClass.constructors().count())
             val constructorItem = testClass.constructors().first()
             assertEquals("Test", constructorItem.name())
             assertEquals(testClass.type(), constructorItem.returnType())
-            assertEquals(false, testClass.hasImplicitDefaultConstructor())
+            assertEquals(false, constructorItem.isImplicitConstructor())
 
             val testClass1 = codebase.assertClass("test.pkg.Test.Test1")
             val constructorItem1 = testClass1.constructors().single()
             assertEquals("Test1", constructorItem1.name())
             assertEquals("test.pkg.Test.Test1", constructorItem1.returnType().toString())
             assertEquals(testClass1.type(), constructorItem1.returnType())
-            assertEquals(true, testClass1.hasImplicitDefaultConstructor())
+            assertEquals(true, constructorItem1.isImplicitConstructor())
         }
     }
 
@@ -800,19 +824,19 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
             ),
         ) {
             val testClass = codebase.assertClass("test.pkg.Test")
-            val methodItem = testClass.assertMethod("foo", "")
+            val methodItem = testClass.assertMethod("foo", emptyList())
             val testExceptionClass = codebase.assertClass("test.pkg.TestException")
 
             // This must only be available after resolving throwable types.
             assertNull(codebase.findClass("java.io.IOException"))
 
             // Resolve the types to classes.
-            val throwableClasses = methodItem.throwsTypes().map { it.erasedClass }
+            val throwableClasses = methodItem.throwsTypes().map { it.asErasedClass(codebase) }
 
             // This must be available after resolving throwable types.
             val ioExceptionClass = codebase.assertClass("java.io.IOException", expectedEmit = false)
 
-            assertEquals(listOf(testExceptionClass, ioExceptionClass), throwableClasses)
+            assertEquals(listOf(ioExceptionClass, testExceptionClass), throwableClasses)
         }
     }
 
@@ -855,7 +879,7 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
             ),
         ) {
             val classItem = codebase.assertClass("test.pkg.Test")
-            val ctorItem = classItem.createDefaultConstructor()
+            val ctorItem = classItem.createImplicitDefaultConstructor()
 
             assertEquals("Test", ctorItem.name())
             assertEquals(classItem, ctorItem.containingClass())
@@ -923,24 +947,29 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
             val methodComment =
                 """
                     /**
-                         * Method documentation
-                         * Multiple
-                         * Lines
-                         */
+                     * Method documentation
+                     * Multiple
+                     * Lines
+                     */
                 """
                     .trimIndent()
-            assertEquals(
-                sourceFile,
-                innerClassItem.sourceFile(),
-                message = "inner class sourceFile"
-            )
+            assertSame(sourceFile, innerClassItem.sourceFile(), message = "inner class sourceFile")
             assertEquals(headerComment, sourceFile.getHeaderComments())
-            assertEquals(methodComment, methodItem.documentation.text)
-            assertEquals("/** Class documentation */", classItem.documentation.text)
-            assertEquals("/** Field Doc */", fieldItem.documentation.text)
-            assertEquals("", fieldItem1.documentation.text)
-            assertEquals("", pkgItem.documentation.text)
-            assertEquals(classItem.sourceFile(), classItem1.sourceFile())
+            methodItem.assertPrintedDocumentation(
+                expectedOutput = methodComment,
+                message = "method"
+            )
+            classItem.assertPrintedDocumentation(
+                expectedOutput = "/** Class documentation */",
+                message = "class"
+            )
+            fieldItem.assertPrintedDocumentation(
+                expectedOutput = "/** Field Doc */",
+                message = "field"
+            )
+            fieldItem1.assertPrintedDocumentation(expectedOutput = "", message = "field1")
+            pkgItem.assertPrintedDocumentation(expectedOutput = "", message = "package")
+            assertSame(classItem.sourceFile(), classItem1.sourceFile())
         }
     }
 
@@ -990,22 +1019,52 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
 
     @Test
     fun `260 - test doconly members`() {
+        val apiSurfaces = ApiSurfaces.create()
+        val rulesByName = mapOf("public" to listOf(SurfaceSelectionRule.unannotated))
+        val variantRules =
+            listOf(
+                SurfaceSelectionRule.createAnnotationRule(
+                    "test.annotation.DocOnly",
+                    effect = SurfaceSelectionRule.Effect.DOC_ONLY,
+                ),
+            )
+        val apiSurfaceRules = ApiSurfaceRules(apiSurfaces, rulesByName, variantRules)
+
         runSourceCodebaseTest(
-            java(
-                """
-                    package test.pkg;
+            inputSet(
+                // Define a custom DocOnly annotation with no @Target constraint so that it targets
+                // all element types. This is necessary because the test applies it to a field, and
+                // omitting the target constraint ensures that it is not dropped during annotation
+                // binding, allowing the models to behave consistently.
+                java(
+                    """
+                        package test.annotation;
+                        import java.lang.annotation.Retention;
+                        import java.lang.annotation.RetentionPolicy;
 
-                    public class Test {
-                        /** @doconly */
-                        public class Inner {
-                            public int InnerField;
+                        @Retention(RetentionPolicy.SOURCE)
+                        public @interface DocOnly {
                         }
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
+                        import test.annotation.DocOnly;
 
-                        /** @doconly Some docs here */
-                        public int Field;
-                    }
-                """
+                        public class Test {
+                            @DocOnly
+                            public class Inner {
+                                public int InnerField;
+                            }
+
+                            @DocOnly
+                            public int Field;
+                        }
+                    """
+                ),
             ),
+            testFixture = TestFixture(apiSurfaceRules = apiSurfaceRules),
         ) {
             val classItem = codebase.assertClass("test.pkg.Test")
             val classSelectors = classItem.variantSelectors
@@ -1017,7 +1076,7 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
             assertEquals(false, classSelectors.docOnly, message = "classSelectors.docOnly")
             assertEquals(true, innerClassSelectors.docOnly, message = "innerClassSelectors.docOnly")
             assertEquals(true, innerFieldSelectors.docOnly, message = "innerFieldSelectors.docOnly")
-            assertEquals(true, fieldSelectors.docOnly, message = "fieldSelectors.docOnly")
+            assertEquals(false, fieldSelectors.docOnly, message = "fieldSelectors.docOnly")
         }
     }
 }
