@@ -465,7 +465,7 @@ class CompatibilityCheckTest : DriverTest() {
         // Adding final on a class is incompatible.
         check(
             // Make AddedFinalInstantiable an error, so it is reported as an issue.
-            extraArguments = arrayOf("--error", Issues.ADDED_FINAL_UNINSTANTIABLE.name),
+            extraArguments = errorIssues(Issues.ADDED_FINAL_UNINSTANTIABLE),
             expectedIssues =
                 """
                 src/test/pkg/Java.java:2: error: Binary breaking change: Class test.pkg.Java added 'final' qualifier [AddedFinal]
@@ -517,7 +517,7 @@ class CompatibilityCheckTest : DriverTest() {
         // Adding final on a class is incompatible unless the class could not be extended.
         check(
             // Make AddedFinalInstantiable an error, so it is reported as an issue.
-            extraArguments = arrayOf("--error", Issues.ADDED_FINAL_UNINSTANTIABLE.name),
+            extraArguments = errorIssues(Issues.ADDED_FINAL_UNINSTANTIABLE),
             expectedIssues =
                 """
                 src/test/pkg/Java.java:2: error: Class test.pkg.Java added 'final' qualifier but was previously uninstantiable and therefore could not be subclassed [AddedFinalUninstantiable]
@@ -568,7 +568,7 @@ class CompatibilityCheckTest : DriverTest() {
         // Adding final on a method is incompatible.
         check(
             // Make AddedFinalInstantiable an error, so it is reported as an issue.
-            extraArguments = arrayOf("--error", Issues.ADDED_FINAL_UNINSTANTIABLE.name),
+            extraArguments = errorIssues(Issues.ADDED_FINAL_UNINSTANTIABLE),
             expectedIssues =
                 """
                 src/test/pkg/Java.java:4: error: Binary breaking change: Method test.pkg.Java.method has added 'final' qualifier [AddedFinal]
@@ -619,7 +619,7 @@ class CompatibilityCheckTest : DriverTest() {
         // extended.
         check(
             // Make AddedFinalInstantiable an error, so it is reported as an issue.
-            extraArguments = arrayOf("--error", Issues.ADDED_FINAL_UNINSTANTIABLE.name),
+            extraArguments = errorIssues(Issues.ADDED_FINAL_UNINSTANTIABLE),
             expectedIssues =
                 """
                 src/test/pkg/Java.java:4: error: Method test.pkg.Java.method added 'final' qualifier but containing class test.pkg.Java was previously uninstantiable and therefore could not be subclassed [AddedFinalUninstantiable]
@@ -2417,6 +2417,7 @@ class CompatibilityCheckTest : DriverTest() {
     @Test
     fun `Moving removed api back to public api`() {
         check(
+            extraArguments = errorIssues(Issues.HIDING_API_METHOD_OVERRIDE),
             checkCompatibilityRemovedApiReleased =
                 """
                 package android.content {
@@ -2456,7 +2457,10 @@ class CompatibilityCheckTest : DriverTest() {
                     """
                     )
                 ),
-            expectedIssues = ""
+            expectedIssues =
+                """
+                    src/android/content/ContextWrapper.java:10: error: Attempting to hide method android.content.ContextWrapper.createContextForSplit() which overrides method android.content.Parent.createContextForSplit() which is already part of the API [HidingApiMethodOverride]
+                """
         )
     }
 
@@ -2568,6 +2572,7 @@ class CompatibilityCheckTest : DriverTest() {
     @Test
     fun `Inherited deprecated protected @removed method`() {
         check(
+            extraArguments = errorIssues(Issues.HIDING_API_METHOD_OVERRIDE),
             checkCompatibilityApiReleased =
                 """
                 package android.icu.util {
@@ -2608,7 +2613,8 @@ class CompatibilityCheckTest : DriverTest() {
                 ),
             expectedIssues =
                 """
-                """
+                    src/android/icu/util/SpecificCalendar.java:11: error: Attempting to hide method android.icu.util.SpecificCalendar.validateField() which overrides method android.icu.util.Calendar.validateField() which is already part of the API [HidingApiMethodOverride]
+                """,
         )
     }
 
@@ -2924,6 +2930,7 @@ class CompatibilityCheckTest : DriverTest() {
     @Test
     fun `Inherited abstract method`() {
         check(
+            extraArguments = errorIssues(Issues.HIDING_API_METHOD_OVERRIDE),
             checkCompatibilityApiReleased =
                 """
                 package test.pkg {
@@ -2958,7 +2965,10 @@ class CompatibilityCheckTest : DriverTest() {
                     ),
                     systemApiSource
                 ),
-            expectedIssues = ""
+            expectedIssues =
+                """
+                    src/test/pkg/MeasureFormat.java:6: error: Attempting to hide method test.pkg.MeasureFormat.parse() which overrides method test.pkg.UFormat.parse() which is already part of the API [HidingApiMethodOverride]
+                """
         )
     }
 
