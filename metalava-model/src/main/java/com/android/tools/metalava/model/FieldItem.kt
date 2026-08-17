@@ -21,10 +21,20 @@ import com.android.tools.metalava.model.value.asAny
 import java.io.PrintWriter
 
 @MetalavaApi
-interface FieldItem : MemberItem, InheritableItem {
-    /** The property this field backs; inverse of [PropertyItem.backingField] */
-    val property: PropertyItem?
-        get() = null
+interface FieldItem : MemberItem, InheritableItem, ReferencableItem, PossiblyPropertyRelated {
+    /**
+     * The property this field backs; inverse of [PropertyItem.backingField].
+     *
+     * Overridden to provide more specific documentation.
+     */
+    override var property: PropertyItem?
+
+    override fun describe(capitalize: Boolean) =
+        if (isEnumConstant()) {
+            "${if (capitalize) "Enum" else "enum"} constant ${containingClass().qualifiedName()}.${name()}"
+        } else {
+            "${if (capitalize) "Field" else "field"} ${containingClass().qualifiedName()}.${name()}"
+        }
 
     /** The type of this field */
     @MetalavaApi override fun type(): TypeItem
@@ -77,55 +87,10 @@ interface FieldItem : MemberItem, InheritableItem {
         return name().hashCode()
     }
 
-    override fun toStringForItem() = "field ${containingClass().fullName()}.${name()}"
-
-    /**
-     * Check the declared value with a typed comparison, not a string comparison, to accommodate
-     * toolchains with different fp -> string conversions.
-     */
-    fun hasSameConstantValue(other: FieldItem): Boolean {
-        val thisConstant = constantValue
-        val otherConstant = other.constantValue
-        if (thisConstant == null != (otherConstant == null)) {
-            return false
-        }
-
-        // Null values are considered equal
-        if (thisConstant == null) {
-            return true
-        }
-
-        if (type() != other.type()) {
-            return false
-        }
-
-        if (thisConstant == otherConstant) {
-            return true
-        }
-
-        if (thisConstant.toValueString() == otherConstant?.toValueString()) {
-            // TODO(b/354633349): Add support for a special compare ignoring type that handles all
-            //   the conversions that the ValueFactory.createLiteralValue(...) handles.
-            // e.g. Integer(3) and Short(3) are the same; when comparing
-            // with signature files we sometimes don't have the right
-            // types from signatures
-            return true
-        }
-
-        return false
-    }
-
     companion object {
         val comparator: java.util.Comparator<FieldItem> = Comparator { a, b ->
             a.name().compareTo(b.name())
         }
-
-        /**
-         * Comparator that will order [FieldItem]s such that those for which
-         * [FieldItem.isEnumConstant] returns `true` will come before those for which it is `false`.
-         */
-        val comparatorEnumConstantFirst: java.util.Comparator<FieldItem> =
-            Comparator.comparing(FieldItem::isEnumConstant).reversed().thenComparing(comparator)
     }
 
     /**
@@ -133,14 +98,8 @@ interface FieldItem : MemberItem, InheritableItem {
      * the correct Java syntax for the initial value.
      *
      * @param writer the [PrintWriter] to which this will write the field value.
-     * @param nonConstantExpressionProvider optional provider of an expression that will initialize
-     *   the field but will not be considered to be a constant expression as defined in JLS 15.28.
-     * @return `true` if a value was written, false otherwise.
      */
-    fun writeValueWithSemicolon(
-        writer: PrintWriter,
-        nonConstantExpressionProvider: ((FieldItem) -> String?)? = null,
-    ): Boolean {
+    fun writeValueWithSemicolon(writer: PrintWriter) {
         // Use [constantValue] which is only non-null on static final fields.
         when (val value = constantValue?.asAny()) {
             is Int -> {
@@ -216,30 +175,9 @@ interface FieldItem : MemberItem, InheritableItem {
                 )
             }
             else -> {
-                // A non-constant expression initializer is only needed if the field is static and
-                // final. If it was just final and not static then it must be part of a normal class
-                // or an enum in which case they will use a separate initializer block to initialize
-                // the field.
-                if (modifiers.isFinal() && modifiers.isStatic()) {
-                    // Get the non-constant expression, if possible. If one is provided then write
-                    // it out.
-                    nonConstantExpressionProvider?.invoke(this)?.let { nonConstantExpression ->
-                        writer.print(" = ")
-                        writer.print(nonConstantExpression)
-                        writer.print("; // Not compile-time constant")
-                        // A value was written.
-                        return true
-                    }
-                }
-
                 writer.print(';')
-                // A value was not written.
-                return false
             }
         }
-
-        // A value was written.
-        return true
     }
 }
 

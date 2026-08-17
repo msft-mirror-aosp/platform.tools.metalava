@@ -117,7 +117,7 @@ class ParameterizedValueStringTest {
                 LabelledConfig(
                     "annotation-class-renamer",
                     ValueStringConfiguration(
-                        annotationQualifiedNameGetter = { annotationItem ->
+                        annotationQualifiedNameGetter = { annotationItem, _ ->
                             annotationItem.qualifiedName.replace(
                                 "android.annotation.",
                                 "androidx.annotation."
@@ -130,6 +130,14 @@ class ParameterizedValueStringTest {
                 LabelledConfig(
                     "class-object-value-as-source",
                     ValueStringConfiguration(classObjectValueFormat = ClassObjectValueFormat.SOURCE)
+                )
+
+            val INLINE_NUMERIC_FIELD =
+                LabelledConfig(
+                    "inline-numeric-field",
+                    ValueStringConfiguration(
+                        inlineFieldReferenceChecker = { it.fieldName.contains(Regex("""\d""")) }
+                    )
                 )
 
             val NON_LITERAL_FLOAT_SUFFIX =
@@ -613,6 +621,9 @@ class ParameterizedValueStringTest {
                     value = fieldReferenceValue("test.pkg.AClass", "FIELD"),
                     expectedDefaultValueString = "test.pkg.AClass.FIELD",
                 ) {
+                    // The following configurations should not affect the string representation of
+                    // the value being tested.
+                    verifyConfigMatchesDefault(LabelledConfig.INLINE_NUMERIC_FIELD)
                     verifyConfigMatchesDefault(LabelledConfig.SHOW_KOTLIN_COMPANION_OBJECT)
                     verifyConfigMatchesDefault(LabelledConfig.SHOW_KOTLIN_CONVERSION_FUNCTION)
                 },
@@ -717,6 +728,31 @@ class ParameterizedValueStringTest {
                         LabelledConfig.SHOW_KOTLIN_CONVERSION_FUNCTION,
                         "test.pkg.AClass.FIELD.toShort()"
                     )
+                },
+                testCasesForValue(
+                    "inlined field no value",
+                    value =
+                        fieldReferenceValue(
+                            "test.pkg.AClass",
+                            "FIELD1",
+                        ),
+                    expectedDefaultValueString = "test.pkg.AClass.FIELD1",
+                ) {
+                    // This configuration should have no effect because while it does indicate that
+                    // the field should be inlined the field cannot as it has no constant value.
+                    verifyConfigMatchesDefault(LabelledConfig.INLINE_NUMERIC_FIELD)
+                },
+                testCasesForValue(
+                    "inlined field with value",
+                    value =
+                        fieldReferenceValue(
+                            "test.pkg.AClass",
+                            "FIELD1",
+                            literalValue(97),
+                        ),
+                    expectedDefaultValueString = "test.pkg.AClass.FIELD1",
+                ) {
+                    verifyConfigChangesOutput(LabelledConfig.INLINE_NUMERIC_FIELD, "97")
                 },
                 // ********************************* Doubles *********************************
                 testCasesForValue(
