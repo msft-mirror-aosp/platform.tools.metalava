@@ -278,6 +278,10 @@ class ApiClass(name: String, private val isEnum: Boolean) : ApiElement(name) {
                 val myMethods = mMethods
                 val myFields = mFields
                 for ((name, value) in hiddenSuper.mMethods) {
+                    // Constructors are not inherited.
+                    if (name.startsWith("<init>")) {
+                        continue
+                    }
                     if (!myMethods.containsKey(name)) {
                         myMethods[name] = value
                     }

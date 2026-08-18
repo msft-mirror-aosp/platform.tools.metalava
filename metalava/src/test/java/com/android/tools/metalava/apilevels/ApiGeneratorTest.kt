@@ -1312,8 +1312,7 @@ class ApiGeneratorTest : DriverTest() {
     /**
      * Verifies the behavior when a hidden superclass (HiddenSuper) has a public constructor with
      * different parameters to the subclass's (Foo) constructor. When reading android.jar from
-     * bytecode, Foo incorrectly inlines the constructor `<init>(I)V` from HiddenSuper in API level
-     * 1, which then appears as removed in API level 2 when reading from sources.
+     * bytecode, Foo does not inline the constructor `<init>(I)V` from HiddenSuper.
      */
     @Test
     fun `Hidden super class has public constructor with different parameters to subclass`() {
@@ -1350,8 +1349,6 @@ class ApiGeneratorTest : DriverTest() {
                         """
                     )
                 ),
-            // TODO: The `<init>(I)V` constructor was never part of `Foo`'s API because constructors
-            //  are not inherited from superclasses, so it should not be present at all.
             expectedApiVersionsXml =
                 """
                     <?xml version="1.0" encoding="utf-8"?>
@@ -1362,7 +1359,6 @@ class ApiGeneratorTest : DriverTest() {
                         <class name="test/pkg/Foo" since="1.0">
                             <extends name="java/lang/Object"/>
                             <method name="&lt;init>()V"/>
-                            <method name="&lt;init>(I)V" removed="2.0"/>
                         </class>
                     </api>
                 """,
