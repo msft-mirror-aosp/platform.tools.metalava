@@ -1364,4 +1364,77 @@ class ApiGeneratorTest : DriverTest() {
                 """,
         )
     }
+
+    /** Verifies the behavior when inheriting fields from a hidden super class (HiddenSuper). */
+    @Test
+    fun `Inheriting fields from a hidden super class`() {
+        checkConsistencyBetweenHistoricalAndLatestCode(
+            java(
+                """
+                    package test.pkg;
+                    class HiddenSuper {
+                        int packageField = 1;
+                        static int packageStaticField = 2;
+                        static final int PACKAGE_STATIC_FINAL_FIELD = 3;
+                        protected int protectedField = 4;
+                        protected static int protectedStaticField = 5;
+                        protected static final int PROTECTED_STATIC_FINAL_FIELD = 6;
+                        public int publicField = 7;
+                        public static int publicStaticField = 8;
+                        public static final int PUBLIC_STATIC_FINAL_FIELD = 9;
+                    }
+                """
+            ),
+            java(
+                """
+                    package test.pkg;
+                    public class Foo extends HiddenSuper {
+                        public Foo() {}
+                    }
+                """
+            ),
+            expectedStubs =
+                listOf(
+                    java(
+                        """
+                            package test.pkg;
+                            /** @apiSince 1 */
+                            @SuppressWarnings({"unchecked", "deprecation", "all"})
+                            public class Foo {
+                            /** @apiSince 1 */
+                            public Foo() { throw new RuntimeException("Stub!"); }
+                            /** @apiSince 2 */
+                            public static final int PUBLIC_STATIC_FINAL_FIELD = 9;
+                            }
+                        """
+                    )
+                ),
+            // TODO: Only public static final fields should be inherited to match what happens in
+            //  HiddenAspectsInheritor. Currently, inlineFromHiddenSuperClasses inherits all public
+            // and
+            //  protected fields from bytecode (API 1), whereas HiddenAspectsInheritor only inherits
+            //  public static final fields from source (API 2). This causes
+            // PUBLIC_STATIC_FINAL_FIELD to
+            //  appear as since="2.0" and the other fields to appear as removed="2.0".
+            expectedApiVersionsXml =
+                """
+                    <?xml version="1.0" encoding="utf-8"?>
+                    <api version="4" min="1.0">
+                        <class name="java/lang/Object" since="2.0">
+                            <method name="&lt;init>()V"/>
+                        </class>
+                        <class name="test/pkg/Foo" since="1.0">
+                            <extends name="java/lang/Object"/>
+                            <method name="&lt;init>()V"/>
+                            <field name="PROTECTED_STATIC_FINAL_FIELD" removed="2.0"/>
+                            <field name="PUBLIC_STATIC_FINAL_FIELD" since="2.0"/>
+                            <field name="protectedField" removed="2.0"/>
+                            <field name="protectedStaticField" removed="2.0"/>
+                            <field name="publicField" removed="2.0"/>
+                            <field name="publicStaticField" removed="2.0"/>
+                        </class>
+                    </api>
+                """,
+        )
+    }
 }
