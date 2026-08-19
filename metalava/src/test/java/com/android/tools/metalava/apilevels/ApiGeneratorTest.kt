@@ -1596,7 +1596,7 @@ class ApiGeneratorTest : DriverTest() {
     /** Verifies special handling of methods that return an AbstractStringBuilder. */
     @Test
     fun `Inheriting methods from AbstractStringBuilder hidden super class`() {
-        checkConsistencyBetweenHistoricalAndLatestCode(
+        val abstractStringBuilderSource =
             java(
                 """
                     package test.pkg;
@@ -1612,7 +1612,8 @@ class ApiGeneratorTest : DriverTest() {
                         public CharSequence subSequence(int start, int end) { return null; }
                     }
                 """
-            ),
+            )
+        val stringBufferSource =
             java(
                 """
                     package test.pkg;
@@ -1629,7 +1630,8 @@ class ApiGeneratorTest : DriverTest() {
                         public synchronized CharSequence subSequence(int start, int end) { return null; }
                     }
                 """
-            ),
+            )
+        val stringBuilderSource =
             java(
                 """
                     package test.pkg;
@@ -1641,7 +1643,11 @@ class ApiGeneratorTest : DriverTest() {
                         public StringBuilder reverse() { return this; }
                     }
                 """
-            ),
+            )
+        checkConsistencyBetweenHistoricalAndLatestCode(
+            abstractStringBuilderSource,
+            stringBufferSource,
+            stringBuilderSource,
             java(
                 """
                     package test.pkg;
@@ -1663,6 +1669,7 @@ class ApiGeneratorTest : DriverTest() {
                     package test.pkg {
                       public interface CharSequence {
                         method public char charAt(int);
+                        method public default void getChars(int, int, char[]!, int);
                         method public int length();
                         method public test.pkg.CharSequence! subSequence(int, int);
                       }
@@ -1672,7 +1679,6 @@ class ApiGeneratorTest : DriverTest() {
                         method public test.pkg.StringBuffer! append(String!);
                         method public test.pkg.StringBuffer! append(test.pkg.CharSequence!);
                         method public char charAt(int);
-                        method public void getChars(int, int, char[]!, int);
                         method public int length();
                         method public test.pkg.StringBuffer! reverse();
                         method public void setLength(int);
@@ -1684,7 +1690,6 @@ class ApiGeneratorTest : DriverTest() {
                         method public test.pkg.StringBuilder! append(String!);
                         method public test.pkg.StringBuilder! append(test.pkg.CharSequence!);
                         method public char charAt(int);
-                        method public void getChars(int, int, char[]!, int);
                         method public int length();
                         method public test.pkg.StringBuilder! reverse();
                         method public void setLength(int);
@@ -1692,6 +1697,23 @@ class ApiGeneratorTest : DriverTest() {
                       }
                     }
                 """,
+            currentVersionSourceFiles =
+                listOf(
+                    abstractStringBuilderSource,
+                    stringBufferSource,
+                    stringBuilderSource,
+                    java(
+                        """
+                            package test.pkg;
+                            public interface CharSequence {
+                                int length();
+                                char charAt(int index);
+                                CharSequence subSequence(int start, int end);
+                                default void getChars(int srcBegin, int srcEnd, char[] dst, int dstBegin) {}
+                            }
+                        """
+                    ),
+                ),
             expectedStubs =
                 listOf(
                     java(
@@ -1702,6 +1724,8 @@ class ApiGeneratorTest : DriverTest() {
                             public interface CharSequence {
                             /** @apiSince 1 */
                             public char charAt(int index);
+                            /** @apiSince 2 */
+                            public default void getChars(int srcBegin, int srcEnd, char[] dst, int dstBegin) { throw new RuntimeException("Stub!"); }
                             /** @apiSince 1 */
                             public int length();
                             /** @apiSince 1 */
@@ -1793,7 +1817,10 @@ class ApiGeneratorTest : DriverTest() {
                              * @apiSince 1
                              */
                             public char charAt(int index) { throw new RuntimeException("Stub!"); }
-                            /** @apiSince 1 */
+                            /**
+                             * {@inheritDoc}
+                             * @apiSince 1
+                             */
                             public void getChars(int srcBegin, int srcEnd, char[] dst, int dstBegin) { throw new RuntimeException("Stub!"); }
                             /**
                              * {@inheritDoc}
@@ -1816,12 +1843,6 @@ class ApiGeneratorTest : DriverTest() {
                         """
                     ),
                 ),
-            // TODO: Methods returning AbstractStringBuilder from a hidden superclass called
-            //  AbstractStringBuilder should have their return type updated to the subclass and not
-            //  be marked as removed="2.0". Currently, inlineFromHiddenSuperClasses inherits them
-            //  from bytecode (API 1) with return type AbstractStringBuilder, whereas
-            //  HiddenAspectsInheritor ignores them in source (API 2) because AbstractStringBuilder
-            //  is a hidden type.
             expectedApiVersionsXml =
                 """
                     <?xml version="1.0" encoding="utf-8"?>
@@ -1832,34 +1853,27 @@ class ApiGeneratorTest : DriverTest() {
                         <class name="test/pkg/CharSequence" since="1.0">
                             <extends name="java/lang/Object"/>
                             <method name="charAt(I)C"/>
+                            <method name="getChars(II[CI)V" since="2.0"/>
                             <method name="length()I"/>
                             <method name="subSequence(II)Ltest/pkg/CharSequence;"/>
                         </class>
                         <class name="test/pkg/StringBuffer" since="1.0">
                             <extends name="java/lang/Object"/>
                             <method name="&lt;init>()V"/>
-                            <method name="append(C)Ltest/pkg/AbstractStringBuilder;" removed="2.0"/>
                             <method name="append(C)Ltest/pkg/StringBuffer;"/>
-                            <method name="append(Ljava/lang/String;)Ltest/pkg/AbstractStringBuilder;" removed="2.0"/>
                             <method name="append(Ljava/lang/String;)Ltest/pkg/StringBuffer;"/>
-                            <method name="append(Ltest/pkg/CharSequence;)Ltest/pkg/AbstractStringBuilder;" removed="2.0"/>
                             <method name="append(Ltest/pkg/CharSequence;)Ltest/pkg/StringBuffer;"/>
                             <method name="getChars(II[CI)V"/>
-                            <method name="reverse()Ltest/pkg/AbstractStringBuilder;" removed="2.0"/>
                             <method name="reverse()Ltest/pkg/StringBuffer;"/>
                             <method name="setLength(I)V"/>
                         </class>
                         <class name="test/pkg/StringBuilder" since="1.0">
                             <extends name="java/lang/Object"/>
                             <method name="&lt;init>()V"/>
-                            <method name="append(C)Ltest/pkg/AbstractStringBuilder;" removed="2.0"/>
                             <method name="append(C)Ltest/pkg/StringBuilder;"/>
-                            <method name="append(Ljava/lang/String;)Ltest/pkg/AbstractStringBuilder;" removed="2.0"/>
                             <method name="append(Ljava/lang/String;)Ltest/pkg/StringBuilder;"/>
-                            <method name="append(Ltest/pkg/CharSequence;)Ltest/pkg/AbstractStringBuilder;" removed="2.0"/>
                             <method name="append(Ltest/pkg/CharSequence;)Ltest/pkg/StringBuilder;"/>
                             <method name="getChars(II[CI)V"/>
-                            <method name="reverse()Ltest/pkg/AbstractStringBuilder;" removed="2.0"/>
                             <method name="reverse()Ltest/pkg/StringBuilder;"/>
                             <method name="setLength(I)V"/>
                         </class>

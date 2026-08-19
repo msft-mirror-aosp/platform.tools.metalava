@@ -51,6 +51,21 @@ class ApiClass(name: String, private val isEnum: Boolean) : ApiElement(name) {
         get() = mFields.values
 
     /**
+     * Corrects a historical mistake in android.jar files where methods returning
+     * `AbstractStringBuilder` should return the concrete subclass instead.
+     */
+    private fun correctMethodSignature(signature: String): String {
+        if (
+            signature.endsWith(")Ljava/lang/AbstractStringBuilder;") ||
+                signature.endsWith(")Ltest/pkg/AbstractStringBuilder;")
+        ) {
+            val index = signature.lastIndexOf(')')
+            return signature.substring(0, index) + ")L" + this.name + ";"
+        }
+        return signature
+    }
+
+    /**
      * Updates the [ApiElement] for method with [signature], creating and adding one if necessary.
      *
      * @param signature the signature of the method, which includes the name and parameter/return
@@ -64,15 +79,7 @@ class ApiClass(name: String, private val isEnum: Boolean) : ApiElement(name) {
         updater: ApiHistoryUpdater,
         deprecated: Boolean,
     ): ApiElement {
-        // Correct historical mistake in android.jar files
-        var correctedName = signature
-        if (correctedName.endsWith(")Ljava/lang/AbstractStringBuilder;")) {
-            correctedName =
-                correctedName.substring(
-                    0,
-                    correctedName.length - ")Ljava/lang/AbstractStringBuilder;".length
-                ) + ")L" + this.name + ";"
-        }
+        val correctedName = correctMethodSignature(signature)
         return updateElementInMap(mMethods, correctedName, updater, deprecated)
     }
 
@@ -318,13 +325,17 @@ class ApiClass(name: String, private val isEnum: Boolean) : ApiElement(name) {
                         continue
                     }
 
+                    // Correct historical mistake in return types (e.g. AbstractStringBuilder ->
+                    // StringBuilder) before checking if the method is already present or adding it.
+                    val correctedName = correctMethodSignature(name)
+
                     // When reading from sources, HiddenAspectsInheritor copies inherited
                     // methods from hidden super classes onto the subclass. If the method already
                     // exists on this class, update its since version with the version from the
                     // hidden super class in case it was present in an earlier bytecode version.
-                    val existing = myMethods[name]
+                    val existing = myMethods[correctedName]
                     if (existing == null) {
-                        myMethods[name] = value
+                        myMethods[correctedName] = value
                     } else {
                         existing.update(value.since)
                     }
