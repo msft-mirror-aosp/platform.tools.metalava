@@ -1523,4 +1523,73 @@ class ApiGeneratorTest : DriverTest() {
                 """,
         )
     }
+
+    /** Verifies the behavior when inheriting methods from a hidden super class (HiddenSuper). */
+    @Test
+    fun `Inheriting methods from a hidden super class`() {
+        checkConsistencyBetweenHistoricalAndLatestCode(
+            java(
+                """
+                    package test.pkg;
+                    class HiddenSuper {
+                        void packageMethod() {}
+                        static void packageStaticMethod() {}
+                        final void packageFinalMethod() {}
+                        protected void protectedMethod() {}
+                        protected static void protectedStaticMethod() {}
+                        protected final void protectedFinalMethod() {}
+                        public void publicMethod() {}
+                        public static void publicStaticMethod() {}
+                        public final void publicFinalMethod() {}
+                    }
+                """
+            ),
+            java(
+                """
+                    package test.pkg;
+                    public class Foo extends HiddenSuper {
+                        public Foo() {}
+                    }
+                """
+            ),
+            expectedStubs =
+                listOf(
+                    java(
+                        """
+                            package test.pkg;
+                            /** @apiSince 1 */
+                            @SuppressWarnings({"unchecked", "deprecation", "all"})
+                            public class Foo {
+                            /** @apiSince 1 */
+                            public Foo() { throw new RuntimeException("Stub!"); }
+                            /** @apiSince 1 */
+                            public final void publicFinalMethod() { throw new RuntimeException("Stub!"); }
+                            /** @apiSince 1 */
+                            public void publicMethod() { throw new RuntimeException("Stub!"); }
+                            /** @apiSince 1 */
+                            public static void publicStaticMethod() { throw new RuntimeException("Stub!"); }
+                            }
+                        """
+                    )
+                ),
+            // TODO: Only methods that are inherited by HiddenAspectsInheritor should be inherited
+            //  by ApiClass.inlineFromHiddenSuperClasses. Currently, inlineFromHiddenSuperClasses
+            //  inherits all public and protected methods from hidden super classes but then prunes
+            //  them as being insignificant because it assumes that the hidden super class will be
+            //  included in the API.
+            expectedApiVersionsXml =
+                """
+                    <?xml version="1.0" encoding="utf-8"?>
+                    <api version="4" min="1.0">
+                        <class name="java/lang/Object" since="2.0">
+                            <method name="&lt;init>()V"/>
+                        </class>
+                        <class name="test/pkg/Foo" since="1.0">
+                            <extends name="java/lang/Object"/>
+                            <method name="&lt;init>()V"/>
+                        </class>
+                    </api>
+                """,
+        )
+    }
 }
