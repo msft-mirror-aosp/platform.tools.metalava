@@ -1365,7 +1365,10 @@ class ApiGeneratorTest : DriverTest() {
         )
     }
 
-    /** Verifies the behavior when inheriting fields from a hidden super class (HiddenSuper). */
+    /**
+     * Verifies the behavior when inheriting fields from a hidden super class (HiddenSuper). Only
+     * public constant (public static final) fields are inherited into the subclass (Foo).
+     */
     @Test
     fun `Inheriting fields from a hidden super class`() {
         checkConsistencyBetweenHistoricalAndLatestCode(
@@ -1403,19 +1406,12 @@ class ApiGeneratorTest : DriverTest() {
                             public class Foo {
                             /** @apiSince 1 */
                             public Foo() { throw new RuntimeException("Stub!"); }
-                            /** @apiSince 2 */
+                            /** @apiSince 1 */
                             public static final int PUBLIC_STATIC_FINAL_FIELD = 9;
                             }
                         """
                     )
                 ),
-            // TODO: Only public static final fields should be inherited to match what happens in
-            //  HiddenAspectsInheritor. Currently, inlineFromHiddenSuperClasses inherits all public
-            // and
-            //  protected fields from bytecode (API 1), whereas HiddenAspectsInheritor only inherits
-            //  public static final fields from source (API 2). This causes
-            // PUBLIC_STATIC_FINAL_FIELD to
-            //  appear as since="2.0" and the other fields to appear as removed="2.0".
             expectedApiVersionsXml =
                 """
                     <?xml version="1.0" encoding="utf-8"?>
@@ -1426,12 +1422,7 @@ class ApiGeneratorTest : DriverTest() {
                         <class name="test/pkg/Foo" since="1.0">
                             <extends name="java/lang/Object"/>
                             <method name="&lt;init>()V"/>
-                            <field name="PROTECTED_STATIC_FINAL_FIELD" removed="2.0"/>
-                            <field name="PUBLIC_STATIC_FINAL_FIELD" since="2.0"/>
-                            <field name="protectedField" removed="2.0"/>
-                            <field name="protectedStaticField" removed="2.0"/>
-                            <field name="publicField" removed="2.0"/>
-                            <field name="publicStaticField" removed="2.0"/>
+                            <field name="PUBLIC_STATIC_FINAL_FIELD"/>
                         </class>
                     </api>
                 """,
