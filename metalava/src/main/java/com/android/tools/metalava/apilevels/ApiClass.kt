@@ -243,7 +243,11 @@ class ApiClass(name: String, private val isEnum: Boolean) : ApiElement(name) {
     private fun isOverride(method: ApiElement, allClasses: Map<String, ApiClass>): Boolean {
         val name = method.name
         val localMethod = mMethods[name]
-        return if (localMethod != null && localMethod.introducedNotLaterThan(method)) {
+        return if (
+            // A hidden class will not be emitted in the API, so do not treat its methods as
+            // existing API methods being overridden by subclasses.
+            !alwaysHidden && localMethod != null && localMethod.introducedNotLaterThan(method)
+        ) {
             // This class has the method, and it was introduced in at the same api level
             // as the child method, or before.
             true
@@ -313,8 +317,16 @@ class ApiClass(name: String, private val isEnum: Boolean) : ApiElement(name) {
                     if (name.startsWith("<init>")) {
                         continue
                     }
-                    if (!myMethods.containsKey(name)) {
+
+                    // When reading from sources, HiddenAspectsInheritor copies inherited
+                    // methods from hidden super classes onto the subclass. If the method already
+                    // exists on this class, update its since version with the version from the
+                    // hidden super class in case it was present in an earlier bytecode version.
+                    val existing = myMethods[name]
+                    if (existing == null) {
                         myMethods[name] = value
+                    } else {
+                        existing.update(value.since)
                     }
                 }
                 for ((name, value) in hiddenSuper.mFields) {

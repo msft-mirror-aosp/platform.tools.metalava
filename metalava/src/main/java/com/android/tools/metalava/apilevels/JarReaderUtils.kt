@@ -121,8 +121,16 @@ fun Api.readJar(
                 val methodNode = method as MethodNode
                 val methodAccess = methodNode.access
 
-                // The only methods of interest are public and protected methods.
-                if ((methodAccess and (Opcodes.ACC_PUBLIC or Opcodes.ACC_PROTECTED)) == 0) {
+                if (theClass.alwaysHidden) {
+                    // Only public, non-abstract methods can be inherited into subclasses from a
+                    // hidden super class, so ignore any other methods.
+                    if (
+                        (methodAccess and Opcodes.ACC_PUBLIC) == 0 ||
+                            (methodAccess and Opcodes.ACC_ABSTRACT) != 0
+                    ) {
+                        continue
+                    }
+                } else if ((methodAccess and (Opcodes.ACC_PUBLIC or Opcodes.ACC_PROTECTED)) == 0) {
                     continue
                 }
                 val methodName = method.name
