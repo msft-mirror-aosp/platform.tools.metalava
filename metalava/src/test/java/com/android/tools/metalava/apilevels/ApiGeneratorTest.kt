@@ -1265,6 +1265,7 @@ class ApiGeneratorTest : DriverTest() {
         currentVersionSourceFiles: List<TestFile>? = null,
         expectedStubs: List<TestFile>,
         expectedApiVersionsXml: String,
+        expectedApiSignature: String? = null,
     ) {
         val root = buildFileStructure {
             dir("1.0") {
@@ -1305,6 +1306,7 @@ class ApiGeneratorTest : DriverTest() {
                     ARG_API_VERSION_FOR_SOURCES,
                     "2.0",
                 ),
+            expectedApiSignature = expectedApiSignature,
         )
 
         apiVersionsXml.checkApiVersionsXmlContent(expectedApiVersionsXml)
@@ -1585,6 +1587,281 @@ class ApiGeneratorTest : DriverTest() {
                             <method name="publicFinalMethod()V"/>
                             <method name="publicMethod()V"/>
                             <method name="publicStaticMethod()V"/>
+                        </class>
+                    </api>
+                """,
+        )
+    }
+
+    /** Verifies special handling of methods that return an AbstractStringBuilder. */
+    @Test
+    fun `Inheriting methods from AbstractStringBuilder hidden super class`() {
+        checkConsistencyBetweenHistoricalAndLatestCode(
+            java(
+                """
+                    package test.pkg;
+                    class AbstractStringBuilder implements CharSequence {
+                        public AbstractStringBuilder append(char c) { return this; }
+                        public AbstractStringBuilder append(CharSequence s) { return this; }
+                        public AbstractStringBuilder append(String str) { return this; }
+                        public AbstractStringBuilder reverse() { return this; }
+                        public void getChars(int srcBegin, int srcEnd, char[] dst, int dstBegin) {}
+                        public void setLength(int newLength) {}
+                        public int length() { return 0; }
+                        public char charAt(int index) { return ' '; }
+                        public CharSequence subSequence(int start, int end) { return null; }
+                    }
+                """
+            ),
+            java(
+                """
+                    package test.pkg;
+                    public class StringBuffer extends AbstractStringBuilder {
+                        public StringBuffer() {}
+                        public synchronized StringBuffer append(char c) { return this; }
+                        public synchronized StringBuffer append(CharSequence s) { return this; }
+                        public synchronized StringBuffer append(String str) { return this; }
+                        public synchronized StringBuffer reverse() { return this; }
+                        public synchronized void getChars(int srcBegin, int srcEnd, char[] dst, int dstBegin) {}
+                        public synchronized void setLength(int newLength) {}
+                        public synchronized int length() { return 0; }
+                        public synchronized char charAt(int index) { return ' '; }
+                        public synchronized CharSequence subSequence(int start, int end) { return null; }
+                    }
+                """
+            ),
+            java(
+                """
+                    package test.pkg;
+                    public class StringBuilder extends AbstractStringBuilder {
+                        public StringBuilder() {}
+                        public StringBuilder append(char c) { return this; }
+                        public StringBuilder append(CharSequence s) { return this; }
+                        public StringBuilder append(String str) { return this; }
+                        public StringBuilder reverse() { return this; }
+                    }
+                """
+            ),
+            java(
+                """
+                    package test.pkg;
+                    public interface CharSequence {
+                        int length();
+                        char charAt(int index);
+                        CharSequence subSequence(int start, int end);
+                    }
+                """
+            ),
+            expectedApiSignature =
+                """
+                    // Signature format: 5.0
+                    package java.lang {
+                      public class Object {
+                        ctor public Object();
+                      }
+                    }
+                    package test.pkg {
+                      public interface CharSequence {
+                        method public char charAt(int);
+                        method public int length();
+                        method public test.pkg.CharSequence! subSequence(int, int);
+                      }
+                      public class StringBuffer implements test.pkg.CharSequence {
+                        ctor public StringBuffer();
+                        method public test.pkg.StringBuffer! append(char);
+                        method public test.pkg.StringBuffer! append(String!);
+                        method public test.pkg.StringBuffer! append(test.pkg.CharSequence!);
+                        method public char charAt(int);
+                        method public void getChars(int, int, char[]!, int);
+                        method public int length();
+                        method public test.pkg.StringBuffer! reverse();
+                        method public void setLength(int);
+                        method public test.pkg.CharSequence! subSequence(int, int);
+                      }
+                      public class StringBuilder implements test.pkg.CharSequence {
+                        ctor public StringBuilder();
+                        method public test.pkg.StringBuilder! append(char);
+                        method public test.pkg.StringBuilder! append(String!);
+                        method public test.pkg.StringBuilder! append(test.pkg.CharSequence!);
+                        method public char charAt(int);
+                        method public void getChars(int, int, char[]!, int);
+                        method public int length();
+                        method public test.pkg.StringBuilder! reverse();
+                        method public void setLength(int);
+                        method public test.pkg.CharSequence! subSequence(int, int);
+                      }
+                    }
+                """,
+            expectedStubs =
+                listOf(
+                    java(
+                        """
+                            package test.pkg;
+                            /** @apiSince 1 */
+                            @SuppressWarnings({"unchecked", "deprecation", "all"})
+                            public interface CharSequence {
+                            /** @apiSince 1 */
+                            public char charAt(int index);
+                            /** @apiSince 1 */
+                            public int length();
+                            /** @apiSince 1 */
+                            public test.pkg.CharSequence subSequence(int start, int end);
+                            }
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+                            /** @apiSince 1 */
+                            @SuppressWarnings({"unchecked", "deprecation", "all"})
+                            public class StringBuffer implements test.pkg.CharSequence {
+                            /** @apiSince 1 */
+                            public StringBuffer() { throw new RuntimeException("Stub!"); }
+                            /**
+                             * {@inheritDoc}
+                             * @apiSince 1
+                             */
+                            public synchronized test.pkg.StringBuffer append(char c) { throw new RuntimeException("Stub!"); }
+                            /**
+                             * {@inheritDoc}
+                             * @apiSince 1
+                             */
+                            public synchronized test.pkg.StringBuffer append(java.lang.String str) { throw new RuntimeException("Stub!"); }
+                            /**
+                             * {@inheritDoc}
+                             * @apiSince 1
+                             */
+                            public synchronized test.pkg.StringBuffer append(test.pkg.CharSequence s) { throw new RuntimeException("Stub!"); }
+                            /**
+                             * {@inheritDoc}
+                             * @apiSince 1
+                             */
+                            public synchronized char charAt(int index) { throw new RuntimeException("Stub!"); }
+                            /**
+                             * {@inheritDoc}
+                             * @apiSince 1
+                             */
+                            public synchronized void getChars(int srcBegin, int srcEnd, char[] dst, int dstBegin) { throw new RuntimeException("Stub!"); }
+                            /**
+                             * {@inheritDoc}
+                             * @apiSince 1
+                             */
+                            public synchronized int length() { throw new RuntimeException("Stub!"); }
+                            /**
+                             * {@inheritDoc}
+                             * @apiSince 1
+                             */
+                            public synchronized test.pkg.StringBuffer reverse() { throw new RuntimeException("Stub!"); }
+                            /**
+                             * {@inheritDoc}
+                             * @apiSince 1
+                             */
+                            public synchronized void setLength(int newLength) { throw new RuntimeException("Stub!"); }
+                            /**
+                             * {@inheritDoc}
+                             * @apiSince 1
+                             */
+                            public synchronized test.pkg.CharSequence subSequence(int start, int end) { throw new RuntimeException("Stub!"); }
+                            }
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+                            /** @apiSince 1 */
+                            @SuppressWarnings({"unchecked", "deprecation", "all"})
+                            public class StringBuilder implements test.pkg.CharSequence {
+                            /** @apiSince 1 */
+                            public StringBuilder() { throw new RuntimeException("Stub!"); }
+                            /**
+                             * {@inheritDoc}
+                             * @apiSince 1
+                             */
+                            public test.pkg.StringBuilder append(char c) { throw new RuntimeException("Stub!"); }
+                            /**
+                             * {@inheritDoc}
+                             * @apiSince 1
+                             */
+                            public test.pkg.StringBuilder append(java.lang.String str) { throw new RuntimeException("Stub!"); }
+                            /**
+                             * {@inheritDoc}
+                             * @apiSince 1
+                             */
+                            public test.pkg.StringBuilder append(test.pkg.CharSequence s) { throw new RuntimeException("Stub!"); }
+                            /**
+                             * {@inheritDoc}
+                             * @apiSince 1
+                             */
+                            public char charAt(int index) { throw new RuntimeException("Stub!"); }
+                            /** @apiSince 1 */
+                            public void getChars(int srcBegin, int srcEnd, char[] dst, int dstBegin) { throw new RuntimeException("Stub!"); }
+                            /**
+                             * {@inheritDoc}
+                             * @apiSince 1
+                             */
+                            public int length() { throw new RuntimeException("Stub!"); }
+                            /**
+                             * {@inheritDoc}
+                             * @apiSince 1
+                             */
+                            public test.pkg.StringBuilder reverse() { throw new RuntimeException("Stub!"); }
+                            /** @apiSince 1 */
+                            public void setLength(int newLength) { throw new RuntimeException("Stub!"); }
+                            /**
+                             * {@inheritDoc}
+                             * @apiSince 1
+                             */
+                            public test.pkg.CharSequence subSequence(int start, int end) { throw new RuntimeException("Stub!"); }
+                            }
+                        """
+                    ),
+                ),
+            // TODO: Methods returning AbstractStringBuilder from a hidden superclass called
+            //  AbstractStringBuilder should have their return type updated to the subclass and not
+            //  be marked as removed="2.0". Currently, inlineFromHiddenSuperClasses inherits them
+            //  from bytecode (API 1) with return type AbstractStringBuilder, whereas
+            //  HiddenAspectsInheritor ignores them in source (API 2) because AbstractStringBuilder
+            //  is a hidden type.
+            expectedApiVersionsXml =
+                """
+                    <?xml version="1.0" encoding="utf-8"?>
+                    <api version="4" min="1.0">
+                        <class name="java/lang/Object" since="2.0">
+                            <method name="&lt;init>()V"/>
+                        </class>
+                        <class name="test/pkg/CharSequence" since="1.0">
+                            <extends name="java/lang/Object"/>
+                            <method name="charAt(I)C"/>
+                            <method name="length()I"/>
+                            <method name="subSequence(II)Ltest/pkg/CharSequence;"/>
+                        </class>
+                        <class name="test/pkg/StringBuffer" since="1.0">
+                            <extends name="java/lang/Object"/>
+                            <method name="&lt;init>()V"/>
+                            <method name="append(C)Ltest/pkg/AbstractStringBuilder;" removed="2.0"/>
+                            <method name="append(C)Ltest/pkg/StringBuffer;"/>
+                            <method name="append(Ljava/lang/String;)Ltest/pkg/AbstractStringBuilder;" removed="2.0"/>
+                            <method name="append(Ljava/lang/String;)Ltest/pkg/StringBuffer;"/>
+                            <method name="append(Ltest/pkg/CharSequence;)Ltest/pkg/AbstractStringBuilder;" removed="2.0"/>
+                            <method name="append(Ltest/pkg/CharSequence;)Ltest/pkg/StringBuffer;"/>
+                            <method name="getChars(II[CI)V"/>
+                            <method name="reverse()Ltest/pkg/AbstractStringBuilder;" removed="2.0"/>
+                            <method name="reverse()Ltest/pkg/StringBuffer;"/>
+                            <method name="setLength(I)V"/>
+                        </class>
+                        <class name="test/pkg/StringBuilder" since="1.0">
+                            <extends name="java/lang/Object"/>
+                            <method name="&lt;init>()V"/>
+                            <method name="append(C)Ltest/pkg/AbstractStringBuilder;" removed="2.0"/>
+                            <method name="append(C)Ltest/pkg/StringBuilder;"/>
+                            <method name="append(Ljava/lang/String;)Ltest/pkg/AbstractStringBuilder;" removed="2.0"/>
+                            <method name="append(Ljava/lang/String;)Ltest/pkg/StringBuilder;"/>
+                            <method name="append(Ltest/pkg/CharSequence;)Ltest/pkg/AbstractStringBuilder;" removed="2.0"/>
+                            <method name="append(Ltest/pkg/CharSequence;)Ltest/pkg/StringBuilder;"/>
+                            <method name="getChars(II[CI)V"/>
+                            <method name="reverse()Ltest/pkg/AbstractStringBuilder;" removed="2.0"/>
+                            <method name="reverse()Ltest/pkg/StringBuilder;"/>
+                            <method name="setLength(I)V"/>
                         </class>
                     </api>
                 """,
