@@ -1,3 +1,6 @@
+com.android.tools.metalava.model.testsuite.constructoritem.CommonConstructorItemTest
+  Test constructor of inner class has no implicit parameter - jar
+
 com.android.tools.metalava.model.testsuite.fielditem.CommonFieldItemTest
   Test implicit nullability of constant field initialized from @NonNull method
 
