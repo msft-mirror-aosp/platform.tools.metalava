@@ -21,9 +21,6 @@ com.android.tools.metalava.model.testsuite.codebase.CommonCodebaseTest
   Test getTopLevelClassesFromSource[psi,java]
   Test getTopLevelClassesFromSource[turbine]
 
-com.android.tools.metalava.model.testsuite.constructoritem.CommonConstructorItemTest
-  Test constructor of inner class has no implicit parameter - jar[turbine]
-
 com.android.tools.metalava.model.testsuite.fielditem.CommonFieldItemTest
   Test implicit nullability of constant field initialized from @NonNull method[turbine]
 
