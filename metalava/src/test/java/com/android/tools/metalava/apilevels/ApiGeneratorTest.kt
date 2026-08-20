@@ -1262,6 +1262,7 @@ class ApiGeneratorTest : DriverTest() {
      */
     private fun checkConsistencyBetweenHistoricalAndLatestCode(
         vararg sourceFiles: TestFile,
+        currentVersionSourceFiles: List<TestFile>? = null,
         expectedStubs: List<TestFile>,
         expectedApiVersionsXml: String,
     ) {
@@ -1276,7 +1277,7 @@ class ApiGeneratorTest : DriverTest() {
 
         val currentVersion =
             arrayOf(
-                *sourceFiles,
+                *(currentVersionSourceFiles?.toTypedArray() ?: sourceFiles),
                 java(
                     """
                         package java.lang;
@@ -1423,6 +1424,101 @@ class ApiGeneratorTest : DriverTest() {
                             <extends name="java/lang/Object"/>
                             <method name="&lt;init>()V"/>
                             <field name="PUBLIC_STATIC_FINAL_FIELD"/>
+                        </class>
+                    </api>
+                """,
+        )
+    }
+
+    /**
+     * Verifies the behavior when a method exists in a class in one version and is moved up to a
+     * super class in a later version.
+     */
+    @Test
+    fun `Method moved up to a super class in a later version`() {
+        checkConsistencyBetweenHistoricalAndLatestCode(
+            java(
+                """
+                    package test.pkg;
+                    public class Super {
+                        public Super() {}
+                    }
+                """
+            ),
+            java(
+                """
+                    package test.pkg;
+                    public class Foo extends Super {
+                        public Foo() {}
+                        public void foo() {}
+                    }
+                """
+            ),
+            currentVersionSourceFiles =
+                listOf(
+                    java(
+                        """
+                            package test.pkg;
+                            public class Super {
+                                public Super() {}
+                                public void foo() {}
+                            }
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+                            public class Foo extends Super {
+                                public Foo() {}
+                            }
+                        """
+                    ),
+                ),
+            expectedStubs =
+                listOf(
+                    java(
+                        """
+                            package test.pkg;
+                            /** @apiSince 1 */
+                            @SuppressWarnings({"unchecked", "deprecation", "all"})
+                            public class Foo extends test.pkg.Super {
+                            /** @apiSince 1 */
+                            public Foo() { throw new RuntimeException("Stub!"); }
+                            }
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+                            /** @apiSince 1 */
+                            @SuppressWarnings({"unchecked", "deprecation", "all"})
+                            public class Super {
+                            /** @apiSince 1 */
+                            public Super() { throw new RuntimeException("Stub!"); }
+                            /** @apiSince 2 */
+                            public void foo() { throw new RuntimeException("Stub!"); }
+                            }
+                        """
+                    ),
+                ),
+            // TODO: foo()V should not be marked as removed in version 2.0 as it is still accessible
+            //  through the super class.
+            expectedApiVersionsXml =
+                """
+                    <?xml version="1.0" encoding="utf-8"?>
+                    <api version="4" min="1.0">
+                        <class name="java/lang/Object" since="2.0">
+                            <method name="&lt;init>()V"/>
+                        </class>
+                        <class name="test/pkg/Foo" since="1.0">
+                            <extends name="test/pkg/Super"/>
+                            <method name="&lt;init>()V"/>
+                            <method name="foo()V" removed="2.0"/>
+                        </class>
+                        <class name="test/pkg/Super" since="1.0">
+                            <extends name="java/lang/Object"/>
+                            <method name="&lt;init>()V"/>
+                            <method name="foo()V" since="2.0"/>
                         </class>
                     </api>
                 """,
