@@ -1623,11 +1623,6 @@ class ApiGeneratorTest : DriverTest() {
                         """
                     ),
                 ),
-            // TODO: Methods moved up to an interface in a later version should not be marked as
-            //  removed="2.0" on the subclass when a hidden superclass also had the method in an
-            //  earlier version. Currently, findMethodInAncestors stops at the first matching
-            //  ancestor (the hidden superclass with lastPresentIn = 1.0) rather than finding the
-            //  ancestor with the latest lastPresentIn (the interface with lastPresentIn = 2.0).
             expectedApiVersionsXml =
                 """
                     <?xml version="1.0" encoding="utf-8"?>
@@ -1642,12 +1637,12 @@ class ApiGeneratorTest : DriverTest() {
                         <class name="test/pkg/StringBuffer" since="1.0">
                             <extends name="java/lang/Object"/>
                             <method name="&lt;init>()V"/>
-                            <method name="getChars(II[CI)V" removed="2.0"/>
+                            <method name="getChars(II[CI)V"/>
                         </class>
                         <class name="test/pkg/StringBuilder" since="1.0">
                             <extends name="java/lang/Object"/>
                             <method name="&lt;init>()V"/>
-                            <method name="getChars(II[CI)V" removed="2.0"/>
+                            <method name="getChars(II[CI)V"/>
                         </class>
                     </api>
                 """,

@@ -283,7 +283,10 @@ class ApiClass(name: String, private val isEnum: Boolean) : ApiElement(name) {
         return false
     }
 
-    /** Finds the matching method declared by ancestors of this class, if any. */
+    /**
+     * Finds the matching method declared by ancestors of this class with the latest
+     * [lastPresentIn], if any.
+     */
     private fun findMethodInAncestors(
         method: ApiElement,
         allClasses: Map<String, ApiClass>,
@@ -292,18 +295,23 @@ class ApiClass(name: String, private val isEnum: Boolean) : ApiElement(name) {
         if (!visited.add(this)) {
             return null
         }
+        var bestMatch: ApiElement? = null
         for (parent in Iterables.concat(superClasses, interfaces)) {
             val cls = allClasses[parent.name] ?: continue
             val localMethod = cls.mMethods[method.name]
             if (localMethod != null) {
-                return localMethod
+                if (bestMatch == null || bestMatch.lastPresentIn < localMethod.lastPresentIn) {
+                    bestMatch = localMethod
+                }
             }
             val ancestorMethod = cls.findMethodInAncestors(method, allClasses, visited)
             if (ancestorMethod != null) {
-                return ancestorMethod
+                if (bestMatch == null || bestMatch.lastPresentIn < ancestorMethod.lastPresentIn) {
+                    bestMatch = ancestorMethod
+                }
             }
         }
-        return null
+        return bestMatch
     }
 
     private var haveInlined = false
