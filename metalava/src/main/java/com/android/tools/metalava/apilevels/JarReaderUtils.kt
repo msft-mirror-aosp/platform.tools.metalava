@@ -81,14 +81,23 @@ fun Api.readJar(
             // fields
             for (field in classNode.fields) {
                 val fieldNode = field as FieldNode
-                if ((fieldNode.access and (Opcodes.ACC_PUBLIC or Opcodes.ACC_PROTECTED)) == 0) {
+                val access = fieldNode.access
+                if (theClass.alwaysHidden) {
+                    // Only public constant (public static final) fields can be inherited into
+                    // subclasses from a hidden super class, so ignore any other fields.
+                    val publicStaticFinal =
+                        Opcodes.ACC_PUBLIC or Opcodes.ACC_STATIC or Opcodes.ACC_FINAL
+                    if ((access and publicStaticFinal) != publicStaticFinal) {
+                        continue
+                    }
+                } else if ((access and (Opcodes.ACC_PUBLIC or Opcodes.ACC_PROTECTED)) == 0) {
                     continue
                 }
                 if (!fieldNode.name.startsWith("this\$") && fieldNode.name != "\$VALUES") {
                     theClass.updateField(
                         fieldNode.name,
                         updater,
-                        classDeprecated || isDeprecated(fieldNode.access),
+                        classDeprecated || isDeprecated(access),
                     )
                 }
             }

@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.apilevels
 
+import com.android.tools.lint.checks.infrastructure.TestFile
 import com.android.tools.metalava.ARG_ANDROID_JAR_PATTERN
 import com.android.tools.metalava.ARG_API_SURFACE
 import com.android.tools.metalava.ARG_API_VERSION_FOR_SDK_EXTENSION
@@ -1249,6 +1250,182 @@ class ApiGeneratorTest : DriverTest() {
                     </class>
                 </api>
             """
+        )
+    }
+
+    /**
+     * Checks consistency between historical and latest code when generating API levels and stubs.
+     *
+     * It creates an initial release (API 1.0) in bytecode (`android.jar`) from [sourceFiles] and a
+     * current release (API 2.0) from source code, then asserts that the generated stubs match
+     * [expectedStubs] and the generated `api-versions.xml` matches [expectedApiVersionsXml].
+     */
+    private fun checkConsistencyBetweenHistoricalAndLatestCode(
+        vararg sourceFiles: TestFile,
+        expectedStubs: List<TestFile>,
+        expectedApiVersionsXml: String,
+    ) {
+        val root = buildFileStructure {
+            dir("1.0") {
+                jar(
+                    "android.jar",
+                    *sourceFiles,
+                )
+            }
+        }
+
+        val currentVersion =
+            arrayOf(
+                *sourceFiles,
+                java(
+                    """
+                        package java.lang;
+                        public class Object {
+                            public Object() {}
+                        }
+                    """
+                ),
+            )
+
+        val apiVersionsXml = temporaryFolder.newFile("api-versions.xml")
+
+        check(
+            sourceFiles = currentVersion,
+            docStubs = true,
+            applyApiLevelsXml = apiVersionsXml.path,
+            skipEmitPackages = emptyList(),
+            expectedStubFiles = expectedStubs.toTypedArray(),
+            extraArguments =
+                arrayOf(
+                    ARG_GENERATE_API_LEVELS,
+                    apiVersionsXml.path,
+                    ARG_ANDROID_JAR_PATTERN,
+                    "$root/{version:major.minor?}/android.jar",
+                    ARG_API_VERSION_FOR_SOURCES,
+                    "2.0",
+                ),
+        )
+
+        apiVersionsXml.checkApiVersionsXmlContent(expectedApiVersionsXml)
+    }
+
+    /**
+     * Verifies the behavior when a hidden superclass (HiddenSuper) has a public constructor with
+     * different parameters to the subclass's (Foo) constructor. When reading android.jar from
+     * bytecode, Foo does not inline the constructor `<init>(I)V` from HiddenSuper.
+     */
+    @Test
+    fun `Hidden super class has public constructor with different parameters to subclass`() {
+        checkConsistencyBetweenHistoricalAndLatestCode(
+            java(
+                """
+                    package test.pkg;
+                    class HiddenSuper {
+                        public HiddenSuper(int x) {}
+                    }
+                """
+            ),
+            java(
+                """
+                    package test.pkg;
+                    public class Foo extends HiddenSuper {
+                        public Foo() {
+                            super(0);
+                        }
+                    }
+                """
+            ),
+            expectedStubs =
+                listOf(
+                    java(
+                        """
+                            package test.pkg;
+                            /** @apiSince 1 */
+                            @SuppressWarnings({"unchecked", "deprecation", "all"})
+                            public class Foo {
+                            /** @apiSince 1 */
+                            public Foo() { throw new RuntimeException("Stub!"); }
+                            }
+                        """
+                    )
+                ),
+            expectedApiVersionsXml =
+                """
+                    <?xml version="1.0" encoding="utf-8"?>
+                    <api version="4" min="1.0">
+                        <class name="java/lang/Object" since="2.0">
+                            <method name="&lt;init>()V"/>
+                        </class>
+                        <class name="test/pkg/Foo" since="1.0">
+                            <extends name="java/lang/Object"/>
+                            <method name="&lt;init>()V"/>
+                        </class>
+                    </api>
+                """,
+        )
+    }
+
+    /**
+     * Verifies the behavior when inheriting fields from a hidden super class (HiddenSuper). Only
+     * public constant (public static final) fields are inherited into the subclass (Foo).
+     */
+    @Test
+    fun `Inheriting fields from a hidden super class`() {
+        checkConsistencyBetweenHistoricalAndLatestCode(
+            java(
+                """
+                    package test.pkg;
+                    class HiddenSuper {
+                        int packageField = 1;
+                        static int packageStaticField = 2;
+                        static final int PACKAGE_STATIC_FINAL_FIELD = 3;
+                        protected int protectedField = 4;
+                        protected static int protectedStaticField = 5;
+                        protected static final int PROTECTED_STATIC_FINAL_FIELD = 6;
+                        public int publicField = 7;
+                        public static int publicStaticField = 8;
+                        public static final int PUBLIC_STATIC_FINAL_FIELD = 9;
+                    }
+                """
+            ),
+            java(
+                """
+                    package test.pkg;
+                    public class Foo extends HiddenSuper {
+                        public Foo() {}
+                    }
+                """
+            ),
+            expectedStubs =
+                listOf(
+                    java(
+                        """
+                            package test.pkg;
+                            /** @apiSince 1 */
+                            @SuppressWarnings({"unchecked", "deprecation", "all"})
+                            public class Foo {
+                            /** @apiSince 1 */
+                            public Foo() { throw new RuntimeException("Stub!"); }
+                            /** @apiSince 1 */
+                            public static final int PUBLIC_STATIC_FINAL_FIELD = 9;
+                            }
+                        """
+                    )
+                ),
+            expectedApiVersionsXml =
+                """
+                    <?xml version="1.0" encoding="utf-8"?>
+                    <api version="4" min="1.0">
+                        <class name="java/lang/Object" since="2.0">
+                            <method name="&lt;init>()V"/>
+                        </class>
+                        <class name="test/pkg/Foo" since="1.0">
+                            <extends name="java/lang/Object"/>
+                            <method name="&lt;init>()V"/>
+                            <field name="PUBLIC_STATIC_FINAL_FIELD"/>
+                        </class>
+                    </api>
+                """,
         )
     }
 }

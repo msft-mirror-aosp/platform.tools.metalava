@@ -278,13 +278,24 @@ class ApiClass(name: String, private val isEnum: Boolean) : ApiElement(name) {
                 val myMethods = mMethods
                 val myFields = mFields
                 for ((name, value) in hiddenSuper.mMethods) {
+                    // Constructors are not inherited.
+                    if (name.startsWith("<init>")) {
+                        continue
+                    }
                     if (!myMethods.containsKey(name)) {
                         myMethods[name] = value
                     }
                 }
                 for ((name, value) in hiddenSuper.mFields) {
-                    if (!myFields.containsKey(name)) {
+                    // When reading from sources, HiddenAspectsInheritor copies inherited
+                    // fields from hidden super classes onto the subclass. If the field already
+                    // exists on this class, update its since version with the version from the
+                    // hidden super class in case it was present in an earlier bytecode version.
+                    val existing = myFields[name]
+                    if (existing == null) {
                         myFields[name] = value
+                    } else {
+                        existing.update(value.since)
                     }
                 }
             }
