@@ -218,8 +218,16 @@ class ApiClass(name: String, private val isEnum: Boolean) : ApiElement(name) {
         val it: MutableIterator<Map.Entry<String, ApiElement>> = mMethods.entries.iterator()
         while (it.hasNext()) {
             val (_, method) = it.next()
-            if (!method.name.startsWith("<init>(") && isOverrideOfInherited(method, allClasses)) {
+            if (method.name.startsWith("<init>(")) {
+                continue
+            }
+            if (isOverrideOfInherited(method, allClasses)) {
                 it.remove()
+            } else {
+                val superMethod = findMethodInAncestors(method, allClasses)
+                if (superMethod != null) {
+                    method.updateLastPresentIn(minOf(lastPresentIn, superMethod.lastPresentIn))
+                }
             }
         }
     }
@@ -262,6 +270,29 @@ class ApiClass(name: String, private val isEnum: Boolean) : ApiElement(name) {
             }
         }
         return false
+    }
+
+    /** Finds the matching method declared by ancestors of this class, if any. */
+    private fun findMethodInAncestors(
+        method: ApiElement,
+        allClasses: Map<String, ApiClass>,
+        visited: MutableSet<ApiClass> = mutableSetOf()
+    ): ApiElement? {
+        if (!visited.add(this)) {
+            return null
+        }
+        for (parent in Iterables.concat(superClasses, interfaces)) {
+            val cls = allClasses[parent.name] ?: continue
+            val localMethod = cls.mMethods[method.name]
+            if (localMethod != null) {
+                return localMethod
+            }
+            val ancestorMethod = cls.findMethodInAncestors(method, allClasses, visited)
+            if (ancestorMethod != null) {
+                return ancestorMethod
+            }
+        }
+        return null
     }
 
     private var haveInlined = false

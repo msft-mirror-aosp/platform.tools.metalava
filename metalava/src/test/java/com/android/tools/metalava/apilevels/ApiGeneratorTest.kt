@@ -1432,7 +1432,8 @@ class ApiGeneratorTest : DriverTest() {
 
     /**
      * Verifies the behavior when a method exists in a class in one version and is moved up to a
-     * super class in a later version.
+     * super class in a later version. It is not marked as removed in the later version because it
+     * is still accessible through the super class.
      */
     @Test
     fun `Method moved up to a super class in a later version`() {
@@ -1501,8 +1502,6 @@ class ApiGeneratorTest : DriverTest() {
                         """
                     ),
                 ),
-            // TODO: foo()V should not be marked as removed in version 2.0 as it is still accessible
-            //  through the super class.
             expectedApiVersionsXml =
                 """
                     <?xml version="1.0" encoding="utf-8"?>
@@ -1513,7 +1512,7 @@ class ApiGeneratorTest : DriverTest() {
                         <class name="test/pkg/Foo" since="1.0">
                             <extends name="test/pkg/Super"/>
                             <method name="&lt;init>()V"/>
-                            <method name="foo()V" removed="2.0"/>
+                            <method name="foo()V"/>
                         </class>
                         <class name="test/pkg/Super" since="1.0">
                             <extends name="java/lang/Object"/>
