@@ -1526,6 +1526,134 @@ class ApiGeneratorTest : DriverTest() {
         )
     }
 
+    @Test
+    fun `Method moved up to an interface in a later version`() {
+        checkConsistencyBetweenHistoricalAndLatestCode(
+            java(
+                """
+                    package test.pkg;
+                    public interface CharSequence {}
+                """
+            ),
+            java(
+                """
+                    package test.pkg;
+                    class AbstractStringBuilder implements CharSequence {
+                        public void getChars(int srcBegin, int srcEnd, char[] dst, int dstBegin) {}
+                    }
+                """
+            ),
+            java(
+                """
+                    package test.pkg;
+                    public class StringBuffer extends AbstractStringBuilder implements CharSequence {
+                        public StringBuffer() {}
+                        public synchronized void getChars(int srcBegin, int srcEnd, char[] dst, int dstBegin) {}
+                    }
+                """
+            ),
+            java(
+                """
+                    package test.pkg;
+                    public class StringBuilder extends AbstractStringBuilder implements CharSequence {
+                        public StringBuilder() {}
+                    }
+                """
+            ),
+            currentVersionSourceFiles =
+                listOf(
+                    java(
+                        """
+                            package test.pkg;
+                            public interface CharSequence {
+                                public default void getChars(int srcBegin, int srcEnd, char[] dst, int dstBegin) {}
+                            }
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+                            public class StringBuffer implements CharSequence {
+                                public StringBuffer() {}
+                            }
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+                            public class StringBuilder implements CharSequence {
+                                public StringBuilder() {}
+                            }
+                        """
+                    ),
+                ),
+            expectedStubs =
+                listOf(
+                    java(
+                        """
+                            package test.pkg;
+                            /** @apiSince 1 */
+                            @SuppressWarnings({"unchecked", "deprecation", "all"})
+                            public interface CharSequence {
+                            /** @apiSince 2 */
+                            public default void getChars(int srcBegin, int srcEnd, char[] dst, int dstBegin) { throw new RuntimeException("Stub!"); }
+                            }
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+                            /** @apiSince 1 */
+                            @SuppressWarnings({"unchecked", "deprecation", "all"})
+                            public class StringBuffer implements test.pkg.CharSequence {
+                            /** @apiSince 1 */
+                            public StringBuffer() { throw new RuntimeException("Stub!"); }
+                            }
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+                            /** @apiSince 1 */
+                            @SuppressWarnings({"unchecked", "deprecation", "all"})
+                            public class StringBuilder implements test.pkg.CharSequence {
+                            /** @apiSince 1 */
+                            public StringBuilder() { throw new RuntimeException("Stub!"); }
+                            }
+                        """
+                    ),
+                ),
+            // TODO: Methods moved up to an interface in a later version should not be marked as
+            //  removed="2.0" on the subclass when a hidden superclass also had the method in an
+            //  earlier version. Currently, findMethodInAncestors stops at the first matching
+            //  ancestor (the hidden superclass with lastPresentIn = 1.0) rather than finding the
+            //  ancestor with the latest lastPresentIn (the interface with lastPresentIn = 2.0).
+            expectedApiVersionsXml =
+                """
+                    <?xml version="1.0" encoding="utf-8"?>
+                    <api version="4" min="1.0">
+                        <class name="java/lang/Object" since="2.0">
+                            <method name="&lt;init>()V"/>
+                        </class>
+                        <class name="test/pkg/CharSequence" since="1.0">
+                            <extends name="java/lang/Object"/>
+                            <method name="getChars(II[CI)V" since="2.0"/>
+                        </class>
+                        <class name="test/pkg/StringBuffer" since="1.0">
+                            <extends name="java/lang/Object"/>
+                            <method name="&lt;init>()V"/>
+                            <method name="getChars(II[CI)V" removed="2.0"/>
+                        </class>
+                        <class name="test/pkg/StringBuilder" since="1.0">
+                            <extends name="java/lang/Object"/>
+                            <method name="&lt;init>()V"/>
+                            <method name="getChars(II[CI)V" removed="2.0"/>
+                        </class>
+                    </api>
+                """,
+        )
+    }
+
     /** Verifies the behavior when inheriting methods from a hidden super class (HiddenSuper). */
     @Test
     fun `Inheriting methods from a hidden super class`() {
