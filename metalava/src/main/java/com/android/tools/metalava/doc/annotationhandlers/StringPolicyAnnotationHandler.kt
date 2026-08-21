@@ -27,8 +27,15 @@ class StringPolicyAnnotationHandler(
 
     /** Processes the [StringPolicyDefinitionProxy] and returns the documentation for the policy. */
     override fun processPolicyAnnotation(annotation: AnnotationItem, item: Item): String {
-        val proxy = annotation.bindTo<StringPolicyDefinitionProxy>(item)
-        return proxy?.generateDocs() ?: ""
+        val hasValidation =
+            annotation.findAttribute("validation") != null ||
+                annotation.resolve()?.methods()?.any { it.name() == "validation" } == true
+        if (hasValidation) {
+            val proxy = annotation.bindTo<StringPolicyDefinitionProxy>(item)
+            return proxy?.generateDocs() ?: ""
+        }
+        val legacyProxy = annotation.bindTo<LegacyStringPolicyDefinitionProxy>(item)
+        return legacyProxy?.generateDocs() ?: ""
     }
 }
 
@@ -40,6 +47,29 @@ class StringPolicyAnnotationHandler(
  */
 data class StringPolicyDefinitionProxy(
     val base: PolicyDefinitionProxy,
+    val validation: StringValidationProxy,
+) {
+    fun generateDocs() = buildString {
+        val tableEntries = buildList {
+            addAll(base.getTableEntries())
+            val policyValueValidations = validation.getPolicyValueValidations()
+            add(Pair("Policy value", renderPolicyValue("String", policyValueValidations)))
+        }
+
+        append(renderTable(tableEntries))
+    }
+}
+
+// TODO(b/550199902): Remove when validators are extracted from policy definitions
+/**
+ * Proxy class bound to an instance of the legacy
+ * `android.processor.devicepolicy.StringPolicyDefinition` annotation class where validation
+ * properties were inline.
+ *
+ * @see bindTo
+ */
+data class LegacyStringPolicyDefinitionProxy(
+    val base: PolicyDefinitionProxy,
     val emptyStringAllowed: Boolean,
     val unprintableCharactersAllowed: Boolean,
     val pureWhitespaceAllowed: Boolean,
@@ -49,16 +79,40 @@ data class StringPolicyDefinitionProxy(
     fun generateDocs() = buildString {
         val tableEntries = buildList {
             addAll(base.getTableEntries())
-            val policyValueValidations = buildList {
-                if (maxLength != Integer.MAX_VALUE) add("Length max $maxLength characters")
-                if (!emptyStringAllowed) add("No empty string allowed")
-                if (!unprintableCharactersAllowed) add("No unprintable characters allowed")
-                if (!pureWhitespaceAllowed) add("No pure whitespace allowed")
-                if (!unstrippedStringAllowed) add("No unstripped string allowed")
-            }
+            val policyValueValidations =
+                StringValidationProxy(
+                        emptyStringAllowed = emptyStringAllowed,
+                        unprintableCharactersAllowed = unprintableCharactersAllowed,
+                        pureWhitespaceAllowed = pureWhitespaceAllowed,
+                        unstrippedStringAllowed = unstrippedStringAllowed,
+                        maxLength = maxLength,
+                    )
+                    .getPolicyValueValidations()
             add(Pair("Policy value", renderPolicyValue("String", policyValueValidations)))
         }
 
         append(renderTable(tableEntries))
+    }
+}
+
+/**
+ * Proxy class bound to an instance of the `android.processor.devicepolicy.StringValidation`
+ * annotation class.
+ *
+ * @see bindTo
+ */
+data class StringValidationProxy(
+    val emptyStringAllowed: Boolean,
+    val unprintableCharactersAllowed: Boolean,
+    val pureWhitespaceAllowed: Boolean,
+    val unstrippedStringAllowed: Boolean,
+    val maxLength: Int,
+) {
+    fun getPolicyValueValidations(): List<String> = buildList {
+        if (maxLength != Integer.MAX_VALUE) add("Length max $maxLength characters")
+        if (!emptyStringAllowed) add("No empty string allowed")
+        if (!unprintableCharactersAllowed) add("No unprintable characters allowed")
+        if (!pureWhitespaceAllowed) add("No pure whitespace allowed")
+        if (!unstrippedStringAllowed) add("No unstripped string allowed")
     }
 }

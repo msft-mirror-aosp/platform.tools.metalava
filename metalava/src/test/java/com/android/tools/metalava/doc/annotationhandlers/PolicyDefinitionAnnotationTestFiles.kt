@@ -132,10 +132,15 @@ object PolicyDefinitionAnnotationTestFiles {
             }
 
             @Retention(RetentionPolicy.SOURCE)
-            public @interface IntegerPolicyDefinition {
-                PolicyDefinition base();
+            public @interface IntegerValidation {
                 int minValue() default Integer.MIN_VALUE;
                 int maxValue() default Integer.MAX_VALUE;
+            }
+
+            @Retention(RetentionPolicy.SOURCE)
+            public @interface IntegerPolicyDefinition {
+                PolicyDefinition base();
+                IntegerValidation validation() default @IntegerValidation;
                 IntegerResolutionMechanism resolutionMechanism();
             }
 
@@ -146,10 +151,15 @@ object PolicyDefinitionAnnotationTestFiles {
             }
 
             @Retention(RetentionPolicy.SOURCE)
-            public @interface LongPolicyDefinition {
-                PolicyDefinition base();
+            public @interface LongValidation {
                 long minValue() default Long.MIN_VALUE;
                 long maxValue() default Long.MAX_VALUE;
+            }
+
+            @Retention(RetentionPolicy.SOURCE)
+            public @interface LongPolicyDefinition {
+                PolicyDefinition base();
+                LongValidation validation() default @LongValidation;
                 LongResolutionMechanism resolutionMechanism();
             }
 
@@ -172,13 +182,18 @@ object PolicyDefinitionAnnotationTestFiles {
             }
 
             @Retention(RetentionPolicy.SOURCE)
-            public @interface StringPolicyDefinition {
-                PolicyDefinition base();
+            public @interface StringValidation {
                 boolean emptyStringAllowed() default false;
                 boolean unprintableCharactersAllowed() default false;
                 boolean pureWhitespaceAllowed() default false;
                 boolean unstrippedStringAllowed() default false;
                 int maxLength() default Integer.MAX_VALUE;
+            }
+
+            @Retention(RetentionPolicy.SOURCE)
+            public @interface StringPolicyDefinition {
+                PolicyDefinition base();
+                StringValidation validation() default @StringValidation;
             }
 
             @Retention(RetentionPolicy.SOURCE)
@@ -192,6 +207,87 @@ object PolicyDefinitionAnnotationTestFiles {
                 boolean emptyListAllowed() default false;
                 ListResolutionMechanism resolutionMechanism();
                 int maxListLength() default 10000;
+            }
+            """
+        )
+
+    val LEGACY_POLICY_DEFINITION_SOURCE =
+        java(
+            """
+            package android.processor.devicepolicy;
+
+            import java.lang.annotation.Retention;
+            import java.lang.annotation.RetentionPolicy;
+
+            @Retention(RetentionPolicy.SOURCE)
+            public @interface PolicyDefinition {
+                int[] allowedScopes() default {};
+                int affectedResource() default 0;
+                String requiredPermission() default "";
+                String requiredCrossUserPermission() default "";
+                boolean applyOnFullUsersOnly() default false;
+                AllowedDpcTypes allowedDpcTypes();
+                AllowedRoles allowedRoles() default @AllowedRoles;
+            }
+
+            @Retention(RetentionPolicy.SOURCE)
+            public @interface AllowedDpcTypes {
+                public static final int ALLOWED = 1;
+                public static final int DISALLOWED = 2;
+                public static final int ALLOWED_WHEN_AFFILIATED = 3;
+
+                public int deviceOwner();
+                public int managedProfileOwnerOfOrganizationOwnedDevice();
+                public int managedProfileOwnerOfPersonalOwnedDevice();
+                public int fullUserProfileOwner();
+                public int financedDeviceOwner() default DISALLOWED;
+                public int profileOwnerOnUser0() default DISALLOWED;
+            }
+
+            @Retention(RetentionPolicy.SOURCE)
+            public @interface AllowedRoles {
+                public static final int ALLOWED = 1;
+                public static final int DISALLOWED = 2;
+
+                public int deviceController() default DISALLOWED;
+            }
+
+            @Retention(RetentionPolicy.SOURCE)
+            public @interface StringPolicyDefinition {
+                PolicyDefinition base();
+                boolean emptyStringAllowed() default false;
+                boolean unprintableCharactersAllowed() default false;
+                boolean pureWhitespaceAllowed() default false;
+                boolean unstrippedStringAllowed() default false;
+                int maxLength() default Integer.MAX_VALUE;
+            }
+
+            @Retention(RetentionPolicy.SOURCE)
+            public @interface IntegerResolutionMechanism {
+                boolean custom() default false;
+                boolean notCoexistable() default false;
+            }
+
+            @Retention(RetentionPolicy.SOURCE)
+            public @interface IntegerPolicyDefinition {
+                PolicyDefinition base();
+                int minValue() default Integer.MIN_VALUE;
+                int maxValue() default Integer.MAX_VALUE;
+                IntegerResolutionMechanism resolutionMechanism();
+            }
+
+            @Retention(RetentionPolicy.SOURCE)
+            public @interface LongResolutionMechanism {
+                boolean custom() default false;
+                boolean notCoexistable() default false;
+            }
+
+            @Retention(RetentionPolicy.SOURCE)
+            public @interface LongPolicyDefinition {
+                PolicyDefinition base();
+                long minValue() default Long.MIN_VALUE;
+                long maxValue() default Long.MAX_VALUE;
+                LongResolutionMechanism resolutionMechanism();
             }
             """
         )
