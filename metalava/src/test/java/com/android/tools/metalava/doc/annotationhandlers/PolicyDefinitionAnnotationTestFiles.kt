@@ -91,6 +91,7 @@ object PolicyDefinitionAnnotationTestFiles {
                 int affectedResource() default 0;
                 String requiredPermission() default "";
                 String requiredCrossUserPermission() default "";
+                boolean applyOnFullUsersOnly() default false;
                 AllowedDpcTypes allowedDpcTypes();
                 AllowedRoles allowedRoles() default @AllowedRoles;
             }
