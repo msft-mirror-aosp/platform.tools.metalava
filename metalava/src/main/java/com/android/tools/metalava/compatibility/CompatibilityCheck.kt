@@ -1118,7 +1118,8 @@ class CompatibilityCheck(
         }
 
         // Check for changes in abstract, but only for regular classes; older signature files
-        // sometimes describe interface methods as abstract
+        // sometimes describe interface methods as abstract, and interface method dispatch is
+        // dynamic (invokeinterface) rather than invoking super on an abstract class method.
         if (new.containingClass().isClass()) {
             if (!oldModifiers.isAbstract() && newModifiers.isAbstract()) {
                 report(
@@ -1127,6 +1128,19 @@ class CompatibilityCheck(
                     "${new.describeCallableItem(capitalize = true)} has changed 'abstract' qualifier",
                     oldItem = old,
                 )
+            } else if (oldModifiers.isAbstract() && !newModifiers.isAbstract()) {
+                // Changing from abstract to concrete is only an issue if the method was directly
+                // declared on this class in the old API. If old was inherited from an ancestor
+                // (e.g. in older signature files where overridden methods were omitted), new is
+                // just an explicit override in the subclass.
+                if (!old.inheritedFromAncestor) {
+                    report(
+                        Issues.CHANGED_ABSTRACT_TO_CONCRETE,
+                        new,
+                        "${new.describeCallableItem(capitalize = true)} has changed from abstract to concrete",
+                        oldItem = old,
+                    )
+                }
             }
         }
 
@@ -1355,6 +1369,19 @@ class CompatibilityCheck(
                     "${new.describe(capitalize = true)} has changed 'abstract' qualifier",
                     oldItem = old,
                 )
+            } else if (oldModifiers.isAbstract() && !newModifiers.isAbstract()) {
+                // Changing from abstract to concrete is only an issue if the property was directly
+                // declared on this class in the old API. If old was inherited from an ancestor
+                // (e.g. in older signature files where overridden properties were omitted), new is
+                // just an explicit override in the subclass.
+                if (!old.inheritedFromAncestor) {
+                    report(
+                        Issues.CHANGED_ABSTRACT_TO_CONCRETE,
+                        new,
+                        "${new.describe(capitalize = true)} has changed from abstract to concrete",
+                        oldItem = old,
+                    )
+                }
             }
         } else {
             if (oldModifiers.isDefault() && newModifiers.isAbstract()) {
