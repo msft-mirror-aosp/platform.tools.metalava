@@ -18,7 +18,10 @@ package com.android.tools.metalava.stub
 
 import com.android.tools.lint.checks.infrastructure.TestFile
 import com.android.tools.metalava.KnownApiSurface
+import com.android.tools.metalava.KnownConfigFiles
+import com.android.tools.metalava.model.ANDROID_FLAGGED_API
 import com.android.tools.metalava.reporter.Issues
+import com.android.tools.metalava.testing.KnownSourceFiles.flaggedApiSource
 import com.android.tools.metalava.testing.java
 import org.junit.Test
 
@@ -592,6 +595,91 @@ class StubsMethodTest : AbstractStubsTest() {
                             public Foo() { throw new RuntimeException("Stub!"); }
                             public final void finalMethod() { throw new RuntimeException("Stub!"); }
                             public void nonFinalMethod() { throw new RuntimeException("Stub!"); }
+                            }
+                        """
+                    ),
+                ),
+        )
+    }
+
+    @Test
+    fun `Test flagged override of public method does not report HidingApiMethodOverride`() {
+        check(
+            extraArguments = errorIssues(Issues.HIDING_API_METHOD_OVERRIDE),
+            configFiles = arrayOf(KnownConfigFiles.configEmptyApiFlags),
+            checkCompatibilityApiReleased =
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public class Parent {
+                        method public void method();
+                      }
+                      public class Child extends test.pkg.Parent {
+                      }
+                    }
+                """,
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            public class Parent {
+                                public void method() {}
+                            }
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+                            import $ANDROID_FLAGGED_API;
+                            public class Child extends Parent {
+                                @FlaggedApi("flag.name")
+                                @Override
+                                public void method() {}
+                            }
+                        """
+                    ),
+                    flaggedApiSource,
+                ),
+            // TODO: This should not report an error because Child.method() is not explicitly hidden
+            //       via @hide / @Hide, it is only hidden because its @FlaggedApi is reverted, so at
+            //       runtime it simply inherits Parent.method().
+            expectedIssues =
+                """
+                    src/test/pkg/Child.java:6: error: Attempting to hide method test.pkg.Child.method() which overrides method test.pkg.Parent.method() which is already part of the API [HidingApiMethodOverride]
+                """,
+            expectedApiSignature =
+                """
+                    // Signature format: 5.0
+                    package test.pkg {
+                      public class Child extends test.pkg.Parent {
+                        ctor public Child();
+                      }
+                      public class Parent {
+                        ctor public Parent();
+                        method public void method();
+                      }
+                    }
+                """,
+            expectedStubFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            @SuppressWarnings({"unchecked", "deprecation", "all"})
+                            public class Child extends test.pkg.Parent {
+                            public Child() { throw new RuntimeException("Stub!"); }
+                            public void method() { throw new RuntimeException("Stub!"); }
+                            }
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+                            @SuppressWarnings({"unchecked", "deprecation", "all"})
+                            public class Parent {
+                            public Parent() { throw new RuntimeException("Stub!"); }
+                            public void method() { throw new RuntimeException("Stub!"); }
                             }
                         """
                     ),
