@@ -641,13 +641,6 @@ class StubsMethodTest : AbstractStubsTest() {
                     ),
                     flaggedApiSource,
                 ),
-            // TODO: This should not report an error because Child.method() is not explicitly hidden
-            //       via @hide / @Hide, it is only hidden because its @FlaggedApi is reverted, so at
-            //       runtime it simply inherits Parent.method().
-            expectedIssues =
-                """
-                    src/test/pkg/Child.java:6: error: Attempting to hide method test.pkg.Child.method() which overrides method test.pkg.Parent.method() which is already part of the API [HidingApiMethodOverride]
-                """,
             expectedApiSignature =
                 """
                     // Signature format: 5.0
