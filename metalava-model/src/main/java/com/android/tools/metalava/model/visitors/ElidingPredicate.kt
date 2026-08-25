@@ -65,6 +65,13 @@ class ElidingPredicate(
                 ) {
                     return superMethod
                 }
+                // If item is abstract and this included super method is concrete, item is
+                // explicitly re-abstracting a concrete method. Do not search further up this
+                // inheritance path because finding an abstract ancestor (e.g. in a grandparent
+                // interface) would incorrectly cause item to be elided.
+                if (item.modifiers.isAbstract() && !superMethod.modifiers.isAbstract()) {
+                    continue
+                }
             }
             // If the super method is not in the API (e.g. from an inaccessible class or interface),
             // or if it did not match, recursively search its super methods for an ancestor in the
