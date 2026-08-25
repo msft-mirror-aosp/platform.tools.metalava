@@ -37,28 +37,43 @@ class ElidingPredicate(
         // This method should be included, but if it's an exact duplicate
         // override then we can elide it.
         return if (item is MethodItem) {
-            val differentSuper =
-                item.findPredicateSuperMethod(
-                    // This predicate returns true if
-                    // the potential super method has same signature
-                    FilterPredicate { maybeEqualSuperMethod ->
-                        // We're looking for included and perfect signature
-                        wrapped.test(maybeEqualSuperMethod) &&
-                            maybeEqualSuperMethod is MethodItem &&
-                            MethodItem.sameSignature(
-                                item,
-                                maybeEqualSuperMethod,
-                                addAdditionalOverrides = addAdditionalOverrides,
-                            )
-                    }
-                )
+            val duplicateSuper = findDuplicateSuperMethod(item, item)
 
             val doNotElideForAdditionalOverridePurpose =
                 addAdditionalOverrides && item.isRequiredOverridingMethodForTextStub()
 
-            differentSuper == null || doNotElideForAdditionalOverridePurpose
+            duplicateSuper == null || doNotElideForAdditionalOverridePurpose
         } else {
             true
         }
+    }
+
+    /** Search for a super method of [item] in the reference API that has an identical signature. */
+    private fun findDuplicateSuperMethod(item: MethodItem, current: MethodItem): MethodItem? {
+        val superMethods = current.superMethods()
+        for (superMethod in superMethods) {
+            // Check if this super method is included in the reference API.
+            if (wrapped.test(superMethod)) {
+                // If it is in the API and has the exact same signature, we found a duplicate
+                // super method that allows this item to be elided.
+                if (
+                    MethodItem.sameSignature(
+                        item,
+                        superMethod,
+                        addAdditionalOverrides = addAdditionalOverrides,
+                    )
+                ) {
+                    return superMethod
+                }
+            }
+            // If the super method is not in the API (e.g. from an inaccessible class or interface),
+            // or if it did not match, recursively search its super methods for an ancestor in the
+            // API.
+            val found = findDuplicateSuperMethod(item, superMethod)
+            if (found != null) {
+                return found
+            }
+        }
+        return null
     }
 }
