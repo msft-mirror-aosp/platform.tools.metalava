@@ -17,9 +17,10 @@
 package com.android.tools.metalava.model.turbine
 
 import com.android.tools.lint.checks.infrastructure.TestFile
-import com.android.tools.metalava.testing.TemporaryFolderOwner
+import com.android.tools.metalava.testing.BaseTemporaryFolderOwner
 import com.android.tools.metalava.testing.java
 import com.google.common.collect.ImmutableList
+import com.google.common.util.concurrent.MoreExecutors
 import com.google.turbine.binder.Binder
 import com.google.turbine.binder.ClassPathBinder
 import com.google.turbine.binder.JimageClassBinder
@@ -34,13 +35,9 @@ import com.google.turbine.tree.Tree
 import com.google.turbine.tree.Tree.Ident
 import java.util.Optional
 import kotlin.test.fail
-import org.junit.Rule
 import org.junit.Test
-import org.junit.rules.TemporaryFolder
 
-class TurbineFieldResolverTest : TemporaryFolderOwner {
-    @get:Rule override val temporaryFolder = TemporaryFolder()
-
+class TurbineFieldResolverTest : BaseTemporaryFolderOwner() {
     /** Parse and bind [sources] into a [CompoundEnv]. */
     private fun bind(sources: List<TestFile>): CompoundEnv<ClassSymbol, TypeBoundClass> {
         val srcDir = temporaryFolder.newFolder("src")
@@ -57,8 +54,13 @@ class TurbineFieldResolverTest : TemporaryFolderOwner {
         val classPath = ClassPathBinder.bindClasspath(listOf())
         val bootClassPath = JimageClassBinder.bindDefault()
         val result =
-            Binder.bind(units, classPath, bootClassPath, /* moduleVersion= */ Optional.empty())
-                ?: error("Binding failed")
+            Binder.bind(
+                MoreExecutors.newDirectExecutorService(),
+                units,
+                classPath,
+                bootClassPath,
+                /* moduleVersion= */ Optional.empty(),
+            ) ?: error("Binding failed")
 
         // Get mapping from ClassSymbol to TypeBoundClass from the class path.
         val classPathEnv: CompoundEnv<ClassSymbol, TypeBoundClass> =

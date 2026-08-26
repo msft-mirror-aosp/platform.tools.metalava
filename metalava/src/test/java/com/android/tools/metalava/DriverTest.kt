@@ -27,7 +27,9 @@ import com.android.tools.lint.checks.infrastructure.stripComments
 import com.android.tools.lint.client.api.LintClient
 import com.android.tools.metalava.cli.common.ARG_CLASS_PATH
 import com.android.tools.metalava.cli.common.ARG_COMPILED_SOURCES
+import com.android.tools.metalava.cli.common.ARG_ERROR
 import com.android.tools.metalava.cli.common.ARG_HIDE
+import com.android.tools.metalava.cli.common.ARG_JAVA_SOURCE
 import com.android.tools.metalava.cli.common.ARG_MERGE_INCLUSION_ANNOTATIONS
 import com.android.tools.metalava.cli.common.ARG_MERGE_QUALIFIER_ANNOTATIONS
 import com.android.tools.metalava.cli.common.ARG_NO_COLOR
@@ -35,7 +37,9 @@ import com.android.tools.metalava.cli.common.ARG_PROJECT
 import com.android.tools.metalava.cli.common.ARG_QUIET
 import com.android.tools.metalava.cli.common.ARG_REPEAT_ERRORS_MAX
 import com.android.tools.metalava.cli.common.ARG_SOURCE_PATH
+import com.android.tools.metalava.cli.common.ARG_TRACE_FILE
 import com.android.tools.metalava.cli.common.ARG_VERBOSE
+import com.android.tools.metalava.cli.common.ARG_WARNING
 import com.android.tools.metalava.cli.common.CheckerContext
 import com.android.tools.metalava.cli.common.CheckerFunction
 import com.android.tools.metalava.cli.common.ExecutionEnvironment
@@ -51,15 +55,17 @@ import com.android.tools.metalava.cli.lint.ARG_API_LINT_PREVIOUS_API
 import com.android.tools.metalava.cli.lint.ARG_BASELINE_API_LINT
 import com.android.tools.metalava.cli.lint.ARG_ERROR_MESSAGE_API_LINT
 import com.android.tools.metalava.cli.lint.ARG_UPDATE_BASELINE_API_LINT
+import com.android.tools.metalava.cli.multiplatform.ARG_MULTIPLATFORM_API_DIR
+import com.android.tools.metalava.cli.multiplatform.ARG_MULTIPLATFORM_API_SOURCES
+import com.android.tools.metalava.cli.multiplatform.ARG_MULTIPLATFORM_CHECK_COMPATIBILITY
 import com.android.tools.metalava.cli.multiplatform.ARG_MULTIPLATFORM_ENABLED
 import com.android.tools.metalava.cli.signature.ARG_FORMAT
 import com.android.tools.metalava.model.ANDROIDX_ANNOTATION_PACKAGE
 import com.android.tools.metalava.model.ANDROID_ANNOTATION_PACKAGE
-import com.android.tools.metalava.model.ANDROID_SYSTEM_API
-import com.android.tools.metalava.model.ANDROID_TEST_API
 import com.android.tools.metalava.model.Assertions
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.StripJavaLangPrefix
+import com.android.tools.metalava.model.api.surface.ApiVariantType
 import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.source.SourceModelProvider
 import com.android.tools.metalava.model.source.SourceSet
@@ -75,15 +81,20 @@ import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.model.text.SignatureFile
 import com.android.tools.metalava.model.text.assertSignatureFilesMatch
 import com.android.tools.metalava.model.text.prepareSignatureFileForTest
+import com.android.tools.metalava.reporter.Issues
+import com.android.tools.metalava.reporter.Issues.Issue
 import com.android.tools.metalava.reporter.ReporterEnvironment
 import com.android.tools.metalava.reporter.Severity
 import com.android.tools.metalava.reporter.ThrowingReporter
+import com.android.tools.metalava.testing.BaseTemporaryFolderOwner
+import com.android.tools.metalava.testing.JavacCompilationError
 import com.android.tools.metalava.testing.JavacHelper
 import com.android.tools.metalava.testing.KnownJarFiles
 import com.android.tools.metalava.testing.KnownSourceFiles
-import com.android.tools.metalava.testing.TemporaryFolderOwner
+import com.android.tools.metalava.testing.createFiles
 import com.android.tools.metalava.testing.findKotlinStdlibPaths
 import com.android.tools.metalava.testing.getAndroidJar
+import com.android.tools.metalava.testing.xml
 import com.android.utils.SdkUtils
 import com.google.common.io.Closeables
 import com.intellij.openapi.util.Disposer
@@ -94,6 +105,8 @@ import java.io.PrintStream
 import java.io.PrintWriter
 import java.io.StringWriter
 import java.net.URI
+import java.nio.file.Files
+import junit.framework.ComparisonFailure
 import kotlin.text.Charsets.UTF_8
 import org.intellij.lang.annotations.Language
 import org.junit.Assert.assertEquals
@@ -103,14 +116,11 @@ import org.junit.Assert.fail
 import org.junit.Before
 import org.junit.Rule
 import org.junit.rules.ErrorCollector
-import org.junit.rules.TemporaryFolder
 import org.junit.runner.RunWith
 
 @RunWith(DriverTestRunner::class)
 abstract class DriverTest :
-    CodebaseCreatorConfigAware<SourceModelProvider>, TemporaryFolderOwner, Assertions {
-    @get:Rule override val temporaryFolder = TemporaryFolder()
-
+    CodebaseCreatorConfigAware<SourceModelProvider>, BaseTemporaryFolderOwner(), Assertions {
     @get:Rule val errorCollector = ErrorCollector()
 
     /** The [CodebaseCreatorConfig] under which this test will be run. */
@@ -130,12 +140,24 @@ abstract class DriverTest :
         return File(temporaryFolder.root.path, "public-api.txt")
     }
 
+    /**
+     * Run the Metalava main command.
+     *
+     * This provides for three separate ways to handle the failure message:
+     * 1. Not expected to fail. In this case `expectedToFail = false` and `expectedFailureMessage =
+     *    null`.
+     * 2. Expected to fail but do not care about the message as that is not what is being tested. In
+     *    this case `expectedToFail = true` and `expectedFailureMessage = null`.
+     * 3. Expected to fail with specific message. In this case `expectedToFail = true` and
+     *    `expectedFailureMessage = "...expected message..."`.
+     */
     private fun runDriver(
         // The SameParameterValue check reports that this is passed the same value because the first
         // value that is passed is always the same but this is a varargs parameter so other values
         // that are passed matter, and they are not the same.
         args: Array<String>,
-        expectedFail: String,
+        expectedToFail: Boolean,
+        expectedFailureMessage: String?,
         reporterEnvironment: ReporterEnvironment,
         testEnvironment: TestEnvironment,
     ): String {
@@ -164,47 +186,34 @@ abstract class DriverTest :
                 )
             val exitCode = Driver.run(executionEnvironment, args)
             if (exitCode == 0) {
-                assertTrue(
-                    "Test expected to fail but didn't. Expected failure: $expectedFail",
-                    expectedFail.isEmpty()
-                )
+                if (expectedToFail) {
+                    val message =
+                        expectedFailureMessage?.let {
+                            "expected to fail with following message but did not:\n${expectedFailureMessage.prependIndent("    ")}"
+                        } ?: "expected to fail but did not"
+                    errorCollector.addError(AssertionError(message))
+                }
             } else {
-                val actualFail = cleanupString(sw.toString(), null)
-                if (
-                    cleanupString(expectedFail, null).replace(".", "").trim() !=
-                        actualFail.replace(".", "").trim()
-                ) {
-                    val reportedCompatError =
-                        actualFail.startsWith(
-                            "Aborting: Found compatibility problems checking the "
-                        )
+                val actualFailureMessage = removeTestSpecificDirectories(sw.toString()).trim()
+                if (expectedToFail) {
                     if (
-                        expectedFail == "Aborting: Found compatibility problems" &&
-                            reportedCompatError
+                        expectedFailureMessage != null &&
+                            expectedFailureMessage != actualFailureMessage
                     ) {
-                        // Special case for compat checks; we don't want to force each one of them
-                        // to pass in the right string (which may vary based on whether writing out
-                        // the signature was passed at the same time
-                        // ignore
-                    } else {
-                        if (reportedCompatError) {
-                            // if a compatibility error was unexpectedly reported, then mark that as
-                            // an error but keep going, so we can see the actual compatibility error
-                            if (expectedFail.trimIndent() != actualFail) {
-                                addError(
-                                    "ComparisonFailure: expected failure $expectedFail, actual $actualFail"
-                                )
-                            }
-                        } else {
-                            // no compatibility error; check for other errors now, and
-                            // if one is found, fail right away
-                            assertEquals(
-                                "expectedFail does not match actual failures",
-                                expectedFail.trimIndent(),
-                                actualFail
+                        // If the failure was unexpected then report an error but carry on so that
+                        // other checks can be performed.
+                        val failure =
+                            ComparisonFailure(
+                                "expectedFailure mismatch",
+                                expectedFailureMessage,
+                                actualFailureMessage,
                             )
-                        }
+                        errorCollector.addError(failure)
                     }
+                } else {
+                    val message =
+                        "did not expect it to fail but it failed with the following message:\n${actualFailureMessage.prependIndent("    ")}"
+                    errorCollector.addError(AssertionError(message))
                 }
             }
 
@@ -370,33 +379,49 @@ abstract class DriverTest :
         /** Any jars to add to the class path */
         classpath: Array<TestFile>? = null,
         /** The API signature content (corresponds to --api) */
-        @Language("TEXT") api: String? = null,
+        @Language("TEXT") expectedApiSignature: String? = null,
         /** The removed API (corresponds to --removed-api) */
         removedApi: String? = null,
         /** Expected stubs (corresponds to --stubs) */
-        stubFiles: Array<TestFile> = emptyArray(),
+        expectedStubFiles: Array<TestFile> = emptyArray(),
+        /**
+         * Whether to ignore parameter names when comparing stub files. Should only be true when
+         * generating stubs from signature files.
+         */
+        ignoreParameterNamesInStubFiles: Boolean = false,
         /** Expected paths of stub files created */
         stubPaths: Array<String>? = null,
         /**
-         * Controls whether blank lines are filtered from stub files before comparing against the
-         * expected content.
-         *
-         * Defaults to `true`.
-         */
-        filterBlankLinesFromStubFiles: Boolean = false,
-        /**
          * Whether the stubs should be written as documentation stubs instead of plain stubs.
-         * Decides whether the stubs include @doconly elements, uses rewritten/migration
-         * annotations, etc
+         * Decides whether the stubs include [ApiVariantType.DOC_ONLY] items, uses
+         * rewritten/migration annotations, etc
          */
         docStubs: Boolean = false,
         /** Signature file format */
         format: FileFormat = FileFormat.V5,
-        /** All expected issues to be generated when analyzing these sources */
+        /**
+         * All expected issues to be generated when analyzing these sources.
+         *
+         * If this contains an issue of severity error then this will expect the command to fail but
+         * will not check the actual failure message unless a non-empty [expectedFail] is provided.
+         *
+         * @see expectedFail
+         */
         expectedIssues: String? = "",
         /** Expected [Severity.ERROR] issues to be generated when analyzing these sources */
         errorSeverityExpectedIssues: String? = null,
-        checkCompilation: Boolean = false,
+
+        /** A list of [CompilationCheck]s to perform with the generated stubs. */
+        compilationChecks: List<CompilationCheck>? = null,
+
+        /**
+         * If `true` then stubs will be generated and then compiled to make sure that they are valid
+         * java.
+         *
+         * Defaults to `false` if [compilationChecks] is not specified or is empty.
+         */
+        checkCompilation: Boolean = compilationChecks?.isNotEmpty() == true,
+
         /** Annotations to merge in (in .xml format) */
         @Language("XML") mergeXmlAnnotations: String? = null,
         /** Annotations to merge in (in .txt/.signature format) */
@@ -446,8 +471,6 @@ abstract class DriverTest :
         @Language("Proguard") proguard: String? = null,
         /** Show annotations (--show-annotation arguments) */
         showAnnotations: Array<String> = emptyArray(),
-        /** "Show for stub purposes" API annotation ([ARG_SHOW_FOR_STUB_PURPOSES_ANNOTATION]) */
-        showForStubPurposesAnnotations: Array<String> = emptyArray(),
         /** Hide annotations (--hide-annotation arguments) */
         hideAnnotations: Array<String> = emptyArray(),
         /** API Compatibility important annotations (--api-compat-annotation) */
@@ -460,7 +483,17 @@ abstract class DriverTest :
         extraArguments: Array<out String> = emptyArray(),
         /** Expected output (stdout and stderr combined). If null, don't check. */
         expectedOutput: String? = null,
-        /** Expected fail message and state, if any */
+        /**
+         * Expected fail message and state, if any.
+         *
+         * If this is set to a non-empty string then this will expect the command to fail with that
+         * exact message (after [removeTestSpecificDirectories] is called on it).
+         *
+         * This only needs to be set by tests that actually care about the failure message that is
+         * output. Otherwise, leaving this unset will not check the failure message.
+         *
+         * @see expectedIssues
+         */
         expectedFail: String? = null,
         /** Optional manifest to load and associate with the codebase */
         @Language("XML") manifest: String? = null,
@@ -471,8 +504,8 @@ abstract class DriverTest :
         importedPackages: List<String> = emptyList(),
         /** See [TestEnvironment.skipEmitPackages], defaults to [DEFAULT_SKIP_EMIT_PACKAGES]. */
         skipEmitPackages: List<String>? = null,
-        /** Whether we should include --showAnnotations=android.annotation.SystemApi */
-        includeSystemApiAnnotations: SystemApiType? = null,
+        /** Optional test surface to use. */
+        apiSurface: KnownApiSurface? = null,
         /** Whether we should warn about super classes that are stripped because they are hidden */
         includeStrippedSuperclassWarnings: Boolean = false,
         /**
@@ -530,6 +563,11 @@ abstract class DriverTest :
         @Language("TEXT") apiLint: String? = null,
         /** The source files to pass to the analyzer */
         sourceFiles: Array<TestFile> = emptyArray(),
+        /**
+         * Additional source files that will be available on the source path but not included in the
+         * source files passed on the command line.
+         */
+        additionalSourcePathFiles: Array<TestFile> = emptyArray(),
         /** Lint project description */
         projectDescription: TestFile? = null,
         /** Jar file with the compiled sources loaded in addition to [sourceFiles]. */
@@ -539,11 +577,27 @@ abstract class DriverTest :
         /** Whether to create a multiplatform codebase. Only supported with psi. */
         enableMultiplatform: Boolean = false,
         /**
+         * A map from expected multiplatform API file name to contents. There should be one for each
+         * source set with an expected signature file.
+         */
+        multiplatformApi: Map<String, String> = emptyMap(),
+        /** Signature files to parse as source into a MultiplatformCodebase. */
+        multiplatformSignatureSource: List<TestFile> = emptyList(),
+        /**
          * If true, this does not include arguments specifying source files (from [sourceFiles]) in
          * the command run by Driver. This allows creating a multiplatform codebase (when
          * [enableMultiplatform] is true) without creating a regular codebase.
          */
         skipSourceArgs: Boolean = false,
+        /** Signature files to parse into a MultiplatformCodebase for compatibility checks. */
+        multiplatformCompatibilityApi: List<TestFile>? = null,
+        /** Whether tracing should be enabled */
+        enableTracing: Boolean = false,
+        /**
+         * Language level of the Java source files. If not specified
+         * [com.android.tools.metalava.model.source.DEFAULT_JAVA_LANGUAGE_LEVEL] is used.
+         */
+        javaLanguageLevel: String? = null,
         /**
          * Called on a [CheckerContext] after the analysis phase in the metalava main command.
          *
@@ -566,9 +620,14 @@ abstract class DriverTest :
         // Ensure that lint infrastructure (for UAST) knows it's dealing with a test
         LintCliClient(LintClient.CLIENT_UNIT_TESTS)
 
+        // Add any additional source files from the apiSurface.
+        val allSourceFiles =
+            apiSurface?.let { apiSurface -> sourceFiles + apiSurface.additionalSourceFiles }
+                ?: sourceFiles
+
         // Verify that a test that provided kotlin code is only being run against a provider that
         // supports kotlin code.
-        val anyKotlin = sourceFiles.any { it.targetPath.endsWith(DOT_KT) }
+        val anyKotlin = allSourceFiles.any { it.targetPath.endsWith(DOT_KT) }
         if (anyKotlin) {
             if (Capability.KOTLIN !in codebaseCreatorConfig.creator.capabilities) {
                 error(
@@ -595,22 +654,20 @@ abstract class DriverTest :
                 newBasename = "removed-released-api.txt",
             )
 
-        val actualExpectedFail =
-            when {
-                expectedFail != null -> expectedFail
-                (releasedApiCheck.required() || releasedRemovedApiCheck.required()) &&
-                    expectedIssues?.contains(": error:") == true -> {
-                    "Aborting: Found compatibility problems"
-                }
-                else -> ""
-            }
+        // This is expected to fail if the expectedIssues contains an error issue or expectedFail
+        // is not null and not empty.
+        val expectedToFail = expectedIssues.containsErrorIssue() || !expectedFail.isNullOrEmpty()
+
+        // Get the expected failure message.
+        val expectedFailureMessage = expectedFail?.trimIndent()
 
         // Unit test which checks that a signature file is as expected
         val androidJar = getAndroidJar()
 
-        val project = createProject(sourceFiles)
+        // Create the main project directory containing the source files.
+        val projectDir = createProjectDir(allSourceFiles)
 
-        val sourcePathDir = File(project, "src")
+        val sourcePathDir = File(projectDir, "src")
         if (!sourcePathDir.isDirectory) {
             sourcePathDir.mkdirs()
         }
@@ -618,15 +675,34 @@ abstract class DriverTest :
         var sourcePath = sourcePathDir.path
 
         // Make it easy to configure a source path with more than one source root: src and src2
-        if (sourceFiles.any { it.targetPath.startsWith("src2") }) {
+        if (allSourceFiles.any { it.targetPath.startsWith("src2") }) {
             sourcePath = sourcePath + File.pathSeparator + sourcePath + "2"
         }
 
-        fun pathUnderProject(path: String): String = File(project, path).path
+        // Add any additional sources onto the source path.
+        if (additionalSourcePathFiles.isNotEmpty()) {
+            // Get the directory for the folder.
+            val dir = getOrCreateFolder("extra-source-files")
 
-        val projectDescriptionFile = projectDescription?.createFile(project)
+            // Create the files. Note, that Java files are created in a `src` subdirectory of the
+            // dir passed in to createFiles(File).
+            additionalSourcePathFiles.createFiles(dir)
 
-        val compiledSourceJarFile = compiledSourceJar?.createFile(project)
+            // Create a file for the `src` subdirectory.
+            val srcDir = dir.resolve("src")
+
+            // Add a label for it.
+            temporaryFolder.addTestLabelForFile(srcDir, "ADDITIONAL-SOURCE-PATH")
+
+            // Add it to the source path.
+            sourcePath = sourcePath + File.pathSeparator + srcDir
+        }
+
+        fun pathUnderProject(path: String): String = File(projectDir, path).path
+
+        val projectDescriptionFile = projectDescription?.createFile(projectDir)
+
+        val compiledSourceJarFile = compiledSourceJar?.createFile(projectDir)
         if (
             compiledSourceJarFile != null &&
                 Capability.JAR_WITH_SOURCES !in codebaseCreatorConfig.creator.capabilities
@@ -650,23 +726,22 @@ abstract class DriverTest :
                 val args = mutableListOf<String>()
                 sources.forEach { file ->
                     val signatureFile =
-                        File(project, "load-api${ if (++num == 1) "" else num.toString() }.txt")
+                        File(projectDir, "load-api${ if (++num == 1) "" else num.toString() }.txt")
                     signatureFile.writeSignatureText(file)
                     args.add(signatureFile.path)
                 }
                 if (!includeStrippedSuperclassWarnings) {
-                    args.add(ARG_HIDE)
-                    args.add("HiddenSuperclass") // Suppress warning #111
+                    args.addAll(hiddenIssues(Issues.HIDDEN_SUPERCLASS)) // Suppress warning #111
                 }
                 args.toTypedArray()
             } else if (apiJar != null) {
                 sourcePathDir.mkdirs()
-                assert(sourceFiles.isEmpty()) {
+                assert(allSourceFiles.isEmpty()) {
                     "Shouldn't combine sources with API jar file loads"
                 }
                 arrayOf(apiJar.path)
             } else {
-                sourceFiles
+                allSourceFiles
                     .asSequence()
                     .map { pathUnderProject(it.targetPath) }
                     .toList()
@@ -677,7 +752,7 @@ abstract class DriverTest :
             if (classpath != null) {
                 val classpathString =
                     classpath
-                        .map { it.createFile(project) }
+                        .map { it.createFile(projectDir) }
                         .map { it.path }
                         .joinToString(separator = File.pathSeparator) { it }
 
@@ -690,10 +765,10 @@ abstract class DriverTest :
         val errorSeverityReportedIssues = StringBuilder()
         val reporterEnvironment =
             object : ReporterEnvironment {
-                override val rootFolder = project
+                override val rootFolder = projectDir
 
                 override fun printReport(message: String, severity: Severity) {
-                    val cleanedUpMessage = cleanupString(message, rootFolder).trim()
+                    val cleanedUpMessage = removeTestSpecificDirectories(message).trim()
                     if (severity == Severity.ERROR) {
                         errorSeverityReportedIssues.append(cleanedUpMessage).append('\n')
                     }
@@ -703,12 +778,12 @@ abstract class DriverTest :
 
         val configFileArgs =
             configFiles
-                .flatMap { listOf(ARG_CONFIG_FILE, it.indented().createFile(project).path) }
+                .flatMap { listOf(ARG_CONFIG_FILE, it.indented().createFile(projectDir).path) }
                 .toTypedArray()
 
         val mergeAnnotationsArgs =
             if (mergeXmlAnnotations != null) {
-                val merged = File(project, "merged-annotations.xml")
+                val merged = File(projectDir, "merged-annotations.xml")
                 merged.writeText(mergeXmlAnnotations.trimIndent())
                 arrayOf(ARG_MERGE_QUALIFIER_ANNOTATIONS, merged.path)
             } else {
@@ -717,7 +792,7 @@ abstract class DriverTest :
 
         val signatureAnnotationsArgs =
             if (mergeSignatureAnnotations != null) {
-                val merged = File(project, "merged-annotations.txt")
+                val merged = File(projectDir, "merged-annotations.txt")
                 merged.writeText(mergeSignatureAnnotations.trimIndent())
                 arrayOf(ARG_MERGE_QUALIFIER_ANNOTATIONS, merged.path)
             } else {
@@ -731,7 +806,7 @@ abstract class DriverTest :
                 val cls = ClassName(mergeJavaStubAnnotations)
                 val pkg = cls.packageName
                 val relative = pkg?.replace('.', File.separatorChar) ?: "."
-                val merged = File(project, "qualifier/$relative/${cls.className}.java")
+                val merged = File(projectDir, "qualifier/$relative/${cls.className}.java")
                 merged.parentFile.mkdirs()
                 merged.writeText(mergeJavaStubAnnotations.trimIndent())
                 arrayOf(ARG_MERGE_QUALIFIER_ANNOTATIONS, merged.path)
@@ -745,7 +820,7 @@ abstract class DriverTest :
                 mergeInclusionAnnotations
                     .flatMapIndexed { i, testFile ->
                         val suffix = if (i == 0) "" else i.toString()
-                        val targetDir = File(project, "inclusion$suffix")
+                        val targetDir = File(projectDir, "inclusion$suffix")
                         targetDir.mkdirs()
                         testFile.createFile(targetDir)
                         listOf(ARG_MERGE_INCLUSION_ANNOTATIONS, targetDir.path)
@@ -760,7 +835,7 @@ abstract class DriverTest :
                 if (apiLint.isBlank()) {
                     arrayOf(ARG_API_LINT)
                 } else {
-                    val file = File(project, "prev-api-lint.txt")
+                    val file = File(projectDir, "prev-api-lint.txt")
                     file.writeSignatureText(apiLint)
                     arrayOf(ARG_API_LINT, ARG_API_LINT_PREVIOUS_API, file.path)
                 }
@@ -770,7 +845,7 @@ abstract class DriverTest :
 
         val manifestFileArgs =
             if (manifest != null) {
-                val file = File(project, "manifest.xml")
+                val file = File(projectDir, "manifest.xml")
                 file.writeText(manifest.trimIndent())
                 arrayOf(ARG_MANIFEST, file.path)
             } else {
@@ -779,7 +854,7 @@ abstract class DriverTest :
 
         val migrateNullsArguments =
             migrateNullsApiList.contentOrPathListToArgsArray(
-                project,
+                projectDir,
                 "stable-api.txt",
                 ARG_MIGRATE_NULLNESS
             )
@@ -807,25 +882,34 @@ abstract class DriverTest :
         var proguardFile: File? = null
         val proguardKeepArguments =
             if (proguard != null) {
-                proguardFile = File(project, "proguard.cfg")
+                proguardFile = File(projectDir, "proguard.cfg")
                 arrayOf(ARG_PROGUARD, proguardFile.path)
             } else {
                 emptyArray()
             }
 
+        val apiSurfaceArguments =
+            if (apiSurface != null) {
+                listOf(
+                        ARG_API_SURFACE,
+                        apiSurface.surface,
+                        ARG_CONFIG_FILE,
+                        apiSurface.configFile.createFile(projectDir).path,
+                    )
+                    .toTypedArray()
+            } else {
+                emptyArray()
+            }
+
         val showAnnotationArguments =
-            if (showAnnotations.isNotEmpty() || includeSystemApiAnnotations != null) {
-                val args = mutableListOf<String>()
-                for (annotation in showAnnotations) {
-                    args.add(ARG_SHOW_ANNOTATION)
-                    args.add(annotation)
-                }
-                if (includeSystemApiAnnotations != null) {
-                    if (!args.contains(includeSystemApiAnnotations.annotationClass)) {
-                        args.addAll(includeSystemApiAnnotations.extraArguments)
+            if (showAnnotations.isNotEmpty()) {
+                buildList {
+                        for (annotation in showAnnotations) {
+                            add(ARG_SHOW_ANNOTATION)
+                            add(annotation)
+                        }
                     }
-                }
-                args.toTypedArray()
+                    .toTypedArray()
             } else {
                 emptyArray()
             }
@@ -835,18 +919,6 @@ abstract class DriverTest :
                 val args = mutableListOf<String>()
                 for (annotation in hideAnnotations) {
                     args.add(ARG_HIDE_ANNOTATION)
-                    args.add(annotation)
-                }
-                args.toTypedArray()
-            } else {
-                emptyArray()
-            }
-
-        val showForStubPurposesAnnotationArguments =
-            if (showForStubPurposesAnnotations.isNotEmpty()) {
-                val args = mutableListOf<String>()
-                for (annotation in showForStubPurposesAnnotations) {
-                    args.add(ARG_SHOW_FOR_STUB_PURPOSES_ANNOTATION)
                     args.add(annotation)
                 }
                 args.toTypedArray()
@@ -888,8 +960,8 @@ abstract class DriverTest :
 
         var stubsDir: File? = null
         val stubsArgs =
-            if (stubFiles.isNotEmpty() || stubPaths != null) {
-                stubsDir = getOrCreateFolder("stubs")
+            if (expectedStubFiles.isNotEmpty() || stubPaths != null || checkCompilation) {
+                stubsDir = getOrCreateFolder("stubs", testLabel = "STUBS")
                 if (docStubs) {
                     arrayOf(ARG_DOC_STUBS, stubsDir.path)
                 } else {
@@ -907,7 +979,11 @@ abstract class DriverTest :
                     .apply { isAccessible = true }
                     .invoke(null)
                 val applyApiLevelsXmlFile =
-                    useExistingFileOrCreateNewFile(project, applyApiLevelsXml, "api-versions.xml") {
+                    useExistingFileOrCreateNewFile(
+                        projectDir,
+                        applyApiLevelsXml,
+                        "api-versions.xml"
+                    ) {
                         it.trimIndent()
                     }
                 arrayOf(ARG_APPLY_API_LEVELS, applyApiLevelsXmlFile.path)
@@ -955,7 +1031,7 @@ abstract class DriverTest :
                 sdkFeatures != null ||
                 sdkWidgets != null
         ) {
-            val dir = File(project, "sdk-files")
+            val dir = File(projectDir, "sdk-files")
             sdkFilesArgs = arrayOf(ARG_SDK_VALUES, dir.path)
             sdkFilesDir = dir
         } else {
@@ -1024,8 +1100,58 @@ abstract class DriverTest :
                 emptyArray()
             }
 
+        val multiplatformSignatureSourceOptions =
+            if (multiplatformSignatureSource.isNotEmpty()) {
+                // Create each multiplatform signature file in a new subdirectory.
+                val multiplatformSignatureSourceDirectory =
+                    File(projectDir, "multiplatform-signature-source")
+                for (file in multiplatformSignatureSource) {
+                    file.createFile(multiplatformSignatureSourceDirectory)
+                }
+                arrayOf(ARG_MULTIPLATFORM_API_SOURCES, multiplatformSignatureSourceDirectory.path)
+            } else {
+                emptyArray()
+            }
+
+        // Generate multiplatform API files if specified.
+        var multiplatformApiDirectory: File? = null
+        val multiplatformApiArgs =
+            if (multiplatformApi.isNotEmpty()) {
+                multiplatformApiDirectory = getOrCreateFolder("multiplatform-api")
+                arrayOf(ARG_MULTIPLATFORM_API_DIR, multiplatformApiDirectory.path)
+            } else {
+                emptyArray()
+            }
+
+        // Run multiplatform compatibility checks if requested.
+        val multiplatformCompatibilityApiDirectory: File?
+        val multiplatformCompatibilityArgs =
+            if (multiplatformCompatibilityApi != null) {
+                multiplatformCompatibilityApiDirectory =
+                    getOrCreateFolder("multiplatform-compatibility-api", "MULTIPLATFORM-API-DIR")
+                for (file in multiplatformCompatibilityApi) {
+                    file.createFile(multiplatformCompatibilityApiDirectory)
+                }
+                arrayOf(
+                    ARG_MULTIPLATFORM_CHECK_COMPATIBILITY,
+                    multiplatformCompatibilityApiDirectory.path
+                )
+            } else {
+                emptyArray()
+            }
+
+        val traceFile: File?
+        val tracingArguments =
+            if (enableTracing) {
+                traceFile = File(projectDir, "trace.perfetto-trace")
+                arrayOf(ARG_TRACE_FILE, traceFile.path)
+            } else {
+                traceFile = null
+                emptyArray()
+            }
+
         // Run optional additional setup steps on the project directory
-        projectSetup?.invoke(project)
+        projectSetup?.invoke(projectDir)
 
         val sourceArgs =
             if (skipSourceArgs) {
@@ -1038,9 +1164,22 @@ abstract class DriverTest :
                 )
             }
 
+        val languageLevelArgs =
+            if (javaLanguageLevel != null) {
+                arrayOf(ARG_JAVA_SOURCE, javaLanguageLevel)
+            } else {
+                emptyArray()
+            }
+
         val args =
             arrayOf(
+                // Common options.
                 ARG_NO_COLOR,
+                *quiet,
+                *tracingArguments,
+
+                // The sub-command to run.
+                "main",
 
                 // Annotation generation temporarily turned off by default while integrating with
                 // SDK builds; tests need these
@@ -1050,14 +1189,13 @@ abstract class DriverTest :
                 *removedArgs,
                 *apiArgs,
                 *stubsArgs,
-                *quiet,
                 *mergeAnnotationsArgs,
                 *signatureAnnotationsArgs,
                 *javaStubAnnotationsArgs,
                 *inclusionAnnotationsArgs,
                 *migrateNullsArguments,
-                *releasedApiCheck.arguments(project),
-                *releasedRemovedApiCheck.arguments(project),
+                *releasedApiCheck.arguments(projectDir),
+                *releasedRemovedApiCheck.arguments(projectDir),
                 *proguardKeepArguments,
                 *manifestFileArgs,
                 *applyApiLevelsXmlArgs,
@@ -1065,10 +1203,10 @@ abstract class DriverTest :
                 *baselineApiLintCheck.args,
                 *baselineCheckCompatibilityReleasedCheck.args,
                 *apiCompatAnnotationArguments,
+                *apiSurfaceArguments,
                 *showAnnotationArguments,
                 *hideAnnotationArguments,
                 *suppressCompatMetaAnnotationArguments,
-                *showForStubPurposesAnnotationArguments,
                 *showUnannotatedArgs,
                 *sdkFilesArgs,
                 *importedPackageArgs.toTypedArray(),
@@ -1077,12 +1215,15 @@ abstract class DriverTest :
                 *validateNullabilityFromListArgs,
                 format.outputFlags(),
                 *extraArguments,
+                *apiLintArgs,
                 *errorMessageApiLintArgs,
                 *errorMessageCheckCompatibilityReleasedArgs,
                 *repeatErrorsMaxArgs,
                 *multiplatformOptions,
-                // Must always be last as this can consume a following argument, breaking the test.
-                *apiLintArgs,
+                *multiplatformApiArgs,
+                *multiplatformSignatureSourceOptions,
+                *multiplatformCompatibilityArgs,
+                *languageLevelArgs,
             ) +
                 buildList {
                         if (projectDescriptionFile != null) {
@@ -1115,7 +1256,8 @@ abstract class DriverTest :
         val actualOutput =
             runDriver(
                 args = args,
-                expectedFail = actualExpectedFail,
+                expectedToFail = expectedToFail,
+                expectedFailureMessage = expectedFailureMessage,
                 reporterEnvironment = reporterEnvironment,
                 testEnvironment = testEnvironment,
             )
@@ -1143,12 +1285,16 @@ abstract class DriverTest :
             )
         }
 
-        if (api != null) {
+        if (expectedApiSignature != null) {
             assertTrue(
                 "${apiFile.path} does not exist even though --api was used",
                 apiFile.exists()
             )
-            assertSignatureFilesMatch(api, apiFile.readText(), expectedFormat = format)
+            assertSignatureFilesMatch(
+                expectedApiSignature,
+                apiFile.readText(),
+                expectedFormat = format
+            )
             // Make sure we can read back the files we write
             ApiFile.parseApi(SignatureFile.fromFiles(apiFile), Codebase.Config.NOOP)
         }
@@ -1244,8 +1390,8 @@ abstract class DriverTest :
             assertEquals("stub paths", stubPaths.joinToString("\n"), stubsCreated)
         }
 
-        if (stubFiles.isNotEmpty()) {
-            for (expected in stubFiles) {
+        if (expectedStubFiles.isNotEmpty()) {
+            for (expected in expectedStubFiles) {
                 val actual = File(stubsDir!!, expected.targetRelativePath)
                 if (!actual.exists()) {
                     throw FileNotFoundException(
@@ -1253,26 +1399,68 @@ abstract class DriverTest :
                             "Found these files: \n${stubsCreated!!.prependIndent("  ")}"
                     )
                 }
-                val actualContents =
-                    if (filterBlankLinesFromStubFiles) readFileFilterBlankLines(actual)
-                    else readFile(actual)
-                val stubSource = if (sourceFiles.isEmpty()) "text" else "source"
+                val actualContents = readFile(actual)
+                val stubSource = if (allSourceFiles.isEmpty()) "text" else "source"
                 val message =
                     "Generated from-$stubSource stub contents does not match expected contents"
-                assertEquals(message, expected.contents, actualContents)
+                compareStubFileContent(
+                    message,
+                    expected.contents,
+                    actualContents,
+                    ignoreParameterNamesInStubFiles
+                )
             }
         }
 
-        if (checkCompilation && stubsDir != null) {
-            val generated =
-                SourceSet.createFromSourcePath(ThrowingReporter.INSTANCE, listOf(stubsDir)).sources
+        if (checkCompilation) {
+            stubsDir
+                ?: error("internal error: stubsDir must be non-null when checkCompilation=true")
 
-            // Compile the stubs, throwing an exception if it fails.
-            JavacHelper.compile(
-                outputDirectory = project,
-                sources = generated,
-                classPath = listOf(KnownJarFiles.stubAnnotationsJar),
+            val checks = compilationChecks ?: listOf(CompilationCheck(label = "default"))
+            for (check in checks) {
+                check.compileStubs(
+                    projectDir,
+                    stubsDir,
+                )
+            }
+        }
+
+        // Validate multiplatform API files exist and have the expected contents.
+        if (multiplatformApiDirectory != null) {
+            assertTrue(
+                "${multiplatformApiDirectory.path} does not exist even though $ARG_MULTIPLATFORM_API_DIR was used",
+                multiplatformApiDirectory.exists(),
             )
+            for ((sourceSet, expectedApi) in multiplatformApi) {
+                val sourceSetApiFile = File(multiplatformApiDirectory, sourceSet)
+                assertTrue(
+                    "${sourceSetApiFile.path} does not exist but was expected",
+                    sourceSetApiFile.exists(),
+                )
+                assertSignatureFilesMatch(
+                    expectedApi,
+                    sourceSetApiFile.readText(),
+                    expectedFormat = format
+                )
+            }
+            // Check that there aren't additional API files which were not expected.
+            val multiplatformSignatureFiles = multiplatformApiDirectory.listFiles().toList()
+            for (sourceSetApiFile in multiplatformSignatureFiles) {
+                assertTrue(
+                    "${sourceSetApiFile.path} was generated but was not expected",
+                    sourceSetApiFile.name in multiplatformApi,
+                )
+            }
+            // Parse back the multiplatform API to ensure there are no errors.
+            ApiFile.parseMultiplatformApi(
+                SignatureFile.fromFiles(multiplatformSignatureFiles),
+                Codebase.Config.NOOP
+            )
+        }
+
+        if (traceFile != null) {
+            assertTrue("Trace file exists", traceFile.exists())
+            assertTrue("Trace file is not empty", Files.size(traceFile.toPath()) > 0)
         }
     }
 
@@ -1335,7 +1523,28 @@ abstract class DriverTest :
         }
     }
 
+    /** Issues that should be treated as [ARG_HIDE]. */
+    fun hiddenIssues(vararg issues: Issue) = Companion.hiddenIssues(*issues)
+
+    /** Issues that should be treated as [ARG_WARNING]. */
+    fun warningIssues(vararg issues: Issue) = Companion.warningIssues(*issues)
+
+    /** Issues that should be treated as [ARG_ERROR]. */
+    fun errorIssues(vararg issues: Issue) = Companion.errorIssues(*issues)
+
     companion object {
+        private inline fun <T> Array<T>.prefixWith(prefix: String, lamba: (T) -> String) =
+            flatMap { listOf(prefix, lamba(it)) }.toTypedArray()
+
+        /** Issues that should be treated as [ARG_HIDE]. */
+        fun hiddenIssues(vararg issues: Issue) = issues.prefixWith(ARG_HIDE) { it.name }
+
+        /** Issues that should be treated as [ARG_WARNING]. */
+        fun warningIssues(vararg issues: Issue) = issues.prefixWith(ARG_WARNING) { it.name }
+
+        /** Issues that should be treated as [ARG_ERROR]. */
+        fun errorIssues(vararg issues: Issue) = issues.prefixWith(ARG_ERROR) { it.name }
+
         /** Read a text file, filtering out any blank lines and removing whitespace from the end. */
         @JvmStatic
         protected fun readFileFilterBlankLines(file: File): String {
@@ -1436,6 +1645,110 @@ abstract class DriverTest :
                 val file = File(project, name)
                 if (!file.isFile) return file
             } while (true)
+        }
+
+        /**
+         * Compare stubs contents, checking that [expected] and [actual] match, reporting [message]
+         * if they do not.
+         *
+         * How they match depends on [ignoreParameterNamesInStubFiles]. If that is `false` they have
+         * to be character for character identical. If it is `true` then [removeParameterNames] is
+         * applied to both beforehand to remove parameter names.
+         */
+        private fun compareStubFileContent(
+            message: String,
+            expected: String,
+            actual: String,
+            ignoreParameterNamesInStubFiles: Boolean,
+        ) {
+            if (ignoreParameterNamesInStubFiles) {
+                val expectedWithout = expected.removeParameterNames()
+                val actualWithout = actual.removeParameterNames()
+                assertEquals("$message (without parameter names)", expectedWithout, actualWithout)
+            } else {
+                assertEquals(message, expected, actual)
+            }
+        }
+
+        /**
+         * Remove parameter names from stub file.
+         *
+         * This is not 100% accurate, it assumes that parameter names are preceded by a ` `, start
+         * with a lower case letter, contain alphanumerics only and is immediately followed by a `,`
+         * or `)`. However, given the strict formatting of stub files that should be sufficient.
+         */
+        private fun String.removeParameterNames() =
+            replace(Regex(""" [a-z][a-zA-Z0-9_]*([,)])"""), "$1")
+
+        /** Regex for finding an issue of severity error. */
+        private val containsErrorSeverityIssueRegex = Regex("""\berror: """)
+
+        /** Check to see whether this [String] contains an issue of error severity. */
+        private fun String?.containsErrorIssue() =
+            this != null && contains(containsErrorSeverityIssueRegex)
+    }
+
+    /**
+     * Encapsulates information needed to check the compilation of the stubs.
+     *
+     * @param label the label for this check, used when reporting failures.
+     * @param additionalFiles additional files to compile with the stubs.
+     * @param expectedFailure the expected failure output.
+     */
+    inner class CompilationCheck(
+        private val label: String,
+        private val additionalFiles: List<TestFile> = emptyList(),
+        private val expectedFailure: String = "",
+    ) {
+        /** Compile the stubs, verifying that it matches [expectedFailure]. */
+        internal fun compileStubs(
+            projectDir: File,
+            stubsDir: File,
+        ) {
+            // Get a folder in which the additionalFiles, if any, will be created. Delete it and its
+            // contents and then recreate it to ensure that it is empty so that multiple instances
+            // of CompilationCheck do not collide.
+            val additionalDir =
+                getOrCreateFolder(
+                    "additional-compilation-files",
+                    testLabel = "ADDITIONAL",
+                )
+            additionalDir.deleteRecursively()
+            additionalDir.mkdirs()
+
+            // Create a source path for the stubsDir and the additionalDir if needed.
+            val sourcePath = buildList {
+                add(stubsDir)
+                if (additionalFiles.isNotEmpty()) {
+                    additionalFiles.createFiles(additionalDir)
+                    add(additionalDir)
+                }
+            }
+
+            // Get the sources to compile by scanning the sourcePath.
+            val generated =
+                SourceSet.createFromSourcePath(ThrowingReporter.INSTANCE, sourcePath).sources
+
+            // Compile the stubs, throwing an exception if it fails.
+            try {
+                JavacHelper.compile(
+                    outputDirectory = projectDir,
+                    sources = generated,
+                    classPath = listOf(KnownJarFiles.stubAnnotationsJar),
+                )
+
+                // If it was expected to fail but did not then fail.
+                if (expectedFailure != "") {
+                    fail("Expected failure: $expectedFailure")
+                }
+            } catch (e: JavacCompilationError) {
+                // Process the output to remove any test specific paths.
+                val output = removeTestSpecificDirectories(e.output.trim())
+                assertEquals("$label compilation failure", expectedFailure.trimIndent(), output)
+            } finally {
+                // Delete the additional directory.
+                additionalDir.deleteRecursively()
+            }
         }
     }
 }
@@ -1577,29 +1890,6 @@ val requiresApiSource: TestFile =
         int value() default 1;
         int api() default 1;
     }
-    """
-        )
-        .indented()
-
-val flaggedApiSource: TestFile =
-    java(
-            """
-        package android.annotation;
-        import static java.lang.annotation.ElementType.ANNOTATION_TYPE;
-        import static java.lang.annotation.ElementType.CONSTRUCTOR;
-        import static java.lang.annotation.ElementType.FIELD;
-        import static java.lang.annotation.ElementType.METHOD;
-        import static java.lang.annotation.ElementType.TYPE;
-
-        import java.lang.annotation.Retention;
-        import java.lang.annotation.RetentionPolicy;
-        import java.lang.annotation.Target;
-        /** @hide */
-        @Target({TYPE, METHOD, CONSTRUCTOR, FIELD, ANNOTATION_TYPE})
-        @Retention(RetentionPolicy.CLASS)
-        public @interface FlaggedApi {
-            String value();
-        }
     """
         )
         .indented()
@@ -1774,19 +2064,7 @@ val systemServiceSource: TestFile =
 
 val systemApiSource = KnownSourceFiles.systemApiSource
 
-val testApiSource: TestFile =
-    java(
-            """
-    package android.annotation;
-    import static java.lang.annotation.ElementType.*;
-    import java.lang.annotation.*;
-    @Target({TYPE, FIELD, METHOD, CONSTRUCTOR, ANNOTATION_TYPE, PACKAGE})
-    @Retention(RetentionPolicy.SOURCE)
-    public @interface TestApi {
-    }
-    """
-        )
-        .indented()
+val testApiSource = KnownSourceFiles.testApiSource
 
 val widgetSource: TestFile =
     java(
@@ -1903,42 +2181,200 @@ val TYPE_USE_FORMAT =
     }
 
 /**
- * Enumeration of the different types of system APIs used in Android.
+ * Specifies a known API surface to use.
  *
- * While this is Android specific it does test behavior relied upon by other users of Metalava, e.g.
- * AndroidX.
- *
- * @param annotationClass The annotation class name, used to check to see if this is present in the
- *   arguments already.
- * @param annotationFilter The annotation filter to pass on the command line, e.g. for a
- *   `--show-annotation` option.
+ * @param surface the name of the surface, adding as [ARG_API_SURFACE].
+ * @param configFile the config file that will define [surface].
+ * @param optionalCommandLineOptions the command line options that are equivalent to [surface].
+ * @param additionalSourceFiles additional source files to automatically add when this is used.
  */
-enum class SystemApiType(
-    val annotationClass: String,
-    private val annotationFilter: String = ANDROID_SYSTEM_API,
-    private val forStubs: List<SystemApiType> = emptyList()
+data class KnownApiSurface(
+    val surface: String,
+    val configFile: TestFile,
+    val additionalSourceFiles: List<TestFile> = emptyList(),
+    val optionalCommandLineOptions: List<String>? = null,
 ) {
-    PRIVILEGED_APPS(
-        annotationClass = ANDROID_SYSTEM_API,
-        annotationFilter = "$ANDROID_SYSTEM_API(client=$ANDROID_SYSTEM_API.Client.PRIVILEGED_APPS)",
-    ),
-    // MODULE_LIBRARIES is not required yet.
-    // SYSTEM_SERVER is not required yet.
-    TEST(
-        annotationClass = ANDROID_TEST_API,
-        annotationFilter = ANDROID_TEST_API,
-        forStubs = listOf(PRIVILEGED_APPS),
-    ),
-    ;
+    val commandLineOptions: List<String>
+        get() =
+            optionalCommandLineOptions ?: error("$surface does not provide command line options")
 
-    /** The arguments to pass on the command line. */
-    val extraArguments
-        get() = buildList {
-            add(ARG_SHOW_ANNOTATION)
-            add(annotationFilter)
-            for (forStub in forStubs) {
-                add(ARG_SHOW_FOR_STUB_PURPOSES_ANNOTATION)
-                add(forStub.annotationFilter)
-            }
-        }
+    companion object {
+        val additionalAndroidSourceFiles =
+            listOf(
+                KnownSourceFiles.hideAnnotation,
+                KnownSourceFiles.docOnlyAnnotation,
+                KnownSourceFiles.removedFromApiAnnotation,
+                KnownSourceFiles.systemApiSource,
+                KnownSourceFiles.testApiSource,
+            )
+
+        /** The public API as used by Android. */
+        val PUBLIC =
+            KnownApiSurface(
+                "public",
+                KnownConfigFiles.configKnownTestSurfaces,
+                additionalAndroidSourceFiles,
+                optionalCommandLineOptions =
+                    listOf(
+                        ARG_SHOW_UNANNOTATED,
+                    )
+            )
+
+        /** The system API as used by Android. */
+        val SYSTEM =
+            KnownApiSurface(
+                "system",
+                KnownConfigFiles.configKnownTestSurfaces,
+                additionalAndroidSourceFiles,
+                optionalCommandLineOptions =
+                    listOf(
+                        ARG_SHOW_ANNOTATION,
+                        "android.annotation.SystemApi(client=android.annotation.SystemApi.Client.PRIVILEGED_APPS)",
+                    )
+            )
+
+        /** The system API plus public API. */
+        val SYSTEM_WITH_PUBLIC =
+            KnownApiSurface(
+                "system-with-public",
+                KnownConfigFiles.configSystemWithPublicSurface,
+                additionalAndroidSourceFiles,
+            )
+
+        /** The system API with non-recursive annotation. */
+        val NON_RECURSIVE_SYSTEM =
+            KnownApiSurface(
+                "system",
+                xml(
+                    "non-recursive-system.xml",
+                    """
+                        <config xmlns="http://www.google.com/tools/metalava/config"
+                            xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                            xsi:schemaLocation="http://www.google.com/tools/metalava/config ../../../../../resources/schemas/config.xsd">
+                            <api-surfaces>
+                                <api-surface name="public">
+                                    <selection-criteria unannotated="show"/>
+                                </api-surface>
+                                <api-surface name="system" extends="public">
+                                    <selection-criteria>
+                                        <annotation-rule pattern="android.annotation.SystemApi(client=android.annotation.SystemApi.Client.PRIVILEGED_APPS)" recursive='false'/>
+                                    </selection-criteria>
+                                </api-surface>
+                            </api-surfaces>
+                        </config>
+                    """
+                ),
+                additionalAndroidSourceFiles,
+            )
+
+        /** The module-lib API as used by Android. */
+        val MODULE_LIB =
+            KnownApiSurface(
+                "module-lib",
+                KnownConfigFiles.configKnownTestSurfaces,
+                additionalAndroidSourceFiles,
+            )
+
+        /** The test API as used by Android. */
+        val TEST =
+            KnownApiSurface(
+                "test",
+                KnownConfigFiles.configKnownTestSurfaces,
+                additionalAndroidSourceFiles,
+            )
+
+        const val TEST_HIDE_ANNOTATION = "test.annotation.Hide"
+        const val TEST_MODULE_API_ANNOTATION = "test.annotation.ModuleApi"
+        const val TEST_SYSTEM_API_ANNOTATION = "test.annotation.SystemApi"
+        const val TEST_API_ANNOTATION = "test.annotation.TestApi"
+
+        private val additionalTestSourceFiles =
+            listOf(
+                java(
+                    """
+                        package test.annotation;
+                        public @interface Hide {}
+                    """
+                ),
+                java(
+                    """
+                        package test.annotation;
+                        public @interface SystemApi {}
+                    """
+                ),
+                java(
+                    """
+                        package test.annotation;
+                        public @interface TestApi {}
+                    """
+                ),
+                java(
+                    """
+                        package test.annotation;
+                        public @interface ModuleApi {}
+                    """
+                ),
+            )
+
+        private val apiSurfacesConfig =
+            xml(
+                "api-surfaces-config.xml",
+                """
+                    <config xmlns="http://www.google.com/tools/metalava/config"
+                        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                        xsi:schemaLocation="http://www.google.com/tools/metalava/config ../../../../../resources/schemas/config.xsd">
+                        <api-surfaces>
+                            <api-surface name="public">
+                                <selection-criteria unannotated="show">
+                                    <annotation-rule pattern="$TEST_HIDE_ANNOTATION" effect='hide'/>
+                                </selection-criteria>
+                            </api-surface>
+                            <api-surface name="system" extends="public">
+                                <selection-criteria>
+                                    <annotation-rule pattern="$TEST_SYSTEM_API_ANNOTATION"/>
+                                </selection-criteria>
+                            </api-surface>
+                            <api-surface name="test" extends="system">
+                                <selection-criteria>
+                                    <annotation-rule pattern="$TEST_API_ANNOTATION"/>
+                                </selection-criteria>
+                            </api-surface>
+                            <api-surface name="module-lib" extends="system">
+                                <selection-criteria>
+                                    <annotation-rule pattern="$TEST_MODULE_API_ANNOTATION"/>
+                                </selection-criteria>
+                            </api-surface>
+                        </api-surfaces>
+                    </config>
+                """
+            )
+
+        val TEST_PUBLIC_API_SURFACE =
+            KnownApiSurface(
+                "public",
+                apiSurfacesConfig,
+                additionalTestSourceFiles,
+            )
+
+        val TEST_SYSTEM_API_SURFACE =
+            KnownApiSurface(
+                "system",
+                apiSurfacesConfig,
+                additionalTestSourceFiles,
+            )
+
+        val TEST_API_SURFACE =
+            KnownApiSurface(
+                "test",
+                apiSurfacesConfig,
+                additionalTestSourceFiles,
+            )
+
+        val TEST_MODULE_API_SURFACE =
+            KnownApiSurface(
+                "module-lib",
+                apiSurfacesConfig,
+                additionalTestSourceFiles,
+            )
+    }
 }

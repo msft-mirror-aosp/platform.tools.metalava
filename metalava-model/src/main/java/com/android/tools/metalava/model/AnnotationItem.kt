@@ -18,6 +18,8 @@ package com.android.tools.metalava.model
 
 import com.android.tools.metalava.model.annotation.AnnotationClass
 import com.android.tools.metalava.model.annotation.AnnotationDefaults
+import com.android.tools.metalava.model.annotation.binding.AnnotationBindingFactory
+import com.android.tools.metalava.model.api.SurfaceAnnotationData
 import com.android.tools.metalava.model.api.flags.ApiFlag
 import com.android.tools.metalava.model.api.flags.ApiFlags
 import com.android.tools.metalava.model.type.TypeItemParser
@@ -29,6 +31,7 @@ import com.android.tools.metalava.model.value.ValueProvider
 import com.android.tools.metalava.model.value.ValueStringConfiguration
 import com.android.tools.metalava.reporter.FileLocation
 import java.lang.StringBuilder
+import kotlin.reflect.KClass
 
 fun isNullnessAnnotation(qualifiedName: String): Boolean =
     isNullableAnnotation(qualifiedName) || isNonNullAnnotation(qualifiedName)
@@ -79,6 +82,19 @@ sealed interface AnnotationItem {
     val qualifiedName: String
 
     /**
+     * The original name in the sources before normalizing the name.
+     *
+     * This must be used only when reporting issues with the original source.
+     */
+    val originalName: String
+
+    /**
+     * The [SurfaceAnnotationData] associated with this annotation, `null` if it is not a surface
+     * annotation.
+     */
+    val surfaceData: SurfaceAnnotationData?
+
+    /**
      * Determines the effect that this will have on whether an item annotated with this annotation
      * will be shown as part of the API or not.
      */
@@ -88,8 +104,7 @@ sealed interface AnnotationItem {
      * The [ApiFlag] referenced by this [AnnotationItem].
      *
      * This will be `null` if no [ApiFlags] have been provided or this [AnnotationItem]'s type is
-     * not [ANDROID_FLAGGED_API]. Otherwise, it will be one of the instances of [ApiFlag], e.g.
-     * [ApiFlag.REVERT_FLAGGED_API].
+     * not [ANDROID_FLAGGED_API]. Otherwise, it will be an instance of [ApiFlag].
      */
     val apiFlag: ApiFlag?
 
@@ -480,6 +495,12 @@ interface AnnotationContext : ClassResolver, ValueContext {
     fun defaultsForAnnotationClass(qualifiedName: String) =
         resolveClass(qualifiedName)?.annotationClass?.defaults ?: AnnotationDefaults.EMPTY
 
+    /** Get an [AnnotationBindingFactory] for [kClass] with [defaults]. */
+    fun <T : Any> bindingFactoryFor(
+        kClass: KClass<T>,
+        defaults: AnnotationDefaults?,
+    ): AnnotationBindingFactory<T> = error("unsupported")
+
     companion object {
         /**
          * Instance that can be used in contexts where [resolveClass] always returns null, e.g.
@@ -504,7 +525,7 @@ internal abstract class BaseAnnotationItem(
     override val fileLocation: FileLocation,
 
     /** Fully qualified name of the annotation (prior to name mapping) */
-    internal val originalName: String,
+    override val originalName: String,
 
     /** Fully qualified name of the annotation (after name mapping) */
     override val qualifiedName: String,
@@ -532,6 +553,9 @@ internal abstract class BaseAnnotationItem(
     override fun isNonNull(): Boolean {
         return info.typeNullability == TypeNullability.NONNULL
     }
+
+    override val surfaceData
+        get() = info.surfaceData
 
     override val showability: Showability
         get() = info.showability

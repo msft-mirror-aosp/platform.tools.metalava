@@ -39,6 +39,7 @@ Concepts
   signature-file-formats                     Describes the different signature file formats.
   historical-api-patterns                    Explains the syntax and behavior of historical API patterns used in options
                                              like --android-jar-pattern.
+  api-surfaces                               Explains what API surfaces are and how to specify them.
                 """
                     .trimIndent()
         }
@@ -118,6 +119,11 @@ Usage: metalava help signature-file-formats
   If `yes` then the signature file will include `record` class type keyword and property items representing the record
   components, along with the constructor and methods. If `no` then record classes will be represented as normal classes
   without any properties but sill with the same constructor and methods.
+
+  * `java-sealed-classes = yes|no` - Whether to include java sealed classes in the signature file.
+
+  If `yes` then the signature file will include `sealed`, and `non-sealed` modifiers, and `permits` list. If `no` then
+  they will not be included but it is not clear how that would work.
 
   * `kotlin-name-type-order = yes|no` - Whether to order the names and types of APIs using Kotlin-style syntax (`name:
   type`) or Java-style syntax (`type name`).
@@ -246,6 +252,7 @@ Usage: metalava help signature-file-formats
 
   + add-additional-overrides = yes
   + flagged-api-inheritance = nested-classes
+  + java-record-classes = yes
   + normalize-abstract-modifier = yes
   + normalize-final-modifier = yes
   + overloaded-method-order = signature
@@ -326,6 +333,153 @@ Usage: metalava help historical-api-patterns
 
   * `{surface}` - Placeholder for property `surface`. Matches a surface name which must consist of lower case letters
   and hyphens.
+                """
+                    .trimIndent()
+        }
+    }
+
+    @Test
+    fun `Test help api-surfaces`() {
+        commandTest {
+            args += listOf("help", "api-surfaces")
+
+            expectedStdout =
+                """
+Usage: metalava help api-surfaces
+
+  Explains what API surfaces are and how to specify them.
+
+  An API surface is a defined subset of the complete API of a library or platform, tailored for a specific set of
+  consumers. For example, a platform might expose a public API surface for general app developers, and a broader system
+  API surface for system components.
+
+  Using a configuration file allows you to define a hierarchy of API surfaces, specifying what is included in or
+  excluded from each surface based on annotations.
+
+  To use API surfaces, you must:
+
+  1. Define the API surfaces in a configuration XML file.
+
+  2. Pass the configuration file to Metalava using the --config-file option.
+
+  3. Select the target API surface to generate using the --api-surface option.
+
+  ### Configuration File Format
+
+  The configuration file contains an `<api-surfaces>` element which encloses one or more `<api-surface>` elements, and
+  optional `<doc-only>` and `<removed>` elements.
+
+  An `<api-surface>` element has the following attributes:
+
+  * `name` (required) - The name of the API surface (e.g., `public`, `system`).
+
+  * `extends` (optional) - The name of a parent API surface that this surface extends. When a surface extends another,
+  it includes all the items in the parent surface.
+
+  * `contents` (optional) - Either `delta` or `standalone`.
+
+  `delta` (default) - The signature file generated for this surface will only contain the differences (delta) between
+  this surface and the surface it extends.
+
+  `standalone` - The signature file will contain the entire API for this surface (including everything in the extended
+  parent surfaces).
+
+  Within an `<api-surface>`, the `<selection-criteria>` element determines which code elements are included in the
+  surface. It supports:
+
+  * `unannotated` attribute - Set to `show` to include all unannotated public elements in the surface. Set to `hide` (or
+  omit) to exclude them.
+
+  * `<annotation-rule>` elements -
+
+  * `pattern` (required) - A pattern matching the annotation (e.g., `android.annotation.SystemApi`).
+
+  * `effect` (optional) - Either `show` (default) or `hide`.
+
+  * `recursive` (optional) - Either `true` (default) or `false`. If `true`, the rule also applies to nested/enclosed
+  items.
+
+  The `<doc-only>` and `<removed>` sections allow configuring annotations that mark items as documentation-only or
+  removed, respectively.
+
+  * `<doc-only>` - Elements annotated with these are excluded from stub jar files but kept in the signature
+  file/documentation.
+
+  * `<removed>` - Elements annotated with these are excluded from signature files and stubs.
+
+  ### Converting Legacy Options to API Surfaces
+
+  Previously, API surfaces were selected using --show-annotation, --show-unannotated, and --hide-annotation. These
+  options are now deprecated in favor of using a configuration file. Here is how to convert common legacy options:
+
+  #### 1. Public API
+
+  If you previously used:
+
+  --show-unannotated
+
+  This corresponds to a single "public" API surface that includes unannotated APIs:
+
+  <config xmlns="http://www.google.com/tools/metalava/config">
+      <api-surfaces>
+          <api-surface name="public">
+              <selection-criteria unannotated="show"/>
+          </api-surface>
+      </api-surfaces>
+  </config>
+
+  To run Metalava:
+
+  metalava --config-file config.xml --api-surface public
+
+  #### 2. System API (extends Public API)
+
+  If you previously used:
+
+  --show-annotation android.annotation.SystemApi
+
+  This is typically a "system" API surface that extends the "public" surface. The public surface shows unannotated
+  items, and the system surface shows items annotated with `@SystemApi`:
+
+  <config xmlns="http://www.google.com/tools/metalava/config">
+      <api-surfaces>
+          <api-surface name="public">
+              <selection-criteria unannotated="show"/>
+          </api-surface>
+          <api-surface name="system" extends="public">
+              <selection-criteria>
+                  <annotation-rule pattern="android.annotation.SystemApi"/>
+              </selection-criteria>
+          </api-surface>
+      </api-surfaces>
+  </config>
+
+  To run Metalava:
+
+  metalava --config-file config.xml --api-surface system
+
+  #### 3. Standalone API with Show and Hide Annotations
+
+  If you previously used:
+
+  --show-annotation my.custom.Api --hide-annotation my.custom.Hide
+
+  And did not want to include unannotated public APIs:
+
+  <config xmlns="http://www.google.com/tools/metalava/config">
+      <api-surfaces>
+          <api-surface name="custom">
+              <selection-criteria unannotated="hide">
+                  <annotation-rule pattern="my.custom.Api" effect="show"/>
+                  <annotation-rule pattern="my.custom.Hide" effect="hide"/>
+              </selection-criteria>
+          </api-surface>
+      </api-surfaces>
+  </config>
+
+  To run Metalava:
+
+  metalava --config-file config.xml --api-surface custom
                 """
                     .trimIndent()
         }

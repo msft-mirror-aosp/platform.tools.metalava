@@ -17,10 +17,7 @@
 package com.android.tools.metalava.model.item
 
 import com.android.tools.metalava.model.ApiVariantSelectorsFactory
-import com.android.tools.metalava.model.ArrayTypeItem
 import com.android.tools.metalava.model.BaseModifierList
-import com.android.tools.metalava.model.CallableBody
-import com.android.tools.metalava.model.CallableBodyFactory
 import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
@@ -61,7 +58,6 @@ internal sealed class DefaultCallableItem(
     returnType: TypeItem,
     parameterItemsFactory: ParameterItemsFactory,
     internal val throwsTypes: List<ExceptionTypeItem>,
-    callableBodyFactory: CallableBodyFactory,
 ) :
     DefaultMemberItem(
         codebase,
@@ -99,15 +95,6 @@ internal sealed class DefaultCallableItem(
 
     final override fun throwsTypes(): List<ExceptionTypeItem> = throwsTypes
 
-    /**
-     * Create the [CallableBody] during initialization of this callable to allow it to contain an
-     * immutable reference to this object.
-     *
-     * The leaking of `this` to `callableBodyFactory` is ok as implementations follow the rules
-     * explained in the documentation of [CallableBodyFactory].
-     */
-    final override val body: CallableBody = callableBodyFactory(@Suppress("LeakingThis") this)
-
     override val containingScope: ReferencableNameScope?
         get() =
             // Fallback to the containing class.
@@ -128,36 +115,5 @@ internal sealed class DefaultCallableItem(
          */
         fun TypeParameterBindings.toTypeConverter(): TypeItemConverter =
             if (isEmpty()) { type -> type } else { type -> type.convertType(this) }
-
-        /**
-         * Return a [ParameterItemsFactory] that will create a copy of [parameters] suitable for use
-         * in [CallableItem.createOverload].
-         *
-         * This will return a factory that will create parameters that are a copy of [parameters]
-         * with one exception. If [parameters] contains a varargs parameter which is last and its
-         * type is an [ArrayTypeItem] whose [ArrayTypeItem.isVarargs] is `false` then this will
-         * replace that type with an identical one except that [ArrayTypeItem.isVarargs] will be
-         * `true`. That ensures correct behavior for Kotlin varargs.
-         */
-        internal fun overloadParameterItemFactory(
-            parameters: List<ParameterItem>
-        ): ParameterItemsFactory = { callableItem ->
-            parameters.mapIndexed { index, parameter ->
-                parameter.duplicate(
-                    callableItem,
-                    { type ->
-                        if (
-                            parameter.modifiers.isVarArg() &&
-                                parameter.parameterIndex == parameters.size - 1 &&
-                                type is ArrayTypeItem &&
-                                !type.isVarargs
-                        )
-                            type.substitute(isVarargs = true)
-                        else type
-                    },
-                    newParameterIndex = index,
-                )
-            }
-        }
     }
 }

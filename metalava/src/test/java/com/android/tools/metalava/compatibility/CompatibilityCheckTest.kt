@@ -20,9 +20,8 @@ import com.android.tools.lint.checks.infrastructure.TestFiles.base64gzip
 import com.android.tools.metalava.ARG_SHOW_ANNOTATION
 import com.android.tools.metalava.ARG_SHOW_UNANNOTATED
 import com.android.tools.metalava.DriverTest
-import com.android.tools.metalava.SystemApiType
+import com.android.tools.metalava.KnownApiSurface
 import com.android.tools.metalava.cli.common.ARG_ERROR_CATEGORY
-import com.android.tools.metalava.cli.common.ARG_HIDE
 import com.android.tools.metalava.model.ANDROID_SYSTEM_API
 import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.testing.RequiresCapabilities
@@ -73,8 +72,8 @@ class CompatibilityCheckTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                load-api.txt:3: error: Binary breaking change: Class test.pkg.MyTest1 changed class/interface declaration [ChangedClass]
-                load-api.txt:5: error: Binary breaking change: Class test.pkg.MyTest2 changed class/interface declaration [ChangedClass]
+                load-api.txt:3: error: Binary breaking change: test.pkg.MyTest1 changed from class to interface [ChangedClass]
+                load-api.txt:5: error: Binary breaking change: test.pkg.MyTest2 changed from interface to class [ChangedClass]
                 """,
             checkCompatibilityApiReleased =
                 """
@@ -112,8 +111,8 @@ class CompatibilityCheckTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                load-api.txt:3: error: Binary breaking change: Class test.pkg.MyTest1 changed class/interface declaration [ChangedClass]
-                load-api.txt:5: error: Binary breaking change: Class test.pkg.MyTest2 changed class/interface declaration [ChangedClass]
+                load-api.txt:3: error: Binary breaking change: test.pkg.MyTest1 changed from class to interface [ChangedClass]
+                load-api.txt:5: error: Binary breaking change: test.pkg.MyTest2 changed from interface to class [ChangedClass]
                 """,
             checkCompatibilityApiReleased =
                 """
@@ -250,7 +249,7 @@ class CompatibilityCheckTest : DriverTest() {
                         """
                     )
                 ),
-            api =
+            expectedApiSignature =
                 """
                 // Signature format: 5.0
                 package com.example {
@@ -466,7 +465,7 @@ class CompatibilityCheckTest : DriverTest() {
         // Adding final on a class is incompatible.
         check(
             // Make AddedFinalInstantiable an error, so it is reported as an issue.
-            extraArguments = arrayOf("--error", Issues.ADDED_FINAL_UNINSTANTIABLE.name),
+            extraArguments = errorIssues(Issues.ADDED_FINAL_UNINSTANTIABLE),
             expectedIssues =
                 """
                 src/test/pkg/Java.java:2: error: Binary breaking change: Class test.pkg.Java added 'final' qualifier [AddedFinal]
@@ -518,7 +517,7 @@ class CompatibilityCheckTest : DriverTest() {
         // Adding final on a class is incompatible unless the class could not be extended.
         check(
             // Make AddedFinalInstantiable an error, so it is reported as an issue.
-            extraArguments = arrayOf("--error", Issues.ADDED_FINAL_UNINSTANTIABLE.name),
+            extraArguments = errorIssues(Issues.ADDED_FINAL_UNINSTANTIABLE),
             expectedIssues =
                 """
                 src/test/pkg/Java.java:2: error: Class test.pkg.Java added 'final' qualifier but was previously uninstantiable and therefore could not be subclassed [AddedFinalUninstantiable]
@@ -569,7 +568,7 @@ class CompatibilityCheckTest : DriverTest() {
         // Adding final on a method is incompatible.
         check(
             // Make AddedFinalInstantiable an error, so it is reported as an issue.
-            extraArguments = arrayOf("--error", Issues.ADDED_FINAL_UNINSTANTIABLE.name),
+            extraArguments = errorIssues(Issues.ADDED_FINAL_UNINSTANTIABLE),
             expectedIssues =
                 """
                 src/test/pkg/Java.java:4: error: Binary breaking change: Method test.pkg.Java.method has added 'final' qualifier [AddedFinal]
@@ -620,7 +619,7 @@ class CompatibilityCheckTest : DriverTest() {
         // extended.
         check(
             // Make AddedFinalInstantiable an error, so it is reported as an issue.
-            extraArguments = arrayOf("--error", Issues.ADDED_FINAL_UNINSTANTIABLE.name),
+            extraArguments = errorIssues(Issues.ADDED_FINAL_UNINSTANTIABLE),
             expectedIssues =
                 """
                 src/test/pkg/Java.java:4: error: Method test.pkg.Java.method added 'final' qualifier but containing class test.pkg.Java was previously uninstantiable and therefore could not be subclassed [AddedFinalUninstantiable]
@@ -941,33 +940,6 @@ class CompatibilityCheckTest : DriverTest() {
 
     @RequiresCapabilities(Capability.KOTLIN)
     @Test
-    fun `Add seal`() {
-        check(
-            expectedIssues =
-                """
-                src/test/pkg/Foo.kt:2: error: Source breaking change: Cannot add 'sealed' modifier to class test.pkg.Foo: Incompatible change [AddSealed]
-                """,
-            checkCompatibilityApiReleased =
-                """
-                package test.pkg {
-                  public class Foo {
-                  }
-                }
-                """,
-            sourceFiles =
-                arrayOf(
-                    kotlin(
-                        """
-                    package test.pkg
-                    sealed class Foo
-                    """
-                    )
-                )
-        )
-    }
-
-    @RequiresCapabilities(Capability.KOTLIN)
-    @Test
     fun `Remove optional parameter`() {
         check(
             expectedIssues =
@@ -1178,7 +1150,7 @@ class CompatibilityCheckTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                src/test/pkg/Parent.java:3: error: Binary breaking change: Class test.pkg.Parent changed class/interface declaration [ChangedClass]
+                src/test/pkg/Parent.java:3: error: Binary breaking change: test.pkg.Parent changed from class to interface [ChangedClass]
                 """,
             checkCompatibilityApiReleased =
                 """
@@ -1211,7 +1183,7 @@ class CompatibilityCheckTest : DriverTest() {
             checkCompatibilityApiReleased =
                 """
                 package test.pkg {
-                  public abstract class Parent implements java.io.Closeable, java.util.Map {
+                  public abstract class Parent implements java.io.Closeable java.util.Map {
                   }
                 }
                 """,
@@ -1871,7 +1843,7 @@ class CompatibilityCheckTest : DriverTest() {
         // from the base API. When parsing these code bases we need to gracefully handle
         // references to inner classes.
         check(
-            includeSystemApiAnnotations = SystemApiType.PRIVILEGED_APPS,
+            apiSurface = KnownApiSurface.SYSTEM,
             expectedIssues =
                 """
                 released-api.txt:5: error: Binary breaking change: Removed method test.pkg.Bar.Inner1.Inner2.removedMethod() [RemovedMethod]
@@ -1902,15 +1874,9 @@ class CompatibilityCheckTest : DriverTest() {
                             public class Inner2 {
                                 private Inner2() { }
 
-                                /**
-                                 * @hide
-                                 */
                                 @SystemApi
                                 public void method() { }
 
-                                /**
-                                 * @hide
-                                 */
                                 @SystemApi
                                 public void addedMethod() { }
                             }
@@ -1918,7 +1884,6 @@ class CompatibilityCheckTest : DriverTest() {
                     }
                     """
                     ),
-                    systemApiSource,
                 ),
             checkCompatibilityApiReleased =
                 """
@@ -1933,15 +1898,15 @@ class CompatibilityCheckTest : DriverTest() {
     }
 
     @Test
-    fun `Incompatible Changes in Released System API `() {
+    fun `Incompatible Changes in Released System API`() {
         // Incompatible changes to a released System API should be detected
         // In this case removing final and changing value of constant
         check(
-            includeSystemApiAnnotations = SystemApiType.TEST,
+            apiSurface = KnownApiSurface.TEST,
             expectedIssues =
                 """
-                src/android/rolecontrollerservice/RoleControllerService.java:8: error: Method android.rolecontrollerservice.RoleControllerService.sendNetworkScore has removed 'final' qualifier [RemovedFinalStrict]
-                src/android/rolecontrollerservice/RoleControllerService.java:9: error: Binary breaking change: Field android.rolecontrollerservice.RoleControllerService.APP_RETURN_UNWANTED has changed value from 1 to 0 [ChangedValue]
+                src/android/rolecontrollerservice/RoleControllerService.java:7: error: Method android.rolecontrollerservice.RoleControllerService.sendNetworkScore has removed 'final' qualifier [RemovedFinalStrict]
+                src/android/rolecontrollerservice/RoleControllerService.java:8: error: Binary breaking change: Field android.rolecontrollerservice.RoleControllerService.APP_RETURN_UNWANTED has changed value from 1 to 0 [ChangedValue]
                 """,
             sourceFiles =
                 arrayOf(
@@ -1950,7 +1915,6 @@ class CompatibilityCheckTest : DriverTest() {
                     package android.rolecontrollerservice;
                     import android.annotation.SystemApi;
 
-                    /** @hide */
                     @SystemApi
                     public abstract class RoleControllerService {
                         public abstract void onGrantDefaultRoles();
@@ -1959,7 +1923,6 @@ class CompatibilityCheckTest : DriverTest() {
                     }
                     """
                     ),
-                    systemApiSource,
                 ),
             checkCompatibilityApiReleased =
                 """
@@ -2013,7 +1976,7 @@ class CompatibilityCheckTest : DriverTest() {
                         .indented(),
                     testApiSource,
                 ),
-            api =
+            expectedApiSignature =
                 """
                 package test.view {
                   public final class View {
@@ -2316,6 +2279,7 @@ class CompatibilityCheckTest : DriverTest() {
                 """
                 released-api.txt:4: error: Binary breaking change: method test.pkg.TestKt.add(T) has been removed from bytecode [RemovedFromBytecode]
                 released-api.txt:4: error: Source breaking change: method test.pkg.TestKt.add(T) can no longer be resolved from Java source [RemovedFromJava]
+                src/test/pkg/test.kt:5: error: Binary breaking change: Method test.pkg.TestKt.add made type variable T reified: incompatible change [AddedReified]
                 """,
             checkCompatibilityApiReleased =
                 """
@@ -2453,6 +2417,7 @@ class CompatibilityCheckTest : DriverTest() {
     @Test
     fun `Moving removed api back to public api`() {
         check(
+            extraArguments = errorIssues(Issues.HIDING_API_METHOD_OVERRIDE),
             checkCompatibilityRemovedApiReleased =
                 """
                 package android.content {
@@ -2492,7 +2457,10 @@ class CompatibilityCheckTest : DriverTest() {
                     """
                     )
                 ),
-            expectedIssues = ""
+            expectedIssues =
+                """
+                    src/android/content/ContextWrapper.java:10: error: Attempting to hide method android.content.ContextWrapper.createContextForSplit() which overrides method android.content.Parent.createContextForSplit() which is already part of the API [HidingApiMethodOverride]
+                """
         )
     }
 
@@ -2604,6 +2572,7 @@ class CompatibilityCheckTest : DriverTest() {
     @Test
     fun `Inherited deprecated protected @removed method`() {
         check(
+            extraArguments = errorIssues(Issues.HIDING_API_METHOD_OVERRIDE),
             checkCompatibilityApiReleased =
                 """
                 package android.icu.util {
@@ -2644,7 +2613,8 @@ class CompatibilityCheckTest : DriverTest() {
                 ),
             expectedIssues =
                 """
-                """
+                    src/android/icu/util/SpecificCalendar.java:11: error: Attempting to hide method android.icu.util.SpecificCalendar.validateField() which overrides method android.icu.util.Calendar.validateField() which is already part of the API [HidingApiMethodOverride]
+                """,
         )
     }
 
@@ -2960,6 +2930,7 @@ class CompatibilityCheckTest : DriverTest() {
     @Test
     fun `Inherited abstract method`() {
         check(
+            extraArguments = errorIssues(Issues.HIDING_API_METHOD_OVERRIDE),
             checkCompatibilityApiReleased =
                 """
                 package test.pkg {
@@ -2994,7 +2965,10 @@ class CompatibilityCheckTest : DriverTest() {
                     ),
                     systemApiSource
                 ),
-            expectedIssues = ""
+            expectedIssues =
+                """
+                    src/test/pkg/MeasureFormat.java:6: error: Attempting to hide method test.pkg.MeasureFormat.parse() which overrides method test.pkg.UFormat.parse() which is already part of the API [HidingApiMethodOverride]
+                """
         )
     }
 
@@ -3034,14 +3008,11 @@ class CompatibilityCheckTest : DriverTest() {
                     )
                 ),
             extraArguments =
-                arrayOf(
-                    ARG_HIDE,
-                    "ReferencesHidden",
-                    ARG_HIDE,
-                    "UnavailableSymbol",
-                    ARG_HIDE,
-                    "HiddenTypeParameter"
-                )
+                hiddenIssues(
+                    Issues.REFERENCES_HIDDEN,
+                    Issues.UNAVAILABLE_SYMBOL,
+                    Issues.HIDDEN_TYPE_PARAMETER,
+                ),
         )
     }
 
@@ -3496,18 +3467,18 @@ class CompatibilityCheckTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                load-api.txt:3: error: Binary breaking change: Class test.pkg.ClassToEnum changed class/interface declaration [ChangedClass]
-                load-api.txt:4: error: Binary breaking change: Class test.pkg.ClassToInterface changed class/interface declaration [ChangedClass]
-                load-api.txt:5: error: Binary breaking change: Class test.pkg.ClassToAnnotation changed class/interface declaration [ChangedClass]
-                load-api.txt:6: error: Binary breaking change: Class test.pkg.EnumToClass changed class/interface declaration [ChangedClass]
-                load-api.txt:7: error: Binary breaking change: Class test.pkg.EnumToInterface changed class/interface declaration [ChangedClass]
-                load-api.txt:8: error: Binary breaking change: Class test.pkg.EnumToAnnotation changed class/interface declaration [ChangedClass]
-                load-api.txt:9: error: Binary breaking change: Class test.pkg.InterfaceToClass changed class/interface declaration [ChangedClass]
-                load-api.txt:10: error: Binary breaking change: Class test.pkg.InterfaceToEnum changed class/interface declaration [ChangedClass]
-                load-api.txt:11: error: Binary breaking change: Class test.pkg.InterfaceToAnnotation changed class/interface declaration [ChangedClass]
-                load-api.txt:12: error: Binary breaking change: Class test.pkg.AnnotationToClass changed class/interface declaration [ChangedClass]
-                load-api.txt:13: error: Binary breaking change: Class test.pkg.AnnotationToInterface changed class/interface declaration [ChangedClass]
-                load-api.txt:14: error: Binary breaking change: Class test.pkg.AnnotationToEnum changed class/interface declaration [ChangedClass]
+                load-api.txt:3: error: Binary breaking change: test.pkg.ClassToEnum changed from class to enum class [ChangedClass]
+                load-api.txt:4: error: Binary breaking change: test.pkg.ClassToInterface changed from class to interface [ChangedClass]
+                load-api.txt:5: error: Binary breaking change: test.pkg.ClassToAnnotation changed from class to annotation class [ChangedClass]
+                load-api.txt:6: error: Binary breaking change: test.pkg.EnumToClass changed from enum class to class [ChangedClass]
+                load-api.txt:7: error: Binary breaking change: test.pkg.EnumToInterface changed from enum class to interface [ChangedClass]
+                load-api.txt:8: error: Binary breaking change: test.pkg.EnumToAnnotation changed from enum class to annotation class [ChangedClass]
+                load-api.txt:9: error: Binary breaking change: test.pkg.InterfaceToClass changed from interface to class [ChangedClass]
+                load-api.txt:10: error: Binary breaking change: test.pkg.InterfaceToEnum changed from interface to enum class [ChangedClass]
+                load-api.txt:11: error: Binary breaking change: test.pkg.InterfaceToAnnotation changed from interface to annotation class [ChangedClass]
+                load-api.txt:12: error: Binary breaking change: test.pkg.AnnotationToClass changed from annotation class to class [ChangedClass]
+                load-api.txt:13: error: Binary breaking change: test.pkg.AnnotationToInterface changed from annotation class to interface [ChangedClass]
+                load-api.txt:14: error: Binary breaking change: test.pkg.AnnotationToEnum changed from annotation class to enum class [ChangedClass]
                 """,
             signatureSource =
                 """
@@ -3670,7 +3641,10 @@ class CompatibilityCheckTest : DriverTest() {
     @Test
     fun `configuring issue severity`() {
         check(
-            extraArguments = arrayOf(ARG_HIDE, Issues.REMOVED_METHOD.name),
+            extraArguments =
+                hiddenIssues(
+                    Issues.REMOVED_METHOD,
+                ),
             signatureSource =
                 """
                 package test.pkg {
@@ -3766,29 +3740,6 @@ class CompatibilityCheckTest : DriverTest() {
                     }
                   }
               """
-        )
-    }
-
-    @Test
-    fun `Allow change from non-final to final in sealed class`() {
-        check(
-            signatureSource =
-                """
-                package test.pkg {
-                  sealed class Foo {
-                    method final public void bar(int);
-                  }
-                }
-            """,
-            format = FileFormat.V4,
-            checkCompatibilityApiReleased =
-                """
-                package test.pkg {
-                  sealed class Foo {
-                    method public void bar(int);
-                  }
-                }
-            """
         )
     }
 
@@ -4117,7 +4068,6 @@ class CompatibilityCheckTest : DriverTest() {
                 error: Binary breaking change: Method test.pkg.MyCollection.retainAll has changed 'abstract' qualifier [ChangedAbstract]
                 error: Binary breaking change: Method test.pkg.MyCollection.size has changed 'abstract' qualifier [ChangedAbstract]
                 error: Binary breaking change: Method test.pkg.MyCollection.toArray has changed 'abstract' qualifier [ChangedAbstract]
-                error: Binary breaking change: Method test.pkg.MyCollection.toArray has changed 'abstract' qualifier [ChangedAbstract]
                 error: Source breaking change: Attempted to remove parameter name from parameter p in test.pkg.MyCollection.add(E p) [ParameterNameChange]
                 error: Source breaking change: Attempted to remove parameter name from parameter p in test.pkg.MyCollection.addAll(java.util.Collection<? extends E> p) [ParameterNameChange]
                 error: Source breaking change: Attempted to remove parameter name from parameter p in test.pkg.MyCollection.remove(Object p) [ParameterNameChange]
@@ -4125,8 +4075,6 @@ class CompatibilityCheckTest : DriverTest() {
                 error: Source breaking change: Attempted to remove parameter name from parameter p in test.pkg.MyCollection.retainAll(java.util.Collection<?> p) [ParameterNameChange]
                 error: Source breaking change: Attempted to remove parameter name from parameter p in test.pkg.MyCollection.toArray(T[] p) [ParameterNameChange]
                 load-api.txt:5: error: Source breaking change: Attempted to change parameter name from o to element in method test.pkg.MyCollection.contains [ParameterNameChange]
-                load-api.txt:5: error: Source breaking change: Attempted to change parameter name from o to element in method test.pkg.MyCollection.contains [ParameterNameChange]
-                load-api.txt:6: error: Source breaking change: Attempted to change parameter name from c to elements in method test.pkg.MyCollection.containsAll [ParameterNameChange]
                 load-api.txt:6: error: Source breaking change: Attempted to change parameter name from c to elements in method test.pkg.MyCollection.containsAll [ParameterNameChange]
                 """,
             checkCompatibilityApiReleased =
@@ -4525,7 +4473,7 @@ class CompatibilityCheckTest : DriverTest() {
                         """
                     )
                 ),
-            api =
+            expectedApiSignature =
                 """
                     package test.pkg {
                       public final class KeepNoArgsCtor {
@@ -4583,7 +4531,7 @@ class CompatibilityCheckTest : DriverTest() {
                         """
                     )
                 ),
-            api =
+            expectedApiSignature =
                 """
                 // Signature format: 5.0
                 package test.pkg {
@@ -4630,7 +4578,7 @@ class CompatibilityCheckTest : DriverTest() {
                   }
                 }
                 """,
-            api =
+            expectedApiSignature =
                 """
                 // Signature format: 5.0
                 package test.pkg {
@@ -4646,6 +4594,107 @@ class CompatibilityCheckTest : DriverTest() {
                     method public int foo();
                   }
                 }
+                """,
+        )
+    }
+
+    @Test
+    fun `Change kind of method parameters`() {
+        check(
+            checkCompatibilityApiReleased =
+                """
+                // Signature format: 5.0
+                package test.pkg {
+                  public class Foo {
+                    method public void contextToReceiver(context String c);
+                    method public void receiverToValue(receiver String c);
+                    method public void valueToContext(String c);
+                  }
+                }
+                """,
+            signatureSource =
+                """
+                // Signature format: 5.0
+                package test.pkg {
+                  public class Foo {
+                    method public void contextToReceiver(receiver String c);
+                    method public void receiverToValue(String c);
+                    method public void valueToContext(context String c);
+                  }
+                }
+                """,
+            expectedIssues =
+                """
+                load-api.txt:4: error: Source breaking change: Parameter c in test.pkg.Foo.contextToReceiver(String c) has changed from CONTEXT to RECEIVER [ParameterKindChange]
+                load-api.txt:5: error: Source breaking change: Parameter c in test.pkg.Foo.receiverToValue(String c) has changed from RECEIVER to VALUE [ParameterKindChange]
+                load-api.txt:6: error: Source breaking change: Parameter c in test.pkg.Foo.valueToContext(String c) has changed from VALUE to CONTEXT [ParameterKindChange]
+                """
+        )
+    }
+
+    @RequiresCapabilities(Capability.KOTLIN)
+    @Test
+    fun `Parameter kind check with super method loaded from classpath`() {
+        check(
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
+                        package test.pkg
+                        import test.other.Parent
+                        class Child: Parent() {
+                            override suspend fun foo() = Unit
+                        }
+                        """
+                    )
+                ),
+            /*
+             Generated from the following Kotlin file:
+             ```
+             package test.other
+             open class Parent {
+                 open suspend fun foo() = Unit
+             }
+             ````
+            */
+            classpath =
+                arrayOf(
+                    base64gzip(
+                        "classpath.jar",
+                        // kotlinc version info: kotlinc-jvm 2.3.20 (JRE 21.0.9+10-b1163.91)
+                        "" +
+                            "H4sIAAAAAAAA/wvwZmYRYeDg4GBg4FBkQAYiDCwMvq4hjrqefm76vo5+nm6u" +
+                            "wSF6vm7/TjEwfPY9c9rHW1fvIq+3rta5M+c3BxlcMX7wtEjPy1fH0/di6aot" +
+                            "QR+8dAu1vM6c0Q77cE7/5Mkzj58+esrEEODNzrFeWHO9JdACcyAOwGm9OBCX" +
+                            "pBaX6OeXZKQW6QckFqXmlegl5yQWF88Nvh0k7Chgu3n3zlwmloAnj3g7pRxu" +
+                            "NNhEsLo2VkRru3kLyFfMahEUmySbVT7tk2H8Q/YfrC+6p/GHdbnbn9qULuyV" +
+                            "pyrGf7t42+8vL1/euxe/v/4Pi0G7ZVucqtNTj626TM95+VvWByXw/JTdd36u" +
+                            "1fftc65flQ1UXn9yQsyHGn9doxlHP36VEfK4tWFC0oYr28SNvkw/v+Ks8M/m" +
+                            "KTzFRz+tCyk9X55lNGHipxpBK+1L6gKFTz3r6/bU7NJQtd+pkZv4quND3zuz" +
+                            "/RX7fBbqNOumu6/IOmBrX7Ljvbfo83Y/1VXXK7fqdZh9058VMstzjVzWCgG3" +
+                            "h/M+mN89Fjf3YeXHOef0L+bzVX65ZXDh+ATdKyqd3GdTd9ROlDr82zvm0f9l" +
+                            "022PeT6Ucr61ds063fCweUYlcwVOJHIcluRJalEMzMh3fS/4eGpAzWRtvy63" +
+                            "5PtLRE22GG5lZL59tWHa+R8vMkOUtlge3nAh69vNYwsSpX+GXTa7pMZ4OM/0" +
+                            "MnPz2mdrApP6g9vnTw67dWK2/u7P1zYEeu2x+LPFxU55/hWpzT6n028Jz7wX" +
+                            "umW9dlHwhXadyw5agYu1mkz3MvLUpkY+/loqV/Fr7+Mza6qi7cIDHSqe5Lpc" +
+                            "zua4fv+7U/+h0/XhLdfelEzJ+tQWoGThuDk8VeTKEWP/1fylRdfOv0icYnbw" +
+                            "0uFGT94L792+Me61rIoqUVPbp/jX9bxgcMrkjZcPmNyMmd3A86ZiR+SniMJP" +
+                            "JoY8Z+fN+NP3r9lilTHbrXt+bW7hBVOT/NbcbA1a7mQ+1/jLki+yVQ01Ufq6" +
+                            "gVt+KH/KlHytvU5+zq4ZlWt6WqXnGl3rNLKykl7sabOkuFPJfGVvtLRB7J0y" +
+                            "w1eP+I7FiBRcP2p75z4Dd+CRH2xBim8EhBWFFCcpbjI895cRlKQniegv6GNi" +
+                            "YHjDgi9JSwMxPEflJmbm6WXnl+Rk5sXn5qeU5qQmJyQkpAFxUsOFhAVHFhxl" +
+                            "AOeWcPnKK0JAjRLg3MLIJMKAMBw5J4GyKyrAlXnRTUF2vDiKCfW48yC6IcjO" +
+                            "lEYxJIgZr68DvFnZQMqYgfAKkF7LDOIBAJwTmgmXBAAA"
+                    )
+                ),
+            checkCompatibilityApiReleased =
+                """
+               // Signature format: 5.0
+               package test.pkg {
+                 public final class Child extends test.other.Parent {
+                   ctor public Child();
+                 }
+               }
                 """,
         )
     }

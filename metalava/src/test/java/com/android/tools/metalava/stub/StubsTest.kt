@@ -107,7 +107,6 @@ class StubsTest : AbstractStubsTest() {
                 static { field19 = 0; }
                 }
                 """,
-            checkTextStubEquivalence = true
         )
     }
 
@@ -155,21 +154,18 @@ class StubsTest : AbstractStubsTest() {
                 @Deprecated
                 public static final synchronized native void method2();
                 /** @deprecated */
-                @SuppressWarnings({"unchecked", "deprecation", "all"})
                 @Deprecated
                 protected static final class Inner1 {
                 @Deprecated
                 protected Inner1() { throw new RuntimeException("Stub!"); }
                 }
                 /** @deprecated */
-                @SuppressWarnings({"unchecked", "deprecation", "all"})
                 @Deprecated
                 protected abstract static class Inner2 {
                 @Deprecated
                 protected Inner2() { throw new RuntimeException("Stub!"); }
                 }
                 /** @deprecated */
-                @SuppressWarnings({"unchecked", "deprecation", "all"})
                 @Deprecated
                 protected static interface Inner3 {
                 @Deprecated
@@ -178,7 +174,9 @@ class StubsTest : AbstractStubsTest() {
                 public static void method4() { throw new RuntimeException("Stub!"); }
                 }
                 }
-                """
+                """,
+            // Includes documentation so cannot match what is generated from signature file.
+            checkTextStubEquivalence = false,
         )
     }
 
@@ -211,7 +209,6 @@ class StubsTest : AbstractStubsTest() {
                 protected void finalize2() throws java.io.IOException, java.lang.IllegalArgumentException { throw new RuntimeException("Stub!"); }
                 }
                 """,
-            checkTextStubEquivalence = true
         )
     }
 
@@ -250,7 +247,6 @@ class StubsTest : AbstractStubsTest() {
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class InstanceFieldTest {
                     public InstanceFieldTest() { throw new RuntimeException("Stub!"); }
-                    @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public static final class WindowLayout {
                     public WindowLayout(int width, int height, int gravity) { throw new RuntimeException("Stub!"); }
                     public final int gravity;
@@ -303,7 +299,7 @@ class StubsTest : AbstractStubsTest() {
                 """
                     )
                 ),
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
@@ -345,7 +341,6 @@ class StubsTest : AbstractStubsTest() {
                 """
                     )
                 ),
-            checkTextStubEquivalence = true
         )
     }
 
@@ -390,117 +385,8 @@ class StubsTest : AbstractStubsTest() {
                     public HeaderComments() { throw new RuntimeException("Stub!"); }
                     }
                     """,
-            filterBlankLinesFromStubFiles = false,
-        )
-    }
-
-    @Test
-    fun `DocOnly members should be omitted`() {
-        // When marked @doconly don't include in stubs or signature files
-        // unless specifically asked for (which we do when generating docs-stubs).
-        checkStubs(
-            sourceFiles =
-                arrayOf(
-                    java(
-                        """
-                    package test.pkg;
-
-                    @SuppressWarnings("JavaDoc")
-                    public class Outer {
-                        /** @doconly Some docs here */
-                        public class MyClass1 {
-                            public int myField;
-                        }
-
-                        public class MyClass2 {
-                            /** @doconly Some docs here */
-                            public int myField;
-
-                            /** @doconly Some docs here */
-                            public int myMethod() { return 0; }
-                        }
-                    }
-                    """
-                    )
-                ),
-            source =
-                """
-                package test.pkg;
-                @SuppressWarnings({"unchecked", "deprecation", "all"})
-                public class Outer {
-                public Outer() { throw new RuntimeException("Stub!"); }
-                @SuppressWarnings({"unchecked", "deprecation", "all"})
-                public class MyClass2 {
-                public MyClass2() { throw new RuntimeException("Stub!"); }
-                }
-                }
-                    """,
-            api =
-                """
-                package test.pkg {
-                  public class Outer {
-                    ctor public Outer();
-                  }
-                  public class Outer.MyClass2 {
-                    ctor public Outer.MyClass2();
-                  }
-                }
-                """
-        )
-    }
-
-    @Test
-    fun `DocOnly members should be included when requested`() {
-        // When marked @doconly don't include in stubs or signature files
-        // unless specifically asked for (which we do when generating docs).
-        checkStubs(
-            docStubs = true,
-            sourceFiles =
-                arrayOf(
-                    java(
-                        """
-                    package test.pkg;
-
-                    @SuppressWarnings("JavaDoc")
-                    public class Outer {
-                        /** @doconly Some docs here */
-                        public class MyClass1 {
-                            public int myField;
-                        }
-
-                        public class MyClass2 {
-                            /** @doconly Some docs here */
-                            public int myField;
-
-                            /** @doconly Some docs here */
-                            public int myMethod() { return 0; }
-                        }
-                    }
-                    """
-                    )
-                ),
-            source =
-                """
-                    package test.pkg;
-                    @SuppressWarnings({"unchecked", "deprecation", "all"})
-                    public class Outer {
-                    public Outer() { throw new RuntimeException("Stub!"); }
-                    /** */
-                    @SuppressWarnings({"unchecked", "deprecation", "all"})
-                    public class MyClass1 {
-                    public MyClass1() { throw new RuntimeException("Stub!"); }
-                    public int myField;
-                    }
-                    @SuppressWarnings({"unchecked", "deprecation", "all"})
-                    public class MyClass2 {
-                    public MyClass2() { throw new RuntimeException("Stub!"); }
-                    /** */
-                    public int myMethod() { throw new RuntimeException("Stub!"); }
-                    /** */
-                    public int myField;
-                    }
-                    }
-                    """
+            // Includes comments so cannot match what is generated from signature file.
+            checkTextStubEquivalence = false,
         )
     }
 
@@ -580,17 +466,14 @@ class StubsTest : AbstractStubsTest() {
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class Generics {
                     public Generics() { throw new RuntimeException("Stub!"); }
-                    @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class MyClass<X, Y extends java.lang.Number> extends test.pkg.Generics.PublicParent<X,Y> implements test.pkg.Generics.PublicInterface<X,Y> {
                     public MyClass() { throw new RuntimeException("Stub!"); }
                     public java.util.Map<X,java.util.Map<Y,java.lang.String>> createMap(java.util.List<X> list) throws java.io.IOException { throw new RuntimeException("Stub!"); }
                     protected java.util.List<X> foo() { throw new RuntimeException("Stub!"); }
                     }
-                    @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public static interface PublicInterface<A, B> {
                     public java.util.Map<A,java.util.Map<B,java.lang.String>> createMap(java.util.List<A> list) throws java.io.IOException;
                     }
-                    @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public abstract class PublicParent<A, B extends java.lang.Number> {
                     public PublicParent() { throw new RuntimeException("Stub!"); }
                     protected abstract java.util.List<A> foo();
@@ -658,7 +541,6 @@ class StubsTest : AbstractStubsTest() {
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class ConcurrentHashMap<K, V> {
                     public ConcurrentHashMap() { throw new RuntimeException("Stub!"); }
-                    @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public abstract static class KeySetView<K, V> implements java.util.Collection<K>, java.io.Serializable, java.util.Set<K> {
                     public KeySetView() { throw new RuntimeException("Stub!"); }
                     public int size() { throw new RuntimeException("Stub!"); }
@@ -697,16 +579,13 @@ class StubsTest : AbstractStubsTest() {
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class Generics2 {
                     public Generics2() { throw new RuntimeException("Stub!"); }
-                    @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class FloatArrayEvaluator implements test.pkg.Generics2.TypeEvaluator<float[]> {
                     public FloatArrayEvaluator() { throw new RuntimeException("Stub!"); }
                     }
-                    @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public static interface TypeEvaluator<T> {
                     }
                     }
                     """,
-            checkTextStubEquivalence = true
         )
     }
 
@@ -768,23 +647,22 @@ class StubsTest : AbstractStubsTest() {
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class Layouts {
                     public Layouts() { throw new RuntimeException("Stub!"); }
-                    @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public static class Toolbar extends test.pkg.Layouts.ViewGroup {
                     public Toolbar() { throw new RuntimeException("Stub!"); }
                     protected void onLayout(boolean changed, int l, int t, int r, int b) { throw new RuntimeException("Stub!"); }
                     }
-                    @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public static class View {
                     public View() { throw new RuntimeException("Stub!"); }
                     protected void onLayout(boolean changed, int left, int top, int right, int bottom) { throw new RuntimeException("Stub!"); }
                     }
-                    @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public abstract static class ViewGroup extends test.pkg.Layouts.View {
                     public ViewGroup() { throw new RuntimeException("Stub!"); }
                     protected abstract void onLayout(boolean changed, int l, int t, int r, int b);
                     }
                     }
-                    """
+                    """,
+            // Includes an extra override that is not present in the signature file.
+            checkTextStubEquivalence = false,
         )
     }
 
@@ -831,18 +709,14 @@ class StubsTest : AbstractStubsTest() {
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class SpanTest {
                     public SpanTest() { throw new RuntimeException("Stub!"); }
-                    @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public static interface CharSequence {
                     }
-                    @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public static interface Spannable extends test.pkg.SpanTest.Spanned {
                     }
-                    @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class SpannableString implements test.pkg.SpanTest.CharSequence, test.pkg.SpanTest.Spannable {
                     public SpannableString() { throw new RuntimeException("Stub!"); }
                     public int nextSpanTransition(int start, int limit, java.lang.Class kind) { throw new RuntimeException("Stub!"); }
                     }
-                    @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public static interface Spanned extends test.pkg.SpanTest.CharSequence {
                     public int nextSpanTransition(int start, int limit, java.lang.Class type);
                     }
@@ -887,11 +761,9 @@ class StubsTest : AbstractStubsTest() {
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class Properties {
                     public Properties() { throw new RuntimeException("Stub!"); }
-                    @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public abstract class IntProperty<T> extends test.pkg.Properties.Property<T,java.lang.Integer> {
                     public IntProperty(java.lang.String name) { super((java.lang.Class)null, ""); throw new RuntimeException("Stub!"); }
                     }
-                    @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public abstract class Property<T, V> {
                     public Property(java.lang.Class<V> type, java.lang.String name) { throw new RuntimeException("Stub!"); }
                     public Property(java.lang.Class<V> type, java.lang.String name, java.lang.String name2) { throw new RuntimeException("Stub!"); }
@@ -948,7 +820,9 @@ class StubsTest : AbstractStubsTest() {
                 protected static void onCreate(java.util.List<java.lang.String> parameter1) { throw new RuntimeException("Stub!"); }
                 protected static final java.lang.String field = "a\nb\n\"test\"";
                 }
-                """
+                """,
+            // Includes documentation so cannot match what is generated from signature file.
+            checkTextStubEquivalence = false,
         )
     }
 
@@ -1062,7 +936,7 @@ class StubsTest : AbstractStubsTest() {
                     """
                     )
                 ),
-            api =
+            expectedApiSignature =
                 """
                 package test.pkg {
                   public class Alpha extends test.pkg.Charlie<test.pkg.Orange!> {
@@ -1073,7 +947,7 @@ class StubsTest : AbstractStubsTest() {
                   }
                 }
                 """,
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
@@ -1114,7 +988,7 @@ class StubsTest : AbstractStubsTest() {
                     """
                     )
                 ),
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
@@ -1161,7 +1035,7 @@ class StubsTest : AbstractStubsTest() {
             }
             """, // system-current.txt
                 ),
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
@@ -1214,7 +1088,7 @@ class StubsTest : AbstractStubsTest() {
             }
             """,
                 ),
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
@@ -1260,7 +1134,7 @@ class StubsTest : AbstractStubsTest() {
             }
             """,
                 ),
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     // class java.text.AttributedCharacterIterator.Attribute is included in
                     // android.jar, which is passed as classpath in DriverTest. The class does not
@@ -1274,7 +1148,6 @@ class StubsTest : AbstractStubsTest() {
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public abstract class Format implements java.lang.Cloneable, java.io.Serializable {
                     protected Format() { throw new RuntimeException("Stub!"); }
-                    @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public static class Field extends java.text.AttributedCharacterIterator.Attribute {
                     protected Field(java.lang.String arg1) { super(""); throw new RuntimeException("Stub!"); }
                     }
@@ -1323,7 +1196,7 @@ class StubsTest : AbstractStubsTest() {
                         """
                     )
                 ),
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
@@ -1339,7 +1212,7 @@ class StubsTest : AbstractStubsTest() {
                     )
                 ),
             format = FileFormat.V2,
-            api =
+            expectedApiSignature =
                 """
                     package test.pkg {
                       public class Foo {

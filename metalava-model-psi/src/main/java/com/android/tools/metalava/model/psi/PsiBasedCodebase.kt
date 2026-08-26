@@ -23,6 +23,7 @@ import com.android.tools.metalava.model.ClassOrigin
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.annotation.AnnotationDefaults
+import com.android.tools.metalava.model.api.SelectedApi
 import com.android.tools.metalava.model.item.DefaultCodebase
 import com.android.tools.metalava.model.type.ContextNullability
 import com.android.tools.metalava.model.value.Value
@@ -70,6 +71,8 @@ internal class PsiBasedCodebase(
         trustedApi = false,
         supportsDocumentation = true,
         assembler = assembler,
+        // Create a [SelectedApi] instance that will be initialized lazily from the source.
+        selectedApiFactory = SelectedApi.sourceFactory(config),
     ) {
 
     internal val psiAssembler = assembler

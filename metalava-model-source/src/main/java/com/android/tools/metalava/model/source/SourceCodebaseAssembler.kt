@@ -18,15 +18,17 @@ package com.android.tools.metalava.model.source
 
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.AnnotationUse
-import com.android.tools.metalava.model.AnnotationUse.TYPE_ONLY
 import com.android.tools.metalava.model.BaseItemVisitor
+import com.android.tools.metalava.model.BaseModifierList
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.ItemDocumentationFactory
+import com.android.tools.metalava.model.KOTLIN_PUBLISHED_API
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.SourceFile
+import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.item.CodebaseAssembler
 import com.android.tools.metalava.model.item.DefaultCodebaseAssembler
 import com.android.tools.metalava.model.item.PackageInfo
@@ -108,7 +110,15 @@ abstract class SourceCodebaseAssembler : DefaultCodebaseAssembler() {
                     ?.firstOrNull()
             if (pkg == null) {
                 // Strip the longest prefix source root.
-                val prefix = sortedSourceRoots.firstOrNull { file.startsWith(it) }?.path ?: ""
+                val prefix = sortedSourceRoots.firstOrNull { file.startsWith(it) }?.path
+                if (prefix == null) {
+                    codebase.reporter.report(
+                        Issues.INVALID_SOURCES,
+                        file,
+                        "Could not find source root for $file",
+                    )
+                    continue
+                }
                 pkg = file.parentFile.path.substring(prefix.length).trim('/').replace("/", ".")
             }
 
@@ -227,7 +237,12 @@ abstract class SourceCodebaseAssembler : DefaultCodebaseAssembler() {
      */
     fun copyTypeUseOnlyNullnessAnnotationsToItems() {
         codebase.accept(
-            object : BaseItemVisitor() {
+            object :
+                BaseItemVisitor(
+                    // TODO(b/482390286): Remove once record components handles type use annotations
+                    //  correctly.
+                    visitRecordComponentItems = true,
+                ) {
                 override fun visitItem(item: Item) {
                     if (item is ClassItem || item is PackageItem) return
                     val type = item.type() ?: return
@@ -284,3 +299,19 @@ data class SourcePackageInfo(
             commentFactory ?: defaultCommentFactory,
         )
 }
+
+/**
+ * Check if the [BaseModifierList] is accessible as part of an API.
+ *
+ * If this has [VisibilityLevel.INTERNAL] then it is only accessible if it is annotated with the
+ * [PublishedApi] annotation.
+ */
+val BaseModifierList.hasApiVisibility
+    get() =
+        when (getVisibilityLevel()) {
+            VisibilityLevel.PUBLIC,
+            VisibilityLevel.PROTECTED -> true
+            VisibilityLevel.INTERNAL ->
+                annotations().any { it.qualifiedName == KOTLIN_PUBLISHED_API }
+            else -> false
+        }

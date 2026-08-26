@@ -20,9 +20,11 @@ import com.android.tools.metalava.model.ArrayTypeItem
 import com.android.tools.metalava.model.Assertions
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.Codebase
+import com.android.tools.metalava.model.CodebaseFragment
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.StripJavaLangPrefix
 import com.android.tools.metalava.model.VisibilityLevel
+import com.android.tools.metalava.model.snapshot.NonFilteringDelegatingVisitor
 import com.android.tools.metalava.model.testing.value.fieldReferenceValue
 import com.android.tools.metalava.model.text.CustomizableProperty.Companion.INCLUDE_TYPE_USE_ANNOTATIONS
 import com.android.tools.metalava.model.text.CustomizableProperty.Companion.KOTLIN_NAME_TYPE_ORDER
@@ -32,18 +34,50 @@ import com.android.tools.metalava.model.text.CustomizableProperty.Companion.STRI
 import com.android.tools.metalava.model.text.CustomizableProperty.Companion.TYPE_ARGUMENT_SPACING
 import com.android.tools.metalava.model.text.FileFormat.TypeArgumentSpacing
 import com.android.tools.metalava.model.value.asString
-import com.android.tools.metalava.model.visitors.ApiPredicate
-import com.android.tools.metalava.model.visitors.ApiType
 import com.google.common.truth.Truth.assertThat
 import java.io.PrintWriter
 import java.io.StringWriter
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.junit.runners.Parameterized
 
 /**
  * Tests [SignatureWriter] and [ApiFile] by round tripping a signature file and make sure that it
  * matches the original.
  */
+@RunWith(Parameterized::class)
 class SignatureInputOutputTest : Assertions {
+
+    /** The kind of [Codebase] to use. */
+    @Parameterized.Parameter(0) lateinit var codebaseKind: CodebaseKind
+
+    enum class CodebaseKind {
+        /** Use a [CodebaseFragment] as is. */
+        FRAGMENT {
+            override fun transformFragment(fragment: CodebaseFragment) = fragment
+        },
+
+        /** Use a snapshot of the [CodebaseFragment]. */
+        SNAPSHOT {
+            override fun transformFragment(fragment: CodebaseFragment) =
+                fragment.snapshotIncludingRevertedItems(::NonFilteringDelegatingVisitor)
+        },
+        ;
+
+        /** Transform the basic [fragment] into the one that will actually be used. */
+        abstract fun transformFragment(fragment: CodebaseFragment): CodebaseFragment
+
+        override fun toString() = name.lowercase()
+    }
+
+    companion object {
+        @JvmStatic
+        @Parameterized.Parameters(name = "{0}")
+        internal fun params() = CodebaseKind.entries
+
+        private val kotlinStyleFormat =
+            FileFormat.V5.buildCopy { this[KOTLIN_NAME_TYPE_ORDER] = true }
+    }
 
     /**
      * Context against which test code is run.
@@ -66,6 +100,7 @@ class SignatureInputOutputTest : Assertions {
         signature: String,
         fileFormat: FileFormat,
         expectedOutput: String = signature,
+        writeTargetLanguages: Boolean = true,
         codebaseTest: CodebaseContext.() -> Unit = {},
     ) {
         val fullSignature = prepareSignatureFileForTest(signature, fileFormat)
@@ -73,6 +108,17 @@ class SignatureInputOutputTest : Assertions {
         val codebase = ApiFile.parseApi(listOf(signatureFile))
 
         CodebaseContext(codebase).codebaseTest()
+
+        val baseFragment =
+            createCodebaseFragmentForSignatureFile(
+                codebase,
+                fileFormat = fileFormat,
+                // Pre-filtered so does not need any filters.
+                apiFilters = null,
+                showUnannotated = false,
+            )
+
+        val fragment = codebaseKind.transformFragment(baseFragment)
 
         val output =
             StringWriter().use { stringWriter ->
@@ -82,19 +128,10 @@ class SignatureInputOutputTest : Assertions {
                             writer = printWriter,
                             emitHeader = EmitFileHeader.IF_NONEMPTY_FILE,
                             fileFormat = fileFormat,
+                            writeTargetLanguages = writeTargetLanguages,
                         )
 
-                    val visitor =
-                        createFilteringVisitorForSignatures(
-                            delegate = signatureWriter,
-                            fileFormat = fileFormat,
-                            apiType = ApiType.ALL,
-                            preFiltered = true,
-                            showUnannotated = false,
-                            apiPredicateConfig = ApiPredicate.Config()
-                        )
-
-                    codebase.accept(visitor)
+                    fragment.accept(signatureWriter)
                 }
                 stringWriter.toString()
             }
@@ -112,7 +149,6 @@ class SignatureInputOutputTest : Assertions {
                   }
                 }
             """
-                .trimIndent()
 
         runInputOutputTest(api, kotlinStyleFormat) {
             val foo = codebase.assertClass("test.pkg.Foo")
@@ -132,7 +168,6 @@ class SignatureInputOutputTest : Assertions {
                   }
                 }
             """
-                .trimIndent()
         runInputOutputTest(api, kotlinStyleFormat) {
             val foo = codebase.assertClass("test.pkg.Foo")
             assertThat(foo.properties()).hasSize(1)
@@ -154,7 +189,6 @@ class SignatureInputOutputTest : Assertions {
                   }
                 }
             """
-                .trimIndent()
         runInputOutputTest(api, kotlinStyleFormat) {
             val foo = codebase.assertClass("test.pkg.Foo")
             assertThat(foo.fields()).hasSize(1)
@@ -177,7 +211,6 @@ class SignatureInputOutputTest : Assertions {
                   }
                 }
             """
-                .trimIndent()
         runInputOutputTest(api, kotlinStyleFormat) {
             val foo = codebase.assertClass("test.pkg.Foo")
             assertThat(foo.fields()).hasSize(1)
@@ -201,7 +234,6 @@ class SignatureInputOutputTest : Assertions {
                   }
                 }
             """
-                .trimIndent()
         runInputOutputTest(api, kotlinStyleFormat) {
             val foo = codebase.assertClass("test.pkg.Foo")
             assertThat(foo.methods()).hasSize(1)
@@ -224,7 +256,6 @@ class SignatureInputOutputTest : Assertions {
                   }
                 }
             """
-                .trimIndent()
         runInputOutputTest(api, kotlinStyleFormat) {
             val foo = codebase.assertClass("test.pkg.Foo")
             assertThat(foo.methods()).hasSize(1)
@@ -252,7 +283,6 @@ class SignatureInputOutputTest : Assertions {
                   }
                 }
             """
-                .trimIndent()
         runInputOutputTest(api, kotlinStyleFormat) {
             val foo = codebase.assertClass("test.pkg.Foo")
             assertThat(foo.methods()).hasSize(1)
@@ -279,7 +309,6 @@ class SignatureInputOutputTest : Assertions {
                   }
                 }
             """
-                .trimIndent()
         runInputOutputTest(api, kotlinStyleFormat) {
             val foo = codebase.assertClass("test.pkg.Foo")
             val method = foo.methods().single()
@@ -303,7 +332,6 @@ class SignatureInputOutputTest : Assertions {
                   }
                 }
             """
-                .trimIndent()
         runInputOutputTest(api, kotlinStyleFormat) {
             val foo = codebase.assertClass("test.pkg.Foo")
             val method = foo.methods().single()
@@ -329,7 +357,6 @@ class SignatureInputOutputTest : Assertions {
                   }
                 }
             """
-                .trimIndent()
         runInputOutputTest(api, kotlinStyleFormat) {
             val foo = codebase.assertClass("test.pkg.Foo")
             val method = foo.methods().single()
@@ -348,22 +375,21 @@ class SignatureInputOutputTest : Assertions {
     @Test
     fun `Test method with one unnamed parameter`() {
         val api =
-            kotlinStyleFormat.header() +
-                """
+            """
                 package test.pkg {
                   public class Foo {
                     method public foo(_: int): String;
                   }
                 }
             """
-                    .trimIndent()
+
         runInputOutputTest(api, kotlinStyleFormat) {
             val foo = codebase.assertClass("test.pkg.Foo")
             val method = foo.methods().single()
 
             assertThat(method.parameters()).hasSize(1)
             val param = method.parameters().single()
-            assertThat(param.name()).isEqualTo("_")
+            assertThat(param.name()).isEqualTo("arg1")
             assertThat(param.publicName()).isNull()
             assertThat((param.type() as PrimitiveTypeItem).kind)
                 .isEqualTo(PrimitiveTypeItem.Primitive.INT)
@@ -380,14 +406,13 @@ class SignatureInputOutputTest : Assertions {
                   }
                 }
             """
-                .trimIndent()
         runInputOutputTest(api, kotlinStyleFormat) {
             val foo = codebase.assertClass("test.pkg.Foo")
             val method = foo.methods().single()
 
             assertThat(method.parameters()).hasSize(1)
             val param = method.parameters().single()
-            assertThat(param.name()).isEqualTo("_")
+            assertThat(param.name()).isEqualTo("arg1")
             assertThat(param.publicName()).isNull()
             assertThat((param.type() as ClassTypeItem).qualifiedName).isEqualTo("test.pkg.Foo")
             assertThat(param.modifiers.isVolatile()).isTrue()
@@ -404,7 +429,6 @@ class SignatureInputOutputTest : Assertions {
                   }
                 }
             """
-                .trimIndent()
         runInputOutputTest(api, kotlinStyleFormat) {
             val foo = codebase.assertClass("test.pkg.Foo")
             val method = foo.methods().single()
@@ -446,7 +470,6 @@ class SignatureInputOutputTest : Assertions {
                   }
                 }
             """
-                .trimIndent()
         runInputOutputTest(api, kotlinStyleFormat) {
             val foo = codebase.assertClass("test.pkg.Foo")
             val method = foo.methods().single()
@@ -455,14 +478,14 @@ class SignatureInputOutputTest : Assertions {
 
             // _: int
             val p0 = method.parameters()[0]
-            assertThat(p0.name()).isEqualTo("_")
+            assertThat(p0.name()).isEqualTo("arg1")
             assertThat(p0.publicName()).isNull()
             assertThat((p0.type() as PrimitiveTypeItem).kind)
                 .isEqualTo(PrimitiveTypeItem.Primitive.INT)
 
             // _: java.util.Map<java.lang.String, java.lang.Object>
             val p1 = method.parameters()[1]
-            assertThat(p1.name()).isEqualTo("_")
+            assertThat(p1.name()).isEqualTo("arg2")
             assertThat(p1.publicName()).isNull()
             val mapType = p1.type() as ClassTypeItem
             assertThat(mapType.qualifiedName).isEqualTo("java.util.Map")
@@ -472,7 +495,7 @@ class SignatureInputOutputTest : Assertions {
 
             // _: String[]
             val p2 = method.parameters()[2]
-            assertThat(p2.name()).isEqualTo("_")
+            assertThat(p2.name()).isEqualTo("arg3")
             assertThat(p2.publicName()).isNull()
             assertThat((p2.type() as ArrayTypeItem).componentType.isString()).isTrue()
         }
@@ -489,7 +512,6 @@ class SignatureInputOutputTest : Assertions {
                   }
                 }
             """
-                .trimIndent()
         runInputOutputTest(api, format) {
             val method = codebase.assertClass("test.pkg.MyTest").methods().single()
             // Return type has platform nullability
@@ -524,7 +546,6 @@ class SignatureInputOutputTest : Assertions {
                   }
                 }
             """
-                .trimIndent()
         runInputOutputTest(api, format) {
             val fooClass = codebase.assertClass("test.pkg.Foo")
             val superClassType = fooClass.superClassType()
@@ -545,7 +566,6 @@ class SignatureInputOutputTest : Assertions {
                   }
                 }
             """
-                .trimIndent()
         runInputOutputTest(api, kotlinStyleFormat)
     }
 
@@ -558,7 +578,6 @@ class SignatureInputOutputTest : Assertions {
                   }
                 }
             """
-                .trimIndent()
         runInputOutputTest(api, kotlinStyleFormat)
     }
 
@@ -743,7 +762,6 @@ class SignatureInputOutputTest : Assertions {
                   }
                 }
             """
-                .trimIndent()
         runInputOutputTest(
             api,
             FileFormat.V2.buildCopy { this[STRIP_JAVA_LANG_PREFIX] = StripJavaLangPrefix.NEVER }
@@ -763,7 +781,6 @@ class SignatureInputOutputTest : Assertions {
                   }
                 }
             """
-                .trimIndent()
         runInputOutputTest(
             api,
             FileFormat.V2.buildCopy { this[STRIP_JAVA_LANG_PREFIX] = StripJavaLangPrefix.LEGACY }
@@ -783,7 +800,6 @@ class SignatureInputOutputTest : Assertions {
                   }
                 }
             """
-                .trimIndent()
         runInputOutputTest(
             api,
             FileFormat.V2.buildCopy { this[STRIP_JAVA_LANG_PREFIX] = StripJavaLangPrefix.ALWAYS }
@@ -803,7 +819,6 @@ class SignatureInputOutputTest : Assertions {
                   }
                 }
             """
-                .trimIndent()
         runInputOutputTest(
             api,
             FileFormat.V2.buildCopy {
@@ -825,7 +840,6 @@ class SignatureInputOutputTest : Assertions {
                   }
                 }
             """
-                .trimIndent()
         runInputOutputTest(
             api,
             FileFormat.V2.buildCopy {
@@ -847,7 +861,6 @@ class SignatureInputOutputTest : Assertions {
                   }
                 }
             """
-                .trimIndent()
         runInputOutputTest(
             api,
             FileFormat.V2.buildCopy {
@@ -979,6 +992,8 @@ class SignatureInputOutputTest : Assertions {
             """
                 package test.pkg {
                   public record Test {
+                    record_component #0 a: int;
+                    record_component #1 b: String;
                     ctor public Test(int, String);
                     method public int a();
                     method public String b();
@@ -987,7 +1002,7 @@ class SignatureInputOutputTest : Assertions {
             """
         runInputOutputTest(
             api,
-            FORMAT_V6_WITH_JAVA_RECORD_CLASSES,
+            FORMAT_V6_WITH_JAVA_STYLE,
         )
     }
 
@@ -997,6 +1012,8 @@ class SignatureInputOutputTest : Assertions {
             """
                 package test.pkg {
                   public record Test {
+                    record_component #0 a: int;
+                    record_component #1 b: String;
                     ctor public Test(int, String);
                     method public int a();
                     method public String b();
@@ -1009,7 +1026,7 @@ class SignatureInputOutputTest : Assertions {
             expectedOutput =
                 """
                     package test.pkg {
-                      public class Test {
+                      public final class Test {
                         ctor public Test(int, String);
                         method public int a();
                         method public String b();
@@ -1019,8 +1036,107 @@ class SignatureInputOutputTest : Assertions {
         )
     }
 
-    companion object {
-        private val kotlinStyleFormat =
-            FileFormat.V5.buildCopy { this[KOTLIN_NAME_TYPE_ORDER] = true }
+    @Test
+    fun `Test record classes, not in alphabetical order`() {
+        val api =
+            """
+                package test.pkg {
+                  public record Test {
+                    record_component #0 b: int;
+                    record_component #1 a: String;
+                    ctor public Test(int, String);
+                    method public int a();
+                    method public String b();
+                  }
+                }
+            """
+        runInputOutputTest(
+            api,
+            FORMAT_V6_WITH_JAVA_STYLE,
+        )
+    }
+
+    @Test
+    fun `Test sealed classes, java-sealed-classes=yes`() {
+        val api =
+            """
+                package test.pkg {
+                  public sealed non-exhaustive class Base implements test.pkg.Super permits test.pkg.SubclassA test.pkg.SubclassB {
+                  }
+                  public non-sealed class SubclassA extends test.pkg.Base {
+                  }
+                  public final class SubclassB extends test.pkg.Base {
+                  }
+                  public interface Super {
+                  }
+                }
+            """
+        runInputOutputTest(
+            api,
+            FORMAT_V6_WITH_JAVA_SEALED_CLASSES,
+        )
+    }
+
+    @Test
+    fun `Test not writing target languages`() {
+        runInputOutputTest(
+            writeTargetLanguages = false,
+            fileFormat = FileFormat.V5,
+            signature =
+                """
+                package test.pkg {
+                  public class Test {
+                    method public void all();
+                    method @BytecodeOnly public void bytecodeOnly();
+                    method @KotlinOnly public void kotlinOnly();
+                  }
+                }
+                """,
+            expectedOutput =
+                """
+                package test.pkg {
+                  public class Test {
+                    method public void all();
+                    method public void bytecodeOnly();
+                    method public void kotlinOnly();
+                  }
+                }
+                """
+        )
+    }
+
+    @Test
+    fun `Test writing property context parameters`() {
+        runInputOutputTest(
+            signature =
+                """
+                // Signature format: 5.0
+                package test.pkg {
+                  public class Foo {
+                    property public int noContextParams;
+                    property public int oneContextParam(context String s);
+                    property public int twoContextParams(context String s, context int i);
+                    property public int unnamedContextParam(context String);
+                  }
+                }
+                """,
+            fileFormat = FileFormat.V5
+        )
+    }
+
+    @Test
+    fun `Test writing function context parameters`() {
+        runInputOutputTest(
+            signature =
+                """
+                // Signature format: 5.0
+                package test.pkg {
+                  public class Foo {
+                    method public void foo(context String c1, context int c2, String v1, int v2);
+                  }
+                }
+                """,
+            fileFormat = FileFormat.V5
+        )
     }
 }

@@ -16,12 +16,16 @@
 
 package com.android.tools.metalava.model.text
 
+import com.android.tools.metalava.model.AnnotationFormatter
 import com.android.tools.metalava.model.AnnotationItem
+import com.android.tools.metalava.model.AnnotationTarget
 import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.ClassOrVariableTypeItem
 import com.android.tools.metalava.model.ClassTypeItem
+import com.android.tools.metalava.model.Codebase
+import com.android.tools.metalava.model.CodebaseFragment
 import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.DelegatedVisitor
 import com.android.tools.metalava.model.FieldItem
@@ -30,7 +34,10 @@ import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ModifierListWriter
 import com.android.tools.metalava.model.MutableModifierList
 import com.android.tools.metalava.model.PackageItem
+import com.android.tools.metalava.model.ParameterItem
+import com.android.tools.metalava.model.ParameterKind
 import com.android.tools.metalava.model.PropertyItem
+import com.android.tools.metalava.model.RecordComponentItem
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.StripJavaLangPrefix
 import com.android.tools.metalava.model.TargetLanguageSet
@@ -41,6 +48,7 @@ import com.android.tools.metalava.model.text.CustomizableProperty.Companion.FLAG
 import com.android.tools.metalava.model.text.CustomizableProperty.Companion.INCLUDE_DEFAULT_PARAMETER_VALUES
 import com.android.tools.metalava.model.text.CustomizableProperty.Companion.INCLUDE_TYPE_USE_ANNOTATIONS
 import com.android.tools.metalava.model.text.CustomizableProperty.Companion.JAVA_RECORD_CLASSES
+import com.android.tools.metalava.model.text.CustomizableProperty.Companion.JAVA_SEALED_CLASSES
 import com.android.tools.metalava.model.text.CustomizableProperty.Companion.KOTLIN_NAME_TYPE_ORDER
 import com.android.tools.metalava.model.text.CustomizableProperty.Companion.KOTLIN_STYLE_NULLS
 import com.android.tools.metalava.model.text.CustomizableProperty.Companion.NORMALIZE_ABSTRACT_MODIFIER
@@ -50,8 +58,7 @@ import com.android.tools.metalava.model.text.CustomizableProperty.Companion.SORT
 import com.android.tools.metalava.model.text.CustomizableProperty.Companion.STRIP_JAVA_LANG_PREFIX
 import com.android.tools.metalava.model.text.CustomizableProperty.Companion.TYPE_ARGUMENT_SPACING
 import com.android.tools.metalava.model.text.FileFormat.TypeArgumentSpacing
-import com.android.tools.metalava.model.visitors.ApiPredicate
-import com.android.tools.metalava.model.visitors.ApiType
+import com.android.tools.metalava.model.visitors.ApiFilters
 import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.android.tools.metalava.model.visitors.FilteringApiVisitor
 import java.io.PrintWriter
@@ -60,6 +67,7 @@ class SignatureWriter(
     private val writer: PrintWriter,
     private var emitHeader: EmitFileHeader = EmitFileHeader.ALWAYS,
     private val fileFormat: FileFormat,
+    private val writeTargetLanguages: Boolean = true,
 ) : DelegatedVisitor {
 
     init {
@@ -75,6 +83,9 @@ class SignatureWriter(
     /** See [JAVA_RECORD_CLASSES]. */
     private val javaRecordClasses = fileFormat[JAVA_RECORD_CLASSES]
 
+    /** See [JAVA_SEALED_CLASSES]. */
+    private val javaSealedClasses = fileFormat[JAVA_SEALED_CLASSES]
+
     /** See [KOTLIN_NAME_TYPE_ORDER]. */
     private val kotlinNameTypeOrder = fileFormat[KOTLIN_NAME_TYPE_ORDER]
 
@@ -87,12 +98,17 @@ class SignatureWriter(
     private val stripJavaLangPrefixLegacy = stripJavaLangPrefix == StripJavaLangPrefix.LEGACY
 
     private val modifierListWriter =
-        ModifierListWriter.forSignature(
+        ModifierListWriter(
             writer = writer,
-            skipNullnessAnnotations = fileFormat[KOTLIN_STYLE_NULLS],
-            normalizeFinal = fileFormat[NORMALIZE_FINAL_MODIFIER],
-            normalizeAbstract = fileFormat[NORMALIZE_ABSTRACT_MODIFIER],
-            flaggedApiInheritance = fileFormat[FLAGGED_API_INHERITANCE],
+            config =
+                SIGNATURE_FILE_MODIFIER_LIST_WRITER_CONFIG.copy(
+                    skipNullnessAnnotations = fileFormat[KOTLIN_STYLE_NULLS],
+                    normalizeFinal = fileFormat[NORMALIZE_FINAL_MODIFIER],
+                    normalizeAbstract = fileFormat[NORMALIZE_ABSTRACT_MODIFIER],
+                    flaggedApiInheritance = fileFormat[FLAGGED_API_INHERITANCE],
+                    javaRecordClasses = javaRecordClasses,
+                    javaSealedClasses = javaSealedClasses,
+                ),
         )
 
     internal fun write(text: String) {
@@ -121,7 +137,7 @@ class SignatureWriter(
         writeModifiers(constructor)
         writeTypeParameterList(constructor.typeParameterList, addSpace = true)
         write(constructor.containingClass().fullName())
-        writeParameterList(constructor)
+        writeParameterList(constructor.parameters())
         writeThrowsList(constructor)
         write(";\n")
     }
@@ -172,6 +188,25 @@ class SignatureWriter(
             }
             write(property.name())
         }
+        // Don't write an empty parameter list "()" if there are no context parameters.
+        if (property.contextParameters.isNotEmpty()) {
+            writeParameterList(property.contextParameters)
+        }
+        write(";\n")
+    }
+
+    /** Write [component] as a record component, if allowed. */
+    private fun writeRecordComponent(component: RecordComponentItem) {
+        // If the signature file does not support record classes then do not write the component.
+        if (!javaRecordClasses) return
+
+        write("    record_component #")
+        write(component.recordComponentIndex.toString())
+        write(" ")
+        writeAnnotations(component)
+        write(component.name)
+        write(": ")
+        writeType(component.type)
         write(";\n")
     }
 
@@ -183,7 +218,7 @@ class SignatureWriter(
         if (kotlinNameTypeOrder) {
             // Kotlin style: write the name of the method and the parameters, then the type.
             write(method.name())
-            writeParameterList(method)
+            writeParameterList(method.parameters())
             write(": ")
             writeType(method.returnType())
         } else {
@@ -191,7 +226,7 @@ class SignatureWriter(
             writeType(method.returnType())
             write(" ")
             write(method.name())
-            writeParameterList(method)
+            writeParameterList(method.parameters())
         }
 
         writeThrowsList(method)
@@ -235,9 +270,15 @@ class SignatureWriter(
             writeTypeParameterList(cls.typeParameterList, addSpace = false)
             writeSuperClassStatement(cls)
             writeInterfaceList(cls)
+            writePermitsList(cls)
+
             propagateSuppressAnnotationsToSubclasses(cls)
 
             write(" {\n")
+
+            for (component in cls.recordComponents) {
+                writeRecordComponent(component)
+            }
         }
     }
 
@@ -288,7 +329,12 @@ class SignatureWriter(
         modifierListWriter.write(item)
     }
 
+    private fun writeAnnotations(item: Item) {
+        modifierListWriter.writeAnnotations(item)
+    }
+
     private fun writeTargetLanguage(item: SelectableItem) {
+        if (!writeTargetLanguages) return
         // Properties and type aliases are always only for Kotlin use, so don't bother writing it.
         if (item is PropertyItem || (item is ClassItem && item.classKind == ClassKind.TYPEALIAS))
             return
@@ -349,6 +395,18 @@ class SignatureWriter(
         orderedInterfaces.forEach { typeItem -> writeExtendsOrImplementsType(typeItem) }
     }
 
+    private fun writePermitsList(cls: ClassItem) {
+        if (!javaSealedClasses) return
+        val permitTypes = cls.permitTypes
+        if (permitTypes.isEmpty()) return
+
+        write(" permits")
+        permitTypes.forEach { typeItem ->
+            write(" ")
+            writeType(typeItem)
+        }
+    }
+
     /** [TypeStringConfiguration] for use when writing types in [writeTypeParameterList]. */
     private val typeParameterItemStringConfiguration =
         TypeStringConfiguration(
@@ -373,16 +431,22 @@ class SignatureWriter(
         }
     }
 
-    private fun writeParameterList(callable: CallableItem) {
+    private fun writeParameterList(parameters: List<ParameterItem>) {
         write("(")
         var writtenParams = 0
-        callable.parameters().asSequence().forEach { parameter ->
+        parameters.asSequence().forEach { parameter ->
             if (writtenParams > 0) {
                 write(", ")
             }
             if (parameter.hasDefaultValue() && includeDefaultParameterValues) {
                 // Indicate the parameter has a default.
                 write("optional ")
+            }
+            // Write special parameter kinds.
+            when (parameter.kind) {
+                ParameterKind.CONTEXT -> write("context ")
+                // TODO(b/508307067): write receiver
+                else -> {}
             }
             writeModifiers(parameter)
 
@@ -442,6 +506,17 @@ class SignatureWriter(
             }
         }
     }
+
+    companion object {
+        /** [ModifierListWriter.Config] suitable for use when writing signature files. */
+        private val SIGNATURE_FILE_MODIFIER_LIST_WRITER_CONFIG =
+            ModifierListWriter.Config(
+                target = AnnotationTarget.SIGNATURE_FILE,
+                annotationFormatter = AnnotationFormatter.legacyAnnotationFormatter(),
+                runtimeAnnotationsOnly = false,
+                skipNullnessAnnotations = false,
+            )
+    }
 }
 
 enum class EmitFileHeader {
@@ -494,32 +569,44 @@ private fun getInterfacesInOrder(
     return sortedInterfaces
 }
 
+/** Create a [CodebaseFragment] suitable for writing to a signature file. */
+fun createCodebaseFragmentForSignatureFile(
+    codebase: Codebase,
+    fileFormat: FileFormat,
+    apiFilters: ApiFilters?,
+    showUnannotated: Boolean,
+) =
+    CodebaseFragment.create(
+        codebase,
+        callableComparator = fileFormat[OVERLOADED_METHOD_ORDER].comparator,
+    ) { delegate ->
+        createFilteringVisitorForSignatures(
+            delegate,
+            fileFormat,
+            apiFilters,
+            showUnannotated,
+        )
+    }
+
 /**
  * Create an [ApiVisitor] that will filter the [Item] to which is applied according to the supplied
  * parameters and in a manner appropriate for writing signatures, e.g. flattening nested classes. It
  * will delegate any visitor calls that pass through its filter to this [SignatureWriter] instance.
  */
-fun createFilteringVisitorForSignatures(
+private fun createFilteringVisitorForSignatures(
     delegate: DelegatedVisitor,
     fileFormat: FileFormat,
-    apiType: ApiType,
-    preFiltered: Boolean,
+    apiFilters: ApiFilters?,
     showUnannotated: Boolean,
-    apiPredicateConfig: ApiPredicate.Config,
 ): ApiVisitor {
-    val apiFilters = apiType.getApiFilters(apiPredicateConfig)
-
     val (interfaceListSorter, interfaceListComparator) =
         if (fileFormat[SORT_WHOLE_EXTENDS_LIST]) Pair(null, TypeItem.totalComparator)
         else Pair(::getInterfacesInOrder, null)
     return FilteringApiVisitor(
         delegate = delegate,
-        inlineInheritedFields = true,
-        callableComparator = fileFormat[OVERLOADED_METHOD_ORDER].comparator,
         interfaceListSorter = interfaceListSorter,
         interfaceListComparator = interfaceListComparator,
         apiFilters = apiFilters,
-        preFiltered = preFiltered,
         showUnannotated = showUnannotated,
     )
 }
