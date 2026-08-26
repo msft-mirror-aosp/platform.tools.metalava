@@ -726,11 +726,6 @@ class CommonParameterizedSelectedApiTest : BaseModelTest() {
                         ),
                     ),
             ) {
-                // TODO(b/512093496): The behavior shown below is not correct as extending a class
-                // from a wider API surface should result in the class contentApiVariants to include
-                // the CORE variant for the surface to ensure that it will be included when
-                // generating the system or module API surface and will be fixed in a follow up
-                // change.
                 surfaceTest(
                     surface = "system",
                     expected =
@@ -746,7 +741,7 @@ class CommonParameterizedSelectedApiTest : BaseModelTest() {
                                     content - ApiVariantSet[]
                               class test.pkg.PublicClass
                                      self - ApiVariantSet[public(C)]
-                                  content - ApiVariantSet[]
+                                  content - ApiVariantSet[system(C)]
                                 constructor test.pkg.PublicClass()
                                        self - ApiVariantSet[public(C)]
                                     content - ApiVariantSet[]
@@ -771,11 +766,6 @@ class CommonParameterizedSelectedApiTest : BaseModelTest() {
                         ),
                     ),
             ) {
-                // TODO(b/512093496): The behavior shown below is not correct as extending a class
-                // from a wider API surface should result in the class contentApiVariants to include
-                // the CORE variant for the surface to ensure that it will be included when
-                // generating the system or module API surface and will be fixed in a follow up
-                // change.
                 surfaceTest(
                     surface = "module",
                     expected =
@@ -791,7 +781,7 @@ class CommonParameterizedSelectedApiTest : BaseModelTest() {
                                     content - ApiVariantSet[]
                               class test.pkg.PublicClass
                                      self - ApiVariantSet[public(C)]
-                                  content - ApiVariantSet[]
+                                  content - ApiVariantSet[module(C)]
                                 constructor test.pkg.PublicClass()
                                        self - ApiVariantSet[public(C)]
                                     content - ApiVariantSet[]
@@ -818,11 +808,6 @@ class CommonParameterizedSelectedApiTest : BaseModelTest() {
                         ),
                     ),
             ) {
-                // TODO(b/512093496): The behavior shown below is not correct as extending a class
-                // from a wider API surface should result in the class contentApiVariants to include
-                // the REMOVED variant for the surface to ensure that it will be included when
-                // generating the system or module API surface and will be fixed in a follow up
-                // change.
                 surfaceTest(
                     surface = "system",
                     expected =
@@ -838,7 +823,7 @@ class CommonParameterizedSelectedApiTest : BaseModelTest() {
                                     content - ApiVariantSet[]
                               class test.pkg.PublicClass
                                      self - ApiVariantSet[public(R)]
-                                  content - ApiVariantSet[]
+                                  content - ApiVariantSet[system(R)]
                                 constructor test.pkg.PublicClass()
                                        self - ApiVariantSet[public(R)]
                                     content - ApiVariantSet[]

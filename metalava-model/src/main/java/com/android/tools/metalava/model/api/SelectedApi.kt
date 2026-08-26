@@ -321,6 +321,33 @@ private class ClassSelectedApi(
         // Propagate variants to the containing package, skipping any intermediate nested classes
         // as they will be flattened when generating signature files.
         propagateToContainingPackage(itemApiVariants)
+
+        // Replicate similar behavior to what is done in ApiPredicate.
+        item.superClass()?.let { superClass ->
+            val superClassVariants = superClass.selectedApi.itemApiVariants
+            val apiSurfaces = selectedApiUpdater.apiSurfaces
+
+            // Get the narrowest surface to which the super class belongs and the widest surface to
+            // which this class belongs.
+            val superClassSurface = superClassVariants.narrowestSurfaceFor(apiSurfaces)
+            val itemSurface = itemApiVariants.widestSurfaceFor(apiSurfaces)
+            if (superClassSurface == null || itemSurface == null) return@let
+
+            // If the super class' surface is wider than this class' surface then add the super
+            // class' variants to this class' content variants so that this class will be included,
+            // but only for variant types that this class also belongs to.
+            if (superClassSurface > itemSurface) {
+                // Translate this class's variants from its surface to the super class's surface.
+                // This acts as a mask containing only the variant types that this class belongs to,
+                // but situated in the super class's surface.
+                val superVariantsMask =
+                    itemApiVariants.moveVariantsBetweenSurfaces(itemSurface, superClassSurface)
+
+                // Only add super class variants whose types match this class's own variant types
+                // (e.g. only inherit system(C) if this class has public(C)).
+                contentApiVariants += superClassVariants.intersectionWith(superVariantsMask)
+            }
+        }
     }
 
     /** Propagate [childVariants] to the containing package of this. */
