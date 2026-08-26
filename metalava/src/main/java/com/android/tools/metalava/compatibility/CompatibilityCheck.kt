@@ -25,6 +25,7 @@ import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.ClassOrigin
+import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.FieldItem
@@ -35,7 +36,9 @@ import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.MultipleTypeVisitor
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
+import com.android.tools.metalava.model.ParameterKind
 import com.android.tools.metalava.model.PropertyItem
+import com.android.tools.metalava.model.RecordComponentItem
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.SourceLanguage
 import com.android.tools.metalava.model.StripJavaLangPrefix
@@ -46,6 +49,8 @@ import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.TypeStringConfiguration
 import com.android.tools.metalava.model.VariableTypeItem
 import com.android.tools.metalava.model.findAnnotation
+import com.android.tools.metalava.model.multiplatform.MultiplatformCodebase
+import com.android.tools.metalava.model.value.Value
 import com.android.tools.metalava.model.visitors.ApiPredicate
 import com.android.tools.metalava.model.visitors.ApiType
 import com.android.tools.metalava.reporter.FileLocation
@@ -100,10 +105,14 @@ class CompatibilityCheck(
         // In a final method, you can change a parameter from nonnull to nullable.
         // This will also allow a constructor parameter to be changed from nonnull to nullable if
         // the class is not extensible.
+        // For context parameters (including on properties) it is also valid to switch from nonnull
+        // to nullable if the parent function/property cannot be overridden. The exception is if a
+        // call site has both a nonnull and nullable instance of the type in context, but that seems
+        // like an unlikely scenario.
         // TODO: Allow the parameter of any constructor to be switched from nonnull to nullable as
         //  they can never be overridden.
         val allowNonNullToNullable =
-            new is ParameterItem && !new.containingCallable().canBeExternallyOverridden()
+            new is ParameterItem && !new.parent().canBeExternallyOverridden()
         // In a final method, you can change a method return from nullable to nonnull
         val allowNullableToNonNull = new is MethodItem && !new.canBeExternallyOverridden()
         compareTypeNullability(
@@ -276,7 +285,7 @@ class CompatibilityCheck(
                     report(
                         Issues.REMOVED_FROM_BYTECODE,
                         old,
-                        "${new.describe()} has been removed from bytecode",
+                        "${old.describe()} has been removed from bytecode",
                     )
                 }
                 TargetLanguage.KOTLIN -> {
@@ -291,7 +300,7 @@ class CompatibilityCheck(
                     report(
                         Issues.REMOVED_FROM_KOTLIN,
                         old,
-                        "${new.describe()} can no longer be resolved from Kotlin source",
+                        "${old.describe()} can no longer be resolved from Kotlin source",
                     )
                 }
                 TargetLanguage.JAVA -> {
@@ -309,7 +318,7 @@ class CompatibilityCheck(
                     report(
                         Issues.REMOVED_FROM_JAVA,
                         old,
-                        "${new.describe()} can no longer be resolved from Java source",
+                        "${old.describe()} can no longer be resolved from Java source",
                     )
                 }
             }
@@ -382,67 +391,133 @@ class CompatibilityCheck(
             original.returnType().modifiers.isNonNull && candidate.returnType().modifiers.isNullable
         )
             return false
+
+        // Ensure that the functions are either both suspend or both not suspend.
+        if (candidate.modifiers.isSuspend() != original.modifiers.isSuspend()) return false
+        // If the functions are suspend, they have an extra continuation parameter which is not
+        // used from Kotlin source, so it can be skipped for parameter checks.
+        val (candidateParameters, originalParameters) =
+            if (candidate.modifiers.isSuspend()) {
+                candidate.parameters().dropLast(1) to original.parameters().dropLast(1)
+            } else {
+                candidate.parameters() to original.parameters()
+            }
+
         // All parameters from the original need to be present on the candidate, initial check to
         // make sure there are at least as many parameters (check for if they match is below).
-        if (candidate.parameters().size < original.parameters().size) return false
+        if (candidateParameters.size < originalParameters.size) return false
         // All new parameters on the candidate need to be optional for calls to the original to
         // still work since they won't be providing these new parameters.
         val additionalParameters =
-            candidate.parameters().subList(original.parameters().size, candidate.parameters().size)
+            candidateParameters.subList(originalParameters.size, candidateParameters.size)
         if (additionalParameters.any { !it.hasDefaultValue() }) return false
         // Verify that all parameters from the original are present.
-        return candidate.parameters().zip(original.parameters()).all {
-            (candidateParameter, oldParameter) ->
-            // Since the item could be called using named parameters, the name can't change.
-            candidateParameter.name() == oldParameter.name() &&
-                // Parameter types must be the same.
-                candidateParameter.type() == oldParameter.type() &&
-                // The nullability can't change from nullable to non-null, because that would mean
-                // that usages that pass in a nullable value would no longer work.
-                (oldParameter.type().modifiers.isNonNull ||
-                    candidateParameter.type().modifiers.isNullable) &&
-                // If there was a default value, an existing caller might not be providing the
-                // parameter, so the parameters needs to still be optional.
-                (!oldParameter.hasDefaultValue() || candidateParameter.hasDefaultValue())
+        return candidateParameters.zip(originalParameters).all {
+            (candidateParameter, originalParameter) ->
+            isCompatibleKotlinOverloadParameter(originalParameter, candidateParameter)
         }
     }
 
+    /** Check whether the parameters are compatible in a Kotlin method overload. */
+    private fun isCompatibleKotlinOverloadParameter(
+        original: ParameterItem,
+        candidate: ParameterItem,
+    ): Boolean {
+        // Since the item could be called using named parameters, the name can't change.
+        if (original.name() != candidate.name()) return false
+
+        // Parameter types must be compatible.
+        if (!isCompatibleKotlinOverloadParameterType(original.type(), candidate.type()))
+            return false
+
+        // If there was a default value, an existing caller might not be providing the
+        // parameter, so the parameters needs to still be optional.
+        return (!original.hasDefaultValue() || candidate.hasDefaultValue())
+    }
+
+    /** Check whether the parameter types are compatible in a Kotlin method overload. */
+    private fun isCompatibleKotlinOverloadParameterType(
+        original: TypeItem,
+        candidate: TypeItem,
+    ): Boolean {
+        // Parameter types must be the same. Note: TypeItem.equals() does not check nullability (or
+        // annotations). So, it is possible that two TypeItems that are equal are not compatible due
+        // to differences in nullability. That will be checked below.
+        if (original != candidate) return false
+
+        // If the nullability is the same then the parameters are compatible.
+        if (original.modifiers.nullability == candidate.modifiers.nullability) return true
+
+        // The nullability can't change from nullable to non-null, because that would mean that
+        // usages that pass in a nullable value would no longer work.
+        return original.modifiers.isNonNull || candidate.modifiers.isNullable
+    }
+
     override fun compareParameterItems(old: ParameterItem, new: ParameterItem) {
-        val prevName = old.publicName()
-        val newName = new.publicName()
-        if (prevName != null) {
-            if (newName == null) {
-                report(
-                    Issues.PARAMETER_NAME_CHANGE,
-                    new,
-                    "Attempted to remove parameter name from ${new.describe()}",
-                    oldItem = old,
-                )
-            } else if (newName != prevName) {
-                report(
-                    Issues.PARAMETER_NAME_CHANGE,
-                    new,
-                    "Attempted to change parameter name from $prevName to $newName in ${new.containingCallable().describeCallableItem()}",
-                    oldItem = old,
-                )
+        // Check that parameter kind matches, but if the old version is a superclass method from the
+        // classpath, don't bother checking because all parameters from a jar file will be VALUE.
+        if (
+            new.kind != old.kind &&
+                old.possibleContainingMethod()?.inheritedFrom?.origin != ClassOrigin.CLASS_PATH
+        ) {
+            report(
+                Issues.PARAMETER_KIND_CHANGE,
+                new,
+                "${new.describe(capitalize = true)} has changed from ${old.kind} to ${new.kind}",
+                oldItem = old,
+            )
+        }
+
+        // Parameter names are only important for value parameters, since in Kotlin functions can be
+        // called with named value parameters.
+        if (new.kind == ParameterKind.VALUE) {
+            val prevName = old.publicName()
+            val newName = new.publicName()
+            if (prevName != null) {
+                if (newName == null) {
+                    report(
+                        Issues.PARAMETER_NAME_CHANGE,
+                        new,
+                        "Attempted to remove parameter name from ${new.describe()}",
+                        oldItem = old,
+                    )
+                } else if (newName != prevName) {
+                    val containingCallable =
+                        requireNotNull(new.containingCallable()) {
+                            "Value parameter $new has a non-callable parent ${new.parent()}"
+                        }
+                    report(
+                        Issues.PARAMETER_NAME_CHANGE,
+                        new,
+                        "Attempted to change parameter name from $prevName to $newName in ${containingCallable.describeCallableItem()}",
+                        oldItem = old,
+                    )
+                }
             }
         }
 
-        if (old.hasDefaultValue() && !new.hasDefaultValue()) {
-            // Default values only matter for Kotlin clients. Check if there is another Kotlin
-            // function which could replace all calls to the old function with the default value.
-            // This could happen if the default value were removed from the old function to avoid
-            // a signature clash with a new function with additional optional parameters to the
-            // old function.
-            val compatibleOverload =
-                findCompatibleKotlinOverload(old.containingCallable(), new.containingClass())
-            if (compatibleOverload == null) {
-                report(
-                    Issues.DEFAULT_VALUE_CHANGE,
-                    new,
-                    "Attempted to remove default value from ${new.describe()}",
-                    oldItem = old
-                )
+        // Only value parameters can have default values.
+        if (new.kind == ParameterKind.VALUE) {
+            if (old.hasDefaultValue() && !new.hasDefaultValue()) {
+                // Default values only matter for Kotlin clients. Check if there is another Kotlin
+                // function which could replace all calls to the old function with the default
+                // value. This could happen if the default value were removed from the old function
+                // to avoid a signature clash with a new function with additional optional
+                // parameters to the old function.
+                val containingCallable =
+                    requireNotNull(old.containingCallable()) {
+                        "Value parameter $old has a non-callable parent ${old.parent()}"
+                    }
+                val compatibleOverload =
+                    findCompatibleKotlinOverload(containingCallable, new.containingClass())
+                if (compatibleOverload == null) {
+                    report(
+                        Issues.DEFAULT_VALUE_CHANGE,
+                        new,
+                        "Attempted to remove default value from ${new.describe()}",
+                        oldItem = old
+                    )
+                }
             }
         }
 
@@ -482,38 +557,74 @@ class CompatibilityCheck(
         }
     }
 
-    override fun compareClassItems(old: ClassItem, new: ClassItem) {
-        // Perform different comparisons for typealiases.
-        // TODO(b/458733676): add error for converting from class to typealias or vice versa.
-        if (old.classKind == ClassKind.TYPEALIAS && new.classKind == ClassKind.TYPEALIAS) {
-            compareTypeAliasItems(old, new)
-            return
+    /**
+     * Check whether it is allowed to change [old]'s [ClassItem.classKind] from [oldClassKind] to
+     * [newClassKind].
+     */
+    private fun allowClassKindChange(
+        old: ClassItem,
+        oldClassKind: ClassKind,
+        newClassKind: ClassKind,
+    ) =
+        when {
+            oldClassKind == ClassKind.CLASS && newClassKind == ClassKind.RECORD -> {
+                // Changing from class -> record is allowed if the class was final and so could not
+                // be extended. There are a whole set of other restrictions on record classes, this
+                // relies on them being checked and enforced by the compiler. Any other incompatible
+                // changes that might need to be made to allow a class to be switched to a record,
+                // e.g. removing fields, will be checked for elsewhere.
+                old.modifiers.isFinal()
+            }
+            else -> false
         }
 
-        if (old.isAnnotationType() && new.isAnnotationType()) {
-            compareAnnotations(old, new)
+    /** Compare [ClassItem]s to see if [new] is compatible with [old]. */
+    override fun compareClassItems(old: ClassItem, new: ClassItem) {
+        val oldClassKind = old.classKind
+        val newClassKind = new.classKind
+
+        // Check to see whether the class kind has been changed.
+        if (oldClassKind != newClassKind) {
+            // If the change is not allowed then report it.
+            if (!allowClassKindChange(old, oldClassKind, newClassKind)) {
+                report(
+                    Issues.CHANGED_CLASS,
+                    new,
+                    "${new.qualifiedName()} changed from ${oldClassKind.description} to ${newClassKind.description}",
+                    oldItem = old,
+                )
+
+                // Avoid further warnings like "has changed abstract qualifier" which is implicit
+                // in this change.
+                return
+            }
+        } else {
+            // The old and new are the same kind so perform any kind specific comparison.
+            when (oldClassKind) {
+                ClassKind.ANNOTATION_TYPE -> {
+                    // Perform some annotation specific comparisons.
+                    compareAnnotations(old, new)
+                }
+                ClassKind.RECORD -> {
+                    compareRecordClass(old, new)
+                }
+                ClassKind.TYPEALIAS -> {
+                    // Perform completely different comparisons for typealiases.
+                    compareTypeAliasItems(old, new)
+
+                    // Do not do any more checks of the classes.
+                    return
+                }
+                else -> {}
+            }
         }
 
         val oldModifiers = old.modifiers
         val newModifiers = new.modifiers
 
-        if (
-            old.isInterface() != new.isInterface() ||
-                old.isEnum() != new.isEnum() ||
-                old.isAnnotationType() != new.isAnnotationType()
-        ) {
-            report(
-                Issues.CHANGED_CLASS,
-                new,
-                "${new.describe(capitalize = true)} changed class/interface declaration",
-                oldItem = old,
-            )
-            return // Avoid further warnings like "has changed abstract qualifier" which is implicit
-            // in this change
-        }
-
+        val oldCodebase = old.codebase
         for (iface in old.interfaceTypes()) {
-            val qualifiedName = iface.resolveClass()?.qualifiedName() ?: continue
+            val qualifiedName = iface.resolveClass(oldCodebase)?.qualifiedName() ?: continue
             if (!new.implements(qualifiedName)) {
                 report(
                     Issues.REMOVED_INTERFACE,
@@ -524,8 +635,9 @@ class CompatibilityCheck(
             }
         }
 
+        val newCodebase = new.codebase
         for (iface in new.filteredInterfaceTypes(filterReference)) {
-            val qualifiedName = iface.resolveClass()?.qualifiedName() ?: continue
+            val qualifiedName = iface.resolveClass(newCodebase)?.qualifiedName() ?: continue
             if (!old.implements(qualifiedName)) {
                 report(
                     Issues.ADDED_INTERFACE,
@@ -538,7 +650,7 @@ class CompatibilityCheck(
 
         if (!oldModifiers.isSealed() && newModifiers.isSealed()) {
             report(
-                Issues.ADD_SEALED,
+                Issues.ADDED_SEALED,
                 new,
                 "Cannot add 'sealed' modifier to ${new.describe()}: Incompatible change",
                 oldItem = old,
@@ -687,7 +799,7 @@ class CompatibilityCheck(
             reporter.report(
                 Issues.SEALED_CLASS_EXHAUSTIVITY_CHANGED,
                 new,
-                "Sealed ${if (new.isInterface()) "interface" else "class"} can no longer be exhaustively matched because an inaccessible subclass was added.",
+                "Sealed ${new.classKind.description} can no longer be exhaustively matched because an inaccessible subclass was added.",
                 new.fileLocation,
             )
         }
@@ -711,8 +823,69 @@ class CompatibilityCheck(
             reporter.report(
                 Issues.ADDED_SUBCLASS_TO_SEALED_CLASS,
                 new,
-                "Added a subclass to a sealed ${if (new.isInterface()) "interface" else "class"} that can be exhaustively matched",
+                "Added a subclass to a sealed ${new.classKind.description} that can be exhaustively matched",
                 addedSubclasses.first().fileLocation,
+            )
+        }
+    }
+
+    /** Compare two [ClassKind.RECORD] classes, [old] and [new]. */
+    fun compareRecordClass(old: ClassItem, new: ClassItem) {
+        val oldComponents = old.recordComponents
+        val newComponents = new.recordComponents
+
+        val allNames = buildSet {
+            oldComponents.mapTo(this) { it.name }
+            newComponents.mapTo(this) { it.name }
+        }
+
+        for (name in allNames) {
+            val oldComponent = oldComponents[name]
+            val newComponent = newComponents[name]
+
+            if (oldComponent == null) {
+                // This should never fail as at least one of the classes must have a record
+                // component called `name` in order for it to be in allNames.
+                newComponent!!
+
+                // Added newComponent
+                report(
+                    Issues.ADDED_RECORD_COMPONENT,
+                    newComponent,
+                    "${new.describe(capitalize = true)} added record component $name"
+                )
+            } else if (newComponent == null) {
+                // Removed oldComponent
+                report(
+                    Issues.REMOVED_RECORD_COMPONENT,
+                    oldComponent,
+                    "${new.describe(capitalize = true)} removed record component $name"
+                )
+            } else {
+                // Compare components
+                compareRecordComponent(oldComponent, newComponent)
+            }
+        }
+    }
+
+    fun compareRecordComponent(old: RecordComponentItem, new: RecordComponentItem) {
+        val oldIndex = old.recordComponentIndex
+        val newIndex = new.recordComponentIndex
+        if (oldIndex != newIndex) {
+            report(
+                Issues.CHANGED_RECORD_COMPONENT,
+                new,
+                "${new.describe(capitalize = true)} changed position of record component ${old.name} from $oldIndex to $newIndex",
+            )
+        }
+
+        val oldType = old.type
+        val newType = new.type
+        if (oldType != newType) {
+            report(
+                Issues.CHANGED_RECORD_COMPONENT,
+                new,
+                "${new.describe(capitalize = true)} changed type of record component ${old.name} from ${oldType.toTypeString()} to ${newType.toTypeString()}",
             )
         }
     }
@@ -755,33 +928,81 @@ class CompatibilityCheck(
      * TODO(b/111253910): could this also allow changes like List<T> to List<A> where A and T have
      *   equal bounds?
      */
-    private fun compatibleReturnTypes(old: TypeItem, new: TypeItem): Boolean {
+    private fun compatibleReturnTypes(
+        oldCodebase: Codebase,
+        old: TypeItem,
+        newCodebase: Codebase,
+        new: TypeItem,
+        targetLanguages: Set<TargetLanguage>,
+    ): Boolean {
         when (new) {
             is ArrayTypeItem ->
                 return old is ArrayTypeItem &&
-                    compatibleReturnTypes(old.componentType, new.componentType)
+                    compatibleReturnTypes(
+                        oldCodebase,
+                        old.componentType,
+                        newCodebase,
+                        new.componentType,
+                        targetLanguages,
+                    )
             is VariableTypeItem -> {
-                if (old is VariableTypeItem) {
-                    // If both return types are parameterized then the constraints must be
-                    // exactly the same.
-                    return old.asTypeParameter.typeBounds() == new.asTypeParameter.typeBounds()
-                } else {
-                    // If the old return type was not parameterized but the new return type is,
-                    // the new type parameter must have the old return type in its bounds
-                    // (e.g. changing return type from `String` to `T extends String` is valid).
-                    val constraints = new.asTypeParameter.typeBounds()
-                    val oldClass = old.asClass()
-                    for (constraint in constraints) {
-                        val newClass = constraint.asClass()
-                        if (
-                            oldClass == null ||
-                                newClass == null ||
-                                !oldClass.extendsOrImplements(newClass.qualifiedName())
-                        ) {
-                            return false
+                when (old) {
+                    is VariableTypeItem -> {
+                        // If both return types are parameterized then the constraints must be
+                        // exactly the same.
+                        return old.asTypeParameter.typeBounds() == new.asTypeParameter.typeBounds()
+                    }
+                    is ClassTypeItem -> {
+                        // Resolve the old type to the class. If it cannot be resolved then assume
+                        // that they are not compatible.
+                        val oldClass = old.resolveClass(oldCodebase) ?: return false
+
+                        // If the old return type was not parameterized but the new return type is,
+                        // the new type parameter must have the old return type in its bounds
+                        // (e.g. changing return type from `String` to `T extends String` is valid).
+                        val constraints = new.asTypeParameter.typeBounds()
+
+                        // Check that all the constraints are compatible with the old type as the
+                        // type bounds form an intersection type.
+                        for (constraint in constraints) {
+                            // Resolve one of the new constraints to its class. If it cannot be
+                            // resolved then assume that it is not compatible.
+                            val newClass = constraint.asErasedClass(newCodebase) ?: return false
+
+                            // If the new class constraint is not a super type of the old class
+                            // then it is not compatible.
+                            if (!oldClass.extendsOrImplements(newClass.qualifiedName())) {
+                                return false
+                            }
+                        }
+
+                        // The old class is compatible with all the constraints so the change of
+                        // return types does not affect compatibility.
+                        return true
+                    }
+                    else -> {
+                        // A new VariableTypeItem cannot be compatible with anything other than an
+                        // old ClassTypeItem or VariableTypeItem.
+                        return false
+                    }
+                }
+            }
+            is ClassTypeItem -> {
+                return when (old) {
+                    is ClassTypeItem -> {
+                        if (old.qualifiedName != new.qualifiedName) {
+                            false
+                        } else if (targetLanguages == TargetLanguageSet.BYTECODE_ONLY) {
+                            // If the types have the same qualified name, count them as compatible
+                            // when only bytecode is considered because they are the same erased
+                            // type regardless of the type arguments.
+                            true
+                        } else {
+                            // Otherwise check that the type arguments are equal as well.
+                            old == new
                         }
                     }
-                    return true
+                    else -> false
                 }
             }
             else -> return old == new
@@ -819,7 +1040,7 @@ class CompatibilityCheck(
             // Get the throwable class, if none could be found then it is either because there is an
             // error in the codebase or the codebase is incomplete, either way reporting an error
             // would be unhelpful.
-            val throwableClass = throwType.asErasedClass() ?: continue
+            val throwableClass = throwType.asErasedClass(old.codebase) ?: continue
             if (!new.throws(throwableClass.qualifiedName())) {
                 // exclude 'throws' changes to finalize() overrides with no arguments
                 if (old.name() != "finalize" || old.parameters().isNotEmpty()) {
@@ -837,7 +1058,7 @@ class CompatibilityCheck(
             // Get the throwable class, if none could be found then it is either because there is an
             // error in the codebase or the codebase is incomplete, either way reporting an error
             // would be unhelpful.
-            val throwableClass = throwType.asErasedClass() ?: continue
+            val throwableClass = throwType.asErasedClass(new.codebase) ?: continue
             if (!old.throws(throwableClass.qualifiedName())) {
                 // exclude 'throws' changes to finalize() overrides with no arguments
                 if (!(old.name() == "finalize" && old.parameters().isEmpty())) {
@@ -849,6 +1070,9 @@ class CompatibilityCheck(
         }
     }
 
+    /** Describe the value for use in [compareMethodItems]. */
+    private fun Value?.description() = this?.toValueString() ?: "nothing"
+
     override fun compareMethodItems(old: MethodItem, new: MethodItem) {
         val oldModifiers = old.modifiers
         val newModifiers = new.modifiers
@@ -856,7 +1080,15 @@ class CompatibilityCheck(
         val oldReturnType = old.returnType()
         val newReturnType = new.returnType()
 
-        if (!compatibleReturnTypes(oldReturnType, newReturnType)) {
+        if (
+            !compatibleReturnTypes(
+                old.codebase,
+                oldReturnType,
+                new.codebase,
+                newReturnType,
+                new.targetLanguages
+            )
+        ) {
             // For incompatible type variable changes, include the type bounds in the string.
             val oldTypeString = describeBounds(oldReturnType)
             val newTypeString = describeBounds(newReturnType)
@@ -869,37 +1101,25 @@ class CompatibilityCheck(
         if (
             new.containingClass().isAnnotationType() &&
                 old.containingClass().isAnnotationType() &&
-                new.legacyDefaultValue() != old.legacyDefaultValue()
+                new.defaultValue != old.defaultValue
         ) {
-            val prevValue = old.legacyDefaultValue()
-            val prevString =
-                if (prevValue.isEmpty()) {
-                    "nothing"
-                } else {
-                    prevValue
-                }
-
-            val newValue = new.legacyDefaultValue()
-            val newString =
-                if (newValue.isEmpty()) {
-                    "nothing"
-                } else {
-                    newValue
-                }
-            val message =
-                "${new.describeCallableItem(capitalize = true)} has changed value from $prevString to $newString"
-
             // Adding a default value to an annotation method is safe
             val annotationMethodAddingDefaultValue =
-                new.containingClass().isAnnotationType() && old.legacyDefaultValue().isEmpty()
+                new.containingClass().isAnnotationType() && old.defaultValue == null
 
             if (!annotationMethodAddingDefaultValue) {
+                val oldString = old.defaultValue.description()
+                val newString = new.defaultValue.description()
+                val message =
+                    "${new.describeCallableItem(capitalize = true)} has changed value from $oldString to $newString"
+
                 report(Issues.CHANGED_VALUE, new, message, oldItem = old)
             }
         }
 
         // Check for changes in abstract, but only for regular classes; older signature files
-        // sometimes describe interface methods as abstract
+        // sometimes describe interface methods as abstract, and interface method dispatch is
+        // dynamic (invokeinterface) rather than invoking super on an abstract class method.
         if (new.containingClass().isClass()) {
             if (!oldModifiers.isAbstract() && newModifiers.isAbstract()) {
                 report(
@@ -908,6 +1128,19 @@ class CompatibilityCheck(
                     "${new.describeCallableItem(capitalize = true)} has changed 'abstract' qualifier",
                     oldItem = old,
                 )
+            } else if (oldModifiers.isAbstract() && !newModifiers.isAbstract()) {
+                // Changing from abstract to concrete is only an issue if the method was directly
+                // declared on this class in the old API. If old was inherited from an ancestor
+                // (e.g. in older signature files where overridden methods were omitted), new is
+                // just an explicit override in the subclass.
+                if (!old.inheritedFromAncestor) {
+                    report(
+                        Issues.CHANGED_ABSTRACT_TO_CONCRETE,
+                        new,
+                        "${new.describeCallableItem(capitalize = true)} has changed from abstract to concrete",
+                        oldItem = old,
+                    )
+                }
             }
         }
 
@@ -1004,12 +1237,14 @@ class CompatibilityCheck(
         return when (type) {
             is ArrayTypeItem -> describeBounds(type.componentType) + "[]"
             is VariableTypeItem -> {
-                type.name +
-                    if (type.asTypeParameter.typeBounds().isEmpty()) {
-                        " (extends java.lang.Object)"
-                    } else {
-                        " (extends ${type.asTypeParameter.typeBounds().joinToString(separator = " & ") { it.toTypeString() }})"
+                buildString {
+                    append(type.name)
+                    append(" (extends ")
+                    type.asTypeParameter.typeBounds().joinTo(this, separator = " & ") {
+                        it.toTypeString()
                     }
+                    append(")")
+                }
             }
             else -> type.toTypeString()
         }
@@ -1134,6 +1369,19 @@ class CompatibilityCheck(
                     "${new.describe(capitalize = true)} has changed 'abstract' qualifier",
                     oldItem = old,
                 )
+            } else if (oldModifiers.isAbstract() && !newModifiers.isAbstract()) {
+                // Changing from abstract to concrete is only an issue if the property was directly
+                // declared on this class in the old API. If old was inherited from an ancestor
+                // (e.g. in older signature files where overridden properties were omitted), new is
+                // just an explicit override in the subclass.
+                if (!old.inheritedFromAncestor) {
+                    report(
+                        Issues.CHANGED_ABSTRACT_TO_CONCRETE,
+                        new,
+                        "${new.describe(capitalize = true)} has changed from abstract to concrete",
+                        oldItem = old,
+                    )
+                }
             }
         } else {
             if (oldModifiers.isDefault() && newModifiers.isAbstract()) {
@@ -1240,7 +1488,7 @@ class CompatibilityCheck(
             // two interfaces that each now define methods with the same signature.
             // Annotation types cannot implement other interfaces, however, so it is permitted to
             // add new default methods to annotation types.
-            if (new.containingClass().isAnnotationType() && new.legacyDefaultValue() != "") {
+            if (new.containingClass().isAnnotationType() && new.defaultValue != null) {
                 return
             }
         }
@@ -1258,7 +1506,8 @@ class CompatibilityCheck(
         // It is ok to add a new abstract method to a class that cannot be extended externally
         if (
             new.modifiers.isAbstract() &&
-                new.containingClass().cannotContainExternallyOverridableAbstractMethods()
+                (new.containingClass().cannotContainExternallyOverridableAbstractMethods() ||
+                    new.containingClass().allExtensibleSubclassesConcretelyImplement(new))
         ) {
             return
         }
@@ -1289,6 +1538,37 @@ class CompatibilityCheck(
     }
 
     /**
+     * Determines if all publicly extensible subclasses of a class have a non-abstract
+     * implementation of targetMethod.
+     */
+    private fun ClassItem.allExtensibleSubclassesConcretelyImplement(
+        targetMethod: CallableItem
+    ): Boolean {
+        if (
+            methods().any { clsMethod: CallableItem ->
+                clsMethod != targetMethod &&
+                    !clsMethod.modifiers.isAbstract() &&
+                    clsMethod.matches(targetMethod)
+            }
+        ) {
+            return true
+        }
+
+        // We need to check if the class is effectively sealed here because the
+        // sealedClassDirectSubclasses() call below errors on classes that aren't effectively
+        // sealed. Additionally, if the class is not effectively sealed (and doesn't implement
+        // the method) then it can be externally implemented/extended and a new abstract method
+        // would be breaking change for users.
+        if (!isEffectivelySealed()) {
+            return false
+        }
+
+        return sealedClassDirectSubclasses().all { cls: ClassItem ->
+            cls.allExtensibleSubclassesConcretelyImplement(targetMethod)
+        }
+    }
+
+    /**
      * Determines if it is possible for the class to have externally overridable abstract methods.
      */
     private fun ClassItem.cannotContainExternallyOverridableAbstractMethods(): Boolean {
@@ -1299,12 +1579,7 @@ class CompatibilityCheck(
 
         // if the class is directly publicly extensible (and not concrete) then it can contain
         // externally overridable abstract methods
-        if (
-            !modifiers.isSealed() &&
-                ((isInterface() && isPublic) ||
-                    (isClass() &&
-                        constructors().any { (it.isPublic || it.isProtected) && !it.hidden }))
-        ) {
+        if (!isEffectivelySealed()) {
             return false
         }
 
@@ -1387,6 +1662,37 @@ class CompatibilityCheck(
 
     override fun removedPropertyItem(old: PropertyItem, from: ClassItem) {
         handleRemoved(Issues.REMOVED_PROPERTY, old)
+    }
+
+    override fun removedCodebase(old: Codebase) {
+        reportSourceSetIssue(
+            old,
+            Issues.REMOVED_SOURCE_SET,
+            "${old.description} has been removed",
+        )
+    }
+
+    override fun addedCodebase(new: Codebase) {
+        reportSourceSetIssue(
+            new,
+            Issues.ADDED_SOURCE_SET,
+            "${new.description} has been added",
+        )
+    }
+
+    /** Reports an [issue] on the [sourceSet]. */
+    private fun reportSourceSetIssue(sourceSet: Codebase, issue: Issue, message: String) {
+        if (
+            reporter.report(
+                issue,
+                sourceSet.location,
+                message,
+            )
+        ) {
+            if (issueConfiguration.getSeverity(issue) == Severity.ERROR) {
+                foundProblems = true
+            }
+        }
     }
 
     /**
@@ -1515,9 +1821,13 @@ class CompatibilityCheck(
             return
         }
 
-        val targetLanguages =
-            (item as? SelectableItem)?.targetLanguages ?: (item.parent())?.targetLanguages
-        val existsInBytecode = targetLanguages?.contains(TargetLanguage.BYTECODE) != false
+        val targetLanguages = item.targetLanguages
+        val oldTargetLanguages = oldItem?.targetLanguages
+        // Check the old item first if it exists, because if an item switched from existing in
+        // bytecode to not existing in bytecode, any changes are binary breaking.
+        val existsInBytecode =
+            (oldTargetLanguages?.contains(TargetLanguage.BYTECODE))
+                ?: (TargetLanguage.BYTECODE in targetLanguages)
         // Add detail about the kind of compatibility issue this is, and skip the issue if it does
         // not apply to the given target languages.
         val newMessage =
@@ -1540,6 +1850,10 @@ class CompatibilityCheck(
                 }
                 Issues.Category.SOURCE_COMPATIBILITY_ONLY -> {
                     // The item can't be used from source, don't report source compatibility issues.
+                    // This is not based on the oldItem because if the old item could be used from
+                    // source but the new one cannot, the change in target languages is the primary
+                    // issue, any others don't make sense to report when the new item can't be used
+                    // from source anyway.
                     if (targetLanguages == TargetLanguageSet.BYTECODE_ONLY) return
                     "Source breaking change: $message"
                 }
@@ -1568,12 +1882,7 @@ class CompatibilityCheck(
             apiPredicateConfig: ApiPredicate.Config,
             showUnannotated: Boolean,
         ) {
-            val filter =
-                apiType
-                    .getReferenceFilter(apiPredicateConfig)
-                    .or(apiType.getEmitFilter(apiPredicateConfig))
-                    .or(ApiType.PUBLIC_API.getReferenceFilter(apiPredicateConfig))
-                    .or(ApiType.PUBLIC_API.getEmitFilter(apiPredicateConfig))
+            val filter = getFilter(apiType, apiPredicateConfig)
 
             val checker =
                 CompatibilityCheck(
@@ -1594,7 +1903,7 @@ class CompatibilityCheck(
                 }
             val newFullCodebase = MergedCodebase(listOf(newCodebase))
 
-            CodebaseComparator().compare(checker, oldFullCodebase, newFullCodebase, filter)
+            CodebaseComparator.compare(checker, oldFullCodebase, newFullCodebase, filter)
 
             val message =
                 "Found compatibility problems checking " +
@@ -1604,5 +1913,45 @@ class CompatibilityCheck(
                 cliError(message)
             }
         }
+
+        /** Performs compatibility checks comparing the [newCodebase] against the [oldCodebase]. */
+        fun checkMultiplatformCompatibility(
+            newCodebase: MultiplatformCodebase,
+            oldCodebase: MultiplatformCodebase,
+            apiType: ApiType,
+            reporter: Reporter,
+            issueConfiguration: IssueConfiguration,
+            apiCompatAnnotations: Set<String>,
+            apiPredicateConfig: ApiPredicate.Config,
+        ) {
+            val filter = getFilter(apiType, apiPredicateConfig)
+            val checker =
+                CompatibilityCheck(
+                    filter,
+                    reporter,
+                    issueConfiguration,
+                    apiCompatAnnotations,
+                    apiName = null,
+                )
+
+            CodebaseComparator.compareMultiplatform(checker, oldCodebase, newCodebase, filter)
+
+            if (checker.foundProblems) {
+                cliError("Found problems checking multiplatform codebase compatibility")
+            }
+        }
+
+        /**
+         * Returns a filter which includes the [ApiType.getReferenceFilter] and
+         * [ApiType.getEmitFilter] for both the [apiType] and [ApiType.PUBLIC_API] based on the
+         * [apiPredicateConfig]. This is used to filter which items are included in compatibility
+         * checks.
+         */
+        private fun getFilter(apiType: ApiType, apiPredicateConfig: ApiPredicate.Config) =
+            apiType
+                .getReferenceFilter(apiPredicateConfig)
+                .or(apiType.getEmitFilter(apiPredicateConfig))
+                .or(ApiType.PUBLIC_API.getReferenceFilter(apiPredicateConfig))
+                .or(ApiType.PUBLIC_API.getEmitFilter(apiPredicateConfig))
     }
 }

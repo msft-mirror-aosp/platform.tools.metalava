@@ -119,7 +119,7 @@ class ApiFileTest : BaseTextCodebaseTest() {
                     .assertMethod("foo", emptyList())
                     .throwsTypes()
                     .first()
-            assertSame(throwable, exception.asErasedClass())
+            assertSame(throwable, exception.asErasedClass(codebase))
         }
     }
 
@@ -144,7 +144,7 @@ class ApiFileTest : BaseTextCodebaseTest() {
             val error = codebase.assertClass("java.lang.Error")
 
             // Get the super class to force it to be loaded.
-            val errorSuperClass = error.superClassType()?.resolveClass()
+            val errorSuperClass = error.superClassType()?.resolveClass(codebase)
 
             // Now get the throwable class.
             val throwable = codebase.assertClass("java.lang.Throwable", expectedEmit = false)
@@ -158,7 +158,7 @@ class ApiFileTest : BaseTextCodebaseTest() {
                     .assertMethod("foo", emptyList())
                     .throwsTypes()
                     .first()
-            assertSame(error, exception.asErasedClass())
+            assertSame(error, exception.asErasedClass(codebase))
         }
     }
 
@@ -187,7 +187,7 @@ class ApiFileTest : BaseTextCodebaseTest() {
                     .assertMethod("foo", emptyList())
                     .throwsTypes()
                     .first()
-            assertSame(throwable, exception.asErasedClass())
+            assertSame(throwable, exception.asErasedClass(codebase))
         }
     }
 
@@ -212,7 +212,7 @@ class ApiFileTest : BaseTextCodebaseTest() {
 
             // Force the unknown exception class to be resolved, creating a stub in the process. It
             // is checked below.
-            exceptionType.asErasedClass()
+            exceptionType.asErasedClass(codebase)
 
             val unknownExceptionClass =
                 codebase.assertClass("other.UnknownException", expectedEmit = false)
@@ -226,7 +226,7 @@ class ApiFileTest : BaseTextCodebaseTest() {
                     .assertMethod("foo", emptyList())
                     .throwsTypes()
                     .first()
-            assertSame(unknownExceptionClass, exception.asErasedClass())
+            assertSame(unknownExceptionClass, exception.asErasedClass(codebase))
         }
     }
 
@@ -266,7 +266,7 @@ class ApiFileTest : BaseTextCodebaseTest() {
                 .assertMethod("foo", emptyList())
                 .throwsTypes()
                 .first()
-        assertSame(unknownExceptionClass, exception.asErasedClass())
+        assertSame(unknownExceptionClass, exception.asErasedClass(codebase))
     }
 
     @Test
@@ -569,7 +569,11 @@ class ApiFileTest : BaseTextCodebaseTest() {
             // Resolve the class. Even though it does not exist, the text model will fabricate an
             // instance.
             val unknownInterfaceClass =
-                codebase.assertClass("test.pkg.Foo").interfaceTypes().single().resolveClass()
+                codebase
+                    .assertClass("test.pkg.Foo")
+                    .interfaceTypes()
+                    .single()
+                    .resolveClass(codebase)
             assertNotNull(unknownInterfaceClass)
 
             // Make sure that the fabricated instance is of the correct structure.
@@ -747,7 +751,7 @@ class ApiFileTest : BaseTextCodebaseTest() {
                 )
             )
 
-        val files = testFiles.map { it.createFile(temporaryFolder.newFolder()) }
+        val files = testFiles.map { it.toFile() }
         val signatureFiles =
             SignatureFile.fromFiles(
                 files,
@@ -783,12 +787,12 @@ class ApiFileTest : BaseTextCodebaseTest() {
             """
                 package test.pkg
                 class test.pkg.Foo
-                constructor test.pkg.Foo.Foo(String)
-                constructor test.pkg.Foo.Foo(int)
+                constructor test.pkg.Foo(String)
+                constructor test.pkg.Foo(int)
                 method test.pkg.Foo.extensibleMethod(int)
                 method test.pkg.Foo.currentMethod(int)
                 property test.pkg.Foo#prop
-                field Foo.currentField
+                field test.pkg.Foo.currentField
                 class test.pkg.Outer.Middle.Inner
                 method test.pkg.Outer.Middle.Inner.currentInnerMethod()
             """
@@ -812,15 +816,15 @@ class ApiFileTest : BaseTextCodebaseTest() {
             """
                 package test.pkg
                 class test.pkg.Foo
-                constructor test.pkg.Foo.Foo()
-                constructor test.pkg.Foo.Foo(String)
-                constructor test.pkg.Foo.Foo(int)
+                constructor test.pkg.Foo()
+                constructor test.pkg.Foo(String)
+                constructor test.pkg.Foo(int)
                 method test.pkg.Foo.method(int)
                 method test.pkg.Foo.extensibleMethod(int)
                 method test.pkg.Foo.currentMethod(int)
                 property test.pkg.Foo#prop
-                field Foo.field
-                field Foo.currentField
+                field test.pkg.Foo.field
+                field test.pkg.Foo.currentField
                 class test.pkg.Outer
                 class test.pkg.Outer.Middle
                 class test.pkg.Outer.Middle.Inner

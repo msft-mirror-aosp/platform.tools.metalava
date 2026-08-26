@@ -34,9 +34,10 @@ import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
 import com.google.common.collect.ImmutableList
 import com.google.common.collect.ImmutableMap
+import com.google.common.util.concurrent.MoreExecutors
 import com.google.turbine.binder.Binder
 import com.google.turbine.binder.Binder.BindingResult
-import com.google.turbine.binder.ClassPathBinder
+import com.google.turbine.binder.ClassPath
 import com.google.turbine.binder.Processing.ProcessorInfo
 import com.google.turbine.binder.bound.SourceTypeBoundClass
 import com.google.turbine.binder.bound.TypeBoundClass
@@ -50,11 +51,7 @@ import com.google.turbine.diag.SourceFile
 import com.google.turbine.diag.TurbineDiagnostic
 import com.google.turbine.diag.TurbineError
 import com.google.turbine.diag.TurbineLog
-import com.google.turbine.model.TurbineFlag
 import com.google.turbine.parse.Parser
-import com.google.turbine.processing.ModelFactory
-import com.google.turbine.processing.TurbineElements
-import com.google.turbine.processing.TurbineTypes
 import com.google.turbine.tree.Tree.CompUnit
 import com.google.turbine.tree.Tree.Ident
 import com.google.turbine.type.AnnoInfo
@@ -62,7 +59,6 @@ import java.io.File
 import java.nio.file.Paths
 import java.util.Optional
 import javax.lang.model.SourceVersion
-import javax.lang.model.element.TypeElement
 
 /**
  * This initializer acts as an adapter between codebase and the output from Turbine parser.
@@ -72,7 +68,8 @@ import javax.lang.model.element.TypeElement
  */
 internal class TurbineCodebaseInitialiser(
     codebaseFactory: DefaultCodebaseFactory,
-    private val classpath: List<File>,
+    private val bootclasspath: ClassPath,
+    private val classpath: ClassPath,
 ) : SourceCodebaseAssembler(), TurbineGlobalContext {
 
     override val codebase = codebaseFactory(this)
@@ -109,13 +106,6 @@ internal class TurbineCodebaseInitialiser(
         )
 
     override lateinit var valueFactory: TurbineValueFactory
-
-    /**
-     * Data Type: TurbineElements (An implementation of javax.lang.model.util.Elements)
-     *
-     * Usage: Enables lookup of TypeElement objects by name.
-     */
-    private lateinit var turbineElements: TurbineElements
 
     /**
      * Populates [codebase] from the [sourceSet].
@@ -173,16 +163,19 @@ internal class TurbineCodebaseInitialiser(
                     SourceVersion.latest()
                 )
 
-            // Bind the units
-            bindingResult =
-                Binder.bind(
-                    log,
-                    allUnits,
-                    ClassPathBinder.bindClasspath(classpath.map { it.toPath() }),
-                    annotationProcessorInfo,
-                    ClassPathBinder.bindClasspath(listOf()),
-                    Optional.empty()
-                )!!
+            MoreExecutors.newDirectExecutorService().use { executor ->
+                // Bind the units
+                bindingResult =
+                    Binder.bind(
+                        executor,
+                        log,
+                        allUnits,
+                        classpath,
+                        annotationProcessorInfo,
+                        bootclasspath,
+                        Optional.empty()
+                    )!!
+            }
         } catch (e: TurbineError) {
             // Catch the [TurbineError] and extract its diagnostics. An exception will be rethrown
             // below after reporting the diagnostics because [bindingResult] will not have been set.
@@ -192,9 +185,12 @@ internal class TurbineCodebaseInitialiser(
         // Report all the diagnostics, filtering those that relate to missing references.
         log.reportTo(codebase.reporter) { diagnostic ->
             // Ignore missing references.
-            var errorKind = diagnostic.kind()
+            val errorKind = diagnostic.kind()
             when (errorKind) {
                 TurbineError.ErrorKind.CANNOT_RESOLVE,
+                TurbineError.ErrorKind.CANNOT_RESOLVE_FIELD,
+                TurbineError.ErrorKind.EXPRESSION_ERROR,
+                TurbineError.ErrorKind.NO_JAVA_LANG,
                 TurbineError.ErrorKind.SYMBOL_NOT_FOUND -> {
                     false
                 }
@@ -226,13 +222,6 @@ internal class TurbineCodebaseInitialiser(
         // class path.
         envClassMap = CompoundEnv.of<ClassSymbol, TypeBoundClass>(classPathEnv).append(sourceEnv)
 
-        // used to create language model elements for code analysis
-        val factory = ModelFactory(envClassMap, ClassLoader.getSystemClassLoader(), index)
-        // provides type-related operations within the Turbine compiler context
-        val turbineTypes = TurbineTypes(factory)
-        // provides access to code elements (packages, types, members) for analysis.
-        turbineElements = TurbineElements(factory, turbineTypes)
-
         // Create a cache from SourceFile to the TurbineSourceFile wrapper. The latter needs the
         // CompUnit associated with the SourceFile so pass in all the CompUnits so it can find it.
         sourceFileCache = TurbineSourceFileCache(codebase, allUnits)
@@ -257,6 +246,9 @@ internal class TurbineCodebaseInitialiser(
         createInitialPackages(sourceSet)
 
         createAllCommandLineClasses(commandLineSourceClasses, apiPackages)
+
+        // Copy type use only nullness annotations to items.
+        copyTypeUseOnlyNullnessAnnotationsToItems()
     }
 
     /**
@@ -326,9 +318,6 @@ internal class TurbineCodebaseInitialiser(
             // containing class.
             if (sourceTypeBoundClass.owner() != null) return@filter false
 
-            // Ignore inaccessible classes.
-            if (!sourceTypeBoundClass.isAccessible) return@filter false
-
             // Ignore classes whose paths were not specified on the command line.
             val path = sourceTypeBoundClass.source().path()
             path in commandLinePaths
@@ -374,10 +363,10 @@ internal class TurbineCodebaseInitialiser(
 
     /**
      * Find the TypeBoundClass for the `ClassSymbol` in the source path and if it could not find it
-     * then look in the class path. It is guaranteed to be found in one of those places as otherwise
-     * there would be no `ClassSymbol`.
+     * then look in the class path.
      */
-    override fun typeBoundClassForSymbol(classSymbol: ClassSymbol) = envClassMap.get(classSymbol)!!
+    override fun typeBoundClassForSymbol(classSymbol: ClassSymbol): TypeBoundClass? =
+        envClassMap.get(classSymbol)
 
     /**
      * Convert this qualified name consisting of a list of identifiers separated by '.' into a list
@@ -401,23 +390,26 @@ internal class TurbineCodebaseInitialiser(
         val packageInfoSym = ClassSymbol(packageInfoBinaryName)
         val packageInfoClass = envClassMap[packageInfoSym] ?: return null
 
+        // Create a FieldResolver to use to resolve field references in package annotations.
+        val fieldResolver = createFieldResolver(packageInfoSym, packageInfoClass)
+
         return when (packageInfoClass) {
             // Handle a package-info.java file.
             is SourceTypeBoundClass -> {
                 val turbineSourceFile = sourceFileCache.turbineSourceFile(packageInfoClass.source())
                 val unit = turbineSourceFile.compUnit
                 val pkgDecl = unit.pkg().get()
-                var annoInfos = packageInfoClass.annotations()
+                val annoInfos = packageInfoClass.annotations()
                 SourcePackageInfo(
-                    fileLocation = TurbineFileLocation.forTree(turbineSourceFile),
-                    annotations = annotationFactory.createAnnotations(annoInfos),
+                    sourceFile = turbineSourceFile,
+                    annotations = annotationFactory.createAnnotations(annoInfos, fieldResolver),
                     commentFactory = itemDocumentationFactoryForDecl(turbineSourceFile, pkgDecl),
                 )
             }
             // Handle a package-info.class file.
             is BytecodeBoundClass -> {
-                val annotations =
-                    annotationFactory.createAnnotations(packageInfoClass.annotations())
+                val annoInfos = packageInfoClass.annotations()
+                val annotations = annotationFactory.createAnnotations(annoInfos, fieldResolver)
                 SourcePackageInfo(annotations = annotations)
             }
             else -> error("Unknown package-info class: $packageInfoClass")
@@ -466,11 +458,11 @@ internal class TurbineCodebaseInitialiser(
                 globalContext = this,
                 classSymbol = classSymbol,
                 typeBoundClass = typeBoundClass,
+                origin = origin,
             )
         return classBuilder.createClass(
             containingClassItem = null,
             enclosingClassTypeItemFactory = globalTypeItemFactory,
-            origin = origin,
         )
     }
 
@@ -493,7 +485,9 @@ internal class TurbineCodebaseInitialiser(
             codebase.findClass(topClassName)
                 ?: let {
                     // Get the origin of the class.
-                    val typeBoundClass = typeBoundClassForSymbol(topClassSym)
+                    val typeBoundClass =
+                        typeBoundClassForSymbol(topClassSym)
+                            ?: error("Cannot find type bound class for top class $topClassSym")
                     val origin =
                         when (typeBoundClass) {
                             is SourceTypeBoundClass -> ClassOrigin.SOURCE_PATH
@@ -519,15 +513,19 @@ internal class TurbineCodebaseInitialiser(
 
     override fun createFieldResolver(
         classSymbol: ClassSymbol,
-        sourceTypeBoundClass: SourceTypeBoundClass
-    ) =
-        TurbineFieldResolver(
-            classSymbol,
-            classSymbol,
-            sourceTypeBoundClass.memberImports(),
-            sourceTypeBoundClass.scope(),
-            envClassMap,
-        )
+        typeBoundClass: TypeBoundClass,
+    ): FieldResolver? =
+        when (typeBoundClass) {
+            is SourceTypeBoundClass ->
+                TurbineFieldResolver(
+                    classSymbol,
+                    classSymbol,
+                    typeBoundClass.memberImports(),
+                    typeBoundClass.scope(),
+                    envClassMap,
+                )
+            else -> null
+        }
 
     /**
      * Get the ClassSymbol corresponding to a qualified name. Since the Turbine's lookup method
@@ -544,8 +542,6 @@ internal class TurbineCodebaseInitialiser(
         val idents = name.split(".").mapIndexed { idx, it -> Ident(idx, it) }
         return LookupKey(ImmutableList.copyOf(idents))
     }
-
-    internal fun getTypeElement(name: String): TypeElement? = turbineElements.getTypeElement(name)
 }
 
 /** Create a [SourceFile] for every `.java` file in [sources]. */
@@ -555,12 +551,3 @@ private fun getSourceFiles(sources: Sequence<File>): List<SourceFile> {
         .map { SourceFile(it.path, it.readText()) }
         .toList()
 }
-
-private const val ACC_PUBLIC_OR_PROTECTED = TurbineFlag.ACC_PUBLIC or TurbineFlag.ACC_PROTECTED
-
-/** Check whether the [TypeBoundClass] is accessible. */
-private val TypeBoundClass.isAccessible: Boolean
-    get() {
-        val flags = access()
-        return flags and ACC_PUBLIC_OR_PROTECTED != 0
-    }
