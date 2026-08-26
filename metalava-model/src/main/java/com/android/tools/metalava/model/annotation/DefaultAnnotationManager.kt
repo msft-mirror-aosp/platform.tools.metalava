@@ -62,6 +62,7 @@ import com.android.tools.metalava.model.Showability.Companion.REVERT_UNSTABLE_AP
 import com.android.tools.metalava.model.TypedefMode
 import com.android.tools.metalava.model.annotation.DefaultAnnotationManager.Config
 import com.android.tools.metalava.model.api.ApiSurfaceSelector
+import com.android.tools.metalava.model.api.SelectedApiUpdater
 import com.android.tools.metalava.model.api.flags.ApiFlag
 import com.android.tools.metalava.model.api.flags.ApiFlags
 import com.android.tools.metalava.model.api.flags.optionalFlagName
@@ -69,7 +70,6 @@ import com.android.tools.metalava.model.computeTypeNullability
 import com.android.tools.metalava.model.hasAnnotation
 import com.android.tools.metalava.model.isNonNullAnnotation
 import com.android.tools.metalava.model.isNullableAnnotation
-import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
 import com.android.tools.metalava.reporter.ThrowingReporter
 import kotlin.getValue
@@ -646,25 +646,7 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
      * Searches the previously released API (if available).
      */
     private fun findRevertItem(item: SelectableItem) =
-        previouslyReleasedCodebase.let { codebase ->
-            if (codebase == null) {
-                config.reporter.report(
-                    Issues.NO_PREVIOUSLY_RELEASED_API,
-                    item,
-                    "Cannot revert $item (or any other API item) as no previously released API has been provided"
-                )
-                null
-            } else
-                item.findCorrespondingItemIn(
-                    codebase,
-                    // A method that overrides a method in the API should not be considered to be
-                    // hidden as the method can still be called through the overridden method. This
-                    // is set to true so that when a method is flagged and the associated flag is
-                    // disabled then this will find a method that it overrides. That will prevent
-                    // the method from trying to hide the overridden method.
-                    superMethods = true,
-                )
-        }
+        SelectedApiUpdater.findRevertItem(config.reporter, previouslyReleasedCodebase, item)
 
     /** Finds the corresponding item in the previously released API, if available. */
     override fun findPreviouslyReleasedItem(item: SelectableItem): SelectableItem? {

@@ -61,16 +61,7 @@ class SelectedApiUpdater(
      * Searches the previously released API (if available).
      */
     private fun findRevertItem(item: SelectableItem) =
-        previouslyReleasedCodebase.let { codebase ->
-            if (codebase == null) {
-                reporter.report(
-                    Issues.NO_PREVIOUSLY_RELEASED_API,
-                    item,
-                    "Cannot revert $item (or any other API item) as no previously released API has been provided"
-                )
-                null
-            } else item.findCorrespondingItemIn(codebase)
-        }
+        findRevertItem(reporter, previouslyReleasedCodebase, item)
 
     /** Mark this [SourceSelectedApi] as being hidden. */
     private fun SourceSelectedApi<*>.markAsHidden(revert: Boolean) {
@@ -292,6 +283,39 @@ class SelectedApiUpdater(
     private fun SelectableItem.isMarkedForRevert(): Boolean {
         val sourceSelectedApi = selectedApi as SourceSelectedApi<*>
         return sourceSelectedApi.revert
+    }
+
+    companion object {
+        /**
+         * Find the item to which [item] will be reverted.
+         *
+         * Searches the previously released API (if available).
+         */
+        fun findRevertItem(
+            reporter: Reporter,
+            previouslyReleasedCodebase: Codebase?,
+            item: SelectableItem,
+        ): SelectableItem? =
+            previouslyReleasedCodebase.let { codebase ->
+                if (codebase == null) {
+                    reporter.report(
+                        Issues.NO_PREVIOUSLY_RELEASED_API,
+                        item,
+                        "Cannot revert $item (or any other API item) as no previously released API has been provided"
+                    )
+                    null
+                } else
+                    item.findCorrespondingItemIn(
+                        codebase,
+                        // A method that overrides a method in the API should not be considered to
+                        // be hidden as the method can still be called through the overridden
+                        // method. This is set to true so that when a method is flagged and the
+                        // associated flag is disabled then this will find a method that it
+                        // overrides. That will prevent the method from trying to hide the
+                        // overridden method.
+                        superMethods = true,
+                    )
+            }
     }
 }
 
