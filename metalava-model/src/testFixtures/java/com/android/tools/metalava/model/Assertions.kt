@@ -24,6 +24,7 @@ import com.android.tools.metalava.model.multiplatform.MultiplatformMethodItem
 import com.android.tools.metalava.model.multiplatform.MultiplatformPackageItem
 import com.android.tools.metalava.model.multiplatform.MultiplatformPropertyItem
 import com.android.tools.metalava.model.multiplatform.SourceSetDependent
+import com.android.tools.metalava.model.testing.surfaces.initializeSelectedApiInstances
 import com.android.tools.metalava.model.testing.testTypeString
 import com.google.common.truth.Truth.assertThat
 import java.io.PrintWriter
@@ -112,6 +113,13 @@ interface Assertions {
      * Return a dump of the state of [SelectableItem.selectedApiVariants] across this [Codebase].
      */
     private fun Codebase.dumpSelectedApiVariants() = buildString {
+        // SelectedApi instances are initialized on demand and initializing child SelectedApi
+        // instances can change the variants for the parent. That means that dumping the
+        // SelectedApi variants immediately after initializing the parent and before the child will
+        // produce an invalid result. So, to avoid that this initializes all the SelectedApi
+        // instances first before dumping any of them.
+        initializeSelectedApiInstances()
+
         val apiSurfaces = apiSurfaces
         accept(
             object :
@@ -142,6 +150,7 @@ interface Assertions {
 
     /** Assert that the [dumpSelectedApiVariants] matches [expected]. */
     fun Codebase.assertSelectedApiVariants(expected: String, message: String? = null) {
+        dumpSelectedApiVariants()
         val actual = dumpSelectedApiVariants()
         assertEquals(expected.trimIndent(), actual.trimEnd(), message)
     }
@@ -606,7 +615,7 @@ interface Assertions {
         return methodItem
     }
 
-    companion object : Assertions {}
+    companion object : Assertions
 }
 
 private inline fun <reified T> Any?.assertIsInstanceOf(body: (T).() -> Unit) {

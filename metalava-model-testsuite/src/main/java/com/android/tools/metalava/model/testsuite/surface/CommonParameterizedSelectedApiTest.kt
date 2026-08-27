@@ -717,10 +717,10 @@ class CommonParameterizedSelectedApiTest : BaseModelTest() {
                         ),
                     ),
             ) {
-                // TODO(b/512093496): The dumped ApiVariantSet is incorrect, `Outer` 'self' should
-                //  be 'ApiVariantSet(public(C),system(C))' as the `Inner` `self` variant set is
-                //  added to the `Outer` `self` variant set. That is due to a problem in
-                //  dumpSelectedApiVariants.
+                // TODO(b/512093496): The behavior shown below is not correct as a nested class
+                //  propagating information to its parent class is unnecessary because it only
+                //  affects signature file generation and nested classes are flattened when
+                //  generating signature files and will be fixed in a follow up change.
                 surfaceTest(
                     surface = "system",
                     expected =
@@ -729,7 +729,7 @@ class CommonParameterizedSelectedApiTest : BaseModelTest() {
                                    self - ApiVariantSet[public(C)]
                                 content - ApiVariantSet[]
                               class test.pkg.Outer
-                                     self - ApiVariantSet[public(C)]
+                                     self - ApiVariantSet[public(C),system(C)]
                                   content - ApiVariantSet[]
                                 constructor test.pkg.Outer()
                                        self - ApiVariantSet[public(C)]
