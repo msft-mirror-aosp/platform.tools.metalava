@@ -308,9 +308,13 @@ private class ClassSelectedApi(
     override fun itemSpecificInitialization() {
         updateFromSelectableItem()
 
-        // Propagate information from this to the parent, which may be a containing class or
-        // package.
-        parent.propagateFromChild(this)
+        // Do not propagate variants from nested classes to their containing class as that is
+        // unnecessary for signature file generation where nested classes are flattened.
+        if (parent !is ClassSelectedApi) {
+            // Propagate information from this to the parent, which may be a containing class or
+            // package.
+            parent.propagateFromChild(this)
+        }
     }
 }
 
