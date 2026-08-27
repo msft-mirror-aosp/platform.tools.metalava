@@ -30,6 +30,7 @@ import com.android.tools.metalava.model.provider.InputFormat
 import com.android.tools.metalava.model.testing.SupportedInputFormats
 import com.android.tools.metalava.model.testing.surfaces.TestableApiSurfaces.DOC_ONLY
 import com.android.tools.metalava.model.testing.surfaces.TestableApiSurfaces.HIDE
+import com.android.tools.metalava.model.testing.surfaces.TestableApiSurfaces.MODULE_API
 import com.android.tools.metalava.model.testing.surfaces.TestableApiSurfaces.PUBLIC_API
 import com.android.tools.metalava.model.testing.surfaces.TestableApiSurfaces.REMOVED_FROM_API
 import com.android.tools.metalava.model.testing.surfaces.TestableApiSurfaces.SYSTEM_API
@@ -703,6 +704,184 @@ class CommonParameterizedSelectedApiTest : BaseModelTest() {
                                     content - ApiVariantSet[]
                                 method test.pkg.Test.removedMethod()
                                        self - ApiVariantSet[public(R)]
+                                    content - ApiVariantSet[]
+                        """,
+                )
+            }
+
+            buildTests(
+                name = "public class extending system class",
+                surfaceRules = publicSystemModuleRules,
+                sources =
+                    listOf(
+                        java(
+                            """
+                                package test.pkg;
+                                $SYSTEM_API
+                                public class SystemClass {
+                                }
+                                public class PublicClass extends SystemClass {
+                                }
+                            """
+                        ),
+                    ),
+            ) {
+                // TODO(b/512093496): The behavior shown below is not correct as extending a class
+                // from a wider API surface should result in the class contentApiVariants to include
+                // the CORE variant for the surface to ensure that it will be included when
+                // generating the system or module API surface and will be fixed in a follow up
+                // change.
+                surfaceTest(
+                    surface = "system",
+                    expected =
+                        """
+                            package test.pkg
+                                   self - ApiVariantSet[public(C),system(C)]
+                                content - ApiVariantSet[]
+                              class test.pkg.SystemClass
+                                     self - ApiVariantSet[system(C)]
+                                  content - ApiVariantSet[]
+                                constructor test.pkg.SystemClass()
+                                       self - ApiVariantSet[system(C)]
+                                    content - ApiVariantSet[]
+                              class test.pkg.PublicClass
+                                     self - ApiVariantSet[public(C)]
+                                  content - ApiVariantSet[]
+                                constructor test.pkg.PublicClass()
+                                       self - ApiVariantSet[public(C)]
+                                    content - ApiVariantSet[]
+                        """,
+                )
+            }
+
+            buildTests(
+                name = "public class extending module class",
+                surfaceRules = publicSystemModuleRules,
+                sources =
+                    listOf(
+                        java(
+                            """
+                                package test.pkg;
+                                $MODULE_API
+                                public class ModuleClass {
+                                }
+                                public class PublicClass extends ModuleClass {
+                                }
+                            """
+                        ),
+                    ),
+            ) {
+                // TODO(b/512093496): The behavior shown below is not correct as extending a class
+                // from a wider API surface should result in the class contentApiVariants to include
+                // the CORE variant for the surface to ensure that it will be included when
+                // generating the system or module API surface and will be fixed in a follow up
+                // change.
+                surfaceTest(
+                    surface = "module",
+                    expected =
+                        """
+                            package test.pkg
+                                   self - ApiVariantSet[public(C),module(C)]
+                                content - ApiVariantSet[]
+                              class test.pkg.ModuleClass
+                                     self - ApiVariantSet[module(C)]
+                                  content - ApiVariantSet[]
+                                constructor test.pkg.ModuleClass()
+                                       self - ApiVariantSet[module(C)]
+                                    content - ApiVariantSet[]
+                              class test.pkg.PublicClass
+                                     self - ApiVariantSet[public(C)]
+                                  content - ApiVariantSet[]
+                                constructor test.pkg.PublicClass()
+                                       self - ApiVariantSet[public(C)]
+                                    content - ApiVariantSet[]
+                        """,
+                )
+            }
+
+            buildTests(
+                name = "removed public class extending removed system class",
+                surfaceRules = publicSystemModuleRules,
+                sources =
+                    listOf(
+                        java(
+                            """
+                                package test.pkg;
+                                $SYSTEM_API
+                                $REMOVED_FROM_API
+                                public class SystemClass {
+                                }
+                                $REMOVED_FROM_API
+                                public class PublicClass extends SystemClass {
+                                }
+                            """
+                        ),
+                    ),
+            ) {
+                // TODO(b/512093496): The behavior shown below is not correct as extending a class
+                // from a wider API surface should result in the class contentApiVariants to include
+                // the REMOVED variant for the surface to ensure that it will be included when
+                // generating the system or module API surface and will be fixed in a follow up
+                // change.
+                surfaceTest(
+                    surface = "system",
+                    expected =
+                        """
+                            package test.pkg
+                                   self - ApiVariantSet[public(R),system(R)]
+                                content - ApiVariantSet[]
+                              class test.pkg.SystemClass
+                                     self - ApiVariantSet[system(R)]
+                                  content - ApiVariantSet[]
+                                constructor test.pkg.SystemClass()
+                                       self - ApiVariantSet[system(R)]
+                                    content - ApiVariantSet[]
+                              class test.pkg.PublicClass
+                                     self - ApiVariantSet[public(R)]
+                                  content - ApiVariantSet[]
+                                constructor test.pkg.PublicClass()
+                                       self - ApiVariantSet[public(R)]
+                                    content - ApiVariantSet[]
+                        """,
+                )
+            }
+
+            buildTests(
+                name = "public class extending removed system class",
+                surfaceRules = publicSystemModuleRules,
+                sources =
+                    listOf(
+                        java(
+                            """
+                                package test.pkg;
+                                $SYSTEM_API
+                                $REMOVED_FROM_API
+                                public class SystemClass {
+                                }
+                                public class PublicClass extends SystemClass {
+                                }
+                            """
+                        ),
+                    ),
+            ) {
+                surfaceTest(
+                    surface = "system",
+                    expected =
+                        """
+                            package test.pkg
+                                   self - ApiVariantSet[public(C),system(R)]
+                                content - ApiVariantSet[]
+                              class test.pkg.SystemClass
+                                     self - ApiVariantSet[system(R)]
+                                  content - ApiVariantSet[]
+                                constructor test.pkg.SystemClass()
+                                       self - ApiVariantSet[system(R)]
+                                    content - ApiVariantSet[]
+                              class test.pkg.PublicClass
+                                     self - ApiVariantSet[public(C)]
+                                  content - ApiVariantSet[]
+                                constructor test.pkg.PublicClass()
+                                       self - ApiVariantSet[public(C)]
                                     content - ApiVariantSet[]
                         """,
                 )
