@@ -783,6 +783,53 @@ class CommonParameterizedSelectedApiTest : BaseModelTest() {
                         """,
                 )
             }
+
+            buildTests(
+                name = "system method in public inner class",
+                surfaceRules = publicSystemModuleRules,
+                sources =
+                    listOf(
+                        java(
+                            """
+                                package test.pkg;
+                                public class Test {
+                                    public class Inner {
+                                        $SYSTEM_API
+                                        public void systemMethod() {}
+                                    }
+                                }
+                            """
+                        ),
+                    ),
+            ) {
+                // TODO(b/512093496): The behavior shown below is not correct as propagating
+                //  variants from members to the containing class and package is broken and will be
+                //  fixed in follow up changes.
+                surfaceTest(
+                    surface = "system",
+                    expected =
+                        """
+                            package test.pkg
+                                   self - ApiVariantSet[public(C)]
+                                content - ApiVariantSet[]
+                              class test.pkg.Test
+                                     self - ApiVariantSet[public(C)]
+                                  content - ApiVariantSet[]
+                                constructor test.pkg.Test()
+                                       self - ApiVariantSet[public(C)]
+                                    content - ApiVariantSet[]
+                                class test.pkg.Test.Inner
+                                       self - ApiVariantSet[public(C)]
+                                    content - ApiVariantSet[]
+                                  constructor test.pkg.Test.Inner()
+                                         self - ApiVariantSet[public(C)]
+                                      content - ApiVariantSet[]
+                                  method test.pkg.Test.Inner.systemMethod()
+                                         self - ApiVariantSet[system(C)]
+                                      content - ApiVariantSet[]
+                        """,
+                )
+            }
         }
     }
 
