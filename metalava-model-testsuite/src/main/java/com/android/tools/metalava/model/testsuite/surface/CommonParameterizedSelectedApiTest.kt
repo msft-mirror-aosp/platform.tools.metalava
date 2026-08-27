@@ -31,6 +31,7 @@ import com.android.tools.metalava.model.testing.SupportedInputFormats
 import com.android.tools.metalava.model.testing.surfaces.TestableApiSurfaces.DOC_ONLY
 import com.android.tools.metalava.model.testing.surfaces.TestableApiSurfaces.HIDE
 import com.android.tools.metalava.model.testing.surfaces.TestableApiSurfaces.REMOVED_FROM_API
+import com.android.tools.metalava.model.testing.surfaces.TestableApiSurfaces.SYSTEM_API
 import com.android.tools.metalava.model.testing.surfaces.TestableApiSurfaces.UNANNOTATED_API
 import com.android.tools.metalava.model.testing.surfaces.TestableApiSurfaces.UNANNOTATED_NON_RECURSIVE_API
 import com.android.tools.metalava.model.testing.surfaces.TestableApiSurfaces.annotatedOnlyRules
@@ -695,6 +696,50 @@ class CommonParameterizedSelectedApiTest : BaseModelTest() {
                                 method test.pkg.Test.removedMethod()
                                        self - ApiVariantSet[public(R)]
                                     content - ApiVariantSet[]
+                        """,
+                )
+            }
+
+            buildTests(
+                name = "nested class in public class",
+                surfaceRules = publicSystemModuleRules,
+                sources =
+                    listOf(
+                        java(
+                            """
+                                package test.pkg;
+                                public class Outer {
+                                    $SYSTEM_API
+                                    public class Inner {
+                                    }
+                                }
+                            """
+                        ),
+                    ),
+            ) {
+                // TODO(b/512093496): The dumped ApiVariantSet is incorrect, `Outer` 'self' should
+                //  be 'ApiVariantSet(public(C),system(C))' as the `Inner` `self` variant set is
+                //  added to the `Outer` `self` variant set. That is due to a problem in
+                //  dumpSelectedApiVariants.
+                surfaceTest(
+                    surface = "system",
+                    expected =
+                        """
+                            package test.pkg
+                                   self - ApiVariantSet[public(C)]
+                                content - ApiVariantSet[]
+                              class test.pkg.Outer
+                                     self - ApiVariantSet[public(C)]
+                                  content - ApiVariantSet[]
+                                constructor test.pkg.Outer()
+                                       self - ApiVariantSet[public(C)]
+                                    content - ApiVariantSet[]
+                                class test.pkg.Outer.Inner
+                                       self - ApiVariantSet[system(C)]
+                                    content - ApiVariantSet[]
+                                  constructor test.pkg.Outer.Inner()
+                                         self - ApiVariantSet[system(C)]
+                                      content - ApiVariantSet[]
                         """,
                 )
             }
