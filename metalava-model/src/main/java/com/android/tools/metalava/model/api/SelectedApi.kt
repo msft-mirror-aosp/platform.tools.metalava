@@ -339,7 +339,11 @@ private class ClassSelectedApi(
     }
 
     override fun propagateFromChild(childVariants: ApiVariantSet) {
-        contentApiVariants += childVariants
+        // Include every variant to which the child belongs except those to which this already
+        // belongs.
+        val propagateVariants = childVariants - itemApiVariants
+
+        contentApiVariants += propagateVariants
     }
 
     override fun areChildrenCompletelyHidden() = itemApiVariants.isEmpty()
@@ -354,6 +358,9 @@ private open class MemberSelectedApi<M : MemberItem>(
     /** This does not initialize [inheritableApiVariants] as [MemberItem]s do not have children. */
     override fun itemSpecificInitialization() {
         updateFromSelectableItem()
+
+        // Propagate information from this to the parent, i.e. the containing class.
+        parent.propagateFromChild(itemApiVariants)
     }
 
     override fun propagateFromChild(childVariants: ApiVariantSet) =

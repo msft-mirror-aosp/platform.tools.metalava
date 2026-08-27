@@ -597,7 +597,7 @@ class CommonParameterizedSelectedApiTest : BaseModelTest() {
                                     content - ApiVariantSet[]
                               class test.pkg.Test
                                      self - ApiVariantSet[public(C)]
-                                  content - ApiVariantSet[]
+                                  content - ApiVariantSet[public(R)]
                                 constructor test.pkg.Test()
                                        self - ApiVariantSet[public(C)]
                                     content - ApiVariantSet[]
@@ -648,7 +648,7 @@ class CommonParameterizedSelectedApiTest : BaseModelTest() {
                                     content - ApiVariantSet[]
                               class test.pkg.Test
                                      self - ApiVariantSet[public(C)]
-                                  content - ApiVariantSet[]
+                                  content - ApiVariantSet[public(R)]
                                 constructor test.pkg.Test()
                                        self - ApiVariantSet[public(C)]
                                     content - ApiVariantSet[]
@@ -697,7 +697,7 @@ class CommonParameterizedSelectedApiTest : BaseModelTest() {
                                     content - ApiVariantSet[]
                               class test.pkg.Test
                                      self - ApiVariantSet[public(C)]
-                                  content - ApiVariantSet[]
+                                  content - ApiVariantSet[public(R)]
                                 constructor test.pkg.Test()
                                        self - ApiVariantSet[public(C)]
                                     content - ApiVariantSet[]
@@ -803,8 +803,8 @@ class CommonParameterizedSelectedApiTest : BaseModelTest() {
                     ),
             ) {
                 // TODO(b/512093496): The behavior shown below is not correct as propagating
-                //  variants from members to the containing class and package is broken and will be
-                //  fixed in follow up changes.
+                //  variants from members to the containing package is broken and will be fixed in
+                //  follow up changes.
                 surfaceTest(
                     surface = "system",
                     expected =
@@ -820,7 +820,7 @@ class CommonParameterizedSelectedApiTest : BaseModelTest() {
                                     content - ApiVariantSet[]
                                 class test.pkg.Test.Inner
                                        self - ApiVariantSet[public(C)]
-                                    content - ApiVariantSet[]
+                                    content - ApiVariantSet[system(C)]
                                   constructor test.pkg.Test.Inner()
                                          self - ApiVariantSet[public(C)]
                                       content - ApiVariantSet[]
