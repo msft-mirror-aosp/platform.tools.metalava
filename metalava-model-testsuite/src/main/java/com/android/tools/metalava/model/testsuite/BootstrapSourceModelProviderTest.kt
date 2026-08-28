@@ -1020,7 +1020,7 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
     @Test
     fun `260 - test doconly members`() {
         val apiSurfaces = ApiSurfaces.create()
-        val rulesByName = mapOf("public" to listOf(SurfaceSelectionRule.unannotated))
+        val rulesByName = mapOf("main" to listOf(SurfaceSelectionRule.unannotated))
         val variantRules =
             listOf(
                 SurfaceSelectionRule.createAnnotationRule(
