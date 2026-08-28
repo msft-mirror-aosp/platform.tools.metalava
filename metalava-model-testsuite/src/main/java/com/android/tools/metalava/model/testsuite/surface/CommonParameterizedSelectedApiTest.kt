@@ -30,6 +30,7 @@ import com.android.tools.metalava.model.provider.InputFormat
 import com.android.tools.metalava.model.testing.SupportedInputFormats
 import com.android.tools.metalava.model.testing.surfaces.TestableApiSurfaces.DOC_ONLY
 import com.android.tools.metalava.model.testing.surfaces.TestableApiSurfaces.HIDE
+import com.android.tools.metalava.model.testing.surfaces.TestableApiSurfaces.PUBLIC_API
 import com.android.tools.metalava.model.testing.surfaces.TestableApiSurfaces.REMOVED_FROM_API
 import com.android.tools.metalava.model.testing.surfaces.TestableApiSurfaces.SYSTEM_API
 import com.android.tools.metalava.model.testing.surfaces.TestableApiSurfaces.UNANNOTATED_API
@@ -228,6 +229,8 @@ class CommonParameterizedSelectedApiTest : BaseModelTest() {
                                 package test;
                                 $HIDE
                                 public interface Hidden {
+                                    $PUBLIC_API
+                                    void method();
                                 }
                             """
                         ),
@@ -235,6 +238,7 @@ class CommonParameterizedSelectedApiTest : BaseModelTest() {
             ) {
                 surfaceTest(
                     surface = "public",
+                    // TODO(b/512093496): A hidden class cannot contain any non-hidden members.
                     expected =
                         """
                             package test
@@ -243,6 +247,9 @@ class CommonParameterizedSelectedApiTest : BaseModelTest() {
                               class test.Hidden
                                      self - ApiVariantSet[]
                                   content - ApiVariantSet[]
+                                method test.Hidden.method()
+                                       self - ApiVariantSet[public(C)]
+                                    content - ApiVariantSet[]
                         """,
                 )
             }
