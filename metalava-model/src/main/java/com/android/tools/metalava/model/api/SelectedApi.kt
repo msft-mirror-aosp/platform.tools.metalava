@@ -288,15 +288,6 @@ private class PackageSelectedApi(
         // ignore the default values.
         itemApiVariants = ApiVariantSet.EMPTY
         contentApiVariants = ApiVariantSet.EMPTY
-
-        // At this point itemApiVariants has been set which means it is now safe to compute the
-        // selectedApi for the contained classes which may access itemApiVariants.
-
-        // Make sure that all the classes in the package have also had their selectedApi initialized
-        // as that can affect this package's selectedApi.
-        for (classItem in item.topLevelClasses()) {
-            classItem.selectedApi
-        }
     }
 }
 
