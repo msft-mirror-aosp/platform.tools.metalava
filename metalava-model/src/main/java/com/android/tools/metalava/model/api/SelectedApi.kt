@@ -249,9 +249,7 @@ internal sealed class SourceSelectedApi<S : SelectableItem>(
     abstract fun itemSpecificInitialization()
 
     /** Propagate the [childVariants] to this parent item. */
-    fun propagateFromChild(childVariants: ApiVariantSet) {
-        contentApiVariants += childVariants
-    }
+    abstract fun propagateFromChild(childVariants: ApiVariantSet)
 
     /**
      * Returns whether the children of this [SourceSelectedApi] are completely hidden, i.e. in all
@@ -298,6 +296,13 @@ private class PackageSelectedApi(
         contentApiVariants = ApiVariantSet.EMPTY
     }
 
+    override fun propagateFromChild(childVariants: ApiVariantSet) {
+        // Packages are not included in API surfaces directly. Instead, a package is included in an
+        // API surface if one of its child classes is included in the API surface. So, add all the
+        // child variants to this package's variant set.
+        itemApiVariants += childVariants
+    }
+
     /**
      * A package never hides its children (i.e. classes) as a package's API variants is the union of
      * all its children classes' API variants.
@@ -322,6 +327,10 @@ private class ClassSelectedApi(
         }
     }
 
+    override fun propagateFromChild(childVariants: ApiVariantSet) {
+        contentApiVariants += childVariants
+    }
+
     override fun areChildrenCompletelyHidden() = itemApiVariants.isEmpty()
 }
 
@@ -335,6 +344,9 @@ private open class MemberSelectedApi<M : MemberItem>(
     override fun itemSpecificInitialization() {
         updateFromSelectableItem()
     }
+
+    override fun propagateFromChild(childVariants: ApiVariantSet) =
+        throw NotImplementedError("class members do not have any children")
 
     override fun areChildrenCompletelyHidden() =
         throw NotImplementedError("class members do not have any children")
