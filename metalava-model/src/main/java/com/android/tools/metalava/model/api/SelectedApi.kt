@@ -335,7 +335,7 @@ private class ClassSelectedApi(
 
         // Propagate information from this to the enclosing package. This is necessary to ensure
         // that the package and its classes are correctly included in a signature file.
-        ancestor.propagateFromChild(itemApiVariants)
+        ancestor.propagateFromChild(childVariants)
     }
 
     override fun propagateFromChild(childVariants: ApiVariantSet) {
@@ -343,7 +343,14 @@ private class ClassSelectedApi(
         // belongs.
         val propagateVariants = childVariants - itemApiVariants
 
+        // If there are no variants to propagate then return immediately.
+        if (propagateVariants.isEmpty()) return
+
+        // Add them to the class.
         contentApiVariants += propagateVariants
+
+        // Propagate to containing package.
+        propagateToContainingPackage(propagateVariants)
     }
 
     override fun areChildrenCompletelyHidden() = itemApiVariants.isEmpty()
