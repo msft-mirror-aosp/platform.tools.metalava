@@ -730,7 +730,7 @@ class CommonParameterizedSelectedApiTest : BaseModelTest() {
                     expected =
                         """
                             package test.pkg
-                                   self - ApiVariantSet[public(C)]
+                                   self - ApiVariantSet[public(C),system(C)]
                                 content - ApiVariantSet[]
                               class test.pkg.Outer
                                      self - ApiVariantSet[public(C)]

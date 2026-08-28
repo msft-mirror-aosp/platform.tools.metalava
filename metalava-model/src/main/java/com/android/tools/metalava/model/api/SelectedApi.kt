@@ -137,7 +137,7 @@ internal sealed class SourceSelectedApi<S : SelectableItem>(
      * anywhere so it is impossible for this to be accessed before [initialize] has been called so
      * there is no need to check is this has been initialized before using it.
      */
-    protected lateinit var parent: SourceSelectedApi<*>
+    internal lateinit var parent: SourceSelectedApi<*>
 
     /**
      * Indicates whether the associated [SelectableItem] is accessible as part of an API.
@@ -318,13 +318,24 @@ private class ClassSelectedApi(
     override fun itemSpecificInitialization() {
         updateFromSelectableItem()
 
-        // Do not propagate variants from nested classes to their containing class as that is
-        // unnecessary for signature file generation where nested classes are flattened.
-        if (parent !is ClassSelectedApi) {
-            // Propagate information from this to the parent, which may be a containing class or
-            // package.
-            parent.propagateFromChild(itemApiVariants)
+        // Propagate variants to the containing package, skipping any intermediate nested classes
+        // as they will be flattened when generating signature files.
+        propagateToContainingPackage(itemApiVariants)
+    }
+
+    /** Propagate [childVariants] to the containing package of this. */
+    private fun propagateToContainingPackage(childVariants: ApiVariantSet) {
+        // Find the enclosing package. This purposely skips classes as variants must not be
+        // propagated from nested classes to their containing class as that is unnecessary for
+        // signature file generation where nested classes are flattened.
+        var ancestor: SourceSelectedApi<*> = parent
+        while (ancestor !is PackageSelectedApi) {
+            ancestor = ancestor.parent
         }
+
+        // Propagate information from this to the enclosing package. This is necessary to ensure
+        // that the package and its classes are correctly included in a signature file.
+        ancestor.propagateFromChild(itemApiVariants)
     }
 
     override fun propagateFromChild(childVariants: ApiVariantSet) {
