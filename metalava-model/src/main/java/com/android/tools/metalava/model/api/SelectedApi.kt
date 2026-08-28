@@ -248,9 +248,8 @@ internal sealed class SourceSelectedApi<S : SelectableItem>(
      */
     abstract fun itemSpecificInitialization()
 
-    /** Propagate the variants from a [child] to this parent item. */
-    fun propagateFromChild(child: SourceSelectedApi<*>) {
-        val childVariants = child.itemApiVariants
+    /** Propagate the [childVariants] to this parent item. */
+    fun propagateFromChild(childVariants: ApiVariantSet) {
         contentApiVariants += childVariants
     }
 
@@ -319,7 +318,7 @@ private class ClassSelectedApi(
         if (parent !is ClassSelectedApi) {
             // Propagate information from this to the parent, which may be a containing class or
             // package.
-            parent.propagateFromChild(this)
+            parent.propagateFromChild(itemApiVariants)
         }
     }
 
