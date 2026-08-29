@@ -138,4 +138,36 @@ object TestableApiSurfaces {
             ),
             variantRules,
         )
+
+    /**
+     * [ApiSurfaceRules] that define public, system and module APIs that do not include any
+     * unannotated items.
+     */
+    val annotatedOnlyPublicSystemModuleRules =
+        ApiSurfaceRules(
+            publicSystemModuleSurfaces,
+            mapOf(
+                "public" to
+                    listOf(
+                        SurfaceSelectionRule.createAnnotationRule(
+                            HIDE.qualifiedName,
+                            effect = SurfaceSelectionRule.Effect.HIDE,
+                        ),
+                        SurfaceSelectionRule.createAnnotationRule(PUBLIC_API.qualifiedName),
+                    ),
+                "system" to
+                    listOf(
+                        SurfaceSelectionRule.createAnnotationRule(SYSTEM_API.qualifiedName),
+                    ),
+                "module" to
+                    listOf(
+                        SurfaceSelectionRule.createAnnotationRule(MODULE_API.qualifiedName),
+                        SurfaceSelectionRule.createAnnotationRule(
+                            MODULE_API_NON_RECURSIVE.qualifiedName,
+                            recursive = false,
+                        ),
+                    ),
+            ),
+            variantRules,
+        )
 }

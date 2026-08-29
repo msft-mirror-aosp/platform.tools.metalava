@@ -35,6 +35,7 @@ import com.android.tools.metalava.model.testing.surfaces.TestableApiSurfaces.REM
 import com.android.tools.metalava.model.testing.surfaces.TestableApiSurfaces.SYSTEM_API
 import com.android.tools.metalava.model.testing.surfaces.TestableApiSurfaces.UNANNOTATED_API
 import com.android.tools.metalava.model.testing.surfaces.TestableApiSurfaces.UNANNOTATED_NON_RECURSIVE_API
+import com.android.tools.metalava.model.testing.surfaces.TestableApiSurfaces.annotatedOnlyPublicSystemModuleRules
 import com.android.tools.metalava.model.testing.surfaces.TestableApiSurfaces.annotatedOnlyRules
 import com.android.tools.metalava.model.testing.surfaces.TestableApiSurfaces.publicSystemModuleRules
 import com.android.tools.metalava.model.testsuite.BaseModelTest
@@ -743,6 +744,43 @@ class CommonParameterizedSelectedApiTest : BaseModelTest() {
                                   constructor test.pkg.Outer.Inner()
                                          self - ApiVariantSet[system(C)]
                                       content - ApiVariantSet[]
+                        """,
+                )
+            }
+
+            buildTests(
+                name = "system method in unannotated class",
+                surfaceRules = annotatedOnlyPublicSystemModuleRules,
+                sources =
+                    listOf(
+                        java(
+                            """
+                                package test.pkg;
+                                public class Test {
+                                    $SYSTEM_API
+                                    public void systemMethod() {}
+                                }
+                            """
+                        ),
+                    ),
+            ) {
+                surfaceTest(
+                    surface = "system",
+                    // TODO(b/512093496): This is wrong as the systemMethod() should be hidden.
+                    expected =
+                        """
+                            package test.pkg
+                                   self - ApiVariantSet[]
+                                content - ApiVariantSet[]
+                              class test.pkg.Test
+                                     self - ApiVariantSet[]
+                                  content - ApiVariantSet[]
+                                constructor test.pkg.Test()
+                                       self - ApiVariantSet[]
+                                    content - ApiVariantSet[]
+                                method test.pkg.Test.systemMethod()
+                                       self - ApiVariantSet[system(C)]
+                                    content - ApiVariantSet[]
                         """,
                 )
             }
