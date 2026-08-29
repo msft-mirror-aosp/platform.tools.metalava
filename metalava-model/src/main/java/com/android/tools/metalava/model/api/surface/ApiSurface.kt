@@ -21,15 +21,15 @@ package com.android.tools.metalava.model.api.surface
  *
  * Their natural ordering is determined by the order in which they were created in [surfaces].
  */
-sealed interface ApiSurface : Comparable<ApiSurface> {
+sealed class ApiSurface : Comparable<ApiSurface> {
     /** The set of [ApiSurface]s to which this belongs. */
-    val surfaces: ApiSurfaces
+    abstract val surfaces: ApiSurfaces
 
     /** The name of the surface. */
-    val name: String
+    abstract val name: String
 
     /** The optional [ApiSurface] that this extends. */
-    val extends: ApiSurface?
+    abstract val extends: ApiSurface?
 
     /**
      * Specifies the contents of this surface.
@@ -37,23 +37,23 @@ sealed interface ApiSurface : Comparable<ApiSurface> {
      * This is only of significance if [extends] is set to non-null. Defaults to [Contents.DELTA] if
      * unspecified.
      */
-    val contents: Contents
+    abstract val contents: Contents
 
     /** True if this is the main [ApiSurface] being generated. */
-    val isMain: Boolean
+    abstract val isMain: Boolean
 
     /** The list of [ApiVariant]s, in the same order as [ApiVariantType]s. */
-    val variants: List<ApiVariant>
+    abstract val variants: List<ApiVariant>
 
     /** The set of all [ApiVariant]s in this [ApiSurface]. */
-    val variantSet: ApiVariantSet
+    abstract val variantSet: ApiVariantSet
 
     /**
      * The default [ApiVariant]s that will be included in this surface.
      *
      * @see ApiVariantType.isDefault
      */
-    val defaultVariantSet: ApiVariantSet
+    abstract val defaultVariantSet: ApiVariantSet
 
     /**
      * The set of all [ApiSurface]s narrower than this one, i.e. the set of all [ApiSurface]s that
@@ -61,17 +61,17 @@ sealed interface ApiSurface : Comparable<ApiSurface> {
      *
      * Does not include this [ApiSurface].
      */
-    val narrowerSurfaces: Set<ApiSurface>
+    abstract val narrowerSurfaces: Set<ApiSurface>
 
     /**
      * The set of all [ApiSurface]s included in this one, including this one.
      *
      * Is basically [narrowerSurfaces] + this.
      */
-    val includedSurfaces: Set<ApiSurface>
+    abstract val includedSurfaces: Set<ApiSurface>
 
     /** Get the [ApiVariant] for [ApiVariantType] in this [ApiSurface]. */
-    fun variantFor(type: ApiVariantType): ApiVariant
+    abstract fun variantFor(type: ApiVariantType): ApiVariant
 
     /** Specifies how a surface relates to the one it extends. */
     enum class Contents {

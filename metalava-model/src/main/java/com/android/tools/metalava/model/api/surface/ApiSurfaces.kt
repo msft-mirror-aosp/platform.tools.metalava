@@ -232,7 +232,7 @@ private class DefaultApiSurface(
     override val contents: Contents,
     override val isMain: Boolean,
     allVariants: MutableList<ApiVariant>,
-) : ApiSurface {
+) : ApiSurface() {
 
     /**
      * Create a list of [ApiVariant]s for this surface, one for each [ApiVariantType]. Each
