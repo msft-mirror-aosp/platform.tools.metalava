@@ -141,6 +141,25 @@ value class ApiVariantSet(internal val bits: Int) {
         append("]")
     }
 
+    /**
+     * Move variants belonging to [from] [ApiSurface] in this [ApiVariantSet] to the corresponding
+     * variants in [to] [ApiSurface].
+     *
+     * Any variants in this [ApiVariantSet] that do not belong to [from] are ignored.
+     */
+    fun moveVariantsBetweenSurfaces(from: ApiSurface, to: ApiSurface): ApiVariantSet {
+        val variantsToMove = bits and from.variantSet.bits
+
+        val fromIndex = from.variantStartBitIndex
+        val toIndex = to.variantStartBitIndex
+
+        if (fromIndex > toIndex) {
+            return ApiVariantSet(variantsToMove ushr (fromIndex - toIndex))
+        } else {
+            return ApiVariantSet(variantsToMove shl (toIndex - fromIndex))
+        }
+    }
+
     companion object {
         /** The empty [ApiVariantSet]. */
         val EMPTY = ApiVariantSet(0)

@@ -235,6 +235,16 @@ private class DefaultApiSurface(
 ) : ApiSurface() {
 
     /**
+     * The starting bit index for variants of this surface within [ApiVariantSet.bits].
+     *
+     * This is captured from `allVariants.size` before creating this surface's [variants]. Because
+     * each [ApiVariant] computes its bit mask as `1 shl allVariants.size` and then appends itself
+     * to `allVariants`, this corresponds to the bit index of the first [ApiVariant] created for
+     * this surface.
+     */
+    override val variantStartBitIndex = allVariants.size
+
+    /**
      * Create a list of [ApiVariant]s for this surface, one for each [ApiVariantType]. Each
      * [ApiVariant] will add themselves to the `allVariants` list that contains all the
      * [ApiVariant]s belong to [surfaces].

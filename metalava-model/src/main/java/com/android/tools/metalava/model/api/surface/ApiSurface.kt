@@ -70,6 +70,12 @@ sealed class ApiSurface : Comparable<ApiSurface> {
      */
     abstract val includedSurfaces: Set<ApiSurface>
 
+    /**
+     * The index of the bit within [ApiVariantSet.bits] that contains the first [ApiVariant] in
+     * [variants].
+     */
+    internal abstract val variantStartBitIndex: Int
+
     /** Get the [ApiVariant] for [ApiVariantType] in this [ApiSurface]. */
     abstract fun variantFor(type: ApiVariantType): ApiVariant
 
