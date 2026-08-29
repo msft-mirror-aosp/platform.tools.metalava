@@ -116,10 +116,6 @@ class ApiPredicate(
         val hidden = itemSelectors.hidden && !visibleForAdditionalOverridePurpose
         if (hidden) return false
 
-        if (!includeApisForStubPurposes && item.includeOnlyForStubPurposes()) {
-            return false
-        }
-
         // If a class item's parent class is an api-only annotation marked class,
         // the item should be marked visible as well, in order to provide
         // information about the correct class hierarchy that was concealed for
@@ -133,6 +129,16 @@ class ApiPredicate(
                 } == true
         ) {
             return itemSelectors.removed == matchRemoved
+        }
+
+        // If an item is only included for stub generation purposes (i.e. all of its show
+        // annotations are marked as show-for-stub-purposes, such as annotations for a base API
+        // surface), ignore it when generating signature files.
+        // This check must come after the superclass check above so that any affected subclass whose
+        // superclass belongs to the target API surface is still included to accurately preserve the
+        // class hierarchy, even if the subclass itself is marked only for stub purposes.
+        if (!includeApisForStubPurposes && item.includeOnlyForStubPurposes()) {
+            return false
         }
 
         // If docOnly items are not included and this item is docOnly then ignore it.

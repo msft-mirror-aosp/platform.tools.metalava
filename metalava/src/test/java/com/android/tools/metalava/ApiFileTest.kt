@@ -6374,6 +6374,8 @@ class ApiFileTest : DriverTest() {
                 package test.pkg {
                   public class AnotherPublicClass extends test.pkg.AnotherTestSubClass {
                   }
+                  public class AnotherSystemSubClass extends test.pkg.TestSubClass {
+                  }
                   public class AnotherTestSubClass extends test.pkg.AnotherSystemSubClass {
                     ctor public AnotherTestSubClass();
                   }
