@@ -22,8 +22,7 @@ import com.android.tools.metalava.cli.common.CommonOptions
 import com.android.tools.metalava.cli.common.ExecutionEnvironment
 import com.android.tools.metalava.cli.common.IssueReportingOptions
 import com.android.tools.metalava.cli.common.MetalavaCliException
-import com.android.tools.metalava.cli.common.MetalavaHelpFormatter
-import com.android.tools.metalava.cli.common.MetalavaLocalization
+import com.android.tools.metalava.cli.common.MetalavaSubCommand
 import com.android.tools.metalava.cli.common.SourceOptions
 import com.android.tools.metalava.cli.common.commonOptions
 import com.android.tools.metalava.cli.common.executionEnvironment
@@ -31,7 +30,6 @@ import com.android.tools.metalava.cli.common.existingFile
 import com.android.tools.metalava.cli.common.registerPostCommandAction
 import com.android.tools.metalava.cli.common.stderr
 import com.android.tools.metalava.cli.common.stdout
-import com.android.tools.metalava.cli.common.terminal
 import com.android.tools.metalava.cli.common.tracer
 import com.android.tools.metalava.cli.compatibility.CompatibilityCheckOptions
 import com.android.tools.metalava.cli.lint.ApiLintOptions
@@ -40,8 +38,6 @@ import com.android.tools.metalava.cli.signature.SignatureFormatOptions
 import com.android.tools.metalava.reporter.Baseline
 import com.android.tools.metalava.reporter.DEFAULT_BASELINE_NAME
 import com.android.tools.metalava.reporter.Reporter
-import com.github.ajalt.clikt.core.CliktCommand
-import com.github.ajalt.clikt.core.context
 import com.github.ajalt.clikt.parameters.arguments.argument
 import com.github.ajalt.clikt.parameters.arguments.multiple
 import com.github.ajalt.clikt.parameters.groups.provideDelegate
@@ -55,27 +51,9 @@ class MainCommand(
     commonOptions: CommonOptions,
     executionEnvironment: ExecutionEnvironment,
 ) :
-    CliktCommand(
+    MetalavaSubCommand(
         help = "The default sub-command that is run if no sub-command is specified.",
     ) {
-
-    init {
-        // Although, the `helpFormatter` is inherited from the parent context unless overridden the
-        // same is not true for the `localization` so make sure to initialize it for this command.
-        context {
-            localization = MetalavaLocalization()
-
-            // Explicitly specify help options as the parent command disables it.
-            helpOptionNames = setOf("-h", "--help")
-
-            // Override the help formatter to add in documentation for the legacy flags.
-            helpFormatter =
-                MetalavaHelpFormatter(
-                    { terminal },
-                    localization,
-                )
-        }
-    }
 
     /** Property into which all the arguments (and unknown options) are gathered. */
     private val additionalSourceFiles by
