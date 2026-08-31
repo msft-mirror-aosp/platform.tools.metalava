@@ -17,7 +17,7 @@
 package com.android.tools.metalava.compatibility
 
 import com.android.tools.metalava.DriverTest
-import com.android.tools.metalava.cli.common.ARG_HIDE
+import com.android.tools.metalava.reporter.Issues
 import org.junit.Test
 
 class TargetLanguageCompatibilityTest : DriverTest() {
@@ -77,8 +77,8 @@ class TargetLanguageCompatibilityTest : DriverTest() {
                 """,
             expectedIssues =
                 """
-                load-api.txt:4: error: Source breaking change: Attempted to remove parameter name from parameter arg1 in test.pkg.Foo.allLanguages [ParameterNameChange]
-                load-api.txt:6: error: Source breaking change: Attempted to remove parameter name from parameter arg1 in test.pkg.Foo.kotlinOnly [ParameterNameChange]
+                load-api.txt:4: error: Source breaking change: Attempted to remove parameter name from parameter arg1 in test.pkg.Foo.allLanguages(int arg1) [ParameterNameChange]
+                load-api.txt:6: error: Source breaking change: Attempted to remove parameter name from parameter arg1 in test.pkg.Foo.kotlinOnly(int arg1) [ParameterNameChange]
                 """,
         )
     }
@@ -330,7 +330,10 @@ class TargetLanguageCompatibilityTest : DriverTest() {
     fun `Test making a method deprecated level hidden impact on kotlin`() {
         check(
             // Impact on java source tested separately below.
-            extraArguments = arrayOf(ARG_HIDE, "RemovedFromJava"),
+            extraArguments =
+                hiddenIssues(
+                    Issues.REMOVED_FROM_JAVA,
+                ),
             expectedIssues =
                 """
                 released-api.txt:5: error: Source breaking change: method test.pkg.Foo.incompatibleOverloadDoesNotTargetKotlin(String,int) can no longer be resolved from Kotlin source [RemovedFromKotlin]
@@ -502,6 +505,44 @@ class TargetLanguageCompatibilityTest : DriverTest() {
     }
 
     @Test
+    fun `Test making a suspend method deprecated level hidden`() {
+        // `withCompatibleKotlinOverload` can still be used from Kotlin in the same way it was
+        // before because the extra continuation parameter isn't used from source, so the new
+        // overload with an optional parameter will work.
+        check(
+            expectedIssues =
+                """
+                released-api.txt:5: error: Source breaking change: method test.pkg.Foo.noCompatibleKotlinOverload(int,kotlin.coroutines.Continuation<? super kotlin.Unit>) can no longer be resolved from Java source [RemovedFromJava]
+                released-api.txt:5: error: Source breaking change: method test.pkg.Foo.noCompatibleKotlinOverload(int,kotlin.coroutines.Continuation<? super kotlin.Unit>) can no longer be resolved from Kotlin source [RemovedFromKotlin]
+                released-api.txt:6: error: Source breaking change: method test.pkg.Foo.withCompatibleKotlinOverload(int,kotlin.coroutines.Continuation<? super kotlin.Unit>) can no longer be resolved from Java source [RemovedFromJava]
+            """,
+            checkCompatibilityApiReleased =
+                """
+                // Signature format: 5.0
+                package test.pkg {
+                  public final class Foo {
+                    ctor public Foo();
+                    method public suspend Object? noCompatibleKotlinOverload(int i, kotlin.coroutines.Continuation<? super kotlin.Unit>);
+                    method public suspend Object? withCompatibleKotlinOverload(int i, kotlin.coroutines.Continuation<? super kotlin.Unit>);
+                  }
+                }
+                """,
+            signatureSource =
+                """
+                // Signature format: 5.0
+                package test.pkg {
+                  public final class Foo {
+                    ctor public Foo();
+                    method @BytecodeOnly @Deprecated public suspend Object? noCompatibleKotlinOverload(int, kotlin.coroutines.Continuation<? super kotlin.Unit>);
+                    method @BytecodeOnly @Deprecated public suspend Object? withCompatibleKotlinOverload(int, kotlin.coroutines.Continuation<? super kotlin.Unit>);
+                    method public suspend Object? withCompatibleKotlinOverload(int i, optional String s, kotlin.coroutines.Continuation<? super kotlin.Unit>);
+                  }
+                }
+                """
+        )
+    }
+
+    @Test
     fun `Test adding optional parameter to a reified inline function`() {
         check(
             expectedIssues =
@@ -527,6 +568,224 @@ class TargetLanguageCompatibilityTest : DriverTest() {
                     method @KotlinOnly public inline <reified T> void incompatibleOverloadNonOptionalParameter(T t, optional String s, int i);
                   }
                 }
+                """,
+        )
+    }
+
+    @Test
+    fun `Test comparing by super methods for different target languages`() {
+        check(
+            // When it is no longer listed for Foo, differentTargetLanguagesDisjoint appears removed
+            // because the ParentClass version has a disjoint target language set.
+            // For differentTargetLanguagesWithOverlap, the old Foo version is compared to the
+            // ParentClass version, and seen as removing a target language because the ParentClass
+            // version has an overlapping but not identical target language set.
+            expectedIssues =
+                """
+                released-api.txt:7: error: Binary breaking change: Removed method test.pkg.Foo.differentTargetLanguagesDisjoint() [RemovedMethod]
+                released-api.txt:8: error: Source breaking change: method test.pkg.Foo.differentTargetLanguagesWithOverlap() can no longer be resolved from Java source [RemovedFromJava]
+                """,
+            checkCompatibilityApiReleased =
+                """
+                // Signature format: 5.0
+                package test.pkg {
+                  public class Foo extends test.pkg.ParentClass {
+                    method public void sameAllTargetLanguages();
+                    method @BytecodeOnly public void sameJustBytecode();
+                    method @KotlinOnly public void sameJustKotlin();
+                    method @BytecodeOnly public void differentTargetLanguagesDisjoint();
+                    method public void differentTargetLanguagesWithOverlap();
+                  }
+                  public class ParentClass {
+                    method public void sameAllTargetLanguages();
+                    method @BytecodeOnly public void sameJustBytecode();
+                    method @KotlinOnly public void sameJustKotlin();
+                    method @KotlinOnly public void differentTargetLanguagesDisjoint();
+                    method @InaccessibleFromJava public void differentTargetLanguagesWithOverlap();
+                  }
+                }
+                """,
+            signatureSource =
+                """
+                // Signature format: 5.0
+                package test.pkg {
+                  public class Foo extends test.pkg.ParentClass {
+                  }
+                  public class ParentClass {
+                    method public void sameAllTargetLanguages();
+                    method @BytecodeOnly public void sameJustBytecode();
+                    method @KotlinOnly public void sameJustKotlin();
+                    method @KotlinOnly public void differentTargetLanguagesDisjoint();
+                    method @InaccessibleFromJava public void differentTargetLanguagesWithOverlap();
+                  }
+                }
+                """
+        )
+    }
+
+    @Test
+    fun `Split method into separate bytecode and kotlin entries`() {
+        check(
+            expectedIssues =
+                """
+                load-api.txt:7: error: Binary breaking change: Method test.pkg.Foo.incompatibleSplitReturnTypeChange has changed return type from void to int [ChangedType]
+                """,
+            checkCompatibilityApiReleased =
+                """
+                // Signature format: 5.0
+                package test.pkg {
+                  public final class Foo {
+                    method public void compatibleSplit();
+                    method public void incompatibleSplitReturnTypeChange();
+                  }
+                }
+                """,
+            signatureSource =
+                """
+                // Signature format: 5.0
+                package test.pkg {
+                  public final class Foo {
+                    method @KotlinOnly public void compatibleSplit();
+                    method @InaccessibleFromKotlin public void compatibleSplit();
+                    method @KotlinOnly public void incompatibleSplitReturnTypeChange();
+                    method @InaccessibleFromKotlin public int incompatibleSplitReturnTypeChange();
+                  }
+                }
+                """,
+        )
+    }
+
+    @Test
+    fun `Remove one language for method with separate bytecode and kotlin entries`() {
+        check(
+            expectedIssues =
+                """
+                released-api.txt:4: error: Source breaking change: Removed method test.pkg.Foo.removeKotlin() [RemovedMethod]
+                released-api.txt:7: error: Binary breaking change: Removed method test.pkg.Foo.removeBytecode() [RemovedMethod]
+                """,
+            checkCompatibilityApiReleased =
+                """
+                // Signature format: 5.0
+                package test.pkg {
+                  public final class Foo {
+                    method @KotlinOnly public int removeKotlin();
+                    method @BytecodeOnly public int removeKotlin();
+                    method @KotlinOnly public int removeBytecode();
+                    method @BytecodeOnly public int removeBytecode();
+                  }
+                }
+                """,
+            signatureSource =
+                """
+                // Signature format: 5.0
+                package test.pkg {
+                  public final class Foo {
+                    method @BytecodeOnly public int removeKotlin();
+                    method @KotlinOnly public int removeBytecode();
+                  }
+                }
+                """
+        )
+    }
+
+    @Test
+    fun `Merge method which had separate bytecode and kotlin entries`() {
+        check(
+            expectedIssues =
+                """
+                load-api.txt:5: error: Binary breaking change: Method test.pkg.Foo.incompatibleMergeChangeReturnType has changed return type from void to int [ChangedType]
+                """,
+            checkCompatibilityApiReleased =
+                """
+                // Signature format: 5.0
+                package test.pkg {
+                  public final class Foo {
+                    method @KotlinOnly public int compatibleMerge();
+                    method @BytecodeOnly public int compatibleMerge();
+                    method @KotlinOnly public int incompatibleMergeChangeReturnType();
+                    method @BytecodeOnly public void incompatibleMergeChangeReturnType();
+                  }
+                }
+                """,
+            signatureSource =
+                """
+                // Signature format: 5.0
+                package test.pkg {
+                  public final class Foo {
+                    method public int compatibleMerge();
+                    method public int incompatibleMergeChangeReturnType();
+                  }
+                }
+                """
+        )
+    }
+
+    @Test
+    fun `Changes to one copy of a method with separate bytecode and kotlin entries`() {
+        check(
+            expectedIssues =
+                """
+                load-api.txt:5: error: Binary breaking change: Method test.pkg.Foo.changeToBytecodeVersion has changed return type from int to void [ChangedType]
+                load-api.txt:6: error: Source breaking change: Method test.pkg.Foo.changeToKotlinVersion has changed return type from int to void [ChangedType]
+                """,
+            checkCompatibilityApiReleased =
+                """
+                // Signature format: 5.0
+                package test.pkg {
+                  public final class Foo {
+                    method @KotlinOnly public int changeToBytecodeVersion();
+                    method @BytecodeOnly public int changeToBytecodeVersion();
+                    method @KotlinOnly public int changeToKotlinVersion();
+                    method @BytecodeOnly public int changeToKotlinVersion();
+                  }
+                }
+                """,
+            signatureSource =
+                """
+                // Signature format: 5.0
+                package test.pkg {
+                  public final class Foo {
+                    method @KotlinOnly public int changeToBytecodeVersion();
+                    method @BytecodeOnly public void changeToBytecodeVersion();
+                    method @KotlinOnly public void changeToKotlinVersion();
+                    method @BytecodeOnly public int changeToKotlinVersion();
+                  }
+                }
+                """,
+        )
+    }
+
+    @Test
+    fun `Test erasure of type arguments when a method becomes bytecode-only`() {
+        // When a bytecode-only method is loaded from a jar, the types will be erased.
+        // Changing a return type to remove type arguments when the method isn't bytecode-only is
+        // a source-breaking change, but reported as binary-breaking here.
+        check(
+            checkCompatibilityApiReleased =
+                """
+                // Signature format: 5.0
+                package test.pkg {
+                  public final class Foo {
+                    method public java.util.List<String> toBytecodeOnlyMethod();
+                    method public java.util.List<String> sourceMethod();
+                  }
+                }
+                """,
+            signatureSource =
+                """
+                // Signature format: 5.0
+                package test.pkg {
+                  public final class Foo {
+                    method @BytecodeOnly @Deprecated public java.util.List toBytecodeOnlyMethod();
+                    method public java.util.List sourceMethod();
+                  }
+                }
+                """,
+            expectedIssues =
+                """
+                load-api.txt:5: error: Binary breaking change: Method test.pkg.Foo.sourceMethod has changed return type from java.util.List<java.lang.String> to java.util.List [ChangedType]
+                released-api.txt:4: error: Source breaking change: method test.pkg.Foo.toBytecodeOnlyMethod() can no longer be resolved from Java source [RemovedFromJava]
+                released-api.txt:4: error: Source breaking change: method test.pkg.Foo.toBytecodeOnlyMethod() can no longer be resolved from Kotlin source [RemovedFromKotlin]
                 """,
         )
     }

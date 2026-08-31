@@ -24,6 +24,7 @@ plugins {
 
 dependencies {
     implementation(project(":metalava-reporter"))
+    implementation(kotlin("reflect"))
 
     testImplementation(project(":metalava-testing"))
     testImplementation(libs.junit4)

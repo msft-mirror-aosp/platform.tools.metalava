@@ -20,17 +20,17 @@ import com.android.tools.metalava.model.ApiVariantSelectors
 import com.android.tools.metalava.model.ApiVariantSelectorsFactory
 import com.android.tools.metalava.model.BaseModifierList
 import com.android.tools.metalava.model.Codebase
-import com.android.tools.metalava.model.DefaultItem
+import com.android.tools.metalava.model.Item
+import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.ItemDocumentationFactory
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.Showability
 import com.android.tools.metalava.model.SourceLanguage
 import com.android.tools.metalava.model.TargetLanguage
-import com.android.tools.metalava.model.api.surface.ApiVariantSet
-import com.android.tools.metalava.model.api.surface.MutableApiVariantSet
+import com.android.tools.metalava.model.api.SelectedApi
 import com.android.tools.metalava.reporter.FileLocation
 
-abstract class DefaultSelectableItem(
+internal sealed class DefaultSelectableItem(
     codebase: Codebase,
     fileLocation: FileLocation,
     sourceLanguage: SourceLanguage,
@@ -44,21 +44,54 @@ abstract class DefaultSelectableItem(
         fileLocation,
         sourceLanguage,
         modifiers,
-        documentationFactory,
     ),
     SelectableItem {
+    /**
+     * Create a [ItemDocumentation] appropriate for this [Item].
+     *
+     * The leaking of `this` is safe as the implementations do not access anything that has not been
+     * initialized.
+     *
+     * If this is private then it cannot be included in an API so its documentation is irrelevant.
+     * In that case this ignores its [ItemDocumentationFactory] and uses `null` instead.
+     */
+    final override val documentation =
+        if (modifiers.isPrivate()) null
+        else @Suppress("LeakingThis") documentationFactory.create(this)
 
-    final override var selectedApiVariants: ApiVariantSet = codebase.apiSurfaces.emptyVariantSet
+    private lateinit var _selectedApi: SelectedApi
 
-    override fun mutateSelectedApiVariants(mutator: MutableApiVariantSet.() -> Unit) {
-        val mutable = selectedApiVariants.toMutable()
-        mutable.mutator()
-        selectedApiVariants = mutable.toImmutable()
-    }
+    /** Create a [SelectedApi] appropriate for this [SelectableItem] on demand. */
+    final override val selectedApi: SelectedApi
+        get() {
+            if (!::_selectedApi.isInitialized) {
+                // Create the instance and store in the field straight away before initialization.
+                // This is needed because initialize() may reenter this method and if it is not set
+                // before calling initialize() it will overflow the stack.
+                val factory = (codebase as DefaultCodebase).selectedApiFactory
+                _selectedApi = factory(this)
 
-    final override var emit =
-        // Do not emit expect declarations in APIs.
-        !modifiers.isExpect()
+                // Initialize the instance.
+                _selectedApi.initialize()
+            }
+            return _selectedApi
+        }
+
+    /** Delegate to [selectedApi]'s [SelectedApi.itemApiVariants]. */
+    final override var selectedApiVariants
+        get() = selectedApi.itemApiVariants
+        set(value) {
+            selectedApi.itemApiVariants = value
+        }
+
+    final override var contentApiVariants
+        get() = selectedApi.contentApiVariants
+        set(value) {
+            selectedApi.contentApiVariants = value
+        }
+
+    // Default to true, may be updated later
+    final override var emit = true
 
     /**
      * Create an [ApiVariantSelectors] appropriate for this [SelectableItem].
@@ -86,15 +119,21 @@ abstract class DefaultSelectableItem(
     final override val showability: Showability
         get() = variantSelectors.showability
 
-    final override fun appendDocumentation(comment: String, tagSection: String?) {
-        if (comment.isBlank()) {
-            return
-        }
+    override fun includeOnlyForStubPurposes(): Boolean {
+        return variantSelectors.includeOnlyForStubPurposes
+    }
 
-        // TODO: Figure out if an annotation should go on the return value, or on the method.
-        // For example; threading: on the method, range: on the return value.
-        // TODO: Find a good way to add or append to a given tag (@param <something>, @return, etc)
+    override fun updateDeprecatedFromJavadocIfNeeded() {
+        // Only Java items can get deprecated status from javadoc.
+        if (sourceLanguage != SourceLanguage.JAVA) return
 
-        documentation.appendDocumentation(comment, tagSection)
+        // If the item is already deprecated then no point in checking javadoc, at least no here.
+        if (modifiers.isDeprecated()) return
+
+        // If the documentation does not have an @deprecated block then the item is not deprecated.
+        if (documentation?.hasBlockTagOfType("deprecated") != true) return
+
+        // The item is deprecated.
+        mutateModifiers { setDeprecated(true) }
     }
 }

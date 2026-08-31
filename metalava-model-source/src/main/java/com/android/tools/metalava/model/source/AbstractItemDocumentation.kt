@@ -16,224 +16,240 @@
 
 package com.android.tools.metalava.model.source
 
+import com.android.tools.metalava.model.CallableItem
+import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ItemDocumentation
+import com.android.tools.metalava.model.MemberItem
+import com.android.tools.metalava.model.MethodItem
+import com.android.tools.metalava.model.ReferencableItem
 import com.android.tools.metalava.model.SelectableItem
+import com.android.tools.metalava.model.TypeParameterListOwner
+import com.android.tools.metalava.model.doc.DocContent
+import com.android.tools.metalava.model.doc.DocContentOwner
+import com.android.tools.metalava.model.doc.DocContentPredicate
+import com.android.tools.metalava.model.scope.NameClassification
+import com.android.tools.metalava.model.source.doc.BlockTagSection
 import com.android.tools.metalava.model.source.doc.DocComment
-import java.util.regex.Pattern
+import com.android.tools.metalava.model.source.doc.DocCommentContext
+import com.android.tools.metalava.model.source.doc.DocCommentPredicate
+import com.android.tools.metalava.model.source.doc.DocTypeParser
+import com.android.tools.metalava.model.source.doc.DocumentationIssueReporter
+import com.android.tools.metalava.model.source.doc.JavaSummaryTruncationWorkaround
+import com.android.tools.metalava.model.source.doc.TagTypes
+import com.android.tools.metalava.model.source.javadoc.ExprContext
+import com.android.tools.metalava.model.source.javadoc.InvalidBlockUseVisitor
+import com.android.tools.metalava.model.source.javadoc.JavadocText
+import com.android.tools.metalava.model.source.javadoc.toOptionalJavadocContent
+import com.android.tools.metalava.reporter.Issues
+import java.io.PrintWriter
 
 /**
  * Abstract [ItemDocumentation] into which functionality that is common to all models will be added.
  */
-abstract class AbstractItemDocumentation(
+internal abstract class AbstractItemDocumentation(
     protected val item: SelectableItem,
-) : ItemDocumentation {
+) : ItemDocumentation, DocumentationIssueReporter, DocCommentContext {
 
-    /**
-     * The mutable text contents of the documentation. This is abstract to allow the implementations
-     * of this to optimize how it is accessed, e.g. initialize it lazily.
-     */
-    abstract override var text: String
+    /** The [DocComment] that contains the documentation content. */
+    protected abstract val docComment: DocComment
 
-    /**
-     * Call when [text] changes to discard the [_docComment] so it will be regenerated next time it
-     * is accessed.
-     *
-     * This ensures that [text] and [_docComment] do not get out of sync. It is needed because
-     * currently the [text] is modified directly. Longer term, changes will be applied directly to
-     * [_docComment] and [text] will be dropped.
-     */
-    protected fun textChanged() {
-        _docComment = null
+    override fun resolveItemReference(
+        sourceReference: String,
+        nameClassification: NameClassification
+    ): ReferencableItem {
+        return item.resolveReferencableItem(sourceReference, nameClassification)
     }
 
-    /** Lazily initialized from [text]. Is cleared by [textChanged] if [text] is modified. */
-    private var _docComment: DocComment? = null
+    /** Implements [ExprContext.isFlagEnabled]. */
+    override fun isFlagEnabled(flagName: String): Boolean {
+        val apiFlags = item.codebase.config.apiFlags ?: return true
+        return !apiFlags[flagName].action.revert
+    }
 
-    private val docComment: DocComment
+    override val isHidden: Boolean
         get() {
-            val docComment = _docComment
-            return if (docComment == null) {
-                val new = DocComment.createDocComment(text)
-                _docComment = new
-                new
-            } else {
-                docComment
+            // When API surfaces are configured in a configuration file, the Javadoc `@hide` block
+            // tag is ignored as a mechanism for hiding elements. Instead, explicit annotations
+            // (e.g. `@android.annotation.Hide`) must be used.
+            if (item.codebase.config.apiSurfacesConfigured) {
+                return false
             }
+            return hasBlockTagOfType("hide")
         }
 
-    override val isHidden
-        get() = hasBlockTagOfType("hide")
+    /**
+     * Return the ordinal for the first item that matches [predicate].
+     *
+     * If no item matches then return the length of the list, as if the unknown item was at the end.
+     */
+    inline fun <T> List<T>.ordinalInListUnknownAtEnd(predicate: (T) -> Boolean): Int {
+        val index = indexOfFirst(predicate)
+        return if (index == -1) size else index
+    }
 
-    override val isDocOnly
-        get() = hasBlockTagOfType("doconly")
+    /** Implements [DocCommentContext.ordinalInParamsList]. */
+    override fun ordinalInParamsList(name: String): Int {
+        return if (item is TypeParameterListOwner) {
+            val typeParameterList = item.typeParameterList
+            val typeParameterCount = typeParameterList.size
 
-    override val isRemoved
-        get() = hasBlockTagOfType("removed")
+            if (name.startsWith("<") && name.endsWith(">")) {
+                val typeParameterName = name.substring(1, name.length - 1)
+                // Type parameters are always at the start of the `@param` list so just return the
+                // ordinal in the type parameter list with unknown at the end.
+                typeParameterList.ordinalInListUnknownAtEnd { it.name() == typeParameterName }
+            } else {
+                // Get the callable parameters list, if any.
+                val parametersList = (item as? CallableItem)?.parameters() ?: emptyList()
+
+                // Get the ordinal of the parameter in the callable parameters list.
+                val ordinalInParametersList =
+                    parametersList.ordinalInListUnknownAtEnd { it.name() == name }
+
+                // Callable parameters always start after type parameters, both known and unknown
+                // so offset their ordinal so they come after the
+                val parameterListStart = typeParameterCount + 1
+                parameterListStart + ordinalInParametersList
+            }
+        } else {
+            // Only TypeParameterListOwners have parameters or either type.
+            0
+        }
+    }
+
+    /** Implements [DocCommentContext.isOverridingMethod]. */
+    override fun isOverridingMethod() =
+        // Purposely does not cache this as superMethods() is already cached.
+        item is MethodItem && item.superMethods().isNotEmpty()
+
+    override val containingClassItem: ClassItem?
+        get() =
+            when (item) {
+                is ClassItem -> item
+                is MemberItem -> item.containingClass()
+                else -> null
+            }
+
+    /** Implements [DocCommentContext.docTypeParser]. */
+    override val docTypeParser: DocTypeParser
+        get() = DocTypeParser.create(reporter = this, item)
+
+    override val isRemoved: Boolean
+        get() {
+            // When API surfaces are configured in a configuration file, the Javadoc `@removed`
+            // block tag is ignored as a mechanism for removing elements. Instead, explicit
+            // annotations (e.g. `@android.annotation.RemovedFromApi`) must be used.
+            if (item.codebase.config.apiSurfacesConfigured) {
+                return false
+            }
+            return hasBlockTagOfType("removed")
+        }
 
     override fun hasBlockTagOfType(blockTagType: String) =
         docComment.hasBlockTagOfType(blockTagType)
 
-    override fun workAroundJavaDocSummaryTruncationIssue() {
-        // Work around javadoc cutting off the summary line after the first ". ".
-        val firstDot = text.indexOf(".")
-        if (firstDot > 0 && text.regionMatches(firstDot - 1, "e.g. ", 0, 5, false)) {
-            text = text.substring(0, firstDot) + ".g.&nbsp;" + text.substring(firstDot + 4)
-        }
-    }
-
-    override fun findTagDocumentation(tag: String, value: String?): String? {
-        TODO("Not yet implemented")
-    }
-
-    override fun appendDocumentation(comment: String, tagSection: String?) {
-        if (comment.isBlank()) {
-            return
+    override fun print(writer: PrintWriter) {
+        // Remove all `@hide`, and `@doconly` tags before printing to prevent them from being
+        // visible to the documentation generation tool that consumes the stubs. That is because the
+        // tool may act upon them, e.g. hiding any APIs that are tagged with `@hide`.
+        docComment.removeBlockTagSections {
+            val type = it.tagType.name
+            type == "hide" || type == "doconly"
         }
 
-        // Micro-optimization: we're very often going to be merging @apiSince and to a lesser
-        // extent @deprecatedSince into existing comments, since we're flagging every single
-        // public API. Normally merging into documentation has to be done carefully, since
-        // there could be existing versions of the tag we have to append to, and some parts
-        // of the comment needs to be present in certain places. For example, you can't
-        // just append to the description of a method by inserting something right before "*/"
-        // since you could be appending to a javadoc tag like @return.
-        //
-        // However, for @apiSince and @deprecatedSince specifically, in addition to being frequent,
-        // they will (a) never appear in existing docs, and (b) they're separate tags, which means
-        // it's safe to append them at the end. So we'll special case these two tags here, to
-        // help speed up the builds since these tags are inserted 30,000+ times for each framework
-        // API target (there are many), and each time would have involved constructing a full
-        // javadoc
-        // AST with lexical tokens using IntelliJ's javadoc parsing APIs. Instead, we'll just
-        // do some simple string heuristics.
-        if (
-            tagSection == "@apiSince" ||
-                tagSection == "@deprecatedSince" ||
-                tagSection == "@sdkExtSince"
-        ) {
-            text = addUniqueTag(text, tagSection, comment)
-            return
-        }
+        checkDocumentationBeforePrinting()
 
-        mergeDocumentation(comment.trim(), tagSection)
+        // Print the docComment as Javadoc.
+        docComment.printAsJavadocComment(
+            writer,
+            // Apply the [JavaSummaryTruncationWorkaround] to the main description.
+            mainDescriptionRewriter = JavaSummaryTruncationWorkaround.INSTANCE
+        )
     }
 
     /**
-     * Merge the comment into the appropriate [tagSection].
+     * Check the documentation content [docComment] before printing it.
      *
-     * See [com.android.tools.metalava.model.Item.appendDocumentation] for more details.
+     * Verifies that it does not contain anything which could cause problems downstream, e.g. in
+     * `doclava`.
      */
-    protected abstract fun mergeDocumentation(comment: String, tagSection: String?)
-
-    private fun addUniqueTag(text: String, tagSection: String, commentLine: String): String {
-        assert(commentLine.indexOf('\n') == -1) // Not meant for multi-line comments
-
-        if (text.isBlank()) {
-            return "/** $tagSection $commentLine */"
+    private fun checkDocumentationBeforePrinting() {
+        if (docComment.check(InvalidBlockUseVisitor.INSTANCE)) {
+            item.codebase.reporter.report(
+                Issues.INVALID_BLOCK_TAG_USE,
+                item,
+                "Documentation contains '@hide', `@removed` or '@doconly' that is not used as a block tag; that could cause unexpected behavior downstream.",
+                fileLocation,
+            )
         }
-
-        // Already single line?
-        if (text.indexOf('\n') == -1) {
-            val end = text.lastIndexOf("*/")
-            return "/**\n *" + text.substring(3, end) + "\n * $tagSection $commentLine\n */"
-        }
-
-        var end = text.lastIndexOf("*/")
-        while (end > 0 && text[end - 1].isWhitespace() && text[end - 1] != '\n') {
-            end--
-        }
-        // The comment ends with:
-        // * some comment here */
-        val insertNewLine: Boolean = text[end - 1] != '\n'
-
-        val indent: String
-        var linePrefix = ""
-        val secondLine = text.indexOf('\n')
-        if (secondLine == -1) {
-            // Single line comment
-            indent = "\n * "
-        } else {
-            val indentStart = secondLine + 1
-            var indentEnd = indentStart
-            while (indentEnd < text.length) {
-                if (!text[indentEnd].isWhitespace()) {
-                    break
-                }
-                indentEnd++
-            }
-            indent = text.substring(indentStart, indentEnd)
-            // TODO: If it starts with "* " follow that
-            if (text.startsWith("* ", indentEnd)) {
-                linePrefix = "* "
-            }
-        }
-        return text.substring(0, end) +
-            (if (insertNewLine) "\n" else "") +
-            indent +
-            linePrefix +
-            tagSection +
-            " " +
-            commentLine +
-            "\n" +
-            indent +
-            " */"
     }
+
+    override val mainDescription: DocContent?
+        get() = docComment.description
+
+    override val mainDescriptionOwner: DocContentOwner
+        get() = docComment
+
+    override fun blockTagDescription(tagTypeName: String): DocContent? =
+        findBlockTagSection(tagTypeName)?.docContent
+
+    override fun blockTagDescriptionOwner(tagTypeName: String): DocContentOwner {
+        return findBlockTagSection(tagTypeName)
+            ?: docComment.pendingBlockTagSection(
+                tagTypeName,
+            )
+    }
+
+    /** Find the block tag section for [tagTypeName]. */
+    private fun findBlockTagSection(tagTypeName: String): BlockTagSection? =
+        docComment.blockTagSections.find { it.tagType.name == tagTypeName }
+
+    override fun paramTagDescription(name: String): DocContent? =
+        findParamTagSection(name)?.docContent
+
+    override fun paramTagDescriptionOwner(name: String): DocContentOwner {
+        return findParamTagSection(name)
+            ?: docComment.pendingBlockTagSection(
+                "param",
+                // Pass the parameter name through the description.
+                description = JavadocText(name),
+            )
+    }
+
+    /** Find the block tag section for `@param` of [name]. */
+    private fun findParamTagSection(name: String): BlockTagSection? =
+        docComment.blockTagSections.find { it.typeSafeTagData(TagTypes.PARAM)?.name == name }
+
+    override fun check(predicate: DocContentPredicate) =
+        docComment.check(predicate as DocCommentPredicate)
+
+    /** Check to see if this requires a source comment. */
+    override fun requiresSourceComment() = docComment.requiresSourceComment()
 
     override fun removeDeprecatedSection() {
-        text = removeDeprecatedSection(text)
-    }
-}
-
-/** Regular expression to match the start of a doc comment. */
-private const val DOC_COMMENT_START_RE = """\Q/**\E"""
-
-/**
- * Regular expression to match the end of a block comment. If the block comment is at the start of a
- * line, preceded by some white space then it includes all that white space.
- */
-private const val BLOCK_COMMENT_END_RE = """(?m:^\s*)?\Q*/\E"""
-
-/**
- * Regular expression to match the start of a line Javadoc tag, i.e. a Javadoc tag at the beginning
- * of a line. Optionally, includes the preceding white space and a `*` forming a left hand border.
- */
-private const val START_OF_LINE_TAG_RE = """(?m:^\s*)\Q*\E\s*@"""
-
-/**
- * A [Pattern[] for matching an `@deprecated` tag and its associated text. If the tag is at the
- * start of the line then it includes everything from the start of the line. It includes everything
- * up to the end of the comment (apart from the line for the end of the comment) or the start of the
- * next line tag.
- */
-private val deprecatedTagPattern =
-    """((?m:^\s*\*\s*)?@deprecated\b(?m:\s*.*?))($START_OF_LINE_TAG_RE|$BLOCK_COMMENT_END_RE)"""
-        .toPattern(Pattern.DOTALL)
-
-/** A [Pattern] that matches a blank, i.e. white space only, doc comment. */
-private val blankDocCommentPattern = """$DOC_COMMENT_START_RE\s*$BLOCK_COMMENT_END_RE""".toPattern()
-
-/** Remove the `@deprecated` section, if any, from [docs]. */
-fun removeDeprecatedSection(docs: String): String {
-    // Find the `@deprecated` tag.
-    val deprecatedTagMatcher = deprecatedTagPattern.matcher(docs)
-    if (!deprecatedTagMatcher.find()) {
-        // Nothing to do as the documentation does not include @deprecated.
-        return docs
+        // Try and remove all the `@deprecated` sections.
+        docComment.removeBlockTagSections { it.tagType == TagTypes.DEPRECATED }
     }
 
-    // Remove the @deprecated tag and associated text.
-    val withoutDeprecated =
-        // The part before the `@deprecated` tag.
-        docs.substring(0, deprecatedTagMatcher.start(1)) +
-            // The part after the `@deprecated` tag.
-            docs.substring(deprecatedTagMatcher.end(1))
+    override fun addUniqueBlockTagSectionWithSimpleText(tagTypeName: String, text: String) {
+        // Remove any existing sections of the specified type.
+        docComment.removeBlockTagSections { it.tagType.name == tagTypeName }
 
-    // Check to see if the resulting document comment is empty and if it is then discard it all
-    // together.
-    val emptyDocCommentMatcher = blankDocCommentPattern.matcher(withoutDeprecated)
-    return if (emptyDocCommentMatcher.matches()) {
-        ""
-    } else {
-        withoutDeprecated
+        // Add a block tag section to the end.
+        docComment.addBlockTagSection(tagTypeName, text.toOptionalJavadocContent())
     }
+
+    override fun report(issue: Issues.Issue, message: String, lineOffset: Int, charOffset: Int) {
+        val location = fileLocation.adjustForLineAndCharOffset(lineOffset, charOffset)
+        item.codebase.reporter.report(issue, null, message, location)
+    }
+
+    override fun duplicate(item: SelectableItem): ItemDocumentation =
+        DefaultItemDocumentation(item, docComment, fileLocation)
+
+    final override fun snapshot(item: SelectableItem): ItemDocumentation =
+        // Return this to avoid parsing the text again and duplicating errors. This is not strictly
+        // speaking safe as the underlying DocComment is mutable, and this will end up sharing it
+        // across multiple snapshots, but it does not seem to cause any problems at the moment.
+        this
 }

@@ -16,9 +16,12 @@
 
 package com.android.tools.metalava.model
 
+import com.android.tools.metalava.model.api.SelectedApi
 import com.android.tools.metalava.model.api.surface.ApiVariant
 import com.android.tools.metalava.model.api.surface.ApiVariantSet
-import com.android.tools.metalava.model.api.surface.MutableApiVariantSet
+import com.android.tools.metalava.model.doc.DocContent
+import com.android.tools.metalava.model.doc.DocContentOwner
+import com.android.tools.metalava.model.scope.ReferencableNameScope
 
 /**
  * An [Item] that can be selected to be a part of an API in its own right.
@@ -30,18 +33,15 @@ import com.android.tools.metalava.model.api.surface.MutableApiVariantSet
  * Conversely, a [ParameterItem] is not selectable because it cannot be selected on its own, it is
  * an indivisible part of the [ParameterItem.containingCallable].
  */
-interface SelectableItem : Item {
+interface SelectableItem : Item, ReferencableNameScope {
+    /** The [SelectedApi] for this [SelectableItem]. */
+    val selectedApi: SelectedApi
+
     /** The [ApiVariant]s for which this [Item] has been selected. */
     var selectedApiVariants: ApiVariantSet
 
-    /**
-     * Mutate [selectedApiVariants].
-     *
-     * Provides a [MutableApiVariantSet] of the [selectedApiVariants] that can be modified by
-     * [mutator]. Once the mutator exits [selectedApiVariants] will be updated. The
-     * [MutableApiVariantSet] must not be accessed from outside [mutator].
-     */
-    fun mutateSelectedApiVariants(mutator: MutableApiVariantSet.() -> Unit)
+    /** The [ApiVariant]s for child items. */
+    var contentApiVariants: ApiVariantSet
 
     /** Whether this element will be printed in the signature file */
     var emit: Boolean
@@ -89,10 +89,17 @@ interface SelectableItem : Item {
     val removed: Boolean
 
     /** True if this item is either hidden or removed */
-    fun isHiddenOrRemoved(): Boolean = hidden || removed
+    fun isHiddenOrRemoved(): Boolean = hidden() || removed
 
     /** Determines whether this item will be shown as part of the API or not. */
     val showability: Showability
+
+    /**
+     * Returns true, if an item should be included only for "stub" purposes; that is, the item does
+     * have at least one [AnnotationItem.isShowAnnotation] annotation and all those annotations are
+     * also an [AnnotationItem.isShowForStubPurposes] annotation.
+     */
+    fun includeOnlyForStubPurposes(): Boolean
 
     /**
      * Returns true if this item has any show annotations.
@@ -112,4 +119,36 @@ interface SelectableItem : Item {
     ): SelectableItem?
 
     override var targetLanguages: Set<TargetLanguage>
+
+    /**
+     * An abstract representation of the underlying javadoc/KDoc comment for this code element, if
+     * any.
+     */
+    val documentation: ItemDocumentation?
+
+    /** Get the [ItemDocumentation], failing if it is `null`. */
+    val requiredDocumentation: ItemDocumentation
+        get() =
+            documentation
+                ?: error(
+                    "Cannot access documentation of $this as it does not support documentation"
+                )
+
+    override val description: DocContent?
+        get() = documentation?.mainDescription
+
+    override val descriptionOwner: DocContentOwner
+        get() = requiredDocumentation.mainDescriptionOwner
+
+    /**
+     * Updates the deprecated status of this item from Javadoc if needed.
+     *
+     * In Java, an item can be deprecated using the `@deprecated` Javadoc tag or the `@Deprecated`
+     * annotation. This method checks the Javadoc documentation for a `@deprecated` tag and, if
+     * found, marks the item as deprecated in its modifiers.
+     *
+     * This check is deferred from initialization to avoid the overhead of parsing documentation for
+     * every item when constructing the codebase model.
+     */
+    fun updateDeprecatedFromJavadocIfNeeded()
 }
