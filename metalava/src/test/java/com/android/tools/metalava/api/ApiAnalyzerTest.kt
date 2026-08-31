@@ -245,13 +245,8 @@ class ApiAnalyzerTest : DriverTest() {
 
     @Test
     fun `Test that DeprecationMismatch is not reported when comments are ignored`() {
-        // TODO: when comments aren't read, deprecation mismatch shouldn't be reported
         check(
-            expectedIssues =
-                """
-                src/test/pkg/CorrectDeprecation.java:4: error: Class test.pkg.CorrectDeprecation: @Deprecated annotation (present) and @deprecated doc tag (not present) do not match [DeprecationMismatch]
-                src/test/pkg/MissingDeprecatedDoc.java:3: error: Class test.pkg.MissingDeprecatedDoc: @Deprecated annotation (present) and @deprecated doc tag (not present) do not match [DeprecationMismatch]
-                """,
+            expectedIssues = "",
             sourceFiles =
                 arrayOf(
                     java(
