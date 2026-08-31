@@ -63,12 +63,6 @@ class MainCommand(
             .existingFile()
             .multiple()
 
-    internal val sourceOptions: SourceOptions by
-        SourceOptions(
-            executionEnvironment = executionEnvironment,
-            additionalSourceFilesProvider = { additionalSourceFiles },
-        )
-
     internal val nullabilityValidationOptions by NullabilityValidationOptions()
 
     /** Issue reporter configuration. */
@@ -78,8 +72,6 @@ class MainCommand(
 
     /** General reporter options. */
     private val generalReportingOptions by GeneralReportingOptions()
-
-    private val configFileOptions by ConfigFileOptions()
 
     private val apiSelectionOptions: ApiSelectionOptions by ApiSelectionOptions()
 
@@ -110,6 +102,22 @@ class MainCommand(
 
     /** Miscellaneous options. */
     internal val miscellaneousOptions by MiscellaneousOptions()
+
+    private val configFileOptions by ConfigFileOptions()
+
+    /** A lambda to allow lazily accessing the [ConfigFileOptions]. */
+    private val configFileOptionsProvider
+        get() = { configFileOptions }
+
+    internal val sourceOptions: SourceOptions by
+        SourceOptions(
+            executionEnvironment = executionEnvironment,
+            additionalSourceFilesProvider = { additionalSourceFiles },
+        )
+
+    /** A lambda to allow lazily accessing the [SourceOptions]. */
+    private val sourceOptionsProvider
+        get() = { sourceOptions }
 
     override fun run() {
         val computedIssueReportingOptions =
