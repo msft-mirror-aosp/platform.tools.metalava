@@ -23,12 +23,16 @@ import com.android.tools.metalava.Driver
 import com.android.tools.metalava.GeneralReportingOptions
 import com.android.tools.metalava.MiscellaneousOptions
 import com.android.tools.metalava.NullabilityValidationOptions
+import com.android.tools.metalava.ReporterManager
 import com.android.tools.metalava.SignatureFileOptions
 import com.android.tools.metalava.StubGenerationOptions
 import com.android.tools.metalava.cli.compatibility.CompatibilityCheckOptions
 import com.android.tools.metalava.cli.lint.ApiLintOptions
 import com.android.tools.metalava.cli.multiplatform.MultiplatformOptions
 import com.android.tools.metalava.cli.signature.SignatureFormatOptions
+import com.android.tools.metalava.model.source.EnvironmentManager
+import com.android.tools.metalava.model.text.CustomizableProperty.Companion.ADD_ADDITIONAL_OVERRIDES
+import com.android.tools.metalava.trace
 import com.github.ajalt.clikt.parameters.groups.provideDelegate
 import java.io.File
 
@@ -85,4 +89,88 @@ abstract class DriverCommand(
     protected val miscellaneousOptions by MiscellaneousOptions()
 
     protected abstract fun getDefaultBaselineFile(): File?
+
+    /** Runs [Driver] using the [environmentManager] and all specified options. */
+    protected fun runAndReportIssues(environmentManager: EnvironmentManager) {
+        val sourceOptions = sourceOptionsProvider()
+        val configFileOptions = configFileOptionsProvider()
+
+        val computedIssueReportingOptions =
+            issueReportingOptions.compute(commonOptions, configFileOptions.config.issues)
+        val computedCommonBaselineOptions =
+            commonBaselineOptions.compute(sourceOptions, computedIssueReportingOptions)
+
+        val generalBaseline =
+            generalReportingOptions.computeBaseline(
+                executionEnvironment,
+                computedCommonBaselineOptions
+            ) {
+                getDefaultBaselineFile()
+            }
+        // Manages the [Reporter]s and [Baseline]s.
+        val reporterManager =
+            ReporterManager(
+                executionEnvironment.reporterEnvironment,
+                apiLintOptions,
+                compatibilityCheckOptions,
+                generalBaseline,
+                computedIssueReportingOptions,
+                sourceOptions,
+                executionEnvironment,
+                computedCommonBaselineOptions
+            )
+
+        // Make sure to flush out the baseline files, close files and write any final messages.
+        registerPostCommandAction {
+            // Close all the baselines.
+            reporterManager.closeAllBaselines(commonOptions.verbosity, stdout)
+
+            computedIssueReportingOptions.reporterConfig.reportEvenIfSuppressedWriter?.close()
+
+            // Show failure messages, if any.
+            reporterManager.writeErrorMessages(stderr)
+        }
+        try {
+            val computedSignatureFormatOptions = signatureFormatOptions.compute()
+            val driver =
+                Driver(
+                    executionEnvironment,
+                    tracer,
+                    environmentManager,
+                    reporterManager.reporter,
+                    commonOptions.verbosity,
+                    miscellaneousOptions.compute(reporterManager.reporter),
+                    apiLevelsGenerationOptions,
+                    apiLintOptions.compute(),
+                    apiSelectionOptions.compute(
+                        configFileOptions.config.apiSurfaces,
+                        addAdditionalOverrides =
+                            computedSignatureFormatOptions.fileFormat[ADD_ADDITIONAL_OVERRIDES],
+                    ),
+                    compatibilityCheckOptions.compute(),
+                    configFileOptions,
+                    computedIssueReportingOptions,
+                    multiplatformOptions,
+                    nullabilityValidationOptions.compute(reporterManager.reporter),
+                    signatureFileOptions,
+                    computedSignatureFormatOptions,
+                    sourceOptions,
+                    stubGenerationOptions,
+                )
+            tracer.trace("processFlags") { driver.processFlags() }
+        } finally {
+            // Write all saved reports. Do this even if the previous code threw an exception.
+            reporterManager.writeSavedReports()
+        }
+
+        if (reporterManager.hasAnyErrors() && !computedCommonBaselineOptions.passBaselineUpdates) {
+            // Repeat the errors at the end to make it easy to find the actual problems.
+            if (issueReportingOptions.repeatErrorsMax > 0) {
+                reporterManager.repeatErrors(stderr, issueReportingOptions.repeatErrorsMax)
+            }
+
+            // Make sure that the process exits with an error code.
+            throw MetalavaCliException(exitCode = -1)
+        }
+    }
 }
