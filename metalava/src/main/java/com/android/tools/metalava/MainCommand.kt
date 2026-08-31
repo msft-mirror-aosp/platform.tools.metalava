@@ -17,12 +17,10 @@
 package com.android.tools.metalava
 
 import com.android.tools.metalava.cli.common.ARG_SOURCE_FILES
-import com.android.tools.metalava.cli.common.CommonBaselineOptions
 import com.android.tools.metalava.cli.common.CommonOptions
+import com.android.tools.metalava.cli.common.DriverCommand
 import com.android.tools.metalava.cli.common.ExecutionEnvironment
-import com.android.tools.metalava.cli.common.IssueReportingOptions
 import com.android.tools.metalava.cli.common.MetalavaCliException
-import com.android.tools.metalava.cli.common.MetalavaSubCommand
 import com.android.tools.metalava.cli.common.SourceOptions
 import com.android.tools.metalava.cli.common.commonOptions
 import com.android.tools.metalava.cli.common.executionEnvironment
@@ -31,10 +29,6 @@ import com.android.tools.metalava.cli.common.registerPostCommandAction
 import com.android.tools.metalava.cli.common.stderr
 import com.android.tools.metalava.cli.common.stdout
 import com.android.tools.metalava.cli.common.tracer
-import com.android.tools.metalava.cli.compatibility.CompatibilityCheckOptions
-import com.android.tools.metalava.cli.lint.ApiLintOptions
-import com.android.tools.metalava.cli.multiplatform.MultiplatformOptions
-import com.android.tools.metalava.cli.signature.SignatureFormatOptions
 import com.android.tools.metalava.model.text.CustomizableProperty.Companion.ADD_ADDITIONAL_OVERRIDES
 import com.android.tools.metalava.reporter.DEFAULT_BASELINE_NAME
 import com.github.ajalt.clikt.parameters.arguments.argument
@@ -50,7 +44,9 @@ class MainCommand(
     commonOptions: CommonOptions,
     executionEnvironment: ExecutionEnvironment,
 ) :
-    MetalavaSubCommand(
+    DriverCommand(
+        commonOptions,
+        executionEnvironment,
         help = "The default sub-command that is run if no sub-command is specified.",
     ) {
 
@@ -63,50 +59,9 @@ class MainCommand(
             .existingFile()
             .multiple()
 
-    internal val nullabilityValidationOptions by NullabilityValidationOptions()
-
-    /** Issue reporter configuration. */
-    private val issueReportingOptions by IssueReportingOptions()
-
-    private val commonBaselineOptions by CommonBaselineOptions()
-
-    /** General reporter options. */
-    private val generalReportingOptions by GeneralReportingOptions()
-
-    private val apiSelectionOptions: ApiSelectionOptions by ApiSelectionOptions()
-
-    /** API lint options. */
-    private val apiLintOptions by ApiLintOptions()
-
-    /** Multiplatform codebase options. */
-    private val multiplatformOptions by MultiplatformOptions()
-
-    /** Compatibility check options. */
-    private val compatibilityCheckOptions by CompatibilityCheckOptions()
-
-    /** Signature file options. */
-    private val signatureFileOptions by SignatureFileOptions()
-
-    /** Signature format options. */
-    private val signatureFormatOptions by SignatureFormatOptions()
-
-    /** Stub generation options. */
-    private val stubGenerationOptions by StubGenerationOptions()
-
-    /** Api levels generation options. */
-    private val apiLevelsGenerationOptions by
-        ApiLevelsGenerationOptions(
-            executionEnvironment = executionEnvironment,
-            earlyOptions = commonOptions,
-        )
-
-    /** Miscellaneous options. */
-    internal val miscellaneousOptions by MiscellaneousOptions()
-
     private val configFileOptions by ConfigFileOptions()
 
-    /** A lambda to allow lazily accessing the [ConfigFileOptions]. */
-    private val configFileOptionsProvider
+    override val configFileOptionsProvider: () -> ConfigFileOptions
         get() = { configFileOptions }
 
     internal val sourceOptions: SourceOptions by
@@ -115,8 +70,7 @@ class MainCommand(
             additionalSourceFilesProvider = { additionalSourceFiles },
         )
 
-    /** A lambda to allow lazily accessing the [SourceOptions]. */
-    private val sourceOptionsProvider
+    override val sourceOptionsProvider: () -> SourceOptions
         get() = { sourceOptions }
 
     override fun run() {
@@ -229,7 +183,7 @@ class MainCommand(
      * would trigger a --strict-input-files violation. To avoid that, always explicitly pass a
      * baseline file.
      */
-    private fun getDefaultBaselineFile(): File? {
+    override fun getDefaultBaselineFile(): File? {
         val sourcePath = sourceOptions.sourcePath
         if (sourcePath.isNotEmpty() && sourcePath[0].path.isNotBlank()) {
             // Create the file name.
