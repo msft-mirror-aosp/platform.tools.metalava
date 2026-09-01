@@ -73,16 +73,12 @@ import com.intellij.psi.PsiTypeParameter
 import com.intellij.psi.PsiTypeParameterListOwner
 import com.intellij.psi.impl.JavaConstantExpressionEvaluator
 import org.jetbrains.kotlin.asJava.classes.KtLightClassForFacade
-import org.jetbrains.kotlin.asJava.elements.KotlinLightTypeParameterBuilder
-import org.jetbrains.kotlin.asJava.elements.KtLightDeclaration
-import org.jetbrains.kotlin.lexer.KtTokens
 import org.jetbrains.kotlin.psi.KtAnnotated
 import org.jetbrains.kotlin.psi.KtClassOrObject
 import org.jetbrains.kotlin.psi.KtParameter
 import org.jetbrains.kotlin.psi.KtPrimaryConstructor
 import org.jetbrains.kotlin.psi.KtProperty
 import org.jetbrains.kotlin.psi.KtPropertyAccessor
-import org.jetbrains.kotlin.psi.KtTypeParameter
 import org.jetbrains.kotlin.psi.KtTypeReference
 import org.jetbrains.kotlin.psi.psiUtil.isExtensionDeclaration
 import org.jetbrains.uast.UAnnotation
@@ -1060,27 +1056,11 @@ internal class PsiClassBuilder(
         return itemFactory.createTypeParameterItem(
             modifiers = modifiers,
             name = simpleName,
-            isReified = isReified(psiTypeParameter),
+            // Functions with reified type parameters can only be used from Kotlin source, which
+            // means they are processed by KaCodebaseAssembler instead of through PsiClassBuilder
+            // because they don't exist as real UAST.
+            isReified = false,
         )
-    }
-
-    /** Check whether the [PsiTypeParameter] is reified, i.e. available in inline functions. */
-    private fun isReified(element: PsiTypeParameter?): Boolean {
-        element ?: return false
-        // TODO(jsjeon): Handle PsiElementWithOrigin<*> when available
-        if (
-            element is KtLightDeclaration<*, *> &&
-                element.kotlinOrigin is KtTypeParameter &&
-                element.kotlinOrigin?.text?.startsWith(KtTokens.REIFIED_KEYWORD.value) == true
-        ) {
-            return true
-        } else if (
-            element is KotlinLightTypeParameterBuilder &&
-                element.origin.text.startsWith(KtTokens.REIFIED_KEYWORD.value)
-        ) {
-            return true
-        }
-        return false
     }
 }
 
