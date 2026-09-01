@@ -355,6 +355,8 @@ data class SelectionCriteriaConfig(
     /**
      * Determines what is done with items that are not annotated with one of the annotations in
      * [annotationRules].
+     *
+     * If unspecified this defaults to [EffectConfig.HIDE].
      */
     @field:JacksonXmlProperty(isAttribute = true) val unannotated: EffectConfig? = null,
 

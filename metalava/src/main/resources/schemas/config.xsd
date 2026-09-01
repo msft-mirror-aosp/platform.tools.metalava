@@ -213,7 +213,7 @@
             <xs:annotation>
                 <xs:documentation>
                     Specifies what will happen to items which are not annotated with an annotation that matches an
-                    `annotation-rule`.
+                    `annotation-rule`. Defaults to `hide` if unspecified.
                 </xs:documentation>
             </xs:annotation>
         </xs:attribute>
