@@ -75,7 +75,16 @@ class ApiPredicate(
          * or not.
          */
         val addAdditionalOverrides: Boolean = false,
-    )
+    ) {
+        /**
+         * Create a [Config] instance that will cause an [ApiPredicate] to match the whole API
+         * surface, i.e. including any items in an API surface that this surface extends.
+         *
+         * Currently, this assumes that all API surfaces either set `unannotated="show"` or extend
+         * one that does. That is not true for standalone unannotated API surfaces.
+         */
+        fun forWholeApiSurface() = copy(ignoreShown = true)
+    }
 
     override fun test(item: SelectableItem): Boolean {
         // non-class, i.e., (literally) member declaration w/o emit flag, e.g., due to `expect`

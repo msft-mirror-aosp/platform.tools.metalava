@@ -77,7 +77,9 @@ sealed interface JarCodebaseLoader {
             }
             val apiEmit =
                 ApiPredicate(
-                    config = apiAnalyzerConfig.apiPredicateConfig.copy(ignoreShown = true),
+                    // When loading from a prebuilt jar, all APIs in the jar represent the whole API
+                    // surface, so inherited stubs must be generated for all classes across the jar.
+                    config = apiAnalyzerConfig.apiPredicateConfig.forWholeApiSurface(),
                 )
             tracer.trace("analyzer.inheritHiddenAspects") {
                 analyzer.inheritHiddenAspects(

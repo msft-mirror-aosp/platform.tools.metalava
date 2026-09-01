@@ -146,10 +146,13 @@ internal class StubGenerator(
             if (codebase.preFiltered) {
                 null
             } else {
+                // Stubs must include the whole API surface (both base and extended surfaces, such
+                // as public API when generating system stubs) so code compiling against stubs can
+                // resolve all referenced and inherited APIs.
                 val filterReference =
                     ApiPredicate(
                         includeDocOnly = isDocStubs,
-                        config = apiPredicateConfig.copy(ignoreShown = true),
+                        config = apiPredicateConfig.forWholeApiSurface(),
                     )
                 val filterEmit = MatchOverridingMethodPredicate(filterReference)
 
@@ -185,13 +188,16 @@ internal class StubGenerator(
                 )
         }
 
-        // Add additional constructors needed by the stubs.
+        // Add additional constructors needed by the stubs across the whole API surface.
         val filterEmit: FilterPredicate =
             if (codebaseFragment.codebase.preFiltered) {
                 FilterPredicate { true }
             } else {
-                val apiPredicateConfigIgnoreShown = apiPredicateConfig.copy(ignoreShown = true)
-                ApiPredicate(ignoreRemoved = false, config = apiPredicateConfigIgnoreShown)
+                ApiPredicate(
+                    ignoreRemoved = false,
+                    // Stub constructors must be added to all classes across the whole API surface.
+                    config = apiPredicateConfig.forWholeApiSurface(),
+                )
             }
         val stubConstructorManager = StubConstructorManager(codebaseFragment.codebase)
         stubConstructorManager.addConstructors(filterEmit)

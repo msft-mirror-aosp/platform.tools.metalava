@@ -134,7 +134,9 @@ class ApiAnalyzer(
             ApiPredicate(
                 ignoreRemoved = true,
                 includeDocOnly = true,
-                config = config.apiPredicateConfig.copy(ignoreShown = true),
+                // Match the whole API surface so deprecation is updated for items in extended/base
+                // surfaces as well.
+                config = config.apiPredicateConfig.forWholeApiSurface(),
                 includeApisForStubPurposes = true,
             )
 

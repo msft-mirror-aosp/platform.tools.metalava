@@ -60,10 +60,16 @@ internal class ApiContents(
 
     /** The filter that determines which [SelectableItem]s are included in the API. */
     private val filter =
-        ApiPredicate(config = apiPredicateConfig.copy(ignoreShown = true)).and { selectableItem ->
-            // Don't consider references from elements that only exist in bytecode.
-            selectableItem.targetLanguages != TargetLanguageSet.BYTECODE_ONLY
-        }
+        ApiPredicate(
+                // Use the whole API surface so that classes belonging to any API surface in the
+                // hierarchy (such as base surfaces) are recognized as part of the API and not
+                // stripped when referenced.
+                config = apiPredicateConfig.forWholeApiSurface(),
+            )
+            .and { selectableItem ->
+                // Don't consider references from elements that only exist in bytecode.
+                selectableItem.targetLanguages != TargetLanguageSet.BYTECODE_ONLY
+            }
 
     /**
      * Computes the transitive closure of the API surface.

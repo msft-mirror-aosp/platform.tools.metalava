@@ -33,7 +33,10 @@ enum class ApiType(val flagName: String, val displayName: String = flagName) {
         }
 
         override fun getReferenceFilter(apiPredicateConfig: ApiPredicate.Config): FilterPredicate {
-            return ApiPredicate(config = apiPredicateConfig.copy(ignoreShown = true))
+            // Emitted APIs can reference types (such as superclasses, interfaces, parameter types,
+            // or thrown exceptions) that belong to any API surface extended by the target surface,
+            // so references must match across the whole API surface.
+            return ApiPredicate(config = apiPredicateConfig.forWholeApiSurface())
         }
     },
 
@@ -51,9 +54,10 @@ enum class ApiType(val flagName: String, val displayName: String = flagName) {
         }
 
         override fun getReferenceFilter(apiPredicateConfig: ApiPredicate.Config): FilterPredicate {
+            // References in removed APIs can refer to types across the whole API surface.
             return ApiPredicate(
                 ignoreRemoved = true,
-                config = apiPredicateConfig.copy(ignoreShown = true),
+                config = apiPredicateConfig.forWholeApiSurface(),
             )
         }
     },

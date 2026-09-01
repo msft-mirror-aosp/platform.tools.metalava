@@ -45,8 +45,10 @@ class MarkPackagesAsRecent(
     }
 }
 
+// Marks all API elements in the specified packages as recent across the entire API surface,
+// not just those with specific show annotations.
 private fun apiPredicate(config: ApiPredicate.Config) =
-    ApiPredicate(config = config.copy(ignoreShown = true))
+    ApiPredicate(config = config.forWholeApiSurface())
 
 private fun apiFilters(config: ApiPredicate.Config) =
     apiPredicate(config).let { ApiFilters(emit = it, reference = it) }

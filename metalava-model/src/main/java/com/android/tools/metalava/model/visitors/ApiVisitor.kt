@@ -97,7 +97,8 @@ open class ApiVisitor(
                 reference =
                     ApiPredicate(
                         ignoreRemoved = false,
-                        config = apiPredicateConfig.copy(ignoreShown = true),
+                        // References in the default visitor can match across the whole API surface.
+                        config = apiPredicateConfig.forWholeApiSurface(),
                     ),
             )
         }
@@ -107,7 +108,10 @@ open class ApiVisitor(
             ApiPredicate(
                 matchRemoved = false,
                 includeApisForStubPurposes = true,
-                config = apiPredicateConfig.copy(ignoreShown = true),
+                // The default visitor emits items from the whole API surface without restricting to
+                // a specific delta surface (e.g. for api-versions.xml or general codebase
+                // traversal).
+                config = apiPredicateConfig.forWholeApiSurface(),
             )
     }
 

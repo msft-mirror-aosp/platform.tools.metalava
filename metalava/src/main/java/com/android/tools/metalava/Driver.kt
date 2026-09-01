@@ -342,12 +342,14 @@ class Driver(
                     // Pre-filtered so does not need any filters.
                     null
                 } else {
-                    val apiPredicateConfigIgnoreShown = apiPredicateConfig.copy(ignoreShown = true)
-                    val apiReferenceIgnoreShown =
-                        ApiPredicate(config = apiPredicateConfigIgnoreShown)
+                    // ProGuard rules only emit items matching the target API surface, but
+                    // referenced types (e.g. superclasses and interfaces) can belong to any surface
+                    // across the whole API surface.
+                    val apiReference =
+                        ApiPredicate(config = apiPredicateConfig.forWholeApiSurface())
                     val apiEmit =
                         MatchOverridingMethodPredicate(ApiPredicate(config = apiPredicateConfig))
-                    ApiFilters(emit = apiEmit, reference = apiReferenceIgnoreShown)
+                    ApiFilters(emit = apiEmit, reference = apiReference)
                 }
 
             val codebaseFragment =
@@ -883,8 +885,9 @@ class Driver(
 
         tracer.trace("analyzer.computeApi") { analyzer.computeApi() }
 
-        val apiPredicateConfigIgnoreShown = apiPredicateConfig.copy(ignoreShown = true)
-        val apiEmitAndReference = ApiPredicate(config = apiPredicateConfigIgnoreShown)
+        // Handling file facade classes and generating inherited stubs operates on the entire API
+        // surface across all surfaces in the codebase, not just a specific delta surface.
+        val apiEmitAndReference = ApiPredicate(config = apiPredicateConfig.forWholeApiSurface())
 
         tracer.trace("analyzer.handleFileFacadeClassesAndExperimentalPackages") {
             analyzer.handleFileFacadeClassesAndExperimentalPackages(apiEmitAndReference)
