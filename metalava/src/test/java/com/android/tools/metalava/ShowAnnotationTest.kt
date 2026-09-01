@@ -963,4 +963,41 @@ class ShowAnnotationTest : DriverTest() {
                 """,
         )
     }
+
+    @Test
+    fun `Non-recursive show annotation on class does not show unannotated members`() {
+        check(
+            apiSurface = KnownApiSurface.NON_RECURSIVE_SYSTEM,
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            import android.annotation.SystemApi;
+
+                            @SystemApi
+                            public class Foo {
+                                public void method1() { }
+
+                                @SystemApi
+                                public void method2() { }
+                            }
+                        """
+                    ),
+                ),
+            expectedApiSignature =
+                // TODO(b/512093496): Should not include the public constructor and method1 as they
+                //   are not annotated with the non-recursive @SystemApi. However, ApiPredicate does
+                //   not honor the non-recursive nature of @SystemApi so they are included.
+                """
+                    package test.pkg {
+                      public class Foo {
+                        ctor public Foo();
+                        method public void method1();
+                        method public void method2();
+                      }
+                    }
+                """,
+        )
+    }
 }
