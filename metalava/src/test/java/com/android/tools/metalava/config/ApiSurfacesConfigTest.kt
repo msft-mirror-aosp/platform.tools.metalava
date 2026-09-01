@@ -44,6 +44,10 @@ class ApiSurfacesConfigTest : BaseConfigParserTest() {
                             listOf(
                                 ApiSurfaceConfig(
                                     name = "public",
+                                    selectionCriteria =
+                                        SelectionCriteriaConfig(
+                                            unannotated = EffectConfig.SHOW,
+                                        ),
                                 ),
                                 ApiSurfaceConfig(
                                     name = "system",
@@ -190,9 +194,17 @@ class ApiSurfacesConfigTest : BaseConfigParserTest() {
                                 listOf(
                                     ApiSurfaceConfig(
                                         name = "public",
+                                        selectionCriteria =
+                                            SelectionCriteriaConfig(
+                                                unannotated = EffectConfig.SHOW,
+                                            ),
                                     ),
                                     ApiSurfaceConfig(
                                         name = "other",
+                                        selectionCriteria =
+                                            SelectionCriteriaConfig(
+                                                unannotated = EffectConfig.SHOW,
+                                            ),
                                     ),
                                 ),
                         ),
@@ -238,6 +250,10 @@ class ApiSurfacesConfigTest : BaseConfigParserTest() {
                                 listOf(
                                     ApiSurfaceConfig(
                                         name = "public",
+                                        selectionCriteria =
+                                            SelectionCriteriaConfig(
+                                                unannotated = EffectConfig.SHOW,
+                                            ),
                                     ),
                                 ),
                         ),

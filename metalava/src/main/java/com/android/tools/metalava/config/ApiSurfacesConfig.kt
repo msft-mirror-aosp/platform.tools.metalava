@@ -316,8 +316,7 @@ data class ApiSurfaceConfig(
 
     /** The selection criteria that determines what is included in this API surface. */
     @field:JacksonXmlProperty(localName = "selection-criteria", namespace = CONFIG_NAMESPACE)
-    val selectionCriteria: SelectionCriteriaConfig =
-        SelectionCriteriaConfig(unannotated = EffectConfig.SHOW),
+    val selectionCriteria: SelectionCriteriaConfig = SelectionCriteriaConfig(),
 )
 
 /** Enumeration of the possible contents of this surface. */
