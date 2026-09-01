@@ -986,14 +986,9 @@ class ShowAnnotationTest : DriverTest() {
                     ),
                 ),
             expectedApiSignature =
-                // TODO(b/512093496): Should not include the public constructor and method1 as they
-                //   are not annotated with the non-recursive @SystemApi. However, ApiPredicate does
-                //   not honor the non-recursive nature of @SystemApi so they are included.
                 """
                     package test.pkg {
                       public class Foo {
-                        ctor public Foo();
-                        method public void method1();
                         method public void method2();
                       }
                     }

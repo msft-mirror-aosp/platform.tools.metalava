@@ -152,11 +152,18 @@ class ApiPredicate(
         return false
     }
 
+    /**
+     * Check whether this item has a recursive show annotation that affects nested items.
+     *
+     * See [Showability.showRecursive].
+     */
+    private fun SelectableItem.hasRecursiveShow() = showability.showRecursive()
+
     /** Check if this item or any of its containing classes or packages has a show annotation. */
     private fun hasShowAnnotation(item: SelectableItem): Boolean {
         if (item.hasShowAnnotation()) return true
 
-        if (item.anyContainingClass { it.hasShowAnnotation() }) return true
+        if (item.anyContainingClass { it.hasRecursiveShow() }) return true
 
         // Traverse up the package hierarchy to check if this item belongs to a shown package.
         var showPackage = item.containingPackage()
@@ -166,7 +173,7 @@ class ApiPredicate(
             if (showPackage.hidden) {
                 break
             }
-            if (showPackage.hasShowAnnotation()) return true
+            if (showPackage.hasRecursiveShow()) return true
             showPackage = showPackage.containingPackage()
         }
 
