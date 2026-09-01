@@ -216,6 +216,7 @@ Sub-commands:
   flag-report                                Generates a flag report
   help                                       Provides help for general metalava concepts.
   jar-to-jdiff                               Convert a jar file into a file in the JDiff XML format.
+  list-flags                                 List flags referenced in signature files.
   merge-signatures                           Merge multiple signature files together into a single file.
   signature-cat                              Cats signature files.
   signature-migrate                          Migrates signature files to a new format.

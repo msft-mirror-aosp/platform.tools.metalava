@@ -35,6 +35,7 @@ import com.android.tools.metalava.cli.common.commonOptions
 import com.android.tools.metalava.cli.compatibility.CompatibilityCheckOptions
 import com.android.tools.metalava.cli.compatibility.CompatibilityCheckOptions.CheckRequest
 import com.android.tools.metalava.cli.flag.FlagReportCommand
+import com.android.tools.metalava.cli.flag.ListFlagsCommand
 import com.android.tools.metalava.cli.help.HelpCommand
 import com.android.tools.metalava.cli.historical.AndroidJarsToSignaturesCommand
 import com.android.tools.metalava.cli.internal.MakeAnnotationsPackagePrivateCommand
@@ -176,6 +177,7 @@ class Driver(
                 FlagReportCommand(),
                 HelpCommand(),
                 JarToJDiffCommand(),
+                ListFlagsCommand(),
                 MakeAnnotationsPackagePrivateCommand(),
                 MergeSignaturesCommand(),
                 SignatureCatCommand(),
