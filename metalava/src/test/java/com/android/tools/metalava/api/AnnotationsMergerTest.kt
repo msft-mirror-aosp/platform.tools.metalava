@@ -39,14 +39,14 @@ class AnnotationsMergerTest : DriverTest() {
                         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
                         xsi:schemaLocation="http://www.google.com/tools/metalava/config ../../../../../../resources/schemas/config.xsd">
                         <api-surfaces>
-                            <api-surface name="non-recursive">
-                                <selection-criteria>
+                            <api-surface name="non-recursive-without-unannotated">
+                                <selection-criteria unannotated="hide">
                                     <annotation-rule pattern="test.annotation.Hide" effect="hide"/>
                                     <annotation-rule pattern="test.annotation.Show" recursive="false"/>
                                 </selection-criteria>
                             </api-surface>
-                            <api-surface name="non-recursive-plus-unannotated">
-                                <selection-criteria>
+                            <api-surface name="non-recursive-with-unannotated">
+                                <selection-criteria unannotated="show">
                                     <annotation-rule pattern="test.annotation.Hide" effect="hide"/>
                                     <annotation-rule pattern="test.annotation.Show" recursive="false"/>
                                 </selection-criteria>
@@ -56,15 +56,15 @@ class AnnotationsMergerTest : DriverTest() {
                 """
             )
 
-        private val NON_RECURSIVE_SHOW =
+        private val NON_RECURSIVE_SHOW_WITHOUT_UNANNOTATED =
             KnownApiSurface(
-                "non-recursive",
+                "non-recursive-without-unannotated",
                 nonRecursiveConfigFile,
             )
 
-        private val NON_RECURSIVE_SHOW_PLUS_UNANNOTATED =
+        private val NON_RECURSIVE_SHOW_WITH_UNANNOTATED =
             KnownApiSurface(
-                "non-recursive-plus-unannotated",
+                "non-recursive-with-unannotated",
                 nonRecursiveConfigFile,
             )
     }
@@ -755,7 +755,7 @@ class AnnotationsMergerTest : DriverTest() {
     @Test
     fun `Merge inclusion annotations from Java stub files using non-recursive show annotation`() {
         check(
-            apiSurface = NON_RECURSIVE_SHOW_PLUS_UNANNOTATED,
+            apiSurface = NON_RECURSIVE_SHOW_WITH_UNANNOTATED,
             format = FileFormat.V2,
             sourceFiles =
                 arrayOf(
@@ -800,7 +800,7 @@ class AnnotationsMergerTest : DriverTest() {
     @Test
     fun `Merge inclusion annotations on api in java namespace`() {
         check(
-            apiSurface = NON_RECURSIVE_SHOW,
+            apiSurface = NON_RECURSIVE_SHOW_WITHOUT_UNANNOTATED,
             format = FileFormat.V2,
             sourceFiles =
                 arrayOf(
@@ -843,7 +843,7 @@ class AnnotationsMergerTest : DriverTest() {
     @Test
     fun `Redefining java lang object plus using some internal classes`() {
         check(
-            apiSurface = NON_RECURSIVE_SHOW,
+            apiSurface = NON_RECURSIVE_SHOW_WITHOUT_UNANNOTATED,
             sourceFiles =
                 arrayOf(
                     java(
