@@ -49,11 +49,6 @@ import com.intellij.psi.PsiTypeParameter
 import com.intellij.psi.PsiTypes
 import com.intellij.psi.PsiWildcardType
 import com.intellij.psi.impl.source.PsiClassReferenceType
-import org.jetbrains.kotlin.analysis.api.KaExperimentalApi
-import org.jetbrains.kotlin.analysis.api.types.KaClassType
-import org.jetbrains.kotlin.analysis.api.types.KaFunctionType
-import org.jetbrains.kotlin.analysis.api.types.KaTypeMappingMode
-import org.jetbrains.kotlin.utils.addToStdlib.ifNotEmpty
 import org.jetbrains.uast.UParameter
 import org.jetbrains.uast.kotlin.isKotlin
 
@@ -213,11 +208,18 @@ internal class PsiTypeItemFactory(
             return isJetBrainNotNull || isJetBrainNullable
         }
 
-    /** Create a [TypeItem]. */
+    /**
+     * Create a [TypeItem].
+     *
+     * If a [PrimitiveTypeItem] is not valid for the caller then it must set [mustBoxPrimitives] to
+     * `true`. In that case if the type is an alias for a primitive type it will be replaced with
+     * its boxed type.
+     */
     private fun createTypeItem(
         psiType: PsiType,
         kotlinType: KotlinTypeInfo?,
         contextNullability: ContextNullability = ContextNullability.none,
+        mustBoxPrimitives: Boolean = false,
     ): TypeItem {
         return when (psiType) {
             is PsiPrimitiveType ->
@@ -258,7 +260,7 @@ internal class PsiTypeItemFactory(
                         contextNullability = contextNullability,
                     )
                 } else {
-                    if (kotlinType?.kaType is KaFunctionType) {
+                    if (kotlinType?.isLambdaType() == true) {
                         createLambdaTypeItem(
                             psiType = psiType,
                             kotlinType = kotlinType,
@@ -282,7 +284,16 @@ internal class PsiTypeItemFactory(
                                 kotlinType = kotlinType,
                                 contextNullability = contextNullability,
                             )
-                        checkForTypeAliasSubstitution(classType, contextNullability) ?: classType
+
+                        // If the type is a type alias then replace the class type with the aliased
+                        // type. The aliased type may be a primitive type which may not be valid,
+                        // e.g. as a generic type argument, or wildcard bound. In that case
+                        // mustBoxPrimitives will be `true`.
+                        checkForTypeAliasSubstitution(
+                            classType,
+                            contextNullability,
+                            mustBoxPrimitives,
+                        ) ?: classType
                     }
                 }
             }
@@ -310,10 +321,14 @@ internal class PsiTypeItemFactory(
      * converts the aliased type for this usage (mapping type parameters and adjusting nullability).
      *
      * If there is no matching type alias, returns null.
+     *
+     * If the aliased type is a [PrimitiveTypeItem] and [mustBoxPrimitives] is `true` then it will
+     * be replaced with its corresponding boxed type.
      */
     private fun checkForTypeAliasSubstitution(
         classTypeItem: ClassTypeItem,
-        contextNullability: ContextNullability
+        contextNullability: ContextNullability,
+        mustBoxPrimitives: Boolean = false,
     ): TypeItem? {
         // Don't bother checking for type aliases in non-KMP codebases because the substitution will
         // already have happened in the UAST representation. Substitution won't have happened for
@@ -334,6 +349,14 @@ internal class PsiTypeItemFactory(
                 typeAlias.aliasedType.convertType(typeParameterBindings)
             }
 
+        // If necessary, box the primitive type.
+        val possiblyBoxedType =
+            if (mustBoxPrimitives && convertedType is PrimitiveTypeItem) {
+                boxType(convertedType)
+            } else {
+                convertedType
+            }
+
         // Update type nullability: if the context requires a specific nullability, use that.
         // If the aliased type is nullable, that propagates to the usage. Otherwise, use the
         // nullability set by the usage site.
@@ -345,8 +368,17 @@ internal class PsiTypeItemFactory(
                     classTypeItem.modifiers.nullability
                 }
 
-        return convertedType.substitute(nullability)
+        return possiblyBoxedType.substitute(nullability)
     }
+
+    /** Converts the [primitiveTypeItem] to the boxed java class type. */
+    private fun boxType(primitiveTypeItem: PrimitiveTypeItem) =
+        TypeItem.createClassType(
+            modifiers = primitiveTypeItem.modifiers,
+            qualifiedName = primitiveTypeItem.kind.wrapperClass.canonicalName,
+            arguments = emptyList(),
+            outerClassType = null,
+        )
 
     /** Create a [PrimitiveTypeItem]. */
     private fun createPrimitiveTypeItem(
@@ -442,125 +474,34 @@ internal class PsiTypeItemFactory(
         psiType: PsiClassType,
         kotlinType: KotlinTypeInfo?,
     ): List<TypeArgumentTypeItem> {
-        val psiParameters =
-            psiType.parameters.toList().ifEmpty {
-                // Sometimes, when a PsiClassType's arguments are empty it is not because there
-                // are no arguments but due to a bug in Psi somewhere. Check to see if the
-                // kotlin type info has a different set of type arguments and if it has then use
-                // that to fix the type, otherwise just assume it should be empty.
-                kotlinType?.kaType?.let { ktType ->
-                    (ktType as? KaClassType)?.typeArguments?.ifNotEmpty {
-                        fixUpPsiTypeMissingTypeArguments(psiType, kotlinType)
+        // Get the type arguments of PsiClassType as List<PsiType>.
+        val psiTypeArguments =
+            psiType.parameters.toList().takeIf { it.isNotEmpty() }
+                ?: let {
+                    // Workaround for b/505052012: If a lambda type uses the type Nothing as a
+                    // return type then hasNothingInNonContravariantPosition(...) in
+                    // FirJvmTypeMapper returns true. That causes it to get converted into a raw
+                    // PsiClassType without any tupe arguments.
+                    if (kotlinType is KotlinTypeInfo.LambdaType) {
+                        // Convert each individual type argument into a PsiType and use that
+                        // instead.
+                        kotlinType.overrideTypeArguments.map { it.asPsiType() }
+                    } else {
+                        // The type has no type arguments so just return an empty list.
+                        return emptyList()
                     }
-                } ?: emptyList()
-            }
+                }
 
-        return psiParameters.mapIndexed { i, param ->
+        return psiTypeArguments.mapIndexed { i, param ->
             val forTypeArgument = kotlinType?.forTypeArgument(i)
-            createTypeItem(param, forTypeArgument) as TypeArgumentTypeItem
+            createTypeItem(
+                param,
+                forTypeArgument,
+                // PrimitiveTypeItems are not a valid TypeArgumentTypeItem so box them.
+                mustBoxPrimitives = true,
+            )
+                as TypeArgumentTypeItem
         }
-    }
-
-    /**
-     * Fix up a [PsiClassType] that is missing type arguments.
-     *
-     * This seems to happen in a very limited situation. The example that currently fails, but there
-     * may be more, appears to be due to an impedance mismatch between Kotlin collections and Java
-     * collections.
-     *
-     * Assume the following Kotlin and Java classes from the standard libraries:
-     * ```
-     * package kotlin.collections
-     * public interface MutableCollection<E> : Collection<E>, MutableIterable<E> {
-     *     ...
-     *     public fun addAll(elements: Collection<E>): Boolean
-     *     public fun containsAll(elements: Collection<E>): Boolean
-     *     public fun removeAll(elements: Collection<E>): Boolean
-     *     public fun retainAll(elements: Collection<E>): Boolean
-     *     ...
-     * }
-     *
-     * package java.util;
-     * public interface Collection<E> extends Iterable<E> {
-     *     boolean addAll(Collection<? extends E> c);
-     *     boolean containsAll(Collection<?> c);
-     *     boolean removeAll(Collection<?> c);
-     *     boolean retainAll(Collection<?> c);
-     * }
-     * ```
-     *
-     * The given the following class this function is called for the types of the parameters of the
-     * `removeAll`, `retainAll` and `containsAll` methods but not for the `addAll` method.
-     *
-     * ```
-     * abstract class Foo<Z> : MutableCollection<Z> {
-     *     override fun addAll(elements: Collection<Z>): Boolean = true
-     *     override fun containsAll(elements: Collection<Z>): Boolean = true
-     *     override fun removeAll(elements: Collection<Z>): Boolean = true
-     *     override fun retainAll(elements: Collection<Z>): Boolean = true
-     * }
-     * ```
-     *
-     * Metalava and/or the underlying Psi model, appears to treat the `MutableCollection` in `Foo`
-     * as if it was a `java.util.Collection`, even though it is referring to
-     * `kotlin.collections.Collection`. So, both `Foo` and `MutableCollection` are reported as
-     * extending `java.util.Collection`.
-     *
-     * So, you have the following two methods (mapped into Java classes):
-     *
-     * From `java.util.Collection` itself:
-     * ```
-     *      boolean containsAll(java.util.Collection<?> c);
-     * ```
-     *
-     * And from `kotlin.collections.MutableCollection`:
-     * ```
-     *     public fun containsAll(elements: java.util.Collection<E>): Boolean
-     * ```
-     *
-     * But, strictly speaking that is not allowed for a couple of reasons:
-     * 1. `java.util.Collection` is not covariant because it is mutable. However,
-     *    `kotlin.collections.Collection` is covariant because it immutable.
-     * 2. `Collection<Z>` is more restrictive than `Collection<?>`. Java will let you try and remove
-     *    a collection of `Number` from a collection of `String` even though it is meaningless.
-     *    Kotlin's approach is more correct but only possible because its `Collection` is immutable.
-     *
-     * The [kotlinType] seems to have handled that issue reasonably well producing a type of
-     * `java.util.Collection<? extends Z>`. Unfortunately, when that is converted to a `PsiType` the
-     * `PsiType` for `Z` does not resolve to a `PsiTypeParameter`.
-     *
-     * The wildcard is correct.
-     */
-    @OptIn(KaExperimentalApi::class)
-    private fun fixUpPsiTypeMissingTypeArguments(
-        psiType: PsiClassType,
-        kotlinType: KotlinTypeInfo
-    ): List<PsiType> {
-        if (kotlinType.analysisSession == null || kotlinType.kaType == null) return emptyList()
-
-        val kaType = kotlinType.kaType as KaClassType
-
-        // Restrict this fix to the known issue.
-        val className = psiType.className
-        if (className != "Collection") {
-            return emptyList()
-        }
-
-        // Convert the KtType to PsiType.
-        //
-        // Convert the whole type rather than extracting the type parameters and converting them
-        // separately because the result depends on the parameterized class, i.e.
-        // `java.util.Collection` in this case. Also, type arguments can be wildcards but
-        // wildcards cannot exist on their own. It will probably be relying on undefined
-        // behavior to try and convert a wildcard on their own.
-        val psiTypeFromKotlin =
-            kotlinType.analysisSession.run {
-                // Use the default mode so that the resulting psiType is
-                // `java.util.Collection<? extends Z>`.
-                val mode = KaTypeMappingMode.DEFAULT
-                kaType.asPsiType(kotlinType.context, false, mode = mode)
-            } as? PsiClassType
-        return psiTypeFromKotlin?.parameters?.toList() ?: emptyList()
     }
 
     /** Compute the [ClassTypeItem.outerClassType], which will be `null` if no type exists. */
@@ -685,10 +626,10 @@ internal class PsiTypeItemFactory(
      *
      * Extends a [ClassTypeItem] and then deconstructs the type arguments of Kotlin `Function<N>` to
      * extract the receiver, input and output types. This makes heavy use of the
-     * [KotlinTypeInfo.kaType] property of [kotlinType] which must be a [KtFunctionalType]. That has
-     * the information necessary to determine which of the Kotlin `Function<N>` class's type
-     * arguments are the receiver (if any) and which are input parameters. The last type argument is
-     * always the return type.
+     * [org.jetbrains.kotlin.analysis.api.types.KaType] of [kotlinType] which must be a
+     * [org.jetbrains.kotlin.analysis.api.types.KaFunctionType]. That has the information necessary
+     * to determine which of the Kotlin `Function<N>` class's type arguments are the receiver (if
+     * any) and which are input parameters. The last type argument is always the return type.
      */
     private fun createLambdaTypeItem(
         psiType: PsiClassType,
@@ -697,36 +638,7 @@ internal class PsiTypeItemFactory(
     ): LambdaTypeItem {
         val qualifiedName = psiType.computeQualifiedName()
 
-        val kaType = kotlinType.kaType as KaFunctionType
-
-        val isSuspend = kaType.isSuspend
-
-        val actualKotlinType =
-            kotlinType.copy(
-                overrideTypeArguments =
-                    // Compute a set of [KtType]s corresponding to the type arguments in the
-                    // underlying `kotlin.jvm.functions.Function*`.
-                    buildList {
-                        // The optional lambda receiver is the first type argument.
-                        kaType.receiverType?.let { add(kotlinType.copy(kaType = it)) }
-                        // The lambda's explicit parameters appear next.
-                        kaType.parameterTypes.mapTo(this) { kotlinType.copy(kaType = it) }
-                        // A `suspend` lambda is transformed by Kotlin in the same way that a
-                        // `suspend` function is, i.e. an additional continuation parameter is added
-                        // at the end of the explicit parameters that encapsulates the return type
-                        // and the return type is changed to `Any?`.
-                        if (isSuspend) {
-                            // Create a KotlinTypeInfo for the continuation parameter that
-                            // encapsulates the actual return type.
-                            add(kotlinType.forSyntheticContinuationParameter(kaType.returnType))
-                            // Add the `Any?` for the return type.
-                            add(kotlinType.nullableAny())
-                        } else {
-                            // As it is not a `suspend` lambda add the return type last.
-                            add(kotlinType.copy(kaType = kaType.returnType))
-                        }
-                    }
-            )
+        val actualKotlinType = kotlinType.asLambdaType()
 
         // Get the type arguments for the kotlin.jvm.functions.Function<X> class.
         val typeArguments = computeTypeArguments(psiType, actualKotlinType)
@@ -734,7 +646,7 @@ internal class PsiTypeItemFactory(
         // If the function has a receiver then it is the first type argument.
         var firstParameterTypeIndex = 0
         val receiverType =
-            if (kaType.hasReceiver) {
+            if (actualKotlinType.hasReceiver) {
                 // The first parameter type is now the second type argument.
                 firstParameterTypeIndex = 1
                 unwrapInputType(typeArguments[0])
@@ -768,7 +680,7 @@ internal class PsiTypeItemFactory(
             // Lambdas are implemented using a number of top level classes so never have an outer
             // class.
             outerClassType = null,
-            isSuspend = isSuspend,
+            isSuspend = actualKotlinType.isSuspend,
             receiverType = receiverType,
             parameterTypes = parameterTypes,
             returnType = returnType,
@@ -837,7 +749,14 @@ internal class PsiTypeItemFactory(
             null
         } else {
             // Use the same Kotlin type, because the wildcard isn't its own level in the KtType.
-            createTypeItem(bound, kotlinType, contextNullability) as ReferenceTypeItem
+            createTypeItem(
+                bound,
+                kotlinType,
+                contextNullability,
+                // PrimitiveTypeItems are not a valid ReferenceTypeItem so box them.
+                mustBoxPrimitives = true,
+            )
+                as ReferenceTypeItem
         }
     }
 }

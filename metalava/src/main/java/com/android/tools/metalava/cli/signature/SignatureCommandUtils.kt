@@ -18,12 +18,11 @@ package com.android.tools.metalava.cli.signature
 
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.text.ApiFile
+import com.android.tools.metalava.model.text.EmitFileHeader
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.model.text.SignatureFile
 import com.android.tools.metalava.model.text.SignatureWriter
-import com.android.tools.metalava.model.text.createFilteringVisitorForSignatures
-import com.android.tools.metalava.model.visitors.ApiPredicate
-import com.android.tools.metalava.model.visitors.ApiType
+import com.android.tools.metalava.model.text.createCodebaseFragmentForSignatureFile
 import com.android.tools.metalava.reporter.BasicReporter
 import java.io.PrintWriter
 
@@ -44,24 +43,25 @@ internal fun writeSignatureFile(
     codebase: Codebase,
     outputFormat: FileFormat,
     printWriter: PrintWriter,
+    emitFileHeader: EmitFileHeader = EmitFileHeader.ALWAYS,
 ) {
     val signatureWriter =
         SignatureWriter(
             writer = printWriter,
             fileFormat = outputFormat,
+            emitHeader = emitFileHeader,
         )
 
     // Create a visitor suitable for writing signatures. It will ensure correct ordering for
     // signature files for the outputFormat.
-    val apiWriter =
-        createFilteringVisitorForSignatures(
-            delegate = signatureWriter,
+    val codebaseFragment =
+        createCodebaseFragmentForSignatureFile(
+            codebase,
             fileFormat = outputFormat,
-            apiType = ApiType.ALL,
-            preFiltered = true,
+            // Pre-filtered so does not need any filters.
+            apiFilters = null,
             showUnannotated = true,
-            apiPredicateConfig = ApiPredicate.Config(),
         )
 
-    codebase.accept(apiWriter)
+    codebaseFragment.accept(signatureWriter)
 }

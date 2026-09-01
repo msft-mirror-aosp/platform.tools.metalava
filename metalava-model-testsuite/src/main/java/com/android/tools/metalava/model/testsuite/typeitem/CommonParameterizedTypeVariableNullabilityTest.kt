@@ -259,7 +259,17 @@ class CommonParameterizedTypeVariableNullabilityTest : BaseModelTest() {
                 }
             }
 
-        runCodebaseTest(inputSet) {
+        val testFixture =
+            TestFixture(
+                // Disable the supported InputFormat check as this test is already parameterized and
+                // filtered by InputFormat.
+                checkSupportedInputFormats = false,
+            )
+
+        runCodebaseTest(
+            inputSet,
+            testFixture = testFixture,
+        ) {
             val methodItem = codebase.assertClass("test.pkg.Test").methods().single()
             val typeItem = unwrapper(methodItem.returnType())
 

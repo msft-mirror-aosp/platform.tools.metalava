@@ -20,13 +20,18 @@ import com.android.tools.metalava.model.ANNOTATION_ATTR_VALUE
 import com.android.tools.metalava.model.ANNOTATION_IN_ALL_STUBS
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.BaseItemVisitor
+import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.PrimitiveTypeItem.Primitive
-import com.android.tools.metalava.model.annotation.AnnotationFilter
 import com.android.tools.metalava.model.annotation.DefaultAnnotationManager
+import com.android.tools.metalava.model.api.ApiSurfaceRules
+import com.android.tools.metalava.model.api.ApiSurfaceSelector
+import com.android.tools.metalava.model.api.SurfaceSelectionRule
+import com.android.tools.metalava.model.api.surface.ApiSurfaces
 import com.android.tools.metalava.model.noOpAnnotationManager
-import com.android.tools.metalava.model.provider.Capability
-import com.android.tools.metalava.model.testing.RequiresCapabilities
+import com.android.tools.metalava.model.provider.InputFormat
+import com.android.tools.metalava.model.source.hasApiVisibility
+import com.android.tools.metalava.model.testing.SupportedInputFormats
 import com.android.tools.metalava.model.testing.classTypeItem
 import com.android.tools.metalava.model.testing.testTypeString
 import com.android.tools.metalava.model.testing.value.annotationItem
@@ -46,8 +51,10 @@ import com.android.tools.metalava.testing.KnownSourceFiles
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertSame
+import kotlin.test.assertTrue
 import kotlin.test.fail
 import org.junit.Test
 
@@ -107,9 +114,9 @@ class CommonAnnotationItemTest : BaseModelTest() {
         assertEquals(expectedLocations.trimIndent(), actualLocations)
     }
 
-    @RequiresCapabilities(Capability.JAVA)
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
-    fun `annotation location (java)`() {
+    fun `annotation location - java`() {
         runCodebaseTest(
             inputSet(
                 lineBefore,
@@ -156,9 +163,9 @@ class CommonAnnotationItemTest : BaseModelTest() {
         }
     }
 
-    @RequiresCapabilities(Capability.KOTLIN)
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
-    fun `annotation location (kotlin)`() {
+    fun `annotation location - kotlin`() {
         runCodebaseTest(
             inputSet(
                 lineBefore,
@@ -208,6 +215,43 @@ class CommonAnnotationItemTest : BaseModelTest() {
         }
     }
 
+    @Test
+    fun `annotation super class kind`() {
+        runCodebaseTest(
+            signature(
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public @interface Anno {
+                      }
+                    }
+                """
+            ),
+            java(
+                """
+                    package test.pkg;
+
+                    public @interface Anno {
+                    }
+                """
+            ),
+            kotlin(
+                """
+                    package test.pkg
+                    annotation class Anno
+                """
+            )
+        ) {
+            val testClass = codebase.assertClass("test.pkg.Anno")
+            val annotationClass = codebase.assertResolvedClass("java.lang.annotation.Annotation")
+            assertSame(annotationClass, testClass.interfaceTypes().single().resolveClass(codebase))
+
+            // Make sure that the super type of all annotations is treated as an interface.
+            assertEquals(ClassKind.INTERFACE, annotationClass.classKind)
+        }
+    }
+
+    @SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.JAVA)
     @Test
     fun `annotation with annotation values`() {
         runCodebaseTest(
@@ -271,6 +315,7 @@ class CommonAnnotationItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.JAVA)
     @Test
     fun `annotation with boolean values`() {
         runCodebaseTest(
@@ -325,6 +370,7 @@ class CommonAnnotationItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.JAVA)
     @Test
     fun `annotation with char values`() {
         runCodebaseTest(
@@ -379,6 +425,7 @@ class CommonAnnotationItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.JAVA)
     @Test
     fun `annotation with class values`() {
         runCodebaseTest(
@@ -444,6 +491,7 @@ class CommonAnnotationItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.JAVA)
     @Test
     fun `annotation with number values`() {
         runCodebaseTest(
@@ -568,6 +616,7 @@ class CommonAnnotationItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.JAVA)
     @Test
     fun `annotation with string values`() {
         runCodebaseTest(
@@ -622,6 +671,7 @@ class CommonAnnotationItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.JAVA)
     @Test
     fun `annotation array values with single element`() {
         runCodebaseTest(
@@ -668,6 +718,7 @@ class CommonAnnotationItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.JAVA)
     @Test
     fun `annotation array values with single array element`() {
         runCodebaseTest(
@@ -714,6 +765,7 @@ class CommonAnnotationItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.JAVA)
     @Test
     fun `annotation with enum values`() {
         runCodebaseTest(
@@ -793,6 +845,7 @@ class CommonAnnotationItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.JAVA)
     @Test
     fun `annotation with constant literal value in int attribute`() {
         runCodebaseTest(
@@ -841,6 +894,7 @@ class CommonAnnotationItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.JAVA)
     @Test
     fun `annotation with constant literal value in int array attribute`() {
         runCodebaseTest(
@@ -1085,7 +1139,7 @@ class CommonAnnotationItemTest : BaseModelTest() {
         }
     }
 
-    @RequiresCapabilities(Capability.JAVA)
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `annotation with compound expression values`() {
         runCodebaseTest(
@@ -1126,7 +1180,7 @@ class CommonAnnotationItemTest : BaseModelTest() {
     private fun checkGetVsSetParamAnnotation(
         attributeType: String,
         attributePrimitive: Primitive,
-        expectedAttributeString: String,
+        underlyingKaValue: Any,
     ) {
         runCodebaseTest(
             kotlin(
@@ -1144,24 +1198,28 @@ class CommonAnnotationItemTest : BaseModelTest() {
             val testClass = codebase.assertClass("test.pkg.Test")
             val property = testClass.properties().single()
 
-            val expectedValue = primitiveValueForKind(attributePrimitive, 12)
-
             // Test the annotation on the property (the @get:Anno).
+            // This comes from the KaValueFactory, which does not have information about the
+            // underlying value being an int.
+            val expectedValueKa = primitiveValueForKind(attributePrimitive, underlyingKaValue)
             property.modifiers.annotations().single().let { anno ->
                 assertValuesAreStrictlyEqual(
-                    expectedValue,
+                    expectedValueKa,
                     anno.assertAttribute("attr").value,
                     message = "@get:Anno"
                 )
             }
 
             // Test the annotation on the setter parameter (the @setparam:Anno).
+            // This comes from the PsiValueFactory, which does have information about the underlying
+            // value being an int.
+            val expectedValuePsi = primitiveValueForKind(attributePrimitive, 12)
             val setter = property.setter
             assertNotNull(setter, message = "setter method")
             val parameter = setter.parameters().single()
             parameter.modifiers.annotations().single().let { anno ->
                 assertValuesAreStrictlyEqual(
-                    expectedValue,
+                    expectedValuePsi,
                     anno.assertAttribute("attr").value,
                     message = "@setparam:Anno"
                 )
@@ -1169,36 +1227,37 @@ class CommonAnnotationItemTest : BaseModelTest() {
         }
     }
 
-    @RequiresCapabilities(Capability.KOTLIN)
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `annotation on @get and @setparam annotations - byte`() {
         checkGetVsSetParamAnnotation(
             attributeType = "Byte",
             attributePrimitive = Primitive.BYTE,
-            expectedAttributeString = "12",
+            underlyingKaValue = 12.toByte(),
         )
     }
 
-    @RequiresCapabilities(Capability.KOTLIN)
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `annotation on @get and @setparam annotations - short`() {
         checkGetVsSetParamAnnotation(
             attributeType = "Short",
             attributePrimitive = Primitive.SHORT,
-            expectedAttributeString = "12",
+            underlyingKaValue = 12.toShort(),
         )
     }
 
-    @RequiresCapabilities(Capability.KOTLIN)
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `annotation on @get and @setparam annotations - long`() {
         checkGetVsSetParamAnnotation(
             attributeType = "Long",
             attributePrimitive = Primitive.LONG,
-            expectedAttributeString = "12L",
+            underlyingKaValue = 12L,
         )
     }
 
+    @SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.JAVA)
     @Test
     fun `annotation with negative number values`() {
         runCodebaseTest(
@@ -1269,25 +1328,10 @@ class CommonAnnotationItemTest : BaseModelTest() {
     }
 
     // Does not work with signature files as they do not support casts.
-    @RequiresCapabilities(Capability.JAVA)
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `annotation with type cast values`() {
         runCodebaseTest(
-            signature(
-                """
-                    // Signature format: 2.0
-                    package test.pkg {
-                      @test.pkg.Test.Anno((int)5.6)
-                      public class Test {
-                        ctor public Test();
-                      }
-
-                      public @interface Test.Anno {
-                          method public int value();
-                      }
-                    }
-                """
-            ),
             java(
                 """
                     package test.pkg;
@@ -1315,6 +1359,7 @@ class CommonAnnotationItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.JAVA)
     @Test
     fun `annotation with infinity values`() {
         runCodebaseTest(
@@ -1361,7 +1406,7 @@ class CommonAnnotationItemTest : BaseModelTest() {
         }
     }
 
-    @RequiresCapabilities(Capability.KOTLIN)
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `annotation on @file`() {
         runCodebaseTest(
@@ -1398,6 +1443,7 @@ class CommonAnnotationItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.JAVA)
     @Test
     fun `annotation resolve`() {
         runCodebaseTest(
@@ -1504,6 +1550,7 @@ class CommonAnnotationItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `annotation targets - on source path`() {
         runCodebaseTest(
@@ -1537,15 +1584,22 @@ class CommonAnnotationItemTest : BaseModelTest() {
         }
     }
 
-    @RequiresCapabilities(Capability.KOTLIN)
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `annotation on internal`() {
-        // Create a filter that will treat RestrictTo(Scope.LIBRARY) as a show annotation.
-        val showFilter =
-            AnnotationFilter.create(
-                listOf(
-                    "androidx.annotation.RestrictTo(androidx.annotation.RestrictTo.Scope.LIBRARY)",
-                )
+        // Treat RestrictTo(Scope.LIBRARY) as a show annotation.
+        val apiSurfaceRules =
+            ApiSurfaceRules(
+                apiSurfaces = ApiSurfaces.DEFAULT,
+                byName =
+                    mapOf(
+                        "main" to
+                            listOf(
+                                SurfaceSelectionRule.createAnnotationRule(
+                                    "androidx.annotation.RestrictTo(androidx.annotation.RestrictTo.Scope.LIBRARY)"
+                                )
+                            )
+                    ),
             )
 
         runCodebaseTest(
@@ -1557,18 +1611,18 @@ class CommonAnnotationItemTest : BaseModelTest() {
                         import androidx.annotation.RestrictTo
 
                         // Defined during codebase construction as it is accessible because while it
-                        // is internal it is annotated with a show annotation.
-                        @RestrictTo(RestrictTo.Scope.LIBRARY)
+                        // is internal it is annotated with PublishedApi.
+                        @PublishedApi
                         internal class Foo
 
                         // Not defined during codebase construction as it is inaccessible because it
-                        // is internal and while it has an annotation it is not a show annotation as
-                        // the scope is incorrect.
+                        // is internal and while it has a show annotation it is not annotated with
+                        // PublishedApi.
                         @RestrictTo(RestrictTo.Scope.LIBRARY_GROUP)
                         internal class Bar
 
                         // Not defined during codebase construction as it is inaccessible because it
-                        // is internal.
+                        // is internal and is not annotated with PublishedApi.
                         internal class Baz
                     """
                 ),
@@ -1580,23 +1634,34 @@ class CommonAnnotationItemTest : BaseModelTest() {
                         DefaultAnnotationManager(
                             config =
                                 DefaultAnnotationManager.Config(
-                                    allShowAnnotations = showFilter,
                                     apiFlags = apiFlags,
-                                    showAnnotations = showFilter,
+                                    apiSurfaceSelector =
+                                        ApiSurfaceSelector(
+                                            apiSurfaceRules = apiSurfaceRules,
+                                        ),
                                 )
                         )
                     }
                 ),
         ) {
-            // This should be defined.
-            codebase.assertClass("test.pkg.Foo")
-            // This should not be defined.
-            codebase.assertResolvedClass("test.pkg.Bar")
-            // This should not be defined.
-            codebase.assertResolvedClass("test.pkg.Baz")
+            // This should be defined and accessible.
+            codebase.assertClass("test.pkg.Foo").also { testClass ->
+                assertTrue(testClass.modifiers.hasApiVisibility, message = "Foo")
+            }
+
+            // This should be defined but not accessible.
+            codebase.assertClass("test.pkg.Bar").also { testClass ->
+                assertFalse(testClass.modifiers.hasApiVisibility, message = "Bar")
+            }
+
+            // This should be defined but not accessible.
+            codebase.assertClass("test.pkg.Baz").also { testClass ->
+                assertFalse(testClass.modifiers.hasApiVisibility, message = "Baz")
+            }
         }
     }
 
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `annotation repeated inside container`() {
         runCodebaseTest(
@@ -1825,6 +1890,7 @@ class CommonAnnotationItemTest : BaseModelTest() {
         assertEquals(expectedStatus.trimIndent(), result.trim())
     }
 
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `annotations of various uses on method`() {
         runCodebaseTest(
@@ -1916,6 +1982,7 @@ class CommonAnnotationItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `annotations of various uses and nullability on method`() {
         runCodebaseTest(
@@ -1992,6 +2059,7 @@ class CommonAnnotationItemTest : BaseModelTest() {
     /**
      * TODO(b/479907812): This should behave just like [`annotations of various uses on method`].
      */
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `annotations of various uses after generic method type arguments list`() {
         runCodebaseTest(
@@ -2087,6 +2155,7 @@ class CommonAnnotationItemTest : BaseModelTest() {
      * TODO(b/479907812): This should behave just like
      *   [`annotations of various uses and nullability on method`].
      */
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `annotations of various uses and nullability after generic method type arguments list`() {
         runCodebaseTest(

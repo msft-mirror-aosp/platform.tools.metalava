@@ -157,8 +157,10 @@ interface TypeItem {
     /**
      * Return a [TypeItem] instance of the same type as this one that was produced by the [TypeItem]
      * appropriate [TypeTransformer.transform] method.
+     *
+     * If [transformer] is `null` then just return `this`.
      */
-    fun transform(transformer: TypeTransformer): TypeItem
+    fun transform(transformer: TypeTransformer?): TypeItem
 
     /** Whether this type was originally a value class type. Defaults to false if not overridden. */
     val isValueClassType
@@ -249,7 +251,7 @@ interface TypeItem {
             Comparator.comparing { @Suppress("DEPRECATION") it.fullName() }
 
         /** A total ordering over [ClassTypeItem] comparing [ClassTypeItem.qualifiedName]. */
-        private val qualifiedComparator: Comparator<ClassTypeItem> =
+        val qualifiedComparator: Comparator<ClassTypeItem> =
             Comparator.comparing { it.qualifiedName }
 
         /**
@@ -288,9 +290,6 @@ interface TypeItem {
 
 /** Different ways of handling `java.lang.` prefix stripping in [TypeItem.toTypeString]. */
 enum class StripJavaLangPrefix {
-    /** Never strip java.lang. prefixes when */
-    NEVER,
-
     /**
      * Only strip java.lang. prefixes from the start of the type as long as they are not a generic
      * varargs parameter.
@@ -308,6 +307,9 @@ enum class StripJavaLangPrefix {
      * type.
      */
     VARARGS,
+
+    /** Never strip java.lang. prefixes when */
+    NEVER,
 
     /** Always strip java.lang. prefixes from the type. */
     ALWAYS,
@@ -742,7 +744,7 @@ sealed interface TypeArgumentTypeItem : TypeItem {
     override fun substitute(modifiers: TypeModifiers): TypeArgumentTypeItem
 
     /** Override to specialize the return type. */
-    override fun transform(transformer: TypeTransformer): TypeArgumentTypeItem
+    override fun transform(transformer: TypeTransformer?): TypeArgumentTypeItem
 }
 
 /**
@@ -755,7 +757,7 @@ sealed interface ReferenceTypeItem : TypeItem, TypeArgumentTypeItem {
     override fun substitute(modifiers: TypeModifiers): ReferenceTypeItem
 
     /** Override to specialize the return type. */
-    override fun transform(transformer: TypeTransformer): ReferenceTypeItem
+    override fun transform(transformer: TypeTransformer?): ReferenceTypeItem
 }
 
 /**
@@ -773,7 +775,7 @@ sealed interface ClassOrVariableTypeItem : TypeItem, ReferenceTypeItem {
     override fun asErasedType(): ClassTypeItem
 
     /** Override to specialize the return type. */
-    override fun transform(transformer: TypeTransformer): ExceptionTypeItem
+    override fun transform(transformer: TypeTransformer?): ExceptionTypeItem
 
     /**
      * Get the erased [ClassItem], if any.
@@ -977,9 +979,7 @@ interface PrimitiveTypeItem : TypeItem {
         return this
     }
 
-    override fun transform(transformer: TypeTransformer): PrimitiveTypeItem {
-        return transformer.transform(this)
-    }
+    override fun transform(transformer: TypeTransformer?) = transformer?.transform(this) ?: this
 
     override fun equalToType(other: TypeItem?, includeNullability: Boolean): Boolean {
         return (other as? PrimitiveTypeItem)?.kind == kind &&
@@ -1044,9 +1044,7 @@ interface ArrayTypeItem : TypeItem, ReferenceTypeItem {
         )
     }
 
-    override fun transform(transformer: TypeTransformer): ArrayTypeItem {
-        return transformer.transform(this)
-    }
+    override fun transform(transformer: TypeTransformer?) = transformer?.transform(this) ?: this
 
     override fun equalToType(other: TypeItem?, includeNullability: Boolean): Boolean {
         if (other !is ArrayTypeItem) return false
@@ -1150,9 +1148,7 @@ interface ClassTypeItem : TypeItem, BoundsTypeItem, ReferenceTypeItem, Exception
         )
     }
 
-    override fun transform(transformer: TypeTransformer): ClassTypeItem {
-        return transformer.transform(this)
-    }
+    override fun transform(transformer: TypeTransformer?) = transformer?.transform(this) ?: this
 
     override fun equalToType(other: TypeItem?, includeNullability: Boolean): Boolean {
         if (other !is ClassTypeItem) return false
@@ -1227,9 +1223,7 @@ interface LambdaTypeItem : ClassTypeItem {
         arguments: List<TypeArgumentTypeItem>
     ): LambdaTypeItem
 
-    override fun transform(transformer: TypeTransformer): LambdaTypeItem {
-        return transformer.transform(this)
-    }
+    override fun transform(transformer: TypeTransformer?) = transformer?.transform(this) ?: this
 
     override fun isSamCompatibleOrKotlinLambda(classResolver: ClassResolver): Boolean {
         // This is a Kotlin lambda type
@@ -1293,9 +1287,7 @@ interface VariableTypeItem : TypeItem, BoundsTypeItem, ReferenceTypeItem, Except
             this
     }
 
-    override fun transform(transformer: TypeTransformer): VariableTypeItem {
-        return transformer.transform(this)
-    }
+    override fun transform(transformer: TypeTransformer?) = transformer?.transform(this) ?: this
 
     override fun equalToType(other: TypeItem?, includeNullability: Boolean): Boolean {
         return (other as? VariableTypeItem)?.name == name &&
@@ -1380,9 +1372,7 @@ interface WildcardTypeItem : TypeItem, TypeArgumentTypeItem {
     }
 
     // Any [TypeArgumentTypeItem] can be used in any context where a [WildcardTypeItem] is valid.
-    override fun transform(transformer: TypeTransformer): TypeArgumentTypeItem {
-        return transformer.transform(this)
-    }
+    override fun transform(transformer: TypeTransformer?) = transformer?.transform(this) ?: this
 
     override fun equalToType(other: TypeItem?, includeNullability: Boolean): Boolean {
         if (other !is WildcardTypeItem) return false
@@ -1395,11 +1385,11 @@ interface WildcardTypeItem : TypeItem, TypeArgumentTypeItem {
 }
 
 /**
- * Create a [TypeTransformer] that will remove any type annotations for which [filter] returns false
+ * Create a [TypeTransformer] that will remove any type annotations for which [this] returns false
  * when called against the [AnnotationItem]'s [ClassItem] return by [AnnotationItem.resolve]. If
  * that returns `null` then the [AnnotationItem] will be kept.
  */
-fun typeUseAnnotationFilter(filter: FilterPredicate): TypeTransformer =
+fun FilterPredicate.typeUseAnnotationFilter(): TypeTransformer =
     object : BaseTypeTransformer() {
         override fun transform(modifiers: TypeModifiers): TypeModifiers {
             if (modifiers.annotations.isEmpty()) return modifiers
@@ -1411,7 +1401,7 @@ fun typeUseAnnotationFilter(filter: FilterPredicate): TypeTransformer =
                             annotationItem.resolve() ?: return@filterIfNotSame true
 
                         // Otherwise, apply the filter to determine whether to keep it.
-                        filter.test(annotationClass)
+                        test(annotationClass)
                     }
             )
         }
@@ -1439,11 +1429,13 @@ private object WildcardFlatteningTransformer : BaseTypeTransformer() {
  * For instance, `List<String>` and `List<? extends String>` would be considered equal, as would
  * `List<? super String>`. These types are not equal, but considering them equal enables comparing
  * types generated from UAST and the analysis API.
+ *
+ * This type comparison includes nullability because it is intended to compare Kotlin types.
  */
 fun equalWithFlattenedWildcards(type1: TypeItem, type2: TypeItem): Boolean {
     val transformedType1 = type1.transform(WildcardFlatteningTransformer)
     val transformedType2 = type2.transform(WildcardFlatteningTransformer)
-    return transformedType1 == transformedType2
+    return transformedType1.equalToType(transformedType2, includeNullability = true)
 }
 
 /**

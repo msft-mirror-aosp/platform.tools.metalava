@@ -98,7 +98,7 @@ class UastTest : DriverTest() {
                     )
                 ),
             format = FileFormat.V4,
-            api =
+            expectedApiSignature =
                 """
                 // Signature format: 4.0
                 package androidx.annotation.experimental {
@@ -170,7 +170,7 @@ class UastTest : DriverTest() {
                     )
                 ),
             format = FileFormat.V4,
-            api = api,
+            expectedApiSignature = api,
         )
     }
 
@@ -189,7 +189,7 @@ class UastTest : DriverTest() {
                     """
                     )
                 ),
-            api =
+            expectedApiSignature =
                 """
                 package test.pkg {
                   public final class Foo {
@@ -507,7 +507,7 @@ class UastTest : DriverTest() {
                         "/+Tt/gr8R96R/Am4h+LfOQD/ivdHruH+CU+D5m+5qyANAfn7a/C/7rRfL1RH" +
                         "8/vTfwDsaV/bYy4AAA=="
                 ),
-            api =
+            expectedApiSignature =
                 """
                 package test.pkg {
                   public final class Alignment {
@@ -601,7 +601,7 @@ class UastTest : DriverTest() {
                         """
                     )
                 ),
-            api =
+            expectedApiSignature =
                 """
                 package test.pkg {
                   public final class Test {
@@ -630,7 +630,7 @@ class UastTest : DriverTest() {
                     """
                     )
                 ),
-            api =
+            expectedApiSignature =
                 """
                 package test.pkg {
                   public final class TestKt {
@@ -658,7 +658,7 @@ class UastTest : DriverTest() {
                     """
                     )
                 ),
-            api =
+            expectedApiSignature =
                 """
                 package test.pkg {
                   public final class Foo {
@@ -693,7 +693,7 @@ class UastTest : DriverTest() {
                     ),
                     requiresApiSource,
                 ),
-            api =
+            expectedApiSignature =
                 """
                 package test.pkg {
                   @RequiresApi(31) public final class TestKt {
@@ -738,7 +738,7 @@ class UastTest : DriverTest() {
                     """
                     )
                 ),
-            api =
+            expectedApiSignature =
                 """
                 package test.pkg {
                   public enum Event {
@@ -785,7 +785,7 @@ class UastTest : DriverTest() {
                     """
                     )
                 ),
-            api =
+            expectedApiSignature =
                 """
                 package test.pkg {
                   public final class Bar {
@@ -855,7 +855,7 @@ class UastTest : DriverTest() {
                     """
                     )
                 ),
-            api =
+            expectedApiSignature =
                 """
                 package test.pkg {
                   public enum PowerCategory {
@@ -919,7 +919,7 @@ class UastTest : DriverTest() {
                         """
                     )
                 ),
-            api =
+            expectedApiSignature =
                 """
                 package test.pkg {
                   public final class PerfettoSdkHandshake {
@@ -955,7 +955,7 @@ class UastTest : DriverTest() {
                         """
                     )
                 ),
-            api =
+            expectedApiSignature =
                 """
                 package test.pkg {
                   public interface AnimatedContentTransitionScope<S> {
@@ -1070,7 +1070,7 @@ class UastTest : DriverTest() {
                         "P51E+TNLPYl1VB3Hv2yI6ufGchLt6MC5j5s9/Q/1ZQSjov7+Gs3hxUcOAGTQ" +
                         "f3/6D8pqH4XNDAAA"
                 ),
-            api =
+            expectedApiSignature =
                 """
                 package test.pkg {
                   public interface AnimatedContentTransitionScope<S> {
@@ -1109,7 +1109,7 @@ class UastTest : DriverTest() {
                         """
                     )
                 ),
-            api =
+            expectedApiSignature =
                 """
                 package test.pkg {
                   public final class Test {
@@ -1144,7 +1144,7 @@ class UastTest : DriverTest() {
                     """
                     )
                 ),
-            api =
+            expectedApiSignature =
                 """
                 package test.pkg {
                   public abstract class ActivityResultContract<I, O> {
@@ -1197,7 +1197,7 @@ class UastTest : DriverTest() {
                     """
                     )
                 ),
-            api =
+            expectedApiSignature =
                 """
                 package test.pkg {
                   public abstract class AbstractAlarm<Self extends test.pkg.AbstractAlarm<Self, Builder>, Builder extends test.pkg.AbstractAlarm.Builder<Builder, Self>> implements test.pkg.Alarm {
@@ -1275,7 +1275,7 @@ class UastTest : DriverTest() {
                         "MokwIExHLsBApSQqwFVmopuCnKGlUEyox1v0oZuDHApyKOZsZSRUGKCbhexr" +
                         "aRSzTrDgDcUAb1Y2kDIWIFQGWqvCCuIBAECnUIpdBgAA"
                 ),
-            api =
+            expectedApiSignature =
                 """
                 package test.pkg {
                   public interface GattClientScope {
@@ -1310,7 +1310,7 @@ class UastTest : DriverTest() {
                         """
                     )
                 ),
-            api =
+            expectedApiSignature =
                 """
                 package test.pkg {
                   public final class PrepareGetCredentialResponse {
@@ -1356,7 +1356,7 @@ class UastTest : DriverTest() {
                         """
                     ),
                 ),
-            api =
+            expectedApiSignature =
                 """
                 package test.pkg {
                   @kotlin.annotation.Retention(kotlin.annotation.AnnotationRetention.SOURCE) @kotlin.annotation.Target(allowedTargets=kotlin.annotation.AnnotationTarget.ANNOTATION_CLASS) public @interface MyIntDef {
@@ -1417,8 +1417,8 @@ class UastTest : DriverTest() {
                     method @BytecodeOnly @Deprecated public void setPOld_deprecatedOnSetter_myAnnoOnGetter(int);
                     method @BytecodeOnly @Deprecated @test.pkg.MyAnnotation public void setPOld_deprecatedOnSetter_myAnnoOnSetter(int);
                     property @Deprecated public abstract int pOld_deprecatedOnGetter;
-                    property @Deprecated public abstract int pOld_deprecatedOnGetter_myAnnoOnBoth;
-                    property @Deprecated public abstract int pOld_deprecatedOnGetter_myAnnoOnGetter;
+                    property @Deprecated @test.pkg.MyAnnotation public abstract int pOld_deprecatedOnGetter_myAnnoOnBoth;
+                    property @Deprecated @test.pkg.MyAnnotation public abstract int pOld_deprecatedOnGetter_myAnnoOnGetter;
                     property @Deprecated public abstract int pOld_deprecatedOnGetter_myAnnoOnSetter;
                     property public abstract int pOld_deprecatedOnSetter;
                     property @test.pkg.MyAnnotation public abstract int pOld_deprecatedOnSetter_myAnnoOnBoth;
@@ -1804,7 +1804,7 @@ class UastTest : DriverTest() {
                         "akn/nj3+JP067zh+I2EC/x/C+RP765T7/U3xqP86hbXVMTB/Pobz4/Pqx9/k" +
                         "8I+h+y/TO8ltHR0AAA=="
                 ),
-            api = api,
+            expectedApiSignature = api,
         )
     }
 
@@ -1846,7 +1846,7 @@ class UastTest : DriverTest() {
                     createAndroidModuleDescription(arrayOf(androidSource)),
                     createCommonModuleDescription(arrayOf(commonSource)),
                 ),
-            api =
+            expectedApiSignature =
                 """
                 package test.pkg {
                   public final class PointerEvent {
@@ -1898,7 +1898,7 @@ class UastTest : DriverTest() {
                         """
                     )
                 ),
-            api =
+            expectedApiSignature =
                 """
                 package test.pkg {
                   public final class PointerEvent {
@@ -1913,11 +1913,8 @@ class UastTest : DriverTest() {
         )
     }
 
-    // b/324521456: need to set kotlin-stdlib-common for common module
     @Test
     fun `actual typealias`() {
-        // https://youtrack.jetbrains.com/issue/KT-55085
-        // TODO: https://youtrack.jetbrains.com/issue/KTIJ-26853
         val commonSource =
             kotlin(
                 "commonMain/src/test/pkg/PointerEvent.kt",
@@ -1952,9 +1949,17 @@ class UastTest : DriverTest() {
             projectDescription =
                 createProjectDescription(
                     createAndroidModuleDescription(arrayOf(androidSource)),
-                    createCommonModuleDescription(arrayOf(commonSource)),
+                    // The common module uses a jvm annotation, so it needs to be set up so that it
+                    // has jvm types in the classpath.
+                    createModuleDescription(
+                        moduleName = "commonMain",
+                        android = true,
+                        kotlinPlatforms = defaultJvmPlatforms,
+                        sourceFiles = arrayOf(commonSource),
+                        dependsOn = emptyList()
+                    ),
                 ),
-            api =
+            expectedApiSignature =
                 """
                 package test.pkg {
                   public final class PointerEvent {
@@ -1962,7 +1967,7 @@ class UastTest : DriverTest() {
                     property public test.pkg.PointerKeyboardModifiers keyboardModifiers;
                   }
                   @kotlin.jvm.JvmInline public final value class PointerKeyboardModifiers {
-                    ctor public PointerKeyboardModifiers(test.pkg.NativePointerKeyboardModifiers packedValue);
+                    ctor @KotlinOnly public PointerKeyboardModifiers(int packedValue);
                   }
                 }
                 """
@@ -2002,7 +2007,7 @@ class UastTest : DriverTest() {
                     createAndroidModuleDescription(arrayOf(androidSource)),
                     createCommonModuleDescription(arrayOf(commonSource)),
                 ),
-            api =
+            expectedApiSignature =
                 """
                 package pkg {
                   public final class TestClass {
@@ -2057,7 +2062,7 @@ class UastTest : DriverTest() {
                     createAndroidModuleDescription(arrayOf(androidSource)),
                     createCommonModuleDescription(commonSources),
                 ),
-            api =
+            expectedApiSignature =
                 """
                 package pkg2 {
                   @kotlin.jvm.JvmDefaultWithCompatibility public interface TestInterface {
@@ -2109,7 +2114,7 @@ class UastTest : DriverTest() {
                     createAndroidModuleDescription(arrayOf(androidSource)),
                     createCommonModuleDescription(commonSources),
                 ),
-            api =
+            expectedApiSignature =
                 """
                 package pkg2 {
                   @kotlin.jvm.JvmDefaultWithCompatibility public interface TestInterface {
@@ -2161,7 +2166,7 @@ class UastTest : DriverTest() {
                     createAndroidModuleDescription(arrayOf(androidSource)),
                     createCommonModuleDescription(commonSources),
                 ),
-            api =
+            expectedApiSignature =
                 """
                 package pkg2 {
                   @kotlin.jvm.JvmDefaultWithCompatibility public interface TestInterface {
@@ -2189,7 +2194,7 @@ class UastTest : DriverTest() {
                         """
                     )
                 ),
-            api =
+            expectedApiSignature =
                 """
             package test.pkg {
               @kotlin.jvm.JvmInline public final value class IntValue {
@@ -2231,7 +2236,7 @@ class UastTest : DriverTest() {
                     createAndroidModuleDescription(arrayOf(androidSource)),
                     createCommonModuleDescription(arrayOf(commonSource)),
                 ),
-            api =
+            expectedApiSignature =
                 """
                     package test.pkg {
                       public final class Foo {
@@ -2279,7 +2284,7 @@ class UastTest : DriverTest() {
                         dependsOn = emptyList(),
                     ),
                 ),
-            api =
+            expectedApiSignature =
                 """
                     package test.pkg {
                       public final class Foo {
@@ -2357,7 +2362,7 @@ class UastTest : DriverTest() {
                         "1W/B+5Xu38fPWP+jyrcLBP5OIfrnyP5R5NvWKH0nwgf9YvN+lPn2t8rfyfiK" +
                         "/LKrdjbbhL8+A20dZQEA4Ih8vf0bs6I1lA0JAAA="
                 ),
-            api =
+            expectedApiSignature =
                 """
                 package test.pkg {
                   @kotlin.jvm.JvmInline public final value class IntValue {
@@ -2459,7 +2464,7 @@ class UastTest : DriverTest() {
                         "15eif8Q7FlYhwH/p30e/b/nyx/VXafPPlO8VDv6BcP2vQ+OfId+PQPwHyO9s" +
                         "f+v+P4O+/++PIFbuv52frSU7x7drbF/3cRYAwI372+lfMSXvwZELAAA="
                 ),
-            api =
+            expectedApiSignature =
                 """
                 package test.pkg {
                   @kotlin.jvm.JvmInline public final value class IntValue {
@@ -2501,7 +2506,7 @@ class UastTest : DriverTest() {
                     """
                     ),
                 ),
-            api =
+            expectedApiSignature =
                 """
                 package test.pkg.main {
                   public final class Foo {
@@ -2543,7 +2548,7 @@ class UastTest : DriverTest() {
                     createCommonModuleDescription(arrayOf(commonSource)),
                     createAndroidModuleDescription(arrayOf(androidSource))
                 ),
-            api =
+            expectedApiSignature =
                 """
                 package test.pkg {
                   @java.lang.annotation.Repeatable(AnnotationCanRepeat.Entries::class) @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME) public @interface AnnotationCanRepeat {
@@ -2576,7 +2581,7 @@ class UastTest : DriverTest() {
                         """
                     )
                 ),
-            api =
+            expectedApiSignature =
                 """
                 // Signature format: 5.0
                 package test.pkg {
@@ -2617,7 +2622,7 @@ class UastTest : DriverTest() {
                         """
                     ),
                 ),
-            api =
+            expectedApiSignature =
                 """
                 // Signature format: 5.0
                 package test.pkg {
@@ -2659,7 +2664,7 @@ class UastTest : DriverTest() {
                         """
                     )
                 ),
-            api =
+            expectedApiSignature =
                 """
                 // Signature format: 5.0
                 package test.pkg {
@@ -2689,7 +2694,7 @@ class UastTest : DriverTest() {
                         """
                     )
                 ),
-            api =
+            expectedApiSignature =
                 """
                 // Signature format: 5.0
                 package test.pkg {
@@ -2742,7 +2747,7 @@ class UastTest : DriverTest() {
                     ),
                     createAndroidModuleDescription(arrayOf(androidSource)),
                 ),
-            api =
+            expectedApiSignature =
                 """
                 // Signature format: 5.0
                 package test.pkg {
@@ -2843,7 +2848,7 @@ class UastTest : DriverTest() {
                 ),
             // The mapped collection APIs shouldn't be bytecode only, but it is better that they are
             // tracked that way than not tracked at all.
-            api =
+            expectedApiSignature =
                 """
                 // Signature format: 5.0
                 package test.pkg {
@@ -2901,7 +2906,7 @@ class UastTest : DriverTest() {
                         """
                     )
                 ),
-            api =
+            expectedApiSignature =
                 """
                 // Signature format: 5.0
                 package test.pkg {
@@ -2938,7 +2943,7 @@ class UastTest : DriverTest() {
                         """
                     )
                 ),
-            api =
+            expectedApiSignature =
                 """
                 // Signature format: 5.0
                 package test.pkg {
@@ -2984,7 +2989,7 @@ class UastTest : DriverTest() {
                     createCommonModuleDescription(arrayOf(commonSource)),
                     createAndroidModuleDescription(arrayOf(androidSource)),
                 ),
-            api =
+            expectedApiSignature =
                 """
                 // Signature format: 5.0
                 package test.pkg {
@@ -3029,7 +3034,7 @@ class UastTest : DriverTest() {
                     createCommonModuleDescription(arrayOf(commonSource)),
                     createAndroidModuleDescription(arrayOf(androidSource)),
                 ),
-            api =
+            expectedApiSignature =
                 """
                 // Signature format: 5.0
                 package test.pkg {
@@ -3072,7 +3077,7 @@ class UastTest : DriverTest() {
                     createCommonModuleDescription(arrayOf(commonSource)),
                     createAndroidModuleDescription(arrayOf(androidSource)),
                 ),
-            api =
+            expectedApiSignature =
                 """
                 // Signature format: 5.0
                 package test.pkg {
@@ -3201,9 +3206,66 @@ class UastTest : DriverTest() {
             // This class exists on the classpath for both androidMain and jvmMain. Each definition
             // has a different method name. The codebase created should be based on the androidMain
             // source set, so the resolved class here should be the android version.
-            val conflictingClass = codebase.assertResolvedClass("other.pkg.ConflictingClass")
+            val conflictingClass = codebase!!.assertResolvedClass("other.pkg.ConflictingClass")
             val method = conflictingClass.methods().single()
             assertEquals(method.name(), "android")
         }
+    }
+
+    @Test
+    fun `Optional parameters on expect actual constructor`() {
+        // Test for https://youtrack.jetbrains.com/issue/KT-87343
+        val commonSource =
+            kotlin(
+                "src/commonMain/test/pkg/Expect.kt",
+                """
+                package test.pkg
+
+                // This uses a value class type so that the ConstructorItem is created through
+                // the analysis API.
+                expect class Foo(
+                    private val foo: IntValue,
+                    private val bar: IntValue = IntValue(0),
+                )
+
+                @JvmInline
+                value class IntValue(val value: Int)
+                """
+            )
+        val androidSource =
+            kotlin(
+                "src/androidMain/test/pkg/Actual.kt",
+                """
+                package test.pkg
+
+                actual class Foo actual constructor(
+                    private actual val foo: IntValue,
+                    private actual val bar: IntValue,
+                )
+                """
+            )
+        check(
+            format = FileFormat.V4,
+            sourceFiles = arrayOf(commonSource, androidSource),
+            projectDescription =
+                createProjectDescription(
+                    createCommonModuleDescription(arrayOf(commonSource)),
+                    createAndroidModuleDescription(arrayOf(androidSource)),
+                ),
+            expectedApiSignature =
+                """
+                // Signature format: 4.0
+                package test.pkg {
+                  public final class Foo {
+                    ctor @KotlinOnly public Foo(test.pkg.IntValue foo, optional test.pkg.IntValue bar);
+                  }
+                  public final value class IntValue {
+                    ctor @KotlinOnly public IntValue(int value);
+                    method @InaccessibleFromKotlin public int getValue();
+                    property public int value;
+                  }
+                }
+                """
+        )
     }
 }

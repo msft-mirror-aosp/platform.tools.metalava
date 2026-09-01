@@ -33,6 +33,7 @@ enum class ApiFlagAction(
      * this [ApiFlag].
      */
     val showability: Showability,
+    val revert: Boolean,
 
     /** Controls whether `@FlaggedApi` annotations for this [ApiFlag] are kept or discarded. */
     val annotationTargets: Set<AnnotationTarget>,
@@ -40,6 +41,7 @@ enum class ApiFlagAction(
     /** Keep any associated [Item]s and their `@FlaggedApi` annotation. */
     KEEP(
         showability = Showability.NO_EFFECT,
+        revert = false,
         annotationTargets = ANNOTATION_IN_ALL_STUBS,
     ),
 
@@ -49,12 +51,14 @@ enum class ApiFlagAction(
      */
     FINALIZE(
         showability = Showability.NO_EFFECT,
+        revert = false,
         annotationTargets = NO_ANNOTATION_TARGETS,
     ),
 
     /** Revert any associated [Item]s. */
     REVERT(
         showability = Showability.REVERT_UNSTABLE_API,
+        revert = true,
         annotationTargets = NO_ANNOTATION_TARGETS,
     )
 }
@@ -75,7 +79,7 @@ class ApiFlags(
     /**
      * Get the [ApiFlag] by qualified name.
      *
-     * If no such [ApiFlag] exists then return [ApiFlag] with [ApiFlagAction.REVERT].
+     * If no such [ApiFlag] exists then return [ApiFlag] with [unknownFlagAction].
      */
     operator fun get(qualifiedName: String) =
         byQualifiedName.computeIfAbsent(qualifiedName) {
@@ -107,6 +111,9 @@ data class ApiFlag(
      */
     val showability
         get() = action.showability
+
+    val revert
+        get() = action.revert
 
     /** Controls whether `@FlaggedApi` annotations for this [ApiFlag] are kept or discarded. */
     val annotationTargets
