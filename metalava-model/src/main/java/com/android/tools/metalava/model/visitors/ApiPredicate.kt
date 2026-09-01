@@ -125,40 +125,51 @@ class ApiPredicate(
         // then ignore this item.
         if (!ignoreRemoved && itemSelectors.removed != matchRemoved) return false
 
-        val closestClass: ClassItem? =
-            when (item) {
-                is MemberItem -> item.containingClass()
-                is ClassItem -> item
-                else -> null
-            }
-
-        if (!config.ignoreShown) {
-            var hasShowAnnotation = item.hasShowAnnotation()
-            var showClass = closestClass
-            while (showClass != null && !hasShowAnnotation) {
-                hasShowAnnotation = showClass.hasShowAnnotation()
-                showClass = showClass.containingClass()
-            }
-            // Traverse up the package hierarchy to check if this item belongs to a shown package.
-            var showPackage = item.containingPackage()
-            while (showPackage != null && !hasShowAnnotation) {
-                // If an intermediate package is hidden, it prevents any show annotations on its
-                // parent packages from propagating down to this item.
-                if (showPackage.hidden) {
-                    break
-                }
-                hasShowAnnotation = showPackage.hasShowAnnotation()
-                showPackage = showPackage.containingPackage()
-            }
-            if (!hasShowAnnotation) return false
+        if (!config.ignoreShown && !hasShowAnnotation(item)) {
+            return false
         }
 
-        var hiddenClass = closestClass
-        while (hiddenClass != null) {
-            if (hiddenClass.hidden) return false
-            hiddenClass = hiddenClass.containingClass()
+        // If any containing class is hidden then ignore this item.
+        if (item.anyContainingClass { it.hidden }) {
+            return false
         }
 
         return true
+    }
+
+    /**
+     * Check if any containing class of this item matches [predicate], traversing from the innermost
+     * containing class out to the top-level class.
+     */
+    private inline fun SelectableItem.anyContainingClass(
+        predicate: (ClassItem) -> Boolean,
+    ): Boolean {
+        var cls = containingClass()
+        while (cls != null) {
+            if (predicate(cls)) return true
+            cls = cls.containingClass()
+        }
+        return false
+    }
+
+    /** Check if this item or any of its containing classes or packages has a show annotation. */
+    private fun hasShowAnnotation(item: SelectableItem): Boolean {
+        if (item.hasShowAnnotation()) return true
+
+        if (item.anyContainingClass { it.hasShowAnnotation() }) return true
+
+        // Traverse up the package hierarchy to check if this item belongs to a shown package.
+        var showPackage = item.containingPackage()
+        while (showPackage != null) {
+            // If an intermediate package is hidden, it prevents any show annotations on its
+            // parent packages from propagating down to this item.
+            if (showPackage.hidden) {
+                break
+            }
+            if (showPackage.hasShowAnnotation()) return true
+            showPackage = showPackage.containingPackage()
+        }
+
+        return false
     }
 }
