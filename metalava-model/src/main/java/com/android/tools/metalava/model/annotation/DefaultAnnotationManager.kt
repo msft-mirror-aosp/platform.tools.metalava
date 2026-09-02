@@ -601,8 +601,19 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
             // If the [revertItem] cannot be found then there is no need to modify the item
             // showability as it is already in the correct state.
             if (revertItem != null) {
+                val narrowerSurfaces = item.codebase.apiSurfaces.main.narrowerSurfaces
+                val inNarrowerSurface =
+                    narrowerSurfaces.isNotEmpty() &&
+                        narrowerSurfaces.any { revertItem.selectedApiVariants.containsAny(it) }
+
                 val forStubsOnly =
-                    if (revertItem.emit) {
+                    if (inNarrowerSurface) {
+                        // The item was present in an API surface extended by the current API
+                        // surface, so reverting an unstable API should keep it marked for stubs
+                        // only rather than promoting it to the API surface currently being
+                        // generated.
+                        ShowOrHide.SHOW
+                    } else if (revertItem.emit) {
                         // The reverted item is in the API surface currently being generated, not
                         // one that it extends, so it should always be shown. In that case
                         // forStubsOnly will have no effect whatever the value so this uses
