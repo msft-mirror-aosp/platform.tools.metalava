@@ -783,6 +783,7 @@ class AnnotationsMergerTest : DriverTest() {
                         """
                             package java.net;
 
+                            @test.annotation.Show
                             public class Example {
                                 void aNotAnnotated();
                                 @test.annotation.Show void bShown();
