@@ -995,4 +995,37 @@ class ShowAnnotationTest : DriverTest() {
                 """,
         )
     }
+
+    @Test
+    fun `Show on method but not on class and not annotated`() {
+        check(
+            apiSurface = KnownApiSurface.NON_RECURSIVE_SHOW_WITHOUT_UNANNOTATED,
+            format = FileFormat.V2,
+            sourceFiles =
+                arrayOf(
+                    java(
+                        "src/java/net/Example.java",
+                        """
+                            package java.net;
+
+                            public class Example {
+                                public void aNotAnnotated() { }
+                                @test.annotation.Show
+                                public void bShown() { }
+                            }
+                        """
+                    )
+                ),
+            expectedApiSignature =
+                // TODO(b/512093496): This should be empty as showing a member should not cause the
+                //  unannotated class to be added.
+                """
+                    package java.net {
+                      public class Example {
+                        method public void bShown();
+                      }
+                    }
+                """
+        )
+    }
 }
