@@ -794,6 +794,7 @@ class Driver(
                 // Codebase is discarded immediately after use so caching just uses memory for no
                 // performance benefit.
                 signatureFileLoader,
+                apiSelectionOptions.apiSurfaces,
                 androidConfigCodeFragmentProvider,
             )
             ?.let { config ->

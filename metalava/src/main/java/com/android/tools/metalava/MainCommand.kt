@@ -134,7 +134,6 @@ class MainCommand(
         ApiLevelsGenerationOptions(
             executionEnvironment = executionEnvironment,
             earlyOptions = commonOptions,
-            apiSurfacesProvider = { apiSelectionOptions.apiSurfaces },
         )
 
     /** Miscellaneous options. */
