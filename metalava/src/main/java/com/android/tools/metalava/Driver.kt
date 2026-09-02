@@ -99,7 +99,7 @@ class Driver(
     private val environmentManager: EnvironmentManager,
     private val reporter: Reporter,
     private val verbosity: Verbosity,
-    private val miscellaneousOptions: MiscellaneousOptions,
+    private val miscellaneousOptions: ComputedMiscellaneousOptions,
     private val apiLevelsGenerationOptions: ApiLevelsGenerationOptions,
     private val apiLintOptions: ApiLintOptions,
     internal val apiSelectionOptions: ApiSelectionOptions,

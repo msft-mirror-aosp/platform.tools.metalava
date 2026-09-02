@@ -138,10 +138,7 @@ class MainCommand(
         )
 
     /** Miscellaneous options. */
-    internal val miscellaneousOptions by
-        MiscellaneousOptions(
-            reporterSupplier = { reporterManager.reporter },
-        )
+    internal val miscellaneousOptions by MiscellaneousOptions()
 
     /** Manages the [Reporter]s and [Baseline]s. */
     val reporterManager by
@@ -188,7 +185,7 @@ class MainCommand(
                             environmentManager,
                             reporterManager.reporter,
                             commonOptions.verbosity,
-                            miscellaneousOptions,
+                            miscellaneousOptions.compute(reporterManager.reporter),
                             apiLevelsGenerationOptions,
                             apiLintOptions,
                             apiSelectionOptions,
