@@ -102,7 +102,7 @@ class Driver(
     private val miscellaneousOptions: ComputedMiscellaneousOptions,
     private val apiLevelsGenerationOptions: ApiLevelsGenerationOptions,
     private val apiLintOptions: ApiLintOptions,
-    internal val apiSelectionOptions: ApiSelectionOptions,
+    internal val apiSelectionOptions: ComputedApiSelectionOptions,
     internal val compatibilityCheckOptions: CompatibilityCheckOptions,
     internal val configFileOptions: ConfigFileOptions,
     private val issueReportingOptions: IssueReportingOptions,

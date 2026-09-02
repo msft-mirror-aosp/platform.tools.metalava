@@ -285,10 +285,7 @@ class ParameterizedApiSurfaceSelectorTest :
         @JvmStatic @Parameterized.Parameters(name = "{0}") internal fun params() = params
     }
 
-    override fun createOptions() =
-        ApiSelectionOptions(
-            apiSurfacesConfigProvider = { apiSurfacesConfig },
-        )
+    override fun createOptions() = ApiSelectionOptions()
 
     @Test
     fun `Test complex api-surfaces`() {
@@ -296,11 +293,14 @@ class ParameterizedApiSurfaceSelectorTest :
             ARG_API_SURFACE,
             params.surface,
         ) {
-            options.apiSurfaceSelector.assertState(
-                params.expectedMatcherState,
-                params.expectedShowUnannotated,
-                params.expectedUnannotatedSurfaceName,
-            )
+            options
+                .compute(apiSurfacesConfig)
+                .apiSurfaceSelector
+                .assertState(
+                    params.expectedMatcherState,
+                    params.expectedShowUnannotated,
+                    params.expectedUnannotatedSurfaceName,
+                )
         }
     }
 }

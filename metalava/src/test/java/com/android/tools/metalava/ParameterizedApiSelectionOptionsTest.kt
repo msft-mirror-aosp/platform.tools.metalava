@@ -106,10 +106,7 @@ class ParameterizedApiSelectionOptionsTest :
                 null
             }
 
-        val optionGroup =
-            ApiSelectionOptions(
-                apiSurfacesConfigProvider = { apiSurfacesConfig },
-            )
+        val optionGroup = ApiSelectionOptions()
         val combinedArgs = buildList {
             if (surfaceRuleSource.useConfig) {
                 add(ARG_API_SURFACE)
@@ -120,7 +117,8 @@ class ParameterizedApiSelectionOptionsTest :
             }
         }
         runTest(args = combinedArgs.toTypedArray(), optionGroup = optionGroup) {
-            val selector = options.apiSurfaceSelector
+            val computedOptions = options.compute(apiSurfacesConfig)
+            val selector = computedOptions.apiSurfaceSelector
             val unannotatedSurfaceName =
                 if (surfaceRuleSource.useOptions) {
                     expectedOptionUnannotatedSurfaceName
@@ -134,7 +132,7 @@ class ParameterizedApiSelectionOptionsTest :
             )
 
             if (surfaceRuleSource.useOptions) {
-                val rules = options.createApiSurfaceRulesFromOptions()
+                val rules = computedOptions.createApiSurfaceRulesFromOptions()
                 assertEquals(
                     expectedOptionSurfaceRules!!.trimIndent(),
                     rules.toString(),
@@ -143,7 +141,7 @@ class ParameterizedApiSelectionOptionsTest :
             }
 
             if (surfaceRuleSource.useConfig) {
-                val rules = options.createApiSurfaceRulesFromConfig()
+                val rules = computedOptions.createApiSurfaceRulesFromConfig()
                 assertEquals(
                     expectedConfigSurfaceRules.trimIndent(),
                     rules.toString(),

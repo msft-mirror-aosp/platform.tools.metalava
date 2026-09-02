@@ -17,6 +17,7 @@
 package com.android.tools.metalava
 
 import com.android.tools.metalava.cli.common.MetalavaCliException
+import com.android.tools.metalava.cli.common.MetalavaOptionGroup
 import com.android.tools.metalava.cli.common.cliError
 import com.android.tools.metalava.cli.common.enumOption
 import com.android.tools.metalava.cli.common.map
@@ -33,7 +34,6 @@ import com.android.tools.metalava.model.api.SurfaceSelectionRule.Companion.unann
 import com.android.tools.metalava.model.api.SurfaceSelectionRule.Effect
 import com.android.tools.metalava.model.api.surface.ApiSurface
 import com.android.tools.metalava.model.api.surface.ApiSurfaces
-import com.github.ajalt.clikt.parameters.groups.OptionGroup
 import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.deprecated
 import com.github.ajalt.clikt.parameters.options.multiple
@@ -64,14 +64,9 @@ const val API_SELECTION_OPTIONS_GROUP = "Api Selection"
 
 /**
  * Options related to selecting which parts of the source files will be part of the generated API.
- *
- * @param apiSurfacesConfigProvider Provides the [ApiSurfacesConfig] that was provided in an
- *   [ARG_CONFIG_FILE], if any. This must only be called after all the options have been parsed.
  */
-class ApiSelectionOptions(
-    private val apiSurfacesConfigProvider: () -> ApiSurfacesConfig? = { null },
-) :
-    OptionGroup(
+class ApiSelectionOptions() :
+    MetalavaOptionGroup(
         name = API_SELECTION_OPTIONS_GROUP,
         help =
             """
@@ -80,20 +75,6 @@ class ApiSelectionOptions(
             """
                 .trimIndent()
     ) {
-    /** The [ApiSurfaceConfig] extracted from configuration files. */
-    private val apiSurfacesConfig by lazy(LazyThreadSafetyMode.NONE) { apiSurfacesConfigProvider() }
-
-    /**
-     * Return true if at least one `--show*-annotation`, `--show-unannotated` or `--hide-annotation`
-     * option was specified.
-     */
-    private fun atLeastOneApiSelectionOptionWasSpecified() =
-        optionalShowUnannotated == ShowUnannotated.SPECIFIED ||
-            hideAnnotationValues.isNotEmpty() ||
-            atLeastOneShowAnnotationOptionWasSpecified()
-
-    /** Return true if at least one `--show*-annotation` option was specified. */
-    private fun atLeastOneShowAnnotationOptionWasSpecified() = showAnnotationValues.isNotEmpty()
 
     internal val apiSurfaceName by
         option(
@@ -107,7 +88,7 @@ class ApiSelectionOptions(
         )
 
     /** The values of [optionalShowUnannotated]. */
-    private enum class ShowUnannotated {
+    internal enum class ShowUnannotated {
         /** Indicates that [ARG_SHOW_UNANNOTATED] was not specified on the command line. */
         UNSPECIFIED,
 
@@ -123,26 +104,6 @@ class ApiSelectionOptions(
                 defaultForHelp = "true if no --show*-annotation options specified",
             )
             .deprecated(DEPRECATED_API_SURFACE_OPTION_MESSAGE)
-
-    /**
-     * Convert [optionalShowUnannotated] into a [Boolean], defaulting to `true` if no show options
-     * were specified.
-     */
-    private val showUnannotatedOption by
-        lazy(LazyThreadSafetyMode.NONE) {
-            when (optionalShowUnannotated) {
-                ShowUnannotated.UNSPECIFIED -> {
-                    // If the caller has not explicitly requested that unannotated classes and
-                    // members should be shown in the output then only show them if no show
-                    // annotations were provided.
-                    !atLeastOneShowAnnotationOptionWasSpecified()
-                }
-                else -> true
-            }
-        }
-
-    val showUnannotated
-        get() = apiSurfaceSelector.showUnannotated
 
     private val showAnnotationValues by
         option(
@@ -166,6 +127,134 @@ class ApiSelectionOptions(
             )
             .multiple()
             .deprecated(DEPRECATED_API_SURFACE_OPTION_MESSAGE)
+
+    internal val excludeAnnotations by
+        option(
+                ARG_EXCLUDE_ANNOTATION,
+                metavar = "<annotation-classes>",
+                help =
+                    """
+                A comma separated list of fully qualified names of annotation classes that must be
+                stripped from metalava's outputs.
+            """
+                        .trimIndent(),
+            )
+            .splitMultiple(",")
+            .map { it.toSet() }
+
+    private val passThroughAnnotations by
+        option(
+                ARG_PASS_THROUGH_ANNOTATION,
+                metavar = "<annotation-classes>",
+                help =
+                    """
+                A comma separated list of fully qualified names of annotation classes that must be
+                passed through unchanged.
+            """
+                        .trimIndent(),
+            )
+            .splitMultiple(",")
+            .map { it.toSet() }
+
+    private val suppressCompatibilityMetaAnnotations by
+        option(
+                ARG_SUPPRESS_COMPATIBILITY_META_ANNOTATION,
+                metavar = "<meta-annotation-class>",
+                help =
+                    """
+                       Suppress compatibility checks for any elements within the scope of an
+                       annotation which is itself annotated with the given `meta-annotation-class`.
+                    """
+                        .trimIndent(),
+            )
+            .multiple()
+            .unique()
+
+    private val typedefMode by
+        enumOption(
+            ARG_TYPEDEFS_IN_SIGNATURES,
+            help = "Whether to include typedef annotations in signature files.",
+            enumValueHelpGetter = { it.help },
+            default = TypedefMode.NONE,
+            key = { it.optionValue },
+        )
+
+    /**
+     * Returns a [ComputedApiSelectionOptions] instance based on the current state of the options.
+     *
+     * @param apiSurfacesConfig The [ApiSurfacesConfig] that was provided in an [ARG_CONFIG_FILE],
+     *   if any.
+     */
+    fun compute(apiSurfacesConfig: ApiSurfacesConfig? = null): ComputedApiSelectionOptions {
+        return ComputedApiSelectionOptions(
+            apiSurfaceName,
+            optionalShowUnannotated,
+            showAnnotationValues,
+            hideAnnotationValues,
+            excludeAnnotations,
+            passThroughAnnotations,
+            suppressCompatibilityMetaAnnotations,
+            typedefMode,
+            apiSurfacesConfig,
+        )
+    }
+}
+
+/**
+ * Options related to selecting which parts of the source files will be part of the generated API
+ * and additional values computed based on those options.
+ */
+class ComputedApiSelectionOptions
+internal constructor(
+    val apiSurfaceName: String?,
+    private val optionalShowUnannotated: ApiSelectionOptions.ShowUnannotated,
+    private val showAnnotationValues: List<String>,
+    private val hideAnnotationValues: List<String>,
+    /** The set of annotation classes that should be removed from all outputs */
+    val excludeAnnotations: Set<String>,
+    /** The set of annotation classes that should be passed through unchanged */
+    val passThroughAnnotations: Set<String>,
+    /** Meta-annotations for which annotated APIs should not be checked for compatibility. */
+    val suppressCompatibilityMetaAnnotations: Set<String>,
+    /**
+     * How to handle typedef annotations in signature files; corresponds to
+     * $ARG_TYPEDEFS_IN_SIGNATURES
+     */
+    val typedefMode: TypedefMode,
+    private val apiSurfacesConfig: ApiSurfacesConfig?,
+) {
+
+    /**
+     * Return true if at least one `--show*-annotation`, `--show-unannotated` or `--hide-annotation`
+     * option was specified.
+     */
+    private fun atLeastOneApiSelectionOptionWasSpecified() =
+        optionalShowUnannotated == ApiSelectionOptions.ShowUnannotated.SPECIFIED ||
+            hideAnnotationValues.isNotEmpty() ||
+            atLeastOneShowAnnotationOptionWasSpecified()
+
+    /** Return true if at least one `--show*-annotation` option was specified. */
+    private fun atLeastOneShowAnnotationOptionWasSpecified() = showAnnotationValues.isNotEmpty()
+
+    /**
+     * Convert [optionalShowUnannotated] into a [Boolean], defaulting to `true` if no show options
+     * were specified.
+     */
+    private val showUnannotatedOption by
+        lazy(LazyThreadSafetyMode.NONE) {
+            when (optionalShowUnannotated) {
+                ApiSelectionOptions.ShowUnannotated.UNSPECIFIED -> {
+                    // If the caller has not explicitly requested that unannotated classes and
+                    // members should be shown in the output then only show them if no show
+                    // annotations were provided.
+                    !atLeastOneShowAnnotationOptionWasSpecified()
+                }
+                else -> true
+            }
+        }
+
+    val showUnannotated
+        get() = apiSurfaceSelector.showUnannotated
 
     /**
      * Select the [ApiSurfaceRules] to use between the [apiSurfaceRulesFromConfig] and
@@ -436,64 +525,6 @@ class ApiSelectionOptions(
             rulesBySurfaceName,
         )
     }
-
-    /** The set of annotation classes that should be removed from all outputs */
-    internal val excludeAnnotations by
-        option(
-                ARG_EXCLUDE_ANNOTATION,
-                metavar = "<annotation-classes>",
-                help =
-                    """
-                A comma separated list of fully qualified names of annotation classes that must be
-                stripped from metalava's outputs.
-            """
-                        .trimIndent(),
-            )
-            .splitMultiple(",")
-            .map { it.toSet() }
-
-    /** The set of annotation classes that should be passed through unchanged */
-    internal val passThroughAnnotations by
-        option(
-                ARG_PASS_THROUGH_ANNOTATION,
-                metavar = "<annotation-classes>",
-                help =
-                    """
-                A comma separated list of fully qualified names of annotation classes that must be
-                passed through unchanged.
-            """
-                        .trimIndent(),
-            )
-            .splitMultiple(",")
-            .map { it.toSet() }
-
-    /** Meta-annotations for which annotated APIs should not be checked for compatibility. */
-    internal val suppressCompatibilityMetaAnnotations by
-        option(
-                ARG_SUPPRESS_COMPATIBILITY_META_ANNOTATION,
-                metavar = "<meta-annotation-class>",
-                help =
-                    """
-                       Suppress compatibility checks for any elements within the scope of an
-                       annotation which is itself annotated with the given `meta-annotation-class`.
-                    """
-                        .trimIndent(),
-            )
-            .multiple()
-            .unique()
-
-    /**
-     * How to handle typedef annotations in signature files; corresponds to
-     * $ARG_TYPEDEFS_IN_SIGNATURES
-     */
-    internal val typedefMode by
-        enumOption(
-            ARG_TYPEDEFS_IN_SIGNATURES,
-            help = "Whether to include typedef annotations in signature files.",
-            enumValueHelpGetter = { it.help },
-            default = TypedefMode.NONE,
-            key = { it.optionValue },
-        )
 
     val apiSurfaces by
         lazy(LazyThreadSafetyMode.NONE) {

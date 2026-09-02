@@ -98,10 +98,7 @@ class MainCommand(
 
     private val configFileOptions by ConfigFileOptions()
 
-    private val apiSelectionOptions: ApiSelectionOptions by
-        ApiSelectionOptions(
-            apiSurfacesConfigProvider = { configFileOptions.config.apiSurfaces },
-        )
+    private val apiSelectionOptions: ApiSelectionOptions by ApiSelectionOptions()
 
     /** API lint options. */
     private val apiLintOptions by
@@ -187,7 +184,7 @@ class MainCommand(
                             miscellaneousOptions.compute(reporterManager.reporter),
                             apiLevelsGenerationOptions,
                             apiLintOptions,
-                            apiSelectionOptions,
+                            apiSelectionOptions.compute(configFileOptions.config.apiSurfaces),
                             compatibilityCheckOptions,
                             configFileOptions,
                             issueReportingOptions,

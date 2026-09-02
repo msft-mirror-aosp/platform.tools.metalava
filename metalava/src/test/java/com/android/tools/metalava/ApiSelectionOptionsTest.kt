@@ -71,20 +71,17 @@ class ApiSelectionOptionsTest :
 
     @Test
     fun `Test no --show-unannotated no show annotations`() {
-        runTest { assertThat(options.showUnannotated).isTrue() }
+        runTest { assertThat(options.compute().showUnannotated).isTrue() }
     }
 
     @Test
     fun `Test no --show-unannotated with --show-annotation`() {
         runTest(ARG_SHOW_ANNOTATION, "test.pkg.Show") {
-            assertThat(options.showUnannotated).isFalse()
+            assertThat(options.compute().showUnannotated).isFalse()
         }
     }
 
-    /**
-     * Run the test, providing an optional [ApiSurfacesConfig] to
-     * [ApiSelectionOptions.apiSurfacesConfigProvider].
-     */
+    /** Run the test, providing an optional [ApiSurfacesConfig] to [ApiSelectionOptions.compute]. */
     private fun runTestWithConfig(
         vararg args: String,
         apiSurfacesConfig: ApiSurfacesConfig? =
@@ -96,13 +93,15 @@ class ApiSelectionOptionsTest :
                         ApiSurfaceConfig(name = "module-lib", extends = "system"),
                     )
             ),
-        test: Result<ApiSelectionOptions>.() -> Unit,
+        test: ComputedApiSelectionOptions.() -> Unit,
     ) {
-        val optionGroup =
-            ApiSelectionOptions(
-                apiSurfacesConfigProvider = { apiSurfacesConfig },
-            )
-        runTest(args = args, optionGroup = optionGroup, test = test)
+        val optionGroup = ApiSelectionOptions()
+
+        runTest(
+            args = args,
+            optionGroup = optionGroup,
+            test = { options.compute(apiSurfacesConfig).test() }
+        )
     }
 
     /**
@@ -123,7 +122,7 @@ class ApiSelectionOptionsTest :
             assertThrowsCliError(
                 "--api-surface requires at least one <api-surface> to have been configured in a --config-file"
             ) {
-                options.apiSurfaces
+                apiSurfaces
             }
         }
     }
@@ -132,7 +131,7 @@ class ApiSelectionOptionsTest :
     fun `Test configuring API surfaces no --api-surface option`() {
         runTestWithConfig {
             // Configuration is ignored when no --api-surface is provided.
-            options.apiSurfaces.assertBaseWasNotCreated()
+            apiSurfaces.assertBaseWasNotCreated()
         }
     }
 
@@ -142,7 +141,7 @@ class ApiSelectionOptionsTest :
             ARG_API_SURFACE,
             "unknown",
         ) {
-            val exception = assertThrows(IllegalStateException::class.java) { options.apiSurfaces }
+            val exception = assertThrows(IllegalStateException::class.java) { apiSurfaces }
             assertThat(exception.message)
                 .isEqualTo(
                     "--api-surface (`unknown`) does not match an <api-surface> in a --config-file, expected one of `public`, `system`, `module-lib`"
@@ -161,9 +160,9 @@ class ApiSelectionOptionsTest :
             // using the configuration. As they cannot be differentiated the consistency check is
             // not run and if the inconsistency is significant it will affect some of the output
             // files.
-            options.apiSurfaces.assertBaseWasCreated()
-            assertThat(options.apiSurfaces.main.name).isEqualTo("system")
-            assertThat(options.apiSurfaces.base?.name).isEqualTo("public")
+            apiSurfaces.assertBaseWasCreated()
+            assertThat(apiSurfaces.main.name).isEqualTo("system")
+            assertThat(apiSurfaces.base?.name).isEqualTo("public")
         }
     }
 
@@ -177,7 +176,7 @@ class ApiSelectionOptionsTest :
             assertThrowsCliError(
                 """--api-surface is mutually exclusive with --show-unannotated, --show-annotation and --hide-annotation"""
             ) {
-                options.apiSurfaces
+                apiSurfaces
             }
         }
     }
@@ -211,8 +210,8 @@ class ApiSelectionOptionsTest :
             ARG_API_SURFACE,
             "public",
         ) {
-            options.apiSurfaces.assertBaseWasNotCreated()
-            assertThat(options.apiSurfaces.main.name).isEqualTo("public")
+            apiSurfaces.assertBaseWasNotCreated()
+            assertThat(apiSurfaces.main.name).isEqualTo("public")
         }
     }
 
@@ -275,10 +274,10 @@ class ApiSelectionOptionsTest :
                     ),
                 )
         ) {
-            options.apiSurfaces.assertBaseWasNotCreated()
-            assertThat(options.apiSurfaces.main.name).isEqualTo("restricted")
+            apiSurfaces.assertBaseWasNotCreated()
+            assertThat(apiSurfaces.main.name).isEqualTo("restricted")
 
-            options.apiSurfaceSelector.assertState(
+            apiSurfaceSelector.assertState(
                 expectedMatcherState =
                     """
                         AnnotationMatcher(
@@ -364,11 +363,11 @@ class ApiSelectionOptionsTest :
                     ),
                 ),
         ) {
-            options.apiSurfaces.assertBaseWasCreated()
-            assertThat(options.apiSurfaces.main.name).isEqualTo("other")
-            assertThat(options.apiSurfaces.base?.name).isEqualTo("intermediate")
+            apiSurfaces.assertBaseWasCreated()
+            assertThat(apiSurfaces.main.name).isEqualTo("other")
+            assertThat(apiSurfaces.base?.name).isEqualTo("intermediate")
 
-            options.apiSurfaceSelector.assertState(
+            apiSurfaceSelector.assertState(
                 expectedMatcherState =
                     """
                         AnnotationMatcher(
@@ -429,7 +428,7 @@ class ApiSelectionOptionsTest :
                     ),
                 )
         ) {
-            options.apiSurfaceSelector.assertState(
+            apiSurfaceSelector.assertState(
                 expectedMatcherState =
                     """
                         AnnotationMatcher(
