@@ -19,9 +19,9 @@ package com.android.tools.metalava.model.visitors
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.FilterPredicate
-import com.android.tools.metalava.model.MemberItem
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.SelectableItem
+import com.android.tools.metalava.model.Showability
 
 /**
  * Predicate that decides if the given member should be considered part of an API surface area. To
@@ -30,7 +30,7 @@ import com.android.tools.metalava.model.SelectableItem
  */
 class ApiPredicate(
     /**
-     * Set if the value of [MemberItem.removed] should be ignored. That is, this predicate will
+     * Set if the value of [SelectableItem.removed] should be ignored. That is, this predicate will
      * assume that all encountered members match the "removed" requirement.
      *
      * This is typically useful when generating "removed.txt", when it's okay to reference both
@@ -39,7 +39,8 @@ class ApiPredicate(
     private val ignoreRemoved: Boolean = false,
 
     /**
-     * Set what the value of [MemberItem.removed] must be equal to in order for a member to match.
+     * Set what the value of [SelectableItem.removed] must be equal to in order for a member to
+     * match.
      *
      * This is typically useful when generating "removed.txt", when you only want to match members
      * that have actually been removed.
@@ -62,11 +63,11 @@ class ApiPredicate(
      */
     data class Config(
         /**
-         * Set if the value of [MemberItem.hasShowAnnotation] should be ignored. That is, this
+         * Set if the value of [SelectableItem.hasShowAnnotation] should be ignored. That is, this
          * predicate will assume that all encountered members match the "shown" requirement.
          *
-         * This is typically useful when generating "current.txt", when no
-         * [Options.allShowAnnotations] have been defined.
+         * This is set to true when the current API surface includes items by default, i.e. they do
+         * not require a show annotation to be included in the API surface.
          */
         val ignoreShown: Boolean = true,
 
@@ -105,7 +106,7 @@ class ApiPredicate(
         // If the item or any of its containing classes are inaccessible then ignore it.
         if (!itemSelectors.accessible) return false
 
-        var hidden = itemSelectors.hidden && !visibleForAdditionalOverridePurpose
+        val hidden = itemSelectors.hidden && !visibleForAdditionalOverridePurpose
         if (hidden) return false
 
         if (!includeApisForStubPurposes && item.includeOnlyForStubPurposes()) {
