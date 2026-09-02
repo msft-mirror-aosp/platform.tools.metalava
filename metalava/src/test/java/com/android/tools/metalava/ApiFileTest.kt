@@ -6386,6 +6386,79 @@ class ApiFileTest : DriverTest() {
     }
 
     @Test
+    fun `Partial signature files do not include subclasses of reverted base API class`() {
+        check(
+            apiSurface = KnownApiSurface.TEST,
+            format = FileFormat.V2,
+            configFiles = arrayOf(KnownConfigFiles.configEmptyApiFlags),
+            checkCompatibilityApiReleasedList =
+                listOf(
+                    """
+                        // Signature format: 2.0
+                        package test.pkg {
+                          public class BaseSystemClass {
+                            ctor public BaseSystemClass();
+                          }
+                          public class SubSystemClass extends test.pkg.BaseSystemClass {
+                            ctor public SubSystemClass();
+                          }
+                        }
+                    """,
+                    """
+                        // Signature format: 2.0
+                        package test.pkg {
+                          public class BaseSystemClass {
+                            method public void testMethod();
+                          }
+                        }
+                    """,
+                ),
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+
+                            import android.annotation.FlaggedApi;
+                            import android.annotation.SystemApi;
+                            import android.annotation.TestApi;
+
+                            @SystemApi
+                            @FlaggedApi("test.pkg.flags.foo_bar")
+                            public class BaseSystemClass {
+                                public BaseSystemClass() {}
+                                @TestApi
+                                public void testMethod() {}
+                            }
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+
+                            import android.annotation.SystemApi;
+
+                            @SystemApi
+                            public class SubSystemClass extends BaseSystemClass {
+                                public SubSystemClass() {}
+                            }
+                        """
+                    ),
+                ),
+            classpath = arrayOf(KnownJarFiles.stubAnnotationsTestFile),
+            expectedApiSignature =
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public class BaseSystemClass {
+                        method public void testMethod();
+                      }
+                    }
+                """,
+        )
+    }
+
+    @Test
     fun `Subclass definition is not included in removed api file`() {
         check(
             format = FileFormat.V2,
