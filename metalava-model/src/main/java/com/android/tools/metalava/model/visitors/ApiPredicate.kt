@@ -72,6 +72,16 @@ class ApiPredicate(
         val ignoreShown: Boolean = true,
 
         /**
+         * The value to use for [ignoreShown] when creating a [Config] for the whole API surface via
+         * [forWholeApiSurface].
+         *
+         * This is set to true when the current API surface (or an API surface that it extends)
+         * includes unannotated items, so that unannotated items are matched across the whole API
+         * surface.
+         */
+        val ignoreShownForWholeApiSurface: Boolean = true,
+
+        /**
          * Whether overriding methods essential for compiling the stubs should be considered as APIs
          * or not.
          */
@@ -80,11 +90,8 @@ class ApiPredicate(
         /**
          * Create a [Config] instance that will cause an [ApiPredicate] to match the whole API
          * surface, i.e. including any items in an API surface that this surface extends.
-         *
-         * Currently, this assumes that all API surfaces either set `unannotated="show"` or extend
-         * one that does. That is not true for standalone unannotated API surfaces.
          */
-        fun forWholeApiSurface() = copy(ignoreShown = true)
+        fun forWholeApiSurface() = copy(ignoreShown = ignoreShownForWholeApiSurface)
     }
 
     override fun test(item: SelectableItem): Boolean {

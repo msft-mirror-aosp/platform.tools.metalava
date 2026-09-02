@@ -1017,14 +1017,7 @@ class ShowAnnotationTest : DriverTest() {
                     )
                 ),
             expectedApiSignature =
-                // TODO(b/512093496): This should be empty as showing a member should not cause the
-                //  unannotated class to be added.
                 """
-                    package java.net {
-                      public class Example {
-                        method public void bShown();
-                      }
-                    }
                 """
         )
     }
