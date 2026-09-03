@@ -20,6 +20,7 @@ import com.android.tools.metalava.Driver
 import com.android.tools.metalava.cli.common.BaselineOptionsMixin
 import com.android.tools.metalava.cli.common.ComputedCommonBaselineOptions
 import com.android.tools.metalava.cli.common.ExecutionEnvironment
+import com.android.tools.metalava.cli.common.MetalavaOptionGroup
 import com.android.tools.metalava.cli.common.PreviouslyReleasedApi
 import com.android.tools.metalava.cli.common.allowStructuredOptionName
 import com.android.tools.metalava.cli.common.enumOption
@@ -28,7 +29,6 @@ import com.android.tools.metalava.cli.common.map
 import com.android.tools.metalava.model.api.surface.ApiVariantType
 import com.android.tools.metalava.model.visitors.ApiType
 import com.android.tools.metalava.reporter.Baseline
-import com.github.ajalt.clikt.parameters.groups.OptionGroup
 import com.github.ajalt.clikt.parameters.options.multiple
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.options.unique
@@ -49,7 +49,7 @@ const val ARG_API_COMPAT_ANNOTATION = "--api-compat-annotation"
 const val COMPATIBILITY_CHECK_GROUP = "Compatibility Checks"
 
 class CompatibilityCheckOptions() :
-    OptionGroup(
+    MetalavaOptionGroup(
         name = COMPATIBILITY_CHECK_GROUP,
         help =
             """
@@ -73,20 +73,6 @@ class CompatibilityCheckOptions() :
             enumValueHelpGetter = { it.help },
             default = CheckCompatibility.ENABLED,
         )
-
-    /**
-     * Determines whether [compatibilityChecks] returns a list of [checkReleasedApi] and
-     * [checkReleasedRemoved] or not.
-     */
-    private enum class CheckCompatibility(val help: String) {
-        ENABLED(
-            help = "Compatibility checks are performed.",
-        ),
-        @Suppress("unused") // Used implicitly by [checkCompatibility]
-        DISABLED(
-            help = "Compatibility checks are NOT performed.",
-        ),
-    }
 
     private val checkReleasedApi: CheckRequest? by
         option(
@@ -126,7 +112,7 @@ class CompatibilityCheckOptions() :
             .allowStructuredOptionName()
             .map { CheckRequest.optionalCheckRequest(it, ApiType.REMOVED) }
 
-    internal val apiCompatAnnotations: Set<String> by
+    private val apiCompatAnnotations: Set<String> by
         option(
                 ARG_API_COMPAT_ANNOTATION,
                 help =
@@ -241,29 +227,63 @@ class CompatibilityCheckOptions() :
     }
 
     /**
-     * The list of unfiltered [CheckRequest] instances that need to be performed on the API being
-     * generated.
+     * Returns a [ComputedCompatibilityCheckOptions] instance based on the current state of the
+     * options.
      */
-    private val unfilteredCompatibilityChecks by
-        lazy(LazyThreadSafetyMode.NONE) { listOfNotNull(checkReleasedApi, checkReleasedRemoved) }
+    fun compute(): ComputedCompatibilityCheckOptions {
+        return ComputedCompatibilityCheckOptions(
+            checkReleasedApi,
+            checkReleasedRemoved,
+            checkCompatibility,
+            apiCompatAnnotations,
+        )
+    }
+}
+
+/**
+ * Options related to compatibility checks and additional values computed based on those options.
+ */
+class ComputedCompatibilityCheckOptions
+internal constructor(
+    checkReleasedApi: CompatibilityCheckOptions.CheckRequest?,
+    checkReleasedRemoved: CompatibilityCheckOptions.CheckRequest?,
+    checkCompatibility: CheckCompatibility?,
+    val apiCompatAnnotations: Set<String>,
+) {
+    /**
+     * The list of unfiltered [CompatibilityCheckOptions.CheckRequest] instances that need to be
+     * performed on the API being generated.
+     */
+    private val unfilteredCompatibilityChecks: List<CompatibilityCheckOptions.CheckRequest> =
+        listOfNotNull(checkReleasedApi, checkReleasedRemoved)
 
     /**
-     * The list of [CheckRequest] instances that need to be performed on the API being generated
-     * taking into account [checkCompatibility].
+     * The list of [CompatibilityCheckOptions.CheckRequest] instances that need to be performed on
+     * the API being generated taking into account [checkCompatibility].
      */
-    val compatibilityChecks by
-        lazy(LazyThreadSafetyMode.NONE) {
-            when (checkCompatibility) {
-                CheckCompatibility.ENABLED -> unfilteredCompatibilityChecks
-                else -> emptyList()
-            }
+    val compatibilityChecks: List<CompatibilityCheckOptions.CheckRequest> =
+        when (checkCompatibility) {
+            CheckCompatibility.ENABLED -> unfilteredCompatibilityChecks
+            else -> emptyList()
         }
 
     /** The optional [PreviouslyReleasedApi]. */
-    val previouslyReleasedApi by
-        lazy(LazyThreadSafetyMode.NONE) {
-            unfilteredCompatibilityChecks
-                .map { it.previouslyReleasedApi }
-                .reduceOrNull { p1, p2 -> p1.combine(p2) }
-        }
+    val previouslyReleasedApi: PreviouslyReleasedApi? =
+        unfilteredCompatibilityChecks
+            .map { it.previouslyReleasedApi }
+            .reduceOrNull { p1, p2 -> p1.combine(p2) }
+}
+
+/**
+ * Determines whether [compatibilityChecks] returns a list of [checkReleasedApi] and
+ * [checkReleasedRemoved] or not.
+ */
+internal enum class CheckCompatibility(val help: String) {
+    ENABLED(
+        help = "Compatibility checks are performed.",
+    ),
+    @Suppress("unused") // Used implicitly by [checkCompatibility]
+    DISABLED(
+        help = "Compatibility checks are NOT performed.",
+    ),
 }

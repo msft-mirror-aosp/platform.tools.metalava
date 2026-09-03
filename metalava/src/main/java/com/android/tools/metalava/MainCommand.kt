@@ -171,7 +171,7 @@ class MainCommand(
                             apiLevelsGenerationOptions,
                             apiLintOptions,
                             apiSelectionOptions.compute(configFileOptions.config.apiSurfaces),
-                            compatibilityCheckOptions,
+                            compatibilityCheckOptions.compute(),
                             configFileOptions,
                             computedIssueReportingOptions,
                             multiplatformOptions,

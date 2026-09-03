@@ -32,8 +32,8 @@ import com.android.tools.metalava.cli.common.Verbosity
 import com.android.tools.metalava.cli.common.VersionCommand
 import com.android.tools.metalava.cli.common.cliError
 import com.android.tools.metalava.cli.common.commonOptions
-import com.android.tools.metalava.cli.compatibility.CompatibilityCheckOptions
 import com.android.tools.metalava.cli.compatibility.CompatibilityCheckOptions.CheckRequest
+import com.android.tools.metalava.cli.compatibility.ComputedCompatibilityCheckOptions
 import com.android.tools.metalava.cli.flag.FlagReportCommand
 import com.android.tools.metalava.cli.flag.ListFlagsCommand
 import com.android.tools.metalava.cli.help.HelpCommand
@@ -103,7 +103,7 @@ class Driver(
     private val apiLevelsGenerationOptions: ApiLevelsGenerationOptions,
     private val apiLintOptions: ApiLintOptions,
     internal val apiSelectionOptions: ComputedApiSelectionOptions,
-    internal val compatibilityCheckOptions: CompatibilityCheckOptions,
+    internal val compatibilityCheckOptions: ComputedCompatibilityCheckOptions,
     internal val configFileOptions: ConfigFileOptions,
     private val issueReportingOptions: ComputedIssueReportingOptions,
     private val multiplatformOptions: MultiplatformOptions,

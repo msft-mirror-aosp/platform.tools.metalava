@@ -20,7 +20,7 @@ import com.android.tools.lint.checks.infrastructure.TestFile
 import com.android.tools.lint.checks.infrastructure.TestFiles
 import com.android.tools.metalava.DriverTest
 import com.android.tools.metalava.cli.common.CheckerFunction
-import com.android.tools.metalava.cli.compatibility.CompatibilityCheckOptions
+import com.android.tools.metalava.cli.compatibility.ComputedCompatibilityCheckOptions
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.model.text.stripBlankLines
 import com.android.tools.metalava.model.visitors.ApiType
@@ -97,7 +97,7 @@ class FastPathTest : DriverTest() {
         val sourceFiles = arrayOf(sourceFile)
 
         // Save away a reference to the CompatibilityCheckOptions.
-        var compatibilityCheckOptions: CompatibilityCheckOptions? = null
+        var compatibilityCheckOptions: ComputedCompatibilityCheckOptions? = null
         val postAnalysisChecker: CheckerFunction = {
             compatibilityCheckOptions = driver.compatibilityCheckOptions
         }
