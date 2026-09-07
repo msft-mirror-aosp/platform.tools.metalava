@@ -48,8 +48,8 @@ import com.android.tools.metalava.model.source.SourceParser
 import com.android.tools.metalava.model.source.doc.DocContentPredicates
 import com.android.tools.metalava.model.testOrTrue
 import com.android.tools.metalava.model.value.asString
-import com.android.tools.metalava.model.visitors.ApiFilters
 import com.android.tools.metalava.model.visitors.ApiPredicate
+import com.android.tools.metalava.model.visitors.ApiSurfaceVisitor
 import com.android.tools.metalava.model.visitors.ApiType
 import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.android.tools.metalava.permission.getRequiresPermissionProxy
@@ -137,10 +137,9 @@ class ApiAnalyzer(
         // extended/base surfaces as well. Restrict it to only those parts of the API surface that
         // will be emitted to avoid wasting time.
         val predicate = EMITTED_ONLY.and(ApiSurfacePredicate.wholeApi())
-        val apiFilters = ApiFilters(predicate)
 
         codebase.accept(
-            object : ApiVisitor(visitParameterItems = false, apiFilters = apiFilters) {
+            object : ApiSurfaceVisitor(visitParameterItems = false, filterEmit = predicate) {
                 override fun visitSelectableItem(item: SelectableItem) {
                     item.updateDeprecatedFromJavadocIfNeeded()
                 }
