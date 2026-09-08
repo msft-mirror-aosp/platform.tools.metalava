@@ -988,7 +988,7 @@ class Driver(
                     codebase,
                     reporter,
                     outputFile,
-                    apiPredicateConfig,
+                    apiSurface,
                 )
                 .extractAnnotations()
         }
