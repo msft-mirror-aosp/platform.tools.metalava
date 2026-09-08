@@ -66,7 +66,7 @@ class CommonParameterizedApiSurfaceVisitorTest : BaseModelTest() {
         val input: List<TestFile>,
         val expectedNotNested: String,
         val expectedNested: String = expectedNotNested,
-        val apiFilters: Codebase.() -> ApiFilters?,
+        val apiFilters: (Codebase.() -> ApiFilters?)? = null,
         val filterEmit: Codebase.() -> FilterPredicate?,
         val requiresApiVariantSelectors: Boolean = false,
         val classpath: List<TestFile> = emptyList(),
@@ -143,9 +143,8 @@ class CommonParameterizedApiSurfaceVisitorTest : BaseModelTest() {
             )
 
         /**
-         * Create a [TestCase] comparing [ApiSurfaceVisitor] using
-         * [ApiSurfacePredicate.wholeCoreApi] with [ApiVisitor] using [ApiFilters] from
-         * [ApiPredicate.Config.defaultFilters].
+         * Create a [TestCase] for [ApiSurfaceVisitor] using
+         * [ApiSurfacePredicate.wholeCoreApiSurfacePredicate].
          */
         @EntryPoint
         fun wholeCoreTestCase(
@@ -161,7 +160,6 @@ class CommonParameterizedApiSurfaceVisitorTest : BaseModelTest() {
                 input = input,
                 expectedNotNested = expectedNotNested,
                 expectedNested = expectedNested,
-                apiFilters = { ApiPredicate.Config().defaultFilters() },
                 filterEmit = { ApiSurfacePredicate.wholeCoreEmittableApi(apiSurfaces.main) },
                 requiresApiVariantSelectors = requiresApiVariantSelectors,
                 classpath = classpath,
@@ -667,7 +665,7 @@ class CommonParameterizedApiSurfaceVisitorTest : BaseModelTest() {
         visitParameterItems: Boolean = false,
     ): String {
         val dumper = SelectableItemDumper()
-        val apiFilters = testCase.apiFilters(this)
+        val apiFilters = testCase.apiFilters!!(this)
         accept(
             object : ApiVisitor(preserveClassNesting, visitParameterItems, apiFilters) {
                 override fun visitSelectableItem(item: SelectableItem) {
@@ -740,12 +738,14 @@ class CommonParameterizedApiSurfaceVisitorTest : BaseModelTest() {
     /** Test [ApiVisitor] without preserving class nesting. */
     @Test
     fun `test ApiVisitor without preserving class nesting`() {
+        assumeTrue(testCase.apiFilters != null)
         runTest(preserveClassNesting = false) { dumpWithApiVisitor(preserveClassNesting = false) }
     }
 
     /** Test [ApiVisitor] preserving class nesting. */
     @Test
     fun `test ApiVisitor preserving class nesting`() {
+        assumeTrue(testCase.apiFilters != null)
         runTest(preserveClassNesting = true) { dumpWithApiVisitor(preserveClassNesting = true) }
     }
 
