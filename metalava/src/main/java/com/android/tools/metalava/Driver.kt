@@ -60,6 +60,7 @@ import com.android.tools.metalava.model.CodebaseFragment
 import com.android.tools.metalava.model.DelegatedVisitor
 import com.android.tools.metalava.model.EMITTED_ONLY
 import com.android.tools.metalava.model.annotation.DefaultAnnotationManager
+import com.android.tools.metalava.model.api.surface.ApiSurface
 import com.android.tools.metalava.model.multiplatform.MultiplatformCodebase
 import com.android.tools.metalava.model.snapshot.NonFilteringDelegatingVisitor
 import com.android.tools.metalava.model.source.EnvironmentManager
@@ -265,6 +266,9 @@ class Driver(
             null
         }
     }
+
+    /** The [ApiSurface] being generated. */
+    private val apiSurface: ApiSurface = apiSelectionOptions.apiSurfaces.main
 
     /** The configuration options for the [ApiAnalyzer] class. */
     private val apiAnalyzerConfig by lazy {
@@ -941,7 +945,7 @@ class Driver(
         // General API documentation checks for Android APIs.
         // They are pointless if Javadoc comments are not being read.
         if (codebase.config.allowReadingComments) {
-            AndroidApiChecks(reporter, apiPredicateConfig).check(codebase)
+            AndroidApiChecks(reporter, apiSurface).check(codebase)
         }
 
         runApiChecksFromOptions(codebase) { codebase, previouslyReleasedCodebase ->

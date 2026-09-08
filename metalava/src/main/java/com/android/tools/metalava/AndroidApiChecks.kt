@@ -28,12 +28,13 @@ import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.TypeItem
+import com.android.tools.metalava.model.api.surface.ApiSurface
+import com.android.tools.metalava.model.api.surface.ApiSurfacePredicate
 import com.android.tools.metalava.model.doc.DocContent
 import com.android.tools.metalava.model.doc.DocContentPredicate
 import com.android.tools.metalava.model.source.doc.DocContentPredicates
 import com.android.tools.metalava.model.value.asString
-import com.android.tools.metalava.model.visitors.ApiPredicate
-import com.android.tools.metalava.model.visitors.ApiVisitor
+import com.android.tools.metalava.model.visitors.ApiSurfaceVisitor
 import com.android.tools.metalava.permission.getRequiresPermissionProxy
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
@@ -49,7 +50,7 @@ import java.util.regex.Pattern
  */
 class AndroidApiChecks(
     private val reporter: Reporter,
-    private val apiPredicateConfig: ApiPredicate.Config,
+    private val apiSurface: ApiSurface,
 ) {
     fun check(codebase: Codebase) {
         for (packageItem in codebase.getPackages().packages) {
@@ -67,8 +68,9 @@ class AndroidApiChecks(
     private fun checkPackage(packageItem: PackageItem) {
         packageItem.accept(
             object :
-                ApiVisitor(
-                    apiFilters = apiPredicateConfig.defaultFilters(),
+                ApiSurfaceVisitor(
+                    // Apply checks to the whole of the core emittable API.
+                    filterEmit = ApiSurfacePredicate.wholeCoreEmittableApi(apiSurface),
                 ) {
 
                 override fun visitSelectableItem(item: SelectableItem) {
