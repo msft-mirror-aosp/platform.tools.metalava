@@ -130,7 +130,7 @@ internal class StubGenerator(
                 codebase,
                 reporter,
                 config.apiVersionLabelProvider,
-                apiPredicateConfig,
+                codebase.apiSurfaces.main,
             )
         tracer.trace("DocAnalyzer.enhance") { docAnalyzer.enhance() }
 
