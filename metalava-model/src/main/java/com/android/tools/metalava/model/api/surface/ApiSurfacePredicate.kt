@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model.api.surface
 
+import com.android.tools.metalava.model.EMITTED_ONLY
 import com.android.tools.metalava.model.FilterPredicate
 import com.android.tools.metalava.model.SelectableItem
 
@@ -40,5 +41,57 @@ object ApiSurfacePredicate {
      */
     private class WholeApiPredicate : FilterPredicate {
         override fun test(t: SelectableItem) = t.selectedApi.itemApiVariants.isNotEmpty()
+    }
+
+    /** [ApiVariantType]s for core-only APIs. */
+    private val coreOnlyVariantTypes = listOf(ApiVariantType.CORE)
+
+    /**
+     * Return a [FilterPredicate] that matches any item that belongs to the core [ApiVariant] of
+     * [apiSurface] or any surface that it includes.
+     */
+    fun wholeCoreApi(apiSurface: ApiSurface) = wholeApiForVariants(apiSurface, coreOnlyVariantTypes)
+
+    /**
+     * Return a [FilterPredicate] that matches any item that belongs to the core [ApiVariant] of
+     * [apiSurface] or any surface that it includes.
+     *
+     * Only matches items for which [SelectableItem.emit] is true, filtering out non-emittable items
+     * such as external classpath dependencies (e.g. `java.lang.Object`) that are not part of the
+     * emitted API even if they have been assigned API variants during traversal.
+     */
+    fun wholeCoreEmittableApi(apiSurface: ApiSurface): FilterPredicate =
+        EMITTED_ONLY.and(wholeCoreApi(apiSurface))
+
+    /**
+     * Return a [FilterPredicate] that matches any item that belongs to any of [variantTypes] of
+     * [apiSurface] or any surface that it includes.
+     */
+    private fun wholeApiForVariants(
+        apiSurface: ApiSurface,
+        variantTypes: List<ApiVariantType>,
+    ): FilterPredicate {
+        val surfacesToInclude = apiSurface.includedSurfaces
+
+        val variants = buildList {
+            for (surface in surfacesToInclude) {
+                for (variantType in variantTypes) {
+                    add(surface.variantFor(variantType))
+                }
+            }
+        }
+
+        val inclusionMask = apiSurface.surfaces.createVariantSet(variants).bits
+
+        return ItemApiVariantsPredicate(inclusionMask)
+    }
+
+    /**
+     * A [FilterPredicate] that matches an item if it belongs to at least one [ApiVariant] matching
+     * [inclusionMask].
+     */
+    private class ItemApiVariantsPredicate(private val inclusionMask: Int) : FilterPredicate {
+        override fun test(t: SelectableItem) =
+            t.selectedApi.itemApiVariants.bits and inclusionMask != 0
     }
 }

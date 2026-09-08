@@ -142,6 +142,31 @@ class CommonParameterizedApiSurfaceVisitorTest : BaseModelTest() {
                 classpath = classpath,
             )
 
+        /**
+         * Create a [TestCase] comparing [ApiSurfaceVisitor] using
+         * [ApiSurfacePredicate.wholeCoreApi] with [ApiVisitor] using [ApiFilters] from
+         * [ApiPredicate.Config.defaultFilters].
+         */
+        @EntryPoint
+        fun wholeCoreTestCase(
+            name: String,
+            input: List<TestFile>,
+            expectedNotNested: String,
+            expectedNested: String = expectedNotNested,
+            requiresApiVariantSelectors: Boolean = false,
+            classpath: List<TestFile> = emptyList(),
+        ) =
+            TestCase(
+                name = "whole core/$name",
+                input = input,
+                expectedNotNested = expectedNotNested,
+                expectedNested = expectedNested,
+                apiFilters = { ApiPredicate.Config().defaultFilters() },
+                filterEmit = { ApiSurfacePredicate.wholeCoreEmittableApi(apiSurfaces.main) },
+                requiresApiVariantSelectors = requiresApiVariantSelectors,
+                classpath = classpath,
+            )
+
         @JvmStatic
         @Parameterized.Parameters(name = "{0}")
         fun params() =
@@ -250,6 +275,351 @@ class CommonParameterizedApiSurfaceVisitorTest : BaseModelTest() {
                         """,
                 ),
                 wholeApiTestCase(
+                    name = "not emitted class",
+                    input =
+                        listOf(
+                            java(
+                                """
+                                    package test.pkg;
+
+                                    public class Foo extends NotEmittedClass {
+                                        public Foo() {}
+                                        public void method() {}
+                                    }
+                                """
+                            ),
+                            signature(
+                                """
+                                    // Signature format: 2.0
+                                    package test.pkg {
+                                      public class Foo extends test.pkg.NotEmittedClass {
+                                        ctor public Foo();
+                                        method public void method();
+                                      }
+                                    }
+                                """
+                            ),
+                        ),
+                    expectedNotNested =
+                        """
+                            package test.pkg
+                              class test.pkg.Foo
+                                constructor test.pkg.Foo()
+                                method test.pkg.Foo.method()
+                        """,
+                    classpath = listOf(notEmittedClassJar),
+                ),
+                wholeCoreTestCase(
+                    name = "outer and inner class",
+                    input =
+                        listOf(
+                            java(
+                                """
+                                    package test.pkg;
+
+                                    public class Outer {
+                                        public int field;
+                                        public Outer() {}
+                                        public void method() {}
+
+                                        public static class Inner {
+                                            public int innerField;
+                                            public Inner() {}
+                                            public void innerMethod() {}
+                                        }
+                                    }
+
+                                    class PackagePrivateClass {
+                                        public void method() {}
+                                    }
+                                """
+                            ),
+                            signature(
+                                """
+                                    // Signature format: 2.0
+                                    package test.pkg {
+                                      public class Outer {
+                                        ctor public Outer();
+                                        method public void method();
+                                        field public int field;
+                                      }
+                                      public static class Outer.Inner {
+                                        ctor public Outer.Inner();
+                                        method public void innerMethod();
+                                        field public int innerField;
+                                      }
+                                    }
+                                """
+                            ),
+                        ),
+                    expectedNotNested =
+                        """
+                            package test.pkg
+                              class test.pkg.Outer
+                                constructor test.pkg.Outer()
+                                method test.pkg.Outer.method()
+                                field test.pkg.Outer.field
+                              class test.pkg.Outer.Inner
+                                constructor test.pkg.Outer.Inner()
+                                method test.pkg.Outer.Inner.innerMethod()
+                                field test.pkg.Outer.Inner.innerField
+                        """,
+                    expectedNested =
+                        """
+                            package test.pkg
+                              class test.pkg.Outer
+                                constructor test.pkg.Outer()
+                                method test.pkg.Outer.method()
+                                field test.pkg.Outer.field
+                                class test.pkg.Outer.Inner
+                                  constructor test.pkg.Outer.Inner()
+                                  method test.pkg.Outer.Inner.innerMethod()
+                                  field test.pkg.Outer.Inner.innerField
+                        """,
+                    requiresApiVariantSelectors = true,
+                ),
+                wholeCoreTestCase(
+                    name = "class without nested classes",
+                    input =
+                        listOf(
+                            java(
+                                """
+                                    package test.pkg;
+
+                                    public class Foo {
+                                        public Foo() {}
+                                        public void method() {}
+                                    }
+                                """
+                            ),
+                            signature(
+                                """
+                                    // Signature format: 2.0
+                                    package test.pkg {
+                                      public class Foo {
+                                        ctor public Foo();
+                                        method public void method();
+                                      }
+                                    }
+                                """
+                            ),
+                        ),
+                    expectedNotNested =
+                        """
+                            package test.pkg
+                              class test.pkg.Foo
+                                constructor test.pkg.Foo()
+                                method test.pkg.Foo.method()
+                        """,
+                ),
+                wholeCoreTestCase(
+                    name = "hidden method and field",
+                    input =
+                        listOf(
+                            java(
+                                """
+                                    package test.pkg;
+
+                                    public class Foo {
+                                        public Foo() {}
+                                        public void method() {}
+                                        /** @hide */
+                                        public void hiddenMethod() {}
+                                        public int field;
+                                        /** @hide */
+                                        public int hiddenField;
+                                    }
+                                """
+                            ),
+                            signature(
+                                """
+                                    // Signature format: 2.0
+                                    package test.pkg {
+                                      public class Foo {
+                                        ctor public Foo();
+                                        method public void method();
+                                        field public int field;
+                                      }
+                                    }
+                                """
+                            ),
+                        ),
+                    expectedNotNested =
+                        """
+                            package test.pkg
+                              class test.pkg.Foo
+                                constructor test.pkg.Foo()
+                                method test.pkg.Foo.method()
+                                field test.pkg.Foo.field
+                        """,
+                    requiresApiVariantSelectors = true,
+                ),
+                wholeCoreTestCase(
+                    name = "hidden class",
+                    input =
+                        listOf(
+                            java(
+                                """
+                                    package test.pkg;
+
+                                    public class Foo {
+                                        public Foo() {}
+                                        public void method() {}
+                                    }
+
+                                    /** @hide */
+                                    public class HiddenClass {
+                                        public HiddenClass() {}
+                                        public void method() {}
+                                    }
+                                """
+                            ),
+                            signature(
+                                """
+                                    // Signature format: 2.0
+                                    package test.pkg {
+                                      public class Foo {
+                                        ctor public Foo();
+                                        method public void method();
+                                      }
+                                    }
+                                """
+                            ),
+                        ),
+                    expectedNotNested =
+                        """
+                            package test.pkg
+                              class test.pkg.Foo
+                                constructor test.pkg.Foo()
+                                method test.pkg.Foo.method()
+                        """,
+                    requiresApiVariantSelectors = true,
+                ),
+                wholeCoreTestCase(
+                    name = "removed method",
+                    input =
+                        listOf(
+                            java(
+                                """
+                                    package test.pkg;
+
+                                    public class Foo {
+                                        public Foo() {}
+                                        public void method() {}
+                                        /** @removed */
+                                        public void removedMethod() {}
+                                    }
+                                """
+                            ),
+                            signature(
+                                """
+                                    // Signature format: 2.0
+                                    package test.pkg {
+                                      public class Foo {
+                                        ctor public Foo();
+                                        method public void method();
+                                      }
+                                    }
+                                """
+                            ),
+                        ),
+                    expectedNotNested =
+                        """
+                            package test.pkg
+                              class test.pkg.Foo
+                                constructor test.pkg.Foo()
+                                method test.pkg.Foo.method()
+                        """,
+                    requiresApiVariantSelectors = true,
+                ),
+                wholeCoreTestCase(
+                    name = "hidden inner class",
+                    input =
+                        listOf(
+                            java(
+                                """
+                                    package test.pkg;
+
+                                    public class Outer {
+                                        public int field;
+                                        public Outer() {}
+                                        public void method() {}
+
+                                        /** @hide */
+                                        public static class Inner {
+                                            public int innerField;
+                                            public Inner() {}
+                                            public void innerMethod() {}
+                                        }
+                                    }
+                                """
+                            ),
+                            signature(
+                                """
+                                    // Signature format: 2.0
+                                    package test.pkg {
+                                      public class Outer {
+                                        ctor public Outer();
+                                        method public void method();
+                                        field public int field;
+                                      }
+                                    }
+                                """
+                            ),
+                        ),
+                    expectedNotNested =
+                        """
+                            package test.pkg
+                              class test.pkg.Outer
+                                constructor test.pkg.Outer()
+                                method test.pkg.Outer.method()
+                                field test.pkg.Outer.field
+                        """,
+                    requiresApiVariantSelectors = true,
+                ),
+                wholeCoreTestCase(
+                    name = "package private and private members",
+                    input =
+                        listOf(
+                            java(
+                                """
+                                    package test.pkg;
+
+                                    public class Foo {
+                                        public Foo() {}
+                                        public void publicMethod() {}
+                                        void packagePrivateMethod() {}
+                                        private void privateMethod() {}
+                                        public int publicField;
+                                        int packagePrivateField;
+                                        private int privateField;
+                                    }
+                                """
+                            ),
+                            signature(
+                                """
+                                    // Signature format: 2.0
+                                    package test.pkg {
+                                      public class Foo {
+                                        ctor public Foo();
+                                        method public void publicMethod();
+                                        field public int publicField;
+                                      }
+                                    }
+                                """
+                            ),
+                        ),
+                    expectedNotNested =
+                        """
+                            package test.pkg
+                              class test.pkg.Foo
+                                constructor test.pkg.Foo()
+                                method test.pkg.Foo.publicMethod()
+                                field test.pkg.Foo.publicField
+                        """,
+                    requiresApiVariantSelectors = true,
+                ),
+                wholeCoreTestCase(
                     name = "not emitted class",
                     input =
                         listOf(
