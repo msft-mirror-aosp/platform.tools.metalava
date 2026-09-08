@@ -48,10 +48,11 @@ import com.android.tools.metalava.model.source.SourceParser
 import com.android.tools.metalava.model.source.doc.DocContentPredicates
 import com.android.tools.metalava.model.testOrTrue
 import com.android.tools.metalava.model.value.asString
+import com.android.tools.metalava.model.visitors.ApiFilters
+import com.android.tools.metalava.model.visitors.ApiFiltersVisitor
 import com.android.tools.metalava.model.visitors.ApiPredicate
 import com.android.tools.metalava.model.visitors.ApiSurfaceVisitor
 import com.android.tools.metalava.model.visitors.ApiType
-import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.android.tools.metalava.permission.getRequiresPermissionProxy
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
@@ -429,16 +430,15 @@ class ApiAnalyzer(
         val checkHiddenShowAnnotations =
             config.needUnhiddenSystemApiCheck && !reporter.isSuppressed(Issues.UNHIDDEN_SYSTEM_API)
 
-        codebase.accept(
-            object :
-                ApiVisitor(
-                    // Don't run checks on elements that only exist in bytecode.
-                    apiFilters =
-                        config.apiPredicateConfig
-                            .defaultFilters()
-                            .forTargetLanguages(TargetLanguageSet.SOURCE),
-                ) {
+        val apiFilters =
+            ApiFilters(
+                    reference = ApiSurfacePredicate.wholeCoreApi(codebase.apiSurfaces.main),
+                )
+                // Don't run checks on elements that only exist in bytecode.
+                .forTargetLanguages(TargetLanguageSet.SOURCE)
 
+        codebase.accept(
+            object : ApiFiltersVisitor(apiFilters = apiFilters) {
                 /** A [FilterPredicate] that will match removed items. */
                 private val removedFilterPredicate =
                     ApiType.REMOVED.getApiFilters(config.apiPredicateConfig).emit
