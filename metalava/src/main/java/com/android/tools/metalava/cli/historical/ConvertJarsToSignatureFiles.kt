@@ -41,6 +41,7 @@ import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.SUPPORT_TYPE_USE_ANNOTATIONS
 import com.android.tools.metalava.model.annotation.DefaultAnnotationManager
 import com.android.tools.metalava.model.api.surface.ApiSurface
+import com.android.tools.metalava.model.api.surface.ApiSurfacePredicate
 import com.android.tools.metalava.model.api.surface.ApiSurfaces
 import com.android.tools.metalava.model.text.CustomizableProperty.Companion.ADD_ADDITIONAL_OVERRIDES
 import com.android.tools.metalava.model.text.FileFormat
@@ -48,8 +49,8 @@ import com.android.tools.metalava.model.text.SignatureWriter
 import com.android.tools.metalava.model.text.SnapshotDeltaMaker
 import com.android.tools.metalava.model.text.createCodebaseFragmentForSignatureFile
 import com.android.tools.metalava.model.visitors.ApiPredicate
+import com.android.tools.metalava.model.visitors.ApiSurfaceVisitor
 import com.android.tools.metalava.model.visitors.ApiType
-import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.android.tools.metalava.reporter.BasicReporter
 import com.android.tools.metalava.trace
 import java.io.File
@@ -138,8 +139,9 @@ class ConvertJarsToSignatureFiles(
             // @Nullable/@NonNull
             jarCodebase.accept(
                 object :
-                    ApiVisitor(
-                        apiFilters = ApiPredicate.Config().defaultFilters(),
+                    ApiSurfaceVisitor(
+                        filterEmit =
+                            ApiSurfacePredicate.wholeCoreEmittableApi(jarCodebase.apiSurfaces.main),
                     ) {
                     override fun visitItem(item: Item) {
                         unmarkRecent(item)
