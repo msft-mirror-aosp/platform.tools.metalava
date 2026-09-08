@@ -125,4 +125,4 @@ object TargetLanguageSet {
  */
 fun Set<TargetLanguage>.inclusionFilter(): FilterPredicate? =
     if (this == TargetLanguageSet.ALL) null
-    else FilterPredicate { item -> item.targetLanguages.intersect(this).isNotEmpty() }
+    else FilterPredicate { item -> any { it in item.targetLanguages } }
