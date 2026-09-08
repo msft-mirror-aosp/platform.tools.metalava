@@ -116,3 +116,13 @@ object TargetLanguageSet {
     val targetLanguageSetToSignatureFileRepresentation =
         signatureFileRepresentationToTargetLanguageSet.entries.associate { it.value to it.key }
 }
+
+/**
+ * Returns a [FilterPredicate] that returns `true` for any [SelectableItem] that can be targeted for
+ * at least one of this set's [TargetLanguage].
+ *
+ * If this set is all [TargetLanguage]s then it returns `null` to avoid any filtering.
+ */
+fun Set<TargetLanguage>.inclusionFilter(): FilterPredicate? =
+    if (this == TargetLanguageSet.ALL) null
+    else FilterPredicate { item -> item.targetLanguages.intersect(this).isNotEmpty() }

@@ -22,9 +22,6 @@ import com.android.tools.metalava.model.FilterPredicate
 import com.android.tools.metalava.model.ItemVisitor
 import com.android.tools.metalava.model.MemberItem
 import com.android.tools.metalava.model.PackageItem
-import com.android.tools.metalava.model.SelectableItem
-import com.android.tools.metalava.model.TargetLanguage
-import com.android.tools.metalava.model.TargetLanguageSet
 import com.android.tools.metalava.model.testOrTrue
 
 open class ApiVisitor(
@@ -199,13 +196,3 @@ open class ApiVisitor(
         }
     }
 }
-
-/**
- * Get a [FilterPredicate] that will return `true` if the [SelectableItem] on which it is called is
- * for at least one of this set's [TargetLanguage].
- *
- * If this set is all [TargetLanguage]s then it returns `null` to avoid any filtering.
- */
-internal fun Set<TargetLanguage>.inclusionFilter() =
-    if (this == TargetLanguageSet.ALL) null
-    else FilterPredicate { item -> item.targetLanguages.intersect(this).isNotEmpty() }

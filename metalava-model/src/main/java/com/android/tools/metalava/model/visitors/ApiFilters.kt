@@ -21,6 +21,7 @@ import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.TargetLanguage
 import com.android.tools.metalava.model.TargetLanguageSet
+import com.android.tools.metalava.model.inclusionFilter
 
 /** Encapsulates filters needed by [ApiVisitor]. */
 class ApiFilters(
