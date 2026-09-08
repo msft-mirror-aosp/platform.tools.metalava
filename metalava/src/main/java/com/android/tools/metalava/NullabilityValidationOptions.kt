@@ -20,7 +20,6 @@ import com.android.tools.metalava.api.NullabilityAnnotationsValidator
 import com.android.tools.metalava.cli.common.ARG_MERGE_QUALIFIER_ANNOTATIONS
 import com.android.tools.metalava.cli.common.existingFile
 import com.android.tools.metalava.cli.common.newFile
-import com.android.tools.metalava.model.visitors.ApiPredicate
 import com.android.tools.metalava.reporter.Reporter
 import com.android.tools.metalava.reporter.ThrowingReporter
 import com.github.ajalt.clikt.parameters.groups.OptionGroup
@@ -38,7 +37,6 @@ const val NULLABILITY_VALIDATION_OPTIONS_GROUP = "Nullability Validation"
 
 class NullabilityValidationOptions(
     private val reporterSupplier: () -> Reporter = { ThrowingReporter.INSTANCE },
-    private val apiPredicateConfigSupplier: () -> ApiPredicate.Config = { ApiPredicate.Config() },
 ) :
     OptionGroup(
         NULLABILITY_VALIDATION_OPTIONS_GROUP,
@@ -121,12 +119,10 @@ class NullabilityValidationOptions(
         Optional.ofNullable(
             if (validateNullabilityFromMergedStubs || validateNullabilityFromList != null) {
                 val reporter = reporterSupplier()
-                var apiPredicateConfig = apiPredicateConfigSupplier()
                 NullabilityAnnotationsValidator(
                     reporter,
                     nullabilityErrorsFatal,
                     nullabilityWarningsTxt,
-                    apiPredicateConfig,
                     validateNullabilityFromList,
                 )
             } else null
