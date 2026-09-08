@@ -27,6 +27,7 @@ import com.android.tools.metalava.doc.ApiVersionLabelProvider
 import com.android.tools.metalava.doc.DocAnalyzer
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.CodebaseFragment
+import com.android.tools.metalava.model.EMITTED_ONLY
 import com.android.tools.metalava.model.FilterPredicate
 import com.android.tools.metalava.model.PackageFilter
 import com.android.tools.metalava.model.visitors.ApiFilters
@@ -154,7 +155,11 @@ internal class StubGenerator(
                         includeDocOnly = isDocStubs,
                         config = apiPredicateConfig,
                     )
-                val filterEmit = MatchOverridingMethodPredicate(filterReference)
+                val filterEmit =
+                    MatchOverridingMethodPredicate(
+                        // Only emit stubs for items marked for emission.
+                        EMITTED_ONLY.and(filterReference)
+                    )
 
                 ApiFilters(
                     emit = filterEmit,
@@ -193,10 +198,9 @@ internal class StubGenerator(
             if (codebaseFragment.codebase.preFiltered) {
                 FilterPredicate { true }
             } else {
-                ApiPredicate(
-                    // Stub constructors must be added to all classes across the whole API surface.
-                    config = apiPredicateConfig,
-                )
+                // Synthetic stub constructors may need to be added to non-emitted classes in the
+                // hierarchy so that emitted subclasses can delegate to them.
+                ApiPredicate(config = apiPredicateConfig)
             }
         val stubConstructorManager = StubConstructorManager(codebaseFragment.codebase)
         stubConstructorManager.addConstructors(filterEmit)

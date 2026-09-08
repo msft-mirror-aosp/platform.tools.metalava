@@ -19,6 +19,7 @@ package com.android.tools.metalava.jar
 import androidx.tracing.Tracer
 import com.android.tools.metalava.api.ApiAnalyzer
 import com.android.tools.metalava.model.Codebase
+import com.android.tools.metalava.model.EMITTED_ONLY
 import com.android.tools.metalava.model.annotation.DefaultAnnotationManager
 import com.android.tools.metalava.model.source.EnvironmentManager
 import com.android.tools.metalava.model.source.SourceModelProvider
@@ -75,16 +76,21 @@ sealed interface JarCodebaseLoader {
             tracer.trace("analyzer.mergeExternalQualifierAnnotations") {
                 analyzer.mergeExternalQualifierAnnotations()
             }
-            val apiEmit =
+
+            // Ancestor classes and methods can be inherited from non-emitted items in
+            // the hierarchy.
+            val apiReference =
                 ApiPredicate(
-                    // When loading from a prebuilt jar, all APIs in the jar represent the whole API
-                    // surface, so inherited stubs must be generated for all classes across the jar.
                     config = apiAnalyzerConfig.apiPredicateConfig,
                 )
+
+            // Inherited stubs are only generated for classes marked for emission.
+            val apiEmit = EMITTED_ONLY.and(apiReference)
+
             tracer.trace("analyzer.inheritHiddenAspects") {
                 analyzer.inheritHiddenAspects(
                     apiEmit,
-                    apiEmit,
+                    apiReference,
                 )
             }
 

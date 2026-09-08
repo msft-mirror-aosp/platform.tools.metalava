@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model.visitors
 
+import com.android.tools.metalava.model.EMITTED_ONLY
 import com.android.tools.metalava.model.FilterPredicate
 
 /** Types of APIs emitted (or parsed etc.) */
@@ -23,14 +24,16 @@ enum class ApiType(val flagName: String, val displayName: String = flagName) {
     /** The public API */
     PUBLIC_API("api", "public") {
 
-        override fun getNonElidingFilter(apiPredicateConfig: ApiPredicate.Config): FilterPredicate {
-            // This filter is for API signature files, where we don't need the "for stub purposes"
-            // APIs.
-            return ApiPredicate(
-                includeContributingSurfaces = false,
-                config = apiPredicateConfig,
+        override fun getNonElidingFilter(apiPredicateConfig: ApiPredicate.Config) =
+            // Only items marked for emission should appear in the signature file.
+            EMITTED_ONLY.and(
+                ApiPredicate(
+                    // This filter is for API signature files, where we don't need the "for stub
+                    // purposes" APIs.
+                    includeContributingSurfaces = false,
+                    config = apiPredicateConfig,
+                )
             )
-        }
 
         override fun getReferenceFilter(apiPredicateConfig: ApiPredicate.Config): FilterPredicate {
             // Emitted APIs can reference types (such as superclasses, interfaces, parameter types,
@@ -43,23 +46,25 @@ enum class ApiType(val flagName: String, val displayName: String = flagName) {
     /** The API that has been removed */
     REMOVED("removed", "removed") {
 
-        override fun getNonElidingFilter(apiPredicateConfig: ApiPredicate.Config): FilterPredicate {
-            // This filter is for API signature files, where we don't need the "for stub purposes"
-            // APIs.
-            return ApiPredicate(
-                includeContributingSurfaces = false,
-                matchRemoved = true,
-                config = apiPredicateConfig,
+        override fun getNonElidingFilter(apiPredicateConfig: ApiPredicate.Config) =
+            // Only items marked for emission should appear in the removed signature file.
+            EMITTED_ONLY.and(
+                ApiPredicate(
+                    // This filter is for API signature files, where we don't need the "for stub
+                    // purposes"
+                    // APIs.
+                    includeContributingSurfaces = false,
+                    matchRemoved = true,
+                    config = apiPredicateConfig,
+                )
             )
-        }
 
-        override fun getReferenceFilter(apiPredicateConfig: ApiPredicate.Config): FilterPredicate {
+        override fun getReferenceFilter(apiPredicateConfig: ApiPredicate.Config): FilterPredicate =
             // References in removed APIs can refer to types across the whole API surface.
-            return ApiPredicate(
+            ApiPredicate(
                 ignoreRemoved = true,
                 config = apiPredicateConfig,
             )
-        }
     },
     ;
 

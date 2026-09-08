@@ -353,7 +353,12 @@ class Driver(
                     // types (e.g. superclasses and interfaces) can belong to any surface across the
                     // whole API surface.
                     val apiReference = ApiPredicate(config = apiPredicateConfig)
-                    val apiEmit = MatchOverridingMethodPredicate(apiReference)
+                    val apiEmit =
+                        MatchOverridingMethodPredicate(
+                            // Only emit keep rules for items that are marked for emission.
+                            EMITTED_ONLY.and(apiReference)
+                        )
+
                     ApiFilters(emit = apiEmit, reference = apiReference)
                 }
 

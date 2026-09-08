@@ -53,6 +53,7 @@ import com.android.tools.metalava.model.AnnotationAttribute
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
+import com.android.tools.metalava.model.EMITTED_ONLY
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.JavaConstants
 import com.android.tools.metalava.model.PackageFilter
@@ -620,8 +621,11 @@ class AnnotationsMerger(
                             // surfaces. It will not include items that only have removed or doc
                             // only variants.
                             val filterEmit =
-                                ApiPredicate(
-                                    config = config.apiPredicateConfig,
+                                // Only include fields that are emitted in the API.
+                                EMITTED_ONLY.and(
+                                    ApiPredicate(
+                                        config = config.apiPredicateConfig,
+                                    )
                                 )
 
                             // Attempt with reflection

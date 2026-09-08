@@ -23,6 +23,7 @@ import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassOrigin
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.Codebase
+import com.android.tools.metalava.model.EMITTED_ONLY
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.SelectableItem
@@ -58,18 +59,23 @@ internal class ApiContents(
      */
     private val notStrippable = HashSet<ClassItem>(5000)
 
-    /** The filter that determines which [SelectableItem]s are included in the API. */
+    /**
+     * The filter that determines which [SelectableItem]s are included in the API.
+     *
+     * This is constructed from predicates in order from quickest to slowest to avoid calling the
+     * slower predicates unnecessarily.
+     */
     private val filter =
-        ApiPredicate(
-                // Use the whole API surface so that classes belonging to any API surface in the
-                // hierarchy (such as base surfaces) are recognized as part of the API and not
-                // stripped when referenced.
-                config = apiPredicateConfig,
-            )
+        // Only consider items that are emitted in the codebase as part of the API.
+        EMITTED_ONLY
+            // Don't consider references from elements that only exist in bytecode.
             .and { selectableItem ->
-                // Don't consider references from elements that only exist in bytecode.
                 selectableItem.targetLanguages != TargetLanguageSet.BYTECODE_ONLY
             }
+            // Use the whole API surface so that classes belonging to any API surface in the
+            // hierarchy (such as base surfaces) are recognized as part of the API and not stripped
+            // when referenced.
+            .and(ApiPredicate(config = apiPredicateConfig))
 
     /**
      * Computes the transitive closure of the API surface.

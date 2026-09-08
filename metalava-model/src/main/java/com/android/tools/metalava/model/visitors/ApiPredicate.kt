@@ -18,6 +18,7 @@ package com.android.tools.metalava.model.visitors
 
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.EMITTED_ONLY
 import com.android.tools.metalava.model.FilterPredicate
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.SelectableItem
@@ -122,12 +123,14 @@ class ApiPredicate(
          * They match core variants across all the API surfaces. Does not include removed or doc
          * only variants.
          */
-        fun defaultFilters() =
-            ApiFilters(
-                ApiPredicate(
-                    config = this,
-                ),
+        fun defaultFilters(): ApiFilters {
+            val reference = ApiPredicate(config = this)
+            return ApiFilters(
+                // Only emit items that are explicitly marked for emission.
+                emit = EMITTED_ONLY.and(reference),
+                reference = reference,
             )
+        }
     }
 
     override fun test(item: SelectableItem): Boolean {
