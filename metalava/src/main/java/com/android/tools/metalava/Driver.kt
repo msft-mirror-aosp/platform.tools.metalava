@@ -903,12 +903,7 @@ class Driver(
 
         // Handling file facade classes and generating inherited stubs operates on the entire API
         // surface across all surfaces in the codebase, not just a specific delta surface.
-        val apiReference =
-            ApiPredicate(
-                // Parent classes and methods can be inherited from non-emitted classes in the
-                // hierarchy.
-                config = apiPredicateConfig,
-            )
+        val apiReference = ApiSurfacePredicate.wholeCoreApi(apiSurface)
 
         // Only items marked for emission are considered for facade/package experimental status and
         // for receiving inherited stubs.
