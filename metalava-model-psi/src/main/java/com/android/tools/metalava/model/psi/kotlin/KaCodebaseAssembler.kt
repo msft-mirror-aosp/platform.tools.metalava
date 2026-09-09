@@ -61,6 +61,7 @@ import com.android.tools.metalava.model.psi.PsiBasedCodebase
 import com.android.tools.metalava.model.psi.PsiFileLocation
 import com.android.tools.metalava.model.psi.createItemDocumentation
 import com.android.tools.metalava.model.psi.isKotlin
+import com.android.tools.metalava.model.psi.isMappedCollectionMethod
 import com.android.tools.metalava.model.psi.kotlin.KaCodebaseAssembler.Companion.assembleMultiplatform
 import com.android.tools.metalava.model.psi.trace
 import com.android.tools.metalava.model.source.toItemDocumentationFactory
@@ -111,6 +112,8 @@ import org.jetbrains.kotlin.psi.KtAnnotationEntry
 import org.jetbrains.kotlin.psi.KtConstructor
 import org.jetbrains.kotlin.psi.KtElement
 import org.jetbrains.kotlin.psi.KtFile
+import org.jetbrains.uast.UMethod
+import org.jetbrains.uast.toUElementOfType
 
 /**
  * Adds items to the [codebase] by using the kotlin analysis API to process elements from the
@@ -868,25 +871,11 @@ private constructor(
                 originalReturnType
             }
 
-        val targetLanguages =
-            if (functionSymbol.origin == KaSymbolOrigin.DELEGATED) {
-                // Note: it could be possible for there to be a method from a delegate that is not
-                // accessible from Java, for instance if it used a value class type. However, it has
-                // been difficult to find a reliable way of telling if the delegate method can be
-                // used from Java without special casing certain situations (it should be possible
-                // to do by looking at the psi of the KaNamedFunctionSymbol or by checking the super
-                // methods metalava has created for the methodItem created below, but those aren't
-                // working when using mapped kotlin collections types).
-                TargetLanguageSet.ALL
-            } else {
-                TargetLanguageSet.KOTLIN_ONLY
-            }
-
         val modifiers = kaModifierFactory.createForFunction(functionSymbol, containingClass)
         val methodItem =
             itemFactory.createMethodItem(
                 fileLocationSource = PsiFileLocation.fileLocationSource(functionSymbol.psi),
-                targetLanguages = targetLanguages,
+                targetLanguages = TargetLanguageSet.KOTLIN_ONLY,
                 modifiers = modifiers,
                 documentationFactory = functionSymbol.getDocumentation(),
                 name = name,
@@ -922,6 +911,25 @@ private constructor(
             if (existingMethod != null) {
                 existingMethod.targetLanguages += TargetLanguage.KOTLIN
                 return
+            }
+        }
+
+        if (functionSymbol.origin == KaSymbolOrigin.DELEGATED) {
+            // Check if there is already a copy of the delegate function.
+            val existingMethod = containingClass.findMatchingMethod(methodItem)
+            if (existingMethod == null) {
+                // There is no existing version of the method generated from UAST, mark the method
+                // as usable from all target languages.
+                // Note: it could be possible for there to be a method from a delegate that is not
+                // accessible from Java, for instance if it used a value class type. However, it has
+                // been difficult to find a reliable way of telling if the delegate method can be
+                // used from Java without special casing certain situations.
+                methodItem.targetLanguages = TargetLanguageSet.ALL
+            } else {
+                // There is an existing version of the method generated from UAST. Label that
+                // version as not usable from Kotlin (e.g. mapped collection method), while the one
+                // generated here is only usable from Kotlin.
+                existingMethod.targetLanguages -= TargetLanguage.KOTLIN
             }
         }
 
@@ -1457,13 +1465,19 @@ private constructor(
      * Checks if there are any UElements corresponding to the symbol. If there are, this symbol
      * usually shouldn't have a kotlin-only item generated from it.
      */
-    private fun KaSession.existsAsUElement(symbol: KaSymbol): Boolean =
-        (symbol.psi as? KtElement)?.toLightElements()?.isNotEmpty() == true &&
+    private fun KaSession.existsAsUElement(symbol: KaSymbol): Boolean {
+        val uElements = (symbol.psi as? KtElement)?.toLightElements()
+        return uElements?.isNotEmpty() == true &&
             // Constructors with value class type parameters exist as private UElements, but that
             // shouldn't be counted because the visibility doesn't match the source element.
             !(symbol.psi is KtConstructor<*> &&
                 symbol is KaFunctionSymbol &&
-                hasValueClassTypeParameter(symbol))
+                hasValueClassTypeParameter(symbol)) &&
+            // If the UElement exists but is a mapped collection method, don't count that because
+            // the UElement has a signature that can only be used from Java, so the Kotlin version
+            // should still be generated here.
+            !uElements.all { it.toUElementOfType<UMethod>()?.isMappedCollectionMethod() == true }
+    }
 
     /**
      * Checks if the [kaType] represents a value class. Value classes generally cannot be used from
