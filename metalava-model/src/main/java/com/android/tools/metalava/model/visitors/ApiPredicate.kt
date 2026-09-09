@@ -19,9 +19,9 @@ package com.android.tools.metalava.model.visitors
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.FilterPredicate
-import com.android.tools.metalava.model.MemberItem
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.SelectableItem
+import com.android.tools.metalava.model.Showability
 
 /**
  * Predicate that decides if the given member should be considered part of an API surface area. To
@@ -30,7 +30,7 @@ import com.android.tools.metalava.model.SelectableItem
  */
 class ApiPredicate(
     /**
-     * Set if the value of [MemberItem.removed] should be ignored. That is, this predicate will
+     * Set if the value of [SelectableItem.removed] should be ignored. That is, this predicate will
      * assume that all encountered members match the "removed" requirement.
      *
      * This is typically useful when generating "removed.txt", when it's okay to reference both
@@ -39,7 +39,8 @@ class ApiPredicate(
     private val ignoreRemoved: Boolean = false,
 
     /**
-     * Set what the value of [MemberItem.removed] must be equal to in order for a member to match.
+     * Set what the value of [SelectableItem.removed] must be equal to in order for a member to
+     * match.
      *
      * This is typically useful when generating "removed.txt", when you only want to match members
      * that have actually been removed.
@@ -49,12 +50,42 @@ class ApiPredicate(
     /** Whether we should include doc-only items */
     private val includeDocOnly: Boolean = false,
 
-    /** Whether to include "for stub purposes" APIs. See [AnnotationItem.isShowForStubPurposes] */
-    private val includeApisForStubPurposes: Boolean = true,
+    /**
+     * Whether to include API surfaces that contribute to the one currently being generated.
+     *
+     * See [AnnotationItem.isShowForStubPurposes].
+     */
+    private val includeContributingSurfaces: Boolean = true,
 
     /** Configuration that may be provided by command line options. */
-    private val config: Config,
+    config: Config,
 ) : FilterPredicate {
+    /**
+     * Set if the value of [SelectableItem.hasShowAnnotation] should be ignored. That is, this
+     * predicate will assume that all encountered members match the "shown" requirement.
+     *
+     * When [includeContributingSurfaces] is true, the predicate matches items across the whole API
+     * surface (e.g. for stub generation, reference resolution, or ProGuard keep file generation),
+     * so it uses [Config.ignoreShownForWholeApiSurface] which accounts for whether unannotated
+     * items are part of the target surface or any surface it extends.
+     *
+     * When [includeContributingSurfaces] is false, the predicate matches items strictly within the
+     * target API surface delta (i.e. for signature file generation), so it uses
+     * [Config.ignoreShown] which only considers whether unannotated items are part of the target
+     * surface itself.
+     */
+    private val ignoreShown: Boolean =
+        if (includeContributingSurfaces) {
+            config.ignoreShownForWholeApiSurface
+        } else {
+            config.ignoreShown
+        }
+
+    /**
+     * Whether overriding methods essential for compiling the stubs should be considered as APIs or
+     * not.
+     */
+    private val addAdditionalOverrides: Boolean = config.addAdditionalOverrides
 
     /**
      * Contains configuration for [ApiPredicate] that can, or at least could, come from command line
@@ -62,20 +93,42 @@ class ApiPredicate(
      */
     data class Config(
         /**
-         * Set if the value of [MemberItem.hasShowAnnotation] should be ignored. That is, this
+         * Set if the value of [SelectableItem.hasShowAnnotation] should be ignored. That is, this
          * predicate will assume that all encountered members match the "shown" requirement.
          *
-         * This is typically useful when generating "current.txt", when no
-         * [Options.allShowAnnotations] have been defined.
+         * This is set to true when the current API surface includes items by default, i.e. they do
+         * not require a show annotation to be included in the API surface.
          */
         val ignoreShown: Boolean = true,
+
+        /**
+         * The value to use for [ignoreShown] when matching the whole API surface.
+         *
+         * This is set to true when the current API surface (or an API surface that it extends)
+         * includes unannotated items, so that unannotated items are matched across the whole API
+         * surface.
+         */
+        val ignoreShownForWholeApiSurface: Boolean = true,
 
         /**
          * Whether overriding methods essential for compiling the stubs should be considered as APIs
          * or not.
          */
         val addAdditionalOverrides: Boolean = false,
-    )
+    ) {
+        /**
+         * Get the default [ApiFilters] to use with [ApiVisitor].
+         *
+         * They match core variants across all the API surfaces. Does not include removed or doc
+         * only variants.
+         */
+        fun defaultFilters() =
+            ApiFilters(
+                ApiPredicate(
+                    config = this,
+                ),
+            )
+    }
 
     override fun test(item: SelectableItem): Boolean {
         // non-class, i.e., (literally) member declaration w/o emit flag, e.g., due to `expect`
@@ -85,7 +138,7 @@ class ApiPredicate(
         }
 
         val visibleForAdditionalOverridePurpose =
-            if (config.addAdditionalOverrides) {
+            if (addAdditionalOverrides) {
                 item is MethodItem && item.isRequiredOverridingMethodForTextStub()
             } else {
                 false
@@ -96,12 +149,8 @@ class ApiPredicate(
         // If the item or any of its containing classes are inaccessible then ignore it.
         if (!itemSelectors.accessible) return false
 
-        var hidden = itemSelectors.hidden && !visibleForAdditionalOverridePurpose
+        val hidden = itemSelectors.hidden && !visibleForAdditionalOverridePurpose
         if (hidden) return false
-
-        if (!includeApisForStubPurposes && includeOnlyForStubPurposes(item)) {
-            return false
-        }
 
         // If a class item's parent class is an api-only annotation marked class,
         // the item should be marked visible as well, in order to provide
@@ -112,10 +161,20 @@ class ApiPredicate(
         if (
             item is ClassItem &&
                 item.superClass()?.let {
-                    it.hasShowAnnotation() && !includeOnlyForStubPurposes(it)
+                    it.hasShowAnnotation() && !it.includeOnlyForStubPurposes()
                 } == true
         ) {
             return itemSelectors.removed == matchRemoved
+        }
+
+        // If an item is only included for stub generation purposes (i.e. all of its show
+        // annotations are marked as show-for-stub-purposes, such as annotations for a base API
+        // surface), ignore it when generating signature files.
+        // This check must come after the superclass check above so that any affected subclass whose
+        // superclass belongs to the target API surface is still included to accurately preserve the
+        // class hierarchy, even if the subclass itself is marked only for stub purposes.
+        if (!includeContributingSurfaces && item.includeOnlyForStubPurposes()) {
+            return false
         }
 
         // If docOnly items are not included and this item is docOnly then ignore it.
@@ -125,124 +184,58 @@ class ApiPredicate(
         // then ignore this item.
         if (!ignoreRemoved && itemSelectors.removed != matchRemoved) return false
 
-        val closestClass: ClassItem? =
-            when (item) {
-                is MemberItem -> item.containingClass()
-                is ClassItem -> item
-                else -> null
-            }
-
-        if (!config.ignoreShown) {
-            var hasShowAnnotation = item.hasShowAnnotation()
-            var showClass = closestClass
-            while (showClass != null && !hasShowAnnotation) {
-                hasShowAnnotation = showClass.hasShowAnnotation()
-                showClass = showClass.containingClass()
-            }
-            if (!hasShowAnnotation) return false
+        if (!ignoreShown && !hasShowAnnotation(item)) {
+            return false
         }
 
-        var hiddenClass = closestClass
-        while (hiddenClass != null) {
-            if (hiddenClass.hidden) return false
-            hiddenClass = hiddenClass.containingClass()
+        // If any containing class is hidden then ignore this item.
+        if (item.anyContainingClass { it.hidden }) {
+            return false
         }
 
         return true
     }
 
     /**
-     * Returns true, if an item should be included only for "stub" purposes; that is, the item does
-     * have at least one [AnnotationItem.isShowAnnotation] annotation and all those annotations are
-     * also an [AnnotationItem.isShowForStubPurposes] annotation.
+     * Check if any containing class of this item matches [predicate], traversing from the innermost
+     * containing class out to the top-level class.
      */
-    private fun includeOnlyForStubPurposes(item: SelectableItem): Boolean {
-        if (!item.codebase.annotationManager.hasAnyStubPurposesAnnotations()) {
-            return false
+    private inline fun SelectableItem.anyContainingClass(
+        predicate: (ClassItem) -> Boolean,
+    ): Boolean {
+        var cls = containingClass()
+        while (cls != null) {
+            if (predicate(cls)) return true
+            cls = cls.containingClass()
         }
-
-        return includeOnlyForStubPurposesRecursive(item)
-    }
-
-    private fun includeOnlyForStubPurposesRecursive(item: SelectableItem): Boolean {
-        // Get the item's API membership. If it belongs to an API surface then return `true` if the
-        // API surface to which it belongs is the base API, and false otherwise.
-        val membership = item.apiMembership()
-        if (membership != ApiMembership.NONE_OR_UNANNOTATED) {
-            return membership == ApiMembership.BASE
-        }
-
-        // If this item has neither --show-annotation nor --show-for-stub-purposes-annotation,
-        // Then defer to the "parent" item (i.e. the containing class or package).
-        return item.parent()?.let { includeOnlyForStubPurposesRecursive(it) } ?: false
+        return false
     }
 
     /**
-     * Indicates which API, if any, an annotated item belongs to.
+     * Check whether this item has a recursive show annotation that affects nested items.
      *
-     * This does not take into account unannotated items which are part of an API; they will be
-     * treated as being in no API, i.e. have a membership of [NONE_OR_UNANNOTATED].
+     * See [Showability.showRecursive].
      */
-    private enum class ApiMembership {
-        /**
-         * An item is not part of any API, at least not one which is defined through an annotation.
-         * It could be part of the unannotated API, i.e. `--show-unannotated`.
-         */
-        NONE_OR_UNANNOTATED,
+    private fun SelectableItem.hasRecursiveShow() = showability.showRecursive()
 
-        /**
-         * An item is part of the base API, i.e. the API which the [CURRENT] API extends.
-         *
-         * Items in this API will be output to stub files (which must include the whole API surface)
-         * but not signature files (which only include a delta on the base API surface).
-         */
-        BASE,
+    /** Check if this item or any of its containing classes or packages has a show annotation. */
+    private fun hasShowAnnotation(item: SelectableItem): Boolean {
+        if (item.hasShowAnnotation()) return true
 
-        /**
-         * An item is part of the current API, i.e. the API being generated by this invocation of
-         * metalava.
-         *
-         * Items in this API will be output to stub and signature files.
-         */
-        CURRENT
-    }
+        if (item.anyContainingClass { it.hasRecursiveShow() }) return true
 
-    /** Get the API to which this [SelectableItem] belongs, according to the annotations. */
-    private fun SelectableItem.apiMembership(): ApiMembership {
-        // If the item has a "show" annotation, then return whether it *only* has a "for stubs"
-        // show annotation or not.
-        //
-        // Note, If the item does not have a show annotation, then it can't have a "for stubs" one,
-        // because the later must be a subset of the former, which we don't detect in *this*
-        // run (unfortunately it's hard to do so due to how things work), but when metalava
-        // is executed for the parent API, we'd detect it as
-        // [Issues.SHOWING_MEMBER_IN_HIDDEN_CLASS].
-        val showability = this.showability
-        if (showability.show()) {
-            if (showability.showForStubsOnly()) {
-                return ApiMembership.BASE
-            } else {
-                return ApiMembership.CURRENT
+        // Traverse up the package hierarchy to check if this item belongs to a shown package.
+        var showPackage = item.containingPackage()
+        while (showPackage != null) {
+            // If an intermediate package is hidden, it prevents any show annotations on its
+            // parent packages from propagating down to this item.
+            if (showPackage.hidden) {
+                break
             }
+            if (showPackage.hasRecursiveShow()) return true
+            showPackage = showPackage.containingPackage()
         }
 
-        // Unlike classes or fields, methods implicitly inherits visibility annotations, and for
-        // some visibility calculation we need to take it into account.
-        //
-        // See ShowAnnotationTest.`Methods inherit showAnnotations but fields and classes don't`.
-        var membership = ApiMembership.NONE_OR_UNANNOTATED
-        if (this is MethodItem) {
-            // Find the maximum API membership inherited from an overridden method.
-            for (superMethod in superMethods()) {
-                val superMethodMembership = superMethod.apiMembership()
-                membership = maxOf(membership, superMethodMembership)
-                // Break out if membership == CURRENT as that is the maximum allowable
-                // [ApiMembership] so there is no point in checking any other methods.
-                if (membership == ApiMembership.CURRENT) {
-                    break
-                }
-            }
-        }
-        return membership
+        return false
     }
 }

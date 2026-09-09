@@ -24,6 +24,7 @@ import com.android.tools.metalava.model.multiplatform.MultiplatformMethodItem
 import com.android.tools.metalava.model.multiplatform.MultiplatformPackageItem
 import com.android.tools.metalava.model.multiplatform.MultiplatformPropertyItem
 import com.android.tools.metalava.model.multiplatform.SourceSetDependent
+import com.android.tools.metalava.model.testing.surfaces.initializeSelectedApiInstances
 import com.android.tools.metalava.model.testing.testTypeString
 import com.google.common.truth.Truth.assertThat
 import java.io.PrintWriter
@@ -43,6 +44,18 @@ interface Assertions {
      */
     fun Codebase.assertClass(qualifiedName: String, expectedEmit: Boolean = true): ClassItem {
         val classItem = findClass(qualifiedName)
+        return checkClass(classItem, qualifiedName, expectedEmit)
+    }
+
+    /**
+     * Checks to make sure that [classItem] is non-null and that its [ClassItem.emit] property
+     * matches [expectedEmit].
+     */
+    private fun checkClass(
+        classItem: ClassItem?,
+        qualifiedName: String,
+        expectedEmit: Boolean,
+    ): ClassItem {
         assertNotNull(classItem, message = "Expected $qualifiedName to be defined")
         assertEquals(
             expectedEmit,
@@ -53,21 +66,21 @@ interface Assertions {
     }
 
     /**
-     * Resolve the class from the [Codebase], failing if it does not exist.
+     * Resolve the class from the [ClassResolver], failing if it does not exist.
      *
      * Checks to make sure that returned [ClassItem]'s [ClassItem.emit] property matches
      * [expectedEmit]. That defaults to `true` as this is usually used to retrieve a class that is
      * present in the source which have `emit = true` by default.
      */
-    fun Codebase.assertResolvedClass(
+    fun ClassResolver.assertResolvedClass(
         qualifiedName: String,
         expectedEmit: Boolean = false
     ): ClassItem {
         // Resolve the class which should make it available to assertClass(...) if it could be
         // found.
-        resolveClass(qualifiedName)
+        val resolved = resolveClass(qualifiedName)
         // Assert that the class exists and has correct setting of `emit`.
-        return assertClass(qualifiedName, expectedEmit)
+        return checkClass(resolved, qualifiedName, expectedEmit)
     }
 
     /** Get the package from the [Codebase], failing if it does not exist. */
@@ -77,8 +90,8 @@ interface Assertions {
         return packageItem
     }
 
-    /** Resolve the package from the [Codebase], failing if it does not exist. */
-    fun Codebase.assertResolvedPackage(pkgName: String): PackageItem {
+    /** Resolve the package from the [ClassPathResolver], failing if it does not exist. */
+    fun ClassPathResolver.assertResolvedPackage(pkgName: String): PackageItem {
         val packageItem = resolvePackage(pkgName)
         assertNotNull(packageItem, message = "Expected $pkgName to be defined")
         return packageItem
@@ -100,15 +113,31 @@ interface Assertions {
      * Return a dump of the state of [SelectableItem.selectedApiVariants] across this [Codebase].
      */
     private fun Codebase.dumpSelectedApiVariants() = buildString {
+        // SelectedApi instances are initialized on demand and initializing child SelectedApi
+        // instances can change the variants for the parent. That means that dumping the
+        // SelectedApi variants immediately after initializing the parent and before the child will
+        // produce an invalid result. So, to avoid that this initializes all the SelectedApi
+        // instances first before dumping any of them.
+        initializeSelectedApiInstances()
+
+        val apiSurfaces = apiSurfaces
         accept(
             object :
                 BaseItemVisitor(
                     preserveClassNesting = true,
+                    visitParameterItems = false,
                 ) {
                 private var indent = ""
 
                 override fun visitSelectableItem(item: SelectableItem) {
-                    append("$indent${item.describe()} - ${item.selectedApiVariants}\n")
+                    append("$indent${item.describe()}\n")
+                    val selectedApi = item.selectedApi
+                    append(
+                        "$indent       self - ${selectedApi.itemApiVariants.formatFor(apiSurfaces)}\n"
+                    )
+                    append(
+                        "$indent    content - ${selectedApi.contentApiVariants.formatFor(apiSurfaces)}\n"
+                    )
                     indent += "  "
                 }
 
@@ -121,6 +150,7 @@ interface Assertions {
 
     /** Assert that the [dumpSelectedApiVariants] matches [expected]. */
     fun Codebase.assertSelectedApiVariants(expected: String, message: String? = null) {
+        dumpSelectedApiVariants()
         val actual = dumpSelectedApiVariants()
         assertEquals(expected.trimIndent(), actual.trimEnd(), message)
     }
@@ -195,18 +225,25 @@ interface Assertions {
     /**
      * Get the property from the [ClassItem], failing if it does not exist.
      *
-     * [receiverTypeString] is expected to be formatted according to
-     * [TypeStringConfiguration.DEFAULT_KOTLIN_NULLS].
+     * [receiverTypeString] and [contextParameterTypeStrings] are expected to be formatted according
+     * to [TypeStringConfiguration.DEFAULT_KOTLIN_NULLS].
      */
     fun ClassItem.assertProperty(
         propertyName: String,
         receiverTypeString: String? = null,
+        contextParameterTypeStrings: List<String> = emptyList(),
     ): PropertyItem {
         val propertyItem =
             properties().firstOrNull {
                 it.name() == propertyName &&
                     it.receiver?.toTypeString(TypeStringConfiguration.DEFAULT_KOTLIN_NULLS) ==
-                        receiverTypeString
+                        receiverTypeString &&
+                    contextParameterTypeStrings ==
+                        it.contextParameters.map { contextParameter ->
+                            contextParameter
+                                .type()
+                                .toTypeString(TypeStringConfiguration.DEFAULT_KOTLIN_NULLS)
+                        }
             }
         assertNotNull(
             propertyItem,
@@ -273,6 +310,30 @@ interface Assertions {
                 "Expected $this to have type parameter $name but had ${typeParameterList.joinToString()}"
         )
         return found
+    }
+
+    /** Assert the bounds of this [TypeParameterListOwner]. */
+    fun TypeParameterListOwner.assertTypeParameterListBounds(
+        expectedBounds: String,
+        message: String? = null,
+    ) {
+        val bounds = buildString {
+            for (typeParameterItem in typeParameterList) {
+                this.append(typeParameterItem.name())
+                this.append(" -> ")
+                append(
+                    typeParameterItem.typeBounds().map {
+                        it.testTypeString(
+                            annotations = true,
+                            kotlinStyleNulls = true,
+                        )
+                    }
+                )
+                this.append('\n')
+            }
+        }
+
+        assertEquals(expectedBounds.trimIndent(), bounds.trim(), message)
     }
 
     /** Make sure when the documentation for [this] is printed that it matches [expectedOutput]. */
@@ -428,13 +489,20 @@ interface Assertions {
      */
     fun MultiplatformClassItem.assertProperty(
         name: String,
-        receiverType: String? = null
+        receiverType: String? = null,
+        contextParameterTypeStrings: List<String> = emptyList(),
     ): MultiplatformPropertyItem {
         val propertyItem =
             properties.singleOrNull { property ->
                 property.name == name &&
                     property.receiver?.toTypeString(TypeStringConfiguration.DEFAULT_KOTLIN_NULLS) ==
-                        receiverType
+                        receiverType &&
+                    contextParameterTypeStrings ==
+                        property.contextParameterTypes.map { contextParameter ->
+                            contextParameter.toTypeString(
+                                TypeStringConfiguration.DEFAULT_KOTLIN_NULLS
+                            )
+                        }
             }
         assertNotNull(
             propertyItem,
@@ -444,7 +512,7 @@ interface Assertions {
     }
 
     /**
-     * Finds the property by [name] and [receiverType] in the [MultiplatformClassItem], failing if
+     * Finds the property by [name] and [receiverType] in the [MultiplatformPackageItem], failing if
      * it does not exist.
      *
      * [receiverType] is expected to be formatted according to
@@ -452,13 +520,20 @@ interface Assertions {
      */
     fun MultiplatformPackageItem.assertProperty(
         name: String,
-        receiverType: String? = null
+        receiverType: String? = null,
+        contextParameterTypeStrings: List<String> = emptyList(),
     ): MultiplatformPropertyItem {
         val propertyItem =
             topLevelProperties.singleOrNull { property ->
                 property.name == name &&
                     property.receiver?.toTypeString(TypeStringConfiguration.DEFAULT_KOTLIN_NULLS) ==
-                        receiverType
+                        receiverType &&
+                    contextParameterTypeStrings ==
+                        property.contextParameterTypes.map { contextParameter ->
+                            contextParameter.toTypeString(
+                                TypeStringConfiguration.DEFAULT_KOTLIN_NULLS
+                            )
+                        }
             }
         assertNotNull(
             propertyItem,
@@ -540,7 +615,7 @@ interface Assertions {
         return methodItem
     }
 
-    companion object : Assertions {}
+    companion object : Assertions
 }
 
 private inline fun <reified T> Any?.assertIsInstanceOf(body: (T).() -> Unit) {

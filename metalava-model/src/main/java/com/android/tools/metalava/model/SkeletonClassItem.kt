@@ -23,11 +23,17 @@ package com.android.tools.metalava.model
  * aspects.
  */
 interface SkeletonClassItem : ClassItem {
+    /** The origin of this class. */
+    override var origin: ClassOrigin
+
     /** Support changing after construction. */
     override var classKind: ClassKind
 
     /** Support changing after construction. */
     override var optionalAliasedType: TypeItem?
+
+    /** The list of subclasses/subinterfaces permitted to extend this class. */
+    override var permitTypes: List<ClassTypeItem>
 
     /** Set the super class [ClassTypeItem]. */
     fun setSuperClassType(superClassType: ClassTypeItem?)
@@ -60,4 +66,10 @@ interface SkeletonClassItem : ClassItem {
      * the list of methods.
      */
     fun replaceOrAddMethod(method: MethodItem)
+
+    /**
+     * Replace an existing field with [field], if no such field exists then just add [field] to the
+     * list of fields.
+     */
+    fun replaceOrAddField(field: FieldItem)
 }

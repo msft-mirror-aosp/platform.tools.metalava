@@ -16,11 +16,13 @@
 
 package com.android.tools.metalava.model.testsuite.sourcefile
 
+import com.android.tools.lint.checks.infrastructure.TestFile
+import com.android.tools.lint.checks.infrastructure.TestFiles
 import com.android.tools.metalava.model.FilterPredicate
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.SourceFile
-import com.android.tools.metalava.model.provider.Capability
-import com.android.tools.metalava.model.testing.RequiresCapabilities
+import com.android.tools.metalava.model.provider.InputFormat
+import com.android.tools.metalava.model.testing.SupportedInputFormats
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
@@ -34,7 +36,7 @@ class CommonSourceFileTest : BaseModelTest() {
         override fun test(item: SelectableItem): Boolean = !item.isHiddenOrRemoved()
     }
 
-    @RequiresCapabilities(Capability.JAVA)
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `Test location of class file - java`() {
         runSourceCodebaseTest(
@@ -56,7 +58,7 @@ class CommonSourceFileTest : BaseModelTest() {
         }
     }
 
-    @RequiresCapabilities(Capability.KOTLIN)
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test location of class file - kotlin`() {
         runSourceCodebaseTest(
@@ -78,6 +80,7 @@ class CommonSourceFileTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.JAVA, InputFormat.KOTLIN)
     @Test
     fun `Test header comments`() {
         runSourceCodebaseTest(
@@ -159,6 +162,60 @@ class CommonSourceFileTest : BaseModelTest() {
         }
     }
 
+    /**
+     * Create a [TestFile] with a relative [path] and [text] contents.
+     *
+     * [text] is trimmed and then any LF characters are replaced with CR and LF characters. This is
+     * necessary as [java] and [kotlin] will trim the string and replace CR and LF with just LF.
+     */
+    private fun dosFile(path: String, text: String) =
+        TestFiles.file().to(path).withSource(text.trimIndent().replace("\n", "\r\n"))
+
+    @SupportedInputFormats(InputFormat.JAVA, InputFormat.KOTLIN)
+    @Test
+    fun `Test dos end-of-line in header comments`() {
+        runSourceCodebaseTest(
+            dosFile(
+                "src/test/pkg/Test.java",
+                """
+                    /*
+                     * Copyright comment.
+                     */
+
+                    package test.pkg;
+
+                    public class Test {}
+                """
+            ),
+            dosFile(
+                "src/test/pkg/Test.kt",
+                """
+                    /*
+                     * Copyright comment.
+                     */
+
+                    package test.pkg
+
+                    class Test {}
+                """
+            ),
+        ) {
+            val classItem = codebase.assertClass("test.pkg.Test")
+            val sourceFile = classItem.sourceFile()!!
+
+            assertEquals(
+                """
+                    /*
+                     * Copyright comment.
+                     */
+                """
+                    .trimIndent(),
+                sourceFile.getHeaderComments()?.trimEnd()
+            )
+        }
+    }
+
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `test sourcefile classes`() {
         runSourceCodebaseTest(
@@ -182,6 +239,7 @@ class CommonSourceFileTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `Test codebase and containingPackage`() {
         runSourceCodebaseTest(

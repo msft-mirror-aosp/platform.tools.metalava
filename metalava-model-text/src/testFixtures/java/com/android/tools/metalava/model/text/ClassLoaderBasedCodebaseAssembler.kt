@@ -27,6 +27,7 @@ import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.SourceLanguage
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.VisibilityLevel
+import com.android.tools.metalava.model.api.SelectedApi
 import com.android.tools.metalava.model.createImmutableModifiers
 import com.android.tools.metalava.model.item.CodebaseAssembler
 import com.android.tools.metalava.model.item.DefaultCodebase
@@ -165,11 +166,19 @@ internal class ClassLoaderBasedCodebaseAssembler(
         val cls = findClassInClassLoader(qualifiedName) ?: return null
         val packageName = cls.`package`.name
 
+        val classKind =
+            when {
+                cls.isAnnotation -> ClassKind.ANNOTATION_TYPE
+                cls.isInterface -> ClassKind.INTERFACE
+                cls.isEnum -> ClassKind.ENUM
+                else -> ClassKind.CLASS
+            }
+
         val packageItem = codebase.findOrCreatePackage(packageName)
         return itemFactory.createClassItem(
             fileLocation = FileLocation.UNKNOWN,
             modifiers = createImmutableModifiers(VisibilityLevel.PACKAGE_PRIVATE),
-            classKind = ClassKind.CLASS,
+            classKind = classKind,
             containingClass = null,
             containingPackage = packageItem,
             qualifiedName = cls.canonicalName,
@@ -200,6 +209,9 @@ internal class ClassLoaderBasedCodebaseAssembler(
                             trustedApi = true,
                             supportsDocumentation = false,
                             assembler = assembler,
+                            // Create a [SelectedApi] instance that will be initialized lazily from
+                            // the source.
+                            selectedApiFactory = SelectedApi.sourceFactory(codebaseConfig),
                         )
                     },
                 )

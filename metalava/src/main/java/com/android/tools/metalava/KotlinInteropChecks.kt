@@ -348,7 +348,13 @@ class KotlinInteropChecks(val reporter: Reporter) {
             } else if (property.receiver?.isValueClassType == true) {
                 "receiver type"
             } else {
-                return
+                val valueClassContextParam =
+                    property.contextParameters.firstOrNull { it.type().isValueClassType }
+                if (valueClassContextParam != null) {
+                    "context parameter type `${valueClassContextParam.type().toTypeString()}`"
+                } else {
+                    return
+                }
             }
         if (missingJvmName(property.getter)) {
             reporter.report(

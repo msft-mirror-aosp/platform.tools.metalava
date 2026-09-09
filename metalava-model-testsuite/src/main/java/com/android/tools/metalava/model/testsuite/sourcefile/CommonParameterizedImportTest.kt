@@ -21,7 +21,9 @@ import com.android.tools.metalava.model.SourceFile
 import com.android.tools.metalava.model.imports.ImportResolver
 import com.android.tools.metalava.model.imports.ResolvedImport
 import com.android.tools.metalava.model.provider.Capability
+import com.android.tools.metalava.model.provider.InputFormat
 import com.android.tools.metalava.model.testing.RequiresCapabilities
+import com.android.tools.metalava.model.testing.SupportedInputFormats
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.model.testsuite.value.ValueExample
 import com.android.tools.metalava.testing.EntryPoint
@@ -34,11 +36,11 @@ import org.junit.Test
 import org.junit.runners.Parameterized
 
 @RequiresCapabilities(
-    // Only supports java imports at the moment.
-    Capability.JAVA,
     // Requires access to the original imports.
     Capability.IMPORTS,
 )
+// Only supports java imports at the moment.
+@SupportedInputFormats(InputFormat.JAVA)
 class CommonParameterizedImportTest : BaseModelTest() {
 
     @Parameterized.Parameter(0) lateinit var params: TestParams

@@ -107,7 +107,7 @@ class FastPathTest : DriverTest() {
             ApiType.PUBLIC_API ->
                 check(
                     format = format,
-                    api = strippedContents,
+                    expectedApiSignature = strippedContents,
                     checkCompatibilityApiReleased = releaseSignatureFilePath,
                     sourceFiles = sourceFiles,
                     postAnalysisChecker = postAnalysisChecker,
@@ -120,7 +120,6 @@ class FastPathTest : DriverTest() {
                     sourceFiles = sourceFiles,
                     postAnalysisChecker = postAnalysisChecker,
                 )
-            else -> error("unsupported $apiType")
         }
 
         // Check the result.

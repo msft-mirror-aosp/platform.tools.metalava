@@ -17,9 +17,8 @@
 package com.android.tools.metalava.lint
 
 import com.android.tools.metalava.DriverTest
-import com.android.tools.metalava.androidxNonNullSource
-import com.android.tools.metalava.androidxNullableSource
-import com.android.tools.metalava.cli.common.ARG_HIDE
+import com.android.tools.metalava.reporter.Issues
+import com.android.tools.metalava.testing.KnownSourceFiles
 import com.android.tools.metalava.testing.java
 import org.junit.Test
 
@@ -29,7 +28,10 @@ class HeavyBitSetTest : DriverTest() {
         check(
             apiLint = "", // enabled
             // Ignore other issues.
-            extraArguments = arrayOf(ARG_HIDE, "ArrayReturn"),
+            extraArguments =
+                hiddenIssues(
+                    Issues.ARRAY_RETURN,
+                ),
             expectedIssues =
                 """
                     src/android/pkg/MyClass.java:9: error: Type must not use heavy BitSet (field android.pkg.MyClass.bitset) [HeavyBitSet]
@@ -40,7 +42,6 @@ class HeavyBitSetTest : DriverTest() {
                     src/android/pkg/MyClass.java:16: error: Type must not use heavy BitSet (parameter c in android.pkg.MyClass.collectionExtends(java.util.Collection<? extends java.util.BitSet> c)) [HeavyBitSet]
                     src/android/pkg/MyClass.java:17: error: Type must not use heavy BitSet (parameter c in android.pkg.MyClass.collectionSuper(java.util.Collection<? super java.util.BitSet> c)) [HeavyBitSet]
                 """,
-            expectedFail = DefaultLintErrorMessage,
             sourceFiles =
                 arrayOf(
                     java(
@@ -65,8 +66,8 @@ class HeavyBitSetTest : DriverTest() {
                             }
                         """
                     ),
-                    androidxNonNullSource,
-                    androidxNullableSource,
+                    KnownSourceFiles.androidxNonNullJavaSource,
+                    KnownSourceFiles.androidxNullableJavaSource,
                 ),
         )
     }

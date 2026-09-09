@@ -84,7 +84,8 @@ class StubGenerationOptions :
                         example, in the stub files, we'll use special annotations like
                         @RecentlyNonNull instead of @NonNull to indicate that an element is recently
                         marked as non null, whereas in the documentation stubs we'll just list this
-                        as @NonNull. Another difference is that @doconly elements are included in
+                        as @NonNull. Another difference is that items annotated with a
+                        `<api-surfaces>/<doc-only>` configured annotation are included in
                         documentation stubs, but not regular stubs, etc.
 
                         At most one of this and $ARG_STUBS can be provided.
@@ -250,7 +251,10 @@ class StubGenerationOptions :
         apiVersionToLabel[version] ?: version.toString()
 
     /** Construct a [StubGenerator.Config] based on these options. */
-    internal fun generatorConfig(): StubGenerator.Config {
+    internal fun generatorConfig(
+        javaRecordClasses: Boolean = false,
+        javaSealedClasses: Boolean = false,
+    ): StubGenerator.Config {
         // Always include documentations in the doc stubs and include documentation in the normal
         // stubs unless explicitly excluded.
         val includeDocumentationInStubs = !excludeDocumentationFromStubs || docStubsDir != null
@@ -280,6 +284,8 @@ class StubGenerationOptions :
             stubWriterConfig =
                 StubWriterConfig(
                     includeDocumentationInStubs = includeDocumentationInStubs,
+                    javaRecordClasses = javaRecordClasses,
+                    javaSealedClasses = javaSealedClasses,
                 ),
 
             // Enhance the documentation if explicitly requested of generating the doc stubs.

@@ -20,7 +20,9 @@ import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.FilterPredicate
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.ParameterItem
+import com.android.tools.metalava.model.RecordComponentItem
 import com.android.tools.metalava.model.SelectableItem
+import com.android.tools.metalava.model.testOrTrue
 import com.android.tools.metalava.reporter.FileLocation
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reportable
@@ -31,7 +33,7 @@ import com.android.tools.metalava.reporter.Severity
 class FilteringReporter(
     private val delegateReporter: Reporter,
     private val oldCodebase: Codebase?,
-    private val filterEmit: FilterPredicate
+    private val filterEmit: FilterPredicate?,
 ) : Reporter by delegateReporter {
     override fun report(
         id: Issues.Issue,
@@ -75,12 +77,13 @@ class FilteringReporter(
 
             val testItem =
                 when (item) {
-                    is ParameterItem -> item.containingCallable()
+                    is ParameterItem -> item.parent()
                     is SelectableItem -> item
+                    is RecordComponentItem -> item.containingClass()
                     else -> error("Unknown item $item")
                 }
 
-            if (!filterEmit.test(testItem)) {
+            if (!filterEmit.testOrTrue(testItem)) {
                 return false
             }
         }

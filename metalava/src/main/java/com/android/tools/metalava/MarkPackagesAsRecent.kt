@@ -19,7 +19,6 @@ package com.android.tools.metalava
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.PackageFilter
-import com.android.tools.metalava.model.visitors.ApiFilters
 import com.android.tools.metalava.model.visitors.ApiPredicate
 import com.android.tools.metalava.model.visitors.ApiVisitor
 
@@ -28,13 +27,16 @@ import com.android.tools.metalava.model.visitors.ApiVisitor
  *
  * If you want to compare a previous API and a current API and migrate only the APIs that changed
  * between the two, then see {@link com.android.tools.metalava.NullnessMigration} instead.
+ *
+ * Marks all API elements in the specified packages as recent across the entire API surface, not
+ * just those with specific show annotations. Does not touch removed or doc only items.
  */
 class MarkPackagesAsRecent(
     private val filter: PackageFilter,
     config: ApiPredicate.Config,
 ) :
     ApiVisitor(
-        apiFilters = apiFilters(config),
+        apiFilters = config.defaultFilters(),
     ) {
     override fun include(cls: ClassItem): Boolean {
         return filter.matches(cls.containingPackage())
@@ -44,9 +46,3 @@ class MarkPackagesAsRecent(
         item.markRecent()
     }
 }
-
-private fun apiPredicate(config: ApiPredicate.Config) =
-    ApiPredicate(config = config.copy(ignoreShown = true))
-
-private fun apiFilters(config: ApiPredicate.Config) =
-    apiPredicate(config).let { ApiFilters(emit = it, reference = it) }

@@ -72,7 +72,8 @@ internal class DefaultFieldItem(
 
     override fun duplicate(targetContainingClass: ClassItem) =
         DefaultFieldItem(
-                codebase = codebase,
+                // Create it in the same codebase as targetContainingClass.
+                codebase = targetContainingClass.codebase,
                 fileLocation = fileLocation,
                 sourceLanguage = sourceLanguage,
                 targetLanguages = targetLanguages,
@@ -85,7 +86,12 @@ internal class DefaultFieldItem(
                 isEnumConstant = isEnumConstant,
                 constantValueProvider = constantValueProvider,
             )
-            .also { duplicated -> duplicated.inheritedFrom = containingClass() }
+            .also { duplicated ->
+                duplicated.inheritedFrom = containingClass()
+
+                // Make sure that the deprecated status is set correctly.
+                duplicated.updateDeprecatedFromJavadocIfNeeded()
+            }
 
     override val constantValue
         get() = constantValueProvider?.optionalValue?.let { it as ConstantValue }

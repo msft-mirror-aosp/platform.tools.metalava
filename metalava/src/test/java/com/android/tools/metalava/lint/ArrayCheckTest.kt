@@ -17,12 +17,10 @@
 package com.android.tools.metalava.lint
 
 import com.android.tools.metalava.DriverTest
-import com.android.tools.metalava.androidxNonNullSource
-import com.android.tools.metalava.androidxNullableSource
-import com.android.tools.metalava.cli.common.ARG_HIDE
-import com.android.tools.metalava.cli.lint.ARG_API_LINT
 import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.testing.RequiresCapabilities
+import com.android.tools.metalava.reporter.Issues
+import com.android.tools.metalava.testing.KnownSourceFiles
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
 import kotlin.test.Test
@@ -31,7 +29,11 @@ class ArrayCheckTest : DriverTest() {
     @Test
     fun `Return collections instead of arrays - java`() {
         check(
-            extraArguments = arrayOf(ARG_API_LINT, ARG_HIDE, "AutoBoxing"),
+            apiLint = "", // enabled
+            extraArguments =
+                hiddenIssues(
+                    Issues.AUTO_BOXING,
+                ),
             expectedIssues =
                 """
                     src/android/pkg/ArrayTest.java:8: warning: Method should return Collection<Object> (or subclass) instead of raw array; was `java.lang.Object[]` [ArrayReturn]
@@ -68,8 +70,8 @@ class ArrayCheckTest : DriverTest() {
                             }
                         """
                     ),
-                    androidxNonNullSource,
-                    androidxNullableSource,
+                    KnownSourceFiles.androidxNonNullJavaSource,
+                    KnownSourceFiles.androidxNullableJavaSource,
                 ),
         )
     }
@@ -86,8 +88,8 @@ class ArrayCheckTest : DriverTest() {
                             fun okMethod(vararg values: Integer, foo: Float, bar: Float)
                         """
                     ),
-                    androidxNonNullSource,
-                    androidxNullableSource,
+                    KnownSourceFiles.androidxNonNullJavaSource,
+                    KnownSourceFiles.androidxNullableJavaSource,
                 ),
         )
     }
@@ -97,7 +99,6 @@ class ArrayCheckTest : DriverTest() {
     fun `Allow arrays for kotlin only APIs`() {
         check(
             apiLint = "",
-            expectedFail = DefaultLintErrorMessage,
             expectedIssues =
                 """
                     src/test/pkg/ConstructorCanBeUsedFromJava.kt:2: warning: Method parameter should be Collection<Number> (or subclass) instead of raw array; was `java.lang.Number[]` [ArrayReturn]

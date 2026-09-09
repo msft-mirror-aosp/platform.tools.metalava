@@ -18,7 +18,6 @@ package com.android.tools.metalava
 
 import com.android.tools.lint.checks.infrastructure.TestFile
 import com.android.tools.metalava.cli.common.ARG_SKIP_READING_COMMENTS
-import com.android.tools.metalava.lint.DefaultLintErrorMessage
 import com.android.tools.metalava.model.source.utils.packageHtmlToJavadoc
 import com.android.tools.metalava.testing.KnownSourceFiles
 import com.android.tools.metalava.testing.java
@@ -31,7 +30,6 @@ class JavadocTest : DriverTest() {
     private fun checkStubs(
         @Language("JAVA") source: String,
         warnings: String? = "",
-        expectedFail: String? = null,
         apiLint: String? = null,
         api: String? = null,
         extraArguments: Array<String> = emptyArray(),
@@ -43,12 +41,11 @@ class JavadocTest : DriverTest() {
         check(
             sourceFiles = sourceFiles,
             showAnnotations = showAnnotations,
-            stubFiles = arrayOf(java(source)),
-            expectedFail = expectedFail,
+            expectedStubFiles = arrayOf(java(source)),
             expectedIssues = warnings,
             checkCompilation = true,
             apiLint = apiLint,
-            api = api,
+            expectedApiSignature = api,
             extraArguments = extraArguments,
             docStubs = docStubs,
             skipEmitPackages = skipEmitPackages
@@ -195,7 +192,6 @@ class JavadocTest : DriverTest() {
             docStubs = false,
             // Enable API lint to make sure that some issues will be reported.
             apiLint = "",
-            expectedFail = DefaultLintErrorMessage,
             // These warnings prove that lint is enabled and will report MutableBareField and
             // MissingNullability. The first two issues are reported because `test.hidden.Hidden`
             // is not hidden by the `@hide` in `test/hidden/package-info.java`.
@@ -459,7 +455,6 @@ class JavadocTest : DriverTest() {
                 @SuppressWarnings({"unchecked", "deprecation", "all"})
                 public class R {
                 public R() { throw new RuntimeException("Stub!"); }
-                @SuppressWarnings({"unchecked", "deprecation", "all"})
                 public static class attr {
                 public attr() { throw new RuntimeException("Stub!"); }
                 /**
@@ -880,7 +875,6 @@ class JavadocTest : DriverTest() {
                 @SuppressWarnings({"unchecked", "deprecation", "all"})
                 public class Test {
                 public Test() { throw new RuntimeException("Stub!"); }
-                @SuppressWarnings({"unchecked", "deprecation", "all"})
                 public static class TestInner {
                 public TestInner() { throw new RuntimeException("Stub!"); }
                 public static final java.lang.String CONSTANT3 = "Hello";
@@ -1092,7 +1086,7 @@ class JavadocTest : DriverTest() {
                     )
                 ),
             docStubs = true,
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
@@ -1114,7 +1108,6 @@ class JavadocTest : DriverTest() {
                      */
                     @Deprecated
                     public android.view.WindowInsets replaceSystemWindowInsets(int left, int top, int right, int bottom) { throw new RuntimeException("Stub!"); }
-                    @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public static class Builder {
                     public Builder() { throw new RuntimeException("Stub!"); }
                     public Builder(android.view.WindowInsets insets) { throw new RuntimeException("Stub!"); }
@@ -1174,7 +1167,7 @@ class JavadocTest : DriverTest() {
                     """
                     )
                 ),
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
@@ -1247,15 +1240,16 @@ class JavadocTest : DriverTest() {
                         """
                     ),
                 ),
-            expectedFail = DefaultLintErrorMessage,
             expectedIssues =
                 """
                     src/test/pkg/Foo.java:4: error: Documentation contains '@hide', `@removed` or '@doconly' that is not used as a block tag; that could cause unexpected behavior downstream. [InvalidBlockTagUse]
                     src/test/pkg/Foo.java:9: error: Documentation contains '@hide', `@removed` or '@doconly' that is not used as a block tag; that could cause unexpected behavior downstream. [InvalidBlockTagUse]
                     src/test/pkg/Foo.java:14: error: Documentation contains '@hide', `@removed` or '@doconly' that is not used as a block tag; that could cause unexpected behavior downstream. [InvalidBlockTagUse]
+                    src/test/pkg/Foo.java:15: warning: Cannot use 'hide' as an inline tag (ErrorWhenNew) [InvalidTagForm]
                     src/test/pkg/Foo.java:19: error: Documentation contains '@hide', `@removed` or '@doconly' that is not used as a block tag; that could cause unexpected behavior downstream. [InvalidBlockTagUse]
+                    src/test/pkg/Foo.java:21: warning: Cannot use 'hide' as an inline tag (ErrorWhenNew) [InvalidTagForm]
                 """,
-            api =
+            expectedApiSignature =
                 """
                     // Signature format: 5.0
                     package test.pkg {
@@ -1267,7 +1261,7 @@ class JavadocTest : DriverTest() {
                       }
                     }
                 """,
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
@@ -1313,13 +1307,12 @@ class JavadocTest : DriverTest() {
                     ),
                     KnownSourceFiles.nullableSource,
                 ),
-            expectedFail = DefaultLintErrorMessage,
             expectedIssues =
                 """
                     src/test/pkg/Foo.java:6: error: Documentation contains '@hide', `@removed` or '@doconly' that is not used as a block tag; that could cause unexpected behavior downstream. [InvalidBlockTagUse]
                 """,
             docStubs = true,
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
@@ -1388,19 +1381,21 @@ class JavadocTest : DriverTest() {
                                 Documentation contains '@hide', `@removed` or '@doconly' that is not used as a block tag; that could cause unexpected behavior downstream.
                             InvalidBlockTagUse: test.pkg.Foo#qux():
                                 Documentation contains '@hide', `@removed` or '@doconly' that is not used as a block tag; that could cause unexpected behavior downstream.
+                            InvalidTagForm: test/pkg/Foo.java:
+                                Cannot use 'hide' as an inline tag
                         """,
                     silentUpdate = false,
                 ),
-            expectedFail =
-                "metalava wrote updated baseline to TESTROOT/update-baseline.txt\n$DefaultLintErrorMessage",
             expectedIssues =
                 """
                     src/test/pkg/Foo.java:4: error: Documentation contains '@hide', `@removed` or '@doconly' that is not used as a block tag; that could cause unexpected behavior downstream. [InvalidBlockTagUse]
                     src/test/pkg/Foo.java:9: error: Documentation contains '@hide', `@removed` or '@doconly' that is not used as a block tag; that could cause unexpected behavior downstream. [InvalidBlockTagUse]
                     src/test/pkg/Foo.java:14: error: Documentation contains '@hide', `@removed` or '@doconly' that is not used as a block tag; that could cause unexpected behavior downstream. [InvalidBlockTagUse]
+                    src/test/pkg/Foo.java:15: warning: Cannot use 'hide' as an inline tag (ErrorWhenNew) [InvalidTagForm]
                     src/test/pkg/Foo.java:19: error: Documentation contains '@hide', `@removed` or '@doconly' that is not used as a block tag; that could cause unexpected behavior downstream. [InvalidBlockTagUse]
+                    src/test/pkg/Foo.java:21: warning: Cannot use 'hide' as an inline tag (ErrorWhenNew) [InvalidTagForm]
                 """,
-            api =
+            expectedApiSignature =
                 """
                     // Signature format: 5.0
                     package test.pkg {
@@ -1412,7 +1407,7 @@ class JavadocTest : DriverTest() {
                       }
                     }
                 """,
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """

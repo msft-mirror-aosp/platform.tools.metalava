@@ -27,13 +27,16 @@ enum class ApiType(val flagName: String, val displayName: String = flagName) {
             // This filter is for API signature files, where we don't need the "for stub purposes"
             // APIs.
             return ApiPredicate(
-                includeApisForStubPurposes = false,
+                includeContributingSurfaces = false,
                 config = apiPredicateConfig,
             )
         }
 
         override fun getReferenceFilter(apiPredicateConfig: ApiPredicate.Config): FilterPredicate {
-            return ApiPredicate(config = apiPredicateConfig.copy(ignoreShown = true))
+            // Emitted APIs can reference types (such as superclasses, interfaces, parameter types,
+            // or thrown exceptions) that belong to any API surface extended by the target surface,
+            // so references must match across the whole API surface.
+            return ApiPredicate(config = apiPredicateConfig)
         }
     },
 
@@ -44,35 +47,21 @@ enum class ApiType(val flagName: String, val displayName: String = flagName) {
             // This filter is for API signature files, where we don't need the "for stub purposes"
             // APIs.
             return ApiPredicate(
-                includeApisForStubPurposes = false,
+                includeContributingSurfaces = false,
                 matchRemoved = true,
                 config = apiPredicateConfig,
             )
         }
 
         override fun getReferenceFilter(apiPredicateConfig: ApiPredicate.Config): FilterPredicate {
+            // References in removed APIs can refer to types across the whole API surface.
             return ApiPredicate(
                 ignoreRemoved = true,
-                config = apiPredicateConfig.copy(ignoreShown = true),
+                config = apiPredicateConfig,
             )
         }
     },
-
-    /** Everything */
-    ALL("all", "all") {
-
-        override fun getNonElidingFilter(apiPredicateConfig: ApiPredicate.Config): FilterPredicate {
-            return FilterPredicate { it.emit }
-        }
-
-        override fun getEmitFilter(apiPredicateConfig: ApiPredicate.Config): FilterPredicate {
-            return FilterPredicate { it.emit }
-        }
-
-        override fun getReferenceFilter(apiPredicateConfig: ApiPredicate.Config): FilterPredicate {
-            return FilterPredicate { true }
-        }
-    };
+    ;
 
     protected abstract fun getNonElidingFilter(
         apiPredicateConfig: ApiPredicate.Config

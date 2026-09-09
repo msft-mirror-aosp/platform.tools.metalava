@@ -45,7 +45,7 @@ Usage: metalava main [options] [source-files]...
   The default sub-command that is run if no sub-command is specified.
 
 Options:
-  -h, --help                                 Show this message and exit
+  -h, -?, --help                             Show this message and exit
 
 $SOURCE_OPTIONS_HELP
 

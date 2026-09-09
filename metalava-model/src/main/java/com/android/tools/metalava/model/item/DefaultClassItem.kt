@@ -30,6 +30,8 @@ import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.MutableModifierList
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PropertyItem
+import com.android.tools.metalava.model.RecordComponentItemsFactory
+import com.android.tools.metalava.model.RecordComponents
 import com.android.tools.metalava.model.ReferencableMethodSet
 import com.android.tools.metalava.model.SkeletonClassItem
 import com.android.tools.metalava.model.SourceFile
@@ -58,9 +60,10 @@ internal class DefaultClassItem(
     private val containingPackage: PackageItem,
     private val qualifiedName: String,
     override val typeParameterList: TypeParameterList,
-    override val origin: ClassOrigin,
+    origin: ClassOrigin,
     private var superClassType: ClassTypeItem?,
     private var interfaceTypes: List<ClassTypeItem>,
+    permitTypes: List<ClassTypeItem>,
     override val isFileFacade: Boolean,
     /**
      * If [classKind] is [ClassKind.TYPEALIAS], the [optionalAliasedType] must be specified.
@@ -68,6 +71,7 @@ internal class DefaultClassItem(
      */
     optionalAliasedType: TypeItem?,
     override val isMultiFileClass: Boolean = false,
+    recordComponentItemsFactory: RecordComponentItemsFactory? = null,
 ) :
     DefaultSelectableItem(
         codebase = codebase,
@@ -84,6 +88,18 @@ internal class DefaultClassItem(
     private val simpleName = qualifiedName.extractSimpleName()
 
     private val fullName: String
+
+    override var origin: ClassOrigin = origin
+        set(value) {
+            ensureNotFrozen()
+            field = value
+        }
+
+    override var permitTypes: List<ClassTypeItem> = permitTypes
+        set(value) {
+            ensureNotFrozen()
+            field = value
+        }
 
     init {
         // Register the class first. Leaking `this` is ok as it only uses its qualified name and
@@ -131,13 +147,20 @@ internal class DefaultClassItem(
         }
         if (!::sealedClassSubclasses.isInitialized) {
             sealedClassSubclasses =
-                containingPackage
-                    .allClasses()
-                    .filter { cls ->
-                        cls.superClassType()?.qualifiedName == qualifiedName ||
-                            cls.interfaceTypes().any { it.qualifiedName == qualifiedName }
-                    }
-                    .toList()
+                if (modifiers.isSealed()) {
+                    // Use the permitTypes list for actual sealed classes.
+                    permitTypes.mapNotNull { codebase.findClass(it.qualifiedName) }
+                } else {
+                    // For classes that are only effectively sealed find subclasses in their
+                    // containing package.
+                    containingPackage
+                        .allClasses()
+                        .filter { cls ->
+                            cls.superClassType()?.qualifiedName == qualifiedName ||
+                                cls.interfaceTypes().any { it.qualifiedName == qualifiedName }
+                        }
+                        .toList()
+                }
         }
         return sealedClassSubclasses
     }
@@ -298,6 +321,10 @@ internal class DefaultClassItem(
         mutableFields += field
     }
 
+    override fun replaceOrAddField(field: FieldItem) {
+        replaceOrAddItem(field, mutableFields)
+    }
+
     override fun fields(): List<FieldItem> = mutableFields
 
     /** The mutable list of [PropertyItem] that backs [properties]. */
@@ -313,6 +340,13 @@ internal class DefaultClassItem(
     override fun replaceOrAddProperty(property: PropertyItem) {
         replaceOrAddItem(property, mutableProperties)
     }
+
+    override val recordComponents =
+        if (classKind == ClassKind.RECORD && recordComponentItemsFactory != null) {
+            RecordComponents.create(recordComponentItemsFactory(this))
+        } else {
+            RecordComponents.EMPTY
+        }
 
     /** The mutable list of nested [ClassItem] that backs [nestedClasses]. */
     private val mutableNestedClasses = mutableListOf<ClassItem>()
@@ -376,7 +410,9 @@ internal class DefaultClassItem(
     override val annotationClass: AnnotationClass
         get() {
             if (classKind != ClassKind.ANNOTATION_TYPE) {
-                error("annotationClass can only be accessed on annotation classes")
+                error(
+                    "annotationClass can only be accessed on annotation classes but $qualifiedName is $classKind"
+                )
             }
 
             if (!::cachedAnnotationClass.isInitialized) {
