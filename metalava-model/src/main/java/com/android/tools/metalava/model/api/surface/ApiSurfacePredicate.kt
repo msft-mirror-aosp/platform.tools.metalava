@@ -32,7 +32,7 @@ object ApiSurfacePredicate {
      * such as external classpath dependencies (e.g. `java.lang.Object`) that are not part of the
      * emitted API even if they have been assigned API variants during traversal.
      */
-    fun wholeApiPredicate() = WHOLE_API_PREDICATE
+    fun wholeApi() = WHOLE_API_PREDICATE
 
     /**
      * A [FilterPredicate] that matches an item if it belongs to at least one [ApiVariant] across

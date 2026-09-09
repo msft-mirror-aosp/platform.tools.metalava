@@ -133,7 +133,7 @@ class ApiAnalyzer(
         // that match the API filter.
         // Match the whole API surface so deprecation is updated for items in extended/base
         // surfaces as well.
-        val predicate = ApiSurfacePredicate.wholeApiPredicate()
+        val predicate = ApiSurfacePredicate.wholeApi()
         val apiFilters = ApiFilters(predicate, predicate)
 
         codebase.accept(
