@@ -134,12 +134,6 @@ class ApiPredicate(
     }
 
     override fun test(item: SelectableItem): Boolean {
-        // non-class, i.e., (literally) member declaration w/o emit flag, e.g., due to `expect`
-        // Some [ClassItem], e.g., JvmInline, java.lang.* classes, may not set the emit flag.
-        if (item !is ClassItem && !item.emit) {
-            return false
-        }
-
         val visibleForAdditionalOverridePurpose =
             if (addAdditionalOverrides) {
                 item is MethodItem && item.isRequiredOverridingMethodForTextStub()
