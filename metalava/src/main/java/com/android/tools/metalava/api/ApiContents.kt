@@ -31,13 +31,12 @@ import com.android.tools.metalava.model.TargetLanguageSet
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.VariableTypeItem
-import com.android.tools.metalava.model.visitors.ApiPredicate
+import com.android.tools.metalava.model.api.surface.ApiSurfacePredicate
 import com.android.tools.metalava.reporter.Issues
 
 /** Determines all the [ClassItem]s that are part of the API. */
 internal class ApiContents(
     private val codebase: Codebase,
-    apiPredicateConfig: ApiPredicate.Config,
 ) :
     BaseItemVisitor(
         // Preserve class nesting as otherwise this requires that PackageItem visit method is called
@@ -75,7 +74,7 @@ internal class ApiContents(
             // Use the whole API surface so that classes belonging to any API surface in the
             // hierarchy (such as base surfaces) are recognized as part of the API and not stripped
             // when referenced.
-            .and(ApiPredicate(config = apiPredicateConfig))
+            .and(ApiSurfacePredicate.wholeCoreApi(codebase.apiSurfaces.main))
 
     /**
      * Computes the transitive closure of the API surface.
@@ -271,9 +270,8 @@ internal class ApiContents(
         /** Compute the set of [ClassItem]s that are in the API. */
         fun computeContents(
             codebase: Codebase,
-            apiPredicateConfig: ApiPredicate.Config,
         ): Set<ClassItem> {
-            val apiContents = ApiContents(codebase, apiPredicateConfig)
+            val apiContents = ApiContents(codebase)
             return apiContents.computeTransitiveClosure()
         }
     }

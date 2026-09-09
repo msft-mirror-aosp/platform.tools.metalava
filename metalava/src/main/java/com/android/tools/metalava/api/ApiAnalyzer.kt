@@ -698,7 +698,7 @@ class ApiAnalyzer(
     }
 
     fun handleStripping() {
-        val notStrippable = ApiContents.computeContents(codebase, config.apiPredicateConfig)
+        val notStrippable = ApiContents.computeContents(codebase)
 
         // complain about anything that looks includeable but is not supposed to
         // be written, e.g. hidden things
