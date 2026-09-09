@@ -61,6 +61,7 @@ import com.android.tools.metalava.model.DelegatedVisitor
 import com.android.tools.metalava.model.EMITTED_ONLY
 import com.android.tools.metalava.model.annotation.DefaultAnnotationManager
 import com.android.tools.metalava.model.api.surface.ApiSurface
+import com.android.tools.metalava.model.api.surface.ApiSurfacePredicate
 import com.android.tools.metalava.model.multiplatform.MultiplatformCodebase
 import com.android.tools.metalava.model.snapshot.NonFilteringDelegatingVisitor
 import com.android.tools.metalava.model.source.EnvironmentManager
@@ -206,7 +207,10 @@ class Driver(
                     apiSelectionOptions.suppressCompatibilityMetaAnnotations,
                 excludeAnnotations = apiSelectionOptions.excludeAnnotations,
                 typedefMode = apiSelectionOptions.typedefMode,
-                apiPredicate = ApiPredicate(config = apiPredicateConfig),
+
+                // Treat an annotation class as part of the API if it belongs to the core API of
+                // this surface or any surface that it includes.
+                annotationClassPredicate = ApiSurfacePredicate.wholeCoreApi(apiSurface),
                 previouslyReleasedCodebaseProvider = {
                     compatibilityCheckOptions.previouslyReleasedApi?.load {
                         signatureFileCache.load(it)

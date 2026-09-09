@@ -86,7 +86,15 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
         val suppressCompatibilityMetaAnnotations: Set<String> = emptySet(),
         val excludeAnnotations: Set<String> = emptySet(),
         val typedefMode: TypedefMode = TypedefMode.NONE,
-        val apiPredicate: FilterPredicate = FilterPredicate { true },
+
+        /**
+         * Predicate used to determine whether an annotation class is part of the API surface.
+         *
+         * When computing annotation targets, if the resolved annotation class does not match this
+         * predicate, the annotation is excluded (yielding [NO_ANNOTATION_TARGETS]) unless it is a
+         * typedef annotation and [typedefMode] is not [TypedefMode.NONE].
+         */
+        val annotationClassPredicate: FilterPredicate = FilterPredicate { true },
         /**
          * Provider of an optional [Codebase] object that will be used when reverting flagged APIs.
          */
@@ -437,7 +445,7 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
         // See if the annotation is pointing to an annotation class that is part of the API; if
         // not, skip it.
         val cls = annotation.resolve() ?: return NO_ANNOTATION_TARGETS
-        if (!config.apiPredicate.test(cls)) {
+        if (!config.annotationClassPredicate.test(cls)) {
             if (config.typedefMode != TypedefMode.NONE) {
                 if (cls.modifiers.hasAnnotation(AnnotationItem::isTypeDefAnnotation)) {
                     return ANNOTATION_SIGNATURE_ONLY
