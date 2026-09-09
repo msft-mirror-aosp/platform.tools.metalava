@@ -360,7 +360,7 @@ class Driver(
                     // ProGuard rules emit items matching the whole API surface, and referenced
                     // types (e.g. superclasses and interfaces) can belong to any surface across the
                     // whole API surface.
-                    val apiReference = ApiPredicate(config = apiPredicateConfig)
+                    val apiReference = ApiSurfacePredicate.wholeCoreApi(apiSurface)
                     val apiEmit =
                         MatchOverridingMethodPredicate(
                             // Only emit keep rules for items that are marked for emission.
