@@ -58,6 +58,7 @@ import com.android.tools.metalava.model.ClassPathResolver
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.CodebaseFragment
 import com.android.tools.metalava.model.DelegatedVisitor
+import com.android.tools.metalava.model.EMITTED_ONLY
 import com.android.tools.metalava.model.annotation.DefaultAnnotationManager
 import com.android.tools.metalava.model.multiplatform.MultiplatformCodebase
 import com.android.tools.metalava.model.snapshot.NonFilteringDelegatingVisitor
@@ -889,10 +890,19 @@ class Driver(
 
         // Handling file facade classes and generating inherited stubs operates on the entire API
         // surface across all surfaces in the codebase, not just a specific delta surface.
-        val apiEmitAndReference = ApiPredicate(config = apiPredicateConfig)
+        val apiReference =
+            ApiPredicate(
+                // Parent classes and methods can be inherited from non-emitted classes in the
+                // hierarchy.
+                config = apiPredicateConfig,
+            )
+
+        // Only items marked for emission are considered for facade/package experimental status and
+        // for receiving inherited stubs.
+        val apiEmit = EMITTED_ONLY.and(apiReference)
 
         tracer.trace("analyzer.handleFileFacadeClassesAndExperimentalPackages") {
-            analyzer.handleFileFacadeClassesAndExperimentalPackages(apiEmitAndReference)
+            analyzer.handleFileFacadeClassesAndExperimentalPackages(apiEmit)
         }
 
         // Copy methods from soon-to-be-hidden parents into descendant classes, when necessary. Do
@@ -900,8 +910,8 @@ class Driver(
         // methods can have annotations added and are checked properly.
         tracer.trace("analyzer.generateInheritedStubs") {
             analyzer.inheritHiddenAspects(
-                apiEmitAndReference,
-                apiEmitAndReference,
+                apiEmit,
+                apiReference,
             )
         }
 

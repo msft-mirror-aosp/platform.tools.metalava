@@ -1135,12 +1135,9 @@ class ExperimentalApiFileTest : DriverTest() {
                         """
                     ),
                 ),
-            // TODO(b/558874607): The package should be annotated with @SuppressCompatibility
-            //  because InternalKt has emit = false and should be ignored when checking if all
-            //  classes in the package are experimental.
             expectedApiSignature =
                 """
-                    package test.pkg {
+                    package @SuppressCompatibility test.pkg {
                       @SuppressCompatibility @kotlin.RequiresOptIn(level=kotlin.RequiresOptIn.Level.ERROR) @kotlin.annotation.Retention(kotlin.annotation.AnnotationRetention.BINARY) public @interface Experimental {
                       }
                       @SuppressCompatibility public final class ExperimentalKt {
