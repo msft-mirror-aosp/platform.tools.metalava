@@ -21,10 +21,10 @@ import com.android.tools.metalava.api.ApiAnalyzer
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.EMITTED_ONLY
 import com.android.tools.metalava.model.annotation.DefaultAnnotationManager
+import com.android.tools.metalava.model.api.surface.ApiSurfacePredicate
 import com.android.tools.metalava.model.source.EnvironmentManager
 import com.android.tools.metalava.model.source.SourceModelProvider
 import com.android.tools.metalava.model.source.SourceParser
-import com.android.tools.metalava.model.visitors.ApiPredicate
 import com.android.tools.metalava.reporter.Reporter
 import com.android.tools.metalava.trace
 import java.io.Closeable
@@ -79,10 +79,7 @@ sealed interface JarCodebaseLoader {
 
             // Ancestor classes and methods can be inherited from non-emitted items in
             // the hierarchy.
-            val apiReference =
-                ApiPredicate(
-                    config = apiAnalyzerConfig.apiPredicateConfig,
-                )
+            val apiReference = ApiSurfacePredicate.wholeCoreApi(codebase.apiSurfaces.main)
 
             // Inherited stubs are only generated for classes marked for emission.
             val apiEmit = EMITTED_ONLY.and(apiReference)
