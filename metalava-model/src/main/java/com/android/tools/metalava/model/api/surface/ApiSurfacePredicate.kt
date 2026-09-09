@@ -37,15 +37,8 @@ object ApiSurfacePredicate {
     /**
      * A [FilterPredicate] that matches an item if it belongs to at least one [ApiVariant] across
      * all [ApiSurface]s.
-     *
-     * Checks [SelectableItem.emit] first because:
-     * 1. Only items belonging to the codebase being emitted (`emit == true`) can be part of the API
-     *    surface. External classpath dependencies (e.g. `java.lang.Object`) have `emit == false`
-     *    and must be excluded even if they were assigned [ApiVariant]s during traversal.
-     * 2. Checking `emit` first acts as a fast filter that avoids inspecting
-     *    [SelectableItem.selectedApi] on non-emittable items.
      */
     private class WholeApiPredicate : FilterPredicate {
-        override fun test(t: SelectableItem) = t.emit && t.selectedApi.itemApiVariants.isNotEmpty()
+        override fun test(t: SelectableItem) = t.selectedApi.itemApiVariants.isNotEmpty()
     }
 }

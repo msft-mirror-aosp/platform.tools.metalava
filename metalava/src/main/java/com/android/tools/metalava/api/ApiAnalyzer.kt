@@ -27,6 +27,7 @@ import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.ClassOrigin
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.Codebase
+import com.android.tools.metalava.model.EMITTED_ONLY
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.FilterPredicate
 import com.android.tools.metalava.model.Item
@@ -131,10 +132,12 @@ class ApiAnalyzer(
         // Since Javadoc parsing is expensive, we defer checking and updating the deprecation status
         // from `@deprecated` block tags until we run this API analysis phase, and only visit items
         // that match the API filter.
-        // Match the whole API surface so deprecation is updated for items in extended/base
-        // surfaces as well.
-        val predicate = ApiSurfacePredicate.wholeApi()
-        val apiFilters = ApiFilters(predicate, predicate)
+        //
+        // The predicate matches the whole API surface so deprecation is updated for items in
+        // extended/base surfaces as well. Restrict it to only those parts of the API surface that
+        // will be emitted to avoid wasting time.
+        val predicate = EMITTED_ONLY.and(ApiSurfacePredicate.wholeApi())
+        val apiFilters = ApiFilters(predicate)
 
         codebase.accept(
             object : ApiVisitor(visitParameterItems = false, apiFilters = apiFilters) {
