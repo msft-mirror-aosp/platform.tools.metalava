@@ -747,7 +747,12 @@ class Driver(
                 CodebaseFragment.create(codebase) { delegatedVisitor ->
                     FilteringApiVisitor(
                         delegate = delegatedVisitor,
-                        apiFilters = apiPredicateConfig.defaultFilters(),
+                        apiFilters =
+                            ApiFilters(
+                                reference =
+                                    ApiSurfacePredicate.wholeCoreApi(codebase.apiSurfaces.main),
+                                emit = ApiSurfacePredicate.wholeCoreApi(codebase.apiSurfaces.main)
+                            ),
                     )
                 }
 
