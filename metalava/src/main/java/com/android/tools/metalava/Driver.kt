@@ -286,7 +286,6 @@ class Driver(
             apiPredicateConfig = apiPredicateConfig,
             annotationsMergerConfig =
                 AnnotationsMerger.Config(
-                    apiPredicateConfig = apiPredicateConfig,
                     sources = sourceOptions.sourceFiles,
                     sourcePath = sourceOptions.sourcePath,
                     classpath = sourceOptions.classpath,
