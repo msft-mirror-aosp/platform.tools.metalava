@@ -33,12 +33,14 @@ open class ApiVisitor(
 
     /** The filters to use to determine what parts of the API will be visited. */
     apiFilters: ApiFilters?,
+
+    /** @see BaseItemVisitor.orderClassesByName */
+    orderClassesByName: Boolean = true,
 ) :
     BaseItemVisitor(
         preserveClassNesting = preserveClassNesting,
         visitParameterItems = visitParameterItems,
-        // Always sort classes by name.
-        orderClassesByName = true,
+        orderClassesByName = orderClassesByName,
     ) {
 
     /** The filter to use to determine if we should emit an item */
