@@ -539,7 +539,15 @@ private constructor(
      */
     private fun SelectableItem.markSelectedApiVariant() {
         if (apiVariant !in selectedApiVariants) {
-            selectedApiVariants += apiVariant
+            // An item must not belong to multiple API surfaces, but can belong to multiple variants
+            // of the same surface (e.g. CORE and REMOVED). Therefore, only add this variant if the
+            // item does not yet belong to any surface or if this variant is part of the same
+            // surface it already belongs to.
+            if (
+                selectedApiVariants.isEmpty() || selectedApiVariants.containsAny(apiVariant.surface)
+            ) {
+                selectedApiVariants += apiVariant
+            }
         }
     }
 
@@ -563,9 +571,9 @@ private constructor(
             markForMainApiSurface()
         }
 
-        // Always record the ApiVariants to which this belongs, even if this was previously loaded.
-        // This is safe because unlike `emit` which is Boolean the `selectedApiVariants` property is
-        // a set of ApiVariants and this just adds an ApiVariant.
+        // Record the ApiVariant to which this belongs, even if this class was previously loaded.
+        // If this class was already defined in a different API surface, markSelectedApiVariant will
+        // not add the new surface.
         markSelectedApiVariant()
     }
 
