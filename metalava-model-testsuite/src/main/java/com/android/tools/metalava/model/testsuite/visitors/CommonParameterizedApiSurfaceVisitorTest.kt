@@ -658,26 +658,6 @@ class CommonParameterizedApiSurfaceVisitorTest : BaseModelTest() {
     }
 
     /**
-     * Constructs a string representing the visited [SelectableItem]s with indentation reflecting
-     * the visit hierarchy.
-     */
-    private class SelectableItemDumper {
-        private val sb = StringBuilder()
-        private var indent = ""
-
-        fun visitSelectableItem(item: SelectableItem) {
-            sb.append("$indent${item.describe()}\n")
-            indent += "  "
-        }
-
-        fun afterVisitSelectableItem() {
-            indent = indent.removeSuffix("  ")
-        }
-
-        override fun toString(): String = sb.toString()
-    }
-
-    /**
      * Traverses this [Codebase] using an [ApiVisitor] with [TestCase.apiFilters] and produces a
      * textual representation of the visited [SelectableItem]s with indentation reflecting the visit
      * hierarchy.
