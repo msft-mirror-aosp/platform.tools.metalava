@@ -18,6 +18,7 @@ package com.android.tools.metalava.model.api
 
 import com.android.tools.metalava.model.BaseModifierList
 import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.ClassOrigin
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.KOTLIN_PUBLISHED_API
 import com.android.tools.metalava.model.MethodItem
@@ -99,6 +100,11 @@ class SelectedApiUpdater(
         // If the parent needs to hide its children then mark this child as hidden and return
         // immediately.
         if (parent.areChildrenCompletelyHidden()) {
+            selectedApi.markAsHidden(revert = false)
+            return
+        }
+
+        if (item.isAidlClassThatShouldBeHidden()) {
             selectedApi.markAsHidden(revert = false)
             return
         }
@@ -386,3 +392,13 @@ val BaseModifierList.hasApiVisibility
                 annotations().any { it.qualifiedName == KOTLIN_PUBLISHED_API }
             else -> false
         }
+
+/**
+ * Workaround: we're pulling in .aidl files from .jar files. These are marked @hide, but since we
+ * only see the .class files we don't know that.
+ */
+internal fun SelectableItem.isAidlClassThatShouldBeHidden(): Boolean =
+    this is ClassItem &&
+        simpleName().startsWith("I") &&
+        origin == ClassOrigin.CLASS_PATH &&
+        interfaceTypes().any { it.qualifiedName == "android.os.IInterface" }
