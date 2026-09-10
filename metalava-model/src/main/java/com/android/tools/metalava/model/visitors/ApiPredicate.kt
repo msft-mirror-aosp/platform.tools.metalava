@@ -126,9 +126,9 @@ class ApiPredicate(
         fun defaultFilters(): ApiFilters {
             val reference = ApiPredicate(config = this)
             return ApiFilters(
+                reference = reference,
                 // Only emit items that are explicitly marked for emission.
                 emit = EMITTED_ONLY.and(reference),
-                reference = reference,
             )
         }
     }

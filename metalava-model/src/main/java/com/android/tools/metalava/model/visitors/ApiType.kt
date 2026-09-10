@@ -102,8 +102,8 @@ enum class ApiType(val flagName: String, val displayName: String = flagName) {
      */
     fun getApiFilters(apiPredicateConfig: ApiPredicate.Config) =
         ApiFilters(
-            emit = getEmitFilter(apiPredicateConfig),
             reference = getReferenceFilter(apiPredicateConfig),
+            emit = getEmitFilter(apiPredicateConfig),
         )
 
     /**
@@ -115,8 +115,8 @@ enum class ApiType(val flagName: String, val displayName: String = flagName) {
      */
     fun getNonElidingApiFilters(apiPredicateConfig: ApiPredicate.Config) =
         ApiFilters(
-            emit = getNonElidingFilter(apiPredicateConfig),
             reference = getReferenceFilter(apiPredicateConfig),
+            emit = getNonElidingFilter(apiPredicateConfig),
         )
 
     override fun toString(): String = displayName

@@ -163,8 +163,8 @@ internal class StubGenerator(
                     )
 
                 ApiFilters(
-                    emit = filterEmit,
                     reference = filterReference,
+                    emit = filterEmit,
                 )
             }
 

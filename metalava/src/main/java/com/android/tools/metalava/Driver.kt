@@ -367,7 +367,7 @@ class Driver(
                             EMITTED_ONLY.and(apiReference)
                         )
 
-                    ApiFilters(emit = apiEmit, reference = apiReference)
+                    ApiFilters(reference = apiReference, emit = apiEmit)
                 }
 
             val codebaseFragment =
