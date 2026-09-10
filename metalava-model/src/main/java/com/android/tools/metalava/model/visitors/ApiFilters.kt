@@ -33,7 +33,7 @@ class ApiFilters(
     val reference: FilterPredicate,
 
     /** Returns `true` for [Item]s that should be defined in the API and emitted as part of it. */
-    val emit: FilterPredicate,
+    val emit: FilterPredicate = EMITTED_ONLY.and(reference),
 ) {
     /**
      * Return an [ApiFilters] that will filter by [targetLanguages] in addition to this filter.

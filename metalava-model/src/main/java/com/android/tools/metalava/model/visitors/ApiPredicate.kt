@@ -18,7 +18,6 @@ package com.android.tools.metalava.model.visitors
 
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ClassItem
-import com.android.tools.metalava.model.EMITTED_ONLY
 import com.android.tools.metalava.model.FilterPredicate
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.SelectableItem
@@ -125,11 +124,7 @@ class ApiPredicate(
          */
         fun defaultFilters(): ApiFilters {
             val reference = ApiPredicate(config = this)
-            return ApiFilters(
-                reference = reference,
-                // Only emit items that are explicitly marked for emission.
-                emit = EMITTED_ONLY.and(reference),
-            )
+            return ApiFilters(reference = reference)
         }
     }
 
