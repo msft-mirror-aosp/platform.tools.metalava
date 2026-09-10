@@ -33,21 +33,19 @@ open class ApiVisitor(
 
     /** The filters to use to determine what parts of the API will be visited. */
     apiFilters: ApiFilters?,
-) : BaseItemVisitor(preserveClassNesting, visitParameterItems) {
+) :
+    BaseItemVisitor(
+        preserveClassNesting = preserveClassNesting,
+        visitParameterItems = visitParameterItems,
+        // Always sort classes by name.
+        orderClassesByName = true,
+    ) {
 
     /** The filter to use to determine if we should emit an item */
     protected val filterEmit: FilterPredicate? = apiFilters?.emit
 
     /** The filter to use to determine if we should emit a reference to an item */
     protected val filterReference: FilterPredicate? = apiFilters?.reference
-
-    /**
-     * Visit a [List] of [ClassItem]s after sorting it into order defined by
-     * [ClassItem.classNameSorterTypeAliasesLast].
-     */
-    private fun visitClassList(classes: List<ClassItem>) {
-        classes.sortedWith(ClassItem.classNameSorterTypeAliasesLast()).forEach { it.accept(this) }
-    }
 
     /**
      * Implement to redirect to [VisitCandidate.accept] if necessary,
