@@ -22,9 +22,6 @@ import org.junit.Test
 
 class StubsAidlTest : AbstractStubsTest() {
     @Test
-    // TODO: This test is broken because SelectedApiUpdater does not detect AIDL classes on the
-    //  classpath, so IMyAidlInterface is not treated as hidden and is not stripped from the
-    //  generated stubs.
     fun `Check AIDL interface on classpath is treated as hidden in stubs`() {
         val iInterface =
             java(
@@ -35,7 +32,6 @@ class StubsAidlTest : AbstractStubsTest() {
                 """
             )
         checkStubs(
-            checkTextStubEquivalence = false,
             classpath =
                 arrayOf(
                     jarFromSources(
@@ -54,15 +50,8 @@ class StubsAidlTest : AbstractStubsTest() {
             compilationChecks =
                 listOf(
                     CompilationCheck(
-                        label = "fail",
+                        label = "pass",
                         additionalFiles = listOf(iInterface),
-                        expectedFailure =
-                            """
-                                STUBS/test/pkg/MyClass.java:3: error: package test.pkg.aidl does not exist
-                                public class MyClass implements test.pkg.aidl.IMyAidlInterface {
-                                                                             ^
-                                1 error
-                            """,
                     )
                 ),
             sourceFiles =
@@ -86,7 +75,7 @@ class StubsAidlTest : AbstractStubsTest() {
                 """
                     package test.pkg;
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
-                    public class MyClass implements test.pkg.aidl.IMyAidlInterface {
+                    public class MyClass implements android.os.IInterface {
                     public MyClass() { throw new RuntimeException("Stub!"); }
                     public void doSomething() { throw new RuntimeException("Stub!"); }
                     }
@@ -95,9 +84,6 @@ class StubsAidlTest : AbstractStubsTest() {
     }
 
     @Test
-    // TODO: This test is broken because SelectedApiUpdater does not detect AIDL classes on the
-    //  classpath, so IMyAidlInterface.Stub is not treated as hidden and is not stripped from the
-    //  generated stubs.
     fun `Check extending AIDL Stub on classpath is treated as hidden in stubs`() {
         val iInterface =
             java(
@@ -117,7 +103,6 @@ class StubsAidlTest : AbstractStubsTest() {
                 """
             )
         checkStubs(
-            checkTextStubEquivalence = false,
             classpath =
                 arrayOf(
                     jarFromSources(
@@ -140,15 +125,8 @@ class StubsAidlTest : AbstractStubsTest() {
             compilationChecks =
                 listOf(
                     CompilationCheck(
-                        label = "fail",
+                        label = "pass",
                         additionalFiles = listOf(iInterface, binder),
-                        expectedFailure =
-                            """
-                                STUBS/test/pkg/MyClass.java:3: error: package test.pkg.aidl.IMyAidlInterface does not exist
-                                public class MyClass extends test.pkg.aidl.IMyAidlInterface.Stub {
-                                                                                           ^
-                                1 error
-                            """,
                     )
                 ),
             sourceFiles =
@@ -172,7 +150,7 @@ class StubsAidlTest : AbstractStubsTest() {
                 """
                     package test.pkg;
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
-                    public class MyClass extends test.pkg.aidl.IMyAidlInterface.Stub {
+                    public class MyClass extends android.os.Binder implements android.os.IInterface {
                     public MyClass() { throw new RuntimeException("Stub!"); }
                     public void doSomething() { throw new RuntimeException("Stub!"); }
                     }

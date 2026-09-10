@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model
 
+import com.android.tools.metalava.model.api.isAidlClassThatShouldBeHidden
 import com.android.tools.metalava.reporter.Issues
 
 /** A factory that will create an [ApiVariantSelectors] for a specific [SelectableItem]. */
@@ -402,17 +403,9 @@ sealed class ApiVariantSelectors {
             // Inheritance is only done on a few Item types, ignore the rest.
             if (item !is ClassItem && item !is CallableItem && item !is FieldItem) return
 
-            if (item is ClassItem) {
-                // Workaround: we're pulling in .aidl files from .jar files. These are
-                // marked @hide, but since we only see the .class files we don't know that.
-                if (
-                    item.simpleName().startsWith("I") &&
-                        item.origin == ClassOrigin.CLASS_PATH &&
-                        item.interfaceTypes().any { it.qualifiedName == "android.os.IInterface" }
-                ) {
-                    hidden = true
-                    return
-                }
+            if (item.isAidlClassThatShouldBeHidden()) {
+                hidden = true
+                return
             }
 
             if (showability.show()) {
