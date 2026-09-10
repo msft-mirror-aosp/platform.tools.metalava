@@ -891,16 +891,12 @@ class ShowAnnotationTest : DriverTest() {
             expectedIssues =
                 """
                     src/test/pkg/Foo.java:9: error: Remove @android.annotation.TestApi from method test.pkg.Foo.method1() as it is superseded by @android.annotation.SystemApi [OverlappingApiSurfaces]
+                    src/test/pkg/Foo.java:10: warning: @android.annotation.SystemApi APIs must not be marked @hide: method test.pkg.Foo.method1() (ErrorWhenNew) [HiddenShowAnnotation]
                     src/test/pkg/Foo.java:15: error: Remove @android.annotation.TestApi from method test.pkg.Foo.method2() as it is superseded by @android.annotation.SystemApi [OverlappingApiSurfaces]
+                    src/test/pkg/Foo.java:17: warning: @android.annotation.TestApi APIs must not be marked @hide: method test.pkg.Foo.method2() (ErrorWhenNew) [HiddenShowAnnotation]
                 """,
             expectedApiSignature =
                 """
-                package test.pkg {
-                  public class Foo {
-                    method public void method1();
-                    method public void method2();
-                  }
-                }
                 """,
             expectedStubFiles =
                 arrayOf(

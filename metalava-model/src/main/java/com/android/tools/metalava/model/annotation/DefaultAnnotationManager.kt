@@ -501,7 +501,7 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
         // combining the showability of each annotation. The basic rules are:
         // * `show=true` beats `show=false`
         // * `recurse=true` beats `recurse=false`
-        // * `forStubsOnly=false` beats `forStubsOnly=true`
+        // * `forStubsOnly=true` beats `forStubsOnly=false`
 
         // The resulting showability of the item.
         var itemShowability = Showability.NO_EFFECT

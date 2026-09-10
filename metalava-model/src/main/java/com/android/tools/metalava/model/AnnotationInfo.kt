@@ -240,9 +240,6 @@ data class Showability(
 
     /** Combine this with [other] to produce a combination [Showability]. */
     fun combineWith(other: Showability): Showability {
-        // Show wins over not showing.
-        val newShow = show.highestPriority(other.show)
-
         // Recursive wins over not recursive. Reverting has the following behavior:
         // * If this is not recursive (i.e. [ShowOrHide.NO_EFFECT] then reverting it will not change
         //   that.
@@ -260,12 +257,13 @@ data class Showability(
                 recursive.highestPriority(other.recursive)
             }
 
-        // For everything wins over only for stubs.
-        val forStubsOnly =
-            if (newShow.show(revertItem)) {
+        // Only for stubs wins over for everything.
+        val forStubsOnly = forStubsOnly.highestPriority(other.forStubsOnly)
+        val newShow =
+            if (forStubsOnly.show(revertItem)) {
                 ShowOrHide.NO_EFFECT
             } else {
-                forStubsOnly.highestPriority(other.forStubsOnly)
+                show.highestPriority(other.show)
             }
 
         return Showability(newShow, newRecursive, forStubsOnly)
