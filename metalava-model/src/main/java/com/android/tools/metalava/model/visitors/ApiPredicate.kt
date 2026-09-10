@@ -16,7 +16,6 @@
 
 package com.android.tools.metalava.model.visitors
 
-import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.FilterPredicate
 import com.android.tools.metalava.model.MethodItem
@@ -53,7 +52,7 @@ class ApiPredicate(
     /**
      * Whether to include API surfaces that contribute to the one currently being generated.
      *
-     * See [AnnotationItem.isShowForStubPurposes].
+     * See [SelectableItem.includeOnlyForStubPurposes].
      */
     private val includeContributingSurfaces: Boolean = true,
 
@@ -148,9 +147,8 @@ class ApiPredicate(
             return itemSelectors.removed == matchRemoved
         }
 
-        // If an item is only included for stub generation purposes (i.e. all of its show
-        // annotations are marked as show-for-stub-purposes, such as annotations for a base API
-        // surface), ignore it when generating signature files.
+        // If an item is only included for stub generation purposes (i.e. it belongs to a
+        // contributing base API surface), ignore it when generating signature files.
         // This check must come after the superclass check above so that any affected subclass whose
         // superclass belongs to the target API surface is still included to accurately preserve the
         // class hierarchy, even if the subclass itself is marked only for stub purposes.
