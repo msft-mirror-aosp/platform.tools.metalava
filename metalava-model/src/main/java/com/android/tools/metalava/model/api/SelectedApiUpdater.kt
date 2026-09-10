@@ -248,7 +248,7 @@ class SelectedApiUpdater(
             // code above that handles overlapping surfaces. However, it is possible that some
             // problems with the enclosing API variants may break that guarantee so verify it here
             require(surface === itemApiVariants.widestSurfaceFor(apiSurfaces)) {
-                "$itemApiVariants must not contain multiple surfaces"
+                "$item must not contain multiple surfaces - ${itemApiVariants.formatFor(apiSurfaces)}"
             }
 
             // If this item is not already removed but is enclosed within a removed parent or has a
