@@ -35,14 +35,6 @@ class ApiFilters(
     /** Returns `true` for [Item]s that should be defined in the API and emitted as part of it. */
     val emit: FilterPredicate,
 ) {
-    /** Use [predicate] for both [emit] and [reference]. */
-    constructor(
-        predicate: FilterPredicate
-    ) : this(
-        reference = predicate,
-        emit = predicate,
-    )
-
     /**
      * Return an [ApiFilters] that will filter by [targetLanguages] in addition to this filter.
      *

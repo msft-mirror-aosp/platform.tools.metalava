@@ -135,7 +135,7 @@ class CommonParameterizedApiSurfaceVisitorTest : BaseModelTest() {
                                 config = ApiPredicate.Config(),
                             )
                         )
-                    ApiFilters(predicate)
+                    ApiFilters(predicate, predicate)
                 },
                 filterEmit = { EMITTED_ONLY.and(ApiSurfacePredicate.wholeApi()) },
                 requiresApiVariantSelectors = requiresApiVariantSelectors,
