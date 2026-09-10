@@ -53,6 +53,7 @@ import com.android.tools.metalava.model.multiplatform.MultiplatformCodebase
 import com.android.tools.metalava.model.value.Value
 import com.android.tools.metalava.model.visitors.ApiPredicate
 import com.android.tools.metalava.model.visitors.ApiType
+import com.android.tools.metalava.model.visitors.MatchOverridingMethodPredicate
 import com.android.tools.metalava.reporter.FileLocation
 import com.android.tools.metalava.reporter.IssueConfiguration
 import com.android.tools.metalava.reporter.Issues
@@ -1941,16 +1942,11 @@ class CompatibilityCheck(
         }
 
         /**
-         * Returns a filter which includes the [ApiType.getReferenceFilter] and
-         * [ApiType.getEmitFilter] for both the [apiType] and [ApiType.PUBLIC_API] based on the
-         * [apiPredicateConfig]. This is used to filter which items are included in compatibility
-         * checks.
+         * Returns a filter which wraps the [ApiType.getReferenceFilter] for the [apiType] based on
+         * the [apiPredicateConfig] in a [MatchOverridingMethodPredicate]. This is used to filter
+         * which items are included in compatibility checks.
          */
         private fun getFilter(apiType: ApiType, apiPredicateConfig: ApiPredicate.Config) =
-            apiType
-                .getReferenceFilter(apiPredicateConfig)
-                .or(apiType.getEmitFilter(apiPredicateConfig))
-                .or(ApiType.PUBLIC_API.getReferenceFilter(apiPredicateConfig))
-                .or(ApiType.PUBLIC_API.getEmitFilter(apiPredicateConfig))
+            MatchOverridingMethodPredicate(apiType.getReferenceFilter(apiPredicateConfig))
     }
 }
