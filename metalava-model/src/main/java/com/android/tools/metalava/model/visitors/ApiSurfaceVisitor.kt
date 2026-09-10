@@ -19,7 +19,7 @@ package com.android.tools.metalava.model.visitors
 import com.android.tools.metalava.model.BaseItemVisitor
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.FilterPredicate
-import com.android.tools.metalava.model.PackageItem
+import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.testOrTrue
 
@@ -61,4 +61,37 @@ open class ApiSurfaceVisitor(
 ) : BaseItemVisitor(preserveClassNesting, visitParameterItems) {
     /** Skip any item that does not match [filterEmit]. */
     override fun skip(item: SelectableItem) = !filterEmit.testOrTrue(item)
+}
+
+/**
+ * An [ApiSurfaceVisitor] that is constructed using [ApiFilters] and provides a [filterReference]
+ * property for use by subclasses.
+ */
+open class ApiFiltersVisitor(
+    /** @see BaseItemVisitor.preserveClassNesting */
+    preserveClassNesting: Boolean = false,
+
+    /** @see BaseItemVisitor.visitParameterItems */
+    visitParameterItems: Boolean = true,
+
+    /** The filters to use to determine if we should visit an item */
+    apiFilters: ApiFilters?,
+) :
+    ApiSurfaceVisitor(
+        preserveClassNesting = preserveClassNesting,
+        visitParameterItems = visitParameterItems,
+        filterEmit = apiFilters?.emit,
+    ) {
+    /**
+     * Filter predicate that determines whether an [Item] can be referenced from the API surface.
+     *
+     * Unlike [filterEmit], which controls which items are visited during traversal, this filter is
+     * not used by the visitor traversal itself. Subclasses should use this when checking whether
+     * items referenced by the visited API (such as field constants referenced in typedef
+     * annotations, types in signatures, or supertypes) are accessible as part of the API.
+     *
+     * Use [FilterPredicate.testOrTrue] when querying this property so that if no filter was
+     * provided, all items are treated as referenceable.
+     */
+    protected val filterReference: FilterPredicate? = apiFilters?.reference
 }
