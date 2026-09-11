@@ -897,17 +897,12 @@ class CommonParameterizedSelectedApiTest : BaseModelTest() {
                         ),
                     ),
             ) {
-                // TODO(b/512093496): The behavior shown below is not correct as extending a class
-                //  from a standalone API surface should not result in the class contentApiVariants
-                //  including the CORE variant for the standalone surface because a standalone
-                //  surface incorporates everything from its extended surface(s) and will be fixed
-                //  in a follow up change.
                 surfaceTest(
                     surface = "standalone",
                     expected =
                         """
                             package test.pkg
-                                   self - ApiVariantSet[public(C),standalone(C)]
+                                   self - ApiVariantSet[standalone(C)]
                                 content - ApiVariantSet[]
                               class test.pkg.StandaloneClass
                                      self - ApiVariantSet[standalone(C)]
@@ -916,10 +911,10 @@ class CommonParameterizedSelectedApiTest : BaseModelTest() {
                                        self - ApiVariantSet[standalone(C)]
                                     content - ApiVariantSet[]
                               class test.pkg.PublicClass
-                                     self - ApiVariantSet[public(C)]
-                                  content - ApiVariantSet[standalone(C)]
+                                     self - ApiVariantSet[standalone(C)]
+                                  content - ApiVariantSet[]
                                 constructor test.pkg.PublicClass()
-                                       self - ApiVariantSet[public(C)]
+                                       self - ApiVariantSet[standalone(C)]
                                     content - ApiVariantSet[]
                         """,
                 )

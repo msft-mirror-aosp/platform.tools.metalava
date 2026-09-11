@@ -156,6 +156,27 @@ data class ApiSurfacesConfig(
     }
 
     /**
+     * Get the ordered set of [ApiSurfaceConfig]s needed when generating [targetSurface].
+     *
+     * This walks backwards along [ApiSurfaceConfig.extends] starting from [targetSurface], stopping
+     * when it reaches a standalone surface or a root surface.
+     *
+     * This is returned in order from narrowest to widest [targetSurface].
+     */
+    fun surfacesFor(targetSurface: ApiSurfaceConfig): Set<ApiSurfaceConfig> {
+        val result = mutableListOf<ApiSurfaceConfig>()
+        var current: ApiSurfaceConfig? = targetSurface
+        while (current != null) {
+            result.add(current)
+            if (current.contents == ContentsConfig.STANDALONE) {
+                break
+            }
+            current = current.extends?.let { byName[it] }
+        }
+        return result.asReversed().toSet()
+    }
+
+    /**
      * Flatten the [ApiSurfaceConfig.extends] hierarchy of this [ApiSurfaceConfig], if any.
      *
      * If this has a non-null [ApiSurfaceConfig.extends] then this will be called on the

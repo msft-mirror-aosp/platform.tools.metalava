@@ -276,18 +276,10 @@ class ApiSelectionOptionsTest :
                     ),
                 )
         ) {
+            options.apiSurfaces.assertBaseWasNotCreated()
             assertThat(options.apiSurfaces.main.name).isEqualTo("restricted")
             assertThat(options.apiSurfaces.main.contents).isEqualTo(Contents.STANDALONE)
 
-            // TODO(b/512837535): The restricted surface is standalone so should not have a base
-            //  surface. Currently, it does.
-            options.apiSurfaces.assertBaseWasCreated()
-            assertThat(options.apiSurfaces.base?.name).isEqualTo("intermediate")
-
-            // TODO(b/512837535): The restricted surface is supposed to include everything from the
-            //  public and intermediate surfaces. Currently, it does not. The @IntermediateApi
-            //  annotated items are in the `intermediate` API and unannotated items are in th
-            //  `public` API.
             options.apiSurfaceSelector.assertState(
                 expectedMatcherState =
                     """
@@ -378,14 +370,6 @@ class ApiSelectionOptionsTest :
             assertThat(options.apiSurfaces.main.name).isEqualTo("other")
             assertThat(options.apiSurfaces.base?.name).isEqualTo("intermediate")
 
-            // TODO(b/512837535): The intermediate surface is standalone so should not extend
-            //  public, and the unannotated items should be in intermediate, not public.
-            //  Currently, all surfaces are included in apiSurfaces.all and unannotated is in
-            //  public.
-            assertThat(options.apiSurfaces.all.map { it.name })
-                .containsExactly("public", "intermediate", "other")
-                .inOrder()
-
             options.apiSurfaceSelector.assertState(
                 expectedMatcherState =
                     """
@@ -408,7 +392,7 @@ class ApiSelectionOptionsTest :
                         )
                     """,
                 expectedShowUnannotated = false,
-                expectedUnannotatedSurfaceName = "public",
+                expectedUnannotatedSurfaceName = "intermediate",
             )
         }
     }

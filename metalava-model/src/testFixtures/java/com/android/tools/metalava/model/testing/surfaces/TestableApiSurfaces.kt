@@ -175,24 +175,22 @@ object TestableApiSurfaces {
             variantRules,
         )
 
-    /** A set of API surfaces that includes `public` and `standalone` surfaces. */
-    private val publicStandaloneSurfaces =
+    /** A set of API surfaces that includes only a `standalone` surface. */
+    private val standaloneSurfaces =
         ApiSurfaces.build {
-            createSurface("public")
             createSurface(
                 "standalone",
-                extends = "public",
                 contents = ApiSurface.Contents.STANDALONE,
                 isMain = true,
             )
         }
 
-    /** [ApiSurfaceRules] that define public and standalone APIs. */
+    /** [ApiSurfaceRules] that define a standalone API that combines public and standalone rules. */
     val publicStandaloneRules =
         ApiSurfaceRules(
-            publicStandaloneSurfaces,
+            standaloneSurfaces,
             mapOf(
-                "public" to
+                "standalone" to
                     listOf(
                         SurfaceSelectionRule.unannotated,
                         SurfaceSelectionRule.createAnnotationRule(
@@ -200,9 +198,6 @@ object TestableApiSurfaces {
                             effect = SurfaceSelectionRule.Effect.HIDE,
                         ),
                         SurfaceSelectionRule.createAnnotationRule(PUBLIC_API.qualifiedName),
-                    ),
-                "standalone" to
-                    listOf(
                         SurfaceSelectionRule.createAnnotationRule(STANDALONE_API.qualifiedName),
                     ),
             ),
