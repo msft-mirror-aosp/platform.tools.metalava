@@ -27,6 +27,7 @@ import com.android.tools.metalava.cli.common.existingFile
 import com.android.tools.metalava.cli.common.map
 import com.android.tools.metalava.model.api.surface.ApiVariantType
 import com.android.tools.metalava.model.visitors.ApiType
+import com.android.tools.metalava.reporter.Baseline
 import com.github.ajalt.clikt.parameters.groups.OptionGroup
 import com.github.ajalt.clikt.parameters.options.multiple
 import com.github.ajalt.clikt.parameters.options.option
@@ -47,10 +48,7 @@ const val ARG_API_COMPAT_ANNOTATION = "--api-compat-annotation"
 /** The name of the group, can be used in help text to refer to the options in this group. */
 const val COMPATIBILITY_CHECK_GROUP = "Compatibility Checks"
 
-class CompatibilityCheckOptions(
-    executionEnvironment: ExecutionEnvironment = ExecutionEnvironment(),
-    commonBaselineOptions: CommonBaselineOptions = CommonBaselineOptions(),
-) :
+class CompatibilityCheckOptions() :
     OptionGroup(
         name = COMPATIBILITY_CHECK_GROUP,
         help =
@@ -165,15 +163,22 @@ class CompatibilityCheckOptions(
     private val baselineOptionsMixin =
         BaselineOptionsMixin(
             containingGroup = this,
-            executionEnvironment,
             baselineOptionName = ARG_BASELINE_CHECK_COMPATIBILITY_RELEASED,
             updateBaselineOptionName = ARG_UPDATE_BASELINE_CHECK_COMPATIBILITY_RELEASED,
             issueType = "compatibility",
+        )
+
+    /** Returns a [Baseline] for compatibility checks, if there is one. */
+    internal fun computeBaseline(
+        executionEnvironment: ExecutionEnvironment = ExecutionEnvironment(),
+        commonBaselineOptions: CommonBaselineOptions = CommonBaselineOptions(),
+    ): Baseline? {
+        return baselineOptionsMixin.computeBaseline(
+            executionEnvironment,
             description = "compatibility:released",
             commonBaselineOptions = commonBaselineOptions,
         )
-
-    internal val baseline by baselineOptionsMixin::baseline
+    }
 
     /**
      * Encapsulates information needed to perform a compatibility check of the current API being

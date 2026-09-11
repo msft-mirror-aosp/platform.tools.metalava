@@ -86,33 +86,20 @@ class MainCommand(
         )
 
     /** General reporter options. */
-    private val generalReportingOptions by
-        GeneralReportingOptions(
-            executionEnvironment = executionEnvironment,
-            commonBaselineOptions = commonBaselineOptions,
-            defaultBaselineFileProvider = { getDefaultBaselineFile() },
-        )
+    private val generalReportingOptions by GeneralReportingOptions()
 
     private val configFileOptions by ConfigFileOptions()
 
     private val apiSelectionOptions: ApiSelectionOptions by ApiSelectionOptions()
 
     /** API lint options. */
-    private val apiLintOptions by
-        ApiLintOptions(
-            executionEnvironment = executionEnvironment,
-            commonBaselineOptions = commonBaselineOptions,
-        )
+    private val apiLintOptions by ApiLintOptions()
 
     /** Multiplatform codebase options. */
     private val multiplatformOptions by MultiplatformOptions()
 
     /** Compatibility check options. */
-    private val compatibilityCheckOptions by
-        CompatibilityCheckOptions(
-            executionEnvironment = executionEnvironment,
-            commonBaselineOptions = commonBaselineOptions,
-        )
+    private val compatibilityCheckOptions by CompatibilityCheckOptions()
 
     /** Signature file options. */
     private val signatureFileOptions by SignatureFileOptions()
@@ -136,13 +123,22 @@ class MainCommand(
     /** Manages the [Reporter]s and [Baseline]s. */
     val reporterManager by
         lazy(LazyThreadSafetyMode.NONE) {
+            val generalBaseline =
+                generalReportingOptions.computeBaseline(
+                    executionEnvironment,
+                    commonBaselineOptions
+                ) {
+                    getDefaultBaselineFile()
+                }
             ReporterManager(
                 executionEnvironment.reporterEnvironment,
                 apiLintOptions,
                 compatibilityCheckOptions,
-                generalReportingOptions,
+                generalBaseline,
                 issueReportingOptions,
                 sourceOptions,
+                executionEnvironment,
+                commonBaselineOptions,
             )
         }
 

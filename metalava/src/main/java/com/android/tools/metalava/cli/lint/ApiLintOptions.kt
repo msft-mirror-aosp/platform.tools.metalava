@@ -23,6 +23,7 @@ import com.android.tools.metalava.cli.common.PreviouslyReleasedApi
 import com.android.tools.metalava.cli.common.allowStructuredOptionName
 import com.android.tools.metalava.cli.common.existingFile
 import com.android.tools.metalava.lint.DefaultLintErrorMessage
+import com.android.tools.metalava.reporter.Baseline
 import com.github.ajalt.clikt.parameters.groups.OptionGroup
 import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.flag
@@ -41,10 +42,7 @@ const val ARG_ALLOWED_ACRONYM = "--api-lint-allowed-acronym"
 /** The name of the group, can be used in help text to refer to the options in this group. */
 const val API_LINT_GROUP = "Api Lint"
 
-class ApiLintOptions(
-    executionEnvironment: ExecutionEnvironment = ExecutionEnvironment(),
-    commonBaselineOptions: CommonBaselineOptions = CommonBaselineOptions(),
-) :
+class ApiLintOptions() :
     OptionGroup(
         name = API_LINT_GROUP,
         help =
@@ -128,13 +126,20 @@ class ApiLintOptions(
     private val baselineOptionsMixin =
         BaselineOptionsMixin(
             containingGroup = this,
-            executionEnvironment,
             baselineOptionName = ARG_BASELINE_API_LINT,
             updateBaselineOptionName = ARG_UPDATE_BASELINE_API_LINT,
             issueType = "API lint",
+        )
+
+    /** Returns a [Baseline] for API lint checks, if there is one. */
+    internal fun computeBaseline(
+        executionEnvironment: ExecutionEnvironment = ExecutionEnvironment(),
+        commonBaselineOptions: CommonBaselineOptions = CommonBaselineOptions(),
+    ): Baseline? {
+        return baselineOptionsMixin.computeBaseline(
+            executionEnvironment,
             description = "api-lint",
             commonBaselineOptions = commonBaselineOptions,
         )
-
-    internal val baseline by baselineOptionsMixin::baseline
+    }
 }
