@@ -292,7 +292,6 @@ class ApiSurfaceRules(
                     createSurface(
                         s.name,
                         extends = s.extends?.name,
-                        contents = s.contents,
                         isMain = s === selectedSurface,
                     )
                 }

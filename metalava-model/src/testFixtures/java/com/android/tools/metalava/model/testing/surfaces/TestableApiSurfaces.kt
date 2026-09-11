@@ -20,7 +20,6 @@ import com.android.tools.metalava.model.AnnotationContext
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.api.ApiSurfaceRules
 import com.android.tools.metalava.model.api.SurfaceSelectionRule
-import com.android.tools.metalava.model.api.surface.ApiSurface
 import com.android.tools.metalava.model.api.surface.ApiSurfaces
 
 /** Provides shared objects for testing API surface related functionality. */
@@ -180,7 +179,6 @@ object TestableApiSurfaces {
         ApiSurfaces.build {
             createSurface(
                 "standalone",
-                contents = ApiSurface.Contents.STANDALONE,
                 isMain = true,
             )
         }

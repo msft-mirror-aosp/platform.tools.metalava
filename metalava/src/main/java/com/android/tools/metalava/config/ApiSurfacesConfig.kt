@@ -16,7 +16,6 @@
 
 package com.android.tools.metalava.config
 
-import com.android.tools.metalava.model.api.surface.ApiSurface
 import com.android.tools.metalava.model.api.surface.ApiVariantType
 import com.fasterxml.jackson.annotation.JsonIgnore
 import com.fasterxml.jackson.annotation.JsonValue
@@ -341,12 +340,12 @@ data class ApiSurfaceConfig(
 )
 
 /** Enumeration of the possible contents of this surface. */
-enum class ContentsConfig(val surfaceContents: ApiSurface.Contents) {
+enum class ContentsConfig {
     /** It is a delta on a surface that it extends. */
-    DELTA(ApiSurface.Contents.DELTA),
+    DELTA,
 
     /** It is a standalone surface that includes everything that its extended surfaces contain. */
-    STANDALONE(ApiSurface.Contents.STANDALONE),
+    STANDALONE,
     ;
 
     /** Name to use when serializing and deserializing this [ContentsConfig] instance. */

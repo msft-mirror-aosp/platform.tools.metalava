@@ -32,7 +32,6 @@ import com.android.tools.metalava.model.api.SurfaceSelectionRule
 import com.android.tools.metalava.model.api.SurfaceSelectionRule.Companion.unannotated
 import com.android.tools.metalava.model.api.SurfaceSelectionRule.Effect
 import com.android.tools.metalava.model.api.surface.ApiSurface
-import com.android.tools.metalava.model.api.surface.ApiSurface.Contents
 import com.android.tools.metalava.model.api.surface.ApiSurfaces
 import com.github.ajalt.clikt.parameters.groups.OptionGroup
 import com.github.ajalt.clikt.parameters.options.default
@@ -613,7 +612,6 @@ internal fun apiSurfacesFromConfig(
                 extends =
                     if (surfaceConfig.contents == ContentsConfig.STANDALONE) null
                     else surfaceConfig.extends,
-                contents = surfaceConfig.contents?.surfaceContents ?: Contents.DELTA,
                 isMain = surfaceConfig.name == targetApiSurface,
             )
         }

@@ -25,7 +25,6 @@ import com.android.tools.metalava.config.ContentsConfig
 import com.android.tools.metalava.config.EffectConfig
 import com.android.tools.metalava.config.SelectionCriteriaConfig
 import com.android.tools.metalava.model.ANDROID_SYSTEM_API
-import com.android.tools.metalava.model.api.surface.ApiSurface.Contents
 import com.android.tools.metalava.model.testing.api.assertState
 import com.google.common.truth.Truth.assertThat
 import org.junit.Assert.assertThrows
@@ -278,7 +277,6 @@ class ApiSelectionOptionsTest :
         ) {
             options.apiSurfaces.assertBaseWasNotCreated()
             assertThat(options.apiSurfaces.main.name).isEqualTo("restricted")
-            assertThat(options.apiSurfaces.main.contents).isEqualTo(Contents.STANDALONE)
 
             options.apiSurfaceSelector.assertState(
                 expectedMatcherState =
