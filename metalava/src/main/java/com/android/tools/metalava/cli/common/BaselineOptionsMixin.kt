@@ -83,7 +83,7 @@ class BaselineOptionsMixin(
         executionEnvironment: ExecutionEnvironment,
         defaultBaselineFileProvider: () -> File? = { null },
         description: String,
-        commonBaselineOptions: CommonBaselineOptions,
+        commonBaselineOptions: ComputedCommonBaselineOptions,
     ): Baseline? {
         return Baseline.Builder()
             .apply {

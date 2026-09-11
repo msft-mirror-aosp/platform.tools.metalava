@@ -17,7 +17,7 @@
 package com.android.tools.metalava
 
 import com.android.tools.metalava.cli.common.BaselineOptionsMixin
-import com.android.tools.metalava.cli.common.CommonBaselineOptions
+import com.android.tools.metalava.cli.common.ComputedCommonBaselineOptions
 import com.android.tools.metalava.cli.common.ExecutionEnvironment
 import com.android.tools.metalava.cli.common.MetalavaOptionGroup
 import com.android.tools.metalava.reporter.Baseline
@@ -56,7 +56,7 @@ class GeneralReportingOptions() :
     /** Returns a [Baseline] for the general [Reporter], if there is one. */
     internal fun computeBaseline(
         executionEnvironment: ExecutionEnvironment = ExecutionEnvironment(),
-        commonBaselineOptions: CommonBaselineOptions = CommonBaselineOptions(),
+        commonBaselineOptions: ComputedCommonBaselineOptions,
         defaultBaselineFileProvider: () -> File? = { null },
     ): Baseline? {
         return baselineOptionsMixin.computeBaseline(

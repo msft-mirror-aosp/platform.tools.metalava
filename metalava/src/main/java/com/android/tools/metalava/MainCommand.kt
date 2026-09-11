@@ -35,9 +35,7 @@ import com.android.tools.metalava.cli.compatibility.CompatibilityCheckOptions
 import com.android.tools.metalava.cli.lint.ApiLintOptions
 import com.android.tools.metalava.cli.multiplatform.MultiplatformOptions
 import com.android.tools.metalava.cli.signature.SignatureFormatOptions
-import com.android.tools.metalava.reporter.Baseline
 import com.android.tools.metalava.reporter.DEFAULT_BASELINE_NAME
-import com.android.tools.metalava.reporter.Reporter
 import com.github.ajalt.clikt.parameters.arguments.argument
 import com.github.ajalt.clikt.parameters.arguments.multiple
 import com.github.ajalt.clikt.parameters.groups.provideDelegate
@@ -79,11 +77,7 @@ class MainCommand(
             issuesConfigProvider = { configFileOptions.config.issues },
         )
 
-    private val commonBaselineOptions by
-        CommonBaselineOptions(
-            sourceOptions = sourceOptions,
-            issueReportingOptions = issueReportingOptions,
-        )
+    private val commonBaselineOptions by CommonBaselineOptions()
 
     /** General reporter options. */
     private val generalReportingOptions by GeneralReportingOptions()
@@ -120,16 +114,19 @@ class MainCommand(
     /** Miscellaneous options. */
     internal val miscellaneousOptions by MiscellaneousOptions()
 
-    /** Manages the [Reporter]s and [Baseline]s. */
-    val reporterManager by
-        lazy(LazyThreadSafetyMode.NONE) {
-            val generalBaseline =
-                generalReportingOptions.computeBaseline(
-                    executionEnvironment,
-                    commonBaselineOptions
-                ) {
-                    getDefaultBaselineFile()
-                }
+    override fun run() {
+        val computedCommonBaselineOptions =
+            commonBaselineOptions.compute(sourceOptions, issueReportingOptions)
+
+        val generalBaseline =
+            generalReportingOptions.computeBaseline(
+                executionEnvironment,
+                computedCommonBaselineOptions
+            ) {
+                getDefaultBaselineFile()
+            }
+        // Manages the [Reporter]s and [Baseline]s.
+        val reporterManager =
             ReporterManager(
                 executionEnvironment.reporterEnvironment,
                 apiLintOptions,
@@ -138,11 +135,9 @@ class MainCommand(
                 issueReportingOptions,
                 sourceOptions,
                 executionEnvironment,
-                commonBaselineOptions,
+                computedCommonBaselineOptions
             )
-        }
 
-    override fun run() {
         // Make sure to flush out the baseline files, close files and write any final messages.
         registerPostCommandAction {
             // Close all the baselines.
@@ -195,7 +190,7 @@ class MainCommand(
             reporterManager.writeSavedReports()
         }
 
-        if (reporterManager.hasAnyErrors() && !commonBaselineOptions.passBaselineUpdates) {
+        if (reporterManager.hasAnyErrors() && !computedCommonBaselineOptions.passBaselineUpdates) {
             // Repeat the errors at the end to make it easy to find the actual problems.
             if (issueReportingOptions.repeatErrorsMax > 0) {
                 reporterManager.repeatErrors(stderr, issueReportingOptions.repeatErrorsMax)

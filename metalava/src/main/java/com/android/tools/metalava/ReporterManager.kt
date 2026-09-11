@@ -16,7 +16,7 @@
 
 package com.android.tools.metalava
 
-import com.android.tools.metalava.cli.common.CommonBaselineOptions
+import com.android.tools.metalava.cli.common.ComputedCommonBaselineOptions
 import com.android.tools.metalava.cli.common.ExecutionEnvironment
 import com.android.tools.metalava.cli.common.IssueReportingOptions
 import com.android.tools.metalava.cli.common.SourceOptions
@@ -44,7 +44,7 @@ class ReporterManager(
     issueReportingOptions: IssueReportingOptions,
     private val sourceOptions: SourceOptions,
     executionEnvironment: ExecutionEnvironment,
-    commonBaselineOptions: CommonBaselineOptions,
+    commonBaselineOptions: ComputedCommonBaselineOptions,
 ) {
     /** [Reporter] that will redirect [Issues.Issue] depending on their [Issues.Category]. */
     val reporter: Reporter

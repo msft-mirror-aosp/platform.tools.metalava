@@ -17,7 +17,7 @@
 package com.android.tools.metalava.cli.lint
 
 import com.android.tools.metalava.cli.common.BaselineOptionsMixin
-import com.android.tools.metalava.cli.common.CommonBaselineOptions
+import com.android.tools.metalava.cli.common.ComputedCommonBaselineOptions
 import com.android.tools.metalava.cli.common.ExecutionEnvironment
 import com.android.tools.metalava.cli.common.PreviouslyReleasedApi
 import com.android.tools.metalava.cli.common.allowStructuredOptionName
@@ -134,7 +134,7 @@ class ApiLintOptions() :
     /** Returns a [Baseline] for API lint checks, if there is one. */
     internal fun computeBaseline(
         executionEnvironment: ExecutionEnvironment = ExecutionEnvironment(),
-        commonBaselineOptions: CommonBaselineOptions = CommonBaselineOptions(),
+        commonBaselineOptions: ComputedCommonBaselineOptions,
     ): Baseline? {
         return baselineOptionsMixin.computeBaseline(
             executionEnvironment,
