@@ -107,7 +107,7 @@ class Driver(
     internal val configFileOptions: ConfigFileOptions,
     private val issueReportingOptions: IssueReportingOptions,
     private val multiplatformOptions: MultiplatformOptions,
-    private val nullabilityValidationOptions: NullabilityValidationOptions,
+    private val nullabilityValidationOptions: ComputedNullabilityValidationOptions,
     private val signatureFileOptions: SignatureFileOptions,
     private val signatureFormatOptions: SignatureFormatOptions,
     private val sourceOptions: SourceOptions,
