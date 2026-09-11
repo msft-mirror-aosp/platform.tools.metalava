@@ -1239,6 +1239,62 @@ class CommonParameterizedSelectedApiTest : BaseModelTest() {
                         """,
                 )
             }
+
+            buildTests(
+                name = "inaccessible class extending and implementing method from public class",
+                surfaceRules = publicSystemModuleRules,
+                sources =
+                    listOf(
+                        java(
+                            """
+                                package test.pkg;
+
+                                public abstract class PublicClass {
+                                    public abstract void method();
+                                }
+                            """
+                        ),
+                        java(
+                            """
+                                package test.pkg;
+
+                                class InaccessibleClass extends PublicClass {
+                                    @Override
+                                    public void method() {}
+                                }
+                            """
+                        ),
+                    ),
+            ) {
+                // TODO(b/512093496): The inaccessible method should not be in the "public(C)".
+                surfaceTest(
+                    surface = "public",
+                    expected =
+                        """
+                            package test.pkg
+                                   self - ApiVariantSet[public(C)]
+                                content - ApiVariantSet[]
+                              class test.pkg.PublicClass
+                                     self - ApiVariantSet[public(C)]
+                                  content - ApiVariantSet[]
+                                constructor test.pkg.PublicClass()
+                                       self - ApiVariantSet[public(C)]
+                                    content - ApiVariantSet[]
+                                method test.pkg.PublicClass.method()
+                                       self - ApiVariantSet[public(C)]
+                                    content - ApiVariantSet[]
+                              class test.pkg.InaccessibleClass
+                                     self - ApiVariantSet[]
+                                  content - ApiVariantSet[]
+                                constructor test.pkg.InaccessibleClass()
+                                       self - ApiVariantSet[]
+                                    content - ApiVariantSet[]
+                                method test.pkg.InaccessibleClass.method()
+                                       self - ApiVariantSet[public(C)]
+                                    content - ApiVariantSet[]
+                        """,
+                )
+            }
         }
     }
 
