@@ -1125,6 +1125,123 @@ class CommonParameterizedSelectedApiTest : BaseModelTest() {
                         """,
                 )
             }
+
+            buildTests(
+                name = "removed class overriding method from public interface marked as @Hide",
+                surfaceRules = publicSystemModuleRules,
+                sources =
+                    listOf(
+                        java(
+                            """
+                                package test.pkg;
+
+                                public interface PublicInterface {
+                                    void method();
+                                }
+                            """
+                        ),
+                        java(
+                            """
+                                package test.pkg;
+
+                                $SYSTEM_API
+                                $REMOVED_FROM_API
+                                public class RemovedClass implements PublicInterface {
+                                    $HIDE
+                                    @Override
+                                    public void method() {}
+                                }
+                            """
+                        ),
+                    ),
+            ) {
+                // TODO: The behavior shown below is not correct. RemovedClass is from the system
+                //  API surface and its overriding method is marked @Hide, so the method should
+                //  inherit the public(C) API variant from PublicInterface.method().
+                surfaceTest(
+                    surface = "module",
+                    expected =
+                        """
+                            package test.pkg
+                                   self - ApiVariantSet[public(C),system(R)]
+                                content - ApiVariantSet[]
+                              class test.pkg.PublicInterface
+                                     self - ApiVariantSet[public(C)]
+                                  content - ApiVariantSet[]
+                                method test.pkg.PublicInterface.method()
+                                       self - ApiVariantSet[public(C)]
+                                    content - ApiVariantSet[]
+                              class test.pkg.RemovedClass
+                                     self - ApiVariantSet[system(R)]
+                                  content - ApiVariantSet[]
+                                constructor test.pkg.RemovedClass()
+                                       self - ApiVariantSet[system(R)]
+                                    content - ApiVariantSet[]
+                                method test.pkg.RemovedClass.method()
+                                       self - ApiVariantSet[]
+                                    content - ApiVariantSet[]
+                        """,
+                )
+            }
+
+            buildTests(
+                name = "system class overriding method from removed public class marked as @Hide",
+                surfaceRules = publicSystemModuleRules,
+                sources =
+                    listOf(
+                        java(
+                            """
+                                package test.pkg;
+
+                                $REMOVED_FROM_API
+                                public class RemovedPublicClass {
+                                    public void method() {}
+                                }
+                            """
+                        ),
+                        java(
+                            """
+                                package test.pkg;
+
+                                $SYSTEM_API
+                                public class SystemClass extends RemovedPublicClass {
+                                    $HIDE
+                                    @Override
+                                    public void method() {}
+                                }
+                            """
+                        ),
+                    ),
+            ) {
+                // The removed status is not inherited by the overriding method.
+                surfaceTest(
+                    surface = "module",
+                    expected =
+                        """
+                            package test.pkg
+                                   self - ApiVariantSet[public(R),system(C)]
+                                content - ApiVariantSet[]
+                              class test.pkg.RemovedPublicClass
+                                     self - ApiVariantSet[public(R)]
+                                  content - ApiVariantSet[]
+                                constructor test.pkg.RemovedPublicClass()
+                                       self - ApiVariantSet[public(R)]
+                                    content - ApiVariantSet[]
+                                method test.pkg.RemovedPublicClass.method()
+                                       self - ApiVariantSet[public(R)]
+                                    content - ApiVariantSet[]
+                              class test.pkg.SystemClass
+                                     self - ApiVariantSet[system(C)]
+                                  content - ApiVariantSet[]
+                                constructor test.pkg.SystemClass()
+                                       self - ApiVariantSet[system(C)]
+                                    content - ApiVariantSet[]
+                                method test.pkg.SystemClass.method()
+                                       self - ApiVariantSet[]
+                                    content - ApiVariantSet[]
+                        """,
+                )
+            }
         }
     }
 
