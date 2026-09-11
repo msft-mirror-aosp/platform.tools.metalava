@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava
 
+import com.android.tools.metalava.api.ApiAnalyzer
 import com.android.tools.metalava.cli.common.MetalavaSubCommand
 import com.android.tools.metalava.cli.common.executionEnvironment
 import com.android.tools.metalava.cli.common.existingFile
@@ -72,9 +73,16 @@ class JarToJDiffCommand :
                 BasicReporter(stderr)
             )
             .use { jarCodebaseLoader ->
-                val codebase = jarCodebaseLoader.loadFromJarFile(jarFile)
+                val apiPredicateConfig = ApiPredicate.Config()
+                val codebase =
+                    jarCodebaseLoader.loadFromJarFile(
+                        jarFile,
+                        ApiAnalyzer.Config(
+                            apiPredicateConfig = apiPredicateConfig,
+                        ),
+                    )
 
-                val apiFilters = ApiType.PUBLIC_API.getApiFilters(ApiPredicate.Config())
+                val apiFilters = ApiType.PUBLIC_API.getApiFilters(apiPredicateConfig)
 
                 val codebaseFragment =
                     CodebaseFragment.create(codebase) { delegate ->

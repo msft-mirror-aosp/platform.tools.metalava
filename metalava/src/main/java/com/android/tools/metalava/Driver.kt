@@ -305,6 +305,7 @@ class Driver(
 
     private val apiPredicateConfig by lazy {
         ApiPredicate.Config(
+            apiSurface = apiSurface,
             ignoreShown = apiSelectionOptions.showUnannotated,
             ignoreShownForWholeApiSurface =
                 apiSelectionOptions.apiSurfaceSelector.unannotatedApiSurface != null,

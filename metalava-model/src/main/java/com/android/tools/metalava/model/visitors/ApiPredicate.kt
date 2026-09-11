@@ -21,6 +21,8 @@ import com.android.tools.metalava.model.FilterPredicate
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.Showability
+import com.android.tools.metalava.model.api.surface.ApiSurface
+import com.android.tools.metalava.model.api.surface.ApiSurfaces
 
 /**
  * Predicate that decides if the given member should be considered part of an API surface area. To
@@ -88,6 +90,9 @@ class ApiPredicate(
      * options.
      */
     data class Config(
+        /** The [ApiSurface] that this predicate is for. */
+        val apiSurface: ApiSurface = ApiSurfaces.DEFAULT.main,
+
         /**
          * Set if the value of [SelectableItem.hasShowAnnotation] should be ignored. That is, this
          * predicate will assume that all encountered members match the "shown" requirement.

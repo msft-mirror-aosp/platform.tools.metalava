@@ -21,6 +21,7 @@ import com.android.SdkConstants
 import com.android.tools.metalava.CodebaseComparator
 import com.android.tools.metalava.ComparisonVisitor
 import com.android.tools.metalava.NullnessMigration
+import com.android.tools.metalava.api.ApiAnalyzer
 import com.android.tools.metalava.apilevels.ApiVersion
 import com.android.tools.metalava.apilevels.PatternNode
 import com.android.tools.metalava.cli.common.DefaultSignatureFileLoader
@@ -126,9 +127,19 @@ class ConvertJarsToSignatureFiles(
             )
         val signatureFileLoader = DefaultSignatureFileLoader(codebaseConfig)
 
+        // Use the default API surface.
+        val apiSurface = ApiSurfaces.DEFAULT.main
+
         val jarCodebase =
             jarCodebaseLoader.loadFromJarFile(
                 jarFile,
+                apiAnalyzerConfig =
+                    ApiAnalyzer.Config(
+                        apiPredicateConfig =
+                            ApiPredicate.Config(
+                                apiSurface = apiSurface,
+                            )
+                    ),
                 // Do not freeze codebases after loading as they may need to be modified.
                 freezeCodebase = false,
             )
@@ -140,8 +151,7 @@ class ConvertJarsToSignatureFiles(
             jarCodebase.accept(
                 object :
                     ApiSurfaceVisitor(
-                        filterEmit =
-                            ApiSurfacePredicate.wholeCoreEmittableApi(jarCodebase.apiSurfaces.main),
+                        filterEmit = ApiSurfacePredicate.wholeCoreEmittableApi(apiSurface),
                     ) {
                     override fun visitItem(item: Item) {
                         unmarkRecent(item)
@@ -197,6 +207,7 @@ class ConvertJarsToSignatureFiles(
 
         val apiPredicateConfig =
             ApiPredicate.Config(
+                apiSurface = apiSurface,
                 addAdditionalOverrides = fileFormat[ADD_ADDITIONAL_OVERRIDES],
             )
         val apiFilters =
