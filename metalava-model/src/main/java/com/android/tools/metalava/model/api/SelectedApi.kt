@@ -425,6 +425,9 @@ private class MethodSelectedApi(
 
         super.itemSpecificInitialization()
 
+        // If the parent is not part of any API then the method cannot be either.
+        if (parent.itemApiVariants.isEmpty()) return
+
         // Unlike classes and fields, methods implicitly inherit API surface membership from the
         // methods they override (e.g. an unannotated or @Hide method implementing a public
         // interface method). If this method did not directly specify any API variants, find the

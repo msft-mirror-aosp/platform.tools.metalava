@@ -1266,7 +1266,6 @@ class CommonParameterizedSelectedApiTest : BaseModelTest() {
                         ),
                     ),
             ) {
-                // TODO(b/512093496): The inaccessible method should not be in the "public(C)".
                 surfaceTest(
                     surface = "public",
                     expected =
@@ -1290,7 +1289,7 @@ class CommonParameterizedSelectedApiTest : BaseModelTest() {
                                        self - ApiVariantSet[]
                                     content - ApiVariantSet[]
                                 method test.pkg.InaccessibleClass.method()
-                                       self - ApiVariantSet[public(C)]
+                                       self - ApiVariantSet[]
                                     content - ApiVariantSet[]
                         """,
                 )
