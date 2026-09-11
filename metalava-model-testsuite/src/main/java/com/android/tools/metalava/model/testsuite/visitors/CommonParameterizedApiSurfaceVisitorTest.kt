@@ -31,7 +31,6 @@ import com.android.tools.metalava.model.testing.surfaces.TestableApiSurfaces.pub
 import com.android.tools.metalava.model.testing.surfaces.initializeSelectedApiInstances
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.model.visitors.ApiFilters
-import com.android.tools.metalava.model.visitors.ApiPredicate
 import com.android.tools.metalava.model.visitors.ApiSurfaceVisitor
 import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.android.tools.metalava.testing.EntryPoint
@@ -103,16 +102,7 @@ class CommonParameterizedApiSurfaceVisitorTest : BaseModelTest() {
                 )
                 .cacheIn(testFileCacheRule)
 
-        /**
-         * Create a [TestCase] comparing [ApiSurfaceVisitor] using [ApiSurfacePredicate.wholeApi]
-         * with [ApiVisitor] using an [ApiPredicate] configured to match the whole API surface (with
-         * `ignoreRemoved = true` and `includeDocOnly = true`).
-         *
-         * This matches the whole API surface across all surfaces, verifying that
-         * [ApiSurfaceVisitor] visits the exact same items as [ApiVisitor] when inspecting the
-         * entire API surface (such as when updating deprecation status across extended and base
-         * surfaces).
-         */
+        /** Create a [TestCase] for [ApiSurfaceVisitor] using [ApiSurfacePredicate.wholeApi]. */
         @EntryPoint
         fun wholeApiTestCase(
             name: String,
@@ -127,19 +117,7 @@ class CommonParameterizedApiSurfaceVisitorTest : BaseModelTest() {
                 input = input,
                 expectedNotNested = expectedNotNested,
                 expectedNested = expectedNested,
-                apiFilters = {
-                    val predicate =
-                        EMITTED_ONLY.and(
-                            ApiPredicate(
-                                ignoreRemoved = true,
-                                includeDocOnly = true,
-                                // Match the whole API surface so deprecation is updated for items
-                                // in extended/base surfaces as well.
-                                config = ApiPredicate.Config(),
-                            )
-                        )
-                    ApiFilters(predicate, predicate)
-                },
+                apiFilters = null,
                 filterEmit = { EMITTED_ONLY.and(ApiSurfacePredicate.wholeApi()) },
                 requiresApiVariantSelectors = requiresApiVariantSelectors,
                 classpath = classpath,
