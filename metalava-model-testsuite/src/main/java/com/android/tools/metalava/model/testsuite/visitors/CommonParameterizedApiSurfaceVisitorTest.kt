@@ -37,6 +37,7 @@ import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.android.tools.metalava.testing.EntryPoint
 import com.android.tools.metalava.testing.EntryPointCallerRule
 import com.android.tools.metalava.testing.EntryPointCallerTracker
+import com.android.tools.metalava.testing.TestFileCache
 import com.android.tools.metalava.testing.TestFileCacheRule
 import com.android.tools.metalava.testing.cacheIn
 import com.android.tools.metalava.testing.jarFromSources
@@ -144,10 +145,7 @@ class CommonParameterizedApiSurfaceVisitorTest : BaseModelTest() {
                 classpath = classpath,
             )
 
-        /**
-         * Create a [TestCase] for [ApiSurfaceVisitor] using
-         * [ApiSurfacePredicate.wholeCoreApiSurfacePredicate].
-         */
+        /** Create a [TestCase] for [ApiSurfaceVisitor] using [ApiSurfacePredicate.wholeCoreApi]. */
         @EntryPoint
         fun wholeCoreTestCase(
             name: String,
