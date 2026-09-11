@@ -18,6 +18,7 @@ package com.android.tools.metalava.model.visitors
 
 import com.android.tools.metalava.model.EMITTED_ONLY
 import com.android.tools.metalava.model.FilterPredicate
+import com.android.tools.metalava.model.api.surface.ApiSurfacePredicate
 
 /** Types of APIs emitted (or parsed etc.) */
 enum class ApiType(val flagName: String, val displayName: String = flagName) {
@@ -39,7 +40,7 @@ enum class ApiType(val flagName: String, val displayName: String = flagName) {
             // Emitted APIs can reference types (such as superclasses, interfaces, parameter types,
             // or thrown exceptions) that belong to any API surface extended by the target surface,
             // so references must match across the whole API surface.
-            return ApiPredicate(config = apiPredicateConfig)
+            return ApiSurfacePredicate.wholeCoreApi(apiPredicateConfig.apiSurface)
         }
     },
 
@@ -61,10 +62,7 @@ enum class ApiType(val flagName: String, val displayName: String = flagName) {
 
         override fun getReferenceFilter(apiPredicateConfig: ApiPredicate.Config): FilterPredicate =
             // References in removed APIs can refer to types across the whole API surface.
-            ApiPredicate(
-                ignoreRemoved = true,
-                config = apiPredicateConfig,
-            )
+            ApiSurfacePredicate.wholeCoreAndRemovedApi(apiPredicateConfig.apiSurface)
     },
     ;
 
