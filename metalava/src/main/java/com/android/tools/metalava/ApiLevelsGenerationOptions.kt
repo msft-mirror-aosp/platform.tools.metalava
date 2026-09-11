@@ -31,6 +31,7 @@ import com.android.tools.metalava.apilevels.VersionedSignatureApi
 import com.android.tools.metalava.apilevels.VersionedSourceApi
 import com.android.tools.metalava.cli.common.EarlyOptions
 import com.android.tools.metalava.cli.common.ExecutionEnvironment
+import com.android.tools.metalava.cli.common.MetalavaOptionGroup
 import com.android.tools.metalava.cli.common.RequiresOtherGroups
 import com.android.tools.metalava.cli.common.SignatureFileLoader
 import com.android.tools.metalava.cli.common.cliError
@@ -85,7 +86,7 @@ class ApiLevelsGenerationOptions(
     private val earlyOptions: EarlyOptions = EarlyOptions(),
     private val apiSurfacesProvider: () -> ApiSurfaces? = { null },
 ) :
-    OptionGroup(
+    MetalavaOptionGroup(
         name = "Api Levels Generation",
         help =
             """

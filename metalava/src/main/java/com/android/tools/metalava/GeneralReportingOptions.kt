@@ -19,8 +19,8 @@ package com.android.tools.metalava
 import com.android.tools.metalava.cli.common.BaselineOptionsMixin
 import com.android.tools.metalava.cli.common.CommonBaselineOptions
 import com.android.tools.metalava.cli.common.ExecutionEnvironment
+import com.android.tools.metalava.cli.common.MetalavaOptionGroup
 import com.android.tools.metalava.reporter.Reporter
-import com.github.ajalt.clikt.parameters.groups.OptionGroup
 import java.io.File
 
 const val ARG_BASELINE = "--baseline"
@@ -38,7 +38,7 @@ class GeneralReportingOptions(
     commonBaselineOptions: CommonBaselineOptions = CommonBaselineOptions(),
     defaultBaselineFileProvider: () -> File? = { null },
 ) :
-    OptionGroup(
+    MetalavaOptionGroup(
         name = GENERAL_REPORTER_OPTIONS_GROUP,
         help =
             """
