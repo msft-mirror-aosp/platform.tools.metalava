@@ -283,11 +283,19 @@ class SelectedApiUpdater(
             }
         }
 
-        // Store the variant set in selectedApi.
+        // Store the revert state in selectedApi.
         selectedApi.revert = revert
         selectedApi.revertItem = revertedItem
-        selectedApi.itemApiVariants = itemApiVariants
-        selectedApi.inheritableApiVariants = inheritableApiVariants
+
+        // If the item was reverted to a previously released item, adopt the API variants from the
+        // previously released item rather than the variants computed from this item's annotations.
+        val actualItemApiVariants = revertedItem?.selectedApiVariants ?: itemApiVariants
+        val actualInheritableApiVariants =
+            revertedItem?.selectedApiVariants ?: inheritableApiVariants
+
+        // Store the variant sets in selectedApi.
+        selectedApi.itemApiVariants = actualItemApiVariants
+        selectedApi.inheritableApiVariants = actualInheritableApiVariants
     }
 
     /**

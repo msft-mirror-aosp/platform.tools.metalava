@@ -545,24 +545,22 @@ class CommonParameterizedSelectedApiTest : BaseModelTest() {
                                     content - ApiVariantSet[]
                         """,
                 )
-                // TODO(b/512093496): The behavior shown below is not correct as reverting an item
-                //  to a previously released item should adopt the variants of the previously
-                //  released item (public(C)) instead of the variants from the source item.
+
                 surfaceTest(
                     surface = "system",
                     expected =
                         """
                             package test.pkg
-                                   self - ApiVariantSet[public(C),system(C)]
+                                   self - ApiVariantSet[public(C)]
                                 content - ApiVariantSet[]
                               class test.pkg.Outer
                                      self - ApiVariantSet[public(C)]
-                                  content - ApiVariantSet[system(C)]
+                                  content - ApiVariantSet[]
                                 constructor test.pkg.Outer()
                                        self - ApiVariantSet[public(C)]
                                     content - ApiVariantSet[]
                                 method test.pkg.Outer.revertedMethod()
-                                       self - ApiVariantSet[system(C)]
+                                       self - ApiVariantSet[public(C)]
                                     content - ApiVariantSet[]
                         """,
                 )
