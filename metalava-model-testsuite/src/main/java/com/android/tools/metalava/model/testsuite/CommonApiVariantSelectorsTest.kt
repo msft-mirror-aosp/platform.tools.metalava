@@ -23,14 +23,10 @@ import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.MemberItem
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.Showability
-import com.android.tools.metalava.model.api.ApiSurfaceRules
-import com.android.tools.metalava.model.api.SurfaceSelectionRule
-import com.android.tools.metalava.model.api.surface.ApiSurfaces
 import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.provider.InputFormat
 import com.android.tools.metalava.model.testing.RequiresCapabilities
 import com.android.tools.metalava.model.testing.SupportedInputFormats
-import com.android.tools.metalava.testing.KnownSourceFiles
 import com.android.tools.metalava.testing.java
 import kotlin.test.assertEquals
 import org.junit.Test
@@ -57,10 +53,6 @@ class CommonApiVariantSelectorsTest : BaseModelTest() {
                 message = "$message (originallyHidden)"
             )
         }
-
-        expectedState.docOnly?.let { expected ->
-            assertEquals(expected, docOnly, message = "$message (docOnly)")
-        }
     }
 
     @Test
@@ -84,7 +76,6 @@ class CommonApiVariantSelectorsTest : BaseModelTest() {
                         inheritableHidden=<not-set>,
                         hidden=<not-set>,
                         accessible=<not-set>,
-                        docOnly=<not-set>,
                         removed=<not-set>,
                         inheritIntoWasCalled=<not-set>,
                         showability=<not-set>,
@@ -98,7 +89,6 @@ class CommonApiVariantSelectorsTest : BaseModelTest() {
             // Initialize the properties.
             selectors.hidden
             selectors.accessible
-            selectors.docOnly
             selectors.removed
             selectors.showability
 
@@ -109,7 +99,6 @@ class CommonApiVariantSelectorsTest : BaseModelTest() {
                         inheritableHidden=false,
                         hidden=false,
                         accessible=true,
-                        docOnly=false,
                         removed=false,
                         inheritIntoWasCalled=true,
                         showability=Showability(show=NO_EFFECT, recursive=NO_EFFECT, revertItem=null),
@@ -217,9 +206,6 @@ class CommonApiVariantSelectorsTest : BaseModelTest() {
                 )
             selectors.assertEquals(testableSelectorsState, message = "after `hidden` initialized")
 
-            // Get the `docOnly` property.
-            assertEquals(false, selectors.docOnly, message = "docOnly")
-
             // Check the state after initializing `docOnly`.
             testableSelectorsState = testableSelectorsState.copy(docOnly = false)
             selectors.assertEquals(testableSelectorsState, message = "after `docOnly` initialized")
@@ -230,91 +216,6 @@ class CommonApiVariantSelectorsTest : BaseModelTest() {
             // Check the state after initializing `removed`.
             testableSelectorsState = testableSelectorsState.copy(removed = false)
             selectors.assertEquals(testableSelectorsState, message = "after `removed` initialized")
-        }
-    }
-
-    @Test
-    fun `Test not docOnly`() {
-        runCodebaseTest(
-            java(
-                """
-                    package test.pkg;
-                    public class Foo {
-                    }
-                """
-            ),
-        ) {
-            val fooClass = codebase.assertClass("test.pkg.Foo")
-            val selectors = fooClass.variantSelectors
-
-            var testableSelectorsState = TestableSelectorsState(item = fooClass)
-
-            // Check the state before initializing any property.
-            selectors.assertEquals(testableSelectorsState, message = "initial")
-
-            // Get the `docOnly` property.
-            assertEquals(false, selectors.docOnly, message = "docOnly")
-
-            // Check the state after initializing `docOnly`.
-            testableSelectorsState = testableSelectorsState.copy(docOnly = false)
-            selectors.assertEquals(testableSelectorsState, message = "after `docOnly` initialized")
-        }
-    }
-
-    @Test
-    fun `Test docOnly`() {
-        val apiSurfaces = ApiSurfaces.create()
-        val rulesByName = mapOf("public" to listOf(SurfaceSelectionRule.unannotated))
-        val variantRules =
-            listOf(
-                SurfaceSelectionRule.createAnnotationRule(
-                    "android.annotation.DocOnly",
-                    effect = SurfaceSelectionRule.Effect.DOC_ONLY,
-                ),
-            )
-        val apiSurfaceRules = ApiSurfaceRules(apiSurfaces, rulesByName, variantRules)
-
-        runCodebaseTest(
-            inputSet(
-                KnownSourceFiles.docOnlyAnnotation,
-                java(
-                    """
-                        package test.pkg;
-                        import android.annotation.DocOnly;
-
-                        @DocOnly
-                        public class Outer {
-                            public class Inner {
-                            }
-                        }
-                    """
-                ),
-            ),
-            testFixture = TestFixture(apiSurfaceRules = apiSurfaceRules),
-        ) {
-            val outerClass = codebase.assertClass("test.pkg.Outer")
-            val innerClass = codebase.assertClass("test.pkg.Outer.Inner")
-
-            val outerSelectors = outerClass.variantSelectors
-            val innerSelectors = innerClass.variantSelectors
-
-            var outerSelectorsState = TestableSelectorsState(item = outerClass)
-            var innerSelectorsState = TestableSelectorsState(item = innerClass)
-
-            // Check the states before initializing any property.
-            outerSelectors.assertEquals(outerSelectorsState, message = "initial outer")
-            innerSelectors.assertEquals(innerSelectorsState, message = "initial inner")
-
-            // Get the `docOnly` property, do inner first to show it can inherit properly from outer
-            // class.
-            assertEquals(true, innerSelectors.docOnly, message = "inner docOnly")
-
-            // Check the states after initializing `docOnly`.
-            outerSelectorsState = outerSelectorsState.copy(docOnly = true)
-            outerSelectors.assertEquals(outerSelectorsState, message = "after outer")
-
-            innerSelectorsState = innerSelectorsState.copy(docOnly = true)
-            innerSelectors.assertEquals(innerSelectorsState, message = "after inner")
         }
     }
 

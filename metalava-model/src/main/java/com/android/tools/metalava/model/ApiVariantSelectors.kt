@@ -58,14 +58,6 @@ sealed class ApiVariantSelectors {
     abstract val hidden: Boolean
 
     /**
-     * Indicates whether the [Item] should be included in the doc only API surface variant.
-     *
-     * Initially set to `true` if the [SelectableItem.documentation] contains an
-     * `<api-surfaces>/<doc-only>` configured annotation. Updated due to inheritance.
-     */
-    abstract val docOnly: Boolean
-
-    /**
      * Indicates whether the [Item] should be in the removed API surface variant.
      *
      * Initially set to `true` if the [SelectableItem.documentation] contains `@removed` but updated
@@ -126,9 +118,6 @@ sealed class ApiVariantSelectors {
         override val hidden: Boolean
             get() = false
 
-        override val docOnly: Boolean
-            get() = false
-
         override var removed: Boolean
             get() = false
             set(value) {
@@ -153,9 +142,6 @@ sealed class ApiVariantSelectors {
      *
      * Unless [hidden] is written before reading then it will default to `true` if
      * [originallyHidden] is `true` and it does not have any show annotations.
-     *
-     * [docOnly] will be initialized to `true` if its [item]'s documentation contains an
-     * `<api-surfaces>/<doc-only>` configured annotation.
      *
      * [removed] will be initialized to `true` if its [item]'s documentation contains `@removed` or
      * an `<api-surfaces>/<removed>` configured annotation.
@@ -309,14 +295,6 @@ sealed class ApiVariantSelectors {
             set(value) {
                 lazySet(HIDDEN_BIT_MASK, value)
             }
-
-        override val docOnly: Boolean
-            get() =
-                lazyGet(DOCONLY_BIT_MASK) {
-                    (item.parent()?.variantSelectors?.docOnly == true) ||
-                        // Check if the item is annotated with a configured doc-only annotation.
-                        item.selectedApi.hasDocOnlyAnnotation()
-                }
 
         override var removed: Boolean
             get() =
@@ -565,12 +543,8 @@ sealed class ApiVariantSelectors {
             private const val ACCESSIBLE_BIT_POSITION: Int = HIDDEN_BIT_POSITION + 1
             private const val ACCESSIBLE_BIT_MASK: Int = 1 shl ACCESSIBLE_BIT_POSITION
 
-            // `docOnly` related constants
-            private const val DOCONLY_BIT_POSITION: Int = ACCESSIBLE_BIT_POSITION + 1
-            private const val DOCONLY_BIT_MASK: Int = 1 shl DOCONLY_BIT_POSITION
-
             // `removed` related constants
-            private const val REMOVED_BIT_POSITION: Int = DOCONLY_BIT_POSITION + 1
+            private const val REMOVED_BIT_POSITION: Int = ACCESSIBLE_BIT_POSITION + 1
             private const val REMOVED_BIT_MASK: Int = 1 shl REMOVED_BIT_POSITION
 
             /**
@@ -605,7 +579,6 @@ sealed class ApiVariantSelectors {
                         array[INHERITABLE_HIDDEN_BIT_POSITION] = "inheritableHidden"
                         array[HIDDEN_BIT_POSITION] = "hidden"
                         array[ACCESSIBLE_BIT_POSITION] = "accessible"
-                        array[DOCONLY_BIT_POSITION] = "docOnly"
                         array[REMOVED_BIT_POSITION] = "removed"
                         array[INHERIT_INTO_BIT_POSITION] = "inheritIntoWasCalled"
                     }
@@ -655,10 +628,6 @@ sealed class ApiVariantSelectors {
                 if (inheritIntoWasCalled) selectors.inheritIntoWasCalled = true
                 inheritableHidden?.let { selectors.inheritableHidden = it }
                 hidden?.let { selectors.hidden = it }
-                docOnly?.let {
-                    // It is expected to be set so force it to be initialized.
-                    selectors.docOnly
-                }
                 removed?.let { selectors.removed = it }
                 showability?.let { selectors._showability = it }
             }

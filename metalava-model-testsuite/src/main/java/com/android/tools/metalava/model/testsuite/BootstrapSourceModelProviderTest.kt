@@ -21,9 +21,6 @@ import com.android.tools.metalava.model.AnnotationRetention
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.VariableTypeItem
-import com.android.tools.metalava.model.api.ApiSurfaceRules
-import com.android.tools.metalava.model.api.SurfaceSelectionRule
-import com.android.tools.metalava.model.api.surface.ApiSurfaces
 import com.android.tools.metalava.model.noOpAnnotationManager
 import com.android.tools.metalava.model.provider.InputFormat
 import com.android.tools.metalava.model.testing.SupportedInputFormats
@@ -1014,69 +1011,6 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
             assertEquals(true, classItem1.isEnum())
             assertEquals(0, classItem1.methods().count())
             assertEquals(false, nonEnumClassField.isEnumConstant())
-        }
-    }
-
-    @Test
-    fun `260 - test doconly members`() {
-        val apiSurfaces = ApiSurfaces.create()
-        val rulesByName = mapOf("main" to listOf(SurfaceSelectionRule.unannotated))
-        val variantRules =
-            listOf(
-                SurfaceSelectionRule.createAnnotationRule(
-                    "test.annotation.DocOnly",
-                    effect = SurfaceSelectionRule.Effect.DOC_ONLY,
-                ),
-            )
-        val apiSurfaceRules = ApiSurfaceRules(apiSurfaces, rulesByName, variantRules)
-
-        runSourceCodebaseTest(
-            inputSet(
-                // Define a custom DocOnly annotation with no @Target constraint so that it targets
-                // all element types. This is necessary because the test applies it to a field, and
-                // omitting the target constraint ensures that it is not dropped during annotation
-                // binding, allowing the models to behave consistently.
-                java(
-                    """
-                        package test.annotation;
-                        import java.lang.annotation.Retention;
-                        import java.lang.annotation.RetentionPolicy;
-
-                        @Retention(RetentionPolicy.SOURCE)
-                        public @interface DocOnly {
-                        }
-                    """
-                ),
-                java(
-                    """
-                        package test.pkg;
-                        import test.annotation.DocOnly;
-
-                        public class Test {
-                            @DocOnly
-                            public class Inner {
-                                public int InnerField;
-                            }
-
-                            @DocOnly
-                            public int Field;
-                        }
-                    """
-                ),
-            ),
-            testFixture = TestFixture(apiSurfaceRules = apiSurfaceRules),
-        ) {
-            val classItem = codebase.assertClass("test.pkg.Test")
-            val classSelectors = classItem.variantSelectors
-            val innerClassItem = codebase.assertClass("test.pkg.Test.Inner")
-            val innerClassSelectors = innerClassItem.variantSelectors
-            val fieldSelectors = classItem.assertField("Field").variantSelectors
-            val innerFieldSelectors = innerClassItem.assertField("InnerField").variantSelectors
-
-            assertEquals(false, classSelectors.docOnly, message = "classSelectors.docOnly")
-            assertEquals(true, innerClassSelectors.docOnly, message = "innerClassSelectors.docOnly")
-            assertEquals(true, innerFieldSelectors.docOnly, message = "innerFieldSelectors.docOnly")
-            assertEquals(false, fieldSelectors.docOnly, message = "fieldSelectors.docOnly")
         }
     }
 }
