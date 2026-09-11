@@ -35,7 +35,7 @@ class CommonDocOnlyTest : BaseModelTest() {
     @Test
     fun `Test class annotated with configured doc-only annotation is marked as docOnly`() {
         val apiSurfaces = ApiSurfaces.create()
-        val rulesByName = mapOf("public" to listOf(SurfaceSelectionRule.unannotated))
+        val rulesByName = mapOf("main" to listOf(SurfaceSelectionRule.unannotated))
         val variantRules =
             listOf(
                 SurfaceSelectionRule.createAnnotationRule(
@@ -46,26 +46,37 @@ class CommonDocOnlyTest : BaseModelTest() {
         val apiSurfaceRules = ApiSurfaceRules(apiSurfaces, rulesByName, variantRules)
 
         runCodebaseTest(
-            java(
-                """
-                    package test.pkg;
+            inputSet(
+                java(
+                    """
+                        package test.pkg;
 
-                    import java.lang.annotation.Retention;
-                    import java.lang.annotation.RetentionPolicy;
+                        import java.lang.annotation.Retention;
+                        import java.lang.annotation.RetentionPolicy;
 
-                    @Retention(RetentionPolicy.SOURCE)
-                    @interface DocOnly {}
+                        @Retention(RetentionPolicy.SOURCE)
+                        @interface DocOnly {}
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
 
-                    @DocOnly
-                    public class Foo {
-                        public void method() {}
-                    }
-                """
+                        @DocOnly
+                        public class Foo {
+                            public void method() {}
+                        }
+                    """
+                ),
             ),
             testFixture = TestFixture(apiSurfaceRules = apiSurfaceRules),
         ) {
             val fooClass = codebase.assertClass("test.pkg.Foo")
-            assertEquals(true, fooClass.variantSelectors.docOnly, message = "Foo should be docOnly")
+            assertEquals(
+                "ApiVariantSet[main(D)]",
+                fooClass.selectedApi.itemApiVariants.formatFor(codebase.apiSurfaces),
+                message = "Foo should be docOnly",
+            )
         }
     }
 }
