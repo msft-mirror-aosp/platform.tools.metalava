@@ -26,6 +26,8 @@ import com.android.tools.metalava.model.api.surface.ApiSurfacePredicate
 import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.provider.InputFormat
 import com.android.tools.metalava.model.testing.SupportedInputFormats
+import com.android.tools.metalava.model.testing.surfaces.TestableApiSurfaces.REMOVED_FROM_API
+import com.android.tools.metalava.model.testing.surfaces.TestableApiSurfaces.publicSystemModuleRules
 import com.android.tools.metalava.model.testing.surfaces.initializeSelectedApiInstances
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.model.visitors.ApiFilters
@@ -504,7 +506,7 @@ class CommonParameterizedApiSurfaceVisitorTest : BaseModelTest() {
                                     public class Foo {
                                         public Foo() {}
                                         public void method() {}
-                                        /** @removed */
+                                        $REMOVED_FROM_API
                                         public void removedMethod() {}
                                     }
                                 """
@@ -727,6 +729,7 @@ class CommonParameterizedApiSurfaceVisitorTest : BaseModelTest() {
             testFixture =
                 TestFixture(
                     additionalClassPath = testCase.classpath.map { it.toFile() },
+                    apiSurfaceRules = publicSystemModuleRules,
                 ),
         ) {
             codebase.initializeSelectedApiInstances()
