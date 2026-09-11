@@ -39,7 +39,7 @@ import com.android.tools.metalava.cli.flag.ListFlagsCommand
 import com.android.tools.metalava.cli.help.HelpCommand
 import com.android.tools.metalava.cli.historical.AndroidJarsToSignaturesCommand
 import com.android.tools.metalava.cli.internal.MakeAnnotationsPackagePrivateCommand
-import com.android.tools.metalava.cli.lint.ApiLintOptions
+import com.android.tools.metalava.cli.lint.ComputedApiLintOptions
 import com.android.tools.metalava.cli.multiplatform.MultiplatformOptions
 import com.android.tools.metalava.cli.signature.MergeSignaturesCommand
 import com.android.tools.metalava.cli.signature.SignatureCatCommand
@@ -101,7 +101,7 @@ class Driver(
     private val verbosity: Verbosity,
     private val miscellaneousOptions: ComputedMiscellaneousOptions,
     private val apiLevelsGenerationOptions: ApiLevelsGenerationOptions,
-    private val apiLintOptions: ApiLintOptions,
+    private val apiLintOptions: ComputedApiLintOptions,
     internal val apiSelectionOptions: ComputedApiSelectionOptions,
     internal val compatibilityCheckOptions: ComputedCompatibilityCheckOptions,
     internal val configFileOptions: ConfigFileOptions,

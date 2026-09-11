@@ -169,7 +169,7 @@ class MainCommand(
                             commonOptions.verbosity,
                             miscellaneousOptions.compute(reporterManager.reporter),
                             apiLevelsGenerationOptions,
-                            apiLintOptions,
+                            apiLintOptions.compute(),
                             apiSelectionOptions.compute(configFileOptions.config.apiSurfaces),
                             compatibilityCheckOptions.compute(),
                             configFileOptions,
