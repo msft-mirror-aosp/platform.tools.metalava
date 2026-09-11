@@ -23,7 +23,9 @@ import com.android.tools.metalava.model.MemberItem
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.SelectableItem
+import com.android.tools.metalava.model.api.surface.ApiSurface
 import com.android.tools.metalava.model.api.surface.ApiVariantSet
+import com.android.tools.metalava.model.api.surface.ApiVariantType
 import com.android.tools.metalava.model.item.DefaultSelectableItem
 
 /** Provides access to the [ApiVariantSet] to which a specific [SelectableItem] belongs. */
@@ -422,6 +424,44 @@ private class MethodSelectedApi(
         }
 
         super.itemSpecificInitialization()
+
+        // Unlike classes and fields, methods implicitly inherit API surface membership from the
+        // methods they override (e.g. an unannotated or @Hide method implementing a public
+        // interface method). If this method did not directly specify any API variants, find the
+        // widest API surface inherited from overridden super methods.
+        if (itemApiVariants.isEmpty()) {
+            val apiSurfaces = selectedApiUpdater.apiSurfaces
+            var maxSuperSurface: ApiSurface? = null
+            var maxSuperVariants = ApiVariantSet.EMPTY
+
+            for (superMethod in item.superMethods()) {
+                val superVariants = superMethod.selectedApi.itemApiVariants
+                val superSurface = superVariants.narrowestSurfaceFor(apiSurfaces) ?: continue
+
+                // Do not inherit removed or doconly status from overridden methods.
+                val superCoreVariant = superSurface.variantFor(ApiVariantType.CORE)
+                if (superCoreVariant !in superVariants) {
+                    continue
+                }
+
+                // Find the widest API surface among the super methods.
+                if (maxSuperSurface == null || superSurface > maxSuperSurface) {
+                    maxSuperSurface = superSurface
+                    maxSuperVariants = superVariants
+                }
+
+                // Stop searching if maxSuperSurface is at least as wide as the main surface being
+                // generated.
+                if (maxSuperSurface >= apiSurfaces.main) {
+                    break
+                }
+            }
+
+            // Adopt the API variants from the super method in the widest surface found.
+            if (maxSuperSurface != null) {
+                itemApiVariants = maxSuperVariants
+            }
+        }
     }
 }
 

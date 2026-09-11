@@ -1155,9 +1155,6 @@ class CommonParameterizedSelectedApiTest : BaseModelTest() {
                         ),
                     ),
             ) {
-                // TODO: The behavior shown below is not correct. RemovedClass is from the system
-                //  API surface and its overriding method is marked @Hide, so the method should
-                //  inherit the public(C) API variant from PublicInterface.method().
                 surfaceTest(
                     surface = "module",
                     expected =
@@ -1178,7 +1175,7 @@ class CommonParameterizedSelectedApiTest : BaseModelTest() {
                                        self - ApiVariantSet[system(R)]
                                     content - ApiVariantSet[]
                                 method test.pkg.RemovedClass.method()
-                                       self - ApiVariantSet[]
+                                       self - ApiVariantSet[public(C)]
                                     content - ApiVariantSet[]
                         """,
                 )
