@@ -466,8 +466,7 @@ class CommonParameterizedSelectedApiTest : BaseModelTest() {
                             """
                         )
                     ),
-                // TODO(b/512093496): This should be true as the test contains a reverted item.
-                expectedContainsRevertedItem = false,
+                expectedContainsRevertedItem = true,
             ) {
                 surfaceTest(
                     surface = "public",

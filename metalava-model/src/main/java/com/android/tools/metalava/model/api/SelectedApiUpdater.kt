@@ -190,6 +190,10 @@ class SelectedApiUpdater(
                 // belong to any api variants.
                 selectedApi.markAsHidden(revert = true)
                 return
+            } else {
+                // The codebase contains items which are to be reverted to previously released
+                // items.
+                item.codebase.markContainsRevertedItem()
             }
         }
 
