@@ -41,9 +41,9 @@ import com.android.tools.metalava.cli.historical.AndroidJarsToSignaturesCommand
 import com.android.tools.metalava.cli.internal.MakeAnnotationsPackagePrivateCommand
 import com.android.tools.metalava.cli.lint.ComputedApiLintOptions
 import com.android.tools.metalava.cli.multiplatform.MultiplatformOptions
+import com.android.tools.metalava.cli.signature.ComputedSignatureFormatOptions
 import com.android.tools.metalava.cli.signature.MergeSignaturesCommand
 import com.android.tools.metalava.cli.signature.SignatureCatCommand
-import com.android.tools.metalava.cli.signature.SignatureFormatOptions
 import com.android.tools.metalava.cli.signature.SignatureToDexCommand
 import com.android.tools.metalava.cli.signature.SignatureToJDiffCommand
 import com.android.tools.metalava.cli.signature.migration.SignatureMigrateCommand
@@ -109,7 +109,7 @@ class Driver(
     private val multiplatformOptions: MultiplatformOptions,
     private val nullabilityValidationOptions: ComputedNullabilityValidationOptions,
     private val signatureFileOptions: SignatureFileOptions,
-    private val signatureFormatOptions: SignatureFormatOptions,
+    private val signatureFormatOptions: ComputedSignatureFormatOptions,
     private val sourceOptions: SourceOptions,
     private val stubGenerationOptions: StubGenerationOptions,
 ) {

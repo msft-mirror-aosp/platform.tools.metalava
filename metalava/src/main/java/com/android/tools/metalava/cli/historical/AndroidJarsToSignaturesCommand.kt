@@ -143,7 +143,7 @@ class AndroidJarsToSignaturesCommand :
                         stderr,
                         stdout,
                         tracer,
-                        signatureFormat.fileFormat,
+                        signatureFormat.compute().fileFormat,
                         apiVersions,
                         apiSurfaces,
                         selectedApiSurfaces,

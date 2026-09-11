@@ -177,7 +177,7 @@ class MainCommand(
                             multiplatformOptions,
                             nullabilityValidationOptions.compute(reporterManager.reporter),
                             signatureFileOptions,
-                            signatureFormatOptions,
+                            signatureFormatOptions.compute(),
                             sourceOptions,
                             stubGenerationOptions,
                         )
