@@ -49,6 +49,9 @@ object ApiSurfacePredicate {
     /** [ApiVariantType]s for core APIs and doc-only APIs. */
     private val corePlusDocOnlyVariantTypes = listOf(ApiVariantType.CORE, ApiVariantType.DOC_ONLY)
 
+    /** [ApiVariantType]s for core APIs and removed APIs. */
+    private val corePlusRemovedVariantTypes = listOf(ApiVariantType.CORE, ApiVariantType.REMOVED)
+
     /**
      * Return a [FilterPredicate] that matches any item that belongs to the core [ApiVariant] of
      * [apiSurface] or any surface that it includes.
@@ -65,6 +68,13 @@ object ApiSurfacePredicate {
      */
     fun wholeCoreEmittableApi(apiSurface: ApiSurface): FilterPredicate =
         EMITTED_ONLY.and(wholeCoreApi(apiSurface))
+
+    /**
+     * Return a [FilterPredicate] that matches any item that belongs to the core or removed
+     * [ApiVariant] of [apiSurface] or any surface that it includes.
+     */
+    fun wholeCoreAndRemovedApi(apiSurface: ApiSurface) =
+        wholeApiForVariants(apiSurface, corePlusRemovedVariantTypes)
 
     /**
      * Return a [FilterPredicate] that matches any item that belongs to any of [variantTypes] of

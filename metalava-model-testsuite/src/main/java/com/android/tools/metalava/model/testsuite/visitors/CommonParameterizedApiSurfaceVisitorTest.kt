@@ -31,6 +31,7 @@ import com.android.tools.metalava.model.testing.surfaces.TestableApiSurfaces.pub
 import com.android.tools.metalava.model.testing.surfaces.initializeSelectedApiInstances
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.model.visitors.ApiFilters
+import com.android.tools.metalava.model.visitors.ApiPredicate
 import com.android.tools.metalava.model.visitors.ApiSurfaceVisitor
 import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.android.tools.metalava.testing.EntryPoint
@@ -139,6 +140,40 @@ class CommonParameterizedApiSurfaceVisitorTest : BaseModelTest() {
                 expectedNotNested = expectedNotNested,
                 expectedNested = expectedNested,
                 filterEmit = { ApiSurfacePredicate.wholeCoreEmittableApi(apiSurfaces.main) },
+                requiresApiVariantSelectors = requiresApiVariantSelectors,
+                classpath = classpath,
+            )
+
+        /**
+         * Create a [TestCase] comparing [ApiSurfaceVisitor] using
+         * [ApiSurfacePredicate.wholeCoreAndRemovedApi] with [ApiVisitor] using an [ApiPredicate]
+         * configured to match core and removed APIs (with `ignoreRemoved = true`).
+         */
+        @EntryPoint
+        fun wholeCoreAndRemovedTestCase(
+            name: String,
+            input: List<TestFile>,
+            expectedNotNested: String,
+            expectedNested: String = expectedNotNested,
+            requiresApiVariantSelectors: Boolean = false,
+            classpath: List<TestFile> = emptyList(),
+        ) =
+            TestCase(
+                name = "whole core and removed/$name",
+                input = input,
+                expectedNotNested = expectedNotNested,
+                expectedNested = expectedNested,
+                apiFilters = {
+                    val predicate =
+                        ApiPredicate(
+                            ignoreRemoved = true,
+                            config = ApiPredicate.Config(),
+                        )
+                    ApiFilters(predicate)
+                },
+                filterEmit = {
+                    EMITTED_ONLY.and(ApiSurfacePredicate.wholeCoreAndRemovedApi(apiSurfaces.main))
+                },
                 requiresApiVariantSelectors = requiresApiVariantSelectors,
                 classpath = classpath,
             )
@@ -629,6 +664,148 @@ class CommonParameterizedApiSurfaceVisitorTest : BaseModelTest() {
                                 method test.pkg.Foo.method()
                         """,
                     classpath = listOf(notEmittedClassJar),
+                ),
+                wholeCoreAndRemovedTestCase(
+                    name = "outer and inner class",
+                    input =
+                        listOf(
+                            java(
+                                """
+                                    package test.pkg;
+
+                                    public class Outer {
+                                        public int field;
+                                        public Outer() {}
+                                        public void method() {}
+
+                                        public static class Inner {
+                                            public int innerField;
+                                            public Inner() {}
+                                            public void innerMethod() {}
+                                        }
+                                    }
+
+                                    class PackagePrivateClass {
+                                        public void method() {}
+                                    }
+                                """
+                            ),
+                            signature(
+                                """
+                                    // Signature format: 2.0
+                                    package test.pkg {
+                                      public class Outer {
+                                        ctor public Outer();
+                                        method public void method();
+                                        field public int field;
+                                      }
+                                      public static class Outer.Inner {
+                                        ctor public Outer.Inner();
+                                        method public void innerMethod();
+                                        field public int innerField;
+                                      }
+                                    }
+                                """
+                            ),
+                        ),
+                    expectedNotNested =
+                        """
+                            package test.pkg
+                              class test.pkg.Outer
+                                constructor test.pkg.Outer()
+                                method test.pkg.Outer.method()
+                                field test.pkg.Outer.field
+                              class test.pkg.Outer.Inner
+                                constructor test.pkg.Outer.Inner()
+                                method test.pkg.Outer.Inner.innerMethod()
+                                field test.pkg.Outer.Inner.innerField
+                        """,
+                    expectedNested =
+                        """
+                            package test.pkg
+                              class test.pkg.Outer
+                                constructor test.pkg.Outer()
+                                method test.pkg.Outer.method()
+                                field test.pkg.Outer.field
+                                class test.pkg.Outer.Inner
+                                  constructor test.pkg.Outer.Inner()
+                                  method test.pkg.Outer.Inner.innerMethod()
+                                  field test.pkg.Outer.Inner.innerField
+                        """,
+                    requiresApiVariantSelectors = true,
+                ),
+                wholeCoreAndRemovedTestCase(
+                    name = "class without nested classes",
+                    input =
+                        listOf(
+                            java(
+                                """
+                                    package test.pkg;
+
+                                    public class Foo {
+                                        public Foo() {}
+                                        public void method() {}
+                                    }
+                                """
+                            ),
+                            signature(
+                                """
+                                    // Signature format: 2.0
+                                    package test.pkg {
+                                      public class Foo {
+                                        ctor public Foo();
+                                        method public void method();
+                                      }
+                                    }
+                                """
+                            ),
+                        ),
+                    expectedNotNested =
+                        """
+                            package test.pkg
+                              class test.pkg.Foo
+                                constructor test.pkg.Foo()
+                                method test.pkg.Foo.method()
+                        """,
+                ),
+                wholeCoreAndRemovedTestCase(
+                    name = "removed method",
+                    input =
+                        listOf(
+                            java(
+                                """
+                                    package test.pkg;
+
+                                    public class Foo {
+                                        public Foo() {}
+                                        public void method() {}
+                                        $REMOVED_FROM_API
+                                        public void removedMethod() {}
+                                    }
+                                """
+                            ),
+                            signature(
+                                """
+                                    // Signature format: 2.0
+                                    package test.pkg {
+                                      public class Foo {
+                                        ctor public Foo();
+                                        method public void method();
+                                        method public void removedMethod();
+                                      }
+                                    }
+                                """
+                            ),
+                        ),
+                    expectedNotNested =
+                        """
+                            package test.pkg
+                              class test.pkg.Foo
+                                constructor test.pkg.Foo()
+                                method test.pkg.Foo.method()
+                                method test.pkg.Foo.removedMethod()
+                        """,
+                    requiresApiVariantSelectors = true,
                 ),
             )
     }
