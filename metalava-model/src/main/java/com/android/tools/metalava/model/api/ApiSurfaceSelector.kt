@@ -289,7 +289,12 @@ class ApiSurfaceRules(
             ApiSurfaces.build {
                 val subset = selectedSurface.includedSurfaces
                 for (s in subset) {
-                    createSurface(s.name, extends = s.extends?.name, isMain = s === selectedSurface)
+                    createSurface(
+                        s.name,
+                        extends = s.extends?.name,
+                        contents = s.contents,
+                        isMain = s === selectedSurface,
+                    )
                 }
             }
 

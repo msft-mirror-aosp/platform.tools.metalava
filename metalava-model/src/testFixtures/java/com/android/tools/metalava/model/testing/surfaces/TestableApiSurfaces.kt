@@ -20,6 +20,7 @@ import com.android.tools.metalava.model.AnnotationContext
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.api.ApiSurfaceRules
 import com.android.tools.metalava.model.api.SurfaceSelectionRule
+import com.android.tools.metalava.model.api.surface.ApiSurface
 import com.android.tools.metalava.model.api.surface.ApiSurfaces
 
 /** Provides shared objects for testing API surface related functionality. */
@@ -60,6 +61,9 @@ object TestableApiSurfaces {
      * contents.
      */
     val MODULE_API_NON_RECURSIVE = createAnnotation("test.api.ModuleApiNonRecursive")
+
+    /** An annotation that will be used to include an item in the standalone API. */
+    val STANDALONE_API = createAnnotation("test.api.StandaloneApi")
 
     /** A set of API surfaces that includes a single `public` surface. */
     private val publicOnlySurfaces = ApiSurfaces.build { createSurface("public", isMain = true) }
@@ -166,6 +170,40 @@ object TestableApiSurfaces {
                             MODULE_API_NON_RECURSIVE.qualifiedName,
                             recursive = false,
                         ),
+                    ),
+            ),
+            variantRules,
+        )
+
+    /** A set of API surfaces that includes `public` and `standalone` surfaces. */
+    private val publicStandaloneSurfaces =
+        ApiSurfaces.build {
+            createSurface("public")
+            createSurface(
+                "standalone",
+                extends = "public",
+                contents = ApiSurface.Contents.STANDALONE,
+                isMain = true,
+            )
+        }
+
+    /** [ApiSurfaceRules] that define public and standalone APIs. */
+    val publicStandaloneRules =
+        ApiSurfaceRules(
+            publicStandaloneSurfaces,
+            mapOf(
+                "public" to
+                    listOf(
+                        SurfaceSelectionRule.unannotated,
+                        SurfaceSelectionRule.createAnnotationRule(
+                            HIDE.qualifiedName,
+                            effect = SurfaceSelectionRule.Effect.HIDE,
+                        ),
+                        SurfaceSelectionRule.createAnnotationRule(PUBLIC_API.qualifiedName),
+                    ),
+                "standalone" to
+                    listOf(
+                        SurfaceSelectionRule.createAnnotationRule(STANDALONE_API.qualifiedName),
                     ),
             ),
             variantRules,

@@ -34,11 +34,13 @@ import com.android.tools.metalava.model.testing.surfaces.TestableApiSurfaces.HID
 import com.android.tools.metalava.model.testing.surfaces.TestableApiSurfaces.MODULE_API
 import com.android.tools.metalava.model.testing.surfaces.TestableApiSurfaces.PUBLIC_API
 import com.android.tools.metalava.model.testing.surfaces.TestableApiSurfaces.REMOVED_FROM_API
+import com.android.tools.metalava.model.testing.surfaces.TestableApiSurfaces.STANDALONE_API
 import com.android.tools.metalava.model.testing.surfaces.TestableApiSurfaces.SYSTEM_API
 import com.android.tools.metalava.model.testing.surfaces.TestableApiSurfaces.UNANNOTATED_API
 import com.android.tools.metalava.model.testing.surfaces.TestableApiSurfaces.UNANNOTATED_NON_RECURSIVE_API
 import com.android.tools.metalava.model.testing.surfaces.TestableApiSurfaces.annotatedOnlyPublicSystemModuleRules
 import com.android.tools.metalava.model.testing.surfaces.TestableApiSurfaces.annotatedOnlyRules
+import com.android.tools.metalava.model.testing.surfaces.TestableApiSurfaces.publicStandaloneRules
 import com.android.tools.metalava.model.testing.surfaces.TestableApiSurfaces.publicSystemModuleRules
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.testing.EntryPoint
@@ -871,6 +873,51 @@ class CommonParameterizedSelectedApiTest : BaseModelTest() {
                               class test.pkg.PublicClass
                                      self - ApiVariantSet[public(C)]
                                   content - ApiVariantSet[module(C)]
+                                constructor test.pkg.PublicClass()
+                                       self - ApiVariantSet[public(C)]
+                                    content - ApiVariantSet[]
+                        """,
+                )
+            }
+
+            buildTests(
+                name = "public class extending standalone class",
+                surfaceRules = publicStandaloneRules,
+                sources =
+                    listOf(
+                        java(
+                            """
+                                package test.pkg;
+                                $STANDALONE_API
+                                public class StandaloneClass {
+                                }
+                                public class PublicClass extends StandaloneClass {
+                                }
+                            """
+                        ),
+                    ),
+            ) {
+                // TODO(b/512093496): The behavior shown below is not correct as extending a class
+                //  from a standalone API surface should not result in the class contentApiVariants
+                //  including the CORE variant for the standalone surface because a standalone
+                //  surface incorporates everything from its extended surface(s) and will be fixed
+                //  in a follow up change.
+                surfaceTest(
+                    surface = "standalone",
+                    expected =
+                        """
+                            package test.pkg
+                                   self - ApiVariantSet[public(C),standalone(C)]
+                                content - ApiVariantSet[]
+                              class test.pkg.StandaloneClass
+                                     self - ApiVariantSet[standalone(C)]
+                                  content - ApiVariantSet[]
+                                constructor test.pkg.StandaloneClass()
+                                       self - ApiVariantSet[standalone(C)]
+                                    content - ApiVariantSet[]
+                              class test.pkg.PublicClass
+                                     self - ApiVariantSet[public(C)]
+                                  content - ApiVariantSet[standalone(C)]
                                 constructor test.pkg.PublicClass()
                                        self - ApiVariantSet[public(C)]
                                     content - ApiVariantSet[]
