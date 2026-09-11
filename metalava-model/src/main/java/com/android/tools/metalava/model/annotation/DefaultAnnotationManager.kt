@@ -56,7 +56,6 @@ import com.android.tools.metalava.model.RECENTLY_NONNULL
 import com.android.tools.metalava.model.RECENTLY_NULLABLE
 import com.android.tools.metalava.model.SUPPRESS_COMPATIBILITY_ANNOTATION_QUALIFIED
 import com.android.tools.metalava.model.SelectableItem
-import com.android.tools.metalava.model.ShowOrHide
 import com.android.tools.metalava.model.Showability
 import com.android.tools.metalava.model.Showability.Companion.REVERT_UNSTABLE_API
 import com.android.tools.metalava.model.TypedefMode
@@ -501,7 +500,6 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
         // combining the showability of each annotation. The basic rules are:
         // * `show=true` beats `show=false`
         // * `recurse=true` beats `recurse=false`
-        // * `forStubsOnly=true` beats `forStubsOnly=false`
 
         // The resulting showability of the item.
         var itemShowability = Showability.NO_EFFECT
@@ -540,37 +538,12 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
             // If the [revertItem] cannot be found then there is no need to modify the item
             // showability as it is already in the correct state.
             if (revertItem != null) {
-                val narrowerSurfaces = item.codebase.apiSurfaces.main.narrowerSurfaces
-                val inNarrowerSurface =
-                    narrowerSurfaces.isNotEmpty() &&
-                        narrowerSurfaces.any { revertItem.selectedApiVariants.containsAny(it) }
-
-                val forStubsOnly =
-                    if (inNarrowerSurface) {
-                        // The item was present in an API surface extended by the current API
-                        // surface, so reverting an unstable API should keep it marked for stubs
-                        // only rather than promoting it to the API surface currently being
-                        // generated.
-                        ShowOrHide.SHOW
-                    } else if (revertItem.emit) {
-                        // The reverted item is in the API surface currently being generated, not
-                        // one that it extends, so it should always be shown. In that case
-                        // forStubsOnly will have no effect whatever the value so this uses
-                        // `NO_EFFECT` to indicate that.
-                        ShowOrHide.NO_EFFECT
-                    } else {
-                        // The item is not in the API surface being generated, so must be in one
-                        // that it extends so make sure to show it for stubs.
-                        ShowOrHide.SHOW
-                    }
-
                 // Update the item showability to revert to the [revertItem]. This intentionally
                 // does not modify it to use `SHOW` or `HIDE` but keeps it using
                 // `REVERT_UNSTABLE_API` so that it can be propagated down onto overriding methods
                 // and nested members if applicable.
                 itemShowability =
                     itemShowability.copy(
-                        forStubsOnly = forStubsOnly,
                         // Incorporate the item to be reverted into the [Showability].
                         revertItem = revertItem,
                     )

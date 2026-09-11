@@ -175,17 +175,6 @@ data class Showability(
      */
     private val recursive: ShowOrHide,
 
-    /**
-     * Determines whether an API [Item] ands its contents is considered to be part of an API surface
-     * extended (possibly indirectly) by the target API surface and so must be included in the stubs
-     * but not the signature files.
-     *
-     * If [ShowOrHide.show] is `true` then the API [Item] ands its contents are considered to be
-     * part of the base API. That is the case for show annotations on an API surface extended by the
-     * target API surface but not on the target API surface itself.
-     */
-    private val forStubsOnly: ShowOrHide,
-
     /** The item to which this item should be reverted. Null if no such item exists. */
     val revertItem: SelectableItem? = null,
 
@@ -197,31 +186,21 @@ data class Showability(
      *
      * Returns `true` if the item is annotated with a show annotation.
      */
-    fun show() = show.show(revertItem) || forStubsOnly.show(revertItem)
-
-    /**
-     * Check whether the annotated item should only be considered part of the API when generating
-     * stubs.
-     *
-     * Returns `true` if the item is annotated with a show annotation for an API surface extended by
-     * the target API surface.
-     */
-    fun showForStubsOnly() = forStubsOnly.show(revertItem)
+    fun show() = show.show(revertItem)
 
     /**
      * Check whether the annotations on this item affect nested `Item`s.
      *
      * Returns `true` if they do, `false` if they do not affect nested `Item`s.
      */
-    fun showRecursive() = recursive.show(revertItem) || forStubsOnly.show(revertItem)
+    fun showRecursive() = recursive.show(revertItem)
 
     /**
      * Check whether the annotations on this item only affect the current `Item`.
      *
      * Returns `true` if they do, `false` if they can also affect nested `Item`s.
      */
-    fun showNonRecursive() =
-        show.show(revertItem) && !recursive.show(revertItem) && !forStubsOnly.show(revertItem)
+    fun showNonRecursive() = show.show(revertItem) && !recursive.show(revertItem)
 
     /**
      * Check whether the annotated item should be hidden from the API.
@@ -258,21 +237,13 @@ data class Showability(
                 recursive.highestPriority(other.recursive)
             }
 
-        // Only for stubs wins over for everything.
-        val forStubsOnly = forStubsOnly.highestPriority(other.forStubsOnly)
-        val newShow =
-            if (forStubsOnly.show(revertItem)) {
-                ShowOrHide.NO_EFFECT
-            } else {
-                show.highestPriority(other.show)
-            }
+        val newShow = show.highestPriority(other.show)
 
-        return Showability(newShow, newRecursive, forStubsOnly)
+        return Showability(newShow, newRecursive)
     }
 
     override fun toString() =
-        name
-            ?: "Showability(show=$show, recursive=$recursive, forStubsOnly=$forStubsOnly, revertItem=$revertItem)"
+        name ?: "Showability(show=$show, recursive=$recursive, revertItem=$revertItem)"
 
     companion object {
         /** The annotation does not affect whether an annotated item is shown. */
@@ -280,7 +251,6 @@ data class Showability(
             Showability(
                 show = ShowOrHide.NO_EFFECT,
                 recursive = ShowOrHide.NO_EFFECT,
-                forStubsOnly = ShowOrHide.NO_EFFECT
             )
 
         /**
@@ -291,7 +261,6 @@ data class Showability(
             Showability(
                 show = ShowOrHide.REVERT_UNSTABLE_API,
                 recursive = ShowOrHide.REVERT_UNSTABLE_API,
-                forStubsOnly = ShowOrHide.REVERT_UNSTABLE_API,
             )
     }
 }

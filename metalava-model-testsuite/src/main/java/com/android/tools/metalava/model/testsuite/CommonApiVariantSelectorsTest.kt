@@ -115,7 +115,7 @@ class CommonApiVariantSelectorsTest : BaseModelTest() {
                         removed=false,
                         inheritIntoWasCalled=true,
                         forStubPurposes=false,
-                        showability=Showability(show=NO_EFFECT, recursive=NO_EFFECT, forStubsOnly=NO_EFFECT, revertItem=null),
+                        showability=Showability(show=NO_EFFECT, recursive=NO_EFFECT, revertItem=null),
                     }
                 """
                     .trimIndent(),

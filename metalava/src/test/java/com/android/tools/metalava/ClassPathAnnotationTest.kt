@@ -102,7 +102,6 @@ class ClassPathAnnotationTest : DriverTest() {
                 Showability(
                     show = ShowOrHide.HIDE,
                     recursive = ShowOrHide.HIDE,
-                    forStubsOnly = ShowOrHide.NO_EFFECT,
                 ),
                 field.showability
             )
@@ -155,7 +154,6 @@ class ClassPathAnnotationTest : DriverTest() {
                 Showability(
                     show = ShowOrHide.HIDE,
                     recursive = ShowOrHide.HIDE,
-                    forStubsOnly = ShowOrHide.NO_EFFECT,
                 ),
                 field.showability
             )

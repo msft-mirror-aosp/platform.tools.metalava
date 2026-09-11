@@ -452,7 +452,7 @@ class ParameterizedApiSelectionOptionsTest :
                             )
                             Entry(
                                 client=android.annotation.SystemApi.Client.PRIVILEGED_APPS
-                                result: SHOW_FOR_STUBS
+                                result: SHOW
                             )
                         }
                     )

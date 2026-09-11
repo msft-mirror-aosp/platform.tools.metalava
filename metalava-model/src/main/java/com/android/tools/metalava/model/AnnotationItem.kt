@@ -235,18 +235,6 @@ sealed interface AnnotationItem {
     fun isShowAnnotation(): Boolean
 
     /**
-     * Returns true iff this annotation is a show for stubs purposes annotation.
-     *
-     * If `true` then an item annotated with this annotation (and any contents) which are not
-     * annotated with another [isShowAnnotation] will be added to the stubs but not the API.
-     *
-     * e.g. if a class is annotated with this then it will also apply (unless overridden by a closer
-     * annotation) to all its contents like nested classes, methods, fields, constructors,
-     * properties, etc.
-     */
-    fun isShowForStubPurposes(): Boolean
-
-    /**
      * Returns true iff this annotation is a hide annotation.
      *
      * Hide annotations can either be explicitly specified when creating the [Codebase] or they can
@@ -573,8 +561,6 @@ internal abstract class BaseAnnotationItem(
     }
 
     override fun isShowAnnotation(): Boolean = info.showability.show()
-
-    override fun isShowForStubPurposes(): Boolean = info.showability.showForStubsOnly()
 
     override fun isHideAnnotation(): Boolean = info.showability.hide()
 

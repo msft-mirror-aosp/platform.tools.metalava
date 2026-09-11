@@ -111,7 +111,7 @@ class ApiSurfaceSelector(
                                     "non-recursive rules are only allowed on main surface $main but was found on $surface"
                                 }
                                 hasShowForStubs = true
-                                addMatcherRule(surface, rule, SHOW_FOR_STUBS)
+                                addMatcherRule(surface, rule, SHOW)
                             }
                         } else {
                             error("Unsupported effect $effect in surface $rule")
@@ -177,19 +177,6 @@ class ApiSurfaceSelector(
                 name = "SHOW",
                 show = ShowOrHide.SHOW,
                 recursive = ShowOrHide.SHOW,
-                forStubsOnly = ShowOrHide.NO_EFFECT,
-            )
-
-        /**
-         * The annotation will cause the annotated item (and any enclosed items unless overridden by
-         * a closer annotation) to be shown in the stubs only.
-         */
-        private val SHOW_FOR_STUBS =
-            Showability(
-                name = "SHOW_FOR_STUBS",
-                show = ShowOrHide.NO_EFFECT,
-                recursive = ShowOrHide.NO_EFFECT,
-                forStubsOnly = ShowOrHide.SHOW,
             )
 
         /** The annotation will cause the annotated item (but not enclosed items) to be shown. */
@@ -198,7 +185,6 @@ class ApiSurfaceSelector(
                 name = "SHOW_SINGLE",
                 show = ShowOrHide.SHOW,
                 recursive = ShowOrHide.NO_EFFECT,
-                forStubsOnly = ShowOrHide.NO_EFFECT,
             )
 
         /**
@@ -210,7 +196,6 @@ class ApiSurfaceSelector(
                 name = "HIDE",
                 show = ShowOrHide.HIDE,
                 recursive = ShowOrHide.HIDE,
-                forStubsOnly = ShowOrHide.NO_EFFECT,
             )
 
         /**
