@@ -46,9 +46,6 @@ class ApiPredicate(
      */
     private val matchRemoved: Boolean = false,
 
-    /** Whether we should include doc-only items */
-    private val includeDocOnly: Boolean = false,
-
     /**
      * Whether to include API surfaces that contribute to the one currently being generated.
      *
@@ -156,8 +153,9 @@ class ApiPredicate(
             return false
         }
 
-        // If docOnly items are not included and this item is docOnly then ignore it.
-        if (!includeDocOnly && itemSelectors.docOnly) return false
+        // docOnly items should never be included. They are handled through
+        // ApiSurfacePredicate.forStubs().
+        if (itemSelectors.docOnly) return false
 
         // If removed status is not ignored and this item's status does not match what is required
         // then ignore this item.
