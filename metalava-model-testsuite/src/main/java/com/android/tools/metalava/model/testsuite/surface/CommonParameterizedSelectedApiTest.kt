@@ -492,6 +492,83 @@ class CommonParameterizedSelectedApiTest : BaseModelTest() {
             }
 
             buildTests(
+                name = "revert item with different variants",
+                surfaceRules = publicSystemModuleRules,
+                sources =
+                    listOf(
+                        java(
+                            """
+                                package test.pkg;
+                                import android.annotation.FlaggedApi;
+                                public class Outer {
+                                    @FlaggedApi("reverted_flag")
+                                    $SYSTEM_API
+                                    public void revertedMethod() {}
+                                }
+                            """
+                        ),
+                    ),
+                apiFlags =
+                    ApiFlags(
+                        listOf(
+                            ApiFlag("reverted_flag", REVERT),
+                        )
+                    ),
+                previouslyReleasedSources =
+                    listOf(
+                        java(
+                            """
+                                package test.pkg;
+                                public class Outer {
+                                    public void revertedMethod() {}
+                                }
+                            """
+                        )
+                    ),
+                expectedContainsRevertedItem = true,
+            ) {
+                surfaceTest(
+                    surface = "public",
+                    expected =
+                        """
+                            package test.pkg
+                                   self - ApiVariantSet[public(C)]
+                                content - ApiVariantSet[]
+                              class test.pkg.Outer
+                                     self - ApiVariantSet[public(C)]
+                                  content - ApiVariantSet[]
+                                constructor test.pkg.Outer()
+                                       self - ApiVariantSet[public(C)]
+                                    content - ApiVariantSet[]
+                                method test.pkg.Outer.revertedMethod()
+                                       self - ApiVariantSet[]
+                                    content - ApiVariantSet[]
+                        """,
+                )
+                // TODO(b/512093496): The behavior shown below is not correct as reverting an item
+                //  to a previously released item should adopt the variants of the previously
+                //  released item (public(C)) instead of the variants from the source item.
+                surfaceTest(
+                    surface = "system",
+                    expected =
+                        """
+                            package test.pkg
+                                   self - ApiVariantSet[public(C),system(C)]
+                                content - ApiVariantSet[]
+                              class test.pkg.Outer
+                                     self - ApiVariantSet[public(C)]
+                                  content - ApiVariantSet[system(C)]
+                                constructor test.pkg.Outer()
+                                       self - ApiVariantSet[public(C)]
+                                    content - ApiVariantSet[]
+                                method test.pkg.Outer.revertedMethod()
+                                       self - ApiVariantSet[system(C)]
+                                    content - ApiVariantSet[]
+                        """,
+                )
+            }
+
+            buildTests(
                 name = "record component",
                 surfaceRules = annotatedOnlyRules,
                 sources =
