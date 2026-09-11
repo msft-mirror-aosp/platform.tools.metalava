@@ -104,11 +104,12 @@ enum class ShowOrHide(private val show: Boolean?) {
      */
     REVERT_UNSTABLE_API(show = null) {
         /**
-         * If the [revertItem] is not null and `emit = true`, i.e. is for the API surface currently
-         * being generated, then reverting will still show this item.
+         * If the [revertItem] is not null then reverting will still show this item. The decision as
+         * to whether to use the [revertItem] is taken in
+         * [SelectableItem.includeOnlyForStubPurposes].
          */
         override fun show(revertItem: SelectableItem?): Boolean {
-            return revertItem != null && revertItem.emit
+            return revertItem != null
         }
 
         /** If the [revertItem] is null then reverting will hide this item. */
