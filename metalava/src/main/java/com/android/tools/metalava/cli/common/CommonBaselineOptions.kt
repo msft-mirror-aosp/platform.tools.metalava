@@ -65,7 +65,7 @@ class CommonBaselineOptions() :
      */
     fun compute(
         sourceOptions: SourceOptions = SourceOptions(),
-        issueReportingOptions: IssueReportingOptions = IssueReportingOptions(),
+        issueReportingOptions: ComputedIssueReportingOptions,
     ): ComputedCommonBaselineOptions {
         return ComputedCommonBaselineOptions(
             deleteEmptyBaselines = deleteEmptyBaselines,
@@ -82,7 +82,7 @@ class ComputedCommonBaselineOptions(
     /** If updating baselines, don't fail the build */
     internal val passBaselineUpdates: Boolean,
     sourceOptions: SourceOptions,
-    issueReportingOptions: IssueReportingOptions,
+    issueReportingOptions: ComputedIssueReportingOptions,
 ) {
     internal val baselineConfig by
         lazy(LazyThreadSafetyMode.NONE) {

@@ -71,11 +71,7 @@ class MainCommand(
     internal val nullabilityValidationOptions by NullabilityValidationOptions()
 
     /** Issue reporter configuration. */
-    private val issueReportingOptions by
-        IssueReportingOptions(
-            commonOptions,
-            issuesConfigProvider = { configFileOptions.config.issues },
-        )
+    private val issueReportingOptions by IssueReportingOptions()
 
     private val commonBaselineOptions by CommonBaselineOptions()
 
@@ -115,8 +111,10 @@ class MainCommand(
     internal val miscellaneousOptions by MiscellaneousOptions()
 
     override fun run() {
+        val computedIssueReportingOptions =
+            issueReportingOptions.compute(commonOptions, configFileOptions.config.issues)
         val computedCommonBaselineOptions =
-            commonBaselineOptions.compute(sourceOptions, issueReportingOptions)
+            commonBaselineOptions.compute(sourceOptions, computedIssueReportingOptions)
 
         val generalBaseline =
             generalReportingOptions.computeBaseline(
@@ -132,7 +130,7 @@ class MainCommand(
                 apiLintOptions,
                 compatibilityCheckOptions,
                 generalBaseline,
-                issueReportingOptions,
+                computedIssueReportingOptions,
                 sourceOptions,
                 executionEnvironment,
                 computedCommonBaselineOptions
@@ -143,7 +141,7 @@ class MainCommand(
             // Close all the baselines.
             reporterManager.closeAllBaselines(commonOptions.verbosity, stdout)
 
-            issueReportingOptions.reporterConfig.reportEvenIfSuppressedWriter?.close()
+            computedIssueReportingOptions.reporterConfig.reportEvenIfSuppressedWriter?.close()
 
             // Show failure messages, if any.
             reporterManager.writeErrorMessages(stderr)
@@ -175,7 +173,7 @@ class MainCommand(
                             apiSelectionOptions.compute(configFileOptions.config.apiSurfaces),
                             compatibilityCheckOptions,
                             configFileOptions,
-                            issueReportingOptions,
+                            computedIssueReportingOptions,
                             multiplatformOptions,
                             nullabilityValidationOptions.compute(reporterManager.reporter),
                             signatureFileOptions,

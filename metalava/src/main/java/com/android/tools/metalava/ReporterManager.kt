@@ -17,8 +17,8 @@
 package com.android.tools.metalava
 
 import com.android.tools.metalava.cli.common.ComputedCommonBaselineOptions
+import com.android.tools.metalava.cli.common.ComputedIssueReportingOptions
 import com.android.tools.metalava.cli.common.ExecutionEnvironment
-import com.android.tools.metalava.cli.common.IssueReportingOptions
 import com.android.tools.metalava.cli.common.SourceOptions
 import com.android.tools.metalava.cli.common.Verbosity
 import com.android.tools.metalava.cli.common.stdout
@@ -41,7 +41,7 @@ class ReporterManager(
     apiLintOptions: ApiLintOptions,
     compatibilityCheckOptions: CompatibilityCheckOptions,
     generalBaseline: Baseline?,
-    issueReportingOptions: IssueReportingOptions,
+    issueReportingOptions: ComputedIssueReportingOptions,
     private val sourceOptions: SourceOptions,
     executionEnvironment: ExecutionEnvironment,
     commonBaselineOptions: ComputedCommonBaselineOptions,
@@ -137,7 +137,7 @@ class ReporterManager(
      */
     private fun createReporter(
         reporterEnvironment: ReporterEnvironment,
-        issueReportingOptions: IssueReportingOptions,
+        issueReportingOptions: ComputedIssueReportingOptions,
         baseline: Baseline?,
         errorMessage: String?,
         reportableFilter: Predicate<Reportable>?,

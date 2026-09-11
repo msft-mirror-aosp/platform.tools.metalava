@@ -22,10 +22,10 @@ import com.android.tools.metalava.api.AnnotationsMerger
 import com.android.tools.metalava.api.ApiAnalyzer
 import com.android.tools.metalava.apilevels.ApiGenerator
 import com.android.tools.metalava.cli.common.CheckerContext
+import com.android.tools.metalava.cli.common.ComputedIssueReportingOptions
 import com.android.tools.metalava.cli.common.DefaultSignatureFileLoader
 import com.android.tools.metalava.cli.common.EarlyOptions
 import com.android.tools.metalava.cli.common.ExecutionEnvironment
-import com.android.tools.metalava.cli.common.IssueReportingOptions
 import com.android.tools.metalava.cli.common.MetalavaCommand
 import com.android.tools.metalava.cli.common.SourceOptions
 import com.android.tools.metalava.cli.common.Verbosity
@@ -105,7 +105,7 @@ class Driver(
     internal val apiSelectionOptions: ComputedApiSelectionOptions,
     internal val compatibilityCheckOptions: CompatibilityCheckOptions,
     internal val configFileOptions: ConfigFileOptions,
-    private val issueReportingOptions: IssueReportingOptions,
+    private val issueReportingOptions: ComputedIssueReportingOptions,
     private val multiplatformOptions: MultiplatformOptions,
     private val nullabilityValidationOptions: ComputedNullabilityValidationOptions,
     private val signatureFileOptions: SignatureFileOptions,
