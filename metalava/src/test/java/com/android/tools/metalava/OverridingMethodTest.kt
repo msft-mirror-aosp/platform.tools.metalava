@@ -114,4 +114,70 @@ class OverridingMethodTest : DriverTest() {
             removedApi = "",
         )
     }
+
+    @Test
+    fun `Test public class overriding method from superclass marked as @Hide with specialized return type`() {
+        check(
+            apiSurface = KnownApiSurface.PUBLIC,
+            format = FileFormat.V2,
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+
+                            public class Base<T> {
+                                public T method() {
+                                    return null;
+                                }
+                            }
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+
+                            import android.annotation.Hide;
+
+                            public class Middle extends Base<String> {
+                                @Hide
+                                @Override
+                                public String method() {
+                                    return null;
+                                }
+                            }
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+
+                            public class Sub extends Middle {
+                                @Override
+                                public String method() {
+                                    return null;
+                                }
+                            }
+                        """
+                    ),
+                ),
+            expectedApiSignature =
+                """
+                    package test.pkg {
+                      public class Base<T> {
+                        ctor public Base();
+                        method public T method();
+                      }
+                      public class Middle extends test.pkg.Base<java.lang.String> {
+                        ctor public Middle();
+                        method public String method();
+                      }
+                      public class Sub extends test.pkg.Middle {
+                        ctor public Sub();
+                        method public String method();
+                      }
+                    }
+                """,
+        )
+    }
 }
