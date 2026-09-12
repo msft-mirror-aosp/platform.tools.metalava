@@ -18,7 +18,6 @@ package com.android.tools.metalava.model.visitors
 
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.FilterPredicate
-import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.Showability
 import com.android.tools.metalava.model.api.surface.ApiSurface
@@ -80,12 +79,6 @@ class ApiPredicate(
         }
 
     /**
-     * Whether overriding methods essential for compiling the stubs should be considered as APIs or
-     * not.
-     */
-    private val addAdditionalOverrides: Boolean = config.addAdditionalOverrides
-
-    /**
      * Contains configuration for [ApiPredicate] that can, or at least could, come from command line
      * options.
      */
@@ -119,19 +112,12 @@ class ApiPredicate(
     )
 
     override fun test(item: SelectableItem): Boolean {
-        val visibleForAdditionalOverridePurpose =
-            if (addAdditionalOverrides) {
-                item is MethodItem && item.isRequiredOverridingMethodForTextStub()
-            } else {
-                false
-            }
-
         val itemSelectors = item.variantSelectors
 
         // If the item or any of its containing classes are inaccessible then ignore it.
         if (!itemSelectors.accessible) return false
 
-        val hidden = itemSelectors.hidden && !visibleForAdditionalOverridePurpose
+        val hidden = itemSelectors.hidden
         if (hidden) return false
 
         // If a class item's parent class is an api-only annotation marked class,
