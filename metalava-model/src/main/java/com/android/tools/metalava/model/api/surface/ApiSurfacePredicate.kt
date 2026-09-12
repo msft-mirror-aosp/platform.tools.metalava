@@ -19,6 +19,7 @@ package com.android.tools.metalava.model.api.surface
 import com.android.tools.metalava.model.EMITTED_ONLY
 import com.android.tools.metalava.model.FilterPredicate
 import com.android.tools.metalava.model.SelectableItem
+import com.android.tools.metalava.model.visitors.ApiVisitor
 
 /** Factory for creating [FilterPredicate] instances based on [ApiSurface]s and [ApiVariant]s. */
 object ApiSurfacePredicate {
@@ -119,5 +120,32 @@ object ApiSurfacePredicate {
     ): FilterPredicate {
         val variantTypes = if (includeDocOnly) corePlusDocOnlyVariantTypes else coreOnlyVariantTypes
         return wholeApiForVariants(apiSurface, variantTypes)
+    }
+
+    /**
+     * Return a [FilterPredicate] for matching only that part of the whole API that belongs to the
+     * [apiSurface].
+     *
+     * If [forRemoved] is true then it will only match variants of type [ApiVariantType.REMOVED]
+     * else it will only match variants of type [ApiVariantType.CORE].
+     *
+     * Unlike [forStubs], this only matches items in [apiSurface] itself, not any surface that it
+     * extends.
+     *
+     * Currently, this only works with subclasses of [ApiVisitor] as it relies on its support for
+     * visiting classes that either match the predicate or where one of its members does.
+     *
+     * TODO(b/512093496): Make it work with ApiSurfaceVisitor.
+     */
+    fun forDelta(
+        apiSurface: ApiSurface,
+        forRemoved: Boolean,
+    ): FilterPredicate {
+        val variantType = if (forRemoved) ApiVariantType.REMOVED else ApiVariantType.CORE
+        val variants = listOf(apiSurface.variantFor(variantType))
+
+        val inclusionMask = apiSurface.surfaces.createVariantSet(variants).bits
+
+        return ItemApiVariantsPredicate(inclusionMask)
     }
 }

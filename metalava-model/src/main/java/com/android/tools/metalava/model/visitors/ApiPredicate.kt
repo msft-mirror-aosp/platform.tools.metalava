@@ -19,8 +19,8 @@ package com.android.tools.metalava.model.visitors
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.FilterPredicate
 import com.android.tools.metalava.model.SelectableItem
-import com.android.tools.metalava.model.Showability
 import com.android.tools.metalava.model.api.surface.ApiSurface
+import com.android.tools.metalava.model.api.surface.ApiSurfacePredicate
 import com.android.tools.metalava.model.api.surface.ApiSurfaces
 
 /**
@@ -42,15 +42,8 @@ class ApiPredicate(
     /** Configuration that may be provided by command line options. */
     config: Config,
 ) : FilterPredicate {
-    /**
-     * Set if the value of [SelectableItem.hasShowAnnotation] should be ignored. That is, this
-     * predicate will assume that all encountered members match the "shown" requirement.
-     *
-     * The predicate matches items strictly within the target API surface delta (i.e. for signature
-     * file generation), so it uses [Config.ignoreShown] which only considers whether unannotated
-     * items are part of the target surface itself.
-     */
-    private val ignoreShown: Boolean = config.ignoreShown
+    /** Predicate that only matches items belonging to [Config.apiSurface] for delta generation. */
+    private val surfacePredicate = ApiSurfacePredicate.forDelta(config.apiSurface, matchRemoved)
 
     /**
      * Contains configuration for [ApiPredicate] that can, or at least could, come from command line
@@ -100,74 +93,8 @@ class ApiPredicate(
             return itemSelectors.removed == matchRemoved
         }
 
-        // If an item is only included for stub generation purposes (i.e. it belongs to a
-        // contributing base API surface), ignore it when generating signature files.
-        // This check must come after the superclass check above so that any affected subclass whose
-        // superclass belongs to the target API surface is still included to accurately preserve the
-        // class hierarchy, even if the subclass itself is marked only for stub purposes.
-        if (item.includeOnlyForStubPurposes()) {
-            return false
-        }
-
-        // docOnly items should never be included. They are handled through
-        // ApiSurfacePredicate.forStubs().
-        if (itemSelectors.docOnly) return false
-
-        // If this item's removed status does not match what is required then ignore this item.
-        if (itemSelectors.removed != matchRemoved) return false
-
-        if (!ignoreShown && !hasShowAnnotation(item)) {
-            return false
-        }
-
-        // If any containing class is hidden then ignore this item.
-        if (item.anyContainingClass { it.hidden }) {
-            return false
-        }
-
-        return true
-    }
-
-    /**
-     * Check if any containing class of this item matches [predicate], traversing from the innermost
-     * containing class out to the top-level class.
-     */
-    private inline fun SelectableItem.anyContainingClass(
-        predicate: (ClassItem) -> Boolean,
-    ): Boolean {
-        var cls = containingClass()
-        while (cls != null) {
-            if (predicate(cls)) return true
-            cls = cls.containingClass()
-        }
-        return false
-    }
-
-    /**
-     * Check whether this item has a recursive show annotation that affects nested items.
-     *
-     * See [Showability.showRecursive].
-     */
-    private fun SelectableItem.hasRecursiveShow() = showability.showRecursive()
-
-    /** Check if this item or any of its containing classes or packages has a show annotation. */
-    private fun hasShowAnnotation(item: SelectableItem): Boolean {
-        if (item.hasShowAnnotation()) return true
-
-        if (item.anyContainingClass { it.hasRecursiveShow() }) return true
-
-        // Traverse up the package hierarchy to check if this item belongs to a shown package.
-        var showPackage = item.containingPackage()
-        while (showPackage != null) {
-            // If an intermediate package is hidden, it prevents any show annotations on its
-            // parent packages from propagating down to this item.
-            if (showPackage.hidden) {
-                break
-            }
-            if (showPackage.hasRecursiveShow()) return true
-            showPackage = showPackage.containingPackage()
-        }
-
-        return false
+        // Check whether this item belongs to the target API surface delta. This excludes items
+        // that only belong to contributing base surfaces or are docOnly.
+        return surfacePredicate.test(item)
     }
 }
