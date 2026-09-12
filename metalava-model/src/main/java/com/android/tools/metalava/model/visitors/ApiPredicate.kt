@@ -16,7 +16,6 @@
 
 package com.android.tools.metalava.model.visitors
 
-import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.FilterPredicate
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.api.surface.ApiSurface
@@ -38,16 +37,13 @@ class ApiPredicate(
      * This is typically useful when generating "removed.txt", when you only want to match members
      * that have actually been removed.
      */
-    private val matchRemoved: Boolean = false,
+    matchRemoved: Boolean = false,
 
     /** Configuration that may be provided by command line options. */
     config: Config,
 ) : FilterPredicate {
     /** Predicate that only matches items belonging to [Config.apiSurface] for delta generation. */
     private val surfacePredicate = ApiSurfacePredicate.forDelta(config.apiSurface, matchRemoved)
-
-    /** True if [Config.apiSurface] is a delta surface, i.e. it extends another [ApiSurface]. */
-    private val isDeltaSurface = config.apiSurface.extends != null
 
     /**
      * Contains configuration for [ApiPredicate] that can, or at least could, come from command line
@@ -65,32 +61,8 @@ class ApiPredicate(
     )
 
     override fun test(item: SelectableItem): Boolean {
-        val itemSelectors = item.variantSelectors
-
         // If the item or any of its containing classes are inaccessible or hidden then ignore it.
         if (item.selectedApi.itemApiVariants.isEmpty()) return false
-
-        // If this surface is a delta surface extending another surface and a class's superclass
-        // is part of this surface's delta, the class itself must be emitted in this surface's
-        // signature file as well (even if the class is not part of this delta) to accurately
-        // reveal the class hierarchy (i.e. that it extends this superclass), which was concealed
-        // in the base API surface.
-        //
-        // This only applies when [isDeltaSurface] is true, because in a base/root surface (like
-        // public) the hierarchy was never concealed, and every unhidden class's superclass (such
-        // as java.lang.Object) would otherwise match surfacePredicate and cause all classes to be
-        // included.
-        //
-        // Using surfacePredicate ensures the superclass belongs directly to this surface's delta
-        // rather than a contributing base surface. Only the class definition is marked visible;
-        // its members are tested separately and will not be included in the delta.
-        if (
-            isDeltaSurface &&
-                item is ClassItem &&
-                item.superClass()?.let { surfacePredicate.test(it) } == true
-        ) {
-            return itemSelectors.removed == matchRemoved
-        }
 
         // Check whether this item belongs to the target API surface delta. This excludes items
         // that only belong to contributing base surfaces or are docOnly.

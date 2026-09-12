@@ -19,6 +19,7 @@ package com.android.tools.metalava.model.api.surface
 import com.android.tools.metalava.model.EMITTED_ONLY
 import com.android.tools.metalava.model.FilterPredicate
 import com.android.tools.metalava.model.SelectableItem
+import com.android.tools.metalava.model.api.SelectedApi
 import com.android.tools.metalava.model.visitors.ApiVisitor
 
 /** Factory for creating [FilterPredicate] instances based on [ApiSurface]s and [ApiVariant]s. */
@@ -124,13 +125,15 @@ object ApiSurfacePredicate {
 
     /**
      * Return a [FilterPredicate] for matching only that part of the whole API that belongs to the
-     * [apiSurface].
+     * [apiSurface] delta.
      *
      * If [forRemoved] is true then it will only match variants of type [ApiVariantType.REMOVED]
      * else it will only match variants of type [ApiVariantType.CORE].
      *
      * Unlike [forStubs], this only matches items in [apiSurface] itself, not any surface that it
-     * extends.
+     * extends. In addition to matching items that directly belong to [apiSurface], it also matches
+     * classes that inherit variants from a super class belonging to [apiSurface] via
+     * [SelectedApi.superClassApiVariants].
      *
      * Currently, this only works with subclasses of [ApiVisitor] as it relies on its support for
      * visiting classes that either match the predicate or where one of its members does.
@@ -146,6 +149,23 @@ object ApiSurfacePredicate {
 
         val inclusionMask = apiSurface.surfaces.createVariantSet(variants).bits
 
-        return ItemApiVariantsPredicate(inclusionMask)
+        return DeltaVariantsPredicate(inclusionMask)
+    }
+
+    /**
+     * A [FilterPredicate] that matches an item if it belongs to at least one [ApiVariant] matching
+     * [inclusionMask].
+     *
+     * Matches an item if:
+     * * The item itself belongs to a matching variant via [SelectedApi.itemApiVariants].
+     * * The item is a class whose super class belongs to a matching variant via
+     *   [SelectedApi.superClassApiVariants]. This ensures that classes extending a super class in
+     *   this delta surface are included in signature files to accurately reveal the inheritance
+     *   hierarchy.
+     */
+    private class DeltaVariantsPredicate(private val inclusionMask: Int) : FilterPredicate {
+        override fun test(t: SelectableItem) =
+            t.selectedApi.itemApiVariants.bits and inclusionMask != 0 ||
+                t.selectedApi.superClassApiVariants.bits and inclusionMask != 0
     }
 }
