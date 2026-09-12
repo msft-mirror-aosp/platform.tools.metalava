@@ -54,15 +54,6 @@ class ApiPredicate(
         val apiSurface: ApiSurface = ApiSurfaces.DEFAULT.main,
 
         /**
-         * Set if the value of [SelectableItem.hasShowAnnotation] should be ignored. That is, this
-         * predicate will assume that all encountered members match the "shown" requirement.
-         *
-         * This is set to true when the current API surface includes items by default, i.e. they do
-         * not require a show annotation to be included in the API surface.
-         */
-        val ignoreShown: Boolean = true,
-
-        /**
          * Whether overriding methods essential for compiling the stubs should be considered as APIs
          * or not.
          */

@@ -306,7 +306,6 @@ class Driver(
     private val apiPredicateConfig by lazy {
         ApiPredicate.Config(
             apiSurface = apiSurface,
-            ignoreShown = apiSelectionOptions.showUnannotated,
             addAdditionalOverrides = signatureFormatOptions.fileFormat[ADD_ADDITIONAL_OVERRIDES],
         )
     }
