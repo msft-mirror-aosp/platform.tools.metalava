@@ -19,10 +19,12 @@ package com.android.tools.metalava.model.testsuite.surface
 import com.android.tools.lint.checks.infrastructure.TestFile
 import com.android.tools.metalava.model.AnnotationManager
 import com.android.tools.metalava.model.Codebase
+import com.android.tools.metalava.model.KOTLIN_PUBLISHED_API
 import com.android.tools.metalava.model.PackageFilter
 import com.android.tools.metalava.model.annotation.DefaultAnnotationManager
 import com.android.tools.metalava.model.api.ApiSurfaceRules
 import com.android.tools.metalava.model.api.ApiSurfaceSelector
+import com.android.tools.metalava.model.api.SurfaceSelectionRule
 import com.android.tools.metalava.model.api.flags.ApiFlag
 import com.android.tools.metalava.model.api.flags.ApiFlagAction.*
 import com.android.tools.metalava.model.api.flags.ApiFlags
@@ -34,6 +36,7 @@ import com.android.tools.metalava.model.testing.SupportedInputFormats
 import com.android.tools.metalava.model.testing.surfaces.TestableApiSurfaces.DOC_ONLY
 import com.android.tools.metalava.model.testing.surfaces.TestableApiSurfaces.HIDE
 import com.android.tools.metalava.model.testing.surfaces.TestableApiSurfaces.MODULE_API
+import com.android.tools.metalava.model.testing.surfaces.TestableApiSurfaces.MODULE_API_NON_RECURSIVE
 import com.android.tools.metalava.model.testing.surfaces.TestableApiSurfaces.PUBLIC_API
 import com.android.tools.metalava.model.testing.surfaces.TestableApiSurfaces.REMOVED_FROM_API
 import com.android.tools.metalava.model.testing.surfaces.TestableApiSurfaces.STANDALONE_API
@@ -52,6 +55,7 @@ import com.android.tools.metalava.testing.EntryPointCallerTracker
 import com.android.tools.metalava.testing.ExitPoint
 import com.android.tools.metalava.testing.KnownSourceFiles
 import com.android.tools.metalava.testing.java
+import com.android.tools.metalava.testing.kotlin
 import kotlin.test.assertEquals
 import org.junit.Assume.assumeFalse
 import org.junit.Rule
@@ -1314,6 +1318,223 @@ class CommonParameterizedSelectedApiTest : BaseModelTest() {
                                        self - ApiVariantSet[]
                                     content - ApiVariantSet[]
                                 method test.pkg.InaccessibleClass.method()
+                                       self - ApiVariantSet[]
+                                    content - ApiVariantSet[]
+                        """,
+                )
+            }
+
+            val publishedApiSources =
+                listOf(
+                    kotlin(
+                        """
+                            package test.pkg
+
+                            @PublishedApi
+                            internal class PublishedClass {
+                                fun method() {}
+                            }
+
+                            class PublicClass {
+                                @PublishedApi
+                                internal fun publishedMethod() {}
+
+                                internal fun internalMethod() {}
+                            }
+                        """
+                    ),
+                )
+
+            buildTests(
+                name = "PublishedApi when not a show annotation",
+                surfaceRules = publicSystemModuleRules,
+                sources = publishedApiSources,
+            ) {
+                // TODO(b/512093496): When PublishedApi is not a show annotation, internal
+                //  declarations annotated with @PublishedApi should not be included in the API
+                //  surface. Currently, SelectedApiUpdater.hasApiVisibility considers @PublishedApi
+                //  accessible and falls back to inheriting the enclosing API variants, causing
+                //  PublishedClass and publishedMethod to be incorrectly included in public(C).
+                surfaceTest(
+                    surface = "public",
+                    expected =
+                        """
+                            package test.pkg
+                                   self - ApiVariantSet[public(C)]
+                                content - ApiVariantSet[]
+                              class test.pkg.PublishedClass
+                                     self - ApiVariantSet[public(C)]
+                                  content - ApiVariantSet[]
+                                constructor test.pkg.PublishedClass()
+                                       self - ApiVariantSet[]
+                                    content - ApiVariantSet[]
+                                method test.pkg.PublishedClass.method()
+                                       self - ApiVariantSet[public(C)]
+                                    content - ApiVariantSet[]
+                              class test.pkg.PublicClass
+                                     self - ApiVariantSet[public(C)]
+                                  content - ApiVariantSet[]
+                                constructor test.pkg.PublicClass()
+                                       self - ApiVariantSet[public(C)]
+                                    content - ApiVariantSet[]
+                                method test.pkg.PublicClass.publishedMethod()
+                                       self - ApiVariantSet[public(C)]
+                                    content - ApiVariantSet[]
+                                method test.pkg.PublicClass.internalMethod${'$'}src()
+                                       self - ApiVariantSet[]
+                                    content - ApiVariantSet[]
+                        """,
+                )
+            }
+
+            val publishedApiRules =
+                ApiSurfaceRules(
+                    publicSystemModuleRules.apiSurfaces,
+                    mapOf(
+                        "public" to
+                            listOf(
+                                SurfaceSelectionRule.unannotated,
+                                SurfaceSelectionRule.createAnnotationRule(
+                                    HIDE.qualifiedName,
+                                    effect = SurfaceSelectionRule.Effect.HIDE,
+                                ),
+                                SurfaceSelectionRule.createAnnotationRule(PUBLIC_API.qualifiedName),
+                                SurfaceSelectionRule.createAnnotationRule(KOTLIN_PUBLISHED_API),
+                            ),
+                        "system" to
+                            listOf(
+                                SurfaceSelectionRule.createAnnotationRule(SYSTEM_API.qualifiedName),
+                            ),
+                        "module" to
+                            listOf(
+                                SurfaceSelectionRule.createAnnotationRule(MODULE_API.qualifiedName),
+                                SurfaceSelectionRule.createAnnotationRule(
+                                    MODULE_API_NON_RECURSIVE.qualifiedName,
+                                    recursive = false,
+                                ),
+                            ),
+                    ),
+                )
+
+            buildTests(
+                name = "PublishedApi when a show annotation",
+                surfaceRules = publishedApiRules,
+                sources = publishedApiSources,
+            ) {
+                surfaceTest(
+                    surface = "public",
+                    expected =
+                        """
+                            package test.pkg
+                                   self - ApiVariantSet[public(C)]
+                                content - ApiVariantSet[]
+                              class test.pkg.PublishedClass
+                                     self - ApiVariantSet[public(C)]
+                                  content - ApiVariantSet[]
+                                constructor test.pkg.PublishedClass()
+                                       self - ApiVariantSet[]
+                                    content - ApiVariantSet[]
+                                method test.pkg.PublishedClass.method()
+                                       self - ApiVariantSet[public(C)]
+                                    content - ApiVariantSet[]
+                              class test.pkg.PublicClass
+                                     self - ApiVariantSet[public(C)]
+                                  content - ApiVariantSet[]
+                                constructor test.pkg.PublicClass()
+                                       self - ApiVariantSet[public(C)]
+                                    content - ApiVariantSet[]
+                                method test.pkg.PublicClass.publishedMethod()
+                                       self - ApiVariantSet[public(C)]
+                                    content - ApiVariantSet[]
+                                method test.pkg.PublicClass.internalMethod${'$'}src()
+                                       self - ApiVariantSet[]
+                                    content - ApiVariantSet[]
+                        """,
+                )
+            }
+
+            val showOnInternalSources =
+                listOf(
+                    java(
+                        """
+                            package test.api;
+                            public @interface PublicApi {}
+                        """
+                    ),
+                    kotlin(
+                        """
+                            package test.pkg
+
+                            class PublicClass {
+                                $PUBLIC_API
+                                internal fun showMethod() {}
+
+                                $PUBLIC_API
+                                internal val showProperty: Int = 0
+
+                                internal fun internalMethod() {}
+                            }
+
+                            $PUBLIC_API
+                            internal class ShowClass {
+                                fun method() {}
+                            }
+                        """
+                    ),
+                )
+
+            // TODO(b/512093496): When a show annotation is present on an internal
+            //  declaration, it should be included in the API surface corresponding to
+            //  that show annotation. Currently, SelectedApiUpdater.hasApiVisibility
+            //  only considers @PublishedApi to have API visibility for internal items,
+            //  so other show annotations on internal items are marked as hidden with
+            //  ApiVariantSet[].
+            buildTests(
+                name = "show annotation on internal declaration",
+                surfaceRules = publicSystemModuleRules,
+                sources = showOnInternalSources,
+            ) {
+                surfaceTest(
+                    surface = "public",
+                    expected =
+                        """
+                            package test.api
+                                   self - ApiVariantSet[public(C)]
+                                content - ApiVariantSet[]
+                              class test.api.PublicApi
+                                     self - ApiVariantSet[public(C)]
+                                  content - ApiVariantSet[]
+                            package test.pkg
+                                   self - ApiVariantSet[public(C)]
+                                content - ApiVariantSet[]
+                              class test.pkg.PublicClass
+                                     self - ApiVariantSet[public(C)]
+                                  content - ApiVariantSet[]
+                                constructor test.pkg.PublicClass()
+                                       self - ApiVariantSet[public(C)]
+                                    content - ApiVariantSet[]
+                                method test.pkg.PublicClass.showMethod${'$'}src()
+                                       self - ApiVariantSet[]
+                                    content - ApiVariantSet[]
+                                method test.pkg.PublicClass.getShowProperty${'$'}src()
+                                       self - ApiVariantSet[]
+                                    content - ApiVariantSet[]
+                                method test.pkg.PublicClass.internalMethod${'$'}src()
+                                       self - ApiVariantSet[]
+                                    content - ApiVariantSet[]
+                                property test.pkg.PublicClass#showProperty
+                                       self - ApiVariantSet[]
+                                    content - ApiVariantSet[]
+                                field test.pkg.PublicClass.showProperty
+                                       self - ApiVariantSet[]
+                                    content - ApiVariantSet[]
+                              class test.pkg.ShowClass
+                                     self - ApiVariantSet[]
+                                  content - ApiVariantSet[]
+                                constructor test.pkg.ShowClass()
+                                       self - ApiVariantSet[]
+                                    content - ApiVariantSet[]
+                                method test.pkg.ShowClass.method()
                                        self - ApiVariantSet[]
                                     content - ApiVariantSet[]
                         """,
