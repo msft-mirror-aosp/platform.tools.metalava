@@ -1211,6 +1211,89 @@ class CommonParameterizedSelectedApiTest : BaseModelTest() {
             }
 
             buildTests(
+                name =
+                    "public class overriding method from superclass marked as @Hide with specialized return type",
+                surfaceRules = publicSystemModuleRules,
+                sources =
+                    listOf(
+                        java(
+                            """
+                                package test.pkg;
+
+                                public abstract class Base<T> {
+                                    public abstract T method();
+                                }
+                            """
+                        ),
+                        java(
+                            """
+                                package test.pkg;
+
+                                public class Middle extends Base<String> {
+                                    $HIDE
+                                    @Override
+                                    public String method() {
+                                        return null;
+                                    }
+                                }
+                            """
+                        ),
+                        java(
+                            """
+                                package test.pkg;
+
+                                public class Sub extends Middle {
+                                    @Override
+                                    public String method() {
+                                        return null;
+                                    }
+                                }
+                            """
+                        ),
+                    ),
+            ) {
+                // TODO(b/512093496): The behavior shown below is not correct. Middle.method() is
+                //  marked @Hide, so it should not inherit the public(C) API variant from
+                //  Base.method(), which causes Sub.method() to be incorrectly elided.
+                surfaceTest(
+                    surface = "module",
+                    expected =
+                        """
+                            package test.pkg
+                                   self - ApiVariantSet[public(C)]
+                                content - ApiVariantSet[]
+                              class test.pkg.Base
+                                     self - ApiVariantSet[public(C)]
+                                  content - ApiVariantSet[]
+                                constructor test.pkg.Base()
+                                       self - ApiVariantSet[public(C)]
+                                    content - ApiVariantSet[]
+                                method test.pkg.Base.method()
+                                       self - ApiVariantSet[public(C)]
+                                    content - ApiVariantSet[]
+                              class test.pkg.Middle
+                                     self - ApiVariantSet[public(C)]
+                                  content - ApiVariantSet[]
+                                constructor test.pkg.Middle()
+                                       self - ApiVariantSet[public(C)]
+                                    content - ApiVariantSet[]
+                                method test.pkg.Middle.method()
+                                       self - ApiVariantSet[public(C)]
+                                    content - ApiVariantSet[]
+                              class test.pkg.Sub
+                                     self - ApiVariantSet[public(C)]
+                                  content - ApiVariantSet[]
+                                constructor test.pkg.Sub()
+                                       self - ApiVariantSet[public(C)]
+                                    content - ApiVariantSet[]
+                                method test.pkg.Sub.method()
+                                       self - ApiVariantSet[public(C)]
+                                    content - ApiVariantSet[]
+                        """,
+                )
+            }
+
+            buildTests(
                 name = "system class overriding method from removed public class marked as @Hide",
                 surfaceRules = publicSystemModuleRules,
                 sources =
