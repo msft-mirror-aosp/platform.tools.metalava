@@ -27,7 +27,8 @@ import com.android.tools.metalava.model.api.surface.ApiSurfaces
  * Predicate that decides if the given member should be considered part of an API surface area.
  *
  * It only matches items that are in the [Config.apiSurface]. If that extends another [ApiSurface]
- * then this will not match items that are part of the extended [ApiSurface].
+ * then this will not match items that are part of the extended [ApiSurface] (except for classes
+ * whose superclass is in [Config.apiSurface], which are included to reveal the class hierarchy).
  */
 class ApiPredicate(
     /**
@@ -44,6 +45,9 @@ class ApiPredicate(
 ) : FilterPredicate {
     /** Predicate that only matches items belonging to [Config.apiSurface] for delta generation. */
     private val surfacePredicate = ApiSurfacePredicate.forDelta(config.apiSurface, matchRemoved)
+
+    /** True if [Config.apiSurface] is a delta surface, i.e. it extends another [ApiSurface]. */
+    private val isDeltaSurface = config.apiSurface.extends != null
 
     /**
      * Contains configuration for [ApiPredicate] that can, or at least could, come from command line
@@ -69,17 +73,24 @@ class ApiPredicate(
         val hidden = itemSelectors.hidden
         if (hidden) return false
 
-        // If a class item's parent class is an api-only annotation marked class,
-        // the item should be marked visible as well, in order to provide
-        // information about the correct class hierarchy that was concealed for
-        // less restricted APIs.
-        // Only the class definition is marked visible, and class attributes are
-        // not affected.
+        // If this surface is a delta surface extending another surface and a class's superclass
+        // is part of this surface's delta, the class itself must be emitted in this surface's
+        // signature file as well (even if the class is not part of this delta) to accurately
+        // reveal the class hierarchy (i.e. that it extends this superclass), which was concealed
+        // in the base API surface.
+        //
+        // This only applies when [isDeltaSurface] is true, because in a base/root surface (like
+        // public) the hierarchy was never concealed, and every unhidden class's superclass (such
+        // as java.lang.Object) would otherwise match surfacePredicate and cause all classes to be
+        // included.
+        //
+        // Using surfacePredicate ensures the superclass belongs directly to this surface's delta
+        // rather than a contributing base surface. Only the class definition is marked visible;
+        // its members are tested separately and will not be included in the delta.
         if (
-            item is ClassItem &&
-                item.superClass()?.let {
-                    it.hasShowAnnotation() && !it.includeOnlyForStubPurposes()
-                } == true
+            isDeltaSurface &&
+                item is ClassItem &&
+                item.superClass()?.let { surfacePredicate.test(it) } == true
         ) {
             return itemSelectors.removed == matchRemoved
         }
