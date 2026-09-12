@@ -67,11 +67,8 @@ class ApiPredicate(
     override fun test(item: SelectableItem): Boolean {
         val itemSelectors = item.variantSelectors
 
-        // If the item or any of its containing classes are inaccessible then ignore it.
-        if (!itemSelectors.accessible) return false
-
-        val hidden = itemSelectors.hidden
-        if (hidden) return false
+        // If the item or any of its containing classes are inaccessible or hidden then ignore it.
+        if (item.selectedApi.itemApiVariants.isEmpty()) return false
 
         // If this surface is a delta surface extending another surface and a class's superclass
         // is part of this surface's delta, the class itself must be emitted in this surface's
