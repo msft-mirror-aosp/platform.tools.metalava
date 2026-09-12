@@ -471,14 +471,6 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
     /** Check whether this has been configured in a way that could cause items to be reverted. */
     private fun couldRevertItems(): Boolean = config.apiFlags != null
 
-    override fun hasAnyStubPurposesAnnotations(): Boolean {
-        // This checks if items can be reverted because they were added in an extended API.
-        // e.g. if a change to item `X` from the public API was reverted then the
-        // previously released version `X'` will need to be written out to the stubs for the system
-        // API, just as if it had been annotated with a show annotation for the API surface.
-        return apiSurfaceSelector.hasAnyShowForStubPurposesAnnotations || couldRevertItems()
-    }
-
     override fun hasHideAnnotations(modifiers: ModifierList): Boolean {
         // If there are no hide annotations and items cannot be reverted then this can never return
         // true. Reverted items can behave as if they are hidden it they are newly added.

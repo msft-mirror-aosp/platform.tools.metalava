@@ -52,13 +52,6 @@ interface AnnotationManager {
     ): String
 
     /**
-     * Checks to see if this has any show for stubs purposes annotations.
-     *
-     * Returns true if it has, false otherwise.
-     */
-    fun hasAnyStubPurposesAnnotations(): Boolean = false
-
-    /**
      * Get the [Showability] for the supplied [SelectableItem].
      *
      * This combines the [Showability] of all the annotations of this item and returns the result.

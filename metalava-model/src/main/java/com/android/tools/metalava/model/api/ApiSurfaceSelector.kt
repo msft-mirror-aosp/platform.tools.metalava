@@ -31,9 +31,6 @@ class ApiSurfaceSelector(
     /** True if unannotated items should be included in the main [ApiSurface]. */
     val showUnannotated: Boolean
 
-    /** True if this has annotations that include a [SelectableItem] in the stubs only. */
-    val hasAnyShowForStubPurposesAnnotations: Boolean
-
     /** True if this has any annotations that can hide a [SelectableItem] from the public API. */
     val hasAnyHideAnnotations: Boolean
 
@@ -51,7 +48,6 @@ class ApiSurfaceSelector(
 
     init {
         var unannotatedSurface: ApiSurface? = null
-        var hasShowForStubs = false
         var hasHideAnnotations = false
 
         val matcherRules = buildList {
@@ -110,7 +106,6 @@ class ApiSurfaceSelector(
                                 require(rule.recursive) {
                                     "non-recursive rules are only allowed on main surface $main but was found on $surface"
                                 }
-                                hasShowForStubs = true
                                 addMatcherRule(surface, rule, SHOW)
                             }
                         } else {
@@ -150,7 +145,6 @@ class ApiSurfaceSelector(
         showUnannotated = unannotatedSurface?.isMain == true
 
         hasAnyHideAnnotations = hasHideAnnotations
-        hasAnyShowForStubPurposesAnnotations = hasShowForStubs
         unannotatedApiSurface = unannotatedSurface
     }
 
