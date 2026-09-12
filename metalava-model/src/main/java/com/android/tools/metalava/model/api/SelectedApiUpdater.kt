@@ -20,7 +20,6 @@ import com.android.tools.metalava.model.BaseModifierList
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassOrigin
 import com.android.tools.metalava.model.Codebase
-import com.android.tools.metalava.model.KOTLIN_PUBLISHED_API
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.VisibilityLevel
@@ -90,8 +89,9 @@ class SelectedApiUpdater(
         val item = selectedApi.item
 
         // An item inside an inaccessible enclosing item (or an item without API visibility)
-        // is inaccessible and cannot be selected as part of an API surface.
-        val accessible = parent.accessible && item.modifiers.hasApiVisibility
+        // is inaccessible and cannot be selected as part of an API surface. An internal item is
+        // only accessible if it is annotated with @PublishedApi and that is a show annotation.
+        val accessible = parent.accessible && hasApiVisibility(item.modifiers)
         if (!accessible) {
             selectedApi.markAsHidden(revert = false)
             return
@@ -355,6 +355,21 @@ class SelectedApiUpdater(
         return sourceSelectedApi.revert
     }
 
+    /**
+     * Check if the [BaseModifierList] is accessible as part of an API.
+     *
+     * If this has [VisibilityLevel.INTERNAL] then it is only accessible if it is annotated with an
+     * annotation configured as a show annotation.
+     */
+    internal fun hasApiVisibility(modifierList: BaseModifierList) =
+        when (modifierList.getVisibilityLevel()) {
+            VisibilityLevel.PUBLIC,
+            VisibilityLevel.PROTECTED -> true
+            VisibilityLevel.INTERNAL ->
+                modifierList.annotations().any { it.surfaceData?.effect == Effect.SHOW }
+            else -> false
+        }
+
     companion object {
         /**
          * Find the item to which [item] will be reverted.
@@ -388,22 +403,6 @@ class SelectedApiUpdater(
             }
     }
 }
-
-/**
- * Check if the [BaseModifierList] is accessible as part of an API.
- *
- * If this has [VisibilityLevel.INTERNAL] then it is only accessible if it is annotated with the
- * [PublishedApi] annotation.
- */
-val BaseModifierList.hasApiVisibility
-    get() =
-        when (getVisibilityLevel()) {
-            VisibilityLevel.PUBLIC,
-            VisibilityLevel.PROTECTED -> true
-            VisibilityLevel.INTERNAL ->
-                annotations().any { it.qualifiedName == KOTLIN_PUBLISHED_API }
-            else -> false
-        }
 
 /**
  * Workaround: we're pulling in .aidl files from .jar files. These are marked @hide, but since we

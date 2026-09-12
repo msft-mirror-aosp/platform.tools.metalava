@@ -1350,11 +1350,6 @@ class CommonParameterizedSelectedApiTest : BaseModelTest() {
                 surfaceRules = publicSystemModuleRules,
                 sources = publishedApiSources,
             ) {
-                // TODO(b/512093496): When PublishedApi is not a show annotation, internal
-                //  declarations annotated with @PublishedApi should not be included in the API
-                //  surface. Currently, SelectedApiUpdater.hasApiVisibility considers @PublishedApi
-                //  accessible and falls back to inheriting the enclosing API variants, causing
-                //  PublishedClass and publishedMethod to be incorrectly included in public(C).
                 surfaceTest(
                     surface = "public",
                     expected =
@@ -1363,13 +1358,13 @@ class CommonParameterizedSelectedApiTest : BaseModelTest() {
                                    self - ApiVariantSet[public(C)]
                                 content - ApiVariantSet[]
                               class test.pkg.PublishedClass
-                                     self - ApiVariantSet[public(C)]
+                                     self - ApiVariantSet[]
                                   content - ApiVariantSet[]
                                 constructor test.pkg.PublishedClass()
                                        self - ApiVariantSet[]
                                     content - ApiVariantSet[]
                                 method test.pkg.PublishedClass.method()
-                                       self - ApiVariantSet[public(C)]
+                                       self - ApiVariantSet[]
                                     content - ApiVariantSet[]
                               class test.pkg.PublicClass
                                      self - ApiVariantSet[public(C)]
@@ -1378,7 +1373,7 @@ class CommonParameterizedSelectedApiTest : BaseModelTest() {
                                        self - ApiVariantSet[public(C)]
                                     content - ApiVariantSet[]
                                 method test.pkg.PublicClass.publishedMethod()
-                                       self - ApiVariantSet[public(C)]
+                                       self - ApiVariantSet[]
                                     content - ApiVariantSet[]
                                 method test.pkg.PublicClass.internalMethod${'$'}src()
                                        self - ApiVariantSet[]
@@ -1483,12 +1478,6 @@ class CommonParameterizedSelectedApiTest : BaseModelTest() {
                     ),
                 )
 
-            // TODO(b/512093496): When a show annotation is present on an internal
-            //  declaration, it should be included in the API surface corresponding to
-            //  that show annotation. Currently, SelectedApiUpdater.hasApiVisibility
-            //  only considers @PublishedApi to have API visibility for internal items,
-            //  so other show annotations on internal items are marked as hidden with
-            //  ApiVariantSet[].
             buildTests(
                 name = "show annotation on internal declaration",
                 surfaceRules = publicSystemModuleRules,
@@ -1514,28 +1503,28 @@ class CommonParameterizedSelectedApiTest : BaseModelTest() {
                                        self - ApiVariantSet[public(C)]
                                     content - ApiVariantSet[]
                                 method test.pkg.PublicClass.showMethod${'$'}src()
-                                       self - ApiVariantSet[]
+                                       self - ApiVariantSet[public(C)]
                                     content - ApiVariantSet[]
                                 method test.pkg.PublicClass.getShowProperty${'$'}src()
-                                       self - ApiVariantSet[]
+                                       self - ApiVariantSet[public(C)]
                                     content - ApiVariantSet[]
                                 method test.pkg.PublicClass.internalMethod${'$'}src()
                                        self - ApiVariantSet[]
                                     content - ApiVariantSet[]
                                 property test.pkg.PublicClass#showProperty
-                                       self - ApiVariantSet[]
+                                       self - ApiVariantSet[public(C)]
                                     content - ApiVariantSet[]
                                 field test.pkg.PublicClass.showProperty
                                        self - ApiVariantSet[]
                                     content - ApiVariantSet[]
                               class test.pkg.ShowClass
-                                     self - ApiVariantSet[]
+                                     self - ApiVariantSet[public(C)]
                                   content - ApiVariantSet[]
                                 constructor test.pkg.ShowClass()
                                        self - ApiVariantSet[]
                                     content - ApiVariantSet[]
                                 method test.pkg.ShowClass.method()
-                                       self - ApiVariantSet[]
+                                       self - ApiVariantSet[public(C)]
                                     content - ApiVariantSet[]
                         """,
                 )
