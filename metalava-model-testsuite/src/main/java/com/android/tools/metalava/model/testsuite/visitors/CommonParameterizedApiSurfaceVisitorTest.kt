@@ -31,7 +31,6 @@ import com.android.tools.metalava.model.testing.surfaces.TestableApiSurfaces.pub
 import com.android.tools.metalava.model.testing.surfaces.initializeSelectedApiInstances
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.model.visitors.ApiFilters
-import com.android.tools.metalava.model.visitors.ApiPredicate
 import com.android.tools.metalava.model.visitors.ApiSurfaceVisitor
 import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.android.tools.metalava.testing.EntryPoint
@@ -145,9 +144,8 @@ class CommonParameterizedApiSurfaceVisitorTest : BaseModelTest() {
             )
 
         /**
-         * Create a [TestCase] comparing [ApiSurfaceVisitor] using
-         * [ApiSurfacePredicate.wholeCoreAndRemovedApi] with [ApiVisitor] using an [ApiPredicate]
-         * configured to match core and removed APIs (with `ignoreRemoved = true`).
+         * Create a [TestCase] for [ApiSurfaceVisitor] using
+         * [ApiSurfacePredicate.wholeCoreAndRemovedApi].
          */
         @EntryPoint
         fun wholeCoreAndRemovedTestCase(
@@ -163,14 +161,7 @@ class CommonParameterizedApiSurfaceVisitorTest : BaseModelTest() {
                 input = input,
                 expectedNotNested = expectedNotNested,
                 expectedNested = expectedNested,
-                apiFilters = {
-                    val predicate =
-                        ApiPredicate(
-                            ignoreRemoved = true,
-                            config = ApiPredicate.Config(),
-                        )
-                    ApiFilters(predicate)
-                },
+                apiFilters = null,
                 filterEmit = {
                     EMITTED_ONLY.and(ApiSurfacePredicate.wholeCoreAndRemovedApi(apiSurfaces.main))
                 },

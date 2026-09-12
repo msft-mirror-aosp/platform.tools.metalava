@@ -24,9 +24,10 @@ import com.android.tools.metalava.model.api.surface.ApiSurface
 import com.android.tools.metalava.model.api.surface.ApiSurfaces
 
 /**
- * Predicate that decides if the given member should be considered part of an API surface area. To
- * make the most accurate decision, it searches for signals on the member, all containing classes,
- * and all containing packages.
+ * Predicate that decides if the given member should be considered part of an API surface area.
+ *
+ * It only matches items that are in the [Config.apiSurface]. If that extends another [ApiSurface]
+ * then this will not match items that are part of the extended [ApiSurface].
  */
 class ApiPredicate(
     /**
@@ -47,13 +48,6 @@ class ApiPredicate(
      */
     private val matchRemoved: Boolean = false,
 
-    /**
-     * Whether to include API surfaces that contribute to the one currently being generated.
-     *
-     * See [SelectableItem.includeOnlyForStubPurposes].
-     */
-    private val includeContributingSurfaces: Boolean = true,
-
     /** Configuration that may be provided by command line options. */
     config: Config,
 ) : FilterPredicate {
@@ -61,22 +55,11 @@ class ApiPredicate(
      * Set if the value of [SelectableItem.hasShowAnnotation] should be ignored. That is, this
      * predicate will assume that all encountered members match the "shown" requirement.
      *
-     * When [includeContributingSurfaces] is true, the predicate matches items across the whole API
-     * surface (e.g. for stub generation, reference resolution, or ProGuard keep file generation),
-     * so it uses [Config.ignoreShownForWholeApiSurface] which accounts for whether unannotated
-     * items are part of the target surface or any surface it extends.
-     *
-     * When [includeContributingSurfaces] is false, the predicate matches items strictly within the
-     * target API surface delta (i.e. for signature file generation), so it uses
-     * [Config.ignoreShown] which only considers whether unannotated items are part of the target
-     * surface itself.
+     * The predicate matches items strictly within the target API surface delta (i.e. for signature
+     * file generation), so it uses [Config.ignoreShown] which only considers whether unannotated
+     * items are part of the target surface itself.
      */
-    private val ignoreShown: Boolean =
-        if (includeContributingSurfaces) {
-            config.ignoreShownForWholeApiSurface
-        } else {
-            config.ignoreShown
-        }
+    private val ignoreShown: Boolean = config.ignoreShown
 
     /**
      * Contains configuration for [ApiPredicate] that can, or at least could, come from command line
@@ -94,15 +77,6 @@ class ApiPredicate(
          * not require a show annotation to be included in the API surface.
          */
         val ignoreShown: Boolean = true,
-
-        /**
-         * The value to use for [ignoreShown] when matching the whole API surface.
-         *
-         * This is set to true when the current API surface (or an API surface that it extends)
-         * includes unannotated items, so that unannotated items are matched across the whole API
-         * surface.
-         */
-        val ignoreShownForWholeApiSurface: Boolean = true,
 
         /**
          * Whether overriding methods essential for compiling the stubs should be considered as APIs
@@ -140,7 +114,7 @@ class ApiPredicate(
         // This check must come after the superclass check above so that any affected subclass whose
         // superclass belongs to the target API surface is still included to accurately preserve the
         // class hierarchy, even if the subclass itself is marked only for stub purposes.
-        if (!includeContributingSurfaces && item.includeOnlyForStubPurposes()) {
+        if (item.includeOnlyForStubPurposes()) {
             return false
         }
 

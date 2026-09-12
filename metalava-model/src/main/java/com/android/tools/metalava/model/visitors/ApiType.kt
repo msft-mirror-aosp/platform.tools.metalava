@@ -29,9 +29,6 @@ enum class ApiType(val flagName: String, val displayName: String = flagName) {
             // Only items marked for emission should appear in the signature file.
             EMITTED_ONLY.and(
                 ApiPredicate(
-                    // This filter is for API signature files, where we don't need the "for stub
-                    // purposes" APIs.
-                    includeContributingSurfaces = false,
                     config = apiPredicateConfig,
                 )
             )
@@ -51,10 +48,6 @@ enum class ApiType(val flagName: String, val displayName: String = flagName) {
             // Only items marked for emission should appear in the removed signature file.
             EMITTED_ONLY.and(
                 ApiPredicate(
-                    // This filter is for API signature files, where we don't need the "for stub
-                    // purposes"
-                    // APIs.
-                    includeContributingSurfaces = false,
                     matchRemoved = true,
                     config = apiPredicateConfig,
                 )

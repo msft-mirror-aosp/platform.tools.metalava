@@ -307,8 +307,6 @@ class Driver(
         ApiPredicate.Config(
             apiSurface = apiSurface,
             ignoreShown = apiSelectionOptions.showUnannotated,
-            ignoreShownForWholeApiSurface =
-                apiSelectionOptions.apiSurfaceSelector.unannotatedApiSurface != null,
             addAdditionalOverrides = signatureFormatOptions.fileFormat[ADD_ADDITIONAL_OVERRIDES],
         )
     }
