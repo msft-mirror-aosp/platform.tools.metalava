@@ -19,10 +19,13 @@ package com.android.tools.metalava.model.api
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.ConstructorItem
+import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.MemberItem
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
+import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.SelectableItem
+import com.android.tools.metalava.model.api.SurfaceSelectionRule.Effect
 import com.android.tools.metalava.model.api.surface.ApiSurface
 import com.android.tools.metalava.model.api.surface.ApiVariantSet
 import com.android.tools.metalava.model.api.surface.ApiVariantType
@@ -95,6 +98,7 @@ sealed class SelectedApi {
                 is ClassItem -> ClassSelectedApi(selectedApiUpdater, item)
                 is MethodItem -> MethodSelectedApi(selectedApiUpdater, item)
                 is ConstructorItem -> ConstructorSelectedApi(selectedApiUpdater, item)
+                is PropertyItem -> PropertySelectedApi(selectedApiUpdater, item)
                 is MemberItem -> MemberSelectedApi(selectedApiUpdater, item)
                 is PackageItem -> PackageSelectedApi(selectedApiUpdater, item)
                 else -> error("unknown selectable item: $item")
@@ -239,6 +243,16 @@ internal sealed class SourceSelectedApi<S : SelectableItem>(
     /** Update this from information in [item]. */
     fun updateFromSelectableItem() {
         selectedApiUpdater.updateSelectedApi(this, parent)
+    }
+
+    /** Adopt the status from [other]. */
+    fun adoptStatusFrom(other: SourceSelectedApi<*>) {
+        itemApiVariants = other.itemApiVariants
+        inheritableApiVariants = other.inheritableApiVariants
+        docOnly = other.docOnly
+        removed = other.removed
+        revert = other.revert
+        revertItem = other.revertItem
     }
 
     /**
@@ -485,5 +499,71 @@ private class ConstructorSelectedApi(
         }
 
         super.itemSpecificInitialization()
+    }
+}
+
+/**
+ * Selected API class for properties, ensuring properties with an exposed backing field (e.g. `const
+ * val` or `@JvmField`) inherit the backing field's API variants and status, and properties with an
+ * explicitly hidden private backing field are also marked as hidden.
+ */
+private class PropertySelectedApi(
+    selectedApiUpdater: SelectedApiUpdater,
+    item: PropertyItem,
+) : MemberSelectedApi<PropertyItem>(selectedApiUpdater, item) {
+
+    override fun itemSpecificInitialization() {
+        updateFromSelectableItem()
+
+        // If the property is already hidden (e.g. parent is hidden, property has no API
+        // visibility, or has an explicit hide annotation), do not unhide it.
+        if (itemApiVariants.isNotEmpty()) {
+            item.backingField?.let { backingField ->
+                // A property's backing field can take one of two forms:
+                // 1. Backing fields with API visibility (e.g. `const val` or `@JvmField`):
+                //    These fields are exposed in bytecode and have API visibility. Their
+                //    SelectedApi status already reflects their accessibility, enclosing
+                //    surfaces, and annotations. The property adopts their status directly.
+                // 2. Private backing fields (standard Kotlin properties):
+                //    These are private and thus always lack API visibility, which causes
+                //    their SelectedApi status to be inaccessible and have empty API variants
+                //    by default. The property itself is represented in the API by its accessors,
+                //    so its backing field being inaccessible does not mean the property should
+                //    be hidden. However, if the private backing field has an explicit hide
+                //    annotation (e.g. `@field:Hide` or `@field:RestrictTo`), that intent should
+                //    hide the property as well. Therefore, we explicitly check for hide
+                //    annotations rather than relying on the backing field's accessibility or
+                //    empty API variants.
+                if (selectedApiUpdater.hasApiVisibility(backingField.modifiers)) {
+                    val fieldSelectedApi = backingField.selectedApi as? SourceSelectedApi<*>
+                    if (fieldSelectedApi != null) {
+                        adoptStatusFrom(fieldSelectedApi)
+                    }
+                } else if (isExplicitlyHidden(backingField)) {
+                    selectedApiUpdater.markAsHidden(this, revert = false)
+                }
+            }
+        }
+
+        // Propagate information from this to the parent, i.e. the containing class.
+        parent.propagateFromChild(itemApiVariants)
+    }
+
+    /**
+     * Check whether this [FieldItem] is explicitly hidden via a hide annotation and is not shown
+     * via a show annotation.
+     */
+    private fun isExplicitlyHidden(field: FieldItem): Boolean {
+        var hide = false
+        for (annotationItem in field.modifiers.annotations()) {
+            annotationItem.surfaceData?.let { surfaceData ->
+                when (surfaceData.effect) {
+                    Effect.SHOW -> return false
+                    Effect.HIDE -> hide = true
+                    else -> {}
+                }
+            }
+        }
+        return hide
     }
 }

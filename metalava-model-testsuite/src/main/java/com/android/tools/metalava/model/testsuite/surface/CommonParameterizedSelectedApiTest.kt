@@ -1554,8 +1554,6 @@ class CommonParameterizedSelectedApiTest : BaseModelTest() {
                         ),
                     ),
             ) {
-                // TODO(b/512093496): The behavior shown below is not correct as SelectedApiUpdater
-                //  and related classes do not propagate the status from backing field to property.
                 surfaceTest(
                     surface = "public",
                     expected =
@@ -1576,7 +1574,7 @@ class CommonParameterizedSelectedApiTest : BaseModelTest() {
                                        self - ApiVariantSet[public(C)]
                                     content - ApiVariantSet[]
                                 property test.pkg.Foo#bar
-                                       self - ApiVariantSet[public(C)]
+                                       self - ApiVariantSet[]
                                     content - ApiVariantSet[]
                                 field test.pkg.Foo.bar
                                        self - ApiVariantSet[]
@@ -1585,8 +1583,6 @@ class CommonParameterizedSelectedApiTest : BaseModelTest() {
                 )
             }
 
-            // TODO: The behavior shown below is not correct as SelectedApiUpdater
-            //  and related classes do not propagate the status from backing field to property.
             buildTests(
                 name = "property with hidden private backing field",
                 surfaceRules = publicSystemModuleRules,
@@ -1633,7 +1629,7 @@ class CommonParameterizedSelectedApiTest : BaseModelTest() {
                                        self - ApiVariantSet[public(C)]
                                     content - ApiVariantSet[]
                                 property test.pkg.Foo#bar
-                                       self - ApiVariantSet[public(C)]
+                                       self - ApiVariantSet[]
                                     content - ApiVariantSet[]
                                 field test.pkg.Foo.bar
                                        self - ApiVariantSet[]
