@@ -31,15 +31,6 @@ import com.android.tools.metalava.model.api.surface.ApiSurfaces
  */
 class ApiPredicate(
     /**
-     * Set if the value of [SelectableItem.removed] should be ignored. That is, this predicate will
-     * assume that all encountered members match the "removed" requirement.
-     *
-     * This is typically useful when generating "removed.txt", when it's okay to reference both
-     * current and removed APIs.
-     */
-    private val ignoreRemoved: Boolean = false,
-
-    /**
      * Set what the value of [SelectableItem.removed] must be equal to in order for a member to
      * match.
      *
@@ -122,9 +113,8 @@ class ApiPredicate(
         // ApiSurfacePredicate.forStubs().
         if (itemSelectors.docOnly) return false
 
-        // If removed status is not ignored and this item's status does not match what is required
-        // then ignore this item.
-        if (!ignoreRemoved && itemSelectors.removed != matchRemoved) return false
+        // If this item's removed status does not match what is required then ignore this item.
+        if (itemSelectors.removed != matchRemoved) return false
 
         if (!ignoreShown && !hasShowAnnotation(item)) {
             return false
