@@ -26,8 +26,10 @@ import com.android.tools.metalava.model.api.ApiSurfaceSelector
 import com.android.tools.metalava.model.api.flags.ApiFlag
 import com.android.tools.metalava.model.api.flags.ApiFlagAction.*
 import com.android.tools.metalava.model.api.flags.ApiFlags
+import com.android.tools.metalava.model.junit4.ParameterFilter
 import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.provider.InputFormat
+import com.android.tools.metalava.model.testing.CodebaseCreatorConfig
 import com.android.tools.metalava.model.testing.SupportedInputFormats
 import com.android.tools.metalava.model.testing.surfaces.TestableApiSurfaces.DOC_ONLY
 import com.android.tools.metalava.model.testing.surfaces.TestableApiSurfaces.HIDE
@@ -43,6 +45,7 @@ import com.android.tools.metalava.model.testing.surfaces.TestableApiSurfaces.ann
 import com.android.tools.metalava.model.testing.surfaces.TestableApiSurfaces.publicStandaloneRules
 import com.android.tools.metalava.model.testing.surfaces.TestableApiSurfaces.publicSystemModuleRules
 import com.android.tools.metalava.model.testsuite.BaseModelTest
+import com.android.tools.metalava.model.testsuite.ModelSuiteRunner
 import com.android.tools.metalava.testing.EntryPoint
 import com.android.tools.metalava.testing.EntryPointCallerRule
 import com.android.tools.metalava.testing.EntryPointCallerTracker
@@ -55,7 +58,7 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.runners.Parameterized
 
-@SupportedInputFormats(InputFormat.JAVA)
+@SupportedInputFormats(InputFormat.JAVA, InputFormat.KOTLIN)
 class CommonParameterizedSelectedApiTest : BaseModelTest() {
 
     @Parameterized.Parameter(0) internal lateinit var params: TestParams
@@ -80,6 +83,14 @@ class CommonParameterizedSelectedApiTest : BaseModelTest() {
         val previouslyReleasedSources: List<TestFile>? = null,
         val expectedContainsRevertedItem: Boolean = false,
     ) {
+        /** The [InputFormat] of [sources]. */
+        val inputFormat: InputFormat by lazy {
+            sources
+                .asSequence()
+                .map { InputFormat.fromFilename(it.targetRelativePath) }
+                .reduce { if1, if2 -> if1.combineWith(if2) }
+        }
+
         /**
          * Record the stack trace of the creation of this which can be used to provide a stack trace
          * to the creator of this instance in the event of a test failure.
@@ -95,6 +106,20 @@ class CommonParameterizedSelectedApiTest : BaseModelTest() {
                 KnownSourceFiles.hideAnnotation,
                 KnownSourceFiles.flaggedApiSource,
             )
+
+        /**
+         * Filter out any test parameter combinations that are not valid for a specific
+         * [InputFormat].
+         */
+        @JvmStatic
+        @ParameterFilter
+        fun parameterFilter(
+            config: CodebaseCreatorConfig<ModelSuiteRunner>,
+            testParams: TestParams,
+        ): Boolean {
+            val inputFormat = config.inputFormat
+            return testParams.inputFormat == inputFormat
+        }
 
         /**
          * Build [TestParams] and add them to this list.
@@ -1311,6 +1336,9 @@ class CommonParameterizedSelectedApiTest : BaseModelTest() {
                         apiFlags = params.apiFlags,
                         annotationManagerFactory = annotationManagerFactory,
                         javaLanguageLevel = "17",
+                        // Disable the supported InputFormat check as this test is already
+                        // parameterized and filtered by InputFormat.
+                        checkSupportedInputFormats = false,
                     ),
             ) {
                 // Snapshot codebases do not support hidden items. The lack of the HIDDEN_ITEMS
@@ -1340,11 +1368,17 @@ class CommonParameterizedSelectedApiTest : BaseModelTest() {
             }
         }
 
+        // If previously released sources are provided, create a codebase from them to act as the
+        // previously released codebase. This is supplied to the AnnotationManager so it can
+        // determine the released status of items when testing API stability and reverting
+        // flagged APIs.
         val previouslyReleasedSources = params.previouslyReleasedSources
-
         if (previouslyReleasedSources != null) {
             runCodebaseTest(
                 inputSet(previouslyReleasedSources),
+                // Disable the supported InputFormat check as this test is already
+                // parameterized and filtered by InputFormat.
+                testFixture = TestFixture(checkSupportedInputFormats = false),
             ) {
                 val releasedCodebase = codebase
                 val annotationManagerFactory: TestFixture.() -> AnnotationManager = {
