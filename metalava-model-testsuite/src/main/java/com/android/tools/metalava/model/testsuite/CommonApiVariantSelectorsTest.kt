@@ -87,7 +87,6 @@ class CommonApiVariantSelectorsTest : BaseModelTest() {
                         docOnly=<not-set>,
                         removed=<not-set>,
                         inheritIntoWasCalled=<not-set>,
-                        forStubPurposes=<not-set>,
                         showability=<not-set>,
                     }
                 """
@@ -102,7 +101,6 @@ class CommonApiVariantSelectorsTest : BaseModelTest() {
             selectors.docOnly
             selectors.removed
             selectors.showability
-            selectors.includeOnlyForStubPurposes
 
             assertEquals(
                 """
@@ -114,7 +112,6 @@ class CommonApiVariantSelectorsTest : BaseModelTest() {
                         docOnly=false,
                         removed=false,
                         inheritIntoWasCalled=true,
-                        forStubPurposes=false,
                         showability=Showability(show=NO_EFFECT, recursive=NO_EFFECT, revertItem=null),
                     }
                 """

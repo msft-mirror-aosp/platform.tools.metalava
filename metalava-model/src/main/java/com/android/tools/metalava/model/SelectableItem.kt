@@ -95,12 +95,6 @@ interface SelectableItem : Item, ReferencableNameScope {
     val showability: Showability
 
     /**
-     * Returns true if this item should be included only for "stub" purposes, i.e. it belongs to a
-     * contributing base API surface that is narrower than the main API surface being generated.
-     */
-    fun includeOnlyForStubPurposes(): Boolean
-
-    /**
      * Returns true if this item has any show annotations.
      *
      * See [Showability.show]

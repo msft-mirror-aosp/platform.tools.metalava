@@ -76,12 +76,6 @@ sealed class ApiVariantSelectors {
     /** Determines whether this item will be shown as part of the API or not. */
     abstract val showability: Showability
 
-    /**
-     * Is true if the [Item] should be included only for "stub" purposes, i.e. it belongs to a
-     * contributing base API surface that is narrower than the main API surface being generated.
-     */
-    abstract val includeOnlyForStubPurposes: Boolean
-
     /** Create a duplicate of this for the specified [Item]. */
     abstract fun duplicate(item: Item): ApiVariantSelectors
 
@@ -143,9 +137,6 @@ sealed class ApiVariantSelectors {
 
         override val showability: Showability
             get() = Showability.NO_EFFECT
-
-        override val includeOnlyForStubPurposes
-            get() = false
 
         override fun duplicate(item: Item): ApiVariantSelectors = this
 
@@ -350,9 +341,6 @@ sealed class ApiVariantSelectors {
                         _showability = item.computeShowability()
                         _showability!!
                     }
-
-        override val includeOnlyForStubPurposes
-            get() = lazyGet(FOR_STUB_PURPOSES_BIT_MASK) { includeOnlyForStubPurposes(item) }
 
         override fun duplicate(item: Item): ApiVariantSelectors = Mutable(item as SelectableItem)
 
@@ -592,12 +580,8 @@ sealed class ApiVariantSelectors {
             private const val INHERIT_INTO_BIT_POSITION = REMOVED_BIT_POSITION + 1
             private const val INHERIT_INTO_BIT_MASK = 1 shl INHERIT_INTO_BIT_POSITION
 
-            /** [includeOnlyForStubPurposes] related constants. */
-            private const val FOR_STUB_PURPOSES_BIT_POSITION = INHERIT_INTO_BIT_POSITION + 1
-            private const val FOR_STUB_PURPOSES_BIT_MASK = 1 shl FOR_STUB_PURPOSES_BIT_POSITION
-
             /** The count of the number of bits used. */
-            private const val COUNT_BITS_USED = FOR_STUB_PURPOSES_BIT_POSITION + 1
+            private const val COUNT_BITS_USED = INHERIT_INTO_BIT_POSITION + 1
 
             /**
              * Value of [propertyValueBits] that will ensure that the associated [item] is not
@@ -624,7 +608,6 @@ sealed class ApiVariantSelectors {
                         array[DOCONLY_BIT_POSITION] = "docOnly"
                         array[REMOVED_BIT_POSITION] = "removed"
                         array[INHERIT_INTO_BIT_POSITION] = "inheritIntoWasCalled"
-                        array[FOR_STUB_PURPOSES_BIT_POSITION] = "forStubPurposes"
                     }
         }
     }
@@ -692,26 +675,3 @@ private fun SelectableItem.wasOriginallyHidden(): Boolean =
 /** Compute the [Showability] of this [SelectableItem]. */
 private fun SelectableItem.computeShowability(): Showability =
     codebase.annotationManager.getShowabilityForItem(this)
-
-/**
- * Returns true if [item] should be included only for stub generation purposes.
- *
- * An item is included only for stub purposes if it belongs to an API surface narrower than the main
- * API surface being generated (i.e. a contributing base API surface). Such items are needed when
- * generating stubs (which represent the complete API surface including base surfaces), but are
- * omitted when generating signature files (which only represent the delta introduced by the main
- * API surface).
- */
-private fun includeOnlyForStubPurposes(item: SelectableItem): Boolean {
-    val apiSurfaces = item.codebase.apiSurfaces
-    val mainSurface = apiSurfaces.main
-
-    // If the item does not belong to any API surface then it is not included at all.
-    val itemSurface =
-        item.selectedApi.itemApiVariants.narrowestSurfaceFor(apiSurfaces) ?: return false
-
-    // If the item belongs to an API surface that is narrower than the main API surface being
-    // generated, it is part of a contributing base API surface and therefore only included for
-    // stub purposes.
-    return itemSurface < mainSurface
-}

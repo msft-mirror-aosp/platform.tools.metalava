@@ -119,10 +119,6 @@ internal sealed class DefaultSelectableItem(
     final override val showability: Showability
         get() = variantSelectors.showability
 
-    override fun includeOnlyForStubPurposes(): Boolean {
-        return variantSelectors.includeOnlyForStubPurposes
-    }
-
     override fun updateDeprecatedFromJavadocIfNeeded() {
         // Only Java items can get deprecated status from javadoc.
         if (sourceLanguage != SourceLanguage.JAVA) return
