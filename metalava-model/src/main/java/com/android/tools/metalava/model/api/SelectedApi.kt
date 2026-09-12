@@ -448,6 +448,7 @@ private class MethodSelectedApi(
         // widest API surface inherited from overridden super methods.
         if (itemApiVariants.isEmpty()) {
             val apiSurfaces = selectedApiUpdater.apiSurfaces
+            val parentSurface = parent.itemApiVariants.widestSurfaceFor(apiSurfaces) ?: return
             var maxSuperSurface: ApiSurface? = null
             var maxSuperVariants = ApiVariantSet.EMPTY
 
@@ -458,6 +459,12 @@ private class MethodSelectedApi(
                 // Do not inherit removed or doconly status from overridden methods.
                 val superCoreVariant = superSurface.variantFor(ApiVariantType.CORE)
                 if (superCoreVariant !in superVariants) {
+                    continue
+                }
+
+                // A method can only inherit API variants from a super method in a narrower API
+                // surface than the containing class.
+                if (superSurface >= parentSurface) {
                     continue
                 }
 

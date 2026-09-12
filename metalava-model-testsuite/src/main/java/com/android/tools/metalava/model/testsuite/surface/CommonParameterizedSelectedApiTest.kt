@@ -1252,9 +1252,8 @@ class CommonParameterizedSelectedApiTest : BaseModelTest() {
                         ),
                     ),
             ) {
-                // TODO(b/512093496): The behavior shown below is not correct. Middle.method() is
-                //  marked @Hide, so it should not inherit the public(C) API variant from
-                //  Base.method(), which causes Sub.method() to be incorrectly elided.
+                // Middle.method() is marked @Hide and overrides a class method, so it does
+                // not inherit the public(C) API variant from Base.method().
                 surfaceTest(
                     surface = "module",
                     expected =
@@ -1278,7 +1277,7 @@ class CommonParameterizedSelectedApiTest : BaseModelTest() {
                                        self - ApiVariantSet[public(C)]
                                     content - ApiVariantSet[]
                                 method test.pkg.Middle.method()
-                                       self - ApiVariantSet[public(C)]
+                                       self - ApiVariantSet[]
                                     content - ApiVariantSet[]
                               class test.pkg.Sub
                                      self - ApiVariantSet[public(C)]
