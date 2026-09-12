@@ -1893,12 +1893,23 @@ class CompatibilityCheck(
                     apiName,
                 )
 
+            // Get the surface which this is trying to compare against.
+            val apiSurface = apiPredicateConfig.apiSurface
+
+            // When checking compatibility against a base public API that does not extend
+            // another surface, oldCodebase is expected to be complete and self-contained.
+            //
+            // However, for non-public APIs or surfaces that extend another surface (e.g. system
+            // or test APIs), oldCodebase may be a partial/delta signature file that only contains
+            // APIs specific to that surface and lacks declarations from the underlying base API.
+            // In that case, newCodebase is merged in as a fallback to fill any gaps (such as
+            // inherited methods or superclasses) to avoid spurious compatibility errors.
+            // Because oldCodebase is listed first, its definitions take precedence ("master")
+            // and are not modified by newCodebase.
             val oldFullCodebase =
-                if (apiPredicateConfig.ignoreShown && apiType == ApiType.PUBLIC_API) {
+                if (apiSurface.extends == null && apiType == ApiType.PUBLIC_API) {
                     MergedCodebase(listOf(oldCodebase))
                 } else {
-                    // To avoid issues with partial oldCodeBase we fill gaps with newCodebase, the
-                    // first parameter is master, so we don't change values of oldCodeBase
                     MergedCodebase(listOf(oldCodebase, newCodebase))
                 }
             val newFullCodebase = MergedCodebase(listOf(newCodebase))
