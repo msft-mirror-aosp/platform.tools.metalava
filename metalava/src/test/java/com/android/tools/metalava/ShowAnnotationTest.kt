@@ -713,6 +713,182 @@ class ShowAnnotationTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
+    @Test
+    fun `Check @PublishedApi when a show annotation`() {
+        val apiSurface =
+            KnownApiSurface(
+                surface = "public",
+                configFile =
+                    xml(
+                        "config-published-api-surface.xml",
+                        """
+                            <config xmlns="http://www.google.com/tools/metalava/config"
+                                xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                                xsi:schemaLocation="http://www.google.com/tools/metalava/config ../../../../../resources/schemas/config.xsd">
+                                <api-surfaces>
+                                    <api-surface name="public">
+                                        <selection-criteria unannotated="show">
+                                            <annotation-rule pattern="kotlin.PublishedApi"/>
+                                        </selection-criteria>
+                                    </api-surface>
+                                </api-surfaces>
+                            </config>
+                        """
+                    ),
+            )
+
+        check(
+            apiSurface = apiSurface,
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
+                            package test.pkg
+
+                            @PublishedApi
+                            internal class PublishedClass {
+                                fun method() {}
+                            }
+
+                            class PublicClass {
+                                @PublishedApi
+                                internal fun publishedMethod() {}
+
+                                internal fun internalMethod() {}
+                            }
+                        """
+                    )
+                ),
+            expectedApiSignature =
+                """
+                    package test.pkg {
+                      public final class PublicClass {
+                        ctor public PublicClass();
+                        method @kotlin.PublishedApi internal void publishedMethod();
+                      }
+                      @kotlin.PublishedApi internal final class PublishedClass {
+                        method public void method();
+                      }
+                    }
+                """,
+        )
+    }
+
+    @RequiresCapabilities(Capability.KOTLIN)
+    @Test
+    fun `Check @PublishedApi when not a show annotation`() {
+        check(
+            apiSurface = KnownApiSurface.PUBLIC,
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
+                            package test.pkg
+
+                            @PublishedApi
+                            internal class PublishedClass {
+                                fun method() {}
+                            }
+
+                            class PublicClass {
+                                @PublishedApi
+                                internal fun publishedMethod() {}
+
+                                internal fun internalMethod() {}
+                            }
+                        """
+                    )
+                ),
+            expectedApiSignature =
+                """
+                    package test.pkg {
+                      public final class PublicClass {
+                        ctor public PublicClass();
+                      }
+                    }
+                """,
+        )
+    }
+
+    @RequiresCapabilities(Capability.KOTLIN)
+    @Test
+    fun `Check @PublishedApi when not a show annotation and implementing public interface`() {
+        check(
+            apiSurface = KnownApiSurface.PUBLIC,
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
+                            package test.pkg
+
+                            interface PublicInterface {
+                                fun foo()
+                            }
+
+                            @PublishedApi
+                            internal class PublishedClass : PublicInterface {
+                                override fun foo() {}
+                            }
+                        """
+                    )
+                ),
+            expectedApiSignature =
+                """
+                    package test.pkg {
+                      public interface PublicInterface {
+                        method public void foo();
+                      }
+                    }
+                """,
+        )
+    }
+
+    @RequiresCapabilities(Capability.KOTLIN)
+    @Test
+    fun `Check show annotation on internal declaration when a show annotation`() {
+        check(
+            apiSurface = KnownApiSurface.SYSTEM_WITH_PUBLIC,
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
+                            package test.pkg
+                            import android.annotation.SystemApi
+
+                            class PublicClass {
+                                @SystemApi
+                                internal fun showMethod() {}
+
+                                @SystemApi
+                                internal val showProperty: Int = 0
+
+                                internal fun internalMethod() {}
+                            }
+
+                            @SystemApi
+                            internal class ShowClass {
+                                fun method() {}
+                            }
+                        """
+                    ),
+                ),
+            expectedApiSignature =
+                """
+                    package test.pkg {
+                      public final class PublicClass {
+                        ctor public PublicClass();
+                        method internal void showMethod${'$'}src();
+                        field internal final int showProperty;
+                      }
+                      internal final class ShowClass {
+                        method public void method();
+                      }
+                    }
+                """,
+        )
+    }
+
     @Test
     fun `Methods inherit showAnnotations but fields and classes don't`() {
         // "ShowAnnotations" are implicitly inherited between functions, but between
