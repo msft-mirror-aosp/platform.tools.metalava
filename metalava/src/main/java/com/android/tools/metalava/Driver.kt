@@ -730,8 +730,8 @@ class Driver(
                 apiType = ApiType.PUBLIC_API,
                 reporter = reporter,
                 issueConfiguration = issueReportingOptions.issueConfiguration,
-                compatibilityCheckOptions.apiCompatAnnotations,
-                apiPredicateConfig = apiPredicateConfig,
+                apiCompatAnnotations = compatibilityCheckOptions.apiCompatAnnotations,
+                apiSurface = apiSurface,
             )
         }
     }
@@ -865,7 +865,7 @@ class Driver(
             issueReportingOptions.issueConfiguration,
             compatibilityCheckOptions.apiCompatAnnotations,
             apiName,
-            apiPredicateConfig,
+            apiSurface,
         )
     }
 

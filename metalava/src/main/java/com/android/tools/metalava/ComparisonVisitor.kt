@@ -20,6 +20,7 @@ import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.ConstructorItem
+import com.android.tools.metalava.model.EMITTED_ONLY
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.FilterPredicate
 import com.android.tools.metalava.model.Item
@@ -31,8 +32,7 @@ import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.TargetLanguage
 import com.android.tools.metalava.model.multiplatform.MultiplatformCodebase
-import com.android.tools.metalava.model.visitors.ApiFilters
-import com.android.tools.metalava.model.visitors.ApiVisitor
+import com.android.tools.metalava.model.visitors.ApiSurfaceVisitor
 
 /**
  * Visitor which visits all items in two matching codebases and matches up the items and invokes
@@ -719,18 +719,17 @@ object CodebaseComparator {
         stack.push(root)
 
         for (codebase in codebases) {
-            val acceptAll = codebase.preFiltered || filter == null
-            val predicate = if (acceptAll) FilterPredicate { true } else filter
-            // Use the same predicate for emit and reference.
-            val apiFilters = ApiFilters(predicate, predicate)
+            val filterEmit =
+                if (codebase.preFiltered) null
+                else if (filter == null) EMITTED_ONLY else EMITTED_ONLY.and(filter)
             codebase.accept(
                 object :
-                    ApiVisitor(
+                    ApiSurfaceVisitor(
                         preserveClassNesting = true,
                         // Do not visit [ParameterItem]s, as they will be compared in
                         // [dispatchToCompare].
                         visitParameterItems = false,
-                        apiFilters = apiFilters,
+                        filterEmit = filterEmit,
                     ) {
 
                     /**
@@ -746,9 +745,6 @@ object CodebaseComparator {
 
                         stack.push(node)
                     }
-
-                    override fun include(cls: ClassItem): Boolean =
-                        if (acceptAll) true else super.include(cls)
 
                     /**
                      * Pop the [ItemTree] for [item] constructed in [visitSelectableItem] off the

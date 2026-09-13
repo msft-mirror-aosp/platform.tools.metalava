@@ -48,10 +48,10 @@ import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.TypeStringConfiguration
 import com.android.tools.metalava.model.VariableTypeItem
+import com.android.tools.metalava.model.api.surface.ApiSurface
 import com.android.tools.metalava.model.findAnnotation
 import com.android.tools.metalava.model.multiplatform.MultiplatformCodebase
 import com.android.tools.metalava.model.value.Value
-import com.android.tools.metalava.model.visitors.ApiPredicate
 import com.android.tools.metalava.model.visitors.ApiType
 import com.android.tools.metalava.model.visitors.MatchOverridingMethodPredicate
 import com.android.tools.metalava.reporter.FileLocation
@@ -1880,9 +1880,9 @@ class CompatibilityCheck(
             issueConfiguration: IssueConfiguration,
             apiCompatAnnotations: Set<String>,
             apiName: String?,
-            apiPredicateConfig: ApiPredicate.Config,
+            apiSurface: ApiSurface,
         ) {
-            val filter = getFilter(apiType, apiPredicateConfig)
+            val filter = getFilter(apiType, apiSurface)
 
             val checker =
                 CompatibilityCheck(
@@ -1892,9 +1892,6 @@ class CompatibilityCheck(
                     apiCompatAnnotations,
                     apiName,
                 )
-
-            // Get the surface which this is trying to compare against.
-            val apiSurface = apiPredicateConfig.apiSurface
 
             // When checking compatibility against a base public API that does not extend
             // another surface, oldCodebase is expected to be complete and self-contained.
@@ -1933,9 +1930,9 @@ class CompatibilityCheck(
             reporter: Reporter,
             issueConfiguration: IssueConfiguration,
             apiCompatAnnotations: Set<String>,
-            apiPredicateConfig: ApiPredicate.Config,
+            apiSurface: ApiSurface,
         ) {
-            val filter = getFilter(apiType, apiPredicateConfig)
+            val filter = getFilter(apiType, apiSurface)
             val checker =
                 CompatibilityCheck(
                     filter,
@@ -1954,12 +1951,10 @@ class CompatibilityCheck(
 
         /**
          * Returns a filter which wraps the [ApiType.getReferenceFilter] for the [apiType] based on
-         * the [apiPredicateConfig] in a [MatchOverridingMethodPredicate]. This is used to filter
-         * which items are included in compatibility checks.
+         * the [apiSurface] in a [MatchOverridingMethodPredicate]. This is used to filter which
+         * items are included in compatibility checks.
          */
-        private fun getFilter(apiType: ApiType, apiPredicateConfig: ApiPredicate.Config) =
-            MatchOverridingMethodPredicate(
-                apiType.getReferenceFilter(apiPredicateConfig.apiSurface)
-            )
+        private fun getFilter(apiType: ApiType, apiSurface: ApiSurface) =
+            MatchOverridingMethodPredicate(apiType.getReferenceFilter(apiSurface))
     }
 }
