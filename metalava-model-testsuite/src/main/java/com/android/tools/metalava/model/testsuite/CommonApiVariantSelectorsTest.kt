@@ -18,10 +18,6 @@ package com.android.tools.metalava.model.testsuite
 
 import com.android.tools.metalava.model.ApiVariantSelectors
 import com.android.tools.metalava.model.ApiVariantSelectors.TestableSelectorsState
-import com.android.tools.metalava.model.BaseItemVisitor
-import com.android.tools.metalava.model.ClassItem
-import com.android.tools.metalava.model.MemberItem
-import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.Showability
 import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.provider.InputFormat
@@ -75,7 +71,6 @@ class CommonApiVariantSelectorsTest : BaseModelTest() {
                         originallyHidden=<not-set>,
                         inheritableHidden=<not-set>,
                         hidden=<not-set>,
-                        accessible=<not-set>,
                         removed=<not-set>,
                         inheritIntoWasCalled=<not-set>,
                         showability=<not-set>,
@@ -88,7 +83,6 @@ class CommonApiVariantSelectorsTest : BaseModelTest() {
 
             // Initialize the properties.
             selectors.hidden
-            selectors.accessible
             selectors.removed
             selectors.showability
 
@@ -98,7 +92,6 @@ class CommonApiVariantSelectorsTest : BaseModelTest() {
                         originallyHidden=false,
                         inheritableHidden=false,
                         hidden=false,
-                        accessible=true,
                         removed=false,
                         inheritIntoWasCalled=true,
                         showability=Showability(show=NO_EFFECT, recursive=NO_EFFECT, revertItem=null),
@@ -288,67 +281,6 @@ class CommonApiVariantSelectorsTest : BaseModelTest() {
 
             fooSelectorsState = fooSelectorsState.copy(removed = true)
             fooSelectors.assertEquals(fooSelectorsState, message = "after foo")
-        }
-    }
-
-    @Test
-    fun `Test accessible`() {
-        runCodebaseTest(
-            inputSet(
-                java(
-                    """
-                        package test.pkg;
-                    """
-                ),
-                java(
-                    """
-                        package test.pkg;
-                        public class Outer {
-                            class PackagePrivateInaccessible {
-                                public class PublicInsideInaccessible {}
-                            }
-                            protected class Protected {
-                                public static final int FIELD = 0;
-                            }
-                            private void methodPrivateInaccessible() {}
-                        }
-                    """
-                ),
-            ),
-        ) {
-            // Get the `accessible` property for the pkg, is always `true`.
-            val pkgItem = codebase.assertPackage("test.pkg")
-            assertEquals(true, pkgItem.variantSelectors.accessible, message = "pkg accessible")
-
-            var count = 0
-            pkgItem.accept(
-                object :
-                    BaseItemVisitor(
-                        // [ParameterItem]s are not [SelectableItem]s so there is no point in
-                        // visiting them.
-                        visitParameterItems = false,
-                    ) {
-                    override fun visitSelectableItem(item: SelectableItem) {
-                        val name =
-                            when (item) {
-                                is ClassItem -> item.simpleName()
-                                is MemberItem -> item.name()
-                                else -> return
-                            }
-
-                        val expectedAccessible = !name.endsWith("Inaccessible")
-                        assertEquals(
-                            expectedAccessible,
-                            item.variantSelectors.accessible,
-                            message = "$item accessible"
-                        )
-                        count += 1
-                    }
-                }
-            )
-
-            // Make sure it actually did something.
-            assertEquals(10, count, message = "item count")
         }
     }
 }

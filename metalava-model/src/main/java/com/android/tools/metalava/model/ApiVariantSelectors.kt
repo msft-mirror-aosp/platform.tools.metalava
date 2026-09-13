@@ -39,17 +39,6 @@ sealed class ApiVariantSelectors {
     internal abstract val inheritableHidden: Boolean
 
     /**
-     * Indicates whether the [Item] is accessible, and its enclosing classes are accessible.
-     *
-     * An [Item] is accessible if it is either `public` or `protected`. In Kotlin, it is also
-     * accessible if it is `internal` as long as it is annotated with `@PublishedApi`. However, that
-     * annotation is not treated specially in Metalava, instead it relies on the user to specify
-     * `@PublishedApi` as a show annotation and this just assumes that any show annotation is enough
-     * to make it accessible.
-     */
-    abstract val accessible: Boolean
-
-    /**
      * Indicates whether the [Item] should be hidden, i.e. should not be included in ANY API surface
      * variant.
      *
@@ -106,14 +95,6 @@ sealed class ApiVariantSelectors {
 
         override val inheritableHidden: Boolean
             get() = false
-
-        /**
-         * Defaults to `true` as this is used by `Item`s loaded from an API signature file which
-         * typically only contains accessible `Item`s. It is possible that it could contain
-         * inaccessible `Item`s but at the moment that is not supported.
-         */
-        override val accessible: Boolean
-            get() = true
 
         override val hidden: Boolean
             get() = false
@@ -265,23 +246,6 @@ sealed class ApiVariantSelectors {
             set(value) {
                 lazySet(INHERITABLE_HIDDEN_BIT_MASK, value)
             }
-
-        override val accessible: Boolean
-            get() =
-                lazyGet(ACCESSIBLE_BIT_MASK) {
-                    when (item) {
-                        // Packages are always accessible.
-                        is PackageItem -> true
-                        else ->
-                            // This is accessible if it is public, protected or internal (with show
-                            // annotation) and none of its containing classes, if any, are
-                            // inaccessible.
-                            (item.isPublic ||
-                                item.isProtected ||
-                                (item.isInternal && showability.show())) &&
-                                item.containingClass()?.variantSelectors?.accessible != false
-                    }
-                }
 
         override var hidden: Boolean
             get() =
@@ -539,12 +503,8 @@ sealed class ApiVariantSelectors {
             private const val HIDDEN_BIT_POSITION: Int = INHERITABLE_HIDDEN_BIT_POSITION + 1
             private const val HIDDEN_BIT_MASK: Int = 1 shl HIDDEN_BIT_POSITION
 
-            // `accessible` related constants
-            private const val ACCESSIBLE_BIT_POSITION: Int = HIDDEN_BIT_POSITION + 1
-            private const val ACCESSIBLE_BIT_MASK: Int = 1 shl ACCESSIBLE_BIT_POSITION
-
             // `removed` related constants
-            private const val REMOVED_BIT_POSITION: Int = ACCESSIBLE_BIT_POSITION + 1
+            private const val REMOVED_BIT_POSITION: Int = HIDDEN_BIT_POSITION + 1
             private const val REMOVED_BIT_MASK: Int = 1 shl REMOVED_BIT_POSITION
 
             /**
@@ -561,10 +521,9 @@ sealed class ApiVariantSelectors {
              * Value of [propertyValueBits] that will ensure that the associated [item] is not
              * restricted in any way.
              *
-             * This sets all the [Boolean] properties to `false` apart from [accessible] which is
-             * set to `true`.
+             * This sets all the [Boolean] properties to `false`.
              */
-            private const val NOT_RESTRICTED_SETTINGS: Int = ACCESSIBLE_BIT_MASK
+            private const val NOT_RESTRICTED_SETTINGS: Int = 0
 
             /**
              * Value of [propertyHasBeenSetBits] that indicates all the properties have been set.
@@ -578,7 +537,6 @@ sealed class ApiVariantSelectors {
                         array[ORIGINALLY_HIDDEN_BIT_POSITION] = "originallyHidden"
                         array[INHERITABLE_HIDDEN_BIT_POSITION] = "inheritableHidden"
                         array[HIDDEN_BIT_POSITION] = "hidden"
-                        array[ACCESSIBLE_BIT_POSITION] = "accessible"
                         array[REMOVED_BIT_POSITION] = "removed"
                         array[INHERIT_INTO_BIT_POSITION] = "inheritIntoWasCalled"
                     }
