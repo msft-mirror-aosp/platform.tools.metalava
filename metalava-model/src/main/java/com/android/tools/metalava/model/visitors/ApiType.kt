@@ -18,6 +18,7 @@ package com.android.tools.metalava.model.visitors
 
 import com.android.tools.metalava.model.EMITTED_ONLY
 import com.android.tools.metalava.model.FilterPredicate
+import com.android.tools.metalava.model.api.surface.ApiSurface
 import com.android.tools.metalava.model.api.surface.ApiSurfacePredicate
 
 /** Types of APIs emitted (or parsed etc.) */
@@ -33,11 +34,11 @@ enum class ApiType(val flagName: String, val displayName: String = flagName) {
                 )
             )
 
-        override fun getReferenceFilter(apiPredicateConfig: ApiPredicate.Config): FilterPredicate {
+        override fun getReferenceFilter(apiSurface: ApiSurface): FilterPredicate {
             // Emitted APIs can reference types (such as superclasses, interfaces, parameter types,
             // or thrown exceptions) that belong to any API surface extended by the target surface,
             // so references must match across the whole API surface.
-            return ApiSurfacePredicate.wholeCoreApi(apiPredicateConfig.apiSurface)
+            return ApiSurfacePredicate.wholeCoreApi(apiSurface)
         }
     },
 
@@ -53,9 +54,9 @@ enum class ApiType(val flagName: String, val displayName: String = flagName) {
                 )
             )
 
-        override fun getReferenceFilter(apiPredicateConfig: ApiPredicate.Config): FilterPredicate =
+        override fun getReferenceFilter(apiSurface: ApiSurface): FilterPredicate =
             // References in removed APIs can refer to types across the whole API surface.
-            ApiSurfacePredicate.wholeCoreAndRemovedApi(apiPredicateConfig.apiSurface)
+            ApiSurfacePredicate.wholeCoreAndRemovedApi(apiSurface)
     },
     ;
 
@@ -66,11 +67,11 @@ enum class ApiType(val flagName: String, val displayName: String = flagName) {
     open fun getEmitFilter(apiPredicateConfig: ApiPredicate.Config): FilterPredicate {
         val nonElidingFilter =
             MatchOverridingMethodPredicate(getNonElidingFilter(apiPredicateConfig))
-        val referenceFilter = getReferenceFilter(apiPredicateConfig)
+        val referenceFilter = getReferenceFilter(apiPredicateConfig.apiSurface)
         return nonElidingFilter.and(elidingPredicate(referenceFilter, apiPredicateConfig))
     }
 
-    abstract fun getReferenceFilter(apiPredicateConfig: ApiPredicate.Config): FilterPredicate
+    abstract fun getReferenceFilter(apiSurface: ApiSurface): FilterPredicate
 
     /**
      * Create an [ElidingPredicate] that wraps [wrappedPredicate] and uses information from the
@@ -93,7 +94,7 @@ enum class ApiType(val flagName: String, val displayName: String = flagName) {
      */
     fun getApiFilters(apiPredicateConfig: ApiPredicate.Config) =
         ApiFilters(
-            reference = getReferenceFilter(apiPredicateConfig),
+            reference = getReferenceFilter(apiPredicateConfig.apiSurface),
             emit = getEmitFilter(apiPredicateConfig),
         )
 
@@ -106,7 +107,7 @@ enum class ApiType(val flagName: String, val displayName: String = flagName) {
      */
     fun getNonElidingApiFilters(apiPredicateConfig: ApiPredicate.Config) =
         ApiFilters(
-            reference = getReferenceFilter(apiPredicateConfig),
+            reference = getReferenceFilter(apiPredicateConfig.apiSurface),
             emit = getNonElidingFilter(apiPredicateConfig),
         )
 

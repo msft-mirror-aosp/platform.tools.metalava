@@ -1958,6 +1958,8 @@ class CompatibilityCheck(
          * which items are included in compatibility checks.
          */
         private fun getFilter(apiType: ApiType, apiPredicateConfig: ApiPredicate.Config) =
-            MatchOverridingMethodPredicate(apiType.getReferenceFilter(apiPredicateConfig))
+            MatchOverridingMethodPredicate(
+                apiType.getReferenceFilter(apiPredicateConfig.apiSurface)
+            )
     }
 }
