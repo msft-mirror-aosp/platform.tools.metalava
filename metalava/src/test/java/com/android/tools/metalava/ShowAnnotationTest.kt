@@ -1231,4 +1231,80 @@ class ShowAnnotationTest : DriverTest() {
                 """,
         )
     }
+
+    @RequiresCapabilities(Capability.KOTLIN)
+    @Test
+    fun `Property with hidden backing field`() {
+        check(
+            apiSurface = KnownApiSurface.PUBLIC,
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
+                        package test.pkg
+                        class Foo {
+                            @android.annotation.Hide
+                            var bar: Int = 0
+
+                            @field:android.annotation.Hide
+                            var baz: Int = 0
+
+                            val visible: Int = 1
+                        }
+                        """
+                    )
+                ),
+            expectedApiSignature =
+                """
+                package test.pkg {
+                  public final class Foo {
+                    ctor public Foo();
+                    method @InaccessibleFromKotlin public int getBar();
+                    method @InaccessibleFromKotlin public int getBaz();
+                    method @InaccessibleFromKotlin public int getVisible();
+                    method @InaccessibleFromKotlin public void setBar(int);
+                    method @InaccessibleFromKotlin public void setBaz(int);
+                    property public int visible;
+                  }
+                }
+                """,
+        )
+    }
+
+    @RequiresCapabilities(Capability.KOTLIN)
+    @Test
+    fun `Property with hidden non-private backing field`() {
+        check(
+            apiSurface = KnownApiSurface.PUBLIC,
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
+                        package test.pkg
+                        class Foo {
+                            @android.annotation.Hide
+                            @JvmField
+                            var bar: Int = 0
+
+                            @field:android.annotation.Hide
+                            @JvmField
+                            var baz: Int = 0
+
+                            val visible: Int = 1
+                        }
+                        """
+                    )
+                ),
+            expectedApiSignature =
+                """
+                package test.pkg {
+                  public final class Foo {
+                    ctor public Foo();
+                    method @InaccessibleFromKotlin public int getVisible();
+                    property public int visible;
+                  }
+                }
+                """,
+        )
+    }
 }

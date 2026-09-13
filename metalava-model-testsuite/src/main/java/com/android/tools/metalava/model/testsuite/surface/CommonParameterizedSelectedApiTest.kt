@@ -1529,6 +1529,118 @@ class CommonParameterizedSelectedApiTest : BaseModelTest() {
                         """,
                 )
             }
+
+            buildTests(
+                name = "property with hidden backing field",
+                surfaceRules = publicSystemModuleRules,
+                sources =
+                    listOf(
+                        java(
+                            """
+                                package test.api;
+                                public @interface Hide {}
+                            """
+                        ),
+                        kotlin(
+                            """
+                                package test.pkg
+                                import ${HIDE.qualifiedName}
+                                class Foo {
+                                    @field:Hide
+                                    @JvmField
+                                    val bar: Int = 0
+                                }
+                            """
+                        ),
+                    ),
+            ) {
+                // TODO(b/512093496): The behavior shown below is not correct as SelectedApiUpdater
+                //  and related classes do not propagate the status from backing field to property.
+                surfaceTest(
+                    surface = "public",
+                    expected =
+                        """
+                            package test.api
+                                   self - ApiVariantSet[public(C)]
+                                content - ApiVariantSet[]
+                              class test.api.Hide
+                                     self - ApiVariantSet[public(C)]
+                                  content - ApiVariantSet[]
+                            package test.pkg
+                                   self - ApiVariantSet[public(C)]
+                                content - ApiVariantSet[]
+                              class test.pkg.Foo
+                                     self - ApiVariantSet[public(C)]
+                                  content - ApiVariantSet[]
+                                constructor test.pkg.Foo()
+                                       self - ApiVariantSet[public(C)]
+                                    content - ApiVariantSet[]
+                                property test.pkg.Foo#bar
+                                       self - ApiVariantSet[public(C)]
+                                    content - ApiVariantSet[]
+                                field test.pkg.Foo.bar
+                                       self - ApiVariantSet[]
+                                    content - ApiVariantSet[]
+                        """,
+                )
+            }
+
+            // TODO: The behavior shown below is not correct as SelectedApiUpdater
+            //  and related classes do not propagate the status from backing field to property.
+            buildTests(
+                name = "property with hidden private backing field",
+                surfaceRules = publicSystemModuleRules,
+                sources =
+                    listOf(
+                        java(
+                            """
+                                package test.api;
+                                public @interface Hide {}
+                            """
+                        ),
+                        kotlin(
+                            """
+                                package test.pkg
+                                import ${HIDE.qualifiedName}
+                                class Foo {
+                                    @field:Hide
+                                    val bar: Int = 0
+                                }
+                            """
+                        ),
+                    ),
+            ) {
+                surfaceTest(
+                    surface = "public",
+                    expected =
+                        """
+                            package test.api
+                                   self - ApiVariantSet[public(C)]
+                                content - ApiVariantSet[]
+                              class test.api.Hide
+                                     self - ApiVariantSet[public(C)]
+                                  content - ApiVariantSet[]
+                            package test.pkg
+                                   self - ApiVariantSet[public(C)]
+                                content - ApiVariantSet[]
+                              class test.pkg.Foo
+                                     self - ApiVariantSet[public(C)]
+                                  content - ApiVariantSet[]
+                                constructor test.pkg.Foo()
+                                       self - ApiVariantSet[public(C)]
+                                    content - ApiVariantSet[]
+                                method test.pkg.Foo.getBar()
+                                       self - ApiVariantSet[public(C)]
+                                    content - ApiVariantSet[]
+                                property test.pkg.Foo#bar
+                                       self - ApiVariantSet[public(C)]
+                                    content - ApiVariantSet[]
+                                field test.pkg.Foo.bar
+                                       self - ApiVariantSet[]
+                                    content - ApiVariantSet[]
+                        """,
+                )
+            }
         }
     }
 
