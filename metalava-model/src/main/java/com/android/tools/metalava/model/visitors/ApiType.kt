@@ -24,59 +24,45 @@ import com.android.tools.metalava.model.api.surface.ApiSurfacePredicate
 /** Types of APIs emitted (or parsed etc.) */
 enum class ApiType(val flagName: String, val displayName: String = flagName) {
     /** The public API */
-    PUBLIC_API("api", "public") {
-
-        override fun getNonElidingFilter(apiSurface: ApiSurface) =
-            // Only items marked for emission should appear in the signature file.
-            EMITTED_ONLY.and(
-                ApiSurfacePredicate.forDelta(
-                    apiSurface = apiSurface,
-                    forRemoved = false,
-                )
-            )
-
-        override fun getReferenceFilter(apiSurface: ApiSurface): FilterPredicate {
-            // Emitted APIs can reference types (such as superclasses, interfaces, parameter types,
-            // or thrown exceptions) that belong to any API surface extended by the target surface,
-            // so references must match across the whole API surface.
-            return ApiSurfacePredicate.wholeCoreApi(apiSurface)
-        }
-    },
+    PUBLIC_API("api", "public"),
 
     /** The API that has been removed */
-    REMOVED("removed", "removed") {
-
-        override fun getNonElidingFilter(apiSurface: ApiSurface) =
-            // Only items marked for emission should appear in the removed signature file.
-            EMITTED_ONLY.and(
-                ApiSurfacePredicate.forDelta(
-                    apiSurface = apiSurface,
-                    forRemoved = true,
-                )
-            )
-
-        override fun getReferenceFilter(apiSurface: ApiSurface): FilterPredicate =
-            // References in removed APIs can refer to types across the whole API surface.
-            ApiSurfacePredicate.wholeCoreAndRemovedApi(apiSurface)
-    },
+    REMOVED("removed", "removed"),
     ;
 
-    protected abstract fun getNonElidingFilter(apiSurface: ApiSurface): FilterPredicate
+    fun getNonElidingFilter(apiSurface: ApiSurface): FilterPredicate =
+        // Only items marked for emission should appear in the signature file.
+        EMITTED_ONLY.and(
+            ApiSurfacePredicate.forDelta(
+                apiSurface = apiSurface,
+                forRemoved = this == REMOVED,
+            )
+        )
 
-    open fun getEmitFilter(apiPredicateConfig: ApiSurfacePredicate.Config): FilterPredicate {
+    fun getEmitFilter(apiPredicateConfig: ApiSurfacePredicate.Config): FilterPredicate {
         val nonElidingFilter =
             MatchOverridingMethodPredicate(getNonElidingFilter(apiPredicateConfig.apiSurface))
         val referenceFilter = getReferenceFilter(apiPredicateConfig.apiSurface)
         return nonElidingFilter.and(elidingPredicate(referenceFilter, apiPredicateConfig))
     }
 
-    abstract fun getReferenceFilter(apiSurface: ApiSurface): FilterPredicate
+    fun getReferenceFilter(apiSurface: ApiSurface): FilterPredicate =
+        when (this) {
+            PUBLIC_API ->
+                // Emitted APIs can reference types (such as superclasses, interfaces, parameter
+                // types, or thrown exceptions) that belong to any API surface extended by the
+                // target surface, so references must match across the whole API surface.
+                ApiSurfacePredicate.wholeCoreApi(apiSurface)
+            REMOVED ->
+                // References in removed APIs can refer to types across the whole API surface.
+                ApiSurfacePredicate.wholeCoreAndRemovedApi(apiSurface)
+        }
 
     /**
      * Create an [ElidingPredicate] that wraps [wrappedPredicate] and uses information from the
      * [apiPredicateConfig].
      */
-    protected fun elidingPredicate(
+    private fun elidingPredicate(
         wrappedPredicate: FilterPredicate,
         apiPredicateConfig: ApiSurfacePredicate.Config
     ) =
