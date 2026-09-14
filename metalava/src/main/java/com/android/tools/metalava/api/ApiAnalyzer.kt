@@ -457,7 +457,9 @@ class ApiAnalyzer(
                  */
                 override fun visitSelectableItem(item: SelectableItem) {
                     if (
-                        item.originallyDeprecated &&
+                        // If comments aren't read, don't try checking documentation
+                        codebase.config.allowReadingComments &&
+                            item.originallyDeprecated &&
                             !item.documentationContainsDeprecated() &&
                             // Don't warn about this in Kotlin; the Kotlin deprecation annotation
                             // includes deprecation messages (unlike java.lang.Deprecated which has

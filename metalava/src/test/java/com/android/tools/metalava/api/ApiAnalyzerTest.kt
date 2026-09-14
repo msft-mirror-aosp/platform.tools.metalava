@@ -244,6 +244,39 @@ class ApiAnalyzerTest : DriverTest() {
     }
 
     @Test
+    fun `Test that DeprecationMismatch is not reported when comments are ignored`() {
+        check(
+            expectedIssues = "",
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                        package test.pkg;
+                        @Deprecated
+                        public class MissingDeprecatedDoc {}
+                        """
+                    ),
+                    java(
+                        """
+                        package test.pkg;
+                        /** @deprecated reason */
+                        public class MissingDeprecatedAnno {}
+                        """
+                    ),
+                    java(
+                        """
+                        package test.pkg;
+                        /** @deprecated reason */
+                        @Deprecated
+                        public class CorrectDeprecation {}
+                        """
+                    )
+                ),
+            extraArguments = arrayOf(ARG_SKIP_READING_COMMENTS),
+        )
+    }
+
+    @Test
     fun `Test inheriting methods from hidden class preserves deprecated status`() {
         check(
             sourceFiles =
