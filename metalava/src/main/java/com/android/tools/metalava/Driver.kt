@@ -446,7 +446,7 @@ class Driver(
                 // Pre-filtered so does not need any filters.
                 null
             } else {
-                ApiType.PUBLIC_API.getApiFilters(apiPredicateConfig)
+                ApiSurfacePredicate.apiFilters(ApiType.PUBLIC_API, apiPredicateConfig)
             }
 
         val codebaseFragment =
@@ -486,7 +486,7 @@ class Driver(
                     // Pre-filtered so does not need any filters.
                     null
                 } else {
-                    ApiType.REMOVED.getApiFilters(apiPredicateConfig)
+                    ApiSurfacePredicate.apiFilters(ApiType.REMOVED, apiPredicateConfig)
                 }
 
             val removedApiCodebaseFragment =
@@ -688,7 +688,10 @@ class Driver(
                             // Pre-filtered so does not need any filters.
                             null
                         } else {
-                            ApiType.PUBLIC_API.getApiFilters(apiPredicateConfig)
+                            ApiSurfacePredicate.apiFilters(
+                                ApiType.PUBLIC_API,
+                                apiPredicateConfig,
+                            )
                         }
 
                     createSignatureFileFragment(
@@ -773,7 +776,7 @@ class Driver(
         // version history.
         val signatureFileConfigCodeFragmentProvider: () -> CodebaseFragment = {
             val apiType = ApiType.PUBLIC_API
-            val apiFilters = apiType.getApiFilters(apiPredicateConfig)
+            val apiFilters = ApiSurfacePredicate.apiFilters(apiType, apiPredicateConfig)
 
             CodebaseFragment.create(codebase) { delegatedVisitor ->
                 FilteringApiVisitor(

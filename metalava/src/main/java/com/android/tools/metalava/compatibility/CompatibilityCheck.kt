@@ -49,6 +49,7 @@ import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.TypeStringConfiguration
 import com.android.tools.metalava.model.VariableTypeItem
 import com.android.tools.metalava.model.api.surface.ApiSurface
+import com.android.tools.metalava.model.api.surface.ApiSurfacePredicate
 import com.android.tools.metalava.model.findAnnotation
 import com.android.tools.metalava.model.multiplatform.MultiplatformCodebase
 import com.android.tools.metalava.model.value.Value
@@ -1950,11 +1951,11 @@ class CompatibilityCheck(
         }
 
         /**
-         * Returns a filter which wraps the [ApiType.getReferenceFilter] for the [apiType] based on
-         * the [apiSurface] in a [MatchOverridingMethodPredicate]. This is used to filter which
-         * items are included in compatibility checks.
+         * Returns a filter which wraps the [ApiSurfacePredicate.referenceFilter] for the [apiType]
+         * based on the [apiSurface] in a [MatchOverridingMethodPredicate]. This is used to filter
+         * which items are included in compatibility checks.
          */
         private fun getFilter(apiType: ApiType, apiSurface: ApiSurface) =
-            MatchOverridingMethodPredicate(apiType.getReferenceFilter(apiSurface))
+            MatchOverridingMethodPredicate(ApiSurfacePredicate.referenceFilter(apiType, apiSurface))
     }
 }

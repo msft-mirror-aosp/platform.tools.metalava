@@ -214,7 +214,7 @@ class ConvertJarsToSignatureFiles(
                 // Pre-filtered so does not need any filters.
                 null
             } else {
-                ApiType.PUBLIC_API.getApiFilters(apiPredicateConfig)
+                ApiSurfacePredicate.apiFilters(ApiType.PUBLIC_API, apiPredicateConfig)
             }
 
         val jarCodebaseFragment =

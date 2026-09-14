@@ -16,11 +16,6 @@
 
 package com.android.tools.metalava.model.visitors
 
-import com.android.tools.metalava.model.EMITTED_ONLY
-import com.android.tools.metalava.model.FilterPredicate
-import com.android.tools.metalava.model.api.surface.ApiSurface
-import com.android.tools.metalava.model.api.surface.ApiSurfacePredicate
-
 /** Types of APIs emitted (or parsed etc.) */
 enum class ApiType(val flagName: String, val displayName: String = flagName) {
     /** The public API */
@@ -29,72 +24,6 @@ enum class ApiType(val flagName: String, val displayName: String = flagName) {
     /** The API that has been removed */
     REMOVED("removed", "removed"),
     ;
-
-    fun getNonElidingFilter(apiSurface: ApiSurface): FilterPredicate =
-        // Only items marked for emission should appear in the signature file.
-        EMITTED_ONLY.and(
-            ApiSurfacePredicate.forDelta(
-                apiSurface = apiSurface,
-                forRemoved = this == REMOVED,
-            )
-        )
-
-    fun getEmitFilter(apiPredicateConfig: ApiSurfacePredicate.Config): FilterPredicate {
-        val nonElidingFilter =
-            MatchOverridingMethodPredicate(getNonElidingFilter(apiPredicateConfig.apiSurface))
-        val referenceFilter = getReferenceFilter(apiPredicateConfig.apiSurface)
-        return nonElidingFilter.and(elidingPredicate(referenceFilter, apiPredicateConfig))
-    }
-
-    fun getReferenceFilter(apiSurface: ApiSurface): FilterPredicate =
-        when (this) {
-            PUBLIC_API ->
-                // Emitted APIs can reference types (such as superclasses, interfaces, parameter
-                // types, or thrown exceptions) that belong to any API surface extended by the
-                // target surface, so references must match across the whole API surface.
-                ApiSurfacePredicate.wholeCoreApi(apiSurface)
-            REMOVED ->
-                // References in removed APIs can refer to types across the whole API surface.
-                ApiSurfacePredicate.wholeCoreAndRemovedApi(apiSurface)
-        }
-
-    /**
-     * Create an [ElidingPredicate] that wraps [wrappedPredicate] and uses information from the
-     * [apiPredicateConfig].
-     */
-    private fun elidingPredicate(
-        wrappedPredicate: FilterPredicate,
-        apiPredicateConfig: ApiSurfacePredicate.Config
-    ) =
-        ElidingPredicate(
-            wrappedPredicate,
-            addAdditionalOverrides = apiPredicateConfig.addAdditionalOverrides,
-        )
-
-    /**
-     * Get the [ApiFilters] for this [ApiType] that uses information from [apiPredicateConfig] to
-     * customize their behavior.
-     *
-     * The returned [ApiFilters.emit] will elide methods overrides that match the overridden method.
-     */
-    fun getApiFilters(apiPredicateConfig: ApiSurfacePredicate.Config) =
-        ApiFilters(
-            reference = getReferenceFilter(apiPredicateConfig.apiSurface),
-            emit = getEmitFilter(apiPredicateConfig),
-        )
-
-    /**
-     * Get the [ApiFilters] for this [ApiType] that uses information from [apiPredicateConfig] to
-     * customize their behavior.
-     *
-     * The returned [ApiFilters.emit] will NOT elide methods overrides that match the overridden
-     * method.
-     */
-    fun getNonElidingApiFilters(apiPredicateConfig: ApiSurfacePredicate.Config) =
-        ApiFilters(
-            reference = getReferenceFilter(apiPredicateConfig.apiSurface),
-            emit = getNonElidingFilter(apiPredicateConfig.apiSurface),
-        )
 
     override fun toString(): String = displayName
 }

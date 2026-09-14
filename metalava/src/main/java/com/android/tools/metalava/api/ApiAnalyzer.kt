@@ -420,7 +420,11 @@ class ApiAnalyzer(
             object : ApiFiltersVisitor(apiFilters = apiFilters) {
                 /** A [FilterPredicate] that will match removed items. */
                 private val removedFilterPredicate =
-                    ApiType.REMOVED.getApiFilters(config.apiPredicateConfig).emit
+                    ApiSurfacePredicate.apiFilters(
+                            ApiType.REMOVED,
+                            config.apiPredicateConfig,
+                        )
+                        .emit
 
                 override fun visitParameter(parameter: ParameterItem) {
                     checkTypeReferencesHidden(parameter, parameter.type())

@@ -217,7 +217,10 @@ private constructor(
     ApiVisitor(
         visitParameterItems = false,
         apiFilters =
-            ApiType.PUBLIC_API.getNonElidingApiFilters(apiPredicateConfig)
+            ApiSurfacePredicate.nonElidingApiFilters(
+                    ApiType.PUBLIC_API,
+                    apiPredicateConfig,
+                )
                 .forTargetLanguages(TargetLanguageSet.SOURCE),
     ) {
 
