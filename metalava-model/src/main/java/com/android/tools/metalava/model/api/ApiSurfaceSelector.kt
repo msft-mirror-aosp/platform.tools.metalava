@@ -27,6 +27,7 @@ import com.android.tools.metalava.model.api.surface.ApiSurfaces
 /** Helps determine to which api surface a [SelectableItem] belongs. */
 class ApiSurfaceSelector(
     apiSurfaceRules: ApiSurfaceRules = ApiSurfaceRules.DEFAULT,
+    val addAdditionalOverrides: Boolean = false,
 ) {
     /** True if unannotated items should be included in the main [ApiSurface]. */
     val showUnannotated: Boolean

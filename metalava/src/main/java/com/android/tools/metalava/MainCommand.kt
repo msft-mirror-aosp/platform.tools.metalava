@@ -35,6 +35,7 @@ import com.android.tools.metalava.cli.compatibility.CompatibilityCheckOptions
 import com.android.tools.metalava.cli.lint.ApiLintOptions
 import com.android.tools.metalava.cli.multiplatform.MultiplatformOptions
 import com.android.tools.metalava.cli.signature.SignatureFormatOptions
+import com.android.tools.metalava.model.text.CustomizableProperty.Companion.ADD_ADDITIONAL_OVERRIDES
 import com.android.tools.metalava.reporter.DEFAULT_BASELINE_NAME
 import com.github.ajalt.clikt.parameters.arguments.argument
 import com.github.ajalt.clikt.parameters.arguments.multiple
@@ -160,6 +161,7 @@ class MainCommand(
             sourceModelProvider
                 .createEnvironmentManager(executionEnvironment.disableStderrDumping())
                 .use { environmentManager ->
+                    val computedSignatureFormatOptions = signatureFormatOptions.compute()
                     val driver =
                         Driver(
                             executionEnvironment,
@@ -170,14 +172,19 @@ class MainCommand(
                             miscellaneousOptions.compute(reporterManager.reporter),
                             apiLevelsGenerationOptions,
                             apiLintOptions.compute(),
-                            apiSelectionOptions.compute(configFileOptions.config.apiSurfaces),
+                            apiSelectionOptions.compute(
+                                configFileOptions.config.apiSurfaces,
+                                addAdditionalOverrides =
+                                    computedSignatureFormatOptions.fileFormat[
+                                            ADD_ADDITIONAL_OVERRIDES],
+                            ),
                             compatibilityCheckOptions.compute(),
                             configFileOptions,
                             computedIssueReportingOptions,
                             multiplatformOptions,
                             nullabilityValidationOptions.compute(reporterManager.reporter),
                             signatureFileOptions,
-                            signatureFormatOptions.compute(),
+                            computedSignatureFormatOptions,
                             sourceOptions,
                             stubGenerationOptions,
                         )

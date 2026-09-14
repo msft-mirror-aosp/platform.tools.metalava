@@ -44,6 +44,9 @@ class SelectedApiUpdater(
     /** The [ApiSurfaces] with which this will associate [SelectableItem]s */
     internal val apiSurfaces = apiSurfaceSelector.apiSurfaces
 
+    /** Whether to include additional overrides when matching method signatures. */
+    internal val addAdditionalOverrides = apiSurfaceSelector.addAdditionalOverrides
+
     /**
      * The default set of variants that are used on unannotated items.
      *

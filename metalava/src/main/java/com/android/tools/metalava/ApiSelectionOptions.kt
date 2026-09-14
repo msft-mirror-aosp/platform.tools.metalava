@@ -184,8 +184,13 @@ class ApiSelectionOptions() :
      *
      * @param apiSurfacesConfig The [ApiSurfacesConfig] that was provided in an [ARG_CONFIG_FILE],
      *   if any.
+     * @param addAdditionalOverrides Whether to include additional overrides when matching method
+     *   signatures.
      */
-    fun compute(apiSurfacesConfig: ApiSurfacesConfig? = null): ComputedApiSelectionOptions {
+    fun compute(
+        apiSurfacesConfig: ApiSurfacesConfig? = null,
+        addAdditionalOverrides: Boolean = false,
+    ): ComputedApiSelectionOptions {
         return ComputedApiSelectionOptions(
             apiSurfaceName,
             optionalShowUnannotated,
@@ -196,6 +201,7 @@ class ApiSelectionOptions() :
             suppressCompatibilityMetaAnnotations,
             typedefMode,
             apiSurfacesConfig,
+            addAdditionalOverrides,
         )
     }
 }
@@ -222,6 +228,7 @@ internal constructor(
      */
     val typedefMode: TypedefMode,
     private val apiSurfacesConfig: ApiSurfacesConfig?,
+    private val addAdditionalOverrides: Boolean = false,
 ) {
 
     /**
@@ -287,7 +294,10 @@ internal constructor(
                     apiSurfaceRulesFromOptions,
                 )
 
-            ApiSurfaceSelector(apiSurfaceRules)
+            ApiSurfaceSelector(
+                apiSurfaceRules,
+                addAdditionalOverrides = addAdditionalOverrides,
+            )
         }
 
     /**
