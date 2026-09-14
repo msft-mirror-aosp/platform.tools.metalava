@@ -538,15 +538,14 @@ private constructor(
      * [apiVariant].
      */
     private fun SelectableItem.markSelectedApiVariant() {
-        if (apiVariant !in selectedApiVariants) {
+        val itemApiVariants = selectedApi.itemApiVariants
+        if (apiVariant !in itemApiVariants) {
             // An item must not belong to multiple API surfaces, but can belong to multiple variants
             // of the same surface (e.g. CORE and REMOVED). Therefore, only add this variant if the
             // item does not yet belong to any surface or if this variant is part of the same
             // surface it already belongs to.
-            if (
-                selectedApiVariants.isEmpty() || selectedApiVariants.containsAny(apiVariant.surface)
-            ) {
-                selectedApiVariants += apiVariant
+            if (itemApiVariants.isEmpty() || itemApiVariants.containsAny(apiVariant.surface)) {
+                selectedApi.addItemApiVariant(apiVariant)
             }
         }
     }

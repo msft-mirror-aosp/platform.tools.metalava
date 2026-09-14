@@ -27,6 +27,7 @@ import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.api.SurfaceSelectionRule.Effect
 import com.android.tools.metalava.model.api.surface.ApiSurface
+import com.android.tools.metalava.model.api.surface.ApiVariant
 import com.android.tools.metalava.model.api.surface.ApiVariantSet
 import com.android.tools.metalava.model.api.surface.ApiVariantType
 import com.android.tools.metalava.model.item.DefaultSelectableItem
@@ -58,6 +59,13 @@ sealed class SelectedApi {
      * [DefaultSelectableItem.selectedApi].
      */
     internal abstract fun initialize()
+
+    /**
+     * Add [value] to [itemApiVariants].
+     *
+     * This can only be called on items loaded from signature files.
+     */
+    abstract fun addItemApiVariant(value: ApiVariant)
 
     /**
      * Populate this instance with the state from the [original] [SelectedApi] of the item being
@@ -131,6 +139,10 @@ private class SimpleSelectedApi : SelectedApi() {
         get() = null
 
     override fun initialize() {}
+
+    override fun addItemApiVariant(value: ApiVariant) {
+        itemApiVariants += value
+    }
 
     override fun snapshot(original: SelectedApi) {
         itemApiVariants = original.itemApiVariants
@@ -273,6 +285,10 @@ internal sealed class SourceSelectedApi<S : SelectableItem>(
         removed = other.removed
         revert = other.revert
         revertItem = other.revertItem
+    }
+
+    override fun addItemApiVariant(value: ApiVariant) {
+        error("Cannot update itemApiVariants in $this")
     }
 
     override fun snapshot(original: SelectedApi) {
