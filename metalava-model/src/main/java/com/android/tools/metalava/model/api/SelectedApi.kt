@@ -35,10 +35,10 @@ import com.android.tools.metalava.model.item.DefaultSelectableItem
 /** Provides access to the [ApiVariantSet] to which a specific [SelectableItem] belongs. */
 sealed class SelectedApi {
     /** The [ApiVariantSet] for the [SelectableItem]. */
-    abstract var itemApiVariants: ApiVariantSet
+    abstract val itemApiVariants: ApiVariantSet
 
     /** The [ApiVariantSet] for child items. */
-    abstract var contentApiVariants: ApiVariantSet
+    abstract val contentApiVariants: ApiVariantSet
 
     /**
      * The [SelectableItem] from the previously released API that matches this item, if this item is
