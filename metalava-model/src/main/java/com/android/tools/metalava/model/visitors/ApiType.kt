@@ -26,11 +26,12 @@ enum class ApiType(val flagName: String, val displayName: String = flagName) {
     /** The public API */
     PUBLIC_API("api", "public") {
 
-        override fun getNonElidingFilter(apiPredicateConfig: ApiPredicate.Config) =
+        override fun getNonElidingFilter(apiSurface: ApiSurface) =
             // Only items marked for emission should appear in the signature file.
             EMITTED_ONLY.and(
-                ApiPredicate(
-                    config = apiPredicateConfig,
+                ApiSurfacePredicate.forDelta(
+                    apiSurface = apiSurface,
+                    forRemoved = false,
                 )
             )
 
@@ -45,12 +46,12 @@ enum class ApiType(val flagName: String, val displayName: String = flagName) {
     /** The API that has been removed */
     REMOVED("removed", "removed") {
 
-        override fun getNonElidingFilter(apiPredicateConfig: ApiPredicate.Config) =
+        override fun getNonElidingFilter(apiSurface: ApiSurface) =
             // Only items marked for emission should appear in the removed signature file.
             EMITTED_ONLY.and(
-                ApiPredicate(
-                    matchRemoved = true,
-                    config = apiPredicateConfig,
+                ApiSurfacePredicate.forDelta(
+                    apiSurface = apiSurface,
+                    forRemoved = true,
                 )
             )
 
@@ -60,13 +61,11 @@ enum class ApiType(val flagName: String, val displayName: String = flagName) {
     },
     ;
 
-    protected abstract fun getNonElidingFilter(
-        apiPredicateConfig: ApiPredicate.Config
-    ): FilterPredicate
+    protected abstract fun getNonElidingFilter(apiSurface: ApiSurface): FilterPredicate
 
     open fun getEmitFilter(apiPredicateConfig: ApiPredicate.Config): FilterPredicate {
         val nonElidingFilter =
-            MatchOverridingMethodPredicate(getNonElidingFilter(apiPredicateConfig))
+            MatchOverridingMethodPredicate(getNonElidingFilter(apiPredicateConfig.apiSurface))
         val referenceFilter = getReferenceFilter(apiPredicateConfig.apiSurface)
         return nonElidingFilter.and(elidingPredicate(referenceFilter, apiPredicateConfig))
     }
@@ -108,7 +107,7 @@ enum class ApiType(val flagName: String, val displayName: String = flagName) {
     fun getNonElidingApiFilters(apiPredicateConfig: ApiPredicate.Config) =
         ApiFilters(
             reference = getReferenceFilter(apiPredicateConfig.apiSurface),
-            emit = getNonElidingFilter(apiPredicateConfig),
+            emit = getNonElidingFilter(apiPredicateConfig.apiSurface),
         )
 
     override fun toString(): String = displayName
