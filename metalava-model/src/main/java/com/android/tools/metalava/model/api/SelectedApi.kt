@@ -41,6 +41,27 @@ sealed class SelectedApi {
     abstract val contentApiVariants: ApiVariantSet
 
     /**
+     * The [ApiVariantSet] inherited from the super class of a [ClassItem].
+     *
+     * This is always empty by default except for [ClassItem]s.
+     *
+     * **Why this is needed:** When a class belongs to a narrower API surface than its super class
+     * (e.g. a public class extending a `SystemApi` class), the class must also be included in the
+     * wider API surface so that the type hierarchy in the wider API surface remains complete and
+     * consistent. Tracking these variants separately from [contentApiVariants] (which tracks
+     * variants from child items) allows distinguishing between variants introduced by enclosed
+     * members and those introduced by the class hierarchy.
+     *
+     * **How it is set:** Initialized for [ClassItem]s in
+     * [ClassSelectedApi.itemSpecificInitialization]. If the class has a super class whose narrowest
+     * API surface is wider than this class's widest API surface, the super class's variants are
+     * masked to match this class's variant types (e.g. only inherit `system(C)` if this class has
+     * `public(C)`) and added to this set.
+     */
+    open val superClassApiVariants: ApiVariantSet
+        get() = ApiVariantSet.EMPTY
+
+    /**
      * The [SelectableItem] from the previously released API that matches this item, if this item is
      * to be reverted.
      */
@@ -124,8 +145,8 @@ sealed class SelectedApi {
 }
 
 /**
- * A simple [SelectedApi] that stores [itemApiVariants], [contentApiVariants] without requiring a
- * [SelectedApiUpdater] or parent hierarchy.
+ * A simple [SelectedApi] that stores [itemApiVariants], [contentApiVariants], and
+ * [superClassApiVariants] without requiring a [SelectedApiUpdater] or parent hierarchy.
  *
  * Used for snapshot codebases where variants are copied from the original codebase and signature
  * file codebases.
@@ -134,6 +155,8 @@ private class SimpleSelectedApi : SelectedApi() {
     override var itemApiVariants = ApiVariantSet.EMPTY
 
     override var contentApiVariants = ApiVariantSet.EMPTY
+
+    override var superClassApiVariants = ApiVariantSet.EMPTY
 
     override val revertItem: SelectableItem?
         get() = null
@@ -147,6 +170,7 @@ private class SimpleSelectedApi : SelectedApi() {
     override fun snapshot(original: SelectedApi) {
         itemApiVariants = original.itemApiVariants
         contentApiVariants = original.contentApiVariants
+        superClassApiVariants = original.superClassApiVariants
     }
 }
 
@@ -329,6 +353,10 @@ internal sealed class SourceSelectedApi<S : SelectableItem>(
         append(inheritableApiVariants.formatFor(selectedApiUpdater.apiSurfaces))
         append(", contentApiVariants=")
         append(contentApiVariants.formatFor(selectedApiUpdater.apiSurfaces))
+        if (superClassApiVariants.isNotEmpty()) {
+            append(", superClassApiVariants=")
+            append(superClassApiVariants.formatFor(selectedApiUpdater.apiSurfaces))
+        }
         append(", revert=")
         append(revert)
         append(", revertItem=")
@@ -371,6 +399,8 @@ private class ClassSelectedApi(
     selectedApiUpdater: SelectedApiUpdater,
     item: ClassItem,
 ) : SourceSelectedApi<ClassItem>(selectedApiUpdater, item) {
+    override var superClassApiVariants = ApiVariantSet.EMPTY
+
     override fun itemSpecificInitialization() {
         updateFromSelectableItem()
 
@@ -378,7 +408,9 @@ private class ClassSelectedApi(
         // as they will be flattened when generating signature files.
         propagateToContainingPackage(itemApiVariants)
 
-        // Replicate similar behavior to what is done in ApiPredicate.
+        // A class must be included in delta signature files for a wider API surface if its
+        // superclass belongs to that surface, even if this class belongs to a narrower surface, in
+        // order to reveal the class hierarchy.
         item.superClass()?.let { superClass ->
             val superClassVariants = superClass.selectedApi.itemApiVariants
             val apiSurfaces = selectedApiUpdater.apiSurfaces
@@ -390,8 +422,8 @@ private class ClassSelectedApi(
             if (superClassSurface == null || itemSurface == null) return@let
 
             // If the super class' surface is wider than this class' surface then add the super
-            // class' variants to this class' content variants so that this class will be included,
-            // but only for variant types that this class also belongs to.
+            // class' variants to this class' super class variants so that this class will be
+            // included, but only for variant types that this class also belongs to.
             if (superClassSurface > itemSurface) {
                 // Translate this class's variants from its surface to the super class's surface.
                 // This acts as a mask containing only the variant types that this class belongs to,
@@ -401,7 +433,7 @@ private class ClassSelectedApi(
 
                 // Only add super class variants whose types match this class's own variant types
                 // (e.g. only inherit system(C) if this class has public(C)).
-                contentApiVariants += superClassVariants.intersectionWith(superVariantsMask)
+                superClassApiVariants += superClassVariants.intersectionWith(superVariantsMask)
             }
         }
     }

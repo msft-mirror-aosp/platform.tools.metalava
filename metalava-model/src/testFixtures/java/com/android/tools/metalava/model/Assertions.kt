@@ -136,6 +136,11 @@ interface Assertions {
                     append(
                         "$indent    content - ${selectedApi.contentApiVariants.formatFor(apiSurfaces)}\n"
                     )
+                    if (selectedApi.superClassApiVariants.isNotEmpty()) {
+                        append(
+                            "$indent superClass - ${selectedApi.superClassApiVariants.formatFor(apiSurfaces)}\n"
+                        )
+                    }
                     indent += "  "
                 }
 

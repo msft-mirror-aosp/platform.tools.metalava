@@ -80,7 +80,8 @@ class CommonParameterizedSelectedApiInheritanceTest : BaseCommonParameterizedSel
                                     content - ApiVariantSet[]
                               class test.pkg.PublicClass
                                      self - ApiVariantSet[public(C)]
-                                  content - ApiVariantSet[system(C)]
+                                  content - ApiVariantSet[]
+                               superClass - ApiVariantSet[system(C)]
                                 constructor test.pkg.PublicClass()
                                        self - ApiVariantSet[public(C)]
                                     content - ApiVariantSet[]
@@ -120,7 +121,8 @@ class CommonParameterizedSelectedApiInheritanceTest : BaseCommonParameterizedSel
                                     content - ApiVariantSet[]
                               class test.pkg.PublicClass
                                      self - ApiVariantSet[public(C)]
-                                  content - ApiVariantSet[module(C)]
+                                  content - ApiVariantSet[]
+                               superClass - ApiVariantSet[module(C)]
                                 constructor test.pkg.PublicClass()
                                        self - ApiVariantSet[public(C)]
                                     content - ApiVariantSet[]
@@ -202,7 +204,8 @@ class CommonParameterizedSelectedApiInheritanceTest : BaseCommonParameterizedSel
                                     content - ApiVariantSet[]
                               class test.pkg.PublicClass
                                      self - ApiVariantSet[public(R)]
-                                  content - ApiVariantSet[system(R)]
+                                  content - ApiVariantSet[]
+                               superClass - ApiVariantSet[system(R)]
                                 constructor test.pkg.PublicClass()
                                        self - ApiVariantSet[public(R)]
                                     content - ApiVariantSet[]
