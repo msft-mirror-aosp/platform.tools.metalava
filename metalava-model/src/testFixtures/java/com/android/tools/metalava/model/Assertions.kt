@@ -109,9 +109,7 @@ interface Assertions {
         return typeAliasItem
     }
 
-    /**
-     * Return a dump of the state of [SelectableItem.selectedApiVariants] across this [Codebase].
-     */
+    /** Return a dump of the state of [SelectedApi] variants across this [Codebase]. */
     private fun Codebase.dumpSelectedApiVariants() = buildString {
         // SelectedApi instances are initialized on demand and initializing child SelectedApi
         // instances can change the variants for the parent. That means that dumping the

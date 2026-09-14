@@ -293,9 +293,9 @@ class SelectedApiUpdater(
 
         // If the item was reverted to a previously released item, adopt the API variants from the
         // previously released item rather than the variants computed from this item's annotations.
-        val actualItemApiVariants = revertedItem?.selectedApiVariants ?: itemApiVariants
-        val actualInheritableApiVariants =
-            revertedItem?.selectedApiVariants ?: inheritableApiVariants
+        val revertedApiVariants = revertedItem?.selectedApi?.itemApiVariants
+        val actualItemApiVariants = revertedApiVariants ?: itemApiVariants
+        val actualInheritableApiVariants = revertedApiVariants ?: inheritableApiVariants
 
         // Store the variant sets in selectedApi.
         selectedApi.itemApiVariants = actualItemApiVariants

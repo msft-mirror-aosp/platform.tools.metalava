@@ -77,19 +77,6 @@ internal sealed class DefaultSelectableItem(
             return _selectedApi
         }
 
-    /** Delegate to [selectedApi]'s [SelectedApi.itemApiVariants]. */
-    final override var selectedApiVariants
-        get() = selectedApi.itemApiVariants
-        set(value) {
-            selectedApi.itemApiVariants = value
-        }
-
-    final override var contentApiVariants
-        get() = selectedApi.contentApiVariants
-        set(value) {
-            selectedApi.contentApiVariants = value
-        }
-
     // Default to true, may be updated later
     final override var emit = true
 

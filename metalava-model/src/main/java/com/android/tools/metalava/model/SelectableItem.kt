@@ -17,8 +17,6 @@
 package com.android.tools.metalava.model
 
 import com.android.tools.metalava.model.api.SelectedApi
-import com.android.tools.metalava.model.api.surface.ApiVariant
-import com.android.tools.metalava.model.api.surface.ApiVariantSet
 import com.android.tools.metalava.model.doc.DocContent
 import com.android.tools.metalava.model.doc.DocContentOwner
 import com.android.tools.metalava.model.scope.ReferencableNameScope
@@ -36,12 +34,6 @@ import com.android.tools.metalava.model.scope.ReferencableNameScope
 interface SelectableItem : Item, ReferencableNameScope {
     /** The [SelectedApi] for this [SelectableItem]. */
     val selectedApi: SelectedApi
-
-    /** The [ApiVariant]s for which this [Item] has been selected. */
-    var selectedApiVariants: ApiVariantSet
-
-    /** The [ApiVariant]s for child items. */
-    var contentApiVariants: ApiVariantSet
 
     /** Whether this element will be printed in the signature file */
     var emit: Boolean
