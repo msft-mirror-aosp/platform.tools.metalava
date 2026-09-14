@@ -27,7 +27,6 @@ import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.ClassOrigin
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.Codebase
-import com.android.tools.metalava.model.EMITTED_ONLY
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.FilterPredicate
 import com.android.tools.metalava.model.Item
@@ -50,7 +49,6 @@ import com.android.tools.metalava.model.testOrTrue
 import com.android.tools.metalava.model.value.asString
 import com.android.tools.metalava.model.visitors.ApiFilters
 import com.android.tools.metalava.model.visitors.ApiFiltersVisitor
-import com.android.tools.metalava.model.visitors.ApiSurfaceVisitor
 import com.android.tools.metalava.model.visitors.ApiType
 import com.android.tools.metalava.permission.getRequiresPermissionProxy
 import com.android.tools.metalava.reporter.Issues
@@ -127,24 +125,6 @@ class ApiAnalyzer(
         // Propagate visibility down into individual elements -- if a class is hidden,
         // then the methods and fields are hidden etc
         propagateHiddenRemovedAndDocOnly()
-
-        // Update deprecated status from Javadoc for all items that are part of the API surface.
-        // Since Javadoc parsing is expensive, we defer checking and updating the deprecation status
-        // from `@deprecated` block tags until we run this API analysis phase, and only visit items
-        // that match the API filter.
-        //
-        // The predicate matches the whole API surface so deprecation is updated for items in
-        // extended/base surfaces as well. Restrict it to only those parts of the API surface that
-        // will be emitted to avoid wasting time.
-        val predicate = EMITTED_ONLY.and(ApiSurfacePredicate.wholeApi())
-
-        codebase.accept(
-            object : ApiSurfaceVisitor(visitParameterItems = false, filterEmit = predicate) {
-                override fun visitSelectableItem(item: SelectableItem) {
-                    item.updateDeprecatedFromJavadocIfNeeded()
-                }
-            }
-        )
     }
 
     fun handleFileFacadeClassesAndExperimentalPackages(filterEmit: FilterPredicate) {

@@ -294,6 +294,15 @@ internal sealed class SourceSelectedApi<S : SelectableItem>(
 
         // Perform any item specific initialization.
         itemSpecificInitialization()
+
+        // Update deprecated status from Javadoc for items that are part of the API surface and are
+        // emitted. Since Javadoc parsing is expensive, defer checking and updating the deprecation
+        // status until an item is determined to be part of an API surface, and only for emitted
+        // items (avoiding Javadoc parsing for non-emitted items like classpath dependencies or
+        // skipped packages).
+        if (item.emit && itemApiVariants.isNotEmpty()) {
+            item.updateDeprecatedFromJavadocIfNeeded()
+        }
     }
 
     /** Update this from information in [item]. */
