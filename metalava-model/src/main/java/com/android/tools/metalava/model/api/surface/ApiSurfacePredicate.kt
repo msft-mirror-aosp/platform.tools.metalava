@@ -24,6 +24,21 @@ import com.android.tools.metalava.model.visitors.ApiVisitor
 
 /** Factory for creating [FilterPredicate] instances based on [ApiSurface]s and [ApiVariant]s. */
 object ApiSurfacePredicate {
+    /**
+     * Contains configuration for predicates that can, or at least could, come from command line
+     * options.
+     */
+    data class Config(
+        /** The [ApiSurface] that this predicate is for. */
+        val apiSurface: ApiSurface = ApiSurfaces.DEFAULT.main,
+
+        /**
+         * Whether overriding methods essential for compiling the stubs should be considered as APIs
+         * or not.
+         */
+        val addAdditionalOverrides: Boolean = false,
+    )
+
     /** Singleton instance of [WholeApiPredicate]. */
     private val WHOLE_API_PREDICATE: FilterPredicate = WholeApiPredicate()
 

@@ -89,11 +89,11 @@ import com.android.tools.metalava.model.TypeParameterListOwner
 import com.android.tools.metalava.model.TypeStringConfiguration
 import com.android.tools.metalava.model.VariableTypeItem
 import com.android.tools.metalava.model.WildcardTypeItem
+import com.android.tools.metalava.model.api.surface.ApiSurfacePredicate
 import com.android.tools.metalava.model.findAnnotation
 import com.android.tools.metalava.model.hasAnnotation
 import com.android.tools.metalava.model.value.asInt
 import com.android.tools.metalava.model.value.asString
-import com.android.tools.metalava.model.visitors.ApiPredicate
 import com.android.tools.metalava.model.visitors.ApiType
 import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.android.tools.metalava.reporter.FileLocation
@@ -211,7 +211,7 @@ private constructor(
     private val codebase: Codebase,
     oldCodebase: Codebase?,
     reporter: Reporter,
-    apiPredicateConfig: ApiPredicate.Config,
+    apiPredicateConfig: ApiSurfacePredicate.Config,
     private val config: Config,
 ) :
     ApiVisitor(
@@ -3484,7 +3484,7 @@ private constructor(
             codebase: Codebase,
             oldCodebase: Codebase?,
             reporter: Reporter,
-            apiPredicateConfig: ApiPredicate.Config,
+            apiPredicateConfig: ApiSurfacePredicate.Config,
             config: Config,
         ) {
             val apiLint =

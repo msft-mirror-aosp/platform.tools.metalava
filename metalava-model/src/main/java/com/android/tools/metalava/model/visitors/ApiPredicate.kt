@@ -20,14 +20,14 @@ import com.android.tools.metalava.model.FilterPredicate
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.api.surface.ApiSurface
 import com.android.tools.metalava.model.api.surface.ApiSurfacePredicate
-import com.android.tools.metalava.model.api.surface.ApiSurfaces
 
 /**
  * Predicate that decides if the given member should be considered part of an API surface area.
  *
- * It only matches items that are in the [Config.apiSurface]. If that extends another [ApiSurface]
- * then this will not match items that are part of the extended [ApiSurface] (except for classes
- * whose superclass is in [Config.apiSurface], which are included to reveal the class hierarchy).
+ * It only matches items that are in the [ApiSurfacePredicate.Config.apiSurface]. If that extends
+ * another [ApiSurface] then this will not match items that are part of the extended [ApiSurface]
+ * (except for classes whose superclass is in [ApiSurfacePredicate.Config.apiSurface], which are
+ * included to reveal the class hierarchy).
  */
 class ApiPredicate(
     /**
@@ -40,25 +40,13 @@ class ApiPredicate(
     matchRemoved: Boolean = false,
 
     /** Configuration that may be provided by command line options. */
-    config: Config,
+    config: ApiSurfacePredicate.Config,
 ) : FilterPredicate {
-    /** Predicate that only matches items belonging to [Config.apiSurface] for delta generation. */
-    private val surfacePredicate = ApiSurfacePredicate.forDelta(config.apiSurface, matchRemoved)
-
     /**
-     * Contains configuration for [ApiPredicate] that can, or at least could, come from command line
-     * options.
+     * Predicate that only matches items belonging to [ApiSurfacePredicate.Config.apiSurface] for
+     * delta generation.
      */
-    data class Config(
-        /** The [ApiSurface] that this predicate is for. */
-        val apiSurface: ApiSurface = ApiSurfaces.DEFAULT.main,
-
-        /**
-         * Whether overriding methods essential for compiling the stubs should be considered as APIs
-         * or not.
-         */
-        val addAdditionalOverrides: Boolean = false,
-    )
+    private val surfacePredicate = ApiSurfacePredicate.forDelta(config.apiSurface, matchRemoved)
 
     override fun test(item: SelectableItem): Boolean {
         // Check whether this item belongs to the target API surface delta. This excludes items

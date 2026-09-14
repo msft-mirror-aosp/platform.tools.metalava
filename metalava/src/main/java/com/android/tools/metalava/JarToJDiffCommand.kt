@@ -25,7 +25,7 @@ import com.android.tools.metalava.cli.common.stderr
 import com.android.tools.metalava.cli.common.tracer
 import com.android.tools.metalava.jar.StandaloneJarCodebaseLoader
 import com.android.tools.metalava.model.CodebaseFragment
-import com.android.tools.metalava.model.visitors.ApiPredicate
+import com.android.tools.metalava.model.api.surface.ApiSurfacePredicate
 import com.android.tools.metalava.model.visitors.ApiType
 import com.android.tools.metalava.reporter.BasicReporter
 import com.github.ajalt.clikt.parameters.arguments.argument
@@ -73,7 +73,7 @@ class JarToJDiffCommand :
                 BasicReporter(stderr)
             )
             .use { jarCodebaseLoader ->
-                val apiPredicateConfig = ApiPredicate.Config()
+                val apiPredicateConfig = ApiSurfacePredicate.Config()
                 val codebase =
                     jarCodebaseLoader.loadFromJarFile(
                         jarFile,

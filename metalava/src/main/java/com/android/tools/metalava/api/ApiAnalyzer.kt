@@ -50,7 +50,6 @@ import com.android.tools.metalava.model.testOrTrue
 import com.android.tools.metalava.model.value.asString
 import com.android.tools.metalava.model.visitors.ApiFilters
 import com.android.tools.metalava.model.visitors.ApiFiltersVisitor
-import com.android.tools.metalava.model.visitors.ApiPredicate
 import com.android.tools.metalava.model.visitors.ApiSurfaceVisitor
 import com.android.tools.metalava.model.visitors.ApiType
 import com.android.tools.metalava.permission.getRequiresPermissionProxy
@@ -102,7 +101,7 @@ class ApiAnalyzer(
         val apiSurfaceName: String? = null,
 
         /** Configuration for any [ApiPredicate] instances this needs to create. */
-        val apiPredicateConfig: ApiPredicate.Config = ApiPredicate.Config(),
+        val apiPredicateConfig: ApiSurfacePredicate.Config = ApiSurfacePredicate.Config(),
 
         /** Configuration for [AnnotationsMerger] instances this needs to create. */
         val annotationsMergerConfig: AnnotationsMerger.Config = AnnotationsMerger.Config(),

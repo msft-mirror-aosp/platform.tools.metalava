@@ -63,7 +63,7 @@ enum class ApiType(val flagName: String, val displayName: String = flagName) {
 
     protected abstract fun getNonElidingFilter(apiSurface: ApiSurface): FilterPredicate
 
-    open fun getEmitFilter(apiPredicateConfig: ApiPredicate.Config): FilterPredicate {
+    open fun getEmitFilter(apiPredicateConfig: ApiSurfacePredicate.Config): FilterPredicate {
         val nonElidingFilter =
             MatchOverridingMethodPredicate(getNonElidingFilter(apiPredicateConfig.apiSurface))
         val referenceFilter = getReferenceFilter(apiPredicateConfig.apiSurface)
@@ -78,7 +78,7 @@ enum class ApiType(val flagName: String, val displayName: String = flagName) {
      */
     protected fun elidingPredicate(
         wrappedPredicate: FilterPredicate,
-        apiPredicateConfig: ApiPredicate.Config
+        apiPredicateConfig: ApiSurfacePredicate.Config
     ) =
         ElidingPredicate(
             wrappedPredicate,
@@ -91,7 +91,7 @@ enum class ApiType(val flagName: String, val displayName: String = flagName) {
      *
      * The returned [ApiFilters.emit] will elide methods overrides that match the overridden method.
      */
-    fun getApiFilters(apiPredicateConfig: ApiPredicate.Config) =
+    fun getApiFilters(apiPredicateConfig: ApiSurfacePredicate.Config) =
         ApiFilters(
             reference = getReferenceFilter(apiPredicateConfig.apiSurface),
             emit = getEmitFilter(apiPredicateConfig),
@@ -104,7 +104,7 @@ enum class ApiType(val flagName: String, val displayName: String = flagName) {
      * The returned [ApiFilters.emit] will NOT elide methods overrides that match the overridden
      * method.
      */
-    fun getNonElidingApiFilters(apiPredicateConfig: ApiPredicate.Config) =
+    fun getNonElidingApiFilters(apiPredicateConfig: ApiSurfacePredicate.Config) =
         ApiFilters(
             reference = getReferenceFilter(apiPredicateConfig.apiSurface),
             emit = getNonElidingFilter(apiPredicateConfig.apiSurface),
