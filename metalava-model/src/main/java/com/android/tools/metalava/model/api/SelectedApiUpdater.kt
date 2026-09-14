@@ -68,14 +68,18 @@ class SelectedApiUpdater(
     private fun findRevertItem(item: SelectableItem) =
         findRevertItem(reporter, previouslyReleasedCodebase, item)
 
-    /** Mark this [SourceSelectedApi] as being hidden. */
-    private fun SourceSelectedApi<*>.markAsHidden(revert: Boolean) {
-        this.revert = revert
-        this.revertItem = null
+    /** Mark [selectedApi] as being hidden. */
+    internal fun markAsHidden(selectedApi: SourceSelectedApi<*>, revert: Boolean) {
+        selectedApi.revert = revert
+        selectedApi.revertItem = null
         // A hidden item does not belong to any API surfaces.
-        itemApiVariants = ApiVariantSet.EMPTY
-        inheritableApiVariants = ApiVariantSet.EMPTY
+        selectedApi.itemApiVariants = ApiVariantSet.EMPTY
+        selectedApi.inheritableApiVariants = ApiVariantSet.EMPTY
     }
+
+    /** Mark this [SourceSelectedApi] as being hidden. */
+    private fun SourceSelectedApi<*>.markAsHidden(revert: Boolean) =
+        this@SelectedApiUpdater.markAsHidden(this, revert)
 
     /**
      * Update [selectedApi] with information about [ApiVariant]s to which the
