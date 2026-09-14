@@ -59,6 +59,15 @@ sealed class SelectedApi {
      */
     internal abstract fun initialize()
 
+    /**
+     * Populate this instance with the state from the [original] [SelectedApi] of the item being
+     * snapshotted.
+     *
+     * This can only be called when creating a snapshot of the codebase using a
+     * [SelectedApi.SIMPLE_FACTORY].
+     */
+    abstract fun snapshot(original: SelectedApi)
+
     companion object {
         /**
          * Return a [SelectedApi] factory that will create [SelectedApi] instances suitable for
@@ -106,7 +115,13 @@ sealed class SelectedApi {
     }
 }
 
-/** A simple [SelectedApi] that just stores [itemApiVariants]. */
+/**
+ * A simple [SelectedApi] that stores [itemApiVariants], [contentApiVariants] without requiring a
+ * [SelectedApiUpdater] or parent hierarchy.
+ *
+ * Used for snapshot codebases where variants are copied from the original codebase and signature
+ * file codebases.
+ */
 private class SimpleSelectedApi : SelectedApi() {
     override var itemApiVariants = ApiVariantSet.EMPTY
 
@@ -116,6 +131,11 @@ private class SimpleSelectedApi : SelectedApi() {
         get() = null
 
     override fun initialize() {}
+
+    override fun snapshot(original: SelectedApi) {
+        itemApiVariants = original.itemApiVariants
+        contentApiVariants = original.contentApiVariants
+    }
 }
 
 /** Base [SelectedApi] class for use on [SelectableItem]s created from sources. */
@@ -253,6 +273,10 @@ internal sealed class SourceSelectedApi<S : SelectableItem>(
         removed = other.removed
         revert = other.revert
         revertItem = other.revertItem
+    }
+
+    override fun snapshot(original: SelectedApi) {
+        error("Cannot populate $this in a snapshot")
     }
 
     /**

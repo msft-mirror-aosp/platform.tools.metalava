@@ -207,10 +207,9 @@ private constructor(
     private fun ClassItem.getSnapshotClass(): SkeletonClassItem =
         snapshotCodebase.resolveClass(qualifiedName()) as SkeletonClassItem
 
-    /** Copy [SelectableItem.selectedApiVariants] from [original] to this. */
+    /** Copy [SelectedApi] from [original] to this. */
     private fun <T : SelectableItem> T.copySelectedApiVariants(original: T) {
-        selectedApiVariants = original.selectedApiVariants
-        contentApiVariants = original.contentApiVariants
+        selectedApi.snapshot(original.selectedApi)
     }
 
     /**
