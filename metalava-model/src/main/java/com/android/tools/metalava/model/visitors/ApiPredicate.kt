@@ -61,9 +61,6 @@ class ApiPredicate(
     )
 
     override fun test(item: SelectableItem): Boolean {
-        // If the item or any of its containing classes are inaccessible or hidden then ignore it.
-        if (item.selectedApi.itemApiVariants.isEmpty()) return false
-
         // Check whether this item belongs to the target API surface delta. This excludes items
         // that only belong to contributing base surfaces or are docOnly.
         return surfacePredicate.test(item)
