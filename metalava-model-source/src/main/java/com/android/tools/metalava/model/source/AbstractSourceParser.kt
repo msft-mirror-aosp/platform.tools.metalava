@@ -209,7 +209,7 @@ abstract class AbstractSourceParser(protected val reporter: Reporter) : SourcePa
         while (classItem != null) {
             val modifiers = classItem.modifiers
             val inaccessible =
-                modifiers.annotations().any { it.showability.hide() } || !modifiers.hasApiVisibility
+                modifiers.annotations().any { it.isHideAnnotation() } || !modifiers.hasApiVisibility
             if (inaccessible) return true
 
             classItem = classItem.containingClass()
