@@ -96,14 +96,29 @@ object ApiSurfacePredicate {
 
         val inclusionMask = apiSurface.surfaces.createVariantSet(variants).bits
 
-        return ItemApiVariantsPredicate(inclusionMask)
+        return ItemApiVariantsPredicate(apiSurface.surfaces, inclusionMask)
+    }
+
+    /**
+     * Base class for [FilterPredicate]s that match items based on an [inclusionMask] of
+     * [ApiVariant]s.
+     */
+    abstract class ApiVariantsPredicate(
+        private val apiSurfaces: ApiSurfaces,
+        protected val inclusionMask: Int,
+    ) : FilterPredicate {
+        override fun toString() =
+            "${javaClass.simpleName}(${ApiVariantSet(inclusionMask).formatFor(apiSurfaces)})"
     }
 
     /**
      * A [FilterPredicate] that matches an item if it belongs to at least one [ApiVariant] matching
      * [inclusionMask].
      */
-    private class ItemApiVariantsPredicate(private val inclusionMask: Int) : FilterPredicate {
+    private class ItemApiVariantsPredicate(
+        apiSurfaces: ApiSurfaces,
+        inclusionMask: Int,
+    ) : ApiVariantsPredicate(apiSurfaces, inclusionMask) {
         override fun test(t: SelectableItem) =
             t.selectedApi.itemApiVariants.bits and inclusionMask != 0
     }
@@ -147,7 +162,7 @@ object ApiSurfacePredicate {
 
         val inclusionMask = apiSurface.surfaces.createVariantSet(variants).bits
 
-        return DeltaVariantsPredicate(inclusionMask)
+        return DeltaVariantsPredicate(apiSurface.surfaces, inclusionMask)
     }
 
     /**
@@ -161,7 +176,10 @@ object ApiSurfacePredicate {
      *   this delta surface are included in signature files to accurately reveal the inheritance
      *   hierarchy.
      */
-    private class DeltaVariantsPredicate(private val inclusionMask: Int) : FilterPredicate {
+    private class DeltaVariantsPredicate(
+        apiSurfaces: ApiSurfaces,
+        inclusionMask: Int,
+    ) : ApiVariantsPredicate(apiSurfaces, inclusionMask) {
         override fun test(t: SelectableItem) =
             t.selectedApi.itemApiVariants.bits and inclusionMask != 0 ||
                 t.selectedApi.superClassApiVariants.bits and inclusionMask != 0
