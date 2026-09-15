@@ -775,6 +775,9 @@ class ShowAnnotationTest : DriverTest() {
     @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Check show annotation on internal declaration when a show annotation`() {
+        // There is no point in including an internal API in the API surface if it is not annotated
+        // with kotlin.PublishedApi because without that it cannot be called outside the API surface
+        // anyway.
         check(
             apiSurface = KnownApiSurface.SYSTEM_WITH_PUBLIC,
             sourceFiles =
@@ -806,11 +809,6 @@ class ShowAnnotationTest : DriverTest() {
                     package test.pkg {
                       public final class PublicClass {
                         ctor public PublicClass();
-                        method internal void showMethod${'$'}src();
-                        field internal final int showProperty;
-                      }
-                      internal final class ShowClass {
-                        method public void method();
                       }
                     }
                 """,

@@ -16,7 +16,9 @@
 
 package com.android.tools.metalava.model.api
 
+import com.android.tools.metalava.model.AnnotationContext
 import com.android.tools.metalava.model.AnnotationItem
+import com.android.tools.metalava.model.KOTLIN_PUBLISHED_API
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.ShowOrHide
 import com.android.tools.metalava.model.Showability
@@ -33,6 +35,14 @@ class ApiSurfaceSelector(
 
     /** True if this has any annotations that can hide a [SelectableItem] from the public API. */
     val hasAnyHideAnnotations: Boolean
+
+    /**
+     * True if `kotlin.PublishedApi` is configured as a show annotation on any surface.
+     *
+     * Declarations with `internal` visibility are only considered to have API visibility if they
+     * are annotated with `@PublishedApi` and `@PublishedApi` is configured as a show annotation.
+     */
+    val publishedApiIsShowAnnotation: Boolean
 
     /**
      * Associates an annotation pattern, e.g. `--show-annotation android.annotation.TestApi` with
@@ -146,6 +156,15 @@ class ApiSurfaceSelector(
 
         hasAnyHideAnnotations = hasHideAnnotations
         unannotatedApiSurface = unannotatedSurface
+
+        // Check if `@PublishedApi` is configured as a show annotation.
+        val fakePublishedApiAnnotation =
+            AnnotationItem.createMarkerAnnotation(
+                AnnotationContext.DEFAULT_RESOLVE_NULL,
+                KOTLIN_PUBLISHED_API,
+            )!!
+        publishedApiIsShowAnnotation =
+            matcher.matchResult(fakePublishedApiAnnotation)?.effect == Effect.SHOW
     }
 
     /** The qualified names of all annotations that can affect API surface selection. */

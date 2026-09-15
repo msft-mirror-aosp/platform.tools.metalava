@@ -21,6 +21,7 @@ import com.android.tools.metalava.model.BaseModifierList
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassOrigin
 import com.android.tools.metalava.model.Codebase
+import com.android.tools.metalava.model.KOTLIN_PUBLISHED_API
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.VisibilityLevel
@@ -52,6 +53,15 @@ class SelectedApiUpdater(
 
     /** Only check for hidden show annotations if it is not suppressed. */
     private val checkHiddenShowAnnotations = !reporter.isSuppressed(Issues.HIDDEN_SHOW_ANNOTATION)
+
+    /**
+     * True if `kotlin.PublishedApi` is configured as a show annotation on any surface.
+     *
+     * Cached from [ApiSurfaceSelector.publishedApiIsShowAnnotation] and used by [hasApiVisibility]
+     * to determine whether `internal` declarations annotated with `@PublishedApi` have API
+     * visibility.
+     */
+    private val publishedApiIsShowAnnotation = apiSurfaceSelector.publishedApiIsShowAnnotation
 
     /** Check whether this [SelectableItem] has an `@hide` doc tag. */
     private val SelectableItem.hasHideDocTag: Boolean
@@ -403,15 +413,16 @@ class SelectedApiUpdater(
     /**
      * Check if the [BaseModifierList] is accessible as part of an API.
      *
-     * If this has [VisibilityLevel.INTERNAL] then it is only accessible if it is annotated with an
-     * annotation configured as a show annotation.
+     * If this has [VisibilityLevel.INTERNAL] then it is only accessible if it is annotated with the
+     * [PublishedApi] annotation and [publishedApiIsShowAnnotation] is true.
      */
     internal fun hasApiVisibility(modifierList: BaseModifierList) =
         when (modifierList.getVisibilityLevel()) {
             VisibilityLevel.PUBLIC,
             VisibilityLevel.PROTECTED -> true
             VisibilityLevel.INTERNAL ->
-                modifierList.annotations().any { it.surfaceData?.effect == Effect.SHOW }
+                publishedApiIsShowAnnotation &&
+                    modifierList.annotations().any { it.qualifiedName == KOTLIN_PUBLISHED_API }
             else -> false
         }
 

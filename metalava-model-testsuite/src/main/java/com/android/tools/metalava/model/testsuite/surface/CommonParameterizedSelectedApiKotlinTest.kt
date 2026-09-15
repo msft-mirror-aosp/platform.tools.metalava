@@ -203,6 +203,9 @@ class CommonParameterizedSelectedApiKotlinTest : BaseCommonParameterizedSelected
                     ),
                 )
 
+            // There is no point in including an internal API in the API surface if it is not
+            // annotated with kotlin.PublishedApi because without that it cannot be called
+            // outside the API surface anyway.
             buildTests(
                 name = "show annotation on internal declaration",
                 surfaceRules = publicSystemModuleRules,
@@ -228,28 +231,28 @@ class CommonParameterizedSelectedApiKotlinTest : BaseCommonParameterizedSelected
                                        self - ApiVariantSet[public(C)]
                                     content - ApiVariantSet[]
                                 method test.pkg.PublicClass.showMethod${'$'}src()
-                                       self - ApiVariantSet[public(C)]
+                                       self - ApiVariantSet[]
                                     content - ApiVariantSet[]
                                 method test.pkg.PublicClass.getShowProperty${'$'}src()
-                                       self - ApiVariantSet[public(C)]
+                                       self - ApiVariantSet[]
                                     content - ApiVariantSet[]
                                 method test.pkg.PublicClass.internalMethod${'$'}src()
                                        self - ApiVariantSet[]
                                     content - ApiVariantSet[]
                                 property test.pkg.PublicClass#showProperty
-                                       self - ApiVariantSet[public(C)]
+                                       self - ApiVariantSet[]
                                     content - ApiVariantSet[]
                                 field test.pkg.PublicClass.showProperty
                                        self - ApiVariantSet[]
                                     content - ApiVariantSet[]
                               class test.pkg.ShowClass
-                                     self - ApiVariantSet[public(C)]
+                                     self - ApiVariantSet[]
                                   content - ApiVariantSet[]
                                 constructor test.pkg.ShowClass()
                                        self - ApiVariantSet[]
                                     content - ApiVariantSet[]
                                 method test.pkg.ShowClass.method()
-                                       self - ApiVariantSet[public(C)]
+                                       self - ApiVariantSet[]
                                     content - ApiVariantSet[]
                         """,
                 )
