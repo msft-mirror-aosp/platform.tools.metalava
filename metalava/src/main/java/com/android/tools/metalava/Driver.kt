@@ -33,6 +33,7 @@ import com.android.tools.metalava.cli.common.VersionCommand
 import com.android.tools.metalava.cli.common.cliError
 import com.android.tools.metalava.cli.common.commonOptions
 import com.android.tools.metalava.cli.compatibility.CheckRequest
+import com.android.tools.metalava.cli.compatibility.CheckRequest.CheckType
 import com.android.tools.metalava.cli.compatibility.ComputedCompatibilityCheckOptions
 import com.android.tools.metalava.cli.flag.FlagReportCommand
 import com.android.tools.metalava.cli.flag.ListFlagsCommand
@@ -824,11 +825,11 @@ class Driver(
         newCodebase: Codebase,
         check: CheckRequest,
     ) {
-        val apiType = check.apiType
+        val checkType = check.type
         val generatedApiFile =
-            when (apiType) {
-                ApiType.PUBLIC_API -> signatureFileOptions.apiFile
-                ApiType.REMOVED -> signatureFileOptions.removedApiFile
+            when (checkType) {
+                CheckType.PUBLIC_API -> signatureFileOptions.apiFile
+                CheckType.REMOVED -> signatureFileOptions.removedApiFile
             }
 
         // Fast path: if we've already generated a signature file, and it's identical to the
@@ -853,7 +854,7 @@ class Driver(
             }
 
         val apiName =
-            if (apiType == ApiType.REMOVED) {
+            if (checkType == CheckType.REMOVED) {
                 "removed"
             } else apiSelectionOptions.apiSurfaceName
 
@@ -862,7 +863,7 @@ class Driver(
         CompatibilityCheck.checkCompatibility(
             newCodebase,
             oldCodebase,
-            apiType,
+            checkType,
             reporter,
             issueReportingOptions.issueConfiguration,
             compatibilityCheckOptions.apiCompatAnnotations,

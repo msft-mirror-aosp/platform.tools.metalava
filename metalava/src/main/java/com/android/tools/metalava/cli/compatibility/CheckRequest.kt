@@ -37,7 +37,7 @@ data class CheckRequest(
     val previouslyReleasedApi: PreviouslyReleasedApi,
 
     /** The part of the API to be checked. */
-    val apiType: ApiType,
+    val type: CheckType,
 ) {
     /** The last signature file, if any, defining the previously released API. */
     val lastSignatureFile by previouslyReleasedApi::lastSignatureFile
@@ -58,26 +58,49 @@ data class CheckRequest(
      */
     internal var fastPathCheckResult: Boolean? = null
 
+    enum class CheckType(
+        val cliFlagInfix: String,
+        val displayName: String = cliFlagInfix,
+        val apiType: ApiType,
+    ) {
+        /** The public API */
+        PUBLIC_API(
+            cliFlagInfix = "api",
+            displayName = "public",
+            apiType = ApiType.PUBLIC_API,
+        ),
+
+        /** The API that has been removed */
+        REMOVED(
+            cliFlagInfix = "removed",
+            displayName = "removed",
+            apiType = ApiType.REMOVED,
+        ),
+        ;
+
+        override fun toString(): String = displayName
+    }
+
     companion object {
         /** Create a [CheckRequest] if [files] is not empty, otherwise return `null`. */
-        internal fun optionalCheckRequest(files: List<File>, apiType: ApiType) =
+        internal fun optionalCheckRequest(files: List<File>, checkType: CheckType) =
             PreviouslyReleasedApi.optionalPreviouslyReleasedApi(
-                    checkCompatibilityOptionForApiType(apiType),
+                    checkCompatibilityOptionForCheckType(checkType),
                     files,
                     apiVariantType =
-                        when (apiType) {
+                        when (checkType.apiType) {
                             ApiType.REMOVED -> ApiVariantType.REMOVED
                             else -> ApiVariantType.CORE
                         },
                 )
-                ?.let { previouslyReleasedApi -> CheckRequest(previouslyReleasedApi, apiType) }
+                ?.let { previouslyReleasedApi -> CheckRequest(previouslyReleasedApi, checkType) }
 
-        private fun checkCompatibilityOptionForApiType(apiType: ApiType) =
-            "--check-compatibility:${apiType.flagName}:released"
+        private fun checkCompatibilityOptionForCheckType(checkType: CheckType) =
+            "--check-compatibility:${checkType.cliFlagInfix}:released"
     }
 
     override fun toString(): String {
         // This is only used when reporting progress.
-        return "${checkCompatibilityOptionForApiType(apiType)} $previouslyReleasedApi"
+        return "${checkCompatibilityOptionForCheckType(type)} $previouslyReleasedApi"
     }
 }

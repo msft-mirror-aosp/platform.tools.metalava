@@ -17,13 +17,10 @@
 package com.android.tools.metalava.model.visitors
 
 /** Types of APIs emitted (or parsed etc.) */
-enum class ApiType(val flagName: String, val displayName: String = flagName) {
+enum class ApiType {
     /** The public API */
-    PUBLIC_API("api", "public"),
+    PUBLIC_API,
 
     /** The API that has been removed */
-    REMOVED("removed", "removed"),
-    ;
-
-    override fun toString(): String = displayName
+    REMOVED,
 }

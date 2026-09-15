@@ -20,6 +20,7 @@ import com.android.tools.metalava.CodebaseComparator
 import com.android.tools.metalava.ComparisonVisitor
 import com.android.tools.metalava.JVM_DEFAULT_WITH_COMPATIBILITY
 import com.android.tools.metalava.cli.common.cliError
+import com.android.tools.metalava.cli.compatibility.CheckRequest.CheckType
 import com.android.tools.metalava.model.ArrayTypeItem
 import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
@@ -1876,14 +1877,14 @@ class CompatibilityCheck(
         fun checkCompatibility(
             newCodebase: Codebase,
             oldCodebase: Codebase,
-            apiType: ApiType,
+            checkType: CheckType,
             reporter: Reporter,
             issueConfiguration: IssueConfiguration,
             apiCompatAnnotations: Set<String>,
             apiName: String?,
             apiSurface: ApiSurface,
         ) {
-            val filter = getFilter(apiType, apiSurface)
+            val filter = getFilter(checkType.apiType, apiSurface)
 
             val checker =
                 CompatibilityCheck(
@@ -1905,7 +1906,7 @@ class CompatibilityCheck(
             // Because oldCodebase is listed first, its definitions take precedence ("master")
             // and are not modified by newCodebase.
             val oldFullCodebase =
-                if (apiSurface.extends == null && apiType == ApiType.PUBLIC_API) {
+                if (apiSurface.extends == null && checkType == CheckType.PUBLIC_API) {
                     MergedCodebase(listOf(oldCodebase))
                 } else {
                     MergedCodebase(listOf(oldCodebase, newCodebase))
@@ -1916,7 +1917,7 @@ class CompatibilityCheck(
 
             val message =
                 "Found compatibility problems checking " +
-                    "the ${apiType.displayName} API (${newCodebase.location}) against the API in ${oldCodebase.location}"
+                    "the ${checkType.displayName} API (${newCodebase.location}) against the API in ${oldCodebase.location}"
 
             if (checker.foundProblems) {
                 cliError(message)

@@ -25,7 +25,7 @@ import com.android.tools.metalava.cli.common.allowStructuredOptionName
 import com.android.tools.metalava.cli.common.enumOption
 import com.android.tools.metalava.cli.common.existingFile
 import com.android.tools.metalava.cli.common.map
-import com.android.tools.metalava.model.visitors.ApiType
+import com.android.tools.metalava.cli.compatibility.CheckRequest.CheckType
 import com.android.tools.metalava.reporter.Baseline
 import com.github.ajalt.clikt.parameters.options.multiple
 import com.github.ajalt.clikt.parameters.options.option
@@ -88,7 +88,7 @@ class CompatibilityCheckOptions() :
             .existingFile()
             .multiple()
             .allowStructuredOptionName()
-            .map { CheckRequest.optionalCheckRequest(it, ApiType.PUBLIC_API) }
+            .map { CheckRequest.optionalCheckRequest(it, CheckType.PUBLIC_API) }
 
     private val checkReleasedRemoved: CheckRequest? by
         option(
@@ -107,7 +107,7 @@ class CompatibilityCheckOptions() :
             .existingFile()
             .multiple()
             .allowStructuredOptionName()
-            .map { CheckRequest.optionalCheckRequest(it, ApiType.REMOVED) }
+            .map { CheckRequest.optionalCheckRequest(it, CheckType.REMOVED) }
 
     private val apiCompatAnnotations: Set<String> by
         option(
