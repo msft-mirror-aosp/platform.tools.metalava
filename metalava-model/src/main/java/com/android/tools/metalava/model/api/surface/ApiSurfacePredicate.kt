@@ -39,27 +39,6 @@ object ApiSurfacePredicate {
         val addAdditionalOverrides: Boolean = false,
     )
 
-    /** Singleton instance of [WholeApiPredicate]. */
-    private val WHOLE_API_PREDICATE: FilterPredicate = WholeApiPredicate()
-
-    /**
-     * Return a [FilterPredicate] that matches any item that belongs to at least one [ApiVariant]
-     * across the whole API surface.
-     *
-     * Only matches items for which [SelectableItem.emit] is true, filtering out non-emittable items
-     * such as external classpath dependencies (e.g. `java.lang.Object`) that are not part of the
-     * emitted API even if they have been assigned API variants during traversal.
-     */
-    fun wholeApi() = WHOLE_API_PREDICATE
-
-    /**
-     * A [FilterPredicate] that matches an item if it belongs to at least one [ApiVariant] across
-     * all [ApiSurface]s.
-     */
-    private class WholeApiPredicate : FilterPredicate {
-        override fun test(t: SelectableItem) = t.selectedApi.itemApiVariants.isNotEmpty()
-    }
-
     /** [ApiVariantType]s for core-only APIs. */
     private val coreOnlyVariantTypes = listOf(ApiVariantType.CORE)
 
