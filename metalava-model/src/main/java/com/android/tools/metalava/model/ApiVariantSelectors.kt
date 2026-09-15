@@ -392,17 +392,6 @@ sealed class ApiVariantSelectors {
             // Check to see whether item has a relationship with a record component. If it does then
             // it cannot be hidden.
             (item as? PossiblyRecordComponentRelated)?.recordComponentRelationship?.let {
-                recordComponentRelationship ->
-
-                // Record component getters or canonical constructors cannot be hidden.
-                if (originallyHidden) {
-                    item.codebase.reporter.report(
-                        Issues.HIDING_RECORD_COMPONENT,
-                        item,
-                        "Cannot hide $recordComponentRelationship ${item.describe()} as it is an indivisible part of a record class"
-                    )
-                }
-
                 // Force this to not be hidden, doconly or removed.
                 propertyHasBeenSetBits = ALL_PROPERTIES_SET
                 propertyValueBits = NOT_RESTRICTED_SETTINGS

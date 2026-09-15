@@ -72,6 +72,7 @@ abstract class BaseCommonParameterizedSelectedApiTest : BaseModelTest() {
         /** Optional previously released codebase sources, used to test API reverting/stability. */
         val previouslyReleasedSources: List<TestFile>? = null,
         val expectedContainsRevertedItem: Boolean = false,
+        val expectedIssues: String = "",
     ) {
         /** The [InputFormat] of [sources]. */
         val inputFormat: InputFormat by lazy {
@@ -106,6 +107,7 @@ abstract class BaseCommonParameterizedSelectedApiTest : BaseModelTest() {
          * @param apiFlags the [TestParams.apiFlags].
          * @param previouslyReleasedSources the [TestParams.previouslyReleasedSources].
          * @param expectedContainsRevertedItem the [TestParams.expectedContainsRevertedItem].
+         * @param expectedIssues the [TestParams.expectedIssues].
          * @param body lambda that will add tests for specific surfaces using [Builder.surfaceTest]
          *   which creates a [TestParams] using the above plus some surface specific information.
          */
@@ -117,6 +119,7 @@ abstract class BaseCommonParameterizedSelectedApiTest : BaseModelTest() {
             apiFlags: ApiFlags? = null,
             previouslyReleasedSources: List<TestFile>? = null,
             expectedContainsRevertedItem: Boolean = false,
+            expectedIssues: String = "",
             body: Builder.() -> Unit,
         ) {
             val builder =
@@ -129,6 +132,7 @@ abstract class BaseCommonParameterizedSelectedApiTest : BaseModelTest() {
                     apiFlags,
                     previouslyReleasedSources,
                     expectedContainsRevertedItem,
+                    expectedIssues,
                 )
             buildSurfaceTests(builder, body)
         }
@@ -153,6 +157,7 @@ abstract class BaseCommonParameterizedSelectedApiTest : BaseModelTest() {
             private val apiFlags: ApiFlags? = null,
             private val previouslyReleasedSources: List<TestFile>? = null,
             private val expectedContainsRevertedItem: Boolean = false,
+            private val expectedIssues: String = "",
         ) {
             /**
              * Create a test for [surface] that expects [expected] to be the result of calling
@@ -174,6 +179,7 @@ abstract class BaseCommonParameterizedSelectedApiTest : BaseModelTest() {
                         apiFlags,
                         previouslyReleasedSources,
                         expectedContainsRevertedItem,
+                        expectedIssues,
                     )
                 )
             }
@@ -229,6 +235,19 @@ abstract class BaseCommonParameterizedSelectedApiTest : BaseModelTest() {
                 )
 
                 codebase.assertSelectedApiVariants(params.expected)
+
+                // Strip line numbers from reported issues if expectedIssues does not contain
+                // line numbers, to handle differences between model providers (e.g. Turbine
+                // vs PSI on record components).
+                val actualIssues =
+                    removeReportedIssues().let { issues ->
+                        if (!params.expectedIssues.contains(Regex("""\.[a-z]+:\d+:"""))) {
+                            issues.replace(Regex("""(\.[a-z]+):\d+:"""), "$1:")
+                        } else {
+                            issues
+                        }
+                    }
+                assertEquals(params.expectedIssues.trimIndent(), actualIssues)
 
                 // Snapshot codebases do not track whether items were reverted, so
                 // codebase.containsRevertedItem is only checked on source codebases.

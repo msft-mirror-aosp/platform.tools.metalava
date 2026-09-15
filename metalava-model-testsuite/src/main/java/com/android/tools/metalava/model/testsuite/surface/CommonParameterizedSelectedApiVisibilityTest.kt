@@ -316,6 +316,11 @@ class CommonParameterizedSelectedApiVisibilityTest : BaseCommonParameterizedSele
                             """
                         ),
                     ),
+                expectedIssues =
+                    """
+                        MAIN_SRC/src/test/pkg/MyRecord.java: error: Cannot hide canonical constructor test.pkg.MyRecord(int) as it is an indivisible part of a record class [HidingRecordComponent]
+                        MAIN_SRC/src/test/pkg/MyRecord.java: error: Cannot hide record component getter method test.pkg.MyRecord.x() as it is an indivisible part of a record class [HidingRecordComponent]
+                    """,
             ) {
                 surfaceTest(
                     surface = "public",
