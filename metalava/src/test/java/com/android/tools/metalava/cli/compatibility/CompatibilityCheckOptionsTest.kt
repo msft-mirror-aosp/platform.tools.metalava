@@ -90,7 +90,7 @@ class CompatibilityCheckOptionsTest :
             assertThat(options.compute().compatibilityChecks)
                 .isEqualTo(
                     listOf(
-                        CompatibilityCheckOptions.CheckRequest(
+                        CheckRequest(
                             previouslyReleasedApi = SignatureBasedApi.fromFiles(listOf(file)),
                             apiType = ApiType.PUBLIC_API,
                         ),
@@ -112,7 +112,7 @@ class CompatibilityCheckOptionsTest :
             assertThat(options.compute().compatibilityChecks)
                 .isEqualTo(
                     listOf(
-                        CompatibilityCheckOptions.CheckRequest(
+                        CheckRequest(
                             previouslyReleasedApi =
                                 SignatureBasedApi.fromFiles(listOf(file1, file2)),
                             apiType = ApiType.PUBLIC_API,
@@ -129,7 +129,7 @@ class CompatibilityCheckOptionsTest :
             assertThat(options.compute().compatibilityChecks)
                 .isEqualTo(
                     listOf(
-                        CompatibilityCheckOptions.CheckRequest(
+                        CheckRequest(
                             previouslyReleasedApi =
                                 SignatureBasedApi.fromFiles(
                                     listOf(file),

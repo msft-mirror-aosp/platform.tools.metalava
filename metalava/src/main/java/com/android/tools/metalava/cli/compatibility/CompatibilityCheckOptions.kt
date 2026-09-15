@@ -16,7 +16,6 @@
 
 package com.android.tools.metalava.cli.compatibility
 
-import com.android.tools.metalava.Driver
 import com.android.tools.metalava.cli.common.BaselineOptionsMixin
 import com.android.tools.metalava.cli.common.ComputedCommonBaselineOptions
 import com.android.tools.metalava.cli.common.ExecutionEnvironment
@@ -26,13 +25,11 @@ import com.android.tools.metalava.cli.common.allowStructuredOptionName
 import com.android.tools.metalava.cli.common.enumOption
 import com.android.tools.metalava.cli.common.existingFile
 import com.android.tools.metalava.cli.common.map
-import com.android.tools.metalava.model.api.surface.ApiVariantType
 import com.android.tools.metalava.model.visitors.ApiType
 import com.android.tools.metalava.reporter.Baseline
 import com.github.ajalt.clikt.parameters.options.multiple
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.options.unique
-import java.io.File
 
 const val ARG_CHECK_COMPATIBILITY = "--check-compatibility"
 
@@ -167,66 +164,6 @@ class CompatibilityCheckOptions() :
     }
 
     /**
-     * Encapsulates information needed to perform a compatibility check of the current API being
-     * generated against a previously released API.
-     */
-    data class CheckRequest(
-        /**
-         * The previously released API with which the API being generated must be compatible.
-         *
-         * Each file is either a jar file (i.e. has an extension of `.jar`), or otherwise is a
-         * signature file. The latter's extension is not checked because while it usually has an
-         * extension of `.txt`, for legacy reasons Metalava will treat any file without a `,jar`
-         * extension as if it was a signature file.
-         */
-        val previouslyReleasedApi: PreviouslyReleasedApi,
-
-        /** The part of the API to be checked. */
-        val apiType: ApiType,
-    ) {
-        /** The last signature file, if any, defining the previously released API. */
-        val lastSignatureFile by previouslyReleasedApi::lastSignatureFile
-
-        /**
-         * Used to store whether the fast path check in [Driver.checkCompatibility] succeeded or not
-         * that can be checked by tests.
-         *
-         * It is initialized to `null`. Then if the fast path check is run it will set it a non-null
-         * to indicate whether the fast path was taken or not. The test can then differentiate
-         * between the following states:
-         * * `null` - the fast path check was not performed.
-         * * `false` - the fast path check was performed and the fast path was not taken.
-         * * `true` - the fast path check was performed and the fast path was taken.
-         *
-         * This is used because there is no nice way to test this code in isolation.
-         */
-        internal var fastPathCheckResult: Boolean? = null
-
-        companion object {
-            /** Create a [CheckRequest] if [files] is not empty, otherwise return `null`. */
-            internal fun optionalCheckRequest(files: List<File>, apiType: ApiType) =
-                PreviouslyReleasedApi.optionalPreviouslyReleasedApi(
-                        checkCompatibilityOptionForApiType(apiType),
-                        files,
-                        apiVariantType =
-                            when (apiType) {
-                                ApiType.REMOVED -> ApiVariantType.REMOVED
-                                else -> ApiVariantType.CORE
-                            },
-                    )
-                    ?.let { previouslyReleasedApi -> CheckRequest(previouslyReleasedApi, apiType) }
-
-            private fun checkCompatibilityOptionForApiType(apiType: ApiType) =
-                "--check-compatibility:${apiType.flagName}:released"
-        }
-
-        override fun toString(): String {
-            // This is only used when reporting progress.
-            return "${checkCompatibilityOptionForApiType(apiType)} $previouslyReleasedApi"
-        }
-    }
-
-    /**
      * Returns a [ComputedCompatibilityCheckOptions] instance based on the current state of the
      * options.
      */
@@ -245,23 +182,23 @@ class CompatibilityCheckOptions() :
  */
 class ComputedCompatibilityCheckOptions
 internal constructor(
-    checkReleasedApi: CompatibilityCheckOptions.CheckRequest?,
-    checkReleasedRemoved: CompatibilityCheckOptions.CheckRequest?,
+    checkReleasedApi: CheckRequest?,
+    checkReleasedRemoved: CheckRequest?,
     checkCompatibility: CheckCompatibility?,
     val apiCompatAnnotations: Set<String>,
 ) {
     /**
-     * The list of unfiltered [CompatibilityCheckOptions.CheckRequest] instances that need to be
-     * performed on the API being generated.
+     * The list of unfiltered [CheckRequest] instances that need to be performed on the API being
+     * generated.
      */
-    private val unfilteredCompatibilityChecks: List<CompatibilityCheckOptions.CheckRequest> =
+    private val unfilteredCompatibilityChecks: List<CheckRequest> =
         listOfNotNull(checkReleasedApi, checkReleasedRemoved)
 
     /**
-     * The list of [CompatibilityCheckOptions.CheckRequest] instances that need to be performed on
-     * the API being generated taking into account [checkCompatibility].
+     * The list of [CheckRequest] instances that need to be performed on the API being generated
+     * taking into account [checkCompatibility].
      */
-    val compatibilityChecks: List<CompatibilityCheckOptions.CheckRequest> =
+    val compatibilityChecks: List<CheckRequest> =
         when (checkCompatibility) {
             CheckCompatibility.ENABLED -> unfilteredCompatibilityChecks
             else -> emptyList()
