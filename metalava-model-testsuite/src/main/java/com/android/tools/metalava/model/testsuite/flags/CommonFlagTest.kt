@@ -105,10 +105,9 @@ class CommonFlagTest : BaseModelTest() {
             assertEquals(Showability.REVERT_UNSTABLE_API, annotation.showability, "showability")
             assertEquals(NO_ANNOTATION_TARGETS, annotation.targets, "targets")
 
-            // TODO: This should never return true as a flagged API is neither a show nor a hide
-            //  annotation. Currently returns true because showability is REVERT_UNSTABLE_API which
-            //  is not NO_EFFECT.
-            assertTrue(annotation.isShowabilityAnnotation(), "isShowabilityAnnotation")
+            // A reverted flag has no effect on showability (a flagged API is neither a show nor
+            // a hide annotation).
+            assertFalse(annotation.isShowabilityAnnotation(), "isShowabilityAnnotation")
 
             assertTrue(
                 fooClass.showability.revertUnstableApi(),
