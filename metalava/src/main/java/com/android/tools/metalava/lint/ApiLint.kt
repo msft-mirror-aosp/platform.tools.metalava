@@ -94,8 +94,8 @@ import com.android.tools.metalava.model.findAnnotation
 import com.android.tools.metalava.model.hasAnnotation
 import com.android.tools.metalava.model.value.asInt
 import com.android.tools.metalava.model.value.asString
+import com.android.tools.metalava.model.visitors.ApiFiltersVisitor
 import com.android.tools.metalava.model.visitors.ApiType
-import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.android.tools.metalava.reporter.FileLocation
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Issues.ABSTRACT_INNER
@@ -214,12 +214,12 @@ private constructor(
     apiPredicateConfig: ApiSurfacePredicate.Config,
     private val config: Config,
 ) :
-    ApiVisitor(
+    ApiFiltersVisitor(
         visitParameterItems = false,
         apiFilters =
-            ApiSurfacePredicate.nonElidingApiFilters(
+            ApiSurfacePredicate.forSurfaceFilters(
                     ApiType.CORE,
-                    apiPredicateConfig,
+                    apiPredicateConfig.apiSurface,
                 )
                 .forTargetLanguages(TargetLanguageSet.SOURCE),
     ) {
