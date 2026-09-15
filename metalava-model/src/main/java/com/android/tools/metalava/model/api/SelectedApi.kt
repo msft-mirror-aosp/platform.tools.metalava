@@ -25,6 +25,7 @@ import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.SelectableItem
+import com.android.tools.metalava.model.SourceLanguage
 import com.android.tools.metalava.model.api.SurfaceSelectionRule.Effect
 import com.android.tools.metalava.model.api.surface.ApiSurface
 import com.android.tools.metalava.model.api.surface.ApiVariant
@@ -303,6 +304,30 @@ internal sealed class SourceSelectedApi<S : SelectableItem>(
         if (item.emit && itemApiVariants.isNotEmpty()) {
             item.updateDeprecatedFromJavadocIfNeeded()
         }
+    }
+
+    /**
+     * Updates the deprecated status of this item from Javadoc if needed.
+     *
+     * In Java, an item can be deprecated using the `@deprecated` Javadoc tag or the `@Deprecated`
+     * annotation. This method checks the Javadoc documentation for a `@deprecated` tag and, if
+     * found, marks the item as deprecated in its modifiers.
+     *
+     * This check is deferred from initialization to avoid the overhead of parsing documentation for
+     * every item when constructing the codebase model.
+     */
+    private fun SelectableItem.updateDeprecatedFromJavadocIfNeeded() {
+        // Only Java items can get deprecated status from javadoc.
+        if (sourceLanguage != SourceLanguage.JAVA) return
+
+        // If the item is already deprecated then no point in checking javadoc, at least not here.
+        if (modifiers.isDeprecated()) return
+
+        // If the documentation does not have an @deprecated block then the item is not deprecated.
+        if (documentation?.hasBlockTagOfType("deprecated") != true) return
+
+        // The item is deprecated.
+        mutateModifiers { setDeprecated(true) }
     }
 
     /** Update this from information in [item]. */

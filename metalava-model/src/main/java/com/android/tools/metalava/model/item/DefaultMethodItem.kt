@@ -143,9 +143,6 @@ internal class DefaultMethodItem(
             duplicate.mutateModifiers { setDefault(false) }
         }
 
-        // Make sure that the deprecated status is set correctly.
-        duplicate.updateDeprecatedFromJavadocIfNeeded()
-
         return duplicate
     }
 
