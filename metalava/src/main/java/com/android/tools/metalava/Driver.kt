@@ -447,7 +447,7 @@ class Driver(
                 // Pre-filtered so does not need any filters.
                 null
             } else {
-                ApiSurfacePredicate.apiFilters(ApiType.PUBLIC_API, apiPredicateConfig)
+                ApiSurfacePredicate.apiFilters(ApiType.CORE, apiPredicateConfig)
             }
 
         val codebaseFragment =
@@ -690,7 +690,7 @@ class Driver(
                             null
                         } else {
                             ApiSurfacePredicate.apiFilters(
-                                ApiType.PUBLIC_API,
+                                ApiType.CORE,
                                 apiPredicateConfig,
                             )
                         }
@@ -730,7 +730,7 @@ class Driver(
             CompatibilityCheck.checkMultiplatformCompatibility(
                 newCodebase = multiplatformCodebase,
                 oldCodebase = releasedApi,
-                apiType = ApiType.PUBLIC_API,
+                apiType = ApiType.CORE,
                 reporter = reporter,
                 issueConfiguration = issueReportingOptions.issueConfiguration,
                 apiCompatAnnotations = compatibilityCheckOptions.apiCompatAnnotations,
@@ -776,7 +776,7 @@ class Driver(
         // Provide a CodebaseFragment from the sources that will be included in the generated
         // version history.
         val signatureFileConfigCodeFragmentProvider: () -> CodebaseFragment = {
-            val apiType = ApiType.PUBLIC_API
+            val apiType = ApiType.CORE
             val apiFilters = ApiSurfacePredicate.apiFilters(apiType, apiPredicateConfig)
 
             CodebaseFragment.create(codebase) { delegatedVisitor ->

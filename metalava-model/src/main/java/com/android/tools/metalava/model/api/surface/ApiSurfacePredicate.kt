@@ -202,7 +202,7 @@ object ApiSurfacePredicate {
      */
     fun referenceFilter(apiType: ApiType, apiSurface: ApiSurface): FilterPredicate =
         when (apiType) {
-            ApiType.PUBLIC_API ->
+            ApiType.CORE ->
                 // Emitted APIs can reference types (such as superclasses, interfaces, parameter
                 // types, or thrown exceptions) that belong to any API surface extended by the
                 // target surface, so references must match across the whole API surface.

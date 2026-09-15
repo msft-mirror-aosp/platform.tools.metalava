@@ -67,7 +67,7 @@ data class CheckRequest(
         PUBLIC_API(
             cliFlagInfix = "api",
             displayName = "public",
-            apiType = ApiType.PUBLIC_API,
+            apiType = ApiType.CORE,
         ),
 
         /** The API that has been removed */

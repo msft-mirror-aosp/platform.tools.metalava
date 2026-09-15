@@ -16,11 +16,19 @@
 
 package com.android.tools.metalava.model.visitors
 
-/** Types of APIs emitted (or parsed etc.) */
-enum class ApiType {
-    /** The public API */
-    PUBLIC_API,
+import com.android.tools.metalava.model.api.surface.ApiVariant
+import com.android.tools.metalava.model.api.surface.ApiVariantType
 
-    /** The API that has been removed */
+/**
+ * Types of APIs that can be processed.
+ *
+ * This correlates closely with the [ApiVariantType] type except while that relates to individual
+ * [ApiVariant]s this relates to the whole API.
+ */
+enum class ApiType {
+    /** The core API, i.e. the core part used by apps. */
+    CORE,
+
+    /** Parts of the API that used to be in [CORE] but have since been removed. */
     REMOVED,
 }

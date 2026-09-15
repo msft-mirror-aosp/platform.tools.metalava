@@ -82,8 +82,7 @@ class JarToJDiffCommand :
                         ),
                     )
 
-                val apiFilters =
-                    ApiSurfacePredicate.apiFilters(ApiType.PUBLIC_API, apiPredicateConfig)
+                val apiFilters = ApiSurfacePredicate.apiFilters(ApiType.CORE, apiPredicateConfig)
 
                 val codebaseFragment =
                     CodebaseFragment.create(codebase) { delegate ->
