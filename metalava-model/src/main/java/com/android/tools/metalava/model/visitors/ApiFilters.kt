@@ -34,6 +34,14 @@ class ApiFilters(
 
     /** Returns `true` for [Item]s that should be defined in the API and emitted as part of it. */
     val emit: FilterPredicate = EMITTED_ONLY.and(reference),
+
+    /**
+     * Optional filter that determines whether an [Item] should be visited during traversal.
+     *
+     * If provided, [ApiFiltersVisitor] skips any [SelectableItem] for which this predicate returns
+     * `false`. Otherwise, [ApiFiltersVisitor] uses [emit] for that purpose.
+     */
+    val traversal: FilterPredicate? = null,
 ) {
     /**
      * Return an [ApiFilters] that will filter by [targetLanguages] in addition to this filter.
@@ -45,6 +53,7 @@ class ApiFilters(
         return ApiFilters(
             reference = reference.and(targetLanguagesInclusionFilter),
             emit = emit.and(targetLanguagesInclusionFilter),
+            traversal = traversal?.and(targetLanguagesInclusionFilter),
         )
     }
 
