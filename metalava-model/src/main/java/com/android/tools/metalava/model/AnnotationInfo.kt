@@ -16,6 +16,8 @@
 
 package com.android.tools.metalava.model
 
+import com.android.tools.metalava.model.annotation.AnnotationClass
+import com.android.tools.metalava.model.api.SurfaceAnnotationData
 import com.android.tools.metalava.model.api.flags.ApiFlag
 import com.android.tools.metalava.model.api.flags.ApiFlags
 
@@ -40,6 +42,12 @@ interface AnnotationInfo {
     val typeNullability: TypeNullability?
 
     /**
+     * The [SurfaceAnnotationData] associated with this annotation, `null` if it is not a surface
+     * annotation.
+     */
+    val surfaceData: SurfaceAnnotationData?
+
+    /**
      * Determines whether this annotation affects whether the annotated item is shown or hidden and
      * if so how.
      */
@@ -49,12 +57,17 @@ interface AnnotationInfo {
      * The [ApiFlag] referenced by the annotation.
      *
      * This will be `null` if no [ApiFlags] have been provided or the annotation type is not
-     * [ANDROID_FLAGGED_API]. Otherwise, it will be one of the instances of [ApiFlag], e.g.
-     * [ApiFlag.REVERT_FLAGGED_API].
+     * [ANDROID_FLAGGED_API]. Otherwise, it will be an instance of [ApiFlag].
      */
     val apiFlag: ApiFlag?
 
     val suppressCompatibility: Boolean
+
+    /**
+     * The [AnnotationClass] that provides information about the annotation class of the
+     * [AnnotationItem] instance to which this corresponds.
+     */
+    val annotationClass: AnnotationClass?
 }
 
 /** Compute the [TypeNullability], if any, for the annotation with [qualifiedName]. */
@@ -90,12 +103,9 @@ enum class ShowOrHide(private val show: Boolean?) {
      * come after [SHOW].
      */
     REVERT_UNSTABLE_API(show = null) {
-        /**
-         * If the [revertItem] is not null and `emit = true`, i.e. is for the API surface currently
-         * being generated, then reverting will still show this item.
-         */
+        /** If the [revertItem] is not null then reverting will still show this item. */
         override fun show(revertItem: SelectableItem?): Boolean {
-            return revertItem != null && revertItem.emit
+            return revertItem != null
         }
 
         /** If the [revertItem] is null then reverting will hide this item. */
@@ -137,11 +147,10 @@ data class Showability(
      * API.
      *
      * If [ShowOrHide.show] is `true` then the annotated [SelectableItem] will be shown as part of
-     * the API. That is the case for annotations that match `--show-annotation`, or
-     * `--show-single-annotation`, but not `--show-for-stub-purposes-annotation`.
+     * the API. That is the case for any show annotation on the target API surface.
      *
      * If [ShowOrHide.hide] is `true` then the annotated [SelectableItem] will NOT be shown as part
-     * of the API. That is the case for annotations that match `--hide-annotation`.
+     * of the API. That is the case for hide annotations.
      *
      * If neither of the above is then this has no effect on whether an annotated [SelectableItem]
      * will be shown or not, that decision will be determined by its container's
@@ -154,61 +163,40 @@ data class Showability(
      * the API.
      *
      * If [ShowOrHide.show] is `true` then the contents of the annotated [Item] will be included in
-     * the API unless overridden by a closer annotation. That is the case for annotations that match
-     * `--show-annotation`, but not `--show-single-annotation`, or
-     * `--show-for-stub-purposes-annotation`.
+     * the API unless overridden by a closer annotation. That is the case for recursive show
+     * annotations but not non-recursive show annotations.
      *
-     * If [ShowOrHide.hide] is `true` then the contents of the annotated [Item] will be included in
-     * the API unless overridden by a closer annotation. That is the case for annotations that match
-     * `--hide-annotation`.
+     * If [ShowOrHide.hide] is `true` then the contents of the annotated [Item] will NOT be included
+     * in the API unless overridden by a closer annotation. That is the case for hide annotations.
      */
     private val recursive: ShowOrHide,
 
-    /**
-     * Determines whether an API [Item] ands its contents is considered to be part of the base API
-     * and so must be included in the stubs but not the signature files.
-     *
-     * If [ShowOrHide.show] is `true` then the API [Item] ands its contents are considered to be
-     * part of the base API. That is the case for annotations that match
-     * `--show-for-stub-purposes-annotation` but not `--show-annotation`, or
-     * `--show-single-annotation`.
-     */
-    private val forStubsOnly: ShowOrHide,
-
     /** The item to which this item should be reverted. Null if no such item exists. */
     val revertItem: SelectableItem? = null,
+
+    /** Optional name, makes it easier to understand while testing and debug. */
+    val name: String? = null,
 ) {
     /**
      * Check whether the annotated item should be considered part of the API or not.
      *
-     * Returns `true` if the item is annotated with a `--show-annotation`,
-     * `--show-single-annotation`, or `--show-for-stub-purposes-annotation`.
+     * Returns `true` if the item is annotated with a show annotation.
      */
-    fun show() = show.show(revertItem) || forStubsOnly.show(revertItem)
-
-    /**
-     * Check whether the annotated item should only be considered part of the API when generating
-     * stubs.
-     *
-     * Returns `true` if the item is annotated with a `--show-for-stub-purposes-annotation`. Such
-     * items will be part of an API surface that the API being generated extends.
-     */
-    fun showForStubsOnly() = forStubsOnly.show(revertItem)
+    fun show() = show.show(revertItem)
 
     /**
      * Check whether the annotations on this item affect nested `Item`s.
      *
      * Returns `true` if they do, `false` if they do not affect nested `Item`s.
      */
-    fun showRecursive() = recursive.show(revertItem) || forStubsOnly.show(revertItem)
+    fun showRecursive() = recursive.show(revertItem)
 
     /**
      * Check whether the annotations on this item only affect the current `Item`.
      *
      * Returns `true` if they do, `false` if they can also affect nested `Item`s.
      */
-    fun showNonRecursive() =
-        show.show(revertItem) && !recursive.show(revertItem) && !forStubsOnly.show(revertItem)
+    fun showNonRecursive() = show.show(revertItem) && !recursive.show(revertItem)
 
     /**
      * Check whether the annotated item should be hidden from the API.
@@ -220,31 +208,38 @@ data class Showability(
     /**
      * Check whether the annotated item is part of an unstable API that needs to be reverted.
      *
-     * Returns `true` if the annotation matches `--hide-annotation android.annotation.FlaggedApi` or
-     * if this is on an item then when the item is annotated with such an annotation or is a method
-     * that overrides such an item or is contained within a class that is annotated with such an
-     * annotation.
+     * Returns `true` if the annotation is an [ANDROID_FLAGGED_API] annotation or if this is on an
+     * item then when the item is annotated with such an annotation or is a method that overrides
+     * such an item or is contained within a class that is annotated with such an annotation.
      */
     fun revertUnstableApi() = show == ShowOrHide.REVERT_UNSTABLE_API
 
     /** Combine this with [other] to produce a combination [Showability]. */
     fun combineWith(other: Showability): Showability {
-        // Show wins over not showing.
-        val newShow = show.highestPriority(other.show)
-
-        // Recursive wins over not recursive.
-        val newRecursive = recursive.highestPriority(other.recursive)
-
-        // For everything wins over only for stubs.
-        val forStubsOnly =
-            if (newShow.show(revertItem)) {
-                ShowOrHide.NO_EFFECT
+        // Recursive wins over not recursive. Reverting has the following behavior:
+        // * If this is not recursive (i.e. [ShowOrHide.NO_EFFECT] then reverting it will not change
+        //   that.
+        // * If this is recursive then reverting it could change that, depending on whether the
+        //   reverted item exists or not. That is exactly the same as how revert affects [show].
+        val newRecursive =
+            if (
+                recursive == ShowOrHide.NO_EFFECT &&
+                    other.recursive == ShowOrHide.REVERT_UNSTABLE_API
+            ) {
+                // This is not recursive so ignore whether it was reverted.
+                recursive
             } else {
-                forStubsOnly.highestPriority(other.forStubsOnly)
+                // This is recursive so treat it the same as [show].
+                recursive.highestPriority(other.recursive)
             }
 
-        return Showability(newShow, newRecursive, forStubsOnly)
+        val newShow = show.highestPriority(other.show)
+
+        return Showability(newShow, newRecursive)
     }
+
+    override fun toString() =
+        name ?: "Showability(show=$show, recursive=$recursive, revertItem=$revertItem)"
 
     companion object {
         /** The annotation does not affect whether an annotated item is shown. */
@@ -252,7 +247,6 @@ data class Showability(
             Showability(
                 show = ShowOrHide.NO_EFFECT,
                 recursive = ShowOrHide.NO_EFFECT,
-                forStubsOnly = ShowOrHide.NO_EFFECT
             )
 
         /**
@@ -263,7 +257,6 @@ data class Showability(
             Showability(
                 show = ShowOrHide.REVERT_UNSTABLE_API,
                 recursive = ShowOrHide.REVERT_UNSTABLE_API,
-                forStubsOnly = ShowOrHide.REVERT_UNSTABLE_API,
             )
     }
 }

@@ -16,17 +16,47 @@
 
 package com.android.tools.metalava.model.visitors
 
+import com.android.tools.metalava.model.EMITTED_ONLY
 import com.android.tools.metalava.model.FilterPredicate
 import com.android.tools.metalava.model.Item
+import com.android.tools.metalava.model.SelectableItem
+import com.android.tools.metalava.model.TargetLanguage
+import com.android.tools.metalava.model.TargetLanguageSet
+import com.android.tools.metalava.model.inclusionFilter
 
 /** Encapsulates filters needed by [ApiVisitor]. */
 class ApiFilters(
-    /** Returns `true` for [Item]s that should be defined in the API and emitted as part of it. */
-    val emit: FilterPredicate,
-
     /**
      * Returns `true` for [Item]s that can be referenced from the API, this is a super set of
      * [Item]s that can be emitted.
      */
     val reference: FilterPredicate,
-)
+
+    /** Returns `true` for [Item]s that should be defined in the API and emitted as part of it. */
+    val emit: FilterPredicate = EMITTED_ONLY.and(reference),
+) {
+    /**
+     * Return an [ApiFilters] that will filter by [targetLanguages] in addition to this filter.
+     *
+     * If [targetLanguages] is [TargetLanguageSet.ALL], this returns `this`.
+     */
+    fun forTargetLanguages(targetLanguages: Set<TargetLanguage>): ApiFilters {
+        val targetLanguagesInclusionFilter = targetLanguages.inclusionFilter() ?: return this
+        return ApiFilters(
+            reference = reference.and(targetLanguagesInclusionFilter),
+            emit = emit.and(targetLanguagesInclusionFilter),
+        )
+    }
+
+    companion object {
+        /**
+         * Emits all [SelectableItem]s whose [SelectableItem.emit] is `true` and references any
+         * [SelectableItem].
+         */
+        val ALL =
+            ApiFilters(
+                reference = { true },
+                emit = EMITTED_ONLY,
+            )
+    }
+}

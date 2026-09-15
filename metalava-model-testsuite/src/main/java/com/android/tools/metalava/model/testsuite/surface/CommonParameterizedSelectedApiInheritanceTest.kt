@@ -1,0 +1,509 @@
+/*
+ * Copyright (C) 2026 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package com.android.tools.metalava.model.testsuite.surface
+
+import com.android.tools.metalava.model.testing.surfaces.TestableApiSurfaces.HIDE
+import com.android.tools.metalava.model.testing.surfaces.TestableApiSurfaces.MODULE_API
+import com.android.tools.metalava.model.testing.surfaces.TestableApiSurfaces.REMOVED_FROM_API
+import com.android.tools.metalava.model.testing.surfaces.TestableApiSurfaces.STANDALONE_API
+import com.android.tools.metalava.model.testing.surfaces.TestableApiSurfaces.SYSTEM_API
+import com.android.tools.metalava.model.testing.surfaces.TestableApiSurfaces.publicStandaloneRules
+import com.android.tools.metalava.model.testing.surfaces.TestableApiSurfaces.publicSystemModuleRules
+import com.android.tools.metalava.testing.java
+import org.junit.runners.Parameterized
+
+/**
+ * Tests verifying selected API variants across type hierarchies and inheritance relationships.
+ *
+ * Add tests to this class for:
+ * - Classes extending superclasses or implementing interfaces that belong to different API surfaces
+ *   (e.g. public class extending a `SystemApi`, `ModuleLibApi`, standalone, or removed class).
+ * - Method overrides across different API surfaces, including inheriting or not inheriting API
+ *   variants from super methods.
+ * - Method overrides involving `@Hide` on superclass or subclass methods, specialized return types,
+ *   or interfaces.
+ * - Inaccessible or package-private classes implementing public interface methods or extending
+ *   public classes.
+ *
+ * For single-class or nested-class visibility without cross-surface inheritance, see
+ * [CommonParameterizedSelectedApiVisibilityTest].
+ */
+class CommonParameterizedSelectedApiInheritanceTest : BaseCommonParameterizedSelectedApiTest() {
+
+    companion object : BaseCompanion() {
+        @JvmStatic
+        @Parameterized.Parameters
+        fun params() = buildList {
+            buildTests(
+                name = "public class extending system class",
+                surfaceRules = publicSystemModuleRules,
+                sources =
+                    listOf(
+                        java(
+                            """
+                                package test.pkg;
+                                $SYSTEM_API
+                                public class SystemClass {
+                                }
+                                public class PublicClass extends SystemClass {
+                                }
+                            """
+                        ),
+                    ),
+            ) {
+                surfaceTest(
+                    surface = "system",
+                    expected =
+                        """
+                            package test.pkg
+                                   self - ApiVariantSet[public(C),system(C)]
+                                content - ApiVariantSet[]
+                              class test.pkg.SystemClass
+                                     self - ApiVariantSet[system(C)]
+                                  content - ApiVariantSet[]
+                                constructor test.pkg.SystemClass()
+                                       self - ApiVariantSet[system(C)]
+                                    content - ApiVariantSet[]
+                              class test.pkg.PublicClass
+                                     self - ApiVariantSet[public(C)]
+                                  content - ApiVariantSet[]
+                               superClass - ApiVariantSet[system(C)]
+                                constructor test.pkg.PublicClass()
+                                       self - ApiVariantSet[public(C)]
+                                    content - ApiVariantSet[]
+                        """,
+                )
+            }
+
+            buildTests(
+                name = "public class extending module class",
+                surfaceRules = publicSystemModuleRules,
+                sources =
+                    listOf(
+                        java(
+                            """
+                                package test.pkg;
+                                $MODULE_API
+                                public class ModuleClass {
+                                }
+                                public class PublicClass extends ModuleClass {
+                                }
+                            """
+                        ),
+                    ),
+            ) {
+                surfaceTest(
+                    surface = "module",
+                    expected =
+                        """
+                            package test.pkg
+                                   self - ApiVariantSet[public(C),module(C)]
+                                content - ApiVariantSet[]
+                              class test.pkg.ModuleClass
+                                     self - ApiVariantSet[module(C)]
+                                  content - ApiVariantSet[]
+                                constructor test.pkg.ModuleClass()
+                                       self - ApiVariantSet[module(C)]
+                                    content - ApiVariantSet[]
+                              class test.pkg.PublicClass
+                                     self - ApiVariantSet[public(C)]
+                                  content - ApiVariantSet[]
+                               superClass - ApiVariantSet[module(C)]
+                                constructor test.pkg.PublicClass()
+                                       self - ApiVariantSet[public(C)]
+                                    content - ApiVariantSet[]
+                        """,
+                )
+            }
+
+            buildTests(
+                name = "public class extending standalone class",
+                surfaceRules = publicStandaloneRules,
+                sources =
+                    listOf(
+                        java(
+                            """
+                                package test.pkg;
+                                $STANDALONE_API
+                                public class StandaloneClass {
+                                }
+                                public class PublicClass extends StandaloneClass {
+                                }
+                            """
+                        ),
+                    ),
+            ) {
+                surfaceTest(
+                    surface = "standalone",
+                    expected =
+                        """
+                            package test.pkg
+                                   self - ApiVariantSet[standalone(C)]
+                                content - ApiVariantSet[]
+                              class test.pkg.StandaloneClass
+                                     self - ApiVariantSet[standalone(C)]
+                                  content - ApiVariantSet[]
+                                constructor test.pkg.StandaloneClass()
+                                       self - ApiVariantSet[standalone(C)]
+                                    content - ApiVariantSet[]
+                              class test.pkg.PublicClass
+                                     self - ApiVariantSet[standalone(C)]
+                                  content - ApiVariantSet[]
+                                constructor test.pkg.PublicClass()
+                                       self - ApiVariantSet[standalone(C)]
+                                    content - ApiVariantSet[]
+                        """,
+                )
+            }
+
+            buildTests(
+                name = "removed public class extending removed system class",
+                surfaceRules = publicSystemModuleRules,
+                sources =
+                    listOf(
+                        java(
+                            """
+                                package test.pkg;
+                                $SYSTEM_API
+                                $REMOVED_FROM_API
+                                public class SystemClass {
+                                }
+                                $REMOVED_FROM_API
+                                public class PublicClass extends SystemClass {
+                                }
+                            """
+                        ),
+                    ),
+            ) {
+                surfaceTest(
+                    surface = "system",
+                    expected =
+                        """
+                            package test.pkg
+                                   self - ApiVariantSet[public(R),system(R)]
+                                content - ApiVariantSet[]
+                              class test.pkg.SystemClass
+                                     self - ApiVariantSet[system(R)]
+                                  content - ApiVariantSet[]
+                                constructor test.pkg.SystemClass()
+                                       self - ApiVariantSet[system(R)]
+                                    content - ApiVariantSet[]
+                              class test.pkg.PublicClass
+                                     self - ApiVariantSet[public(R)]
+                                  content - ApiVariantSet[]
+                               superClass - ApiVariantSet[system(R)]
+                                constructor test.pkg.PublicClass()
+                                       self - ApiVariantSet[public(R)]
+                                    content - ApiVariantSet[]
+                        """,
+                )
+            }
+
+            buildTests(
+                name = "public class extending removed system class",
+                surfaceRules = publicSystemModuleRules,
+                sources =
+                    listOf(
+                        java(
+                            """
+                                package test.pkg;
+                                $SYSTEM_API
+                                $REMOVED_FROM_API
+                                public class SystemClass {
+                                }
+                                public class PublicClass extends SystemClass {
+                                }
+                            """
+                        ),
+                    ),
+            ) {
+                surfaceTest(
+                    surface = "system",
+                    expected =
+                        """
+                            package test.pkg
+                                   self - ApiVariantSet[public(C),system(R)]
+                                content - ApiVariantSet[]
+                              class test.pkg.SystemClass
+                                     self - ApiVariantSet[system(R)]
+                                  content - ApiVariantSet[]
+                                constructor test.pkg.SystemClass()
+                                       self - ApiVariantSet[system(R)]
+                                    content - ApiVariantSet[]
+                              class test.pkg.PublicClass
+                                     self - ApiVariantSet[public(C)]
+                                  content - ApiVariantSet[]
+                                constructor test.pkg.PublicClass()
+                                       self - ApiVariantSet[public(C)]
+                                    content - ApiVariantSet[]
+                        """,
+                )
+            }
+
+            buildTests(
+                name = "removed class overriding method from public interface marked as @Hide",
+                surfaceRules = publicSystemModuleRules,
+                sources =
+                    listOf(
+                        java(
+                            """
+                                package test.pkg;
+
+                                public interface PublicInterface {
+                                    void method();
+                                }
+                            """
+                        ),
+                        java(
+                            """
+                                package test.pkg;
+
+                                $SYSTEM_API
+                                $REMOVED_FROM_API
+                                public class RemovedClass implements PublicInterface {
+                                    $HIDE
+                                    @Override
+                                    public void method() {}
+                                }
+                            """
+                        ),
+                    ),
+            ) {
+                surfaceTest(
+                    surface = "module",
+                    expected =
+                        """
+                            package test.pkg
+                                   self - ApiVariantSet[public(C),system(R)]
+                                content - ApiVariantSet[]
+                              class test.pkg.PublicInterface
+                                     self - ApiVariantSet[public(C)]
+                                  content - ApiVariantSet[]
+                                method test.pkg.PublicInterface.method()
+                                       self - ApiVariantSet[public(C)]
+                                    content - ApiVariantSet[]
+                              class test.pkg.RemovedClass
+                                     self - ApiVariantSet[system(R)]
+                                  content - ApiVariantSet[]
+                                constructor test.pkg.RemovedClass()
+                                       self - ApiVariantSet[system(R)]
+                                    content - ApiVariantSet[]
+                                method test.pkg.RemovedClass.method()
+                                       self - ApiVariantSet[public(C)]
+                                    content - ApiVariantSet[]
+                        """,
+                )
+            }
+
+            buildTests(
+                name =
+                    "public class overriding method from superclass marked as @Hide with specialized return type",
+                surfaceRules = publicSystemModuleRules,
+                sources =
+                    listOf(
+                        java(
+                            """
+                                package test.pkg;
+
+                                public abstract class Base<T> {
+                                    public abstract T method();
+                                }
+                            """
+                        ),
+                        java(
+                            """
+                                package test.pkg;
+
+                                public class Middle extends Base<String> {
+                                    $HIDE
+                                    @Override
+                                    public String method() {
+                                        return null;
+                                    }
+                                }
+                            """
+                        ),
+                        java(
+                            """
+                                package test.pkg;
+
+                                public class Sub extends Middle {
+                                    @Override
+                                    public String method() {
+                                        return null;
+                                    }
+                                }
+                            """
+                        ),
+                    ),
+            ) {
+                // Middle.method() is marked @Hide and overrides a class method, so it does
+                // not inherit the public(C) API variant from Base.method().
+                surfaceTest(
+                    surface = "module",
+                    expected =
+                        """
+                            package test.pkg
+                                   self - ApiVariantSet[public(C)]
+                                content - ApiVariantSet[]
+                              class test.pkg.Base
+                                     self - ApiVariantSet[public(C)]
+                                  content - ApiVariantSet[]
+                                constructor test.pkg.Base()
+                                       self - ApiVariantSet[public(C)]
+                                    content - ApiVariantSet[]
+                                method test.pkg.Base.method()
+                                       self - ApiVariantSet[public(C)]
+                                    content - ApiVariantSet[]
+                              class test.pkg.Middle
+                                     self - ApiVariantSet[public(C)]
+                                  content - ApiVariantSet[]
+                                constructor test.pkg.Middle()
+                                       self - ApiVariantSet[public(C)]
+                                    content - ApiVariantSet[]
+                                method test.pkg.Middle.method()
+                                       self - ApiVariantSet[]
+                                    content - ApiVariantSet[]
+                              class test.pkg.Sub
+                                     self - ApiVariantSet[public(C)]
+                                  content - ApiVariantSet[]
+                                constructor test.pkg.Sub()
+                                       self - ApiVariantSet[public(C)]
+                                    content - ApiVariantSet[]
+                                method test.pkg.Sub.method()
+                                       self - ApiVariantSet[public(C)]
+                                    content - ApiVariantSet[]
+                        """,
+                )
+            }
+
+            buildTests(
+                name = "system class overriding method from removed public class marked as @Hide",
+                surfaceRules = publicSystemModuleRules,
+                sources =
+                    listOf(
+                        java(
+                            """
+                                package test.pkg;
+
+                                $REMOVED_FROM_API
+                                public class RemovedPublicClass {
+                                    public void method() {}
+                                }
+                            """
+                        ),
+                        java(
+                            """
+                                package test.pkg;
+
+                                $SYSTEM_API
+                                public class SystemClass extends RemovedPublicClass {
+                                    $HIDE
+                                    @Override
+                                    public void method() {}
+                                }
+                            """
+                        ),
+                    ),
+            ) {
+                // The removed status is not inherited by the overriding method.
+                surfaceTest(
+                    surface = "module",
+                    expected =
+                        """
+                            package test.pkg
+                                   self - ApiVariantSet[public(R),system(C)]
+                                content - ApiVariantSet[]
+                              class test.pkg.RemovedPublicClass
+                                     self - ApiVariantSet[public(R)]
+                                  content - ApiVariantSet[]
+                                constructor test.pkg.RemovedPublicClass()
+                                       self - ApiVariantSet[public(R)]
+                                    content - ApiVariantSet[]
+                                method test.pkg.RemovedPublicClass.method()
+                                       self - ApiVariantSet[public(R)]
+                                    content - ApiVariantSet[]
+                              class test.pkg.SystemClass
+                                     self - ApiVariantSet[system(C)]
+                                  content - ApiVariantSet[]
+                                constructor test.pkg.SystemClass()
+                                       self - ApiVariantSet[system(C)]
+                                    content - ApiVariantSet[]
+                                method test.pkg.SystemClass.method()
+                                       self - ApiVariantSet[]
+                                    content - ApiVariantSet[]
+                        """,
+                )
+            }
+
+            buildTests(
+                name = "inaccessible class extending and implementing method from public class",
+                surfaceRules = publicSystemModuleRules,
+                sources =
+                    listOf(
+                        java(
+                            """
+                                package test.pkg;
+
+                                public abstract class PublicClass {
+                                    public abstract void method();
+                                }
+                            """
+                        ),
+                        java(
+                            """
+                                package test.pkg;
+
+                                class InaccessibleClass extends PublicClass {
+                                    @Override
+                                    public void method() {}
+                                }
+                            """
+                        ),
+                    ),
+            ) {
+                surfaceTest(
+                    surface = "public",
+                    expected =
+                        """
+                            package test.pkg
+                                   self - ApiVariantSet[public(C)]
+                                content - ApiVariantSet[]
+                              class test.pkg.PublicClass
+                                     self - ApiVariantSet[public(C)]
+                                  content - ApiVariantSet[]
+                                constructor test.pkg.PublicClass()
+                                       self - ApiVariantSet[public(C)]
+                                    content - ApiVariantSet[]
+                                method test.pkg.PublicClass.method()
+                                       self - ApiVariantSet[public(C)]
+                                    content - ApiVariantSet[]
+                              class test.pkg.InaccessibleClass
+                                     self - ApiVariantSet[]
+                                  content - ApiVariantSet[]
+                                constructor test.pkg.InaccessibleClass()
+                                       self - ApiVariantSet[]
+                                    content - ApiVariantSet[]
+                                method test.pkg.InaccessibleClass.method()
+                                       self - ApiVariantSet[]
+                                    content - ApiVariantSet[]
+                        """,
+                )
+            }
+        }
+    }
+}

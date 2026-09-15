@@ -23,18 +23,21 @@ import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.CodebaseFragment
 import com.android.tools.metalava.model.snapshot.EmittableDelegatingVisitor
 import com.android.tools.metalava.model.source.EnvironmentManager
+import com.android.tools.metalava.model.source.SourceParser
 import com.android.tools.metalava.model.source.SourceSet
 import com.android.tools.metalava.reporter.ThrowingReporter
 import com.android.tools.metalava.testing.TestFileCache
 import com.android.tools.metalava.testing.TestFileCacheRule
 import com.android.tools.metalava.testing.cacheIn
 import com.android.tools.metalava.testing.getAndroidJar
+import com.android.tools.metalava.testing.getNoopTracer
 import com.android.tools.metalava.testing.jarFromSources
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.signature
 import java.io.PrintWriter
 import java.io.StringWriter
 import kotlin.test.assertEquals
+import kotlin.test.assertNotNull
 import org.junit.ClassRule
 import org.junit.Rule
 import org.junit.Test
@@ -102,7 +105,7 @@ class ApiUpdateConsistencyTest : DriverTest() {
     private fun versionedSignatureApi(contents: String): VersionedApiFactory {
         return { version ->
             val testFile = signature("$version.txt", contents)
-            val file = testFile.createFile(temporaryFolder.root)
+            val file = testFile.toFile()
             VersionedSignatureApi(
                 DefaultSignatureFileLoader(Codebase.Config.NOOP),
                 listOf(file),
@@ -117,7 +120,8 @@ class ApiUpdateConsistencyTest : DriverTest() {
      */
     private fun versionedSourceApi(vararg sourceFiles: TestFile): VersionedApiFactory {
         return { version ->
-            val parser = environmentManager.createSourceParser(Codebase.Config.NOOP)
+            val parser =
+                environmentManager.createSourceParser(Codebase.Config.NOOP, getNoopTracer())
             val sourceSet =
                 SourceSet.createFromSourcePath(
                     ThrowingReporter.INSTANCE,
@@ -127,17 +131,23 @@ class ApiUpdateConsistencyTest : DriverTest() {
                 listOf(
                     getAndroidJar(30),
                 )
-            val codebase =
-                parser.parseSources(
+
+            val inputs =
+                SourceParser.Inputs(
                     sourceSet,
                     "version $version",
                     classPath,
-                    apiPackages = null,
-                    projectDescription = null,
-                    compiledSourceJar = null,
                 )
 
-            val codebaseFragment = CodebaseFragment.create(codebase, ::EmittableDelegatingVisitor)
+            val codebase = parser.parseSources(inputs)
+
+            assertNotNull(codebase, message = "Codebase was not created")
+
+            val codebaseFragment =
+                CodebaseFragment.create(
+                    codebase,
+                    factory = ::EmittableDelegatingVisitor,
+                )
             VersionedSourceApi({ codebaseFragment }, version)
         }
     }
