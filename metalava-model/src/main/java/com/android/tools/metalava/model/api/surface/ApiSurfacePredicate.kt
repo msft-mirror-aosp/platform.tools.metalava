@@ -187,6 +187,69 @@ object ApiSurfacePredicate {
     }
 
     /**
+     * A [FilterPredicate] that determines whether an item should be traversed when visiting an API
+     * surface delta matching [inclusionMask].
+     *
+     * Matches an item if:
+     * * The item itself belongs to a matching variant via [SelectedApi.itemApiVariants].
+     * * The item is a class whose contents belong to a matching variant via
+     *   [SelectedApi.contentApiVariants]. This ensures that base classes containing delta members
+     *   are traversed rather than skipped, allowing visitors to reach those delta members.
+     * * The item is a class whose super class belongs to a matching variant via
+     *   [SelectedApi.superClassApiVariants]. This ensures that classes extending a super class in
+     *   this delta surface are traversed to accurately reveal the inheritance hierarchy.
+     */
+    private class TraversalPredicate(apiSurfaces: ApiSurfaces, inclusionMask: Int) :
+        ApiVariantsPredicate(apiSurfaces, inclusionMask) {
+        override fun test(t: SelectableItem) =
+            t.selectedApi.run {
+                itemApiVariants.bits and inclusionMask != 0 ||
+                    contentApiVariants.bits and inclusionMask != 0 ||
+                    superClassApiVariants.bits and inclusionMask != 0
+            }
+    }
+
+    /**
+     * Return [ApiFilters] for traversing and analyzing items belonging to the [apiSurface] delta
+     * for the given [apiType].
+     *
+     * The returned filters:
+     * - [ApiFilters.reference]: matches types referenced across the entire API surface hierarchy
+     *   (including base surfaces that [apiSurface] extends).
+     * - [ApiFilters.emit]: matches items that belong to the [apiSurface] delta and are marked for
+     *   emission (without eliding method overrides).
+     * - [ApiFilters.traversal]: matches items in the delta, classes containing delta members (via
+     *   [SelectedApi.contentApiVariants]), and classes extending delta classes (via
+     *   [SelectedApi.superClassApiVariants]), allowing visitors to traverse into base classes that
+     *   contain delta members while skipping unrelated items.
+     */
+    fun forSurfaceFilters(apiType: ApiType, apiSurface: ApiSurface): ApiFilters {
+        // Items in this API surface can reference types or paired methods across the whole API
+        // surface hierarchy (including base surfaces that this surface extends).
+        val reference = referenceFilter(apiType, apiSurface)
+
+        // Create a mask matching the specific variant for this API surface delta.
+        val variantType =
+            if (apiType == ApiType.REMOVED) ApiVariantType.REMOVED else ApiVariantType.CORE
+        val variants = listOf(apiSurface.variantFor(variantType))
+        val emitMask = apiSurface.surfaces.createVariantSet(variants).bits
+
+        // Emitted items must belong to this delta (or have a superclass in the delta) and be
+        // marked for emission.
+        val emit = EMITTED_ONLY.and(DeltaVariantsPredicate(apiSurface.surfaces, emitMask))
+
+        // Traversal includes items in the delta as well as base classes whose contents belong to
+        // the delta (via contentApiVariants) so that visitors can visit delta members within
+        // base classes.
+        val traversal = EMITTED_ONLY.and(TraversalPredicate(apiSurface.surfaces, emitMask))
+        return ApiFilters(
+            reference = reference,
+            emit = emit,
+            traversal = traversal,
+        )
+    }
+
+    /**
      * Return a [FilterPredicate] that matches items belonging to the [apiSurface] delta for the
      * given [apiType] and marked for emission.
      *
