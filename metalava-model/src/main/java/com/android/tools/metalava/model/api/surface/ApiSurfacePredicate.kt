@@ -46,6 +46,9 @@ object ApiSurfacePredicate {
     /** [ApiVariantType]s for core-only APIs. */
     private val coreOnlyVariantTypes = listOf(ApiVariantType.CORE)
 
+    /** [ApiVariantType]s for removed-only APIs. */
+    private val removedOnlyVariantTypes = listOf(ApiVariantType.REMOVED)
+
     /** [ApiVariantType]s for core APIs and doc-only APIs. */
     private val corePlusDocOnlyVariantTypes = listOf(ApiVariantType.CORE, ApiVariantType.DOC_ONLY)
 
@@ -84,17 +87,12 @@ object ApiSurfacePredicate {
         apiSurface: ApiSurface,
         variantTypes: List<ApiVariantType>,
     ): FilterPredicate {
-        val surfacesToInclude = apiSurface.includedSurfaces
-
-        val variants = buildList {
-            for (surface in surfacesToInclude) {
-                for (variantType in variantTypes) {
-                    add(surface.variantFor(variantType))
-                }
-            }
-        }
-
-        val inclusionMask = apiSurface.surfaces.createVariantSet(variants).bits
+        val inclusionMask =
+            computeInclusionMask(
+                apiSurface.surfaces,
+                apiSurface.includedSurfaces,
+                variantTypes,
+            )
 
         return ItemApiVariantsPredicate(apiSurface.surfaces, inclusionMask)
     }
@@ -157,10 +155,13 @@ object ApiSurfacePredicate {
         apiSurface: ApiSurface,
         forRemoved: Boolean,
     ): FilterPredicate {
-        val variantType = if (forRemoved) ApiVariantType.REMOVED else ApiVariantType.CORE
-        val variants = listOf(apiSurface.variantFor(variantType))
-
-        val inclusionMask = apiSurface.surfaces.createVariantSet(variants).bits
+        val variantTypes = if (forRemoved) removedOnlyVariantTypes else coreOnlyVariantTypes
+        val inclusionMask =
+            computeInclusionMask(
+                apiSurface.surfaces,
+                setOf(apiSurface),
+                variantTypes,
+            )
 
         return DeltaVariantsPredicate(apiSurface.surfaces, inclusionMask)
     }
@@ -267,4 +268,24 @@ object ApiSurfacePredicate {
             reference = referenceFilter(apiType, apiPredicateConfig.apiSurface),
             emit = nonElidingFilter(apiType, apiPredicateConfig.apiSurface),
         )
+
+    /**
+     * Compute the bitmask for the [ApiVariantSet] containing the [variantTypes] of each
+     * [ApiSurface] in [includedSurfaces].
+     */
+    private fun computeInclusionMask(
+        apiSurfaces: ApiSurfaces,
+        includedSurfaces: Collection<ApiSurface>,
+        variantTypes: List<ApiVariantType>,
+    ): Int {
+        val variants = buildList {
+            for (surface in includedSurfaces) {
+                for (variantType in variantTypes) {
+                    add(surface.variantFor(variantType))
+                }
+            }
+        }
+
+        return apiSurfaces.createVariantSet(variants).bits
+    }
 }
