@@ -29,18 +29,6 @@ import com.android.tools.metalava.model.visitors.ApiType
 /** Factory for creating [FilterPredicate] instances based on [ApiSurface]s and [ApiVariant]s. */
 object ApiSurfacePredicate {
 
-    /** [ApiVariantType]s for core-only APIs. */
-    private val coreOnlyVariantTypes = listOf(ApiVariantType.CORE)
-
-    /** [ApiVariantType]s for removed-only APIs. */
-    private val removedOnlyVariantTypes = listOf(ApiVariantType.REMOVED)
-
-    /** [ApiVariantType]s for core APIs and doc-only APIs. */
-    private val corePlusDocOnlyVariantTypes = listOf(ApiVariantType.CORE, ApiVariantType.DOC_ONLY)
-
-    /** [ApiVariantType]s for core APIs and removed APIs. */
-    private val corePlusRemovedVariantTypes = listOf(ApiVariantType.CORE, ApiVariantType.REMOVED)
-
     /**
      * Return a [FilterPredicate] that matches any item that belongs to the core [ApiVariant] of
      * [apiSurface] or any surface that it includes.
@@ -48,7 +36,7 @@ object ApiSurfacePredicate {
     fun wholeCoreApi(
         apiSurface: ApiSurface,
         includeOverridingMethods: Boolean = false,
-    ) = wholeApiForVariants(apiSurface, coreOnlyVariantTypes, includeOverridingMethods)
+    ) = wholeApiForVariants(apiSurface, ApiType.CORE.emitVariantTypes, includeOverridingMethods)
 
     /**
      * Return a [FilterPredicate] that matches any item that belongs to the core [ApiVariant] of
@@ -71,7 +59,12 @@ object ApiSurfacePredicate {
     fun wholeCoreAndRemovedApi(
         apiSurface: ApiSurface,
         includeOverridingMethods: Boolean = false,
-    ) = wholeApiForVariants(apiSurface, corePlusRemovedVariantTypes, includeOverridingMethods)
+    ) =
+        wholeApiForVariants(
+            apiSurface,
+            ApiType.REMOVED.referenceVariantTypes,
+            includeOverridingMethods
+        )
 
     /**
      * Return a [FilterPredicate] that matches any item that belongs to any of [variantTypes] of
@@ -189,7 +182,9 @@ object ApiSurfacePredicate {
         apiSurface: ApiSurface,
         includeDocOnly: Boolean,
     ): ApiFilters {
-        val variantTypes = if (includeDocOnly) corePlusDocOnlyVariantTypes else coreOnlyVariantTypes
+        val variantTypes =
+            if (includeDocOnly) ApiType.CORE_PLUS_DOC_ONLY.emitVariantTypes
+            else ApiType.CORE.emitVariantTypes
         val filterReference =
             wholeApiForVariants(
                 apiSurface,
@@ -233,8 +228,7 @@ object ApiSurfacePredicate {
         apiSurface: ApiSurface,
         includeOverridingMethods: Boolean = false,
     ): FilterPredicate {
-        val variantTypes =
-            if (apiType == ApiType.REMOVED) removedOnlyVariantTypes else coreOnlyVariantTypes
+        val variantTypes = apiType.emitVariantTypes
         val apiSurfaces = apiSurface.surfaces
         val inclusionMask =
             computeVariantBitMask(
@@ -278,8 +272,7 @@ object ApiSurfacePredicate {
         val reference = referenceFilter(apiType, apiSurface, includeOverridingMethods)
 
         // Create a mask matching the specific variant for this API surface delta.
-        val variantTypes =
-            if (apiType == ApiType.REMOVED) removedOnlyVariantTypes else coreOnlyVariantTypes
+        val variantTypes = apiType.emitVariantTypes
         val emitMask = computeVariantBitMask(apiSurface.surfaces, listOf(apiSurface), variantTypes)
 
         // Emitted items must belong to this delta (or have a superclass in the delta) and be
@@ -324,8 +317,7 @@ object ApiSurfacePredicate {
         apiType: ApiType,
         apiSurface: ApiSurface,
     ): FilterPredicate {
-        val variantTypes =
-            if (apiType == ApiType.REMOVED) removedOnlyVariantTypes else coreOnlyVariantTypes
+        val variantTypes = apiType.emitVariantTypes
         val mask = computeVariantBitMask(apiSurface.surfaces, listOf(apiSurface), variantTypes)
 
         return NotElidablePredicate(apiSurface.surfaces, mask)
@@ -395,16 +387,7 @@ object ApiSurfacePredicate {
         apiSurface: ApiSurface,
         includeOverridingMethods: Boolean = false,
     ): FilterPredicate =
-        when (apiType) {
-            ApiType.CORE ->
-                // Emitted APIs can reference types (such as superclasses, interfaces, parameter
-                // types, or thrown exceptions) that belong to any API surface extended by the
-                // target surface, so references must match across the whole API surface.
-                wholeCoreApi(apiSurface, includeOverridingMethods)
-            ApiType.REMOVED ->
-                // References in removed APIs can refer to types across the whole API surface.
-                wholeCoreAndRemovedApi(apiSurface, includeOverridingMethods)
-        }
+        wholeApiForVariants(apiSurface, apiType.referenceVariantTypes, includeOverridingMethods)
 
     /**
      * Return the [ApiFilters] for [apiType] using information from [apiSurface] to customize their

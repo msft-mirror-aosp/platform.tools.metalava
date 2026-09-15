@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model.visitors
 
+import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.api.surface.ApiVariant
 import com.android.tools.metalava.model.api.surface.ApiVariantType
 
@@ -25,10 +26,47 @@ import com.android.tools.metalava.model.api.surface.ApiVariantType
  * This correlates closely with the [ApiVariantType] type except while that relates to individual
  * [ApiVariant]s this relates to the whole API.
  */
-enum class ApiType {
-    /** The core API, i.e. the core part used by apps. */
-    CORE,
+enum class ApiType(
+    /**
+     * The [ApiVariantType]s of items to emit for this [ApiType].
+     *
+     * Also provides the default for [referenceVariantTypes].
+     */
+    val emitVariantTypes: List<ApiVariantType>,
 
-    /** Parts of the API that used to be in [CORE] but have since been removed. */
-    REMOVED,
+    /**
+     * The [ApiVariantType]s that can be referenced by APIs of this [ApiType] across the target API
+     * surface and any surfaces it extends.
+     *
+     * Defaults to [emitVariantTypes].
+     */
+    val referenceVariantTypes: List<ApiVariantType> = emitVariantTypes,
+) {
+    /**
+     * The core API, i.e. the core part used by apps.
+     *
+     * It emits and can reference [SelectableItem]s with [ApiVariantType.CORE] [ApiVariant]s.
+     */
+    CORE(
+        emitVariantTypes = listOf(ApiVariantType.CORE),
+    ),
+
+    /**
+     * Parts of the API that used to be in [CORE] but have since been removed.
+     *
+     * It emits [SelectableItem]s with [ApiVariantType.REMOVED] [ApiVariant]s and can reference
+     * those with either [ApiVariantType.CORE] or [ApiVariantType.REMOVED] [ApiVariant]s.
+     */
+    REMOVED(
+        emitVariantTypes = listOf(ApiVariantType.REMOVED),
+        referenceVariantTypes = listOf(ApiVariantType.CORE, ApiVariantType.REMOVED),
+    ),
+
+    /**
+     * The core API plus additional [SelectableItem]s with [ApiVariantType.DOC_ONLY] [ApiVariant]s,
+     * i.e. are included only for documentation purposes.
+     */
+    CORE_PLUS_DOC_ONLY(
+        emitVariantTypes = listOf(ApiVariantType.CORE, ApiVariantType.DOC_ONLY),
+    ),
 }
