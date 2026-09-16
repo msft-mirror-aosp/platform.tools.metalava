@@ -325,7 +325,7 @@ sealed class ApiVariantSelectors {
             }
 
             // Propagate hidden status from fields to properties.
-            if (item is PropertyItem && item.backingField?.hidden == true) {
+            if (item is PropertyItem && item.backingField?.variantSelectors?.hidden == true) {
                 hidden = true
             }
 
@@ -400,7 +400,7 @@ sealed class ApiVariantSelectors {
             val parent = item.parent() ?: return
 
             // If the parent is not hidden then everything is fine.
-            if (!parent.hidden) {
+            if (!parent.variantSelectors.hidden) {
                 return
             }
 
