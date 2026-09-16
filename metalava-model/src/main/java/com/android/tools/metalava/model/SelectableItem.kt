@@ -39,40 +39,10 @@ interface SelectableItem : Item, ReferencableNameScope {
     var emit: Boolean
 
     /**
-     * Whether this element has been hidden with @hide/@Hide (or after propagation, in some
-     * containing class/pkg)
-     *
-     * @see variantSelectors
-     */
-    val hidden: Boolean
-
-    /**
      * Tracks the properties that determine whether this [Item] will be selected for each API
      * variant.
-     *
-     * @see hidden
-     * @see removed
      */
     val variantSelectors: ApiVariantSelectors
-
-    /**
-     * Recursive check to see if this item or any of its parents (containing class, containing
-     * package) are hidden
-     */
-    fun hidden(): Boolean {
-        return hidden || parent()?.hidden() ?: false
-    }
-
-    /**
-     * Whether this element has been removed with @removed/@Remove (or after propagation, in some
-     * containing class)
-     *
-     * @see variantSelectors
-     */
-    val removed: Boolean
-
-    /** True if this item is either hidden or removed */
-    fun isHiddenOrRemoved(): Boolean = hidden() || removed
 
     /** Returns true if this modifier list contains any hide annotations */
     fun hasHideAnnotation(): Boolean = codebase.annotationManager.hasHideAnnotations(modifiers)
