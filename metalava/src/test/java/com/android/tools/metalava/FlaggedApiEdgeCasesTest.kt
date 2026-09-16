@@ -219,9 +219,6 @@ class FlaggedApiEdgeCasesTest : DriverTest() {
                     java(
                         """
                             package test.pkg;
-                            /**
-                            * @hide
-                            */
                             @$ANDROID_FLAGGED_API("flag.name")
                             @$ANDROID_SYSTEM_API
                             public class Test {
@@ -241,7 +238,6 @@ class FlaggedApiEdgeCasesTest : DriverTest() {
                     java(
                         """
                             package test.pkg;
-                            /** */
                             @SuppressWarnings({"unchecked", "deprecation", "all"})
                             public class Test {
                             Test() { throw new RuntimeException("Stub!"); }

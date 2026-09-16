@@ -659,8 +659,7 @@ class ApiAnalyzer(
                 // calling `isHidden` because when API surfaces are configured in a config file,
                 // `isHidden` returns false for `@hide` Javadoc tags. However, we still want to
                 // flag this warning if the developer explicitly included a `@hide` tag.
-                item.documentation?.hasBlockTagOfType("hide") == true &&
-                !item.showability.showNonRecursive()
+                item.documentation?.hasBlockTagOfType("hide") == true
         ) {
             item.modifiers
                 .annotations()
