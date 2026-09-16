@@ -142,7 +142,7 @@ internal class ApiContents(
 
         // Report issues before checking to see if this class has been visited before so that it
         // will report all references to the hidden class.
-        if (cl.selectedApi.isHiddenOrRemoved()) {
+        if (cl.isHiddenOrRemoved()) {
             // If the class is public or protected, it would normally be visible in the API,
             // but has been excluded from this API surface (e.g., via `@hide`), so it is "hidden".
             // Otherwise, it is excluded simply because of its language-level visibility.
@@ -204,7 +204,7 @@ internal class ApiContents(
             }
 
             if (
-                superItem.selectedApi.isHiddenOrRemoved() &&
+                superItem.isHiddenOrRemoved() &&
                     (superItem.modifiers.isPublic() || superItem.modifiers.isProtected())
             ) {
                 // cl is a public class declared as extending a hidden superclass or implementing
@@ -310,4 +310,4 @@ internal class ApiContents(
 
 /** Returns true if this item is public or protected and so a candidate for inclusion in an API. */
 internal fun SelectableItem.isApiCandidate() =
-    !selectedApi.isHiddenOrRemoved() && (modifiers.isPublic() || modifiers.isProtected())
+    !isHiddenOrRemoved() && (modifiers.isPublic() || modifiers.isProtected())

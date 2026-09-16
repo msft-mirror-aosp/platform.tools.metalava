@@ -99,11 +99,7 @@ class SdkFileWriter(val codebase: Codebase, private val outputDir: File) {
 
             // Now check the class for @Widget or if its in the android.widget package
             // (unless the class is hidden or abstract, or non public)
-            if (
-                !clazz.selectedApi.isHiddenOrRemoved() &&
-                    clazz.isPublic &&
-                    !clazz.modifiers.isAbstract()
-            ) {
+            if (!clazz.isHiddenOrRemoved() && clazz.isPublic && !clazz.modifiers.isAbstract()) {
                 var annotated = false
                 val annotations = clazz.modifiers.annotations()
                 if (annotations.isNotEmpty()) {

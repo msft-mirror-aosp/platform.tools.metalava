@@ -510,7 +510,7 @@ class ApiAnalyzer(
         // complain about anything that looks includeable but is not supposed to
         // be written, e.g. hidden things
         for (cl in notStrippable) {
-            if (!cl.selectedApi.isHiddenOrRemoved()) {
+            if (!cl.isHiddenOrRemoved()) {
                 val publiclyConstructable =
                     !cl.modifiers.isSealed() && cl.constructors().any { it.isApiCandidate() }
                 for (m in
@@ -654,7 +654,7 @@ class ApiAnalyzer(
                     // surface. Package-private and private classes are "not public" and are
                     // handled separately by ReferencesHidden.
                     if (
-                        asClass.selectedApi.isHiddenOrRemoved() &&
+                        asClass.isHiddenOrRemoved() &&
                             (asClass.modifiers.isPublic() || asClass.modifiers.isProtected())
                     ) {
                         hiddenClasses.add(asClass)

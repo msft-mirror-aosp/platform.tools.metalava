@@ -70,12 +70,6 @@ sealed class SelectedApi {
     open fun hasRemovedAnnotation(): Boolean = false
 
     /**
-     * Check whether this is hidden or removed, i.e. it is either empty (not present in any API
-     * variant, thus hidden) or only contains [ApiVariantType.REMOVED] variants.
-     */
-    fun isHiddenOrRemoved() = itemApiVariants.isHiddenOrRemoved()
-
-    /**
      * Initialize this instance.
      *
      * This is called after this has been created and assigned to

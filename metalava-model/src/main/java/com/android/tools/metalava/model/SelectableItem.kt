@@ -44,6 +44,9 @@ interface SelectableItem : Item, ReferencableNameScope {
      */
     val variantSelectors: ApiVariantSelectors
 
+    /** True if this item is either hidden or removed */
+    fun isHiddenOrRemoved() = selectedApi.itemApiVariants.isHiddenOrRemoved()
+
     /** Returns true if this modifier list contains any hide annotations */
     fun hasHideAnnotation(): Boolean = codebase.annotationManager.hasHideAnnotations(modifiers)
 
