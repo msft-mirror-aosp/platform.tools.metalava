@@ -18,8 +18,6 @@ package com.android.tools.metalava.model.testsuite.sourcefile
 
 import com.android.tools.lint.checks.infrastructure.TestFile
 import com.android.tools.lint.checks.infrastructure.TestFiles
-import com.android.tools.metalava.model.FilterPredicate
-import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.SourceFile
 import com.android.tools.metalava.model.provider.InputFormat
 import com.android.tools.metalava.model.testing.SupportedInputFormats
@@ -32,10 +30,6 @@ import org.junit.Test
 
 /** Common tests for implementations of [SourceFile]. */
 class CommonSourceFileTest : BaseModelTest() {
-    internal class FilterHidden : FilterPredicate {
-        override fun test(item: SelectableItem): Boolean = !item.isHiddenOrRemoved()
-    }
-
     @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `Test location of class file - java`() {
