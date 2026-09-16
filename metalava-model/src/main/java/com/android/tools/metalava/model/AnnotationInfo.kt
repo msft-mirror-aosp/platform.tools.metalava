@@ -192,13 +192,6 @@ data class Showability(
     fun showRecursive() = recursive.show(revertItem)
 
     /**
-     * Check whether the annotations on this item only affect the current `Item`.
-     *
-     * Returns `true` if they do, `false` if they can also affect nested `Item`s.
-     */
-    fun showNonRecursive() = show.show(revertItem) && !recursive.show(revertItem)
-
-    /**
      * Check whether the annotated item should be hidden from the API.
      *
      * Returns `true` if the annotation matches an `--hide-annotation`.
