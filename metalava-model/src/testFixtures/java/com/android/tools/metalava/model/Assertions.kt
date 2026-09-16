@@ -158,6 +158,16 @@ interface Assertions {
         assertEquals(expected.trimIndent(), actual.trimEnd(), message)
     }
 
+    /**
+     * Assert that the [SelectedApi.itemApiVariants] of this [SelectableItem], formatted for
+     * [Codebase.apiSurfaces], matches [expected].
+     */
+    fun SelectableItem.assertItemApiVariants(expected: String, message: String? = null) {
+        val apiSurfaces = codebase.apiSurfaces
+        val actual = selectedApi.itemApiVariants.formatFor(apiSurfaces)
+        assertEquals(expected, actual, message)
+    }
+
     /** Get the field from the [ClassItem], failing if it does not exist. */
     fun ClassItem.assertField(fieldName: String): FieldItem {
         val fieldItem = findField(fieldName)

@@ -39,14 +39,6 @@ interface SelectableItem : Item, ReferencableNameScope {
     var emit: Boolean
 
     /**
-     * Whether this element was originally hidden with @hide/@Hide. The [hidden] property tracks
-     * whether it is *actually* hidden, since elements can be unhidden via show annotations, etc.
-     *
-     * @see variantSelectors
-     */
-    val originallyHidden: Boolean
-
-    /**
      * Whether this element has been hidden with @hide/@Hide (or after propagation, in some
      * containing class/pkg)
      *
@@ -58,7 +50,6 @@ interface SelectableItem : Item, ReferencableNameScope {
      * Tracks the properties that determine whether this [Item] will be selected for each API
      * variant.
      *
-     * @see originallyHidden
      * @see hidden
      * @see removed
      */

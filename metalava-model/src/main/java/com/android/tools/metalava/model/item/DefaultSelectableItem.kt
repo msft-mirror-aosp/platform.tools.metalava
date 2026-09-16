@@ -88,13 +88,6 @@ internal sealed class DefaultSelectableItem(
      */
     override val variantSelectors = @Suppress("LeakingThis") variantSelectorsFactory(this)
 
-    /**
-     * Manually delegate to [ApiVariantSelectors.originallyHidden] as property delegates are
-     * expensive.
-     */
-    final override val originallyHidden
-        get() = variantSelectors.originallyHidden
-
     /** Manually delegate to [ApiVariantSelectors.hidden] as property delegates are expensive. */
     final override val hidden
         get() = variantSelectors.hidden
