@@ -77,13 +77,6 @@ interface SelectableItem : Item, ReferencableNameScope {
     /** Determines whether this item will be shown as part of the API or not. */
     val showability: Showability
 
-    /**
-     * Returns true if this item has any show annotations.
-     *
-     * See [Showability.show]
-     */
-    fun hasShowAnnotation(): Boolean = showability.show()
-
     /** Returns true if this modifier list contains any hide annotations */
     fun hasHideAnnotation(): Boolean = codebase.annotationManager.hasHideAnnotations(modifiers)
 

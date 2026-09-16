@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model.api
 
+import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.BaseModifierList
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassOrigin
@@ -48,6 +49,9 @@ class SelectedApiUpdater(
      */
     internal val defaultVariantSet =
         apiSurfaceSelector.unannotatedApiSurface?.defaultVariantSet ?: ApiVariantSet.EMPTY
+
+    /** Only check for hidden show annotations if it is not suppressed. */
+    private val checkHiddenShowAnnotations = !reporter.isSuppressed(Issues.HIDDEN_SHOW_ANNOTATION)
 
     /** Check whether this [SelectableItem] has an `@hide` doc tag. */
     private val SelectableItem.hasHideDocTag: Boolean
@@ -218,6 +222,11 @@ class SelectedApiUpdater(
                         inheritableApiVariants.intersectionWith(narrowestSurface.variantSet)
                 }
             }
+
+            // Ensure that an item with show annotations is not explicitly marked with @hide.
+            if (checkHiddenShowAnnotations) {
+                checkEnsureShowAnnotationsAreNotExplicitlyHidden(item)
+            }
         }
 
         // Check to see if any show rules matched; if they had then they would have set
@@ -350,6 +359,38 @@ class SelectedApiUpdater(
                     annotationItem.fileLocation,
                 )
             }
+        }
+    }
+
+    /**
+     * Check to make sure that [item] does not have show annotations without being explicitly
+     * hidden.
+     */
+    private fun checkEnsureShowAnnotationsAreNotExplicitlyHidden(item: SelectableItem) {
+        if (
+            // Only check for @hide doc tag. Testing for annotations would complicate this
+            // because it would be necessary to differentiate between an annotation that hides
+            // items from all API surfaces and one that is hiding items that are part of a
+            // different API surface.
+            //
+            // We check the block tag physically (using `hasBlockTagOfType("hide")`) instead of
+            // calling `isHidden` because when API surfaces are configured in a config file,
+            // `isHidden` returns false for `@hide` Javadoc tags. However, we still want to
+            // flag this warning if the developer explicitly included a `@hide` tag.
+            item.documentation?.hasBlockTagOfType("hide") == true
+        ) {
+            item.modifiers
+                .annotations()
+                // Find the first show annotation.
+                .firstOrNull(AnnotationItem::isShowAnnotation)
+                ?.let { annotation ->
+                    val annotationName = annotation.qualifiedName
+                    reporter.report(
+                        Issues.HIDDEN_SHOW_ANNOTATION,
+                        item,
+                        "@$annotationName APIs must not be marked @hide: ${item.describe()}"
+                    )
+                }
         }
     }
 
