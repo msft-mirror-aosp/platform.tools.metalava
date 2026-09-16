@@ -203,7 +203,10 @@ internal class ApiContents(
                 continue
             }
 
-            if (superItem.isHiddenOrRemoved()) {
+            if (
+                superItem.selectedApi.isHiddenOrRemoved() &&
+                    (superItem.modifiers.isPublic() || superItem.modifiers.isProtected())
+            ) {
                 // cl is a public class declared as extending a hidden superclass or implementing
                 // a hidden interface. This is not a desired practice, but it's happened, so we deal
                 // with it by finding the first super class which passes checkLevel for purposes of
