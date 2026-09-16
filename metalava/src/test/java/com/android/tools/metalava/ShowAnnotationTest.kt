@@ -244,57 +244,6 @@ class ShowAnnotationTest : DriverTest() {
     }
 
     @Test
-    fun `No UnhiddenSystemApi warning for non-recursive show annotation`() {
-        check(
-            apiSurface = KnownApiSurface.NON_RECURSIVE_SYSTEM,
-            expectedIssues = "",
-            sourceFiles =
-                arrayOf(
-                    java(
-                        """
-                    package test.pkg;
-                    import android.annotation.SystemApi;
-                    public class Foo {
-                        public void method1() { }
-
-                        /**
-                         * @hide Only for use by WebViewProvider implementations
-                         */
-                        @SystemApi
-                        public void method2() { }
-
-                        /**
-                         * @hide Always hidden
-                         */
-                        public void method3() { }
-
-                        @SystemApi
-                        public void method4() { }
-
-                    }
-                    """
-                    ),
-                    java(
-                        """
-                    package foo.bar;
-                    public class Bar {
-                    }
-                """
-                    ),
-                ),
-            expectedApiSignature =
-                """
-                package test.pkg {
-                  public class Foo {
-                    method public void method2();
-                    method public void method4();
-                  }
-                }
-                """
-        )
-    }
-
-    @Test
     fun `Can't expose item from a hidden parent`() {
         check(
             sourceFiles =
@@ -692,9 +641,7 @@ class ShowAnnotationTest : DriverTest() {
                     )
                 ),
             extraArguments =
-                hiddenIssues(
-                    Issues.UNHIDDEN_SYSTEM_API,
-                ) + arrayOf(ARG_SHOW_ANNOTATION, "kotlin.PublishedApi", ARG_SHOW_UNANNOTATED),
+                arrayOf(ARG_SHOW_ANNOTATION, "kotlin.PublishedApi", ARG_SHOW_UNANNOTATED),
             expectedApiSignature =
                 """
                 package test.pkg {

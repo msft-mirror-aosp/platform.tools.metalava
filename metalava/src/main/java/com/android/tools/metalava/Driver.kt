@@ -297,9 +297,9 @@ class Driver(
             // If the API surfaces are configured then any annotations that are used by related API
             // surfaces but which are not needed to track the target API surface and all those that
             // contribute to it are automatically treated as hidden. e.g. when generating the public
-            // API, @SystemApi is treated as a hide annotation. That means there is no need to
-            // perform the UnhiddenSystemApi check.
-            needUnhiddenSystemApiCheck = apiSelectionOptions.apiSurfaceName == null,
+            // API, @SystemApi is treated as a hide annotation. That means the HiddenShowAnnotation
+            // check should be performed to prevent them from being hidden.
+            needHiddenShowAnnotationCheck = apiSelectionOptions.apiSurfaceName != null,
         )
     }
 

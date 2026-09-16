@@ -316,10 +316,6 @@ class MultiplatformLintTest : DriverTest() {
                 ),
             showAnnotations = arrayOf("kotlin.PublishedApi"),
             hideAnnotations = arrayOf("test.pkg.Hide"),
-            extraArguments =
-                hiddenIssues(
-                    Issues.UNHIDDEN_SYSTEM_API,
-                ),
             expectedIssues =
                 """
                 commonMain/src/test/pkg/Foo.kt:3: error: multiplatform property test.pkg.Foo#hiddenInCommon is hidden with an annotation in source sets [commonMain] but not hidden with an annotation in source sets [androidMain, nativeMain] [KmpHideShowAnnotationMismatch]
