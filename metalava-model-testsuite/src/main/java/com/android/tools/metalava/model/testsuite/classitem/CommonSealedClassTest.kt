@@ -792,11 +792,8 @@ class CommonSealedClassTest : BaseModelTest() {
             // @PublishedApi which is configured as a show annotation.
             assertTrue(constructor.selectedApi.itemApiVariants.isNotEmpty())
 
-            // However, because the constructor is internal (neither public nor protected),
-            // isEffectivelySealed() accidentally treats the class as effectively sealed even
-            // though its constructor is part of the selected API.
-            // TODO: This should be false as the constructor is exposed in the API.
-            assertTrue(fooClass.isEffectivelySealed())
+            // Because the constructor is exposed in the API, the class is not effectively sealed.
+            assertFalse(fooClass.isEffectivelySealed())
         }
     }
 }
