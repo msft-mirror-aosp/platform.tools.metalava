@@ -102,11 +102,6 @@ class ApiAnalyzer(
 
         /** Configuration for [AnnotationsMerger] instances this needs to create. */
         val annotationsMergerConfig: AnnotationsMerger.Config = AnnotationsMerger.Config(),
-
-        /**
-         * Determines whether it is necessary to perform the [Issues.HIDDEN_SHOW_ANNOTATION] check.
-         */
-        val needHiddenShowAnnotationCheck: Boolean = true,
     )
 
     /** All packages in the API */
@@ -404,10 +399,8 @@ class ApiAnalyzer(
                 config.apiSurfaceName == "system" &&
                 !config.manifest.isEmpty()
 
-        // Only check for hidden show annotations if it is needed and it is not suppressed.
-        val checkHiddenShowAnnotations =
-            config.needHiddenShowAnnotationCheck &&
-                !reporter.isSuppressed(Issues.HIDDEN_SHOW_ANNOTATION)
+        // Only check for hidden show annotations if it is not suppressed.
+        val checkHiddenShowAnnotations = !reporter.isSuppressed(Issues.HIDDEN_SHOW_ANNOTATION)
 
         val apiFilters =
             ApiFilters(
