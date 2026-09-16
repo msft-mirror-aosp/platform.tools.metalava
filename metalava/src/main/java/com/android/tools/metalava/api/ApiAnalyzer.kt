@@ -536,13 +536,7 @@ class ApiAnalyzer(
                         }
                         continue
                     }
-                    if (m.isHiddenOrRemoved()) {
-                        reporter.report(
-                            Issues.UNAVAILABLE_SYMBOL,
-                            m,
-                            "Reference to unavailable method " + m.name()
-                        )
-                    } else if (m.originallyDeprecated) {
+                    if (m.originallyDeprecated) {
                         // don't bother reporting deprecated methods unless they are public and
                         // explicitly marked as deprecated.
                         reporter.report(
