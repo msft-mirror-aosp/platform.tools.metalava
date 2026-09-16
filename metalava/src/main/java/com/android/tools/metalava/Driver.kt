@@ -587,10 +587,14 @@ class Driver(
     }
 
     private fun runMultiplatformCodebaseOperations(multiplatformCodebase: MultiplatformCodebase) {
+        val apiPredicate = EMITTED_ONLY.and(ApiSurfacePredicate.wholeCoreApi(apiSurface))
         for (codebase in multiplatformCodebase.sourceSetToCodebase.values) {
-            tracer.trace("computeApi") {
-                ApiAnalyzer(sourceParser, codebase, reporter, apiAnalyzerConfig).computeApi()
+            val analyzer = ApiAnalyzer(sourceParser, codebase, reporter, apiAnalyzerConfig)
+            tracer.trace("computeApi") { analyzer.computeApi() }
+            tracer.trace("handleFileFacadeClassesAndExperimentalPackages") {
+                analyzer.handleFileFacadeClassesAndExperimentalPackages(apiPredicate)
             }
+            tracer.trace("performChecks") { analyzer.performChecks() }
         }
 
         if (apiLintOptions.apiLintEnabled) {
