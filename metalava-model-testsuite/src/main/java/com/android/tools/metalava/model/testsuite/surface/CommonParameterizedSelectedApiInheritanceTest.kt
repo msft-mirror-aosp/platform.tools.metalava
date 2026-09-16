@@ -313,6 +313,10 @@ class CommonParameterizedSelectedApiInheritanceTest : BaseCommonParameterizedSel
                 name =
                     "public class overriding method from superclass marked as @Hide with specialized return type",
                 surfaceRules = publicSystemModuleRules,
+                expectedIssues =
+                    """
+                        MAIN_SRC/src/test/pkg/Middle.java: hidden: Attempting to hide method test.pkg.Middle.method() which overrides method test.pkg.Base.method() which is already part of the API [HidingApiMethodOverride]
+                    """,
                 sources =
                     listOf(
                         java(

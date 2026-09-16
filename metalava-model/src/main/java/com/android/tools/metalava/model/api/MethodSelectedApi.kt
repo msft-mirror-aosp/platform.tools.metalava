@@ -16,10 +16,15 @@
 
 package com.android.tools.metalava.model.api
 
+import com.android.tools.metalava.model.ClassOrigin
+import com.android.tools.metalava.model.FilterPredicate
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.api.surface.ApiSurface
+import com.android.tools.metalava.model.api.surface.ApiSurfacePredicate
 import com.android.tools.metalava.model.api.surface.ApiVariantSet
 import com.android.tools.metalava.model.api.surface.ApiVariantType
+import com.android.tools.metalava.model.visitors.ApiType
+import com.android.tools.metalava.reporter.Issues
 
 /**
  * Selected API class for methods, ensuring record component getter methods inherit the parent
@@ -84,7 +89,75 @@ internal class MethodSelectedApi(
             // Adopt the API variants from the super method in the widest surface found.
             if (maxSuperSurface != null) {
                 itemApiVariants = maxSuperVariants
+            } else {
+                checkHidingApiMethodOverride()
             }
         }
     }
+
+    /**
+     * Checks whether a method attempts to hide an override of a method that is already part of the
+     * API.
+     *
+     * It is an error to attempt to hide a method in a class if the method overrides an API method
+     * in a superclass or interface, unless hiding from a narrower API surface (e.g. a public class
+     * hiding a system API override).
+     */
+    private fun checkHidingApiMethodOverride() {
+        if (revert) return
+        val reporter = item.codebase.reporter
+        if (reporter.isSuppressed(Issues.HIDING_API_METHOD_OVERRIDE)) return
+
+        val apiSurfaces = selectedApiUpdater.apiSurfaces
+        val filterReference = ApiSurfacePredicate.wholeCoreApi(apiSurfaces.main)
+        val removedFilterPredicate =
+            ApiSurfacePredicate.apiFilters(
+                    ApiType.REMOVED,
+                    ApiSurfacePredicate.Config(apiSurface = apiSurfaces.main),
+                )
+                .emit
+
+        // Check to see if the method overrides an API method, if so report an issue.
+        if (
+            !reportIfOverridingApiMethod(filterReference) { method, overriddenMethod ->
+                "Attempting to hide ${method.describe()} which overrides ${overriddenMethod.describe()} which is already part of the API"
+            }
+        ) {
+            // Check to see if the method overrides a method that was previously part of the API
+            // but has since been removed.
+            reportIfOverridingApiMethod(removedFilterPredicate) { method, overriddenMethod ->
+                "Attempting to hide ${method.describe()} which overrides ${overriddenMethod.describe()} which was part of the API but has now been removed"
+            }
+        }
+    }
+
+    /**
+     * Report an [Issues.HIDING_API_METHOD_OVERRIDE] issue if this method overrides a method that
+     * matches [predicate].
+     *
+     * If the overridden method is from the class path then do not report an error as it may not be
+     * possible to determine if a method in a jar matches a specific API version.
+     *
+     * Do not report an error if a final class hides a protected method from its superclass, as
+     * there is no way to call a method of a final class through a protected method of the
+     * superclass.
+     */
+    private inline fun reportIfOverridingApiMethod(
+        predicate: FilterPredicate,
+        reportMessageProvider: (MethodItem, MethodItem) -> String,
+    ): Boolean =
+        item
+            .findPredicateSuperMethod(predicate)
+            ?.takeIf { overriddenMethod ->
+                overriddenMethod.origin != ClassOrigin.CLASS_PATH &&
+                    !(item.containingClass().modifiers.isFinal() &&
+                        overriddenMethod.modifiers.isProtected())
+            }
+            ?.also { overriddenMethod ->
+                item.codebase.reporter.report(
+                    Issues.HIDING_API_METHOD_OVERRIDE,
+                    item,
+                    reportMessageProvider(item, overriddenMethod),
+                )
+            } != null
 }
