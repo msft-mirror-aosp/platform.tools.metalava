@@ -1420,13 +1420,6 @@ class CompatibilityCheck(
     }
 
     private fun handleAdded(issue: Issue, item: SelectableItem) {
-        if (item.originallyHidden) {
-            // This is an element which is hidden but is referenced from
-            // some public API. This is an error, but some existing code
-            // is doing this. This is not an API addition.
-            return
-        }
-
         if (!filterReference.test(item)) {
             // This item is something we weren't asked to verify
             return
