@@ -18,6 +18,9 @@ package com.android.tools.metalava.model.testsuite.classitem
 
 import com.android.tools.metalava.model.SkeletonClassItem
 import com.android.tools.metalava.model.VisibilityLevel
+import com.android.tools.metalava.model.api.ApiSurfaceRules
+import com.android.tools.metalava.model.api.SurfaceSelectionRule
+import com.android.tools.metalava.model.api.surface.ApiSurfaces
 import com.android.tools.metalava.model.provider.InputFormat
 import com.android.tools.metalava.model.testing.SupportedInputFormats
 import com.android.tools.metalava.model.testing.classTypeItem
@@ -755,6 +758,45 @@ class CommonSealedClassTest : BaseModelTest() {
                     constructor.modifiers.getVisibilityLevel(),
                 )
             }
+        }
+    }
+
+    @SupportedInputFormats(InputFormat.KOTLIN)
+    @Test
+    fun `class with published internal constructor`() {
+        val apiSurfaces = ApiSurfaces.create()
+        val rulesByName =
+            mapOf(
+                "main" to
+                    listOf(
+                        SurfaceSelectionRule.unannotated,
+                        SurfaceSelectionRule.createAnnotationRule("kotlin.PublishedApi"),
+                    )
+            )
+        val apiSurfaceRules = ApiSurfaceRules(apiSurfaces, rulesByName)
+
+        runCodebaseTest(
+            kotlin(
+                """
+                    package test.pkg
+
+                    open class Foo @PublishedApi internal constructor()
+                """
+            ),
+            testFixture = TestFixture(apiSurfaceRules = apiSurfaceRules),
+        ) {
+            val fooClass = codebase.assertClass("test.pkg.Foo")
+            val constructor = fooClass.constructors().single()
+
+            // The constructor is exposed in the main API surface because it is annotated with
+            // @PublishedApi which is configured as a show annotation.
+            assertTrue(constructor.selectedApi.itemApiVariants.isNotEmpty())
+
+            // However, because the constructor is internal (neither public nor protected),
+            // isEffectivelySealed() accidentally treats the class as effectively sealed even
+            // though its constructor is part of the selected API.
+            // TODO: This should be false as the constructor is exposed in the API.
+            assertTrue(fooClass.isEffectivelySealed())
         }
     }
 }
