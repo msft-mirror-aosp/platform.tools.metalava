@@ -112,9 +112,6 @@ internal sealed class SourceSelectedApi<S : SelectableItem>(
      */
     var inheritableApiVariants = ApiVariantSet.EMPTY
 
-    /** Checks to see if the associated [SelectableItem] contains any doconly annotations. */
-    override fun hasDocOnlyAnnotation() = docOnly
-
     /** Checks to see if the associated [SelectableItem] contains any removed annotations. */
     override fun hasRemovedAnnotation() = removed
 

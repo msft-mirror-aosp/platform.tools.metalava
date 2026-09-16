@@ -66,9 +66,6 @@ sealed class SelectedApi {
      */
     abstract val revertItem: SelectableItem?
 
-    /** Checks to see if the associated [SelectableItem] contains any doconly annotations. */
-    open fun hasDocOnlyAnnotation(): Boolean = false
-
     /** Checks to see if the associated [SelectableItem] contains any removed annotations. */
     open fun hasRemovedAnnotation(): Boolean = false
 
