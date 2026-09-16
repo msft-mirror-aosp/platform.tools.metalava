@@ -142,13 +142,17 @@ internal class ApiContents(
 
         // Report issues before checking to see if this class has been visited before so that it
         // will report all references to the hidden class.
-        if (
-            cl.isHiddenOrRemoved() || (cl.isPackagePrivate || cl.isInternal) && !cl.isApiCandidate()
-        ) {
+        if (cl.selectedApi.isHiddenOrRemoved()) {
+            // If the class is public or protected, it would normally be visible in the API,
+            // but has been excluded from this API surface (e.g., via `@hide`), so it is "hidden".
+            // Otherwise, it is excluded simply because of its language-level visibility.
+            val label =
+                if (cl.modifiers.isPublic() || cl.modifiers.isProtected()) "hidden"
+                else "not public"
             reporter.report(
                 Issues.REFERENCES_HIDDEN,
                 from,
-                "Class ${cl.qualifiedName()} is ${if (cl.isHiddenOrRemoved()) "hidden" else "not public"} but was referenced ($usage) from public ${from.describe()}"
+                "Class ${cl.qualifiedName()} is $label but was referenced ($usage) from public ${from.describe()}"
             )
         }
 
@@ -303,4 +307,4 @@ internal class ApiContents(
 
 /** Returns true if this item is public or protected and so a candidate for inclusion in an API. */
 internal fun SelectableItem.isApiCandidate() =
-    !isHiddenOrRemoved() && (modifiers.isPublic() || modifiers.isProtected())
+    !selectedApi.isHiddenOrRemoved() && (modifiers.isPublic() || modifiers.isProtected())
