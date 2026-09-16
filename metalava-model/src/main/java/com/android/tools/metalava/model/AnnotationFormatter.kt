@@ -162,4 +162,5 @@ sealed interface AnnotationFormatter {
 }
 
 /** True if this [FieldItem] is not-null, is not hidden or removed and is public. */
-internal fun FieldItem?.isAccessible(): Boolean = this != null && !isHiddenOrRemoved() && isPublic
+internal fun FieldItem?.isAccessible(): Boolean =
+    this != null && !selectedApi.isHiddenOrRemoved() && isPublic
