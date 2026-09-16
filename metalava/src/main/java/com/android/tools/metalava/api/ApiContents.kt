@@ -20,6 +20,7 @@ import com.android.tools.metalava.model.BaseItemVisitor
 import com.android.tools.metalava.model.BaseTypeVisitor
 import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.ClassOrigin
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.Codebase
@@ -122,6 +123,9 @@ internal class ApiContents(
             checkClassReferences(cls, cls, "self")
         } else {
             checkClassReferences(cls, containingClass, "as nested class")
+        }
+        if (cls.classKind == ClassKind.TYPEALIAS) {
+            checkTypeReferences(cls.aliasedType, cls, "aliased type")
         }
     }
 

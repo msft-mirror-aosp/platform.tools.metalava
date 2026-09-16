@@ -459,6 +459,10 @@ class ApiAnalyzer(
                             }
                         }
                     }
+
+                    if (cls.classKind == ClassKind.TYPEALIAS) {
+                        checkTypeReferencesHidden(cls, cls.aliasedType)
+                    }
                 }
 
                 override fun visitField(field: FieldItem) {

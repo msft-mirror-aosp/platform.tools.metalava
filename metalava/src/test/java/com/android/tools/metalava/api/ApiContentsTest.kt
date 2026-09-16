@@ -426,4 +426,27 @@ class ApiContentsTest : DriverTest() {
                 """,
         )
     }
+
+    @RequiresCapabilities(Capability.KOTLIN)
+    @Test
+    fun `Reference to hidden class from public typealias`() {
+        check(
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
+                        package test.pkg
+                        /** @hide */
+                        class Hidden
+                        typealias Public = Hidden
+                        """
+                    )
+                ),
+            expectedIssues =
+                """
+                src/test/pkg/Hidden.kt:4: warning: Typealias test.pkg.Public references hidden type test.pkg.Hidden. [HiddenTypeParameter]
+                src/test/pkg/Hidden.kt:4: error: Class test.pkg.Hidden is hidden but was referenced (aliased type) from public typealias test.pkg.Public [ReferencesHidden]
+                """
+        )
+    }
 }
