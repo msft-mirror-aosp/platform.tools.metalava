@@ -16,11 +16,10 @@
 
 package com.android.tools.metalava.compatibility
 
-import com.android.tools.metalava.ARG_SHOW_ANNOTATION
 import com.android.tools.metalava.DriverTest
+import com.android.tools.metalava.KnownApiSurface
 import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.testing.RequiresCapabilities
-import com.android.tools.metalava.systemApiSource
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
 import org.junit.Test
@@ -172,6 +171,7 @@ class ThrowsCompatibilityTest : DriverTest() {
     @Test
     fun `Partial text file where type previously did not exist`() {
         check(
+            apiSurface = KnownApiSurface.SYSTEM,
             sourceFiles =
                 arrayOf(
                     java(
@@ -179,9 +179,6 @@ class ThrowsCompatibilityTest : DriverTest() {
                             package test.pkg;
                             import android.annotation.SystemApi;
 
-                            /**
-                             * @hide
-                             */
                             @SystemApi
                             public class SampleException1 extends java.lang.Exception {
                             }
@@ -192,9 +189,6 @@ class ThrowsCompatibilityTest : DriverTest() {
                             package test.pkg;
                             import android.annotation.SystemApi;
 
-                            /**
-                             * @hide
-                             */
                             @SystemApi
                             public class SampleException2 extends java.lang.Throwable {
                             }
@@ -205,9 +199,6 @@ class ThrowsCompatibilityTest : DriverTest() {
                             package test.pkg;
                             import android.annotation.SystemApi;
 
-                            /**
-                             * @hide
-                             */
                             @SystemApi
                             public class Utils {
                                 public void method1() throws SampleException1 { }
@@ -215,12 +206,6 @@ class ThrowsCompatibilityTest : DriverTest() {
                             }
                         """
                     ),
-                    systemApiSource,
-                ),
-            extraArguments =
-                arrayOf(
-                    ARG_SHOW_ANNOTATION,
-                    "android.annotation.SystemApi",
                 ),
             checkCompatibilityApiReleased =
                 """

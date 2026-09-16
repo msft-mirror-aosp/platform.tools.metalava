@@ -255,11 +255,9 @@ class ShowAnnotationTest : DriverTest() {
 
                     /** @hide */
                     public class Class1 {
-                        /** @hide */
                         @SystemApi
                         public void method1() { }
 
-                        /** @hide */
                         @SystemApi
                         public static class InnerClass1 {
                         }
@@ -271,12 +269,10 @@ class ShowAnnotationTest : DriverTest() {
                     package test.pkg;
                     import android.annotation.SystemApi;
 
-                    /** @hide */
                     @SystemApi
                     public class Class2 {
                         /** @hide */
                         public static class InnerClass2 {
-                            /** @hide */
                             @SystemApi
                             public void method2() { }
                         }
@@ -288,9 +284,9 @@ class ShowAnnotationTest : DriverTest() {
             showAnnotations = arrayOf("android.annotation.SystemApi"),
             expectedIssues =
                 """
-                    src/test/pkg/Class1.java:8: error: Attempting to unhide method test.pkg.Class1.method1(), but surrounding class test.pkg.Class1 is hidden and should also be annotated with @android.annotation.SystemApi [ShowingMemberInHiddenClass]
-                    src/test/pkg/Class1.java:12: error: Attempting to unhide class test.pkg.Class1.InnerClass1, but surrounding class test.pkg.Class1 is hidden and should also be annotated with @android.annotation.SystemApi [ShowingMemberInHiddenClass]
-                    src/test/pkg/Class2.java:11: error: Attempting to unhide method test.pkg.Class2.InnerClass2.method2(), but surrounding class test.pkg.Class2.InnerClass2 is hidden and should also be annotated with @android.annotation.SystemApi [ShowingMemberInHiddenClass]
+                    src/test/pkg/Class1.java:7: error: Attempting to unhide method test.pkg.Class1.method1(), but surrounding class test.pkg.Class1 is hidden and should also be annotated with @android.annotation.SystemApi [ShowingMemberInHiddenClass]
+                    src/test/pkg/Class1.java:10: error: Attempting to unhide class test.pkg.Class1.InnerClass1, but surrounding class test.pkg.Class1 is hidden and should also be annotated with @android.annotation.SystemApi [ShowingMemberInHiddenClass]
+                    src/test/pkg/Class2.java:9: error: Attempting to unhide method test.pkg.Class2.InnerClass2.method2(), but surrounding class test.pkg.Class2.InnerClass2 is hidden and should also be annotated with @android.annotation.SystemApi [ShowingMemberInHiddenClass]
                 """,
         )
     }
@@ -312,9 +308,6 @@ class ShowAnnotationTest : DriverTest() {
                     public class Foo {
                         public void method1() { }
 
-                        /**
-                         * @hide restricted to this library group
-                         */
                         @RestrictTo(LIBRARY_GROUP)
                         public void method2() { }
 
@@ -365,11 +358,9 @@ class ShowAnnotationTest : DriverTest() {
                     public class Foo {
                         public void method1() { }
 
-                        /** @hide */
                         @Api
                         public void method2() { }
 
-                        /** @hide */
                         @Api(type=A)
                         public void method3() { }
 
@@ -456,9 +447,6 @@ class ShowAnnotationTest : DriverTest() {
                     import androidx.annotation.RestrictTo;
                     import androidx.annotation.RestrictTo.Scope;
 
-                    /**
-                     * @hide
-                     */
                     @RestrictTo(Scope.LIBRARY_GROUP)
                     public class Example1<T> {
                         public class Child<T> {
@@ -481,9 +469,6 @@ class ShowAnnotationTest : DriverTest() {
                     import androidx.annotation.RestrictTo;
                     import androidx.annotation.RestrictTo.Scope;
 
-                    /**
-                     * @hide
-                     */
                     @RestrictTo(Scope.LIBRARY_GROUP)
                     public class Example2<T> {
                         public class Child<T> {
@@ -527,7 +512,6 @@ class ShowAnnotationTest : DriverTest() {
                     package test.pkg;
                     import static test.pkg.AClass.SOME_VALUE;
                     import test.annotation.Api;
-                    /** @hide */
                     @Api(SOME_VALUE)
                     public class Foo {
                         public void foo() {}
@@ -599,9 +583,6 @@ class ShowAnnotationTest : DriverTest() {
                     kotlin(
                         """
                     package test.pkg
-                    /**
-                     * @hide
-                     */
                     @PublishedApi
                     internal class WeAreSoCool()
                     """
@@ -855,14 +836,11 @@ class ShowAnnotationTest : DriverTest() {
                     package test.pkg;
                     import android.annotation.SystemApi;
 
-                    /** @hide */
                     @SystemApi
                     public class Class1 {
-                        /** @hide */
                         @SystemApi
                         public static final String FIELD = "Class1.FIELD";
 
-                        /** @hide */
                         @SystemApi
                         public void member() {}
                     }
@@ -873,7 +851,6 @@ class ShowAnnotationTest : DriverTest() {
                     package test.pkg;
                     import android.annotation.SystemApi;
 
-                    /** @hide */
                     @SystemApi
                     public class Class2 extends Class1 {
                         /** @hide */
@@ -899,7 +876,7 @@ class ShowAnnotationTest : DriverTest() {
             showAnnotations = arrayOf("android.annotation.SystemApi"),
             expectedIssues =
                 """
-                    src/test/pkg/Class2.java:11: error: Attempting to hide method test.pkg.Class2.member() which overrides method test.pkg.Class1.member() which is already part of the API [HidingApiMethodOverride]
+                    src/test/pkg/Class2.java:10: error: Attempting to hide method test.pkg.Class2.member() which overrides method test.pkg.Class1.member() which is already part of the API [HidingApiMethodOverride]
                 """,
             expectedApiSignature =
                 """
@@ -919,13 +896,10 @@ class ShowAnnotationTest : DriverTest() {
                     java(
                         """
                     package test.pkg;
-                    /** */
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class Class1 {
                     public Class1() { throw new RuntimeException("Stub!"); }
-                    /** */
                     public void member() { throw new RuntimeException("Stub!"); }
-                    /** */
                     public static final java.lang.String FIELD = "Class1.FIELD";
                     }
                     """
@@ -933,7 +907,6 @@ class ShowAnnotationTest : DriverTest() {
                     java(
                         """
                     package test.pkg;
-                    /** */
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class Class2 extends test.pkg.Class1 {
                     public Class2() { throw new RuntimeException("Stub!"); }

@@ -5965,9 +5965,6 @@ class ApiFileTest : DriverTest() {
                         """
                         package test.pkg
 
-                        /**
-                         * @hide
-                         */
                         @PublishedApi
                         internal fun internalYetPublished() {}
 
@@ -6248,6 +6245,7 @@ class ApiFileTest : DriverTest() {
     @Test
     fun `Partial signature files include affected subclass definitions`() {
         check(
+            apiSurface = KnownApiSurface.SYSTEM,
             format = FileFormat.V2,
             sourceFiles =
                 arrayOf(
@@ -6265,7 +6263,6 @@ class ApiFileTest : DriverTest() {
 
                         import android.annotation.SystemApi;
 
-                        /** @hide */
                         @SystemApi
                         public class SystemSubClass extends SomePublicClass {
                         }
@@ -6279,7 +6276,6 @@ class ApiFileTest : DriverTest() {
                         }
                     """
                     ),
-                    systemApiSource,
                 ),
             expectedApiSignature =
                 """
@@ -6292,11 +6288,6 @@ class ApiFileTest : DriverTest() {
                   }
                 }
             """,
-            extraArguments =
-                arrayOf(
-                    ARG_SHOW_ANNOTATION,
-                    "android.annotation.SystemApi",
-                )
         )
     }
 
@@ -6485,7 +6476,6 @@ class ApiFileTest : DriverTest() {
                         import android.annotation.SystemApi;
 
                         /**
-                         * @hide
                          * @removed
                          */
                         @SystemApi
