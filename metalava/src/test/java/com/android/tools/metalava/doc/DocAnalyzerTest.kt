@@ -1008,8 +1008,6 @@ class DocAnalyzerTest : DriverTest() {
                 """,
             checkCompilation = true,
             docStubs = true,
-            // TODO: FLAGGED_FIELD is originally hidden so @deprecatedSince 30 is not added,
-            //   but @apiSince 20 is.
             expectedStubFiles =
                 arrayOf(
                     java(
@@ -1019,7 +1017,10 @@ class DocAnalyzerTest : DriverTest() {
                             @SuppressWarnings({"unchecked", "deprecation", "all"})
                             public class Test {
                             public Test() { throw new RuntimeException("Stub!"); }
-                            /** @apiSince 20 */
+                            /**
+                             * @apiSince 20
+                             * @deprecatedSince 30
+                             */
                             public static final java.lang.String FLAGGED_FIELD = "flagged.field";
                             }
                         """
@@ -1070,9 +1071,8 @@ class DocAnalyzerTest : DriverTest() {
                 """,
             checkCompilation = true,
             docStubs = true,
-            // TODO: FLAGGED_FIELD is originally hidden so forbidden @deprecatedSince tag is not
-            //   reported.
-            expectedIssues = "",
+            expectedIssues =
+                "src/test/pkg/Test.java:8: error: Documentation should not specify @deprecatedSince manually; it's computed and injected at build time by metalava [ForbiddenTag]",
             expectedStubFiles =
                 arrayOf(
                     java(

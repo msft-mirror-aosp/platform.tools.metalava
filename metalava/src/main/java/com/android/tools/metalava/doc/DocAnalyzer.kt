@@ -875,12 +875,6 @@ class DocAnalyzer(
      */
     private fun addDeprecatedDocumentation(version: ApiVersion?, item: SelectableItem) {
         if (version != null) {
-            if (item.originallyHidden) {
-                // @SystemApi, @TestApi etc -- don't apply API versions here since we don't have
-                // accurate historical data
-                return
-            }
-
             // Always set @deprecatedSince, overriding any existing value.
             val apiVersionLabel = apiVersionLabelProvider(version)
             addUniqueVersionBlockTag(item, "deprecatedSince", apiVersionLabel)
