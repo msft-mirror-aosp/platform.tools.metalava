@@ -363,19 +363,7 @@ sealed class ApiVariantSelectors {
             } else {
                 val containingClassSelectors = item.containingClass()?.variantSelectors
                 if (containingClassSelectors != null) {
-                    if (item is FieldItem) {
-                        if (
-                            containingClassSelectors.originallyHidden &&
-                                containingClassSelectors.showability.showNonRecursive()
-                        ) {
-                            // This is a member in a class that was hidden but then unhidden; but it
-                            // was
-                            // unhidden by a non-recursive (single) show annotation, so don't
-                            // inherit
-                            // the show annotation into this item.
-                            inheritableHidden = true
-                        }
-                    } else if (containingClassSelectors.inheritableHidden) {
+                    if (containingClassSelectors.inheritableHidden) {
                         inheritableHidden = true
                     }
                 } else if (item is ClassItem) {
