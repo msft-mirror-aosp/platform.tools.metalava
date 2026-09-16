@@ -510,7 +510,7 @@ class ApiAnalyzer(
         // complain about anything that looks includeable but is not supposed to
         // be written, e.g. hidden things
         for (cl in notStrippable) {
-            if (!cl.isHiddenOrRemoved()) {
+            if (!cl.selectedApi.isHiddenOrRemoved()) {
                 val publiclyConstructable =
                     !cl.modifiers.isSealed() && cl.constructors().any { it.isApiCandidate() }
                 for (m in
