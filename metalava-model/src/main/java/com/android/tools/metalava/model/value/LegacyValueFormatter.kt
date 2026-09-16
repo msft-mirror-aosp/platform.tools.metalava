@@ -30,6 +30,7 @@ import com.android.tools.metalava.model.MemberItem
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.SourceLanguage
+import com.android.tools.metalava.model.isAccessible
 import com.android.tools.metalava.model.javaEscapeString
 import java.lang.StringBuilder
 
@@ -247,9 +248,6 @@ class LegacyValueFormatter(
             }
         }
     }
-
-    /** True if this [FieldItem] is not-null, is not hidden or removed and is public. */
-    private fun FieldItem?.isAccessible() = this != null && !isHiddenOrRemoved() && isPublic
 
     /** Format the [annotationItem] name for [purpose]. */
     private fun formatAnnotationClassName(
