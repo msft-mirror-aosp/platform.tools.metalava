@@ -172,7 +172,7 @@ data class Showability(
     private val recursive: ShowOrHide,
 
     /** The item to which this item should be reverted. Null if no such item exists. */
-    val revertItem: SelectableItem? = null,
+    internal val revertItem: SelectableItem? = null,
 
     /** Optional name, makes it easier to understand while testing and debug. */
     val name: String? = null,

@@ -190,7 +190,6 @@ internal class StubGenerator(
                     },
                     // Include documentation if required for writing the stubs.
                     includeDocumentation = config.stubWriterConfig.includeDocumentationInStubs,
-                    revertItemGetter = { it.selectedApi.revertItem },
                 )
         }
 

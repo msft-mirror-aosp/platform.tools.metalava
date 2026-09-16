@@ -49,7 +49,7 @@ private constructor(
     fun snapshotIncludingRevertedItems(
         referenceVisitorFactory: (DelegatedVisitor) -> ItemVisitor,
         includeDocumentation: Boolean = false,
-        revertItemGetter: (SelectableItem) -> SelectableItem? = { it.showability.revertItem },
+        revertItemGetter: (SelectableItem) -> SelectableItem? = { it.selectedApi.revertItem },
     ): CodebaseFragment {
         return LazyCodebaseFragment(
             {
