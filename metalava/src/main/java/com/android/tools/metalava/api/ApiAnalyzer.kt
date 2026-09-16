@@ -650,7 +650,13 @@ class ApiAnalyzer(
             object : BaseTypeVisitor() {
                 override fun visitClassType(classType: ClassTypeItem) {
                     val asClass = classType.resolveClass(codebase) ?: return
-                    if (asClass.isHiddenOrRemoved()) {
+                    // Only public and protected classes are considered "hidden" from an API
+                    // surface. Package-private and private classes are "not public" and are
+                    // handled separately by ReferencesHidden.
+                    if (
+                        asClass.selectedApi.isHiddenOrRemoved() &&
+                            (asClass.modifiers.isPublic() || asClass.modifiers.isProtected())
+                    ) {
                         hiddenClasses.add(asClass)
                     }
                 }
