@@ -49,6 +49,12 @@ class JDiffXmlWriter(
     private val writer: PrintWriter,
     private val apiName: String? = null,
 ) : DelegatedVisitor {
+    /**
+     * JDiff XML files require classes to be visited in deterministic, alphabetical order for stable
+     * XML output that can be diffed across API versions.
+     */
+    override val requiresSortedClasses: Boolean
+        get() = true
 
     override fun visitCodebase(codebase: Codebase) {
         writer.print("<api")
@@ -296,17 +302,10 @@ class JDiffXmlWriter(
  */
 fun createFilteringVisitorForJDiffWriter(
     delegate: DelegatedVisitor,
-    apiFilters: ApiFilters,
-    preFiltered: Boolean,
-    showUnannotated: Boolean,
-    filterSuperClassType: Boolean = true,
+    apiFilters: ApiFilters?,
 ): ApiVisitor =
     FilteringApiVisitor(
         delegate,
-        inlineInheritedFields = true,
         interfaceListComparator = TypeItem.totalComparator,
         apiFilters = apiFilters,
-        preFiltered = preFiltered,
-        filterSuperClassType = filterSuperClassType,
-        showUnannotated = showUnannotated,
     )

@@ -816,7 +816,7 @@ class SignatureMigrateCommandTest :
                             }
                             public interface Other {
                             }
-                            public interface Test extends test.pkg.Other, test.pkg.Another {
+                            public interface Test extends test.pkg.Other test.pkg.Another {
                             }
                         }
                     """
@@ -1038,7 +1038,7 @@ internal class TestChangeCommitter(
         out.println()
         for (file in files) {
             val contents = file.readText().stripBlankLines()
-            out.println("    ${temporaryFolderOwner.cleanupString(file.path)}:")
+            out.println("    ${temporaryFolderOwner.removeTestSpecificDirectories(file.path)}:")
             out.println(contents.applyIndentAndTrimLineEnd("      "))
             out.println()
         }

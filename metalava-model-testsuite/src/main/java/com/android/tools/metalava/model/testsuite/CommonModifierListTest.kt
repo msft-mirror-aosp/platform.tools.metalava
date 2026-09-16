@@ -24,6 +24,8 @@ import com.android.tools.metalava.model.MutableModifierList
 import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.createImmutableModifiers
 import com.android.tools.metalava.model.createMutableModifiers
+import com.android.tools.metalava.model.provider.InputFormat
+import com.android.tools.metalava.model.testing.SupportedInputFormats
 import com.android.tools.metalava.reporter.FileLocation
 import com.android.tools.metalava.testing.java
 import kotlin.test.assertEquals
@@ -32,6 +34,7 @@ import kotlin.test.assertTrue
 import org.junit.Test
 
 /** Tests [ModifierList] and [MutableModifierList] functionality. */
+@SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.JAVA)
 class CommonModifierListTest : BaseModelTest() {
 
     /** Just creates a basic [Codebase] for the test to use. */

@@ -17,15 +17,14 @@
 package com.android.tools.metalava.cli.common
 
 import com.android.tools.lint.checks.infrastructure.TestFile
-import com.android.tools.metalava.ProgressTracker
-import com.android.tools.metalava.testing.TemporaryFolderOwner
+import com.android.tools.metalava.testing.BaseTemporaryFolderOwner
+import com.android.tools.metalava.testing.getNoopTracer
 import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.core.subcommands
 import java.io.File
 import org.junit.Assert
 import org.junit.Rule
 import org.junit.rules.ErrorCollector
-import org.junit.rules.TemporaryFolder
 
 /**
  * Base class for command related tests.
@@ -35,7 +34,7 @@ import org.junit.rules.TemporaryFolder
  */
 abstract class BaseCommandTest<C : CliktCommand>(
     internal val commandFactory: (ExecutionEnvironment) -> C
-) : TemporaryFolderOwner {
+) : BaseTemporaryFolderOwner() {
 
     /**
      * Collects errors during the running of the test and reports them at the end.
@@ -46,9 +45,6 @@ abstract class BaseCommandTest<C : CliktCommand>(
      * tests.
      */
     @get:Rule val errorCollector = ErrorCollector()
-
-    /** Provides access to temporary files. */
-    @get:Rule override val temporaryFolder = TemporaryFolder()
 
     /**
      * Type safe builder for configuring and running a command related test.
@@ -254,8 +250,18 @@ class CommandTestConfig<C : CliktCommand>(private val test: BaseCommandTest<C>) 
         exitCode = runCommand(executionEnvironment, command)
 
         // Add checks of the expected stderr and stdout at the head of the list of verifiers.
-        verify(0) { Assert.assertEquals(expectedStderr, test.cleanupString(stderr.toString())) }
-        verify(1) { Assert.assertEquals(expectedStdout, test.cleanupString(stdout.toString())) }
+        verify(0) {
+            Assert.assertEquals(
+                expectedStderr,
+                test.removeTestSpecificDirectories(stderr.toString())
+            )
+        }
+        verify(1) {
+            Assert.assertEquals(
+                expectedStdout,
+                test.removeTestSpecificDirectories(stdout.toString())
+            )
+        }
 
         // Invoke all the verifiers.
         for (verifier in verifiers) {
@@ -265,16 +271,9 @@ class CommandTestConfig<C : CliktCommand>(private val test: BaseCommandTest<C>) 
     }
 
     private fun runCommand(executionEnvironment: ExecutionEnvironment, command: C): Int {
-        val progressTracker = ProgressTracker(stdout = executionEnvironment.stdout)
-
         val metalavaCommand =
-            MetalavaCommand(
-                executionEnvironment = executionEnvironment,
-                progressTracker = progressTracker,
-            )
-
+            MetalavaCommand(executionEnvironment = executionEnvironment, tracer = getNoopTracer())
         metalavaCommand.subcommands(command)
-
         return metalavaCommand.process(args.toTypedArray())
     }
 }

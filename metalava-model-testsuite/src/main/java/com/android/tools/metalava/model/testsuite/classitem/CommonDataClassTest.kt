@@ -18,8 +18,8 @@ package com.android.tools.metalava.model.testsuite.classitem
 
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.VisibilityLevel
-import com.android.tools.metalava.model.provider.Capability
-import com.android.tools.metalava.model.testing.RequiresCapabilities
+import com.android.tools.metalava.model.provider.InputFormat
+import com.android.tools.metalava.model.testing.SupportedInputFormats
 import com.android.tools.metalava.model.testing.testTypeString
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.testing.kotlin
@@ -35,7 +35,7 @@ import org.junit.Test
  * to track issues with the handling of the different forms of synthetic methods created as part of
  * a data class.
  */
-@RequiresCapabilities(Capability.KOTLIN)
+@SupportedInputFormats(InputFormat.KOTLIN)
 class CommonDataClassTest : BaseModelTest() {
     private val simpleDataClass =
         kotlin(
@@ -397,6 +397,30 @@ class CommonDataClassTest : BaseModelTest() {
             // This is a copy function defined in source, where the only parameter is not optional.
             val manualCopy = fooClass.assertMethod("copy", listOf("int"))
             assertThat(manualCopy.parameters().single().hasDefaultValue()).isFalse()
+        }
+    }
+
+    @Test
+    fun `Test data modifier for data class and data object`() {
+        runCodebaseTest(
+            kotlin(
+                """
+                package test.pkg
+                data class DataClass(val i: Int)
+                data object DataObject {
+                    val i: Int = 0
+                }
+                """
+            )
+        ) {
+            val dataClass = codebase.assertClass("test.pkg.DataClass")
+            assertThat(dataClass.modifiers.isData()).isTrue()
+
+            val dataObject = codebase.assertClass("test.pkg.DataObject")
+            // Data object does not have the "data" modifier included because all "data" does for an
+            // object is provide toString/equals/hashCode implementations, so it isn't important for
+            // the API surface.
+            assertThat(dataObject.modifiers.isData()).isFalse()
         }
     }
 }

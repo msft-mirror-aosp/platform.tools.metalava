@@ -17,52 +17,102 @@
 package com.android.tools.metalava.doc.annotationhandlers
 
 import com.android.tools.metalava.model.AnnotationItem
-import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.Item
-import com.android.tools.metalava.model.SelectableItem
-import com.android.tools.metalava.reporter.Reporter
-import java.util.function.Predicate
+import com.android.tools.metalava.model.annotation.binding.bindTo
 
 /** Handles @android.processor.devicepolicy.StringPolicyDefinition annotation. */
 class StringPolicyAnnotationHandler(
-    codebase: Codebase,
-    reporter: Reporter,
-    filterReference: Predicate<SelectableItem>
-) : BaseDevicePolicyAnnotationHandler(codebase, reporter, filterReference) {
-    private val policyHandler =
-        PolicyDefinitionAnnotationHandler(codebase, reporter, filterReference)
+    context: DevicePolicyContext,
+) : BaseDevicePolicyAnnotationHandler(context) {
 
-    /**
-     * Processes the [StringPolicyDefinition] annotation and returns the documentation for the
-     * policy.
-     */
+    /** Processes the [StringPolicyDefinitionProxy] and returns the documentation for the policy. */
     override fun processPolicyAnnotation(annotation: AnnotationItem, item: Item): String {
-        val emptyStringAllowed = annotation.getBooleanAttribute("emptyStringAllowed") ?: false
-
-        val unprintableCharactersAllowed =
-            annotation.getBooleanAttribute("unprintableCharactersAllowed") ?: false
-        val maxLength = annotation.getIntAttribute("maxLength") ?: Integer.MAX_VALUE
-
-        val basePolicyDefinition =
-            annotation.getPolicyDefinitionAttribute("base").elseReportMissing(item, "base")
-        val baseDocs =
-            basePolicyDefinition?.let {
-                policyHandler.processPolicyAnnotation(basePolicyDefinition, item)
-            } ?: ""
-
-        return buildString {
-            append("\n<p>Policy Type: String</p>\n <ul>\n")
-            append(baseDocs)
-            append(
-                "   <li>Empty string: ${if (emptyStringAllowed) "Allowed" else "Not allowed"}</li>\n"
-            )
-            append(
-                "   <li>Unprintable characters: ${if (unprintableCharactersAllowed) "Allowed" else "Not allowed"}</li>\n"
-            )
-            append(
-                "   <li>Max Length: ${if (maxLength == Integer.MAX_VALUE) "No limit" else maxLength}</li>\n"
-            )
-            append(" </ul>\n")
+        val hasValidation =
+            annotation.findAttribute("validation") != null ||
+                annotation.resolve()?.methods()?.any { it.name() == "validation" } == true
+        if (hasValidation) {
+            val proxy = annotation.bindTo<StringPolicyDefinitionProxy>(item)
+            return proxy?.generateDocs() ?: ""
         }
+        val legacyProxy = annotation.bindTo<LegacyStringPolicyDefinitionProxy>(item)
+        return legacyProxy?.generateDocs() ?: ""
+    }
+}
+
+/**
+ * Proxy class bound to an instance of the `android.processor.devicepolicy.StringPolicyDefinition`
+ * annotation class.
+ *
+ * @see bindTo
+ */
+data class StringPolicyDefinitionProxy(
+    val base: PolicyDefinitionProxy,
+    val validation: StringValidationProxy,
+) {
+    fun generateDocs() = buildString {
+        val tableEntries = buildList {
+            addAll(base.getTableEntries())
+            val policyValueValidations = validation.getPolicyValueValidations()
+            add(Pair("Policy value", renderPolicyValue("String", policyValueValidations)))
+        }
+
+        append(renderTable(tableEntries))
+    }
+}
+
+// TODO(b/550199902): Remove when validators are extracted from policy definitions
+/**
+ * Proxy class bound to an instance of the legacy
+ * `android.processor.devicepolicy.StringPolicyDefinition` annotation class where validation
+ * properties were inline.
+ *
+ * @see bindTo
+ */
+data class LegacyStringPolicyDefinitionProxy(
+    val base: PolicyDefinitionProxy,
+    val emptyStringAllowed: Boolean,
+    val unprintableCharactersAllowed: Boolean,
+    val pureWhitespaceAllowed: Boolean,
+    val unstrippedStringAllowed: Boolean,
+    val maxLength: Int,
+) {
+    fun generateDocs() = buildString {
+        val tableEntries = buildList {
+            addAll(base.getTableEntries())
+            val policyValueValidations =
+                StringValidationProxy(
+                        emptyStringAllowed = emptyStringAllowed,
+                        unprintableCharactersAllowed = unprintableCharactersAllowed,
+                        pureWhitespaceAllowed = pureWhitespaceAllowed,
+                        unstrippedStringAllowed = unstrippedStringAllowed,
+                        maxLength = maxLength,
+                    )
+                    .getPolicyValueValidations()
+            add(Pair("Policy value", renderPolicyValue("String", policyValueValidations)))
+        }
+
+        append(renderTable(tableEntries))
+    }
+}
+
+/**
+ * Proxy class bound to an instance of the `android.processor.devicepolicy.StringValidation`
+ * annotation class.
+ *
+ * @see bindTo
+ */
+data class StringValidationProxy(
+    val emptyStringAllowed: Boolean,
+    val unprintableCharactersAllowed: Boolean,
+    val pureWhitespaceAllowed: Boolean,
+    val unstrippedStringAllowed: Boolean,
+    val maxLength: Int,
+) {
+    fun getPolicyValueValidations(): List<String> = buildList {
+        if (maxLength != Integer.MAX_VALUE) add("Length max $maxLength characters")
+        if (!emptyStringAllowed) add("No empty string allowed")
+        if (!unprintableCharactersAllowed) add("No unprintable characters allowed")
+        if (!pureWhitespaceAllowed) add("No pure whitespace allowed")
+        if (!unstrippedStringAllowed) add("No unstripped string allowed")
     }
 }

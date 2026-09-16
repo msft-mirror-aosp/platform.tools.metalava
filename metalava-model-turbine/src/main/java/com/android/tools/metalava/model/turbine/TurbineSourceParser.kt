@@ -17,6 +17,7 @@
 package com.android.tools.metalava.model.turbine
 
 import com.android.tools.metalava.model.Codebase
+import com.android.tools.metalava.model.api.SelectedApi
 import com.android.tools.metalava.model.item.DefaultCodebase
 import com.android.tools.metalava.model.multiplatform.MultiplatformCodebase
 import com.android.tools.metalava.model.source.AbstractSourceParser
@@ -61,6 +62,9 @@ internal class TurbineSourceParser(
                         trustedApi = false,
                         supportsDocumentation = true,
                         assembler = assembler,
+                        // Create a [SelectedApi] instance that will be initialized lazily from the
+                        // source.
+                        selectedApiFactory = SelectedApi.sourceFactory(codebaseConfig),
                     )
                 },
                 bootclasspath = bootclasspath,

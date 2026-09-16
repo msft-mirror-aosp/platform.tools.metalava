@@ -98,6 +98,6 @@ private constructor(
         }
 
         /** The expected name for a common source set, which all other source sets depend on. */
-        private const val COMMON_SOURCE_SET_NAME = "commonMain"
+        const val COMMON_SOURCE_SET_NAME = "commonMain"
     }
 }

@@ -16,10 +16,9 @@
 
 package com.android.tools.metalava.stub
 
+import androidx.tracing.Tracer
 import com.android.tools.metalava.MarkPackagesAsRecent
 import com.android.tools.metalava.NullnessMigration
-import com.android.tools.metalava.PROGRAM_NAME
-import com.android.tools.metalava.ProgressTracker
 import com.android.tools.metalava.SignatureFileCache
 import com.android.tools.metalava.apilevels.ApiVersion
 import com.android.tools.metalava.cli.common.ExecutionEnvironment
@@ -28,23 +27,25 @@ import com.android.tools.metalava.doc.ApiVersionLabelProvider
 import com.android.tools.metalava.doc.DocAnalyzer
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.CodebaseFragment
+import com.android.tools.metalava.model.EMITTED_ONLY
 import com.android.tools.metalava.model.FilterPredicate
 import com.android.tools.metalava.model.PackageFilter
-import com.android.tools.metalava.model.visitors.ApiPredicate
+import com.android.tools.metalava.model.api.surface.ApiSurfacePredicate
+import com.android.tools.metalava.model.visitors.ApiFilters
+import com.android.tools.metalava.model.visitors.MatchOverridingMethodPredicate
 import com.android.tools.metalava.reporter.Reporter
-import com.google.common.base.Stopwatch
+import com.android.tools.metalava.trace
 import java.io.File
-import java.util.concurrent.TimeUnit.SECONDS
 
 /** Generates stubs from [codebase]. */
 internal class StubGenerator(
     private val config: Config,
     private val codebase: Codebase,
-    private val progressTracker: ProgressTracker,
+    private val tracer: Tracer,
     private val executionEnvironment: ExecutionEnvironment,
     private val reporter: Reporter,
     private val signatureFileCache: SignatureFileCache,
-    private val apiPredicateConfig: ApiPredicate.Config,
+    private val apiPredicateConfig: ApiSurfacePredicate.Config,
 ) {
     data class Config(
         /** Configuration needed by [StubWriter]. */
@@ -109,7 +110,11 @@ internal class StubGenerator(
         }
 
         // Generate the stubs, normal or documentation.
-        config.stubsDir?.let { stubDir -> createStubFiles(stubDir, config.isDocStubs) }
+        config.stubsDir?.let { stubDir ->
+            tracer.trace(if (config.isDocStubs) "createDocStubs" else "createStubFiles") {
+                createStubFiles(stubDir, config.isDocStubs)
+            }
+        }
     }
 
     /** Depending on option flags, enhance codebase documentation */
@@ -118,41 +123,55 @@ internal class StubGenerator(
             error("Codebase does not support documentation, so it cannot be enhanced.")
         }
 
-        progressTracker.progress("Enhancing docs: ")
         val docAnalyzer =
             DocAnalyzer(
                 executionEnvironment,
                 codebase,
                 reporter,
                 config.apiVersionLabelProvider,
-                apiPredicateConfig,
+                codebase.apiSurfaces.main,
             )
-        docAnalyzer.enhance()
+        tracer.trace("DocAnalyzer.enhance") { docAnalyzer.enhance() }
 
         // If provided apply information in the api-versions.xml to the documentation.
         val applyApiLevelsXmlFile = config.apiVersionsXmlFile
         if (applyApiLevelsXmlFile != null) {
-            progressTracker.progress("Applying API levels")
-            docAnalyzer.applyApiVersions(applyApiLevelsXmlFile)
+            tracer.trace("DocAnalyzer.applyApiVersions") {
+                docAnalyzer.applyApiVersions(applyApiLevelsXmlFile)
+            }
         }
     }
 
     private fun createStubFiles(stubDir: File, isDocStubs: Boolean) {
-        if (isDocStubs) {
-            progressTracker.progress("Generating documentation stub files: ")
-        } else {
-            progressTracker.progress("Generating stub files: ")
-        }
+        val apiFilters =
+            if (codebase.preFiltered) {
+                null
+            } else {
+                // Stubs must include the whole API surface (both base and extended surfaces, such
+                // as public API when generating system stubs) so code compiling against stubs can
+                // resolve all referenced and inherited APIs.
+                val filterReference =
+                    ApiSurfacePredicate.forStubs(
+                        codebase.apiSurfaces.main,
+                        includeDocOnly = isDocStubs,
+                    )
+                val filterEmit =
+                    MatchOverridingMethodPredicate(
+                        // Only emit stubs for items marked for emission.
+                        EMITTED_ONLY.and(filterReference)
+                    )
 
-        val localTimer = Stopwatch.createStarted()
+                ApiFilters(
+                    reference = filterReference,
+                    emit = filterEmit,
+                )
+            }
 
         var codebaseFragment =
             CodebaseFragment.create(codebase) { delegate ->
                 createFilteringVisitorForStubs(
                     delegate = delegate,
-                    isDocStubs = isDocStubs,
-                    preFiltered = codebase.preFiltered,
-                    apiPredicateConfig = apiPredicateConfig,
+                    apiFilters = apiFilters,
                 )
             }
 
@@ -165,9 +184,7 @@ internal class StubGenerator(
                     referenceVisitorFactory = { delegate ->
                         createFilteringVisitorForStubs(
                             delegate = delegate,
-                            isDocStubs = isDocStubs,
-                            preFiltered = codebase.preFiltered,
-                            apiPredicateConfig = apiPredicateConfig,
+                            apiFilters = apiFilters,
                             ignoreEmit = true,
                         )
                     },
@@ -176,13 +193,15 @@ internal class StubGenerator(
                 )
         }
 
-        // Add additional constructors needed by the stubs.
+        // Add additional constructors needed by the stubs across the whole API surface.
         val filterEmit: FilterPredicate =
             if (codebaseFragment.codebase.preFiltered) {
                 FilterPredicate { true }
             } else {
-                val apiPredicateConfigIgnoreShown = apiPredicateConfig.copy(ignoreShown = true)
-                ApiPredicate(ignoreRemoved = false, config = apiPredicateConfigIgnoreShown)
+                ApiSurfacePredicate.forStubs(
+                    codebase.apiSurfaces.main,
+                    includeDocOnly = isDocStubs,
+                )
             }
         val stubConstructorManager = StubConstructorManager(codebaseFragment.codebase)
         stubConstructorManager.addConstructors(filterEmit)
@@ -208,11 +227,6 @@ internal class StubGenerator(
                 }
             }
         }
-
-        progressTracker.progress(
-            "$PROGRAM_NAME wrote ${if (isDocStubs) "documentation" else ""} stubs directory $stubDir in ${
-                localTimer.elapsed(SECONDS)} seconds\n"
-        )
     }
 
     private fun convertToWarningNullabilityAnnotations(
@@ -240,7 +254,7 @@ internal class StubGenerator(
             // their callers make incorrect nullness assumptions (for example, calling a function on
             // a reference of nullable type). The way to communicate this to kotlinc is to mark
             // these APIs as RecentlyNullable/RecentlyNonNull
-            codebase.accept(MarkPackagesAsRecent(filter, apiPredicateConfig))
+            codebase.accept(MarkPackagesAsRecent(filter, codebase.apiSurfaces.main))
         }
     }
 }

@@ -26,6 +26,7 @@ import com.android.tools.metalava.testing.createNativeModuleDescription
 import com.android.tools.metalava.testing.createProjectDescription
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
+import com.android.tools.metalava.testing.signature
 import com.google.common.truth.Truth.assertThat
 import org.junit.Test
 
@@ -66,7 +67,7 @@ class MultiplatformCodebaseTest : DriverTest() {
                     createNativeModuleDescription(arrayOf(nativeSource)),
                 ),
             enableMultiplatform = true,
-            api =
+            expectedApiSignature =
                 """
                 package test.pkg {
                   public final class Foo {
@@ -162,5 +163,38 @@ class MultiplatformCodebaseTest : DriverTest() {
             multiplatformCodebase!!.assertSourceSets("commonMain", "nativeMain")
             multiplatformCodebase.assertClass("test.pkg.Foo")
         }
+    }
+
+    @Test
+    fun `Test creation of multiplatform codebase from signature files`() {
+        check(
+            multiplatformSignatureSource =
+                listOf(
+                    signature(
+                        "commonMain.txt",
+                        """
+                            // Signature format: 5.0
+                            package test.pkg {
+                              public final class Common extends kotlin.Any {
+                                ctor public Common();
+                              }
+                            }
+                            """
+                    )
+                ),
+            enableMultiplatform = true,
+            multiplatformApi =
+                mapOf(
+                    "commonMain.txt" to
+                        """
+                        // Signature format: 5.0
+                        package test.pkg {
+                          public final class Common extends kotlin.Any {
+                            ctor public Common();
+                          }
+                        }
+                        """
+                )
+        )
     }
 }

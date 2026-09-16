@@ -16,11 +16,13 @@
 
 package com.android.tools.metalava.model.psi
 
+import androidx.tracing.Tracer
 import com.android.SdkConstants
 import com.android.tools.lint.UastEnvironment
 import com.android.tools.lint.computeMetadata
 import com.android.tools.lint.detector.api.Project
 import com.android.tools.metalava.model.Codebase
+import com.android.tools.metalava.model.item.SealedClassImplicitPermitTypesUpdater
 import com.android.tools.metalava.model.multiplatform.MultiplatformCodebase
 import com.android.tools.metalava.model.psi.kotlin.KaCodebaseAssembler
 import com.android.tools.metalava.model.psi.kotlin.KotlinBytecodeApis
@@ -28,6 +30,7 @@ import com.android.tools.metalava.model.source.AbstractSourceParser
 import com.android.tools.metalava.model.source.SourceParser
 import com.intellij.pom.java.LanguageLevel
 import java.io.File
+import org.jetbrains.kotlin.analysis.api.KaPlatformInterface
 import org.jetbrains.kotlin.analysis.api.platform.projectStructure.KotlinProjectStructureProvider
 import org.jetbrains.kotlin.analysis.api.projectStructure.KaModule
 import org.jetbrains.kotlin.analysis.api.projectStructure.KaSourceModule
@@ -56,6 +59,7 @@ fun kotlinLanguageVersionSettings(value: String?): LanguageVersionSettings {
 internal class PsiSourceParser(
     private val psiEnvironmentManager: PsiEnvironmentManager,
     private val codebaseConfig: Codebase.Config,
+    private val tracer: Tracer,
     private val javaLanguageLevel: LanguageLevel,
     private val kotlinLanguageLevel: LanguageVersionSettings,
     private val jdkHome: File?,
@@ -69,50 +73,67 @@ internal class PsiSourceParser(
     override fun processInputs(inputs: SourceParser.Inputs): Codebase {
         val sourceSet = inputs.sourceSet
 
-        val config = UastEnvironment.Configuration.create()
+        val config =
+            tracer.trace("UastEnvironment.Configuration.create") {
+                UastEnvironment.Configuration.create()
+            }
         config.javaLanguageLevel = javaLanguageLevel
 
-        when (val projectDescription = inputs.projectDescription) {
-            null -> {
-                configureUastEnvironment(config, sourceSet.sourcePath, inputs.classPath)
-            }
-            else -> {
-                configureUastEnvironmentFromProjectDescription(config, projectDescription)
+        tracer.trace("configureUastEnvironment") {
+            when (val projectDescription = inputs.projectDescription) {
+                null -> {
+                    configureUastEnvironment(config, sourceSet.sourcePath, inputs.classPath)
+                }
+                else -> {
+                    configureUastEnvironmentFromProjectDescription(config, projectDescription)
+                }
             }
         }
 
-        val environment = psiEnvironmentManager.createEnvironment(config)
+        val environment =
+            tracer.trace("psiEnvironmentManager.createEnvironment") {
+                psiEnvironmentManager.createEnvironment(config)
+            }
         val kotlinFiles = sourceSet.sources.filter { it.path.endsWith(SdkConstants.DOT_KT) }
-        environment.analyzeFiles(kotlinFiles)
+        tracer.trace("environment.analyzeFiles") { environment.analyzeFiles(kotlinFiles) }
 
         val location = sourceSet.sourcePath.firstOrNull() ?: File("").canonicalFile
         val assembler =
-            PsiCodebaseAssembler(environment) {
-                PsiBasedCodebase(
-                    location = location,
-                    description = inputs.description,
-                    config = codebaseConfig,
-                    assembler = it,
-                    inlineTypeAliasUsages = environment.isKMP,
-                    mainAnalysisModule = findMainAnalysisModule(environment),
-                )
+            tracer.trace("PsiCodebaseAssembler") {
+                PsiCodebaseAssembler(environment) {
+                    PsiBasedCodebase(
+                        location = location,
+                        description = inputs.description,
+                        config = codebaseConfig,
+                        assembler = it,
+                        inlineTypeAliasUsages = environment.isKMP,
+                        mainAnalysisModule = findMainAnalysisModule(environment),
+                    )
+                }
             }
 
-        assembler.initializeFromSources(
-            sourceSet,
-            inputs.apiPackages,
-            inputs.includeKotlinInCodebase,
-        )
+        tracer.trace("assembler.initializeFromSources") {
+            assembler.initializeFromSources(
+                sourceSet,
+                inputs.apiPackages,
+                inputs.includeKotlinInCodebase,
+                tracer,
+            )
+        }
         val codebase = assembler.psiCodebase
 
         inputs.compiledSourceJar?.let { compiledSourceJar ->
-            mergeFromJar(codebase, compiledSourceJar)
+            tracer.trace("mergeFromJar") { mergeFromJar(codebase, compiledSourceJar) }
         }
+
+        // Update implicit permit types in any sealed class that does not have one provided.
+        SealedClassImplicitPermitTypesUpdater.updateImplicitPermitTypes(codebase)
 
         return codebase
     }
 
     /** Lists all of the [KaModule]s that exist in this project. */
+    @OptIn(KaPlatformInterface::class)
     private fun UastEnvironment.findAllSourceModules(): List<KaSourceModule> {
         return (KotlinProjectStructureProvider.getInstance(ideaProject)
                 as? KotlinStaticProjectStructureProvider)
@@ -145,26 +166,35 @@ internal class PsiSourceParser(
         // If an environment was already created to create a regular Codebase, reuse it since
         // creating an environment is expensive.
         val environment =
-            psiEnvironmentManager.initialEnvironment
-                ?: run {
-                    val config = UastEnvironment.Configuration.create()
-                    config.javaLanguageLevel = javaLanguageLevel
-                    configureUastEnvironmentFromProjectDescription(config, projectDescription)
-                    psiEnvironmentManager.createEnvironment(config)
-                }
+            tracer.trace("create environment") {
+                psiEnvironmentManager.initialEnvironment
+                    ?: run {
+                        val config = UastEnvironment.Configuration.create()
+                        config.javaLanguageLevel = javaLanguageLevel
+                        configureUastEnvironmentFromProjectDescription(config, projectDescription)
+                        psiEnvironmentManager.createEnvironment(config)
+                    }
+            }
 
-        return KaCodebaseAssembler.assembleMultiplatform(
-            environment.findAllSourceModules(),
-            projectDescription,
-            codebaseConfig
-        )
+        return tracer.trace("KaCodebaseAssembler.assembleMultiplatform") {
+            KaCodebaseAssembler.assembleMultiplatform(
+                environment.findAllSourceModules(),
+                projectDescription,
+                codebaseConfig,
+                tracer
+            )
+        }
     }
 
     fun mergeFromJar(existingCodebase: PsiBasedCodebase, jarFile: File) {
-        val bytecodeApis = KotlinBytecodeApis(existingCodebase.psiAssembler)
-        val rewrittenJar = bytecodeApis.rewriteJar(jarFile)
-        val jarEnvironment = loadUastFromJars(listOf(rewrittenJar))
-        bytecodeApis.loadPsiFromProject(jarEnvironment.ideaProject)
+        val bytecodeApis =
+            tracer.trace("KotlinBytecodeApis") { KotlinBytecodeApis(existingCodebase.psiAssembler) }
+        val rewrittenJar = tracer.trace("rewriteJar") { bytecodeApis.rewriteJar(jarFile) }
+        val jarEnvironment =
+            tracer.trace("loadUastFromJars") { loadUastFromJars(listOf(rewrittenJar)) }
+        tracer.trace("loadPsiFromProject") {
+            bytecodeApis.loadPsiFromProject(jarEnvironment.ideaProject)
+        }
         (existingCodebase.assembler as PsiCodebaseAssembler).mergedJarEnvironment = jarEnvironment
     }
 

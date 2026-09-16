@@ -17,9 +17,12 @@
 package com.android.tools.metalava.model.testsuite.propertyitem
 
 import com.android.tools.lint.checks.infrastructure.TestFiles.base64gzip
+import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.VisibilityLevel
+import com.android.tools.metalava.model.provider.InputFormat
+import com.android.tools.metalava.model.testing.SupportedInputFormats
 import com.android.tools.metalava.model.testing.testTypeString
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.testing.kotlin
@@ -30,6 +33,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Test
 
 /** Common tests for implementations of [PropertyItem]. */
+@SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.KOTLIN)
 class CommonPropertyItemTest : BaseModelTest() {
 
     @Test
@@ -74,6 +78,7 @@ class CommonPropertyItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test deprecated getter and setter by annotation`() {
         runCodebaseTest(
@@ -103,6 +108,7 @@ class CommonPropertyItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test property delegate to Kotlin object`() {
         runCodebaseTest(
@@ -136,6 +142,7 @@ class CommonPropertyItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test property delegate to generic Kotlin object`() {
         runCodebaseTest(
@@ -170,6 +177,7 @@ class CommonPropertyItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test property delegate to lambda Kotlin object`() {
         runCodebaseTest(
@@ -206,6 +214,7 @@ class CommonPropertyItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test abstract property of non-null string`() {
         runCodebaseTest(
@@ -231,6 +240,7 @@ class CommonPropertyItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test abstract property of nullable string`() {
         runCodebaseTest(
@@ -256,6 +266,7 @@ class CommonPropertyItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test abstract property of list of non-null string`() {
         runCodebaseTest(
@@ -282,6 +293,7 @@ class CommonPropertyItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test abstract property of list of nullable string`() {
         runCodebaseTest(
@@ -308,6 +320,7 @@ class CommonPropertyItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test abstract mutable property of non-null string`() {
         runCodebaseTest(
@@ -341,6 +354,7 @@ class CommonPropertyItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test abstract mutable property of nullable string`() {
         runCodebaseTest(
@@ -374,6 +388,7 @@ class CommonPropertyItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test abstract mutable property of list of non-null string`() {
         runCodebaseTest(
@@ -408,6 +423,7 @@ class CommonPropertyItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test abstract mutable property of list of nullable string`() {
         runCodebaseTest(
@@ -442,6 +458,7 @@ class CommonPropertyItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test mutable non-null generic property overriding property exposing public setter`() {
         runCodebaseTest(
@@ -476,6 +493,7 @@ class CommonPropertyItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test mutable nullable generic property overriding property exposing public setter`() {
         runCodebaseTest(
@@ -510,6 +528,7 @@ class CommonPropertyItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test mutable list of nullable property overriding property exposing public setter`() {
         runCodebaseTest(
@@ -544,6 +563,7 @@ class CommonPropertyItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test companion property`() {
         runCodebaseTest(
@@ -582,6 +602,7 @@ class CommonPropertyItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test top level properties`() {
         runCodebaseTest(
@@ -635,6 +656,7 @@ class CommonPropertyItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test top level extension properties`() {
         runCodebaseTest(
@@ -665,6 +687,7 @@ class CommonPropertyItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Value class extension properties`() {
         runCodebaseTest(
@@ -790,6 +813,7 @@ class CommonPropertyItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `JvmStatic property in object is static`() {
         runCodebaseTest(
@@ -813,6 +837,7 @@ class CommonPropertyItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test abstract and default modifier on properties`() {
         runCodebaseTest(
@@ -1190,6 +1215,7 @@ class CommonPropertyItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test type of primitive property overriding type parameter type`() {
         runCodebaseTest(
@@ -1214,6 +1240,7 @@ class CommonPropertyItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test setter visibility`() {
         runCodebaseTest(
@@ -1333,6 +1360,7 @@ class CommonPropertyItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test properties from the classpath`() {
         /*
@@ -1401,6 +1429,448 @@ class CommonPropertyItemTest : BaseModelTest() {
                     assertThat(qualifiedName).isEqualTo("java.lang.Integer")
                 }
             }
+        }
+    }
+
+    @SupportedInputFormats(InputFormat.KOTLIN)
+    @Test
+    fun `Test getter annotations on properties`() {
+        runCodebaseTest(
+            kotlin(
+                """
+                package test.pkg
+
+                @JvmInline value class IntValue(val value: Int)
+
+                annotation class Hide
+
+                class Foo {
+                    @get:Hide val intProperty: Int = 0
+                    @get:Hide val intValueProperty: IntValue = IntValue(0)
+                }
+                """
+            )
+        ) {
+            val fooClass = codebase.assertClass("test.pkg.Foo")
+            val intProperty = fooClass.assertProperty("intProperty")
+            assertThat(intProperty.annotationNames()).containsExactly("test.pkg.Hide")
+            val intValueProperty = fooClass.assertProperty("intValueProperty")
+            assertThat(intValueProperty.annotationNames()).containsExactly("test.pkg.Hide")
+        }
+    }
+
+    @SupportedInputFormats(InputFormat.KOTLIN, InputFormat.SIGNATURE)
+    @Test
+    fun `Test context parameters on property`() {
+        runCodebaseTest(
+            kotlin(
+                """
+                package test.pkg
+                class Foo {
+                    val noContextParams: Int = 0
+
+                    context(s: String)
+                    val oneContextParam: Int get() = 1
+
+                    context(s: String, i: Int)
+                    val twoContextParams: Int get() = 2
+
+                    context(_: String)
+                    val unnamedContextParam: Int get() = 3
+                }
+                """
+            ),
+            signature(
+                """
+                // Signature format: 5.0
+                package test.pkg {
+                  public class Foo {
+                    property public int noContextParams;
+                    property public int oneContextParam(context String s);
+                    property public int twoContextParams(context String s, context int i);
+                    property public int unnamedContextParam(context String);
+                  }
+                }
+                """
+            )
+        ) {
+            fun ParameterItem.checkValues(
+                expectedParent: PropertyItem,
+                expectedName: String,
+                expectedIndex: Int,
+                expectedTypeString: String
+            ) {
+                assertThat(parent()).isEqualTo(expectedParent)
+                assertThat(containingCallable()).isNull()
+                assertThat(name()).isEqualTo(expectedName)
+                // "_" is used as a non-public name
+                assertThat(publicName()).isEqualTo(expectedName.takeUnless { it == "_" })
+                assertThat(parameterIndex).isEqualTo(expectedIndex)
+                assertThat(hasDefaultValue()).isFalse()
+                assertThat(type().toTypeString()).isEqualTo(expectedTypeString)
+            }
+
+            val fooClass = codebase.assertClass("test.pkg.Foo")
+
+            val noContextParams = fooClass.assertProperty("noContextParams")
+            assertThat(noContextParams.contextParameters).isEmpty()
+
+            val oneContextParam =
+                fooClass.assertProperty(
+                    "oneContextParam",
+                    contextParameterTypeStrings = listOf("java.lang.String")
+                )
+            assertThat(oneContextParam.contextParameters).hasSize(1)
+            oneContextParam.contextParameters[0].checkValues(
+                expectedParent = oneContextParam,
+                expectedName = "s",
+                expectedIndex = 0,
+                expectedTypeString = "java.lang.String"
+            )
+
+            val twoContextParams =
+                fooClass.assertProperty(
+                    "twoContextParams",
+                    contextParameterTypeStrings = listOf("java.lang.String", "int")
+                )
+            assertThat(twoContextParams.contextParameters).hasSize(2)
+            twoContextParams.contextParameters[0].checkValues(
+                expectedParent = twoContextParams,
+                expectedName = "s",
+                expectedIndex = 0,
+                expectedTypeString = "java.lang.String"
+            )
+            twoContextParams.contextParameters[1].checkValues(
+                expectedParent = twoContextParams,
+                expectedName = "i",
+                expectedIndex = 1,
+                expectedTypeString = "int"
+            )
+
+            val unnamedContextParam =
+                fooClass.assertProperty(
+                    "unnamedContextParam",
+                    contextParameterTypeStrings = listOf("java.lang.String")
+                )
+            assertThat(unnamedContextParam.contextParameters).hasSize(1)
+            unnamedContextParam.contextParameters[0].checkValues(
+                expectedParent = unnamedContextParam,
+                expectedName = "_",
+                expectedIndex = 0,
+                expectedTypeString = "java.lang.String"
+            )
+        }
+    }
+
+    @SupportedInputFormats(InputFormat.KOTLIN, InputFormat.SIGNATURE)
+    @Test
+    fun `Test toString, equals, and baseline ID for property with context parameters`() {
+        runCodebaseTest(
+            kotlin(
+                """
+                package test.pkg
+                class Foo {
+                    context(s: String)
+                    val oneContextParam: Int
+                        get() = 0
+
+                    context(s: String, i: Int)
+                    val twoContextParam: Int
+                        get() = 0
+
+                    val withAndWithoutContextParam: Int = 0
+                    context(_: String)
+                    val withAndWithoutContextParam: Int
+                        get() = 0
+                }
+                """
+            ),
+            signature(
+                """
+                // Signature format: 5.0
+                package test.pkg {
+                  public class Foo {
+                    property public int oneContextParam(context String s);
+                    property public int twoContextParam(context String s, context int i);
+                    property public int withAndWithoutContextParam(context String);
+                    property public int withAndWithoutContextParam;
+                  }
+                }
+                """
+            )
+        ) {
+            val fooClass = codebase.assertClass("test.pkg.Foo")
+
+            val oneContextParam =
+                fooClass.assertProperty(
+                    "oneContextParam",
+                    contextParameterTypeStrings = listOf("java.lang.String")
+                )
+            assertThat(oneContextParam.toString())
+                .isEqualTo("property test.pkg.Foo#oneContextParam(context java.lang.String)")
+            assertThat(oneContextParam.baselineElementId())
+                .isEqualTo("test.pkg.Foo#oneContextParam(context java.lang.String)")
+
+            val twoContextParam =
+                fooClass.assertProperty(
+                    "twoContextParam",
+                    contextParameterTypeStrings = listOf("java.lang.String", "int")
+                )
+            assertThat(twoContextParam.toString())
+                .isEqualTo(
+                    "property test.pkg.Foo#twoContextParam(context java.lang.String, context int)"
+                )
+            assertThat(twoContextParam.baselineElementId())
+                .isEqualTo("test.pkg.Foo#twoContextParam(context java.lang.String, context int)")
+
+            val withContextParam =
+                fooClass.assertProperty(
+                    "withAndWithoutContextParam",
+                    contextParameterTypeStrings = listOf("java.lang.String")
+                )
+            val withoutContextParam = fooClass.assertProperty("withAndWithoutContextParam")
+            assertThat(withContextParam).isNotEqualTo(withoutContextParam)
+            assertThat(withContextParam.hashCode()).isNotEqualTo(withoutContextParam.hashCode())
+        }
+    }
+
+    @SupportedInputFormats(InputFormat.KOTLIN, InputFormat.SIGNATURE)
+    @Test
+    fun `Test findCorrespondingItemIn for properties`() {
+        val kotlinFile =
+            kotlin(
+                """
+                package test.pkg
+                class Foo {
+                    val foo: Int = 0
+                    val String.foo: Int get() = 0
+                    context(s: String) val foo: Int get() = 0
+                }
+                """
+            )
+        val signatureFile =
+            signature(
+                """
+                // Signature format: 5.0
+                package test.pkg {
+                  public final class Foo {
+                    property public int foo;
+                    property public int String.foo;
+                    property public int foo(context String s);
+                  }
+                }
+                """
+            )
+        // Use `runCodebaseTest` twice to create two separate codebases for testing
+        runCodebaseTest(kotlinFile, signatureFile) {
+            // This is the codebase created by the first `runCodebaseTest`
+            val previousCodebase = codebase
+            runCodebaseTest(kotlinFile, signatureFile) {
+                // This is the codebase created by the second `runCodebaseTest`
+                val currentCodebase = codebase
+                // Verify that there are two separate codebases
+                assertThat(previousCodebase).isNotSameInstanceAs(currentCodebase)
+
+                val previousClass = previousCodebase.assertClass("test.pkg.Foo")
+                val currentClass = currentCodebase.assertClass("test.pkg.Foo")
+
+                val previousRegularVal = previousClass.assertProperty("foo")
+                val currentRegularVal = currentClass.assertProperty("foo")
+                assertThat(currentRegularVal.findCorrespondingItemIn(previousCodebase))
+                    .isSameInstanceAs(previousRegularVal)
+
+                val previousExtensionVal = previousClass.assertProperty("foo", "java.lang.String")
+                val currentExtensionVal = currentClass.assertProperty("foo", "java.lang.String")
+                assertThat(currentExtensionVal.findCorrespondingItemIn(previousCodebase))
+                    .isSameInstanceAs(previousExtensionVal)
+
+                val previousContextVal =
+                    previousClass.assertProperty(
+                        "foo",
+                        contextParameterTypeStrings = listOf("java.lang.String")
+                    )
+                val currentContextVal =
+                    currentClass.assertProperty(
+                        "foo",
+                        contextParameterTypeStrings = listOf("java.lang.String")
+                    )
+                assertThat(currentContextVal.findCorrespondingItemIn(previousCodebase))
+                    .isSameInstanceAs(previousContextVal)
+
+                val previousContextParam = previousContextVal.contextParameters[0]
+                val currentContextParam = currentContextVal.contextParameters[0]
+                assertThat(currentContextParam.findCorrespondingItemIn(previousCodebase))
+                    .isSameInstanceAs(previousContextParam)
+            }
+        }
+    }
+
+    @SupportedInputFormats(InputFormat.KOTLIN)
+    @Test
+    fun `Test getter and setter for properties with context parameters`() {
+        runCodebaseTest(
+            kotlin(
+                """
+                package test.pkg
+                class Foo {
+                    context(_: String)
+                    var oneContextParam: Int
+                        get() = 0
+                        set(value) {}
+
+                    context(_: String, _: Int)
+                    var twoContextParam: Int
+                        get() = 0
+                        set(value) {}
+
+                    context(_: String)
+                    var String.withContextParamAndReceiver: Int
+                        get() = 0
+                        set(value) {}
+                }
+                """
+            )
+        ) {
+            val fooClass = codebase.assertClass("test.pkg.Foo")
+            val oneContextParam =
+                fooClass.assertProperty(
+                    "oneContextParam",
+                    contextParameterTypeStrings = listOf("java.lang.String")
+                )
+            assertThat(oneContextParam.getter).isNotNull()
+            assertThat(oneContextParam.getter.toString())
+                .isEqualTo("method test.pkg.Foo.getOneContextParam(String)")
+            assertThat(oneContextParam.setter).isNotNull()
+            assertThat(oneContextParam.setter.toString())
+                .isEqualTo("method test.pkg.Foo.setOneContextParam(String,int)")
+
+            val twoContextParam =
+                fooClass.assertProperty(
+                    "twoContextParam",
+                    contextParameterTypeStrings = listOf("java.lang.String", "int")
+                )
+            assertThat(twoContextParam.getter).isNotNull()
+            assertThat(twoContextParam.getter.toString())
+                .isEqualTo("method test.pkg.Foo.getTwoContextParam(String,int)")
+            assertThat(twoContextParam.setter).isNotNull()
+            assertThat(twoContextParam.setter.toString())
+                .isEqualTo("method test.pkg.Foo.setTwoContextParam(String,int,int)")
+
+            val withContextParamAndReceiver =
+                fooClass.assertProperty(
+                    "withContextParamAndReceiver",
+                    receiverTypeString = "java.lang.String",
+                    contextParameterTypeStrings = listOf("java.lang.String")
+                )
+            assertThat(withContextParamAndReceiver.getter).isNotNull()
+            assertThat(withContextParamAndReceiver.getter.toString())
+                .isEqualTo("method test.pkg.Foo.getWithContextParamAndReceiver(String,String)")
+            assertThat(withContextParamAndReceiver.setter).isNotNull()
+            assertThat(withContextParamAndReceiver.setter.toString())
+                .isEqualTo("method test.pkg.Foo.setWithContextParamAndReceiver(String,String,int)")
+        }
+    }
+
+    @SupportedInputFormats(InputFormat.KOTLIN)
+    @Test
+    fun `Test getter and setter for properties with value class context parameters`() {
+        runCodebaseTest(
+            inputSet(
+                kotlin(
+                    """
+                    package test.pkg
+                    @JvmInline value class IntValue(val value: Int)
+                    class Foo {
+                        @get:JvmName("getWithJvmName")
+                        @set:JvmName("setWithJvmName")
+                        context(_: IntValue)
+                        var varWithJvmName: Int
+                            get() = 0
+                            set(value) {}
+
+                        context(_: IntValue)
+                        var varWithoutJvmName: Int
+                            get() = 0
+                            set(value) {}
+                    }
+                    """
+                )
+            ),
+            compiledSourceJar =
+                base64gzip(
+                    "test.jar",
+                    // kotlinc version info: kotlinc-jvm 2.3.20 (JRE 21.0.9+10-b1163.91)
+                    "" +
+                        "H4sIAAAAAAAA/41WeTjU6xf/muwRjbFlr0myjIlBU6PMFWMbhoQIM9luZBBT" +
+                        "STOG3HSzDcZy25AluyzZu6XIvmSNwZVdjH0ZKven/uiq5/l173mf89/7fM77" +
+                        "nuecz+eDM97DDgG4ubkBAJADdgcE4AewepZoFUNTfVUs2tRQX++sJQyrf86S" +
+                        "A2ADMtrA200AsIJtaTYxVoG95TdWUWxraS+2gHerj0xcgRlhlQ2xb0nZJRaL" +
+                        "Rio+ikYtLUpWi22qjY0tYxOjEyAAZ8zFXSB0tAC5U0lrJ3H/9x2iAA/g5+Lr" +
+                        "p+rt4aZqSPSzIlwmucCcLhN8fb89hWxp7CVxDrI9v+aBegR1eoJ1OqIj0zHg" +
+                        "301USKfJp/HQTb1tDe7K8SvLtzX8UauKcspplhVZ3GvzlK0QHVcE8MTcMVII" +
+                        "kXrBI9cmHsVs+J2mv+Ezj/xrc/5a28MXf3/+LACULVXoDD6T1LL7S8UlItsO" +
+                        "3oxVAsklLySqqNtp5qTPjbVK5UzrCwrijKwYGFlamxgoxSrgCB//fgVzgzMc" +
+                        "wfOlTG6+qXZ8Oy9f+TONMoK1cdfVdAeR8kRNtU2H0nXxTfsPZSqazOX4njt4" +
+                        "A9mb7fkD89WY1GS5yBBeqdcg3Ycml6L6HwSHjXv2zlqRjPEnyJpd/eOUx+f5" +
+                        "E+BN5YZBSys2j65KOtX7XL2wFVif0L8k3FmUeuvlb6tI3l/Lg3PmAiLYNSTS" +
+                        "H9xm48tOWySBfRh+pQnudvGqF2nT5shRbUhnjWKhrRA9eyyPwCsuHJvYS5uM" +
+                        "O2Ml60p+i2iOFNCI0Vz+XJfUihLG3e9pHVBvN349y+276ukedK/KU4Md7JZq" +
+                        "sKmJsN5E4fjL4K+Pe5UV4HD7xxU/1Nn2+Ei0PrbzYJXQTYlRhMkHvaOa5fX4" +
+                        "jSwZO9BAlsfEHbcBOOtAESUsVPxV40LvYJF963yJYv+EVV1m5207xDDSpvCC" +
+                        "b7MftqjRSEnHS39ZcISN7pIgumo7rn7fmq5H3L+1MvY8J1syLrs7asNyKy0/" +
+                        "04LnrWQq0mRFttUCuXmDsHrdS3+ydhR3MLeZ3sJhSuHjikuWtpXuEh7AuEHs" +
+                        "sRwYPVPUp1lGbEHwsL9JX/zYFvCxeK25lER7PLoleH7tbG/5I5uIa4XCo7G8" +
+                        "igTtK8sRNJNEenJV7YkTw4OkLLFBldV7y9CGVFeXLnfUMa1mEesKK0QzRzFh" +
+                        "ZVhrX26Fq8+1utyPAaS83suQPC5Nr5ic1mwP69xg5ju/Gy9s8yoyPM4GZbFi" +
+                        "PrT2C33aSBbug4fAz59KsY/XyEAilpS6yVYySZ1i6+HgWQfqFFUsj6pwev9p" +
+                        "FnZ5pHh87/RsaDlNDKmjSKImrLawwWRGepKet2jToA4rx7kp1081kJKCXvFF" +
+                        "eqee1p+Rz5gar78w+9RU6v0kxVEn875zdkDrn9CK7UQH8A0VSotTpVTZBfdl" +
+                        "s4YFQd45M2ld6ZGIim7WRjV/6doNIyd2tS0BTgbtkHMaPImzYJ5maTICG16u" +
+                        "qYDNCbv8EotJZB5zD8WQ9auXX5Eao9oFkjZe9/yu24IN/8y5luDr0ffGosom" +
+                        "u489GD5VddFh/Vl0FuWcc5XLKnS4JniBfAvxvnh6b8Nat5zIx1nhuhhRyJSM" +
+                        "TeDzE/bybTO50OG6APJGWPobig6UJRQc9OidHDjgfYnVMdRieuR78gIFLPEo" +
+                        "gC3pbTU2JxQhAamsDqIGCfCN8+eORKNdtjteYmyGqN5Pbx+RELuajGS9Q9dK" +
+                        "TEk5S4ZIhkgNrilfm7ZHJvrAJ2SZI3fdJL3hLJkvdKQi6W6NZgeAda6f0RF4" +
+                        "Nx3pe3n9yEQWWDMhtBjFtXQIxkgfAh2EWNYWiNSJBL85cxEXE6MhLIToCemK" +
+                        "J+I/Fnok9scdOiKwzWn24Pl1tSX8gchthbGTxua5DfIf2062oxbqUQufWJvM" +
+                        "k1RhZTWbTqGi5fxiu6zfCJzhNcSqQruZyhrihEsxk9nAh+Ak9wjc3AxBK8VJ" +
+                        "iHR2YNNoBINGbUf4+Ac3IW15fF+s182KDdS8Z6V21J3DT+bgJt0nU+a20OlS" +
+                        "G4q3dB8/CQ6hC+maz8SM0SVK3hC1HmunQorple/nlRzEGtlIhT4dAY7a0x2F" +
+                        "xxdYBCfyYaK1OO8T/urFNMaVdOMef9Veg/354Rl8mRYYJJT79GIcJqX6We1i" +
+                        "VqANYhOiVTF0GlGREu2U2HQukWCyJpDgH6fdLCkzc/QWY6A3Jk/UX+N5LuPo" +
+                        "s1MDNozrAZ/k+sZ7WpYwGQx9c39M5TkT8UOlyCS1olI989RAvZ5e978jmg6b" +
+                        "+zMstGHqPRTYqeiRspixQPlxdqhgo6FWmVWqLNjBI3IaMfQLSllSd51OeXHo" +
+                        "Em6WEPby5pBAdWtm3+q6Y1UrTM5pzbueGbP454DAyz/yFGiUdt/gd6Kn0Ga3" +
+                        "ZOn5q6+p0hGbiuHr16rvFWR27XEfkzkY/3KmMEsVq5Vahlnfx1R0N+G1Z/GO" +
+                        "hR2QNXJeY+/GyXs8FISDYntBRSGLUJb0w0Xn6aTQgxHq0TcFK3QC42nmh/Nk" +
+                        "y6ioOXQ2lyHSglweGg3tcrYI5Vc7WkA99ur2lUkeabMmh8HhaSRTGI4eehpW" +
+                        "1Wj/jr9+KCTwvtEeRojjwSH5shRk+Ry+qQZxd58rfHaENx+MHjkwWUrYmwjq" +
+                        "4+gEVerILU1xELkHoensypX3cSV2oDGQ0IuvGjtpvWIUDgIAKvvPhlpiZ6i/" +
+                        "ab0n4RIR5uHld/kS0dHTy5l02eXbdDvh8XjXnbxI7cAn1ybXAV9rWMv4d4N3" +
+                        "UMS+6jgbCAL8U2W3xn9xFN/Hv/qLH+F27+gXY/BP3NnJf7MJP6Ltbg74OzRR" +
+                        "DuBnW/4j0O4OSHwHNMcF/KfO4ow5OL/cZ985x9l2Pv4FGPgfyblK9J4JAAA="
+                )
+        ) {
+            val fooClass = codebase.assertClass("test.pkg.Foo")
+            val varWithJvmName =
+                fooClass.assertProperty(
+                    "varWithJvmName",
+                    contextParameterTypeStrings = listOf("test.pkg.IntValue")
+                )
+            assertThat(varWithJvmName.getter).isNotNull()
+            assertThat(varWithJvmName.getter.toString())
+                .isEqualTo("method test.pkg.Foo.getWithJvmName(int)")
+            assertThat(varWithJvmName.setter).isNotNull()
+            assertThat(varWithJvmName.setter.toString())
+                .isEqualTo("method test.pkg.Foo.setWithJvmName(int,int)")
+
+            val varWithoutJvmName =
+                fooClass.assertProperty(
+                    "varWithoutJvmName",
+                    contextParameterTypeStrings = listOf("test.pkg.IntValue")
+                )
+            assertThat(varWithoutJvmName.getter).isNull()
+            assertThat(varWithoutJvmName.setter).isNull()
         }
     }
 }

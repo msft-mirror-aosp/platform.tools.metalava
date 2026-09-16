@@ -399,6 +399,13 @@ open class TypeItemParser(
             } else if (name.contains('.')) {
                 // The name is already qualified so use it.
                 name
+            } else if (name == "dynamic") {
+                // Kotlin dynamic types can be used in code compiled to javascript (see
+                // https://kotlinlang.org/docs/dynamic-type.html).
+                // Currently, this is represented as a class type, if more robust support is needed
+                // in the future there would need to be a new TypeItem subclass introduced
+                // (b/495459207).
+                name
             } else {
                 // Otherwise, delegate to the UnqualifiedClassHandler which will construct a
                 // qualified name.

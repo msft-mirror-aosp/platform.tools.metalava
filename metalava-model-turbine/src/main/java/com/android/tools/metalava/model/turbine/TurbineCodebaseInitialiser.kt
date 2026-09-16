@@ -34,6 +34,7 @@ import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
 import com.google.common.collect.ImmutableList
 import com.google.common.collect.ImmutableMap
+import com.google.common.util.concurrent.MoreExecutors
 import com.google.turbine.binder.Binder
 import com.google.turbine.binder.Binder.BindingResult
 import com.google.turbine.binder.ClassPath
@@ -50,7 +51,6 @@ import com.google.turbine.diag.SourceFile
 import com.google.turbine.diag.TurbineDiagnostic
 import com.google.turbine.diag.TurbineError
 import com.google.turbine.diag.TurbineLog
-import com.google.turbine.model.TurbineFlag
 import com.google.turbine.parse.Parser
 import com.google.turbine.tree.Tree.CompUnit
 import com.google.turbine.tree.Tree.Ident
@@ -163,16 +163,19 @@ internal class TurbineCodebaseInitialiser(
                     SourceVersion.latest()
                 )
 
-            // Bind the units
-            bindingResult =
-                Binder.bind(
-                    log,
-                    allUnits,
-                    classpath,
-                    annotationProcessorInfo,
-                    bootclasspath,
-                    Optional.empty()
-                )!!
+            MoreExecutors.newDirectExecutorService().use { executor ->
+                // Bind the units
+                bindingResult =
+                    Binder.bind(
+                        executor,
+                        log,
+                        allUnits,
+                        classpath,
+                        annotationProcessorInfo,
+                        bootclasspath,
+                        Optional.empty()
+                    )!!
+            }
         } catch (e: TurbineError) {
             // Catch the [TurbineError] and extract its diagnostics. An exception will be rethrown
             // below after reporting the diagnostics because [bindingResult] will not have been set.
@@ -314,9 +317,6 @@ internal class TurbineCodebaseInitialiser(
             // Ignore nested classes, they will be created as part of the construction of their
             // containing class.
             if (sourceTypeBoundClass.owner() != null) return@filter false
-
-            // Ignore inaccessible classes.
-            if (!sourceTypeBoundClass.isAccessible) return@filter false
 
             // Ignore classes whose paths were not specified on the command line.
             val path = sourceTypeBoundClass.source().path()
@@ -551,12 +551,3 @@ private fun getSourceFiles(sources: Sequence<File>): List<SourceFile> {
         .map { SourceFile(it.path, it.readText()) }
         .toList()
 }
-
-private const val ACC_PUBLIC_OR_PROTECTED = TurbineFlag.ACC_PUBLIC or TurbineFlag.ACC_PROTECTED
-
-/** Check whether the [TypeBoundClass] is accessible. */
-private val TypeBoundClass.isAccessible: Boolean
-    get() {
-        val flags = access()
-        return flags and ACC_PUBLIC_OR_PROTECTED != 0
-    }

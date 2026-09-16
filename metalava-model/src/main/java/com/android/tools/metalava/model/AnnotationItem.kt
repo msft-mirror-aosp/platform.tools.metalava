@@ -18,6 +18,9 @@ package com.android.tools.metalava.model
 
 import com.android.tools.metalava.model.annotation.AnnotationClass
 import com.android.tools.metalava.model.annotation.AnnotationDefaults
+import com.android.tools.metalava.model.annotation.binding.AnnotationBindingFactory
+import com.android.tools.metalava.model.api.SurfaceAnnotationData
+import com.android.tools.metalava.model.api.SurfaceSelectionRule
 import com.android.tools.metalava.model.api.flags.ApiFlag
 import com.android.tools.metalava.model.api.flags.ApiFlags
 import com.android.tools.metalava.model.type.TypeItemParser
@@ -29,6 +32,7 @@ import com.android.tools.metalava.model.value.ValueProvider
 import com.android.tools.metalava.model.value.ValueStringConfiguration
 import com.android.tools.metalava.reporter.FileLocation
 import java.lang.StringBuilder
+import kotlin.reflect.KClass
 
 fun isNullnessAnnotation(qualifiedName: String): Boolean =
     isNullableAnnotation(qualifiedName) || isNonNullAnnotation(qualifiedName)
@@ -79,6 +83,19 @@ sealed interface AnnotationItem {
     val qualifiedName: String
 
     /**
+     * The original name in the sources before normalizing the name.
+     *
+     * This must be used only when reporting issues with the original source.
+     */
+    val originalName: String
+
+    /**
+     * The [SurfaceAnnotationData] associated with this annotation, `null` if it is not a surface
+     * annotation.
+     */
+    val surfaceData: SurfaceAnnotationData?
+
+    /**
      * Determines the effect that this will have on whether an item annotated with this annotation
      * will be shown as part of the API or not.
      */
@@ -88,8 +105,7 @@ sealed interface AnnotationItem {
      * The [ApiFlag] referenced by this [AnnotationItem].
      *
      * This will be `null` if no [ApiFlags] have been provided or this [AnnotationItem]'s type is
-     * not [ANDROID_FLAGGED_API]. Otherwise, it will be one of the instances of [ApiFlag], e.g.
-     * [ApiFlag.REVERT_FLAGGED_API].
+     * not [ANDROID_FLAGGED_API]. Otherwise, it will be an instance of [ApiFlag].
      */
     val apiFlag: ApiFlag?
 
@@ -220,22 +236,9 @@ sealed interface AnnotationItem {
     fun isShowAnnotation(): Boolean
 
     /**
-     * Returns true iff this annotation is a show for stubs purposes annotation.
-     *
-     * If `true` then an item annotated with this annotation (and any contents) which are not
-     * annotated with another [isShowAnnotation] will be added to the stubs but not the API.
-     *
-     * e.g. if a class is annotated with this then it will also apply (unless overridden by a closer
-     * annotation) to all its contents like nested classes, methods, fields, constructors,
-     * properties, etc.
-     */
-    fun isShowForStubPurposes(): Boolean
-
-    /**
      * Returns true iff this annotation is a hide annotation.
      *
-     * Hide annotations can either be explicitly specified when creating the [Codebase] or they can
-     * be any annotation that is annotated with a hide meta-annotation (see [isHideMetaAnnotation]).
+     * Hide annotations can either be explicitly specified when creating the [Codebase].
      *
      * If `true` then an item annotated with this annotation (and any contents) will be excluded
      * from the API.
@@ -246,13 +249,10 @@ sealed interface AnnotationItem {
      */
     fun isHideAnnotation(): Boolean
 
-    fun isSuppressCompatibilityAnnotation(): Boolean
-
-    /**
-     * Returns true iff this annotation is a showability annotation, i.e. one that will affect
-     * [showability].
-     */
+    /** Returns true iff [isShowAnnotation] or [isHideAnnotation] returns true. */
     fun isShowabilityAnnotation(): Boolean
+
+    fun isSuppressCompatibilityAnnotation(): Boolean
 
     /**
      * The [AnnotationClass] that provides information about the annotation class of this
@@ -480,6 +480,12 @@ interface AnnotationContext : ClassResolver, ValueContext {
     fun defaultsForAnnotationClass(qualifiedName: String) =
         resolveClass(qualifiedName)?.annotationClass?.defaults ?: AnnotationDefaults.EMPTY
 
+    /** Get an [AnnotationBindingFactory] for [kClass] with [defaults]. */
+    fun <T : Any> bindingFactoryFor(
+        kClass: KClass<T>,
+        defaults: AnnotationDefaults?,
+    ): AnnotationBindingFactory<T> = error("unsupported")
+
     companion object {
         /**
          * Instance that can be used in contexts where [resolveClass] always returns null, e.g.
@@ -504,7 +510,7 @@ internal abstract class BaseAnnotationItem(
     override val fileLocation: FileLocation,
 
     /** Fully qualified name of the annotation (prior to name mapping) */
-    internal val originalName: String,
+    override val originalName: String,
 
     /** Fully qualified name of the annotation (after name mapping) */
     override val qualifiedName: String,
@@ -533,6 +539,9 @@ internal abstract class BaseAnnotationItem(
         return info.typeNullability == TypeNullability.NONNULL
     }
 
+    override val surfaceData
+        get() = info.surfaceData
+
     override val showability: Showability
         get() = info.showability
 
@@ -548,15 +557,18 @@ internal abstract class BaseAnnotationItem(
         return resolve()?.modifiers?.findAnnotation(AnnotationItem::isTypeDefAnnotation)
     }
 
-    override fun isShowAnnotation(): Boolean = info.showability.show()
+    override fun isShowAnnotation(): Boolean =
+        info.surfaceData?.effect == SurfaceSelectionRule.Effect.SHOW
 
-    override fun isShowForStubPurposes(): Boolean = info.showability.showForStubsOnly()
+    override fun isHideAnnotation(): Boolean =
+        info.surfaceData?.effect == SurfaceSelectionRule.Effect.HIDE
 
-    override fun isHideAnnotation(): Boolean = info.showability.hide()
+    override fun isShowabilityAnnotation(): Boolean =
+        info.surfaceData?.effect.let { effect ->
+            effect == SurfaceSelectionRule.Effect.SHOW || effect == SurfaceSelectionRule.Effect.HIDE
+        }
 
     override fun isSuppressCompatibilityAnnotation(): Boolean = info.suppressCompatibility
-
-    override fun isShowabilityAnnotation(): Boolean = info.showability != Showability.NO_EFFECT
 
     override val annotationClass
         get() = info.annotationClass

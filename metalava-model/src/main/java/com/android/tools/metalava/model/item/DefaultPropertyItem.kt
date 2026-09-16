@@ -21,7 +21,6 @@ import com.android.tools.metalava.model.BaseModifierList
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.FieldItem
-import com.android.tools.metalava.model.InheritableItem
 import com.android.tools.metalava.model.ItemDocumentationFactory
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ParameterItem
@@ -53,6 +52,7 @@ internal class DefaultPropertyItem(
     override val receiver: TypeItem?,
     override val typeParameterList: TypeParameterList,
     override val setterVisibility: VisibilityLevel?,
+    contextParameterFactory: (PropertyItem) -> List<ParameterItem>,
 ) :
     DefaultMemberItem(
         codebase,
@@ -68,6 +68,8 @@ internal class DefaultPropertyItem(
         containingClass,
     ),
     PropertyItem {
+
+    override val contextParameters: List<ParameterItem> = contextParameterFactory(this)
 
     override fun type(): TypeItem = type
 
@@ -90,9 +92,10 @@ internal class DefaultPropertyItem(
 
     override var inheritedFrom: ClassItem? = null
 
-    override fun duplicate(targetContainingClass: ClassItem): InheritableItem {
+    override fun duplicate(targetContainingClass: ClassItem): PropertyItem {
         return DefaultPropertyItem(
-                codebase = codebase,
+                // Create it in the same codebase as targetContainingClass.
+                codebase = targetContainingClass.codebase,
                 fileLocation = fileLocation,
                 sourceLanguage = sourceLanguage,
                 documentationFactory = documentation.duplicatingFactory(),
@@ -108,6 +111,11 @@ internal class DefaultPropertyItem(
                 receiver = receiver,
                 typeParameterList = typeParameterList,
                 setterVisibility = setterVisibility,
+                contextParameterFactory = { containingProperty ->
+                    contextParameters.map {
+                        it.duplicate(containingProperty, typeConverter = { type -> type })
+                    }
+                },
             )
             .also { duplicated -> duplicated.inheritedFrom = containingClass() }
     }

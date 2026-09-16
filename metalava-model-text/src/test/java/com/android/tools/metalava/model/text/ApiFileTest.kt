@@ -787,12 +787,12 @@ class ApiFileTest : BaseTextCodebaseTest() {
             """
                 package test.pkg
                 class test.pkg.Foo
-                constructor test.pkg.Foo.Foo(String)
-                constructor test.pkg.Foo.Foo(int)
+                constructor test.pkg.Foo(String)
+                constructor test.pkg.Foo(int)
                 method test.pkg.Foo.extensibleMethod(int)
                 method test.pkg.Foo.currentMethod(int)
                 property test.pkg.Foo#prop
-                field Foo.currentField
+                field test.pkg.Foo.currentField
                 class test.pkg.Outer.Middle.Inner
                 method test.pkg.Outer.Middle.Inner.currentInnerMethod()
             """
@@ -816,15 +816,15 @@ class ApiFileTest : BaseTextCodebaseTest() {
             """
                 package test.pkg
                 class test.pkg.Foo
-                constructor test.pkg.Foo.Foo()
-                constructor test.pkg.Foo.Foo(String)
-                constructor test.pkg.Foo.Foo(int)
+                constructor test.pkg.Foo()
+                constructor test.pkg.Foo(String)
+                constructor test.pkg.Foo(int)
                 method test.pkg.Foo.method(int)
                 method test.pkg.Foo.extensibleMethod(int)
                 method test.pkg.Foo.currentMethod(int)
                 property test.pkg.Foo#prop
-                field Foo.field
-                field Foo.currentField
+                field test.pkg.Foo.field
+                field test.pkg.Foo.currentField
                 class test.pkg.Outer
                 class test.pkg.Outer.Middle
                 class test.pkg.Outer.Middle.Inner

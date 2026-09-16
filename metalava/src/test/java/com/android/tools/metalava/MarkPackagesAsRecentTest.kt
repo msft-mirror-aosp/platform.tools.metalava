@@ -44,7 +44,7 @@ class MarkPackagesAsRecentTest : DriverTest() {
                     KnownSourceFiles.androidxNullableJavaSource
                 ),
             extraArguments = arrayOf(ARG_FORCE_CONVERT_TO_WARNING_NULLABILITY_ANNOTATIONS, "*"),
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
@@ -85,7 +85,7 @@ class MarkPackagesAsRecentTest : DriverTest() {
                     ARG_SHOW_ANNOTATION,
                     "androidx.annotation.RestrictTo"
                 ),
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """

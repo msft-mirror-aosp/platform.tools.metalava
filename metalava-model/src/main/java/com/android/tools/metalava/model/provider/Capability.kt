@@ -31,9 +31,6 @@ enum class Capability {
     /** Can parse signature files. */
     SIGNATURE,
 
-    /** Has access to the method body. */
-    METHOD_BODY,
-
     /** Has access to documentation. */
     DOCUMENTATION,
 

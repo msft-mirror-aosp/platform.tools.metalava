@@ -18,6 +18,8 @@ package com.android.tools.metalava.model.testsuite.documentation
 
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.doc.DocContent
+import com.android.tools.metalava.model.provider.InputFormat
+import com.android.tools.metalava.model.testing.SupportedInputFormats
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
@@ -28,6 +30,7 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import org.junit.Test
 
+@SupportedInputFormats(InputFormat.JAVA, InputFormat.KOTLIN)
 class CommonItemDocumentationTest : BaseModelTest() {
     @Test
     fun `Test accessing documentation comment`() {
@@ -92,6 +95,8 @@ class CommonItemDocumentationTest : BaseModelTest() {
                     package test.pkg;
 
                     /// Inline comment
+                    // Line comment
+                    /* Block comment */
                     /**
                      * Doc
                      */
@@ -114,6 +119,8 @@ class CommonItemDocumentationTest : BaseModelTest() {
                     package test.pkg
 
                     /// Inline comment
+                    // Line comment
+                    /* Block comment */
                     /**
                      * Doc
                      */
@@ -143,8 +150,9 @@ class CommonItemDocumentationTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
-    fun `Test accessing documentation comment before inline comment - bug 391104222`() {
+    fun `Test accessing documentation comment before inline comment - bug 391104222 - java`() {
         runCodebaseTest(
             java(
                 """
@@ -153,6 +161,8 @@ class CommonItemDocumentationTest : BaseModelTest() {
                     /**
                      * Doc
                      */
+                    // Line comment
+                    /* Block comment */
                     /// Inline comment
                     public class Test {
                         /**
@@ -168,6 +178,19 @@ class CommonItemDocumentationTest : BaseModelTest() {
                     }
                 """
             ),
+        ) {
+            val testClass = codebase.assertClass("test.pkg.Test")
+            testClass.assertPrintedDocumentation(expectedOutput = "", message = "class")
+
+            val testMethod = testClass.methods().last()
+            testMethod.assertPrintedDocumentation(expectedOutput = "", message = "method")
+        }
+    }
+
+    @SupportedInputFormats(InputFormat.KOTLIN)
+    @Test
+    fun `Test accessing documentation comment before inline comment - bug 391104222 - kotlin`() {
+        runCodebaseTest(
             kotlin(
                 """
                     package test.pkg
@@ -175,6 +198,8 @@ class CommonItemDocumentationTest : BaseModelTest() {
                     /**
                      * Doc
                      */
+                    // Line comment
+                    /* Block comment */
                     /// Inline comment
                     class Test {
                         /**
@@ -255,6 +280,7 @@ class CommonItemDocumentationTest : BaseModelTest() {
         assertEquals(expectedLocation, removeTestSpecificDirectories(location.toString()))
     }
 
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `Test javadoc locations`() {
         runSourceCodebaseTest(
@@ -296,6 +322,7 @@ class CommonItemDocumentationTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test kdoc locations`() {
         runSourceCodebaseTest(
@@ -337,6 +364,7 @@ class CommonItemDocumentationTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `Test javadoc error locations`() {
         runSourceCodebaseTest(
@@ -412,6 +440,7 @@ class CommonItemDocumentationTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `Test ItemDocumentation print`() {
         runSourceCodebaseTest(
@@ -475,6 +504,7 @@ class CommonItemDocumentationTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `Test DocContentOwner append String on overriding method`() {
         runSourceCodebaseTest(
@@ -576,6 +606,7 @@ class CommonItemDocumentationTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `Test mixture of indentation`() {
         runSourceCodebaseTest(
@@ -641,6 +672,7 @@ class CommonItemDocumentationTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `Test addUniqueBlockTagSectionWithSimpleText`() {
         runSourceCodebaseTest(
@@ -690,6 +722,7 @@ class CommonItemDocumentationTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `Test leading whitespace in descriptions`() {
         runSourceCodebaseTest(
@@ -724,6 +757,7 @@ class CommonItemDocumentationTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `Test sorting @param to match parameter list order`() {
         runSourceCodebaseTest(
@@ -815,6 +849,7 @@ class CommonItemDocumentationTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `Test fully qualifying links that wrap on multiple lines`() {
         runSourceCodebaseTest(
@@ -924,6 +959,7 @@ class CommonItemDocumentationTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `Test DocContent with main description`() {
         runSourceCodebaseTest(
@@ -947,6 +983,7 @@ class CommonItemDocumentationTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `Test DocContentOwner without main description`() {
         runSourceCodebaseTest(
@@ -977,6 +1014,7 @@ class CommonItemDocumentationTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `Test DocContent for param description`() {
         runSourceCodebaseTest(
@@ -1011,6 +1049,7 @@ class CommonItemDocumentationTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `Test append DocContent to main description`() {
         runSourceCodebaseTest(
@@ -1079,6 +1118,7 @@ class CommonItemDocumentationTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `Test append String to main description`() {
         runSourceCodebaseTest(
@@ -1118,6 +1158,7 @@ class CommonItemDocumentationTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `Test append String to block tag description`() {
         runSourceCodebaseTest(
@@ -1157,6 +1198,7 @@ class CommonItemDocumentationTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `Test append String to non-existent block tag description`() {
         runSourceCodebaseTest(
@@ -1232,6 +1274,7 @@ class CommonItemDocumentationTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `Test append String to param tag description`() {
         runSourceCodebaseTest(
@@ -1274,6 +1317,7 @@ class CommonItemDocumentationTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `Test append String to non-existent param tag description`() {
         runSourceCodebaseTest(
@@ -1351,6 +1395,7 @@ class CommonItemDocumentationTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `Test first sentence handling - pure text`() {
         runSourceCodebaseTest(
@@ -1382,6 +1427,7 @@ class CommonItemDocumentationTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `Test first sentence handling - link tag`() {
         runSourceCodebaseTest(
@@ -1407,6 +1453,7 @@ class CommonItemDocumentationTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `Test first sentence handling - eg not in summary sentence`() {
         runSourceCodebaseTest(
@@ -1438,6 +1485,7 @@ class CommonItemDocumentationTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `Test first sentence handling - eg inside inline tag`() {
         runSourceCodebaseTest(
@@ -1463,6 +1511,7 @@ class CommonItemDocumentationTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `Test allow reading comments = false`() {
         runSourceCodebaseTest(
@@ -1508,6 +1557,7 @@ class CommonItemDocumentationTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `Test allow reading comments = true`() {
         runSourceCodebaseTest(
@@ -1549,6 +1599,7 @@ class CommonItemDocumentationTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `Test pathological comments - preceding annotation no other comments`() {
         runSourceCodebaseTest(
@@ -1573,6 +1624,7 @@ class CommonItemDocumentationTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `Test pathological comments - preceding annotation with other comments`() {
         runSourceCodebaseTest(
@@ -1599,6 +1651,7 @@ class CommonItemDocumentationTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `Test pathological comments - preceding inline comment`() {
         runSourceCodebaseTest(
@@ -1619,6 +1672,7 @@ class CommonItemDocumentationTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `Test preceding anonymous class with comment - in field initializer`() {
         runSourceCodebaseTest(
@@ -1648,6 +1702,7 @@ class CommonItemDocumentationTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `Test preceding anonymous class with comment - in method body`() {
         runSourceCodebaseTest(
@@ -1679,6 +1734,7 @@ class CommonItemDocumentationTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `Test documenting multiple variable declaration`() {
         runSourceCodebaseTest(

@@ -1,7 +1,7 @@
 com.android.tools.metalava.model.testsuite.fielditem.CommonFieldItemTest
   Test implicit nullability of constant field initialized from @NonNull method
 
-com.android.tools.metalava.model.testsuite.methoditem.CommonParameterItemTest
+com.android.tools.metalava.model.testsuite.parameteritem.CommonParameterItemTest
   Test publicName reports correct name when called on binary class - Object#equals
   Test publicName reports correct name when called on binary class - ViewGroup#onLayout
 

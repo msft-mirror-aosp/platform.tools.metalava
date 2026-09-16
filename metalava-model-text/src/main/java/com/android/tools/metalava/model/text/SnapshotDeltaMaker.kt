@@ -101,7 +101,7 @@ private constructor(
     override fun skipPackage(pkg: PackageItem) = false
 
     /** Override to skip any non-public or protected items. */
-    override fun skip(item: Item): Boolean = !item.modifiers.isPublicOrProtected()
+    override fun skip(item: SelectableItem): Boolean = !item.modifiers.isPublicOrProtected()
 
     override fun visitClass(cls: ClassItem) {
         cls.findCorrespondingItemIn(base)?.let { baseClass ->
@@ -193,6 +193,15 @@ private constructor(
                 // Check if there are changes in type parameters that require emitting the property.
                 if (!equivalentTypeParameters(baseProperty, property)) {
                     return@let
+                }
+
+                // Check if a change in a context parameter requires emitting the property.
+                val zippedParameters =
+                    baseProperty.contextParameters.zip(property.contextParameters)
+                for ((baseParameter, callableParameter) in zippedParameters) {
+                    if (!equivalentModifiers(baseParameter, callableParameter)) {
+                        return@let
+                    }
                 }
             }
 

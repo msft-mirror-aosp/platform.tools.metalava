@@ -19,8 +19,6 @@ package com.android.tools.metalava.model.text
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.CodebaseFragment
 import com.android.tools.metalava.model.snapshot.NonFilteringDelegatingVisitor
-import com.android.tools.metalava.model.visitors.ApiPredicate
-import com.android.tools.metalava.model.visitors.ApiType
 import java.io.PrintWriter
 import java.io.StringWriter
 import kotlin.test.assertEquals
@@ -187,6 +185,42 @@ class SnapshotDeltaMakerTest : BaseTextCodebaseTest() {
                               }
                             }
                         """,
+                ),
+                TestParams(
+                    name = "class - different annotations with modifier changes allowed",
+                    baseSignature =
+                        """
+                            // Signature format: 2.0
+                            package test.pkg {
+                              public @interface BaseAnnotation {
+                              }
+                              @test.pkg.BaseAnnotation public class Foo {
+                              }
+                            }
+                        """,
+                    extendsSignature =
+                        """
+                            // Signature format: 2.0
+                            package test.pkg {
+                              public @interface ExtendsAnnotation {
+                              }
+                              @test.pkg.ExtendsAnnotation public class Foo {
+                              }
+                            }
+                        """,
+                    combinedSignature =
+                        """
+                            // Signature format: 2.0
+                            package test.pkg {
+                              public @interface BaseAnnotation {
+                              }
+                              public @interface ExtendsAnnotation {
+                              }
+                              @test.pkg.ExtendsAnnotation public class Foo {
+                              }
+                            }
+                        """,
+                    allowClassModifierChanges = true,
                 ),
                 TestParams(
                     name = "class - changed to typealias",
@@ -722,6 +756,45 @@ class SnapshotDeltaMakerTest : BaseTextCodebaseTest() {
                         """,
                     checkMemberItemEquivalence = true,
                 ),
+                TestParams(
+                    name = "property context parameter modifiers",
+                    baseSignature =
+                        """
+                        // Signature format: 2.0
+                        package test.pkg {
+                          public @interface BaseAnnotation {
+                          }
+                          public class Foo {
+                            property public int foo(context @test.pkg.BaseAnnotation String s);
+                          }
+                        }
+                        """,
+                    extendsSignature =
+                        """
+                        // Signature format: 2.0
+                        package test.pkg {
+                          public @interface ExtendsAnnotation {
+                          }
+                          public class Foo {
+                            property public int foo(context @test.pkg.ExtendsAnnotation String s);
+                          }
+                        }
+                        """,
+                    combinedSignature =
+                        """
+                        // Signature format: 2.0
+                        package test.pkg {
+                          public @interface BaseAnnotation {
+                          }
+                          public @interface ExtendsAnnotation {
+                          }
+                          public class Foo {
+                            property public int foo(context @test.pkg.ExtendsAnnotation String s);
+                          }
+                        }
+                        """,
+                    checkMemberItemEquivalence = true,
+                )
             )
     }
 
@@ -741,14 +814,13 @@ class SnapshotDeltaMakerTest : BaseTextCodebaseTest() {
                     writer = printWriter,
                     fileFormat = fileFormat,
                 )
+
             val deltaFragment =
                 createCodebaseFragmentForSignatureFile(
                     deltaCodebase,
                     fileFormat,
-                    ApiType.ALL,
-                    preFiltered = true,
-                    showUnannotated = true,
-                    apiPredicateConfig = ApiPredicate.Config()
+                    // Pre-filtered so does not need any filters.
+                    apiFilters = null,
                 )
             deltaFragment.accept(signatureWriter)
         }

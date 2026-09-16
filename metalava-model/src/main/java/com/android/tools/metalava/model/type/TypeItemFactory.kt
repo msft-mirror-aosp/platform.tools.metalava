@@ -81,12 +81,22 @@ interface TypeItemFactory<in T, F : TypeItemFactory<T, F>> {
      * Get a type suitable for use in an `implements` list of a concrete class, or an `extends` list
      * of an interface class.
      */
-    fun getInterfaceType(underlyingType: T): ClassTypeItem
+    fun getInterfaceType(underlyingType: T): ClassTypeItem =
+        getHierarchicalClassType(underlyingType)
 
     /** Get a type suitable for use in an `extends` clause of a concrete class. */
-    fun getSuperClassType(underlyingType: T): ClassTypeItem
+    fun getSuperClassType(underlyingType: T): ClassTypeItem =
+        getHierarchicalClassType(underlyingType)
 
-    /** Get a type suitable for use as a class reference. */
+    /**
+     * Get a type suitable for use in a hierarchical class of a hierarchical class.
+     *
+     * A hierarchical clause is one that defines a hierarchical relationship between one
+     * hierarchical class and another, e.g. `extends`, `implements`, `permits`.
+     */
+    fun getHierarchicalClassType(underlyingType: T): ClassTypeItem
+
+    /** Get a type suitable for use as a class reference, i.e. `String.class` or `String::class`. */
     fun getClassReferenceType(underlyingType: T): ClassTypeItem
 
     // Item specific type methods.
@@ -329,20 +339,11 @@ abstract class DefaultTypeItemFactory<in T, F : DefaultTypeItemFactory<T, F>>(
 
     override fun getGeneralType(underlyingType: T) = getType(underlyingType)
 
-    override fun getInterfaceType(underlyingType: T) = getSuperType(underlyingType)
-
-    override fun getSuperClassType(underlyingType: T) = getSuperType(underlyingType)
+    override fun getHierarchicalClassType(underlyingType: T) =
+        getType(underlyingType, contextNullability = ContextNullability.forceNonNull)
+            as ClassTypeItem
 
     override fun getClassReferenceType(underlyingType: T): ClassTypeItem {
-        return getType(underlyingType, contextNullability = ContextNullability.forceNonNull)
-            as ClassTypeItem
-    }
-
-    /**
-     * Creates a [ClassTypeItem] that is suitable for use as a super type, e.g. in an `extends` or
-     * `implements` list.
-     */
-    private fun getSuperType(underlyingType: T): ClassTypeItem {
         return getType(underlyingType, contextNullability = ContextNullability.forceNonNull)
             as ClassTypeItem
     }

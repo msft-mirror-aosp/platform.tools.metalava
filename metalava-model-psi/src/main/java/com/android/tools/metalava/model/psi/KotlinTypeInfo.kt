@@ -20,6 +20,7 @@ import com.android.tools.metalava.model.KOTLIN_CONTINUATION
 import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.psi.kotlin.KaTypeItemFactory
 import com.intellij.psi.PsiElement
+import com.intellij.psi.PsiType
 import org.jetbrains.kotlin.analysis.api.KaExperimentalApi
 import org.jetbrains.kotlin.analysis.api.KaSession
 import org.jetbrains.kotlin.analysis.api.analyze
@@ -122,6 +123,11 @@ private constructor(
     fun isValueClassType(): Boolean {
         return analyze { kaType -> typeForValueClass(kaType) } ?: false
     }
+
+    /** Map the [KaType] this represents to a [PsiType], if possible. */
+    fun asPsiType() =
+        analyze { kaType -> kaType.asPsiType(context, allowErrorTypes = true) }
+            ?: error("Cannot convert $kaTypePointer to PsiType")
 
     /**
      * Creates [KotlinTypeInfo] for the component type of the [KaType] this represents, assuming it
@@ -435,7 +441,7 @@ private constructor(
          * this type, which will be the (optional) receiver, lambda parameter types, and return type
          * (or a continuation type and Any? return type for suspend lambdas).
          */
-        private val overrideTypeArguments: List<KotlinTypeInfo>,
+        val overrideTypeArguments: List<KotlinTypeInfo>,
         /** Whether this is a suspend lambda. */
         val isSuspend: Boolean,
         /** Whether this lambda has a receiver. */

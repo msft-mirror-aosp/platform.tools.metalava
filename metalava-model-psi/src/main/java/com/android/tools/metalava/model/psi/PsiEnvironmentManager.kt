@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model.psi
 
+import androidx.tracing.Tracer
 import com.android.tools.lint.UastEnvironment
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.ModelOptions
@@ -126,6 +127,7 @@ internal class PsiEnvironmentManager(
 
     override fun createSourceParser(
         codebaseConfig: Codebase.Config,
+        tracer: Tracer,
         javaLanguageLevel: String,
         kotlinLanguageLevel: String,
         modelOptions: ModelOptions,
@@ -134,6 +136,7 @@ internal class PsiEnvironmentManager(
         return PsiSourceParser(
             psiEnvironmentManager = this,
             codebaseConfig = codebaseConfig,
+            tracer = tracer,
             javaLanguageLevel = javaLanguageLevelFromString(javaLanguageLevel),
             kotlinLanguageLevel = kotlinLanguageVersionSettings(kotlinLanguageLevel),
             jdkHome = jdkHome,

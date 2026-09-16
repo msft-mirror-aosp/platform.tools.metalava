@@ -18,6 +18,8 @@ package com.android.tools.metalava.model.testsuite.typeitem
 
 import com.android.tools.lint.checks.infrastructure.TestFile
 import com.android.tools.metalava.model.TypeItem
+import com.android.tools.metalava.model.provider.InputFormat
+import com.android.tools.metalava.model.testing.SupportedInputFormats
 import com.android.tools.metalava.model.testing.classTypeItem
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.reporter.Issues
@@ -35,6 +37,7 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.runners.Parameterized
 
+@SupportedInputFormats(InputFormat.JAVA)
 class CommonParameterizedInvalidTypeTest : BaseModelTest() {
 
     @Parameterized.Parameter(0) lateinit var params: TestParams

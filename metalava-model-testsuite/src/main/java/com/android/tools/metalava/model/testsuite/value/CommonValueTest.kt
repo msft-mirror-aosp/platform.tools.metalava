@@ -16,8 +16,8 @@
 
 package com.android.tools.metalava.model.testsuite.value
 
-import com.android.tools.metalava.model.provider.Capability
-import com.android.tools.metalava.model.testing.RequiresCapabilities
+import com.android.tools.metalava.model.provider.InputFormat
+import com.android.tools.metalava.model.testing.SupportedInputFormats
 import com.android.tools.metalava.model.testing.value.fieldReferenceValue
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.model.value.Value
@@ -32,7 +32,7 @@ import org.junit.Test
  * One off tests for [Value] related functionality that are not covered by the parameterized tests.
  */
 class CommonValueTest : BaseModelTest() {
-    @RequiresCapabilities(Capability.KOTLIN)
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test reference to renamed companion object field`() {
         runCodebaseTest(
@@ -66,7 +66,7 @@ class CommonValueTest : BaseModelTest() {
         }
     }
 
-    @RequiresCapabilities(Capability.KOTLIN)
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test class value reference for class with type parameters from kotlin`() {
         runCodebaseTest(
@@ -94,6 +94,7 @@ class CommonValueTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `Test use field reference in an annotation on a package`() {
         runCodebaseTest(
@@ -126,6 +127,7 @@ class CommonValueTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `Test use field reference in a type annotation`() {
         runCodebaseTest(

@@ -805,16 +805,10 @@ internal class PsiValueFactory(
      *
      * This must have been resolved from a [UQualifiedReferenceExpression.receiver].
      */
-    private fun PsiClass.qualifiedNameIfCompanionClass(): String? =
-        if (isCompanion()) qualifiedName else null
-
-    /**
-     * Returns `true` if this is a companion class.
-     *
-     * This uses [PsiModifierItem.create] to avoid having to duplicate the code that deals with the
-     * Psi object model.
-     */
-    private fun PsiClass.isCompanion() = PsiModifierItem.create(codebase, this).isCompanion()
+    private fun PsiClass.qualifiedNameIfCompanionClass() =
+        qualifiedName?.takeIf { qualifiedName ->
+            codebase.resolveClass(qualifiedName)?.modifiers?.isCompanion() == true
+        }
 }
 
 /**

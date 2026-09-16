@@ -19,6 +19,8 @@ package com.android.tools.metalava.model.testsuite.typeitem
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.StripJavaLangPrefix
 import com.android.tools.metalava.model.TypeStringConfiguration
+import com.android.tools.metalava.model.provider.InputFormat
+import com.android.tools.metalava.model.testing.SupportedInputFormats
 import com.android.tools.metalava.model.testing.classTypeItem
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.testing.TestFileCache
@@ -162,6 +164,7 @@ class CommonTypeParameterItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `Test typeBounds on jar`() {
         runCodebaseTest(
@@ -326,6 +329,7 @@ class CommonTypeParameterItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.JAVA)
     @Test
     fun `Test type parameter bounds with multiple class parameters`() {
         runCodebaseTest(
@@ -361,6 +365,7 @@ class CommonTypeParameterItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.KOTLIN)
     @Test
     fun `Test reified type parameter`() {
         runCodebaseTest(
@@ -393,6 +398,7 @@ class CommonTypeParameterItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.JAVA)
     @Test
     fun `Test explicit Object bound - java`() {
         runCodebaseTest(
@@ -435,6 +441,7 @@ class CommonTypeParameterItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test explicit Any bounds - kotlin`() {
         runCodebaseTest(
@@ -457,6 +464,7 @@ class CommonTypeParameterItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.JAVA)
     @Test
     fun `Test toType`() {
         runCodebaseTest(

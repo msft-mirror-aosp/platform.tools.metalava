@@ -22,6 +22,8 @@ import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.TargetLanguage
 import com.android.tools.metalava.model.TargetLanguageSet
 import com.android.tools.metalava.model.VisibilityLevel
+import com.android.tools.metalava.model.provider.InputFormat
+import com.android.tools.metalava.model.testing.SupportedInputFormats
 import com.android.tools.metalava.testing.generateBase64gzipFromKotlin
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
@@ -97,6 +99,7 @@ class CommonTargetLanguageTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.KOTLIN)
     @Test
     fun `Test properties can only be used from Kotlin`() {
         runCodebaseTest(
@@ -124,6 +127,7 @@ class CommonTargetLanguageTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.KOTLIN)
     @Test
     fun `Test type aliases can only be used from Kotlin`() {
         runCodebaseTest(
@@ -147,6 +151,7 @@ class CommonTargetLanguageTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test value class constructor and boxing methods`() {
         runCodebaseTest(
@@ -242,6 +247,7 @@ class CommonTargetLanguageTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test function using value class parameter`() {
         runCodebaseTest(
@@ -324,6 +330,7 @@ class CommonTargetLanguageTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test function in value class`() {
         runCodebaseTest(
@@ -405,6 +412,7 @@ class CommonTargetLanguageTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test functions using different value classes with the same inlined value`() {
         runCodebaseTest(
@@ -530,6 +538,7 @@ class CommonTargetLanguageTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test only one copy of function with type variable`() {
         runCodebaseTest(
@@ -575,6 +584,7 @@ class CommonTargetLanguageTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test function of nested class using value class type`() {
         runCodebaseTest(
@@ -674,6 +684,7 @@ class CommonTargetLanguageTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test function returning value class type where bytecode method is not mangled`() {
         // In the case of a top-level extension function, the compiler-generated name for the
@@ -751,6 +762,7 @@ class CommonTargetLanguageTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test functions returning value class types and visibility`() {
         runCodebaseTest(
@@ -896,6 +908,7 @@ class CommonTargetLanguageTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test internal visibility value class constructor`() {
         runCodebaseTest(
@@ -960,6 +973,7 @@ class CommonTargetLanguageTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test properties of value class types and visibility`() {
         runCodebaseTest(
@@ -1101,6 +1115,7 @@ class CommonTargetLanguageTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test properties of value class types with JvmName`() {
         runCodebaseTest(
@@ -1217,6 +1232,7 @@ class CommonTargetLanguageTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test extension properties of value class types with JvmName`() {
         runCodebaseTest(
@@ -1337,6 +1353,7 @@ class CommonTargetLanguageTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test multi file class`() {
         runCodebaseTest(
@@ -1458,6 +1475,7 @@ class CommonTargetLanguageTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test hidden deprecation level with value class type`() {
         runCodebaseTest(
@@ -1540,6 +1558,7 @@ class CommonTargetLanguageTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test propagating PublishedApi from properties to accessors`() {
         runCodebaseTest(
@@ -1625,6 +1644,7 @@ class CommonTargetLanguageTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test annotation constructor is kotlin only`() {
         runCodebaseTest(
@@ -1642,6 +1662,7 @@ class CommonTargetLanguageTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test deprecation level hidden constructor is bytecode only`() {
         runCodebaseTest(
@@ -1686,6 +1707,7 @@ class CommonTargetLanguageTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test deprecation level hidden property`() {
         runCodebaseTest(
@@ -1737,6 +1759,7 @@ class CommonTargetLanguageTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test constructors using value class type and visibility`() {
         // Constructors using value class types can only be used from Kotlin. In bytecode they get
@@ -1851,6 +1874,7 @@ class CommonTargetLanguageTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test constructor using optional value class type`() {
         // Constructors using value class types can only be used from Kotlin. In bytecode they get
@@ -1949,6 +1973,7 @@ class CommonTargetLanguageTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test constructor using nullable value class type`() {
         runCodebaseTest(
@@ -2026,6 +2051,7 @@ class CommonTargetLanguageTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test deprecated hidden constructor using value class type`() {
         // Constructors using value class types can only be used from Kotlin. In bytecode they get
@@ -2114,6 +2140,7 @@ class CommonTargetLanguageTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test experimental value class property`() {
         runCodebaseTest(
@@ -2207,6 +2234,7 @@ class CommonTargetLanguageTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test experimental value class property in interface`() {
         runCodebaseTest(
@@ -2303,6 +2331,7 @@ class CommonTargetLanguageTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test reified inline function is not accessible from Java`() {
         runCodebaseTest(
@@ -2356,6 +2385,7 @@ class CommonTargetLanguageTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test extension and suspend reified inline functions`() {
         runCodebaseTest(
@@ -2458,6 +2488,7 @@ class CommonTargetLanguageTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test reified inlined accessors are not present`() {
         runCodebaseTest(
@@ -2511,6 +2542,7 @@ class CommonTargetLanguageTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test reified inline function using value class type`() {
         runCodebaseTest(
@@ -2590,6 +2622,7 @@ class CommonTargetLanguageTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test JvmSynthetic function is not accessible from Java`() {
         runCodebaseTest(
@@ -2637,6 +2670,7 @@ class CommonTargetLanguageTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test JvmSynthetic accessors are not accessible from Java`() {
         runCodebaseTest(
@@ -2690,6 +2724,7 @@ class CommonTargetLanguageTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test JvmSynthetic function using value class type`() {
         runCodebaseTest(
@@ -2767,6 +2802,7 @@ class CommonTargetLanguageTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test target languages for data class property accessors`() {
         runCodebaseTest(
@@ -2795,6 +2831,7 @@ class CommonTargetLanguageTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test target language for composable APIs`() {
         runCodebaseTest(
@@ -2897,8 +2934,8 @@ class CommonTargetLanguageTest : BaseModelTest() {
 
             val sourceFooVal = fooClass.assertProperty("fooVal")
             assertThat(sourceFooVal.targetLanguages).containsExactly(TargetLanguage.KOTLIN)
-            // The annotation is applied to the getter, not the property.
-            assertThat(sourceFooVal.annotationNames()).doesNotContain(ANDROIDX_COMPOSABLE)
+            // Metalava applies getter annotations to the property as well.
+            assertThat(sourceFooVal.annotationNames()).containsExactly(ANDROIDX_COMPOSABLE)
 
             // Signature generated by the compose compiler.
             val bytecodeFooVal =
@@ -2911,6 +2948,7 @@ class CommonTargetLanguageTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test JvmName on regular methods`() {
         runCodebaseTest(
@@ -2946,6 +2984,7 @@ class CommonTargetLanguageTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test JvmName on value class type methods`() {
         runCodebaseTest(
@@ -3041,6 +3080,7 @@ class CommonTargetLanguageTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test JvmName with method with fliped kotlin and bytecode names`() {
         runCodebaseTest(
@@ -3105,6 +3145,7 @@ class CommonTargetLanguageTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test compiler generated default version of function with optional parameters`() {
         runCodebaseTest(
@@ -3161,6 +3202,7 @@ class CommonTargetLanguageTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test compiler generated default version of top level function with optional parameters`() {
         runCodebaseTest(
@@ -3215,6 +3257,7 @@ class CommonTargetLanguageTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test compiler generated default version of internal functions with optional parameters`() {
         runCodebaseTest(
@@ -3313,6 +3356,7 @@ class CommonTargetLanguageTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test compiler generated default version of annotated function with optional parameters`() {
         runCodebaseTest(
@@ -3382,6 +3426,7 @@ class CommonTargetLanguageTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test compiler generated default version of deprecated function with optional parameters`() {
         runCodebaseTest(
@@ -3441,6 +3486,7 @@ class CommonTargetLanguageTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test compiler generated default version of constructor with optional parameters`() {
         runCodebaseTest(
@@ -3499,6 +3545,7 @@ class CommonTargetLanguageTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test compiler generated default version of internal constructor with optional parameters`() {
         runCodebaseTest(
@@ -3561,6 +3608,7 @@ class CommonTargetLanguageTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test compiler generated default version of annotated constructor with optional parameters`() {
         runCodebaseTest(
@@ -3630,6 +3678,7 @@ class CommonTargetLanguageTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test compiler generated default version of deprecated constructor with optional parameters`() {
         runCodebaseTest(
@@ -3690,6 +3739,7 @@ class CommonTargetLanguageTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test compiler generated default version of reified functions with optional parameters`() {
         runCodebaseTest(
@@ -3753,6 +3803,7 @@ class CommonTargetLanguageTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test compiler generated default version of top level reified functions with optional parameters`() {
         runCodebaseTest(
@@ -3812,6 +3863,7 @@ class CommonTargetLanguageTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test synthetic constructor is not included for private constructor`() {
         // See https://youtrack.jetbrains.com/issue/KT-51073: a public version of this constructor
@@ -3876,6 +3928,7 @@ class CommonTargetLanguageTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test synthetic constructor when there is a version with a final int parameter`() {
         runCodebaseTest(

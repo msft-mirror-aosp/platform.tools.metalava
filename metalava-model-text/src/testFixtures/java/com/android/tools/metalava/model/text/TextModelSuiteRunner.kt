@@ -72,7 +72,14 @@ class TextModelSuiteRunner : ModelSuiteRunner {
         inputs: ModelSuiteRunner.TestInputs,
         test: (MultiplatformCodebase?) -> Unit
     ) {
-        TODO("b/407735666")
+        // Parse the signature files into a MultiplatformCodebase
+        val signatureFiles = SignatureFile.forTest(inputs.mainSourceDir.createFiles())
+        val multiplatformCodebase =
+            ApiFile.parseMultiplatformApi(
+                signatureFiles,
+                codebaseConfig = inputs.testFixture.codebaseConfig,
+            )
+        test(multiplatformCodebase)
     }
 
     override fun createJarSupportAndRun(test: (JarSupport) -> Unit) {

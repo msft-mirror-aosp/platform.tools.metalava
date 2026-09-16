@@ -51,6 +51,8 @@ enum class TypeUseSite(
     RECORD_COMPONENT(
         label = "Record component",
         supportedClass = RecordComponentItem::class,
+        // Record components only have a single associated type so no need to differentiate them.
+        descriptionPrefix = "Type",
     ),
     SUPER_CLASS(
         label = "Super class",

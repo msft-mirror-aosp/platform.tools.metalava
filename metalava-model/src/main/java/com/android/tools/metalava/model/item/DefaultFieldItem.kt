@@ -72,7 +72,8 @@ internal class DefaultFieldItem(
 
     override fun duplicate(targetContainingClass: ClassItem) =
         DefaultFieldItem(
-                codebase = codebase,
+                // Create it in the same codebase as targetContainingClass.
+                codebase = targetContainingClass.codebase,
                 fileLocation = fileLocation,
                 sourceLanguage = sourceLanguage,
                 targetLanguages = targetLanguages,

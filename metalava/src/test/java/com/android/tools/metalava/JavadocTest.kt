@@ -41,11 +41,11 @@ class JavadocTest : DriverTest() {
         check(
             sourceFiles = sourceFiles,
             showAnnotations = showAnnotations,
-            stubFiles = arrayOf(java(source)),
+            expectedStubFiles = arrayOf(java(source)),
             expectedIssues = warnings,
             checkCompilation = true,
             apiLint = apiLint,
-            api = api,
+            expectedApiSignature = api,
             extraArguments = extraArguments,
             docStubs = docStubs,
             skipEmitPackages = skipEmitPackages
@@ -455,7 +455,6 @@ class JavadocTest : DriverTest() {
                 @SuppressWarnings({"unchecked", "deprecation", "all"})
                 public class R {
                 public R() { throw new RuntimeException("Stub!"); }
-                @SuppressWarnings({"unchecked", "deprecation", "all"})
                 public static class attr {
                 public attr() { throw new RuntimeException("Stub!"); }
                 /**
@@ -876,7 +875,6 @@ class JavadocTest : DriverTest() {
                 @SuppressWarnings({"unchecked", "deprecation", "all"})
                 public class Test {
                 public Test() { throw new RuntimeException("Stub!"); }
-                @SuppressWarnings({"unchecked", "deprecation", "all"})
                 public static class TestInner {
                 public TestInner() { throw new RuntimeException("Stub!"); }
                 public static final java.lang.String CONSTANT3 = "Hello";
@@ -1088,7 +1086,7 @@ class JavadocTest : DriverTest() {
                     )
                 ),
             docStubs = true,
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
@@ -1110,7 +1108,6 @@ class JavadocTest : DriverTest() {
                      */
                     @Deprecated
                     public android.view.WindowInsets replaceSystemWindowInsets(int left, int top, int right, int bottom) { throw new RuntimeException("Stub!"); }
-                    @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public static class Builder {
                     public Builder() { throw new RuntimeException("Stub!"); }
                     public Builder(android.view.WindowInsets insets) { throw new RuntimeException("Stub!"); }
@@ -1170,7 +1167,7 @@ class JavadocTest : DriverTest() {
                     """
                     )
                 ),
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
@@ -1248,9 +1245,11 @@ class JavadocTest : DriverTest() {
                     src/test/pkg/Foo.java:4: error: Documentation contains '@hide', `@removed` or '@doconly' that is not used as a block tag; that could cause unexpected behavior downstream. [InvalidBlockTagUse]
                     src/test/pkg/Foo.java:9: error: Documentation contains '@hide', `@removed` or '@doconly' that is not used as a block tag; that could cause unexpected behavior downstream. [InvalidBlockTagUse]
                     src/test/pkg/Foo.java:14: error: Documentation contains '@hide', `@removed` or '@doconly' that is not used as a block tag; that could cause unexpected behavior downstream. [InvalidBlockTagUse]
+                    src/test/pkg/Foo.java:15: warning: Cannot use 'hide' as an inline tag (ErrorWhenNew) [InvalidTagForm]
                     src/test/pkg/Foo.java:19: error: Documentation contains '@hide', `@removed` or '@doconly' that is not used as a block tag; that could cause unexpected behavior downstream. [InvalidBlockTagUse]
+                    src/test/pkg/Foo.java:21: warning: Cannot use 'hide' as an inline tag (ErrorWhenNew) [InvalidTagForm]
                 """,
-            api =
+            expectedApiSignature =
                 """
                     // Signature format: 5.0
                     package test.pkg {
@@ -1262,7 +1261,7 @@ class JavadocTest : DriverTest() {
                       }
                     }
                 """,
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
@@ -1313,7 +1312,7 @@ class JavadocTest : DriverTest() {
                     src/test/pkg/Foo.java:6: error: Documentation contains '@hide', `@removed` or '@doconly' that is not used as a block tag; that could cause unexpected behavior downstream. [InvalidBlockTagUse]
                 """,
             docStubs = true,
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
@@ -1382,6 +1381,8 @@ class JavadocTest : DriverTest() {
                                 Documentation contains '@hide', `@removed` or '@doconly' that is not used as a block tag; that could cause unexpected behavior downstream.
                             InvalidBlockTagUse: test.pkg.Foo#qux():
                                 Documentation contains '@hide', `@removed` or '@doconly' that is not used as a block tag; that could cause unexpected behavior downstream.
+                            InvalidTagForm: test/pkg/Foo.java:
+                                Cannot use 'hide' as an inline tag
                         """,
                     silentUpdate = false,
                 ),
@@ -1390,9 +1391,11 @@ class JavadocTest : DriverTest() {
                     src/test/pkg/Foo.java:4: error: Documentation contains '@hide', `@removed` or '@doconly' that is not used as a block tag; that could cause unexpected behavior downstream. [InvalidBlockTagUse]
                     src/test/pkg/Foo.java:9: error: Documentation contains '@hide', `@removed` or '@doconly' that is not used as a block tag; that could cause unexpected behavior downstream. [InvalidBlockTagUse]
                     src/test/pkg/Foo.java:14: error: Documentation contains '@hide', `@removed` or '@doconly' that is not used as a block tag; that could cause unexpected behavior downstream. [InvalidBlockTagUse]
+                    src/test/pkg/Foo.java:15: warning: Cannot use 'hide' as an inline tag (ErrorWhenNew) [InvalidTagForm]
                     src/test/pkg/Foo.java:19: error: Documentation contains '@hide', `@removed` or '@doconly' that is not used as a block tag; that could cause unexpected behavior downstream. [InvalidBlockTagUse]
+                    src/test/pkg/Foo.java:21: warning: Cannot use 'hide' as an inline tag (ErrorWhenNew) [InvalidTagForm]
                 """,
-            api =
+            expectedApiSignature =
                 """
                     // Signature format: 5.0
                     package test.pkg {
@@ -1404,7 +1407,7 @@ class JavadocTest : DriverTest() {
                       }
                     }
                 """,
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """

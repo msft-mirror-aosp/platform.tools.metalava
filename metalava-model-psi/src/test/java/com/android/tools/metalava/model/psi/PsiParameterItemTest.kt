@@ -16,6 +16,8 @@
 
 package com.android.tools.metalava.model.psi
 
+import com.android.tools.metalava.model.provider.InputFormat
+import com.android.tools.metalava.model.testing.SupportedInputFormats
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.testing.createAndroidModuleDescription
 import com.android.tools.metalava.testing.createCommonModuleDescription
@@ -30,6 +32,7 @@ import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
 class PsiParameterItemTest : BaseModelTest() {
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `primary constructor parameters have properties`() {
         runCodebaseTest(kotlin("class Foo(val property: Int, parameter: Int)")) {
@@ -43,6 +46,7 @@ class PsiParameterItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `actuals get params from expects`() {
         val commonSource =

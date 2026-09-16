@@ -28,14 +28,14 @@ import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.TypeItem
+import com.android.tools.metalava.model.api.surface.ApiSurface
+import com.android.tools.metalava.model.api.surface.ApiSurfacePredicate
 import com.android.tools.metalava.model.doc.DocContent
 import com.android.tools.metalava.model.doc.DocContentPredicate
 import com.android.tools.metalava.model.source.doc.DocContentPredicates
-import com.android.tools.metalava.model.source.doc.containsWord
 import com.android.tools.metalava.model.value.asString
-import com.android.tools.metalava.model.visitors.ApiPredicate
-import com.android.tools.metalava.model.visitors.ApiVisitor
-import com.android.tools.metalava.permission.getRequiresPermissionInfo
+import com.android.tools.metalava.model.visitors.ApiSurfaceVisitor
+import com.android.tools.metalava.permission.getRequiresPermissionProxy
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
 import com.android.tools.metalava.reporter.Severity
@@ -50,7 +50,7 @@ import java.util.regex.Pattern
  */
 class AndroidApiChecks(
     private val reporter: Reporter,
-    private val apiPredicateConfig: ApiPredicate.Config,
+    private val apiSurface: ApiSurface,
 ) {
     fun check(codebase: Codebase) {
         for (packageItem in codebase.getPackages().packages) {
@@ -68,8 +68,9 @@ class AndroidApiChecks(
     private fun checkPackage(packageItem: PackageItem) {
         packageItem.accept(
             object :
-                ApiVisitor(
-                    apiPredicateConfig = apiPredicateConfig,
+                ApiSurfaceVisitor(
+                    // Apply checks to the whole of the core emittable API.
+                    filterEmit = ApiSurfacePredicate.wholeCoreEmittableApi(apiSurface),
                 ) {
 
                 override fun visitSelectableItem(item: SelectableItem) {
@@ -111,7 +112,7 @@ class AndroidApiChecks(
                         "Parameter '" +
                             parameter.name() +
                             "' of '" +
-                            parameter.containingCallable().name() +
+                            parameter.parent().name() +
                             "'",
                         parameter.type()
                     )
@@ -131,10 +132,10 @@ class AndroidApiChecks(
         val documentation = callable.documentation ?: return
 
         val annotation = callable.modifiers.findAnnotation("androidx.annotation.RequiresPermission")
-        val requiresPermissionInfo = annotation?.getRequiresPermissionInfo()
-        if (requiresPermissionInfo != null) {
-            val conditional = requiresPermissionInfo.conditional
-            val permissions = requiresPermissionInfo.permissionValues.mapNotNull { it.asString() }
+        val requiresPermissionProxy = annotation?.getRequiresPermissionProxy(callable)
+        if (requiresPermissionProxy != null) {
+            val conditional = requiresPermissionProxy.conditional
+            val permissions = requiresPermissionProxy.permissionValues.mapNotNull { it.asString() }
             for (item in permissions) {
                 val perm = item.substringAfterLast('.')
                 // Search for the permission name as a whole word.
@@ -250,7 +251,7 @@ class AndroidApiChecks(
 
         // Check to make sure that if the documentation mentions `null` that it also uses the
         // correct nullability annotations.
-        if (type.modifiers.isPlatformNullability == true && content.containsNullWord()) {
+        if (type.modifiers.isPlatformNullability && content.containsNullWord()) {
             reporter.report(
                 Issues.NULLABLE,
                 item,

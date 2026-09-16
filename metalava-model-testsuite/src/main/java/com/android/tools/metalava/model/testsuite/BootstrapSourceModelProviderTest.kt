@@ -22,6 +22,8 @@ import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.VariableTypeItem
 import com.android.tools.metalava.model.noOpAnnotationManager
+import com.android.tools.metalava.model.provider.InputFormat
+import com.android.tools.metalava.model.testing.SupportedInputFormats
 import com.android.tools.metalava.model.testing.classTypeItem
 import com.android.tools.metalava.model.testing.value.annotationItem
 import com.android.tools.metalava.model.testing.value.arrayValue
@@ -44,6 +46,7 @@ import org.junit.Test
  * previous test so that a developer would start by running the first test, making it pass,
  * submitting the changes and then moving on to the next test.
  */
+@SupportedInputFormats(InputFormat.JAVA)
 class BootstrapSourceModelProviderTest : BaseModelTest() {
 
     @Test
@@ -1008,39 +1011,6 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
             assertEquals(true, classItem1.isEnum())
             assertEquals(0, classItem1.methods().count())
             assertEquals(false, nonEnumClassField.isEnumConstant())
-        }
-    }
-
-    @Test
-    fun `260 - test doconly members`() {
-        runSourceCodebaseTest(
-            java(
-                """
-                    package test.pkg;
-
-                    public class Test {
-                        /** @doconly */
-                        public class Inner {
-                            public int InnerField;
-                        }
-
-                        /** @doconly Some docs here */
-                        public int Field;
-                    }
-                """
-            ),
-        ) {
-            val classItem = codebase.assertClass("test.pkg.Test")
-            val classSelectors = classItem.variantSelectors
-            val innerClassItem = codebase.assertClass("test.pkg.Test.Inner")
-            val innerClassSelectors = innerClassItem.variantSelectors
-            val fieldSelectors = classItem.assertField("Field").variantSelectors
-            val innerFieldSelectors = innerClassItem.assertField("InnerField").variantSelectors
-
-            assertEquals(false, classSelectors.docOnly, message = "classSelectors.docOnly")
-            assertEquals(true, innerClassSelectors.docOnly, message = "innerClassSelectors.docOnly")
-            assertEquals(true, innerFieldSelectors.docOnly, message = "innerFieldSelectors.docOnly")
-            assertEquals(true, fieldSelectors.docOnly, message = "fieldSelectors.docOnly")
         }
     }
 }
