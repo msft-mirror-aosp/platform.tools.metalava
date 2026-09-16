@@ -2228,4 +2228,71 @@ class CommonAnnotationItemTest : BaseModelTest() {
             )
         }
     }
+
+    @SupportedInputFormats(InputFormat.JAVA)
+    @Test
+    fun `Test isShowabilityAnnotation for show and hide apis`() {
+        val apiSurfaceRules =
+            ApiSurfaceRules(
+                apiSurfaces = ApiSurfaces.DEFAULT,
+                byName =
+                    mapOf(
+                        "main" to
+                            listOf(
+                                SurfaceSelectionRule.unannotated,
+                                SurfaceSelectionRule.createAnnotationRule("test.pkg.ShowAnno"),
+                                SurfaceSelectionRule.createAnnotationRule(
+                                    "test.pkg.HideAnno",
+                                    effect = SurfaceSelectionRule.Effect.HIDE,
+                                ),
+                            )
+                    ),
+            )
+
+        runCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+
+                    @interface ShowAnno {}
+                    @interface HideAnno {}
+                    @interface NormalAnno {}
+
+                    @ShowAnno
+                    public class ShowClass {}
+
+                    @HideAnno
+                    public class HideClass {}
+
+                    @NormalAnno
+                    public class NormalClass {}
+                """
+            ),
+            testFixture =
+                TestFixture(
+                    apiSurfaceRules = apiSurfaceRules,
+                ),
+        ) {
+            val showAnno =
+                codebase.assertClass("test.pkg.ShowClass").assertAnnotation("test.pkg.ShowAnno")
+            assertTrue(showAnno.isShowabilityAnnotation(), "showAnno.isShowabilityAnnotation()")
+            assertTrue(showAnno.isShowAnnotation(), "showAnno.isShowAnnotation()")
+            assertFalse(showAnno.isHideAnnotation(), "showAnno.isHideAnnotation()")
+
+            val hideAnno =
+                codebase.assertClass("test.pkg.HideClass").assertAnnotation("test.pkg.HideAnno")
+            assertTrue(hideAnno.isShowabilityAnnotation(), "hideAnno.isShowabilityAnnotation()")
+            assertFalse(hideAnno.isShowAnnotation(), "hideAnno.isShowAnnotation()")
+            assertTrue(hideAnno.isHideAnnotation(), "hideAnno.isHideAnnotation()")
+
+            val normalAnno =
+                codebase.assertClass("test.pkg.NormalClass").assertAnnotation("test.pkg.NormalAnno")
+            assertFalse(
+                normalAnno.isShowabilityAnnotation(),
+                "normalAnno.isShowabilityAnnotation()",
+            )
+            assertFalse(normalAnno.isShowAnnotation(), "normalAnno.isShowAnnotation()")
+            assertFalse(normalAnno.isHideAnnotation(), "normalAnno.isHideAnnotation()")
+        }
+    }
 }

@@ -31,6 +31,7 @@ import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.testing.KnownJarFiles
 import com.android.tools.metalava.testing.java
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import org.junit.Test
@@ -83,6 +84,9 @@ class CommonFlagTest : BaseModelTest() {
             assertNull(apiFlag, "apiFlag")
             assertEquals(Showability.NO_EFFECT, annotation.showability, "showability")
             assertEquals(ANNOTATION_IN_ALL_STUBS, annotation.targets, "targets")
+
+            // An unconfigured @FlaggedApi has no effect on showability (showability is NO_EFFECT).
+            assertFalse(annotation.isShowabilityAnnotation(), "isShowabilityAnnotation")
         }
     }
 
@@ -100,6 +104,11 @@ class CommonFlagTest : BaseModelTest() {
             assertEquals(expectedApiFlag, apiFlag, "apiFlag")
             assertEquals(Showability.REVERT_UNSTABLE_API, annotation.showability, "showability")
             assertEquals(NO_ANNOTATION_TARGETS, annotation.targets, "targets")
+
+            // TODO: This should never return true as a flagged API is neither a show nor a hide
+            //  annotation. Currently returns true because showability is REVERT_UNSTABLE_API which
+            //  is not NO_EFFECT.
+            assertTrue(annotation.isShowabilityAnnotation(), "isShowabilityAnnotation")
 
             assertTrue(
                 fooClass.showability.revertUnstableApi(),
@@ -127,6 +136,9 @@ class CommonFlagTest : BaseModelTest() {
             assertEquals(ApiFlag("test.pkg.flags.flag_name", FINALIZE), apiFlag, "apiFlag")
             assertEquals(Showability.NO_EFFECT, annotation.showability, "showability")
             assertEquals(NO_ANNOTATION_TARGETS, annotation.targets, "targets")
+
+            // A finalized flag has no effect on showability (showability is NO_EFFECT).
+            assertFalse(annotation.isShowabilityAnnotation(), "isShowabilityAnnotation")
         }
     }
 
@@ -142,6 +154,9 @@ class CommonFlagTest : BaseModelTest() {
             assertEquals(ApiFlag("test.pkg.flags.flag_name", KEEP), apiFlag, "apiFlag")
             assertEquals(Showability.NO_EFFECT, annotation.showability, "showability")
             assertEquals(ANNOTATION_IN_ALL_STUBS, annotation.targets, "targets")
+
+            // A kept flag has no effect on showability (showability is NO_EFFECT).
+            assertFalse(annotation.isShowabilityAnnotation(), "isShowabilityAnnotation")
         }
     }
 }
