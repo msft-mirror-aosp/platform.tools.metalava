@@ -508,7 +508,7 @@ class SelectedApiUpdater(
  * Workaround: we're pulling in .aidl files from .jar files. These are marked @hide, but since we
  * only see the .class files we don't know that.
  */
-internal fun SelectableItem.isAidlClassThatShouldBeHidden(): Boolean =
+private fun SelectableItem.isAidlClassThatShouldBeHidden(): Boolean =
     this is ClassItem &&
         simpleName().startsWith("I") &&
         origin == ClassOrigin.CLASS_PATH &&
