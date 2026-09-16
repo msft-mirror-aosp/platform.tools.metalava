@@ -177,11 +177,29 @@ internal class ApiContents(
         }
 
         for (superItem in allSuperItems) {
-            // allInterfaces includes cl itself if cl is an interface
-            if (superItem.isHiddenOrRemoved() && superItem != cl) {
+            // allInterfaces includes cl itself if cl is an interface.
+            if (superItem == cl) {
+                continue
+            }
+            // java.lang.Object is the implicit superclass of all classes and is never unavailable.
+            if (superItem.isJavaLangObject()) {
+                continue
+            }
+
+            // Implicit super types of annotations and enums are never unavailable.
+            val implicitSuperType =
+                when (val classKind = cl.classKind) {
+                    ClassKind.ANNOTATION_TYPE -> classKind.implicitInterfaceType
+                    ClassKind.ENUM -> classKind.implicitSuperClassType
+                    else -> null
+                }
+            if (superItem.qualifiedName() == implicitSuperType?.qualifiedName) {
+                continue
+            }
+
+            if (superItem.isHiddenOrRemoved()) {
                 // cl is a public class declared as extending a hidden superclass or implementing
-                // a hidden interface.
-                // this is not a desired practice, but it's happened, so we deal
+                // a hidden interface. This is not a desired practice, but it's happened, so we deal
                 // with it by finding the first super class which passes checkLevel for purposes of
                 // generating the doc & stub information, and proceeding normally.
                 if (
