@@ -205,7 +205,7 @@ data class Showability(
      * item then when the item is annotated with such an annotation or is a method that overrides
      * such an item or is contained within a class that is annotated with such an annotation.
      */
-    fun revertUnstableApi() = show == ShowOrHide.REVERT_UNSTABLE_API
+    internal fun revertUnstableApi() = show == ShowOrHide.REVERT_UNSTABLE_API
 
     /** Combine this with [other] to produce a combination [Showability]. */
     fun combineWith(other: Showability): Showability {

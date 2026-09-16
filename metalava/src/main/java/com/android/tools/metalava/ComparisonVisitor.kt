@@ -392,7 +392,7 @@ object CodebaseComparator {
                 // which it is being compared in this compatibility check. So, while this specific
                 // item will not appear in the API the old item will and so it has not been removed.
                 val methodFilter =
-                    filter?.or { method: SelectableItem -> method.showability.revertUnstableApi() }
+                    filter?.or { method: SelectableItem -> method.selectedApi.revert }
 
                 // Find an element which matches the methodFilter
                 val superMethod = newParent.findPredicateMethodWithSuper(old, methodFilter)

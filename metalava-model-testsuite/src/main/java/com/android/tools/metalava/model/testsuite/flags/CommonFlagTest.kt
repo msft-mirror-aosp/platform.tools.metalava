@@ -109,10 +109,7 @@ class CommonFlagTest : BaseModelTest() {
             // a hide annotation).
             assertFalse(annotation.isShowabilityAnnotation(), "isShowabilityAnnotation")
 
-            assertTrue(
-                fooClass.showability.revertUnstableApi(),
-                message = "class showability revert"
-            )
+            assertTrue(fooClass.selectedApi.revert, message = "class showability revert")
 
             assertAndRemoveReportedIssues(
                 """

@@ -78,7 +78,7 @@ internal sealed class SourceSelectedApi<S : SelectableItem>(
      *
      * Initialized by [SelectedApiUpdater.updateSelectedApi] called from [updateFromSelectableItem].
      */
-    var revert: Boolean = false
+    override var revert: Boolean = false
 
     /**
      * The [SelectableItem] from the previously released API that matches this item, if this item is

@@ -57,6 +57,9 @@ sealed class SelectedApi {
     open val superClassApiVariants: ApiVariantSet
         get() = ApiVariantSet.EMPTY
 
+    /** Indicates whether the associated [SelectableItem] is being reverted. */
+    abstract val revert: Boolean
+
     /**
      * The [SelectableItem] from the previously released API that matches this item, if this item is
      * to be reverted.
@@ -153,6 +156,9 @@ private class SimpleSelectedApi : SelectedApi() {
     override var contentApiVariants = ApiVariantSet.EMPTY
 
     override var superClassApiVariants = ApiVariantSet.EMPTY
+
+    override val revert: Boolean
+        get() = false
 
     override val revertItem: SelectableItem?
         get() = null
