@@ -24,7 +24,6 @@ import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.ItemDocumentationFactory
 import com.android.tools.metalava.model.SelectableItem
-import com.android.tools.metalava.model.Showability
 import com.android.tools.metalava.model.SourceLanguage
 import com.android.tools.metalava.model.TargetLanguage
 import com.android.tools.metalava.model.api.SelectedApi
@@ -95,7 +94,4 @@ internal sealed class DefaultSelectableItem(
     /** Manually delegate to [ApiVariantSelectors.removed] as property delegates are expensive. */
     final override val removed: Boolean
         get() = variantSelectors.removed
-
-    final override val showability: Showability
-        get() = variantSelectors.showability
 }

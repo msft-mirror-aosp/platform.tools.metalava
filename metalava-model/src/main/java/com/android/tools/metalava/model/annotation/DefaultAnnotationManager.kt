@@ -509,7 +509,9 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
             // If any of a method's super methods are part of a unstable API that needs to be
             // reverted then treat the method as if it is too.
             val revertUnstableApi =
-                item.superMethods().any { methodItem -> methodItem.showability.revertUnstableApi() }
+                item.superMethods().any { methodItem ->
+                    methodItem.variantSelectors.showability.revertUnstableApi()
+                }
             if (revertUnstableApi) {
                 itemShowability = itemShowability.combineWith(REVERT_UNSTABLE_API)
             }
@@ -517,7 +519,7 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
 
         val containingClass = item.containingClass()
         if (containingClass != null) {
-            if (containingClass.showability.revertUnstableApi()) {
+            if (containingClass.variantSelectors.showability.revertUnstableApi()) {
                 itemShowability = itemShowability.combineWith(REVERT_UNSTABLE_API)
             }
         }
