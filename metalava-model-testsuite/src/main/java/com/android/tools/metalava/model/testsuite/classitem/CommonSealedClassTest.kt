@@ -17,6 +17,7 @@
 package com.android.tools.metalava.model.testsuite.classitem
 
 import com.android.tools.metalava.model.SkeletonClassItem
+import com.android.tools.metalava.model.TargetLanguageSet
 import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.api.ApiSurfaceRules
 import com.android.tools.metalava.model.api.SurfaceSelectionRule
@@ -794,6 +795,31 @@ class CommonSealedClassTest : BaseModelTest() {
 
             // Because the constructor is exposed in the API, the class is not effectively sealed.
             assertFalse(fooClass.isEffectivelySealed())
+        }
+    }
+
+    @SupportedInputFormats(InputFormat.KOTLIN)
+    @Test
+    fun `sealed abstract class constructor with value class parameter`() {
+        runCodebaseTest(
+            inputSet(
+                kotlin(
+                    """
+                    package test.pkg
+                    @JvmInline value class IntValue(val value: Int)
+                    sealed class SealedClass(val iv: IntValue)
+                    """
+                )
+            )
+        ) {
+            val testClass = codebase.assertClass("test.pkg.SealedClass")
+            testClass.assertConstructor(listOf("test.pkg.IntValue")).also { constructor ->
+                assertEquals(constructor.targetLanguages, TargetLanguageSet.KOTLIN_ONLY)
+                assertEquals(
+                    VisibilityLevel.PRIVATE,
+                    constructor.modifiers.getVisibilityLevel(),
+                )
+            }
         }
     }
 }

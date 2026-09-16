@@ -703,6 +703,12 @@ private constructor(
             }
 
         val modifiers = kaModifierFactory.createForDeclaration(constructorSymbol)
+        // Sealed abstract classes cannot be externally instantiated so treat the constructors as
+        // private. This mirrors [PsiClassBuilder.treatConstructorAsPrivate].
+        if (containingClass.modifiers.isSealed()) {
+            modifiers.setVisibilityLevel(VisibilityLevel.PRIVATE)
+        }
+
         val constructorItem =
             itemFactory.createConstructorItem(
                 fileLocation = PsiFileLocation.fromPsiElement(constructorSymbol.psi),
