@@ -490,4 +490,29 @@ class ApiContentsTest : DriverTest() {
                 """
         )
     }
+
+    @RequiresCapabilities(Capability.KOTLIN)
+    @Test
+    fun `Reference to internal class from public API`() {
+        check(
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
+                            package test.pkg
+
+                            internal interface InternalInterface
+
+                            class PublicClass {
+                                @Suppress("EXPOSED_TYPE_PARAMETER_BOUND_DEPRECATION_WARNING")
+                                fun <T : InternalInterface> method(t: T) {}
+                            }
+                        """
+                    ),
+                ),
+            // TODO(b/512093496): Internal classes referenced from public API should be flagged
+            //  with ReferencesHidden.
+            expectedIssues = "",
+        )
+    }
 }
