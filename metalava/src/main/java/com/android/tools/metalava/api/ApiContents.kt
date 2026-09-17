@@ -142,7 +142,9 @@ internal class ApiContents(
 
         // Report issues before checking to see if this class has been visited before so that it
         // will report all references to the hidden class.
-        if (cl.isHiddenOrRemoved() || cl.isPackagePrivate && !cl.isApiCandidate()) {
+        if (
+            cl.isHiddenOrRemoved() || (cl.isPackagePrivate || cl.isInternal) && !cl.isApiCandidate()
+        ) {
             reporter.report(
                 Issues.REFERENCES_HIDDEN,
                 from,

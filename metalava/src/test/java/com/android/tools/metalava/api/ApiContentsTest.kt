@@ -510,9 +510,10 @@ class ApiContentsTest : DriverTest() {
                         """
                     ),
                 ),
-            // TODO(b/512093496): Internal classes referenced from public API should be flagged
-            //  with ReferencesHidden.
-            expectedIssues = "",
+            expectedIssues =
+                """
+                    src/test/pkg/InternalInterface.kt:7: error: Class test.pkg.InternalInterface is not public but was referenced (as type parameter) from public method test.pkg.PublicClass.method(T) [ReferencesHidden]
+                """,
         )
     }
 }
