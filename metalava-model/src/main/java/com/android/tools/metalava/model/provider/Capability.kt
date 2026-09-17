@@ -16,7 +16,6 @@
 
 package com.android.tools.metalava.model.provider
 
-import com.android.tools.metalava.model.ApiVariantSelectors
 import com.android.tools.metalava.model.ClassPathResolver
 import com.android.tools.metalava.model.multiplatform.MultiplatformCodebase
 
@@ -57,9 +56,6 @@ enum class Capability {
 
     /** Has access to reverted items. */
     REVERTED_ITEMS,
-
-    /** Has access to [ApiVariantSelectors]. */
-    API_VARIANT_SELECTORS,
 
     /** Can create [MultiplatformCodebase]s */
     MULTIPLATFORM,

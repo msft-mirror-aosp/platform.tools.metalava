@@ -23,7 +23,6 @@ import com.android.tools.metalava.model.EMITTED_ONLY
 import com.android.tools.metalava.model.FilterPredicate
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.api.surface.ApiSurfacePredicate
-import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.provider.InputFormat
 import com.android.tools.metalava.model.testing.SupportedInputFormats
 import com.android.tools.metalava.model.testing.surfaces.TestableApiSurfaces.REMOVED_FROM_API
@@ -70,7 +69,6 @@ class CommonParameterizedApiSurfaceVisitorTest : BaseModelTest() {
         val expectedNested: String = expectedNotNested,
         val apiFilters: (Codebase.() -> ApiFilters?)? = null,
         val filterEmit: Codebase.() -> FilterPredicate?,
-        val requiresApiVariantSelectors: Boolean = false,
         val classpath: List<TestFile> = emptyList(),
     ) {
         /**
@@ -109,7 +107,6 @@ class CommonParameterizedApiSurfaceVisitorTest : BaseModelTest() {
             input: List<TestFile>,
             expectedNotNested: String,
             expectedNested: String = expectedNotNested,
-            requiresApiVariantSelectors: Boolean = false,
             classpath: List<TestFile> = emptyList(),
         ) =
             TestCase(
@@ -118,7 +115,6 @@ class CommonParameterizedApiSurfaceVisitorTest : BaseModelTest() {
                 expectedNotNested = expectedNotNested,
                 expectedNested = expectedNested,
                 filterEmit = { ApiSurfacePredicate.wholeCoreEmittableApi(apiSurfaces.main) },
-                requiresApiVariantSelectors = requiresApiVariantSelectors,
                 classpath = classpath,
             )
 
@@ -132,7 +128,6 @@ class CommonParameterizedApiSurfaceVisitorTest : BaseModelTest() {
             input: List<TestFile>,
             expectedNotNested: String,
             expectedNested: String = expectedNotNested,
-            requiresApiVariantSelectors: Boolean = false,
             classpath: List<TestFile> = emptyList(),
         ) =
             TestCase(
@@ -144,7 +139,6 @@ class CommonParameterizedApiSurfaceVisitorTest : BaseModelTest() {
                 filterEmit = {
                     EMITTED_ONLY.and(ApiSurfacePredicate.wholeCoreAndRemovedApi(apiSurfaces.main))
                 },
-                requiresApiVariantSelectors = requiresApiVariantSelectors,
                 classpath = classpath,
             )
 
@@ -219,7 +213,6 @@ class CommonParameterizedApiSurfaceVisitorTest : BaseModelTest() {
                                   method test.pkg.Outer.Inner.innerMethod()
                                   field test.pkg.Outer.Inner.innerField
                         """,
-                    requiresApiVariantSelectors = true,
                 ),
                 wholeCoreTestCase(
                     name = "class without nested classes",
@@ -295,7 +288,6 @@ class CommonParameterizedApiSurfaceVisitorTest : BaseModelTest() {
                                 method test.pkg.Foo.method()
                                 field test.pkg.Foo.field
                         """,
-                    requiresApiVariantSelectors = true,
                 ),
                 wholeCoreTestCase(
                     name = "hidden class",
@@ -336,7 +328,6 @@ class CommonParameterizedApiSurfaceVisitorTest : BaseModelTest() {
                                 constructor test.pkg.Foo()
                                 method test.pkg.Foo.method()
                         """,
-                    requiresApiVariantSelectors = true,
                 ),
                 wholeCoreTestCase(
                     name = "removed method",
@@ -373,7 +364,6 @@ class CommonParameterizedApiSurfaceVisitorTest : BaseModelTest() {
                                 constructor test.pkg.Foo()
                                 method test.pkg.Foo.method()
                         """,
-                    requiresApiVariantSelectors = true,
                 ),
                 wholeCoreTestCase(
                     name = "hidden inner class",
@@ -418,7 +408,6 @@ class CommonParameterizedApiSurfaceVisitorTest : BaseModelTest() {
                                 method test.pkg.Outer.method()
                                 field test.pkg.Outer.field
                         """,
-                    requiresApiVariantSelectors = true,
                 ),
                 wholeCoreTestCase(
                     name = "package private and private members",
@@ -460,7 +449,6 @@ class CommonParameterizedApiSurfaceVisitorTest : BaseModelTest() {
                                 method test.pkg.Foo.publicMethod()
                                 field test.pkg.Foo.publicField
                         """,
-                    requiresApiVariantSelectors = true,
                 ),
                 wholeCoreTestCase(
                     name = "not emitted class",
@@ -564,7 +552,6 @@ class CommonParameterizedApiSurfaceVisitorTest : BaseModelTest() {
                                   method test.pkg.Outer.Inner.innerMethod()
                                   field test.pkg.Outer.Inner.innerField
                         """,
-                    requiresApiVariantSelectors = true,
                 ),
                 wholeCoreAndRemovedTestCase(
                     name = "class without nested classes",
@@ -637,7 +624,6 @@ class CommonParameterizedApiSurfaceVisitorTest : BaseModelTest() {
                                 method test.pkg.Foo.method()
                                 method test.pkg.Foo.removedMethod()
                         """,
-                    requiresApiVariantSelectors = true,
                 ),
             )
     }
@@ -701,12 +687,6 @@ class CommonParameterizedApiSurfaceVisitorTest : BaseModelTest() {
         preserveClassNesting: Boolean,
         dump: Codebase.() -> String,
     ) {
-        if (testCase.requiresApiVariantSelectors) {
-            assumeTrue(
-                "Provider does not support API_VARIANT_SELECTORS",
-                codebaseCreatorHasCapability(Capability.API_VARIANT_SELECTORS),
-            )
-        }
         val expected =
             if (preserveClassNesting) testCase.expectedNested else testCase.expectedNotNested
         runCodebaseTest(
