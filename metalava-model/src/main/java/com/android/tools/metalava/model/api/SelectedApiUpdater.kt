@@ -23,6 +23,7 @@ import com.android.tools.metalava.model.ClassOrigin
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.KOTLIN_PUBLISHED_API
 import com.android.tools.metalava.model.MethodItem
+import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.api.SurfaceSelectionRule.Effect
@@ -30,6 +31,7 @@ import com.android.tools.metalava.model.api.surface.ApiSurfaces
 import com.android.tools.metalava.model.api.surface.ApiVariant
 import com.android.tools.metalava.model.api.surface.ApiVariantSet
 import com.android.tools.metalava.model.api.surface.ApiVariantType
+import com.android.tools.metalava.model.findAnnotation
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
 
@@ -118,6 +120,14 @@ class SelectedApiUpdater(
         // If the parent needs to hide its children then mark this child as hidden and return
         // immediately.
         if (parent.areChildrenCompletelyHidden()) {
+            // Check if this item has a show annotation while the parent was explicitly hidden,
+            // reporting SHOWING_MEMBER_IN_HIDDEN_CLASS if so.
+            checkParentIsVisible(item, parent)
+
+            // Propagate explicitlyHidden so that if this item is a nested class, its enclosing
+            // state is preserved for its own children.
+            selectedApi.explicitlyHidden = parent.explicitlyHidden
+
             selectedApi.markAsHidden(revert = false)
             return
         }
@@ -244,12 +254,14 @@ class SelectedApiUpdater(
         if (itemApiVariants.isEmpty()) {
             // No show rules matched. Check to see if the context item should be hidden.
 
-            // If no hide annotations were found then check for @hide doc tag.
+            // If no hide annotations were found then check for @hide doc tag or inherited
+            // explicitly hidden.
             if (!hide) {
-                hide = item.hasHideDocTag
+                hide = item.hasHideDocTag || parent.explicitlyHidden
             }
 
             if (hide) {
+                selectedApi.explicitlyHidden = true
                 // Mark the selectedApi as being hidden.
                 selectedApi.markAsHidden(revert = false)
 
@@ -402,6 +414,38 @@ class SelectedApiUpdater(
                     )
                 }
         }
+    }
+
+    /**
+     * Checks that the parents of a visible [SelectableItem], i.e. one whose parent is a class, are
+     * themselves visible and not explicitly hidden.
+     */
+    private fun checkParentIsVisible(item: SelectableItem, parent: SourceSelectedApi<*>) {
+        // Temporarily ignore PropertyItems to match previous behavior.
+        if (item is PropertyItem) return
+
+        val parentClass = item.containingClass() ?: return
+
+        // If the parent is not explicitly hidden then everything is fine.
+        if (!parent.explicitlyHidden) {
+            return
+        }
+
+        // Otherwise, find a show annotation to blame it on and report the issue.
+        item.modifiers
+            .findAnnotation { annotationItem ->
+                val showSurface =
+                    annotationItem.surfaceData?.showSurface ?: return@findAnnotation false
+                showSurface in apiSurfaces.all
+            }
+            ?.let { violatingAnnotation ->
+                reporter.report(
+                    Issues.SHOWING_MEMBER_IN_HIDDEN_CLASS,
+                    item,
+                    "Attempting to unhide ${item.describe()}, but surrounding ${parentClass.describe()} is " +
+                        "hidden and should also be annotated with $violatingAnnotation"
+                )
+            }
     }
 
     /** Check if this [SelectableItem] is marked to be reverted. */

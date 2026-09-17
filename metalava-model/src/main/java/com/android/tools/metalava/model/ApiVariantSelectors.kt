@@ -17,7 +17,6 @@
 package com.android.tools.metalava.model
 
 import com.android.tools.metalava.model.api.isAidlClassThatShouldBeHidden
-import com.android.tools.metalava.reporter.Issues
 
 /** A factory that will create an [ApiVariantSelectors] for a specific [SelectableItem]. */
 typealias ApiVariantSelectorsFactory = (SelectableItem) -> ApiVariantSelectors
@@ -354,10 +353,6 @@ sealed class ApiVariantSelectors {
                     // package.
                     (containingPackageSelectors as Mutable).hidden = false
                 }
-
-                if (item.containingClass() != null) {
-                    ensureParentVisible()
-                }
             } else if (showability.hide()) {
                 inheritableHidden = true
             } else {
@@ -384,35 +379,6 @@ sealed class ApiVariantSelectors {
                 propertyHasBeenSetBits = ALL_PROPERTIES_SET
                 propertyValueBits = NOT_RESTRICTED_SETTINGS
                 _showability = Showability.NO_EFFECT
-            }
-        }
-
-        /**
-         * Ensure that the parents of a visible [SelectableItem], i.e. one whose
-         * [SelectableItem.hidden] property is `false` are themselves visible.
-         *
-         * Note: This will only be called when [item] is a class, constructor, method or field. In
-         * particular, it does not apply to [PackageItem]s as they are completely separate from one
-         * another, i.e. you do not need to have package `abc.qrs` be visible in order to have
-         * `abc.qrs.xyz` be visible.
-         */
-        private fun ensureParentVisible() {
-            val parent = item.parent() ?: return
-
-            // If the parent is not hidden then everything is fine.
-            if (!parent.variantSelectors.hidden) {
-                return
-            }
-
-            // Otherwise, find a show annotation to blame it on and report the issue.
-            item.modifiers.findAnnotation(AnnotationItem::isShowAnnotation)?.let {
-                violatingAnnotation ->
-                item.codebase.reporter.report(
-                    Issues.SHOWING_MEMBER_IN_HIDDEN_CLASS,
-                    item,
-                    "Attempting to unhide ${item.describe()}, but surrounding ${parent.describe()} is " +
-                        "hidden and should also be annotated with $violatingAnnotation"
-                )
             }
         }
 

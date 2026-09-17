@@ -58,6 +58,13 @@ internal sealed class SourceSelectedApi<S : SelectableItem>(
         internal set
 
     /**
+     * Indicates whether the associated [SelectableItem] is explicitly hidden (e.g. via `@hide` or a
+     * hide annotation, or inherited from an enclosing item that was explicitly hidden).
+     */
+    var explicitlyHidden: Boolean = false
+        internal set
+
+    /**
      * Indicates whether the associated [SelectableItem] has a doc only annotation.
      *
      * Initialized by [SelectedApiUpdater.updateSelectedApi] called from [updateFromSelectableItem].
@@ -186,6 +193,7 @@ internal sealed class SourceSelectedApi<S : SelectableItem>(
         removed = other.removed
         revert = other.revert
         revertItem = other.revertItem
+        explicitlyHidden = other.explicitlyHidden
     }
 
     override fun addItemApiVariant(value: ApiVariant) {

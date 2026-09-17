@@ -123,6 +123,10 @@ class CommonParameterizedSelectedApiVisibilityTest : BaseCommonParameterizedSele
                             """
                         ),
                     ),
+                expectedIssues =
+                    """
+                        MAIN_SRC/src/test/Hidden.java: error: Attempting to unhide method test.Hidden.method(), but surrounding class test.Hidden is hidden and should also be annotated with @test.api.PublicApi [ShowingMemberInHiddenClass]
+                    """,
             ) {
                 surfaceTest(
                     surface = "public",
