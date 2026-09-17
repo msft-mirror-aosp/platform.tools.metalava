@@ -52,16 +52,6 @@ interface AnnotationManager {
     ): String
 
     /**
-     * Get the [Showability] for the supplied [SelectableItem].
-     *
-     * This combines the [Showability] of all the annotations of this item and returns the result.
-     *
-     * If the annotations on the item conflict then this could throw an exception or report an error
-     * as appropriate.
-     */
-    fun getShowabilityForItem(item: SelectableItem): Showability = Showability.NO_EFFECT
-
-    /**
      * Checks to see if the modifiers contain any hide annotations.
      *
      * See [AnnotationItem.isHideAnnotation]
