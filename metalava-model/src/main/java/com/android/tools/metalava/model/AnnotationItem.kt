@@ -96,12 +96,6 @@ sealed interface AnnotationItem {
     val surfaceData: SurfaceAnnotationData?
 
     /**
-     * Determines the effect that this will have on whether an item annotated with this annotation
-     * will be shown as part of the API or not.
-     */
-    val showability: Showability
-
-    /**
      * The [ApiFlag] referenced by this [AnnotationItem].
      *
      * This will be `null` if no [ApiFlags] have been provided or this [AnnotationItem]'s type is
@@ -541,9 +535,6 @@ internal abstract class BaseAnnotationItem(
 
     override val surfaceData
         get() = info.surfaceData
-
-    override val showability: Showability
-        get() = info.showability
 
     override val apiFlag: ApiFlag?
         get() = info.apiFlag

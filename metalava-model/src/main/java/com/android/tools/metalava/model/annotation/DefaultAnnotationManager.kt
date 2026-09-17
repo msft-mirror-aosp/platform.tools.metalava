@@ -55,7 +55,6 @@ import com.android.tools.metalava.model.RECENTLY_NONNULL
 import com.android.tools.metalava.model.RECENTLY_NULLABLE
 import com.android.tools.metalava.model.SUPPRESS_COMPATIBILITY_ANNOTATION_QUALIFIED
 import com.android.tools.metalava.model.SelectableItem
-import com.android.tools.metalava.model.Showability
 import com.android.tools.metalava.model.TypedefMode
 import com.android.tools.metalava.model.annotation.DefaultAnnotationManager.Config
 import com.android.tools.metalava.model.api.ApiSurfaceSelector
@@ -607,15 +606,6 @@ private class LazyAnnotationInfo(
     override val surfaceData by
         lazy(LazyThreadSafetyMode.NONE) {
             config.apiSurfaceSelector.findSurfaceAnnotationData(annotationItem)
-        }
-
-    /** Compute lazily to avoid doing any more work than strictly necessary. */
-    override val showability by
-        lazy(LazyThreadSafetyMode.NONE) {
-            surfaceData?.showability
-                // Check flags before using default
-                ?: apiFlag?.showability
-                ?: Showability.NO_EFFECT
         }
 
     override val apiFlag by lazy(LazyThreadSafetyMode.NONE) { getFlagForAnnotation(annotationItem) }

@@ -48,12 +48,6 @@ interface AnnotationInfo {
     val surfaceData: SurfaceAnnotationData?
 
     /**
-     * Determines whether this annotation affects whether the annotated item is shown or hidden and
-     * if so how.
-     */
-    val showability: Showability
-
-    /**
      * The [ApiFlag] referenced by the annotation.
      *
      * This will be `null` if no [ApiFlags] have been provided or the annotation type is not
