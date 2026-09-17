@@ -55,7 +55,6 @@ import com.android.tools.metalava.model.findAnnotation
 import com.android.tools.metalava.model.multiplatform.MultiplatformCodebase
 import com.android.tools.metalava.model.value.Value
 import com.android.tools.metalava.model.visitors.ApiType
-import com.android.tools.metalava.model.visitors.MatchOverridingMethodPredicate
 import com.android.tools.metalava.reporter.FileLocation
 import com.android.tools.metalava.reporter.IssueConfiguration
 import com.android.tools.metalava.reporter.Issues
@@ -1945,11 +1944,14 @@ class CompatibilityCheck(
         }
 
         /**
-         * Returns a filter which wraps the [ApiSurfacePredicate.referenceFilter] for the [apiType]
-         * based on the [apiSurface] in a [MatchOverridingMethodPredicate]. This is used to filter
-         * which items are included in compatibility checks.
+         * Returns a filter based on the [apiType] and [apiSurface] which includes overriding
+         * methods. This is used to filter which items are included in compatibility checks.
          */
         private fun getFilter(apiType: ApiType, apiSurface: ApiSurface) =
-            MatchOverridingMethodPredicate(ApiSurfacePredicate.referenceFilter(apiType, apiSurface))
+            ApiSurfacePredicate.referenceFilter(
+                apiType,
+                apiSurface,
+                includeOverridingMethods = true,
+            )
     }
 }

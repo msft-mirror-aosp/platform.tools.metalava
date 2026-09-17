@@ -78,8 +78,10 @@ object ApiSurfacePredicate {
      * Return a [FilterPredicate] that matches any item that belongs to the core or removed
      * [ApiVariant] of [apiSurface] or any surface that it includes.
      */
-    fun wholeCoreAndRemovedApi(apiSurface: ApiSurface) =
-        wholeApiForVariants(apiSurface, corePlusRemovedVariantTypes)
+    fun wholeCoreAndRemovedApi(
+        apiSurface: ApiSurface,
+        includeOverridingMethods: Boolean = false,
+    ) = wholeApiForVariants(apiSurface, corePlusRemovedVariantTypes, includeOverridingMethods)
 
     /**
      * Return a [FilterPredicate] that matches any item that belongs to any of [variantTypes] of
@@ -266,7 +268,7 @@ object ApiSurfacePredicate {
     ): ApiFilters {
         // Items in this API surface can reference types or paired methods across the whole API
         // surface hierarchy (including base surfaces that this surface extends).
-        val reference = referenceFilter(apiType, apiSurface)
+        val reference = referenceFilter(apiType, apiSurface, includeOverridingMethods)
 
         // Create a mask matching the specific variant for this API surface delta.
         val variantType =
@@ -345,16 +347,20 @@ object ApiSurfacePredicate {
      * Return a [FilterPredicate] matching types that can be referenced by APIs of the given
      * [apiType] across [apiSurface] and any surface that it extends.
      */
-    fun referenceFilter(apiType: ApiType, apiSurface: ApiSurface): FilterPredicate =
+    fun referenceFilter(
+        apiType: ApiType,
+        apiSurface: ApiSurface,
+        includeOverridingMethods: Boolean = false,
+    ): FilterPredicate =
         when (apiType) {
             ApiType.CORE ->
                 // Emitted APIs can reference types (such as superclasses, interfaces, parameter
                 // types, or thrown exceptions) that belong to any API surface extended by the
                 // target surface, so references must match across the whole API surface.
-                wholeCoreApi(apiSurface)
+                wholeCoreApi(apiSurface, includeOverridingMethods)
             ApiType.REMOVED ->
                 // References in removed APIs can refer to types across the whole API surface.
-                wholeCoreAndRemovedApi(apiSurface)
+                wholeCoreAndRemovedApi(apiSurface, includeOverridingMethods)
         }
 
     /**
