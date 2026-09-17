@@ -43,6 +43,7 @@ import com.android.tools.metalava.model.TargetLanguageSet
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.api.surface.ApiSurfacePredicate
 import com.android.tools.metalava.model.doc.DocContentPredicate
+import com.android.tools.metalava.model.hasAnnotation
 import com.android.tools.metalava.model.source.SourceParser
 import com.android.tools.metalava.model.source.doc.DocContentPredicates
 import com.android.tools.metalava.model.testOrTrue
@@ -299,8 +300,11 @@ class ApiAnalyzer(
 
                 override fun visitRecordComponentItem(component: RecordComponentItem) {
                     val codebase = component.codebase
+
+                    // Check to see whether this has any hide annotations. This is necessary as
+                    // RecordComponentItem is not a SelectableItem.
                     val hasHideAnnotations =
-                        codebase.annotationManager.hasHideAnnotations(component.modifiers)
+                        component.modifiers.hasAnnotation(AnnotationItem::isHideAnnotation)
                     if (hasHideAnnotations) {
                         codebase.reporter.report(
                             Issues.HIDING_RECORD_COMPONENT,
