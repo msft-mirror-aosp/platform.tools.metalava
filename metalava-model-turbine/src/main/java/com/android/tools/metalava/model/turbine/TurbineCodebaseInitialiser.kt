@@ -17,7 +17,6 @@
 package com.android.tools.metalava.model.turbine
 
 import com.android.tools.metalava.model.AnnotationItem
-import com.android.tools.metalava.model.ApiVariantSelectors
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassOrigin
 import com.android.tools.metalava.model.Item
@@ -100,9 +99,6 @@ internal class TurbineCodebaseInitialiser(
             codebase = codebase,
             // Turbine can only process java files.
             defaultSourceLanguage = SourceLanguage.JAVA,
-            // Source files need to track which parts belong to which API surface variants, so they
-            // need to create an ApiVariantSelectors instance that can be used to track that.
-            defaultVariantSelectorsFactory = ApiVariantSelectors.MUTABLE_FACTORY,
         )
 
     override lateinit var valueFactory: TurbineValueFactory

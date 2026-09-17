@@ -16,7 +16,6 @@
 
 package com.android.tools.metalava.model.item
 
-import com.android.tools.metalava.model.ApiVariantSelectorsFactory
 import com.android.tools.metalava.model.BaseModifierList
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
@@ -40,7 +39,6 @@ internal class DefaultPropertyItem(
     fileLocation: FileLocation,
     sourceLanguage: SourceLanguage,
     documentationFactory: ItemDocumentationFactory,
-    variantSelectorsFactory: ApiVariantSelectorsFactory,
     modifiers: BaseModifierList,
     val name: String,
     containingClass: ClassItem,
@@ -63,7 +61,6 @@ internal class DefaultPropertyItem(
         targetLanguages = TargetLanguageSet.KOTLIN_ONLY,
         modifiers,
         documentationFactory,
-        variantSelectorsFactory,
         name,
         containingClass,
     ),
@@ -99,7 +96,6 @@ internal class DefaultPropertyItem(
                 fileLocation = fileLocation,
                 sourceLanguage = sourceLanguage,
                 documentationFactory = documentation.duplicatingFactory(),
-                variantSelectorsFactory = variantSelectors::duplicate,
                 modifiers = modifiers,
                 name = name(),
                 containingClass = targetContainingClass,

@@ -20,7 +20,6 @@ import androidx.tracing.Tracer
 import com.android.tools.metalava.model.ANDROIDX_COMPOSABLE
 import com.android.tools.metalava.model.AnnotationAttribute
 import com.android.tools.metalava.model.AnnotationItem
-import com.android.tools.metalava.model.ApiVariantSelectors
 import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassKind
@@ -291,7 +290,6 @@ private constructor(
         DefaultItemFactory(
             codebase = codebase,
             defaultSourceLanguage = SourceLanguage.KOTLIN,
-            defaultVariantSelectorsFactory = ApiVariantSelectors.MUTABLE_FACTORY
         )
 
     override fun getPackageInfoFromUnderlyingModel(packageName: String) = PackageInfo.NO_COMMENT

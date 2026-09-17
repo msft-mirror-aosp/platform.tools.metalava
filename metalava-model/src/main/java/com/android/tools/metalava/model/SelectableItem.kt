@@ -38,12 +38,6 @@ interface SelectableItem : Item, ReferencableNameScope {
     /** Whether this element will be printed in the signature file */
     var emit: Boolean
 
-    /**
-     * Tracks the properties that determine whether this [Item] will be selected for each API
-     * variant.
-     */
-    val variantSelectors: ApiVariantSelectors
-
     /** True if this item is either hidden or removed */
     fun isHiddenOrRemoved() = selectedApi.itemApiVariants.isHiddenOrRemoved()
 

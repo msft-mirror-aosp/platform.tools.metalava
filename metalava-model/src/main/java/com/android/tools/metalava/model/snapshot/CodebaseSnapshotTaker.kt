@@ -16,7 +16,6 @@
 
 package com.android.tools.metalava.model.snapshot
 
-import com.android.tools.metalava.model.ApiVariantSelectors
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.ClassTypeItem
@@ -84,9 +83,6 @@ private constructor(
                 snapshotCodebase,
                 // Snapshots currently only support java.
                 defaultSourceLanguage = SourceLanguage.JAVA,
-                // Snapshots have already been separated by API surface variants, so they can use
-                // the same immutable ApiVariantSelectors.
-                ApiVariantSelectors.IMMUTABLE_FACTORY,
             )
         }
 

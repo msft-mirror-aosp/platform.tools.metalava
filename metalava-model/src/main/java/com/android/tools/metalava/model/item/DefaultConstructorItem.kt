@@ -16,7 +16,6 @@
 
 package com.android.tools.metalava.model.item
 
-import com.android.tools.metalava.model.ApiVariantSelectorsFactory
 import com.android.tools.metalava.model.BaseModifierList
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassKind
@@ -42,7 +41,6 @@ internal class DefaultConstructorItem(
     targetLanguages: Set<TargetLanguage>,
     modifiers: BaseModifierList,
     documentationFactory: ItemDocumentationFactory,
-    variantSelectorsFactory: ApiVariantSelectorsFactory,
     name: String,
     containingClass: ClassItem,
     typeParameterList: TypeParameterList,
@@ -59,7 +57,6 @@ internal class DefaultConstructorItem(
         targetLanguages = targetLanguages,
         modifiers = modifiers,
         documentationFactory = documentationFactory,
-        variantSelectorsFactory = variantSelectorsFactory,
         name = name,
         containingClass = containingClass,
         typeParameterList = typeParameterList,
@@ -86,7 +83,6 @@ internal class DefaultConstructorItem(
         fun createImplicitDefaultConstructor(
             codebase: Codebase,
             sourceLanguage: SourceLanguage,
-            variantSelectorsFactory: ApiVariantSelectorsFactory,
             containingClass: ClassItem,
             visibility: VisibilityLevel,
         ): ConstructorItem {
@@ -102,7 +98,6 @@ internal class DefaultConstructorItem(
                     targetLanguages = TargetLanguageSet.ALL,
                     modifiers = modifiers,
                     documentationFactory = ItemDocumentation.NONE_FACTORY,
-                    variantSelectorsFactory = variantSelectorsFactory,
                     name = name,
                     containingClass = containingClass,
                     typeParameterList = TypeParameterList.NONE,

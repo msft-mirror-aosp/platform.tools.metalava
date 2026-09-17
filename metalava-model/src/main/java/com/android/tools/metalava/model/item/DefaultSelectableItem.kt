@@ -16,8 +16,6 @@
 
 package com.android.tools.metalava.model.item
 
-import com.android.tools.metalava.model.ApiVariantSelectors
-import com.android.tools.metalava.model.ApiVariantSelectorsFactory
 import com.android.tools.metalava.model.BaseModifierList
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.Item
@@ -35,7 +33,6 @@ internal sealed class DefaultSelectableItem(
     sourceLanguage: SourceLanguage,
     modifiers: BaseModifierList,
     documentationFactory: ItemDocumentationFactory,
-    variantSelectorsFactory: ApiVariantSelectorsFactory,
     override var targetLanguages: Set<TargetLanguage>,
 ) :
     DefaultItem(
@@ -78,12 +75,4 @@ internal sealed class DefaultSelectableItem(
 
     // Default to true, may be updated later
     final override var emit = true
-
-    /**
-     * Create an [ApiVariantSelectors] appropriate for this [SelectableItem].
-     *
-     * The leaking of `this` is safe as the implementations do not access anything that has not been
-     * initialized.
-     */
-    override val variantSelectors = @Suppress("LeakingThis") variantSelectorsFactory(this)
 }

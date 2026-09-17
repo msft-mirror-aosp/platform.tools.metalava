@@ -16,7 +16,6 @@
 
 package com.android.tools.metalava.model.text
 
-import com.android.tools.metalava.model.ApiVariantSelectors
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassPathResolver
 import com.android.tools.metalava.model.ClassTypeItem
@@ -50,9 +49,6 @@ internal class TextCodebaseAssembler(
             // Signature files do not contain information about whether an item was originally
             // created from Java or Kotlin.
             defaultSourceLanguage = SourceLanguage.UNKNOWN,
-            // Signature files have already been separated by API surface variants, so they can use
-            // the same immutable ApiVariantSelectors.
-            defaultVariantSelectorsFactory = ApiVariantSelectors.IMMUTABLE_FACTORY,
         )
 
     override fun createPackageFromUnderlyingModel(qualifiedName: String) =
