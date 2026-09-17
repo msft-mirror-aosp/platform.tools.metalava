@@ -295,8 +295,6 @@ class ApiAnalyzer(
                 override fun visitSelectableItem(item: SelectableItem) {
                     // Make sure that the SelectedApi has been initialized for all items.
                     item.selectedApi
-
-                    item.variantSelectors.inheritInto()
                 }
 
                 override fun visitRecordComponentItem(component: RecordComponentItem) {

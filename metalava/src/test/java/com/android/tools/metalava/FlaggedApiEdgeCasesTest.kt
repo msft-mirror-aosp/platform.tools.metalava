@@ -136,14 +136,8 @@ class FlaggedApiEdgeCasesTest : DriverTest() {
                     flaggedApiSource
                 ),
             expectedIssues =
-                // TODO(b/512093496): Reporting issues with reverting on members of a class that
-                //   could not be reverted is pointless. Also, the constructor is private so it
-                //   should not be being reverted anyway.
                 """
                     src/test/pkg/Test.java:5: error: Cannot revert class test.pkg.Test (or any other API item) as no previously released API has been provided [NoPreviouslyReleasedApi]
-                    src/test/pkg/Test.java:6: error: Cannot revert constructor test.pkg.Test() (or any other API item) as no previously released API has been provided [NoPreviouslyReleasedApi]
-                    src/test/pkg/Test.java:7: error: Cannot revert method test.pkg.Test.method() (or any other API item) as no previously released API has been provided [NoPreviouslyReleasedApi]
-                    src/test/pkg/Test.java:8: error: Cannot revert field test.pkg.Test.field (or any other API item) as no previously released API has been provided [NoPreviouslyReleasedApi]
                 """,
         )
     }
