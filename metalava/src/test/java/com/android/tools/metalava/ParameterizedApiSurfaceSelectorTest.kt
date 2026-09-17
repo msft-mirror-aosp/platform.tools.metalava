@@ -126,26 +126,26 @@ class ParameterizedApiSurfaceSelectorTest :
                             AnnotationMatcher(
                                 android.annotation.Hide -> {
                                     Entry(
-                                        result: HIDE
+                                        result: SurfaceAnnotationData(surface=ApiSurface(public), effect=HIDE, recursive=true)
                                     )
                                 }
                                 android.annotation.SystemApi -> {
                                     Entry(
                                         client=android.annotation.SystemApi.Client.SYSTEM_SERVER
-                                        result: HIDE
+                                        result: SurfaceAnnotationData(surface=ApiSurface(public), effect=HIDE, recursive=true)
                                     )
                                     Entry(
                                         client=android.annotation.SystemApi.Client.PRIVILEGED_APPS
-                                        result: HIDE
+                                        result: SurfaceAnnotationData(surface=ApiSurface(public), effect=HIDE, recursive=true)
                                     )
                                     Entry(
                                         client=android.annotation.SystemApi.Client.MODULE_LIBRARIES
-                                        result: HIDE
+                                        result: SurfaceAnnotationData(surface=ApiSurface(public), effect=HIDE, recursive=true)
                                     )
                                 }
                                 android.annotation.TestApi -> {
                                     Entry(
-                                        result: HIDE
+                                        result: SurfaceAnnotationData(surface=ApiSurface(public), effect=HIDE, recursive=true)
                                     )
                                 }
                             )
@@ -160,26 +160,26 @@ class ParameterizedApiSurfaceSelectorTest :
                             AnnotationMatcher(
                                 android.annotation.Hide -> {
                                     Entry(
-                                        result: HIDE
+                                        result: SurfaceAnnotationData(surface=ApiSurface(public), effect=HIDE, recursive=true)
                                     )
                                 }
                                 android.annotation.SystemApi -> {
                                     Entry(
                                         client=android.annotation.SystemApi.Client.PRIVILEGED_APPS
-                                        result: SHOW
+                                        result: SurfaceAnnotationData(surface=ApiSurface(system), effect=SHOW, recursive=true)
                                     )
                                     Entry(
                                         client=android.annotation.SystemApi.Client.SYSTEM_SERVER
-                                        result: HIDE
+                                        result: SurfaceAnnotationData(surface=ApiSurface(public), effect=HIDE, recursive=true)
                                     )
                                     Entry(
                                         client=android.annotation.SystemApi.Client.MODULE_LIBRARIES
-                                        result: HIDE
+                                        result: SurfaceAnnotationData(surface=ApiSurface(public), effect=HIDE, recursive=true)
                                     )
                                 }
                                 android.annotation.TestApi -> {
                                     Entry(
-                                        result: HIDE
+                                        result: SurfaceAnnotationData(surface=ApiSurface(public), effect=HIDE, recursive=true)
                                     )
                                 }
                             )
@@ -194,26 +194,26 @@ class ParameterizedApiSurfaceSelectorTest :
                             AnnotationMatcher(
                                 android.annotation.Hide -> {
                                     Entry(
-                                        result: HIDE
+                                        result: SurfaceAnnotationData(surface=ApiSurface(public), effect=HIDE, recursive=true)
                                     )
                                 }
                                 android.annotation.SystemApi -> {
                                     Entry(
                                         client=android.annotation.SystemApi.Client.PRIVILEGED_APPS
-                                        result: SHOW
+                                        result: SurfaceAnnotationData(surface=ApiSurface(system), effect=SHOW, recursive=true)
                                     )
                                     Entry(
                                         client=android.annotation.SystemApi.Client.SYSTEM_SERVER
-                                        result: HIDE
+                                        result: SurfaceAnnotationData(surface=ApiSurface(public), effect=HIDE, recursive=true)
                                     )
                                     Entry(
                                         client=android.annotation.SystemApi.Client.MODULE_LIBRARIES
-                                        result: HIDE
+                                        result: SurfaceAnnotationData(surface=ApiSurface(public), effect=HIDE, recursive=true)
                                     )
                                 }
                                 android.annotation.TestApi -> {
                                     Entry(
-                                        result: SHOW
+                                        result: SurfaceAnnotationData(surface=ApiSurface(test), effect=SHOW, recursive=true)
                                     )
                                 }
                             )
@@ -228,30 +228,30 @@ class ParameterizedApiSurfaceSelectorTest :
                             AnnotationMatcher(
                                 android.annotation.Hide -> {
                                     Entry(
-                                        result: HIDE
+                                        result: SurfaceAnnotationData(surface=ApiSurface(public), effect=HIDE, recursive=true)
                                     )
                                 }
                                 android.annotation.SystemApi -> {
                                     Entry(
                                         client=android.annotation.SystemApi.Client.SYSTEM_SERVER
-                                        result: SHOW
+                                        result: SurfaceAnnotationData(surface=ApiSurface(system-server), effect=SHOW, recursive=true)
                                     )
                                     Entry(
                                         client=android.annotation.SystemApi.Client.SYSTEM_SERVER
-                                        result: HIDE
+                                        result: SurfaceAnnotationData(surface=ApiSurface(public), effect=HIDE, recursive=true)
                                     )
                                     Entry(
                                         client=android.annotation.SystemApi.Client.PRIVILEGED_APPS
-                                        result: HIDE
+                                        result: SurfaceAnnotationData(surface=ApiSurface(public), effect=HIDE, recursive=true)
                                     )
                                     Entry(
                                         client=android.annotation.SystemApi.Client.MODULE_LIBRARIES
-                                        result: HIDE
+                                        result: SurfaceAnnotationData(surface=ApiSurface(public), effect=HIDE, recursive=true)
                                     )
                                 }
                                 android.annotation.TestApi -> {
                                     Entry(
-                                        result: HIDE
+                                        result: SurfaceAnnotationData(surface=ApiSurface(public), effect=HIDE, recursive=true)
                                     )
                                 }
                             )
@@ -266,13 +266,13 @@ class ParameterizedApiSurfaceSelectorTest :
                             AnnotationMatcher(
                                 android.annotation.Hide -> {
                                     Entry(
-                                        result: HIDE
+                                        result: SurfaceAnnotationData(surface=ApiSurface(core-platform-plus-public), effect=HIDE, recursive=true)
                                     )
                                 }
                                 libcore.api.CorePlatformApi -> {
                                     Entry(
                                         status=libcore.api.CorePlatformApi.Status.STABLE
-                                        result: SHOW_SINGLE
+                                        result: SurfaceAnnotationData(surface=ApiSurface(core-platform-plus-public), effect=SHOW, recursive=false)
                                     )
                                 }
                             )

@@ -451,5 +451,6 @@ data class SurfaceAnnotationData(
      */
     val showSurface = surface.takeIf { effect == Effect.SHOW }
 
-    override fun toString() = showability.toString()
+    override fun toString() =
+        "SurfaceAnnotationData(surface=$surface, effect=$effect, recursive=$recursive)"
 }
