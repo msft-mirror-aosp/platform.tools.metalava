@@ -90,7 +90,7 @@ class CommonFlagTest : BaseModelTest() {
         }
     }
 
-    @RequiresCapabilities(Capability.API_VARIANT_SELECTORS)
+    @RequiresCapabilities(Capability.REVERTED_ITEMS)
     @Test
     fun `Test empty flags`() {
         runFlagsTest(
@@ -110,6 +110,8 @@ class CommonFlagTest : BaseModelTest() {
             assertFalse(annotation.isShowabilityAnnotation(), "isShowabilityAnnotation")
 
             assertTrue(fooClass.selectedApi.revert, message = "class showability revert")
+
+            fooClass.assertItemApiVariants("ApiVariantSet[]")
 
             assertAndRemoveReportedIssues(
                 """

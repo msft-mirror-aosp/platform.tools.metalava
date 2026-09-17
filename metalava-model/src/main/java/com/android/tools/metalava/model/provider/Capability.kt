@@ -55,6 +55,9 @@ enum class Capability {
     /** Has access to hidden items. */
     HIDDEN_ITEMS,
 
+    /** Has access to reverted items. */
+    REVERTED_ITEMS,
+
     /** Has access to [ApiVariantSelectors]. */
     API_VARIANT_SELECTORS,
 
