@@ -453,6 +453,72 @@ class CommonParameterizedSelectedApiInheritanceTest : BaseCommonParameterizedSel
                         """,
                 )
             }
+
+            buildTests(
+                name = "class implementing multiple interfaces from different API surfaces",
+                surfaceRules = publicSystemModuleRules,
+                sources =
+                    listOf(
+                        java(
+                            """
+                                package test.pkg;
+
+                                public interface PublicInterface {
+                                    void method();
+                                }
+                            """
+                        ),
+                        java(
+                            """
+                                package test.pkg;
+
+                                $SYSTEM_API
+                                public interface SystemInterface {
+                                    void method();
+                                }
+                            """
+                        ),
+                        java(
+                            """
+                                package test.pkg;
+
+                                $SYSTEM_API
+                                public class SystemClass implements PublicInterface, SystemInterface {
+                                    @Override
+                                    public void method() {}
+                                }
+                            """
+                        ),
+                    ),
+            ) {
+                // TODO(b/512093496): When a method overrides or implements methods from different
+                //  API surfaces, SelectedApi should track the API variants inherited from those
+                //  super methods. Currently, SelectedApi does not track super method API variants,
+                //  so SystemClass.method() does not record that it implements
+                //  PublicInterface.method().
+                surfaceTest(
+                    surface = "system",
+                    expected =
+                        """
+                            package test.pkg
+                                   self - ApiVariantSet[public(C),system(C)]
+                              class test.pkg.PublicInterface
+                                     self - ApiVariantSet[public(C)]
+                                method test.pkg.PublicInterface.method()
+                                       self - ApiVariantSet[public(C)]
+                              class test.pkg.SystemInterface
+                                     self - ApiVariantSet[system(C)]
+                                method test.pkg.SystemInterface.method()
+                                       self - ApiVariantSet[system(C)]
+                              class test.pkg.SystemClass
+                                     self - ApiVariantSet[system(C)]
+                                constructor test.pkg.SystemClass()
+                                       self - ApiVariantSet[system(C)]
+                                method test.pkg.SystemClass.method()
+                                       self - ApiVariantSet[system(C)]
+                        """,
+                )
+            }
         }
     }
 }
