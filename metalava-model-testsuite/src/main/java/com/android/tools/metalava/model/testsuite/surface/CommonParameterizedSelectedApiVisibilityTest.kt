@@ -70,10 +70,8 @@ class CommonParameterizedSelectedApiVisibilityTest : BaseCommonParameterizedSele
                         """
                             package test.pkg
                                    self - ApiVariantSet[public(C)]
-                                content - ApiVariantSet[]
                               class test.pkg.Test
                                      self - ApiVariantSet[public(C)]
-                                  content - ApiVariantSet[]
                         """,
                 )
             }
@@ -99,10 +97,8 @@ class CommonParameterizedSelectedApiVisibilityTest : BaseCommonParameterizedSele
                         """
                             package test
                                    self - ApiVariantSet[]
-                                content - ApiVariantSet[]
                               class test.Hidden
                                      self - ApiVariantSet[]
-                                  content - ApiVariantSet[]
                         """,
                 )
             }
@@ -135,13 +131,10 @@ class CommonParameterizedSelectedApiVisibilityTest : BaseCommonParameterizedSele
                         """
                             package test
                                    self - ApiVariantSet[]
-                                content - ApiVariantSet[]
                               class test.Hidden
                                      self - ApiVariantSet[]
-                                  content - ApiVariantSet[]
                                 method test.Hidden.method()
                                        self - ApiVariantSet[]
-                                    content - ApiVariantSet[]
                         """,
                 )
             }
@@ -193,28 +186,20 @@ class CommonParameterizedSelectedApiVisibilityTest : BaseCommonParameterizedSele
                         """
                             package test.pkg
                                    self - ApiVariantSet[public(C)]
-                                content - ApiVariantSet[]
                               class test.pkg.Test
                                      self - ApiVariantSet[public(C)]
-                                  content - ApiVariantSet[]
                                 constructor test.pkg.Test(int)
                                        self - ApiVariantSet[public(C)]
-                                    content - ApiVariantSet[]
                                 method test.pkg.Test.method()
                                        self - ApiVariantSet[public(C)]
-                                    content - ApiVariantSet[]
                               class test.pkg.ClassOnly
                                      self - ApiVariantSet[public(C)]
-                                  content - ApiVariantSet[]
                                 constructor test.pkg.ClassOnly()
                                        self - ApiVariantSet[]
-                                    content - ApiVariantSet[]
                                 method test.pkg.ClassOnly.notIncluded()
                                        self - ApiVariantSet[]
-                                    content - ApiVariantSet[]
                               class test.pkg.Unannotated
                                      self - ApiVariantSet[]
-                                  content - ApiVariantSet[]
                         """,
                 )
             }
@@ -243,22 +228,16 @@ class CommonParameterizedSelectedApiVisibilityTest : BaseCommonParameterizedSele
                         """
                             package test.pkg
                                    self - ApiVariantSet[]
-                                content - ApiVariantSet[]
                               class test.pkg.Outer
                                      self - ApiVariantSet[]
-                                  content - ApiVariantSet[]
                                 constructor test.pkg.Outer()
                                        self - ApiVariantSet[]
-                                    content - ApiVariantSet[]
                                 class test.pkg.Outer.Inner
                                        self - ApiVariantSet[]
-                                    content - ApiVariantSet[]
                                   constructor test.pkg.Outer.Inner()
                                          self - ApiVariantSet[]
-                                      content - ApiVariantSet[]
                                   method test.pkg.Outer.Inner.method()
                                          self - ApiVariantSet[]
-                                      content - ApiVariantSet[]
                         """,
                 )
             }
@@ -287,22 +266,16 @@ class CommonParameterizedSelectedApiVisibilityTest : BaseCommonParameterizedSele
                         """
                             package test.pkg
                                    self - ApiVariantSet[public(C)]
-                                content - ApiVariantSet[]
                               class test.pkg.Outer
                                      self - ApiVariantSet[public(C)]
-                                  content - ApiVariantSet[]
                                 constructor test.pkg.Outer()
                                        self - ApiVariantSet[public(C)]
-                                    content - ApiVariantSet[]
                                 class test.pkg.Outer.Inner
                                        self - ApiVariantSet[]
-                                    content - ApiVariantSet[]
                                   constructor test.pkg.Outer.Inner()
                                          self - ApiVariantSet[]
-                                      content - ApiVariantSet[]
                                   method test.pkg.Outer.Inner.method()
                                          self - ApiVariantSet[]
-                                      content - ApiVariantSet[]
                         """,
                 )
             }
@@ -332,16 +305,12 @@ class CommonParameterizedSelectedApiVisibilityTest : BaseCommonParameterizedSele
                         """
                             package test.pkg
                                    self - ApiVariantSet[public(C)]
-                                content - ApiVariantSet[]
                               class test.pkg.MyRecord
                                      self - ApiVariantSet[public(C)]
-                                  content - ApiVariantSet[]
                                 constructor test.pkg.MyRecord(int)
                                        self - ApiVariantSet[public(C)]
-                                    content - ApiVariantSet[]
                                 method test.pkg.MyRecord.x()
                                        self - ApiVariantSet[public(C)]
-                                    content - ApiVariantSet[]
                         """,
                 )
             }
@@ -369,19 +338,14 @@ class CommonParameterizedSelectedApiVisibilityTest : BaseCommonParameterizedSele
                         """
                             package test.pkg
                                    self - ApiVariantSet[public(C),system(C)]
-                                content - ApiVariantSet[]
                               class test.pkg.Outer
                                      self - ApiVariantSet[public(C)]
-                                  content - ApiVariantSet[]
                                 constructor test.pkg.Outer()
                                        self - ApiVariantSet[public(C)]
-                                    content - ApiVariantSet[]
                                 class test.pkg.Outer.Inner
                                        self - ApiVariantSet[system(C)]
-                                    content - ApiVariantSet[]
                                   constructor test.pkg.Outer.Inner()
                                          self - ApiVariantSet[system(C)]
-                                      content - ApiVariantSet[]
                         """,
                 )
             }
@@ -408,16 +372,12 @@ class CommonParameterizedSelectedApiVisibilityTest : BaseCommonParameterizedSele
                         """
                             package test.pkg
                                    self - ApiVariantSet[]
-                                content - ApiVariantSet[]
                               class test.pkg.Test
                                      self - ApiVariantSet[]
-                                  content - ApiVariantSet[]
                                 constructor test.pkg.Test()
                                        self - ApiVariantSet[]
-                                    content - ApiVariantSet[]
                                 method test.pkg.Test.systemMethod()
                                        self - ApiVariantSet[]
-                                    content - ApiVariantSet[]
                         """,
                 )
             }
@@ -449,22 +409,17 @@ class CommonParameterizedSelectedApiVisibilityTest : BaseCommonParameterizedSele
                         """
                             package test.pkg
                                    self - ApiVariantSet[public(C),system(C)]
-                                content - ApiVariantSet[]
                               class test.pkg.Test
                                      self - ApiVariantSet[public(C)]
-                                  content - ApiVariantSet[]
                                 constructor test.pkg.Test()
                                        self - ApiVariantSet[public(C)]
-                                    content - ApiVariantSet[]
                                 class test.pkg.Test.Inner
                                        self - ApiVariantSet[public(C)]
                                     content - ApiVariantSet[system(C)]
                                   constructor test.pkg.Test.Inner()
                                          self - ApiVariantSet[public(C)]
-                                      content - ApiVariantSet[]
                                   method test.pkg.Test.Inner.systemMethod()
                                          self - ApiVariantSet[system(C)]
-                                      content - ApiVariantSet[]
                         """,
                 )
             }

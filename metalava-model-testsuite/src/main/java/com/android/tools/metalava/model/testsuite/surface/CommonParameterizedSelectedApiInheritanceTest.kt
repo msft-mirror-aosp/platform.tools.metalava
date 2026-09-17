@@ -71,20 +71,15 @@ class CommonParameterizedSelectedApiInheritanceTest : BaseCommonParameterizedSel
                         """
                             package test.pkg
                                    self - ApiVariantSet[public(C),system(C)]
-                                content - ApiVariantSet[]
                               class test.pkg.SystemClass
                                      self - ApiVariantSet[system(C)]
-                                  content - ApiVariantSet[]
                                 constructor test.pkg.SystemClass()
                                        self - ApiVariantSet[system(C)]
-                                    content - ApiVariantSet[]
                               class test.pkg.PublicClass
                                      self - ApiVariantSet[public(C)]
-                                  content - ApiVariantSet[]
                                superClass - ApiVariantSet[system(C)]
                                 constructor test.pkg.PublicClass()
                                        self - ApiVariantSet[public(C)]
-                                    content - ApiVariantSet[]
                         """,
                 )
             }
@@ -112,20 +107,15 @@ class CommonParameterizedSelectedApiInheritanceTest : BaseCommonParameterizedSel
                         """
                             package test.pkg
                                    self - ApiVariantSet[public(C),module(C)]
-                                content - ApiVariantSet[]
                               class test.pkg.ModuleClass
                                      self - ApiVariantSet[module(C)]
-                                  content - ApiVariantSet[]
                                 constructor test.pkg.ModuleClass()
                                        self - ApiVariantSet[module(C)]
-                                    content - ApiVariantSet[]
                               class test.pkg.PublicClass
                                      self - ApiVariantSet[public(C)]
-                                  content - ApiVariantSet[]
                                superClass - ApiVariantSet[module(C)]
                                 constructor test.pkg.PublicClass()
                                        self - ApiVariantSet[public(C)]
-                                    content - ApiVariantSet[]
                         """,
                 )
             }
@@ -153,19 +143,14 @@ class CommonParameterizedSelectedApiInheritanceTest : BaseCommonParameterizedSel
                         """
                             package test.pkg
                                    self - ApiVariantSet[standalone(C)]
-                                content - ApiVariantSet[]
                               class test.pkg.StandaloneClass
                                      self - ApiVariantSet[standalone(C)]
-                                  content - ApiVariantSet[]
                                 constructor test.pkg.StandaloneClass()
                                        self - ApiVariantSet[standalone(C)]
-                                    content - ApiVariantSet[]
                               class test.pkg.PublicClass
                                      self - ApiVariantSet[standalone(C)]
-                                  content - ApiVariantSet[]
                                 constructor test.pkg.PublicClass()
                                        self - ApiVariantSet[standalone(C)]
-                                    content - ApiVariantSet[]
                         """,
                 )
             }
@@ -195,20 +180,15 @@ class CommonParameterizedSelectedApiInheritanceTest : BaseCommonParameterizedSel
                         """
                             package test.pkg
                                    self - ApiVariantSet[public(R),system(R)]
-                                content - ApiVariantSet[]
                               class test.pkg.SystemClass
                                      self - ApiVariantSet[system(R)]
-                                  content - ApiVariantSet[]
                                 constructor test.pkg.SystemClass()
                                        self - ApiVariantSet[system(R)]
-                                    content - ApiVariantSet[]
                               class test.pkg.PublicClass
                                      self - ApiVariantSet[public(R)]
-                                  content - ApiVariantSet[]
                                superClass - ApiVariantSet[system(R)]
                                 constructor test.pkg.PublicClass()
                                        self - ApiVariantSet[public(R)]
-                                    content - ApiVariantSet[]
                         """,
                 )
             }
@@ -237,19 +217,14 @@ class CommonParameterizedSelectedApiInheritanceTest : BaseCommonParameterizedSel
                         """
                             package test.pkg
                                    self - ApiVariantSet[public(C),system(R)]
-                                content - ApiVariantSet[]
                               class test.pkg.SystemClass
                                      self - ApiVariantSet[system(R)]
-                                  content - ApiVariantSet[]
                                 constructor test.pkg.SystemClass()
                                        self - ApiVariantSet[system(R)]
-                                    content - ApiVariantSet[]
                               class test.pkg.PublicClass
                                      self - ApiVariantSet[public(C)]
-                                  content - ApiVariantSet[]
                                 constructor test.pkg.PublicClass()
                                        self - ApiVariantSet[public(C)]
-                                    content - ApiVariantSet[]
                         """,
                 )
             }
@@ -289,22 +264,16 @@ class CommonParameterizedSelectedApiInheritanceTest : BaseCommonParameterizedSel
                         """
                             package test.pkg
                                    self - ApiVariantSet[public(C),system(R)]
-                                content - ApiVariantSet[]
                               class test.pkg.PublicInterface
                                      self - ApiVariantSet[public(C)]
-                                  content - ApiVariantSet[]
                                 method test.pkg.PublicInterface.method()
                                        self - ApiVariantSet[public(C)]
-                                    content - ApiVariantSet[]
                               class test.pkg.RemovedClass
                                      self - ApiVariantSet[system(R)]
-                                  content - ApiVariantSet[]
                                 constructor test.pkg.RemovedClass()
                                        self - ApiVariantSet[system(R)]
-                                    content - ApiVariantSet[]
                                 method test.pkg.RemovedClass.method()
                                        self - ApiVariantSet[public(C)]
-                                    content - ApiVariantSet[]
                         """,
                 )
             }
@@ -363,34 +332,24 @@ class CommonParameterizedSelectedApiInheritanceTest : BaseCommonParameterizedSel
                         """
                             package test.pkg
                                    self - ApiVariantSet[public(C)]
-                                content - ApiVariantSet[]
                               class test.pkg.Base
                                      self - ApiVariantSet[public(C)]
-                                  content - ApiVariantSet[]
                                 constructor test.pkg.Base()
                                        self - ApiVariantSet[public(C)]
-                                    content - ApiVariantSet[]
                                 method test.pkg.Base.method()
                                        self - ApiVariantSet[public(C)]
-                                    content - ApiVariantSet[]
                               class test.pkg.Middle
                                      self - ApiVariantSet[public(C)]
-                                  content - ApiVariantSet[]
                                 constructor test.pkg.Middle()
                                        self - ApiVariantSet[public(C)]
-                                    content - ApiVariantSet[]
                                 method test.pkg.Middle.method()
                                        self - ApiVariantSet[]
-                                    content - ApiVariantSet[]
                               class test.pkg.Sub
                                      self - ApiVariantSet[public(C)]
-                                  content - ApiVariantSet[]
                                 constructor test.pkg.Sub()
                                        self - ApiVariantSet[public(C)]
-                                    content - ApiVariantSet[]
                                 method test.pkg.Sub.method()
                                        self - ApiVariantSet[public(C)]
-                                    content - ApiVariantSet[]
                         """,
                 )
             }
@@ -431,25 +390,18 @@ class CommonParameterizedSelectedApiInheritanceTest : BaseCommonParameterizedSel
                         """
                             package test.pkg
                                    self - ApiVariantSet[public(R),system(C)]
-                                content - ApiVariantSet[]
                               class test.pkg.RemovedPublicClass
                                      self - ApiVariantSet[public(R)]
-                                  content - ApiVariantSet[]
                                 constructor test.pkg.RemovedPublicClass()
                                        self - ApiVariantSet[public(R)]
-                                    content - ApiVariantSet[]
                                 method test.pkg.RemovedPublicClass.method()
                                        self - ApiVariantSet[public(R)]
-                                    content - ApiVariantSet[]
                               class test.pkg.SystemClass
                                      self - ApiVariantSet[system(C)]
-                                  content - ApiVariantSet[]
                                 constructor test.pkg.SystemClass()
                                        self - ApiVariantSet[system(C)]
-                                    content - ApiVariantSet[]
                                 method test.pkg.SystemClass.method()
                                        self - ApiVariantSet[]
-                                    content - ApiVariantSet[]
                         """,
                 )
             }
@@ -486,25 +438,18 @@ class CommonParameterizedSelectedApiInheritanceTest : BaseCommonParameterizedSel
                         """
                             package test.pkg
                                    self - ApiVariantSet[public(C)]
-                                content - ApiVariantSet[]
                               class test.pkg.PublicClass
                                      self - ApiVariantSet[public(C)]
-                                  content - ApiVariantSet[]
                                 constructor test.pkg.PublicClass()
                                        self - ApiVariantSet[public(C)]
-                                    content - ApiVariantSet[]
                                 method test.pkg.PublicClass.method()
                                        self - ApiVariantSet[public(C)]
-                                    content - ApiVariantSet[]
                               class test.pkg.InaccessibleClass
                                      self - ApiVariantSet[]
-                                  content - ApiVariantSet[]
                                 constructor test.pkg.InaccessibleClass()
                                        self - ApiVariantSet[]
-                                    content - ApiVariantSet[]
                                 method test.pkg.InaccessibleClass.method()
                                        self - ApiVariantSet[]
-                                    content - ApiVariantSet[]
                         """,
                 )
             }

@@ -81,28 +81,20 @@ class CommonParameterizedSelectedApiKotlinTest : BaseCommonParameterizedSelected
                         """
                             package test.pkg
                                    self - ApiVariantSet[public(C)]
-                                content - ApiVariantSet[]
                               class test.pkg.PublishedClass
                                      self - ApiVariantSet[]
-                                  content - ApiVariantSet[]
                                 constructor test.pkg.PublishedClass()
                                        self - ApiVariantSet[]
-                                    content - ApiVariantSet[]
                                 method test.pkg.PublishedClass.method()
                                        self - ApiVariantSet[]
-                                    content - ApiVariantSet[]
                               class test.pkg.PublicClass
                                      self - ApiVariantSet[public(C)]
-                                  content - ApiVariantSet[]
                                 constructor test.pkg.PublicClass()
                                        self - ApiVariantSet[public(C)]
-                                    content - ApiVariantSet[]
                                 method test.pkg.PublicClass.publishedMethod()
                                        self - ApiVariantSet[]
-                                    content - ApiVariantSet[]
                                 method test.pkg.PublicClass.internalMethod${'$'}src()
                                        self - ApiVariantSet[]
-                                    content - ApiVariantSet[]
                         """,
                 )
             }
@@ -147,28 +139,20 @@ class CommonParameterizedSelectedApiKotlinTest : BaseCommonParameterizedSelected
                         """
                             package test.pkg
                                    self - ApiVariantSet[public(C)]
-                                content - ApiVariantSet[]
                               class test.pkg.PublishedClass
                                      self - ApiVariantSet[public(C)]
-                                  content - ApiVariantSet[]
                                 constructor test.pkg.PublishedClass()
                                        self - ApiVariantSet[]
-                                    content - ApiVariantSet[]
                                 method test.pkg.PublishedClass.method()
                                        self - ApiVariantSet[public(C)]
-                                    content - ApiVariantSet[]
                               class test.pkg.PublicClass
                                      self - ApiVariantSet[public(C)]
-                                  content - ApiVariantSet[]
                                 constructor test.pkg.PublicClass()
                                        self - ApiVariantSet[public(C)]
-                                    content - ApiVariantSet[]
                                 method test.pkg.PublicClass.publishedMethod()
                                        self - ApiVariantSet[public(C)]
-                                    content - ApiVariantSet[]
                                 method test.pkg.PublicClass.internalMethod${'$'}src()
                                        self - ApiVariantSet[]
-                                    content - ApiVariantSet[]
                         """,
                 )
             }
@@ -217,43 +201,30 @@ class CommonParameterizedSelectedApiKotlinTest : BaseCommonParameterizedSelected
                         """
                             package test.api
                                    self - ApiVariantSet[public(C)]
-                                content - ApiVariantSet[]
                               class test.api.PublicApi
                                      self - ApiVariantSet[public(C)]
-                                  content - ApiVariantSet[]
                             package test.pkg
                                    self - ApiVariantSet[public(C)]
-                                content - ApiVariantSet[]
                               class test.pkg.PublicClass
                                      self - ApiVariantSet[public(C)]
-                                  content - ApiVariantSet[]
                                 constructor test.pkg.PublicClass()
                                        self - ApiVariantSet[public(C)]
-                                    content - ApiVariantSet[]
                                 method test.pkg.PublicClass.showMethod${'$'}src()
                                        self - ApiVariantSet[]
-                                    content - ApiVariantSet[]
                                 method test.pkg.PublicClass.getShowProperty${'$'}src()
                                        self - ApiVariantSet[]
-                                    content - ApiVariantSet[]
                                 method test.pkg.PublicClass.internalMethod${'$'}src()
                                        self - ApiVariantSet[]
-                                    content - ApiVariantSet[]
                                 property test.pkg.PublicClass#showProperty
                                        self - ApiVariantSet[]
-                                    content - ApiVariantSet[]
                                 field test.pkg.PublicClass.showProperty
                                        self - ApiVariantSet[]
-                                    content - ApiVariantSet[]
                               class test.pkg.ShowClass
                                      self - ApiVariantSet[]
-                                  content - ApiVariantSet[]
                                 constructor test.pkg.ShowClass()
                                        self - ApiVariantSet[]
-                                    content - ApiVariantSet[]
                                 method test.pkg.ShowClass.method()
                                        self - ApiVariantSet[]
-                                    content - ApiVariantSet[]
                         """,
                 )
             }
@@ -288,25 +259,18 @@ class CommonParameterizedSelectedApiKotlinTest : BaseCommonParameterizedSelected
                         """
                             package test.api
                                    self - ApiVariantSet[public(C)]
-                                content - ApiVariantSet[]
                               class test.api.Hide
                                      self - ApiVariantSet[public(C)]
-                                  content - ApiVariantSet[]
                             package test.pkg
                                    self - ApiVariantSet[public(C)]
-                                content - ApiVariantSet[]
                               class test.pkg.Foo
                                      self - ApiVariantSet[public(C)]
-                                  content - ApiVariantSet[]
                                 constructor test.pkg.Foo()
                                        self - ApiVariantSet[public(C)]
-                                    content - ApiVariantSet[]
                                 property test.pkg.Foo#bar
                                        self - ApiVariantSet[]
-                                    content - ApiVariantSet[]
                                 field test.pkg.Foo.bar
                                        self - ApiVariantSet[]
-                                    content - ApiVariantSet[]
                         """,
                 )
             }
@@ -340,28 +304,20 @@ class CommonParameterizedSelectedApiKotlinTest : BaseCommonParameterizedSelected
                         """
                             package test.api
                                    self - ApiVariantSet[public(C)]
-                                content - ApiVariantSet[]
                               class test.api.Hide
                                      self - ApiVariantSet[public(C)]
-                                  content - ApiVariantSet[]
                             package test.pkg
                                    self - ApiVariantSet[public(C)]
-                                content - ApiVariantSet[]
                               class test.pkg.Foo
                                      self - ApiVariantSet[public(C)]
-                                  content - ApiVariantSet[]
                                 constructor test.pkg.Foo()
                                        self - ApiVariantSet[public(C)]
-                                    content - ApiVariantSet[]
                                 method test.pkg.Foo.getBar()
                                        self - ApiVariantSet[public(C)]
-                                    content - ApiVariantSet[]
                                 property test.pkg.Foo#bar
                                        self - ApiVariantSet[]
-                                    content - ApiVariantSet[]
                                 field test.pkg.Foo.bar
                                        self - ApiVariantSet[]
-                                    content - ApiVariantSet[]
                         """,
                 )
             }
@@ -399,25 +355,18 @@ class CommonParameterizedSelectedApiKotlinTest : BaseCommonParameterizedSelected
                         """
                             package test.api
                                    self - ApiVariantSet[public(C)]
-                                content - ApiVariantSet[]
                               class test.api.Hide
                                      self - ApiVariantSet[public(C)]
-                                  content - ApiVariantSet[]
                             package test.pkg
                                    self - ApiVariantSet[]
-                                content - ApiVariantSet[]
                               class test.pkg.Foo
                                      self - ApiVariantSet[]
-                                  content - ApiVariantSet[]
                                 constructor test.pkg.Foo()
                                        self - ApiVariantSet[]
-                                    content - ApiVariantSet[]
                                 property test.pkg.Foo#bar
                                        self - ApiVariantSet[]
-                                    content - ApiVariantSet[]
                                 field test.pkg.Foo.bar
                                        self - ApiVariantSet[]
-                                    content - ApiVariantSet[]
                         """,
                 )
             }
