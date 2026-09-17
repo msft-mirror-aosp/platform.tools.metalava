@@ -58,7 +58,10 @@ object ApiSurfacePredicate {
      * Return a [FilterPredicate] that matches any item that belongs to the core [ApiVariant] of
      * [apiSurface] or any surface that it includes.
      */
-    fun wholeCoreApi(apiSurface: ApiSurface) = wholeApiForVariants(apiSurface, coreOnlyVariantTypes)
+    fun wholeCoreApi(
+        apiSurface: ApiSurface,
+        includeOverridingMethods: Boolean = false,
+    ) = wholeApiForVariants(apiSurface, coreOnlyVariantTypes, includeOverridingMethods)
 
     /**
      * Return a [FilterPredicate] that matches any item that belongs to the core [ApiVariant] of

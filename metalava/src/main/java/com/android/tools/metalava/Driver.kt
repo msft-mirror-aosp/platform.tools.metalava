@@ -79,7 +79,6 @@ import com.android.tools.metalava.model.text.createCodebaseFragmentForSignatureF
 import com.android.tools.metalava.model.visitors.ApiFilters
 import com.android.tools.metalava.model.visitors.ApiType
 import com.android.tools.metalava.model.visitors.FilteringApiVisitor
-import com.android.tools.metalava.model.visitors.MatchOverridingMethodPredicate
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
 import com.android.tools.metalava.stub.StubGenerator
@@ -352,9 +351,12 @@ class Driver(
                     // whole API surface.
                     val apiReference = ApiSurfacePredicate.wholeCoreApi(apiSurface)
                     val apiEmit =
-                        MatchOverridingMethodPredicate(
-                            // Only emit keep rules for items that are marked for emission.
-                            EMITTED_ONLY.and(apiReference)
+                        // Only emit keep rules for items that are marked for emission.
+                        EMITTED_ONLY.and(
+                            ApiSurfacePredicate.wholeCoreApi(
+                                apiSurface,
+                                includeOverridingMethods = true,
+                            )
                         )
 
                     ApiFilters(reference = apiReference, emit = apiEmit)
