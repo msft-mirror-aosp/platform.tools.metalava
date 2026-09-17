@@ -274,6 +274,7 @@ class CommonParameterizedSelectedApiInheritanceTest : BaseCommonParameterizedSel
                                        self - ApiVariantSet[system(R)]
                                 method test.pkg.RemovedClass.method()
                                        self - ApiVariantSet[public(C)]
+                                superMethod - ApiVariantSet[public(C)]
                         """,
                 )
             }
@@ -344,12 +345,14 @@ class CommonParameterizedSelectedApiInheritanceTest : BaseCommonParameterizedSel
                                        self - ApiVariantSet[public(C)]
                                 method test.pkg.Middle.method()
                                        self - ApiVariantSet[]
+                                superMethod - ApiVariantSet[public(C)]
                               class test.pkg.Sub
                                      self - ApiVariantSet[public(C)]
                                 constructor test.pkg.Sub()
                                        self - ApiVariantSet[public(C)]
                                 method test.pkg.Sub.method()
                                        self - ApiVariantSet[public(C)]
+                                superMethod - ApiVariantSet[public(C)]
                         """,
                 )
             }
@@ -402,12 +405,14 @@ class CommonParameterizedSelectedApiInheritanceTest : BaseCommonParameterizedSel
                                        self - ApiVariantSet[system(C)]
                                 method test.pkg.SystemClass.method()
                                        self - ApiVariantSet[]
+                                superMethod - ApiVariantSet[public(R)]
                         """,
                 )
             }
 
             buildTests(
-                name = "inaccessible class extending and implementing method from public class",
+                name =
+                    "inaccessible class implementing method from public class and public subclass overriding it",
                 surfaceRules = publicSystemModuleRules,
                 sources =
                     listOf(
@@ -425,6 +430,16 @@ class CommonParameterizedSelectedApiInheritanceTest : BaseCommonParameterizedSel
                                 package test.pkg;
 
                                 class InaccessibleClass extends PublicClass {
+                                    @Override
+                                    public void method() {}
+                                }
+                            """
+                        ),
+                        java(
+                            """
+                                package test.pkg;
+
+                                public class PublicSubClass extends InaccessibleClass {
                                     @Override
                                     public void method() {}
                                 }
@@ -450,6 +465,14 @@ class CommonParameterizedSelectedApiInheritanceTest : BaseCommonParameterizedSel
                                        self - ApiVariantSet[]
                                 method test.pkg.InaccessibleClass.method()
                                        self - ApiVariantSet[]
+                                superMethod - ApiVariantSet[public(C)]
+                              class test.pkg.PublicSubClass
+                                     self - ApiVariantSet[public(C)]
+                                constructor test.pkg.PublicSubClass()
+                                       self - ApiVariantSet[public(C)]
+                                method test.pkg.PublicSubClass.method()
+                                       self - ApiVariantSet[public(C)]
+                                superMethod - ApiVariantSet[public(C)]
                         """,
                 )
             }
@@ -491,11 +514,6 @@ class CommonParameterizedSelectedApiInheritanceTest : BaseCommonParameterizedSel
                         ),
                     ),
             ) {
-                // TODO(b/512093496): When a method overrides or implements methods from different
-                //  API surfaces, SelectedApi should track the API variants inherited from those
-                //  super methods. Currently, SelectedApi does not track super method API variants,
-                //  so SystemClass.method() does not record that it implements
-                //  PublicInterface.method().
                 surfaceTest(
                     surface = "system",
                     expected =
@@ -516,6 +534,7 @@ class CommonParameterizedSelectedApiInheritanceTest : BaseCommonParameterizedSel
                                        self - ApiVariantSet[system(C)]
                                 method test.pkg.SystemClass.method()
                                        self - ApiVariantSet[system(C)]
+                                superMethod - ApiVariantSet[public(C),system(C)]
                         """,
                 )
             }

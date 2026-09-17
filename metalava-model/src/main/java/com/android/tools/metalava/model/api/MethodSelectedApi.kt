@@ -35,6 +35,8 @@ internal class MethodSelectedApi(
     item: MethodItem,
 ) : MemberSelectedApi<MethodItem>(selectedApiUpdater, item) {
 
+    override var superMethodApiVariants = ApiVariantSet.EMPTY
+
     override fun itemSpecificInitialization() {
         // Record components are not separately selectable so need special initialization.
         if (item.isRecordComponentGetter) {
@@ -43,6 +45,13 @@ internal class MethodSelectedApi(
         }
 
         super.itemSpecificInitialization()
+
+        // Collect super method API variants before checking whether the parent is part of an API.
+        // Even if the containing class is hidden or inaccessible (parent.itemApiVariants is empty)
+        // and this method cannot belong to an API itself, it may still override methods from an
+        // API surface. Recording those variants here ensures they can be transitively inherited
+        // by methods in subclasses extending this class.
+        superMethodApiVariants = collectSuperMethodApiVariants()
 
         // If the parent is not part of any API then the method cannot be either.
         if (parent.itemApiVariants.isEmpty()) return
@@ -160,4 +169,35 @@ internal class MethodSelectedApi(
                     reportMessageProvider(item, overriddenMethod),
                 )
             } != null
+
+    /**
+     * Collect all API variants belonging to any ancestor method being overridden.
+     *
+     * In Java and Kotlin, overriding methods participate in the API contracts established by
+     * superclasses and interfaces they implement or extend. Even if an overriding method is not
+     * directly annotated with an API surface (or is marked `@hide`), it still overrides or
+     * implements methods that belong to one or more API surfaces.
+     *
+     * By collecting the union of [SelectedApi.itemApiVariants] and
+     * [SelectedApi.superMethodApiVariants] from all direct super methods, this computes the
+     * transitive closure of all API variants to which any overridden ancestor method belongs. This
+     * information is needed to:
+     * - Ensure overriding methods are emitted in stub generation when implementing abstract or
+     *   interface methods from visible APIs, avoiding javac compilation failures.
+     * - Include overriding methods in delta signature files when they override methods belonging to
+     *   the delta surface.
+     * - Generate keep rules for methods implementing API contracts.
+     * - Include overriding methods in compatibility checks against reference API surfaces.
+     */
+    private fun collectSuperMethodApiVariants(): ApiVariantSet {
+        var inheritedSuperVariants = ApiVariantSet.EMPTY
+        for (superMethod in item.superMethods()) {
+            val superSelectedApi = superMethod.selectedApi
+            // Include variants to which the super method directly belongs, as well as variants
+            // from any ancestor methods that it in turn overrides.
+            inheritedSuperVariants += superSelectedApi.itemApiVariants
+            inheritedSuperVariants += superSelectedApi.superMethodApiVariants
+        }
+        return inheritedSuperVariants
+    }
 }
