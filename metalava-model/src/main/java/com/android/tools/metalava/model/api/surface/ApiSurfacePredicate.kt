@@ -85,6 +85,7 @@ object ApiSurfacePredicate {
     private fun wholeApiForVariants(
         apiSurface: ApiSurface,
         variantTypes: List<ApiVariantType>,
+        includeOverridingMethods: Boolean = false,
     ): FilterPredicate {
         val inclusionMask =
             computeInclusionMask(
@@ -93,7 +94,11 @@ object ApiSurfacePredicate {
                 variantTypes,
             )
 
-        return ItemApiVariantsPredicate(apiSurface.surfaces, inclusionMask)
+        return if (includeOverridingMethods) {
+            ItemOrSuperMethodApiVariantsPredicate(inclusionMask)
+        } else {
+            ItemApiVariantsPredicate(apiSurface.surfaces, inclusionMask)
+        }
     }
 
     /**
@@ -121,6 +126,17 @@ object ApiSurfacePredicate {
     }
 
     /**
+     * A [FilterPredicate] that matches an item if it or its overridden super methods belong to at
+     * least one [ApiVariant] matching [inclusionMask].
+     */
+    private class ItemOrSuperMethodApiVariantsPredicate(private val inclusionMask: Int) :
+        FilterPredicate {
+        override fun test(t: SelectableItem) =
+            t.selectedApi.itemApiVariants.bits and inclusionMask != 0 ||
+                t.selectedApi.superMethodApiVariants.bits and inclusionMask != 0
+    }
+
+    /**
      * Return a [FilterPredicate] for stub generation that matches any item that belongs to the core
      * [ApiVariant] (and optionally [ApiVariantType.DOC_ONLY] if [includeDocOnly] is `true`) of
      * [apiSurface] or any surface that it includes.
@@ -128,9 +144,10 @@ object ApiSurfacePredicate {
     fun forStubs(
         apiSurface: ApiSurface,
         includeDocOnly: Boolean,
+        includeOverridingMethods: Boolean = false,
     ): FilterPredicate {
         val variantTypes = if (includeDocOnly) corePlusDocOnlyVariantTypes else coreOnlyVariantTypes
-        return wholeApiForVariants(apiSurface, variantTypes)
+        return wholeApiForVariants(apiSurface, variantTypes, includeOverridingMethods)
     }
 
     /**

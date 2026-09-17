@@ -32,7 +32,6 @@ import com.android.tools.metalava.model.FilterPredicate
 import com.android.tools.metalava.model.PackageFilter
 import com.android.tools.metalava.model.api.surface.ApiSurfacePredicate
 import com.android.tools.metalava.model.visitors.ApiFilters
-import com.android.tools.metalava.model.visitors.MatchOverridingMethodPredicate
 import com.android.tools.metalava.reporter.Reporter
 import com.android.tools.metalava.trace
 import java.io.File
@@ -156,9 +155,13 @@ internal class StubGenerator(
                         includeDocOnly = isDocStubs,
                     )
                 val filterEmit =
-                    MatchOverridingMethodPredicate(
-                        // Only emit stubs for items marked for emission.
-                        EMITTED_ONLY.and(filterReference)
+                    // Only emit stubs for items marked for emission.
+                    EMITTED_ONLY.and(
+                        ApiSurfacePredicate.forStubs(
+                            codebase.apiSurfaces.main,
+                            includeDocOnly = isDocStubs,
+                            includeOverridingMethods = true,
+                        )
                     )
 
                 ApiFilters(
