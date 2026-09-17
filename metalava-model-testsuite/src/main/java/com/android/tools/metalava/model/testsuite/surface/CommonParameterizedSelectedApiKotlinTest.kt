@@ -365,6 +365,62 @@ class CommonParameterizedSelectedApiKotlinTest : BaseCommonParameterizedSelected
                         """,
                 )
             }
+
+            buildTests(
+                name = "property in hidden class with field suppression",
+                surfaceRules = publishedApiRules,
+                sources =
+                    listOf(
+                        java(
+                            """
+                                package test.api;
+                                public @interface Hide {}
+                            """
+                        ),
+                        kotlin(
+                            """
+                                package test.pkg
+                                import ${HIDE.qualifiedName}
+
+                                @Hide
+                                class Foo {
+                                    @field:Suppress("ShowingMemberInHiddenClass")
+                                    @JvmField
+                                    @PublishedApi
+                                    internal var bar: Int = -1
+                                }
+                            """
+                        ),
+                    ),
+            ) {
+                surfaceTest(
+                    surface = "public",
+                    expected =
+                        """
+                            package test.api
+                                   self - ApiVariantSet[public(C)]
+                                content - ApiVariantSet[]
+                              class test.api.Hide
+                                     self - ApiVariantSet[public(C)]
+                                  content - ApiVariantSet[]
+                            package test.pkg
+                                   self - ApiVariantSet[]
+                                content - ApiVariantSet[]
+                              class test.pkg.Foo
+                                     self - ApiVariantSet[]
+                                  content - ApiVariantSet[]
+                                constructor test.pkg.Foo()
+                                       self - ApiVariantSet[]
+                                    content - ApiVariantSet[]
+                                property test.pkg.Foo#bar
+                                       self - ApiVariantSet[]
+                                    content - ApiVariantSet[]
+                                field test.pkg.Foo.bar
+                                       self - ApiVariantSet[]
+                                    content - ApiVariantSet[]
+                        """,
+                )
+            }
         }
     }
 }
