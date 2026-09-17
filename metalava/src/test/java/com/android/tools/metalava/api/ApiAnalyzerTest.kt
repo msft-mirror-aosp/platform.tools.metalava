@@ -176,6 +176,35 @@ class ApiAnalyzerTest : DriverTest() {
     }
 
     @Test
+    fun `Hidden abstract method in non-API interface referenced by public API`() {
+        check(
+            extraArguments = errorIssues(Issues.HIDDEN_ABSTRACT_METHOD_IN_INTERFACE),
+            expectedIssues =
+                """
+                    src/test/pkg/PublicClass.java:4: warning: Parameter p references hidden type test.pkg.PackagePrivateInterface. [HiddenTypeParameter]
+                    src/test/pkg/PublicClass.java:4: error: Class test.pkg.PackagePrivateInterface is not public but was referenced (in parameter type) from public parameter p in test.pkg.PublicClass.foo(test.pkg.PackagePrivateInterface p) [ReferencesHidden]
+                """,
+            sourceFiles =
+                @Suppress("ClassEscapesDefinedScope") // For PackagePrivateInterface
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+
+                            public class PublicClass {
+                                public void foo(PackagePrivateInterface p) {}
+                            }
+
+                            interface PackagePrivateInterface {
+                                void hiddenAbstractMethod();
+                            }
+                        """
+                    ),
+                ),
+        )
+    }
+
+    @Test
     fun `Deprecation mismatch check look at inherited docs for overriding methods`() {
         check(
             expectedIssues =
