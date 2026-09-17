@@ -41,9 +41,6 @@ interface SelectableItem : Item, ReferencableNameScope {
     /** True if this item is either hidden or removed */
     fun isHiddenOrRemoved() = selectedApi.itemApiVariants.isHiddenOrRemoved()
 
-    /** Returns true if this modifier list contains any hide annotations */
-    fun hasHideAnnotation(): Boolean = codebase.annotationManager.hasHideAnnotations(modifiers)
-
     /** Override to specialize return type. */
     override fun findCorrespondingItemIn(
         codebase: Codebase,

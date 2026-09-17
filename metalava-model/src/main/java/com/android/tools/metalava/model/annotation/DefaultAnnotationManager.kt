@@ -465,18 +465,6 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
         return ANNOTATION_EXTERNAL
     }
 
-    /** Check whether this has been configured in a way that could cause items to be reverted. */
-    private fun couldRevertItems(): Boolean = config.apiFlags != null
-
-    override fun hasHideAnnotations(modifiers: ModifierList): Boolean {
-        // If there are no hide annotations and items cannot be reverted then this can never return
-        // true. Reverted items can behave as if they are hidden it they are newly added.
-        if (!apiSurfaceSelector.hasAnyHideAnnotations && !couldRevertItems()) {
-            return false
-        }
-        return modifiers.hasAnnotation(AnnotationItem::isHideAnnotation)
-    }
-
     override fun hasSuppressCompatibilityMetaAnnotations(modifiers: ModifierList): Boolean {
         if (config.suppressCompatibilityMetaAnnotations.isEmpty()) {
             return false

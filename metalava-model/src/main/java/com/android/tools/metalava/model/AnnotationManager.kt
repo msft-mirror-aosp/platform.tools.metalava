@@ -52,13 +52,6 @@ interface AnnotationManager {
     ): String
 
     /**
-     * Checks to see if the modifiers contain any hide annotations.
-     *
-     * See [AnnotationItem.isHideAnnotation]
-     */
-    fun hasHideAnnotations(modifiers: ModifierList): Boolean = false
-
-    /**
      * Checks to see if the modifiers contain any suppress compatibility annotations.
      *
      * Returns `true` if it does, `false` otherwise. If `true` then the owning item (and any
