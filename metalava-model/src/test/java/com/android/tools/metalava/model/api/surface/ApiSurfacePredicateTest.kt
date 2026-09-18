@@ -53,19 +53,63 @@ class ApiSurfacePredicateTest {
     @Test
     fun `Test forStubs`() {
         assertEquals(
-            "ItemApiVariantsPredicate(ApiVariantSet[base(C)])",
+            """
+                ApiFilters(
+                    emit =
+                        AndPredicate(
+                            EmittedOnlyPredicate
+                            ItemOrSuperMethodApiVariantsPredicate(ApiVariantSet[base(C)])
+                        )
+                    reference =
+                        ItemApiVariantsPredicate(ApiVariantSet[base(C)])
+                )
+            """
+                .trimIndent(),
             ApiSurfacePredicate.forStubs(base, includeDocOnly = false).toString(),
         )
         assertEquals(
-            "ItemApiVariantsPredicate(ApiVariantSet[base(CD)])",
+            """
+                ApiFilters(
+                    emit =
+                        AndPredicate(
+                            EmittedOnlyPredicate
+                            ItemOrSuperMethodApiVariantsPredicate(ApiVariantSet[base(CD)])
+                        )
+                    reference =
+                        ItemApiVariantsPredicate(ApiVariantSet[base(CD)])
+                )
+            """
+                .trimIndent(),
             ApiSurfacePredicate.forStubs(base, includeDocOnly = true).toString(),
         )
         assertEquals(
-            "ItemApiVariantsPredicate(ApiVariantSet[base(C),main(C)])",
+            """
+                ApiFilters(
+                    emit =
+                        AndPredicate(
+                            EmittedOnlyPredicate
+                            ItemOrSuperMethodApiVariantsPredicate(ApiVariantSet[base(C),main(C)])
+                        )
+                    reference =
+                        ItemApiVariantsPredicate(ApiVariantSet[base(C),main(C)])
+                )
+            """
+                .trimIndent(),
             ApiSurfacePredicate.forStubs(main, includeDocOnly = false).toString(),
         )
         assertEquals(
-            "ItemApiVariantsPredicate(ApiVariantSet[base(CD),main(CD)])",
+            """
+                ApiFilters(
+                    emit =
+                        AndPredicate(
+                            EmittedOnlyPredicate
+                            ItemOrSuperMethodApiVariantsPredicate(ApiVariantSet[base(CD),main(CD)])
+                        )
+                    reference =
+                        ItemApiVariantsPredicate(ApiVariantSet[base(CD),main(CD)])
+                )
+            """
+                .trimIndent(),
             ApiSurfacePredicate.forStubs(main, includeDocOnly = true).toString(),
         )
     }

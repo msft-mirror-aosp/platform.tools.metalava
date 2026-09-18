@@ -27,13 +27,11 @@ import com.android.tools.metalava.doc.ApiVersionLabelProvider
 import com.android.tools.metalava.doc.DocAnalyzer
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.CodebaseFragment
-import com.android.tools.metalava.model.EmittedOnlyPredicate
 import com.android.tools.metalava.model.FilterPredicate
 import com.android.tools.metalava.model.MatchAllPredicate
 import com.android.tools.metalava.model.PackageFilter
 import com.android.tools.metalava.model.api.surface.ApiSurface
 import com.android.tools.metalava.model.api.surface.ApiSurfacePredicate
-import com.android.tools.metalava.model.visitors.ApiFilters
 import com.android.tools.metalava.reporter.Reporter
 import com.android.tools.metalava.trace
 import java.io.File
@@ -148,27 +146,9 @@ internal class StubGenerator(
             if (codebase.preFiltered) {
                 null
             } else {
-                // Stubs must include the whole API surface (both base and extended surfaces, such
-                // as public API when generating system stubs) so code compiling against stubs can
-                // resolve all referenced and inherited APIs.
-                val filterReference =
-                    ApiSurfacePredicate.forStubs(
-                        codebase.apiSurfaces.main,
-                        includeDocOnly = isDocStubs,
-                    )
-                val filterEmit =
-                    // Only emit stubs for items marked for emission.
-                    EmittedOnlyPredicate.and(
-                        ApiSurfacePredicate.forStubs(
-                            codebase.apiSurfaces.main,
-                            includeDocOnly = isDocStubs,
-                            includeOverridingMethods = true,
-                        )
-                    )
-
-                ApiFilters(
-                    reference = filterReference,
-                    emit = filterEmit,
+                ApiSurfacePredicate.forStubs(
+                    apiSurface,
+                    includeDocOnly = isDocStubs,
                 )
             }
 

@@ -134,17 +134,40 @@ object ApiSurfacePredicate {
     }
 
     /**
-     * Return a [FilterPredicate] for stub generation that matches any item that belongs to the core
-     * [ApiVariant] (and optionally [ApiVariantType.DOC_ONLY] if [includeDocOnly] is `true`) of
-     * [apiSurface] or any surface that it includes.
+     * Return [ApiFilters] for generating stubs for [apiSurface].
+     *
+     * Stubs must include the whole API surface (both base and extended surfaces, such as public API
+     * when generating system stubs) so code compiling against stubs can resolve all referenced and
+     * inherited APIs.
+     * - [ApiFilters.reference]: matches items across the whole API surface (including doc-only APIs
+     *   if [includeDocOnly] is true).
+     * - [ApiFilters.emit]: matches items marked for emission across the whole API surface,
+     *   including overriding methods (via [SelectedApi.superMethodApiVariants]).
      */
     fun forStubs(
         apiSurface: ApiSurface,
         includeDocOnly: Boolean,
-        includeOverridingMethods: Boolean = false,
-    ): FilterPredicate {
+    ): ApiFilters {
         val variantTypes = if (includeDocOnly) corePlusDocOnlyVariantTypes else coreOnlyVariantTypes
-        return wholeApiForVariants(apiSurface, variantTypes, includeOverridingMethods)
+        val filterReference =
+            wholeApiForVariants(
+                apiSurface,
+                variantTypes,
+            )
+        val filterEmit =
+            // Only emit stubs for items marked for emission.
+            EmittedOnlyPredicate.and(
+                wholeApiForVariants(
+                    apiSurface,
+                    variantTypes,
+                    includeOverridingMethods = true,
+                )
+            )
+
+        return ApiFilters(
+            reference = filterReference,
+            emit = filterEmit,
+        )
     }
 
     /**
