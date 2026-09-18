@@ -21,6 +21,7 @@ import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.JVM_FIELD
 import com.android.tools.metalava.model.JVM_STATIC
 import com.android.tools.metalava.model.KOTLIN_DEPRECATED
+import com.android.tools.metalava.model.KOTLIN_PUBLISHED_API
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.MutableModifierList
 import com.android.tools.metalava.model.VisibilityLevel
@@ -128,8 +129,8 @@ internal class KaModifierFactory(private val processor: KaModuleProcessor) {
         // accessors by Java clients as experimental. Because of this AndroidX bans defining
         // public experimental properties in projects that target Java clients.
 
-        // Also handle propagating showability annotations (show and hide annotations, e.g.
-        // @PublishedApi). These annotations which update API visibility should impact the API
+        // Also handle propagating showability annotations (show and hide annotations) and
+        // @PublishedApi. These annotations which update API visibility should impact the API
         // visibility of accessors when applied to properties.
         for (annotationItem in modifiers.annotations()) {
             // Manually setting a RequiresOptIn annotation on a getter causes a
@@ -139,9 +140,11 @@ internal class KaModifierFactory(private val processor: KaModuleProcessor) {
             // Explicit RequiresOptIn annotations on setters are supported by the
             // compiler, so we should only add this annotation implicitly if it is not
             // already explicitly provided.
+            val isPublishedApi = annotationItem.qualifiedName == KOTLIN_PUBLISHED_API
             if (
                 annotationItem.isSuppressCompatibilityAnnotation() ||
-                    annotationItem.isShowabilityAnnotation()
+                    annotationItem.isShowabilityAnnotation() ||
+                    isPublishedApi
             ) {
                 if (getter != null && annotationItem !in getter.modifiers.annotations()) {
                     getter.mutateModifiers { addAnnotation(annotationItem) }

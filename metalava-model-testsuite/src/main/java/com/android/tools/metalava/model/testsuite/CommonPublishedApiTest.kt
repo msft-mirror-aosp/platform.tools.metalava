@@ -199,12 +199,10 @@ class CommonPublishedApiTest : BaseModelTest() {
             assertThat(fooProperty.modifiers.isPublishedApi()).isTrue()
             assertThat(fooProperty.targetLanguages).isEqualTo(TargetLanguageSet.KOTLIN_ONLY)
             val fooGetter = fooClass.assertMethod("getFoo", emptyList())
-            // annotation not propagated because it isn't a show annotation
-            assertThat(fooGetter.modifiers.isPublishedApi()).isFalse()
+            assertThat(fooGetter.modifiers.isPublishedApi()).isTrue()
             assertThat(fooGetter.targetLanguages).isEqualTo(TargetLanguageSet.NOT_KOTLIN)
             val fooSetter = fooClass.assertMethod("setFoo", listOf("int"))
-            // annotation not propagated because it isn't a show annotation
-            assertThat(fooSetter.modifiers.isPublishedApi()).isFalse()
+            assertThat(fooSetter.modifiers.isPublishedApi()).isTrue()
             assertThat(fooSetter.targetLanguages).isEqualTo(TargetLanguageSet.NOT_KOTLIN)
         }
     }
@@ -337,12 +335,10 @@ class CommonPublishedApiTest : BaseModelTest() {
         ) {
             val fooClass = codebase.assertClass("test.pkg.Foo")
             val jvmFieldField = fooClass.assertField("foo")
-            // annotation not propagated because it isn't a show annotation
-            assertThat(jvmFieldField.modifiers.isPublishedApi()).isFalse()
+            assertThat(jvmFieldField.modifiers.isPublishedApi()).isTrue()
             assertThat(jvmFieldField.targetLanguages).isEqualTo(TargetLanguageSet.ALL)
             val constField = fooClass.assertField("FOO")
-            // annotation not propagated because it isn't a show annotation
-            assertThat(constField.modifiers.isPublishedApi()).isFalse()
+            assertThat(constField.modifiers.isPublishedApi()).isTrue()
             assertThat(constField.targetLanguages).isEqualTo(TargetLanguageSet.ALL)
 
             val fooCompanion = codebase.assertClass("test.pkg.Foo.Companion")
