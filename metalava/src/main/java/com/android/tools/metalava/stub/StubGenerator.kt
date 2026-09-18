@@ -198,15 +198,7 @@ internal class StubGenerator(
         }
 
         // Add additional constructors needed by the stubs across the whole API surface.
-        val filterEmit: FilterPredicate =
-            if (codebaseFragment.codebase.preFiltered) {
-                FilterPredicate { true }
-            } else {
-                ApiSurfacePredicate.forStubs(
-                    codebase.apiSurfaces.main,
-                    includeDocOnly = isDocStubs,
-                )
-            }
+        val filterEmit: FilterPredicate = apiFilters?.reference ?: FilterPredicate { true }
         val stubConstructorManager = StubConstructorManager(codebaseFragment.codebase)
         stubConstructorManager.addConstructors(filterEmit)
 
