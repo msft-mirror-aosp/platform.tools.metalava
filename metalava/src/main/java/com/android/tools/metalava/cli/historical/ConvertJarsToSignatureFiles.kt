@@ -216,7 +216,6 @@ class ConvertJarsToSignatureFiles(
         val apiPredicateConfig =
             ApiSurfacePredicate.Config(
                 apiSurface = apiSurface,
-                addAdditionalOverrides = fileFormat[ADD_ADDITIONAL_OVERRIDES],
             )
         val apiFilters =
             if (jarCodebase.preFiltered) {

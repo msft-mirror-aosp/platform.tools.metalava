@@ -32,12 +32,6 @@ object ApiSurfacePredicate {
     data class Config(
         /** The [ApiSurface] that this predicate is for. */
         val apiSurface: ApiSurface = ApiSurfaces.DEFAULT.main,
-
-        /**
-         * Whether overriding methods essential for compiling the stubs should be considered as APIs
-         * or not.
-         */
-        val addAdditionalOverrides: Boolean = false,
     )
 
     /** [ApiVariantType]s for core-only APIs. */
@@ -348,8 +342,7 @@ object ApiSurfacePredicate {
      * Return a [FilterPredicate] for emitting API items for the given [apiType] using the
      * configuration in [apiPredicateConfig].
      *
-     * Unlike [nonElidingFilter], this will elide method overrides that match the overridden method,
-     * unless configured to include additional overrides via [Config.addAdditionalOverrides].
+     * Unlike [nonElidingFilter], this will elide method overrides that match the overridden method.
      */
     fun emitFilter(apiType: ApiType, apiPredicateConfig: Config): FilterPredicate {
         val nonElidingFilter =
