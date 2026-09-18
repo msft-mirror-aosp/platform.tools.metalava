@@ -733,6 +733,10 @@ class ShowAnnotationTest : DriverTest() {
                     package test.pkg {
                       public final class PublicClass {
                         ctor public PublicClass();
+                        method @kotlin.PublishedApi internal void publishedMethod();
+                      }
+                      @kotlin.PublishedApi internal final class PublishedClass {
+                        method public void method();
                       }
                     }
                 """,
@@ -765,6 +769,9 @@ class ShowAnnotationTest : DriverTest() {
                 """
                     package test.pkg {
                       public interface PublicInterface {
+                        method public void foo();
+                      }
+                      @kotlin.PublishedApi internal final class PublishedClass implements test.pkg.PublicInterface {
                         method public void foo();
                       }
                     }

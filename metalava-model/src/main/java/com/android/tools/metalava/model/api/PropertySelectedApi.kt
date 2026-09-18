@@ -52,7 +52,7 @@ internal class PropertySelectedApi(
                 //    hide the property as well. Therefore, we explicitly check for hide
                 //    annotations rather than relying on the backing field's accessibility or
                 //    empty API variants.
-                if (selectedApiUpdater.hasApiVisibility(backingField.modifiers)) {
+                if (backingField.modifiers.hasApiVisibility()) {
                     val fieldSelectedApi = backingField.selectedApi as? SourceSelectedApi<*>
                     if (fieldSelectedApi != null) {
                         adoptStatusFrom(fieldSelectedApi)

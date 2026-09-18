@@ -95,7 +95,26 @@ internal sealed class DefaultBaseModifierList(
     override fun isInternal() = getVisibilityLevel() == VisibilityLevel.INTERNAL
 
     override fun isPublishedApi(): Boolean {
-        return isInternal() && hasAnnotation { it.qualifiedName == KOTLIN_PUBLISHED_API }
+        return isInternal() && hasPublishedApiAnnotation()
+    }
+
+    /**
+     * Check if the [BaseModifierList] is accessible as part of an API.
+     *
+     * If this has [VisibilityLevel.INTERNAL] then it is only accessible if it is annotated with the
+     * [PublishedApi] annotation.
+     */
+    override fun hasApiVisibility(): Boolean {
+        return when (getVisibilityLevel()) {
+            VisibilityLevel.PUBLIC,
+            VisibilityLevel.PROTECTED -> true
+            VisibilityLevel.INTERNAL -> hasPublishedApiAnnotation()
+            else -> false
+        }
+    }
+
+    private fun hasPublishedApiAnnotation(): Boolean {
+        return annotations().any { it.qualifiedName == KOTLIN_PUBLISHED_API }
     }
 
     override fun isPrivate() = getVisibilityLevel() == VisibilityLevel.PRIVATE

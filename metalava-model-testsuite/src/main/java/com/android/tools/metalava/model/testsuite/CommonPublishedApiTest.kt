@@ -62,6 +62,7 @@ class CommonPublishedApiTest : BaseModelTest() {
         ) {
             val fooClass = codebase.assertClass("test.pkg.Foo")
             assertThat(fooClass.modifiers.isPublishedApi()).isTrue()
+            assertThat(fooClass.modifiers.hasApiVisibility()).isTrue()
             assertThat(fooClass.targetLanguages).isEqualTo(TargetLanguageSet.ALL)
         }
     }
@@ -104,6 +105,7 @@ class CommonPublishedApiTest : BaseModelTest() {
             val fooClass = codebase.assertClass("test.pkg.Foo")
             val fooCtor = fooClass.assertConstructor(emptyList())
             assertThat(fooCtor.modifiers.isPublishedApi()).isTrue()
+            assertThat(fooCtor.modifiers.hasApiVisibility()).isTrue()
             assertThat(fooCtor.targetLanguages).isEqualTo(TargetLanguageSet.ALL)
         }
     }
@@ -149,6 +151,7 @@ class CommonPublishedApiTest : BaseModelTest() {
             val fooClass = codebase.assertClass("test.pkg.Foo")
             val fooMethod = fooClass.assertMethod("foo", emptyList())
             assertThat(fooMethod.modifiers.isPublishedApi()).isTrue()
+            assertThat(fooMethod.modifiers.hasApiVisibility()).isTrue()
             assertThat(fooMethod.targetLanguages).isEqualTo(TargetLanguageSet.ALL)
         }
     }
@@ -197,12 +200,15 @@ class CommonPublishedApiTest : BaseModelTest() {
             val fooClass = codebase.assertClass("test.pkg.Foo")
             val fooProperty = fooClass.assertProperty("foo")
             assertThat(fooProperty.modifiers.isPublishedApi()).isTrue()
+            assertThat(fooProperty.modifiers.hasApiVisibility()).isTrue()
             assertThat(fooProperty.targetLanguages).isEqualTo(TargetLanguageSet.KOTLIN_ONLY)
             val fooGetter = fooClass.assertMethod("getFoo", emptyList())
             assertThat(fooGetter.modifiers.isPublishedApi()).isTrue()
+            assertThat(fooGetter.modifiers.hasApiVisibility()).isTrue()
             assertThat(fooGetter.targetLanguages).isEqualTo(TargetLanguageSet.NOT_KOTLIN)
             val fooSetter = fooClass.assertMethod("setFoo", listOf("int"))
             assertThat(fooSetter.modifiers.isPublishedApi()).isTrue()
+            assertThat(fooSetter.modifiers.hasApiVisibility()).isTrue()
             assertThat(fooSetter.targetLanguages).isEqualTo(TargetLanguageSet.NOT_KOTLIN)
         }
     }
@@ -263,9 +269,11 @@ class CommonPublishedApiTest : BaseModelTest() {
             val fooClass = codebase.assertClass("test.pkg.Foo")
             val fooCompanionField = fooClass.assertField("Companion")
             assertThat(fooCompanionField.modifiers.isPublishedApi()).isTrue()
+            assertThat(fooCompanionField.modifiers.hasApiVisibility()).isTrue()
             assertThat(fooCompanionField.targetLanguages).isEqualTo(TargetLanguageSet.ALL)
             val fooCompanionClass = codebase.assertClass("test.pkg.Foo.Companion")
             assertThat(fooCompanionClass.modifiers.isPublishedApi()).isTrue()
+            assertThat(fooCompanionClass.modifiers.hasApiVisibility()).isTrue()
             assertThat(fooCompanionClass.targetLanguages).isEqualTo(TargetLanguageSet.ALL)
         }
     }
@@ -336,17 +344,21 @@ class CommonPublishedApiTest : BaseModelTest() {
             val fooClass = codebase.assertClass("test.pkg.Foo")
             val jvmFieldField = fooClass.assertField("foo")
             assertThat(jvmFieldField.modifiers.isPublishedApi()).isTrue()
+            assertThat(jvmFieldField.modifiers.hasApiVisibility()).isTrue()
             assertThat(jvmFieldField.targetLanguages).isEqualTo(TargetLanguageSet.ALL)
             val constField = fooClass.assertField("FOO")
             assertThat(constField.modifiers.isPublishedApi()).isTrue()
+            assertThat(constField.modifiers.hasApiVisibility()).isTrue()
             assertThat(constField.targetLanguages).isEqualTo(TargetLanguageSet.ALL)
 
             val fooCompanion = codebase.assertClass("test.pkg.Foo.Companion")
             val jvmStaticProperty = fooCompanion.assertProperty("foo")
             assertThat(jvmStaticProperty.modifiers.isPublishedApi()).isTrue()
+            assertThat(jvmStaticProperty.modifiers.hasApiVisibility()).isTrue()
             assertThat(jvmStaticProperty.targetLanguages).isEqualTo(TargetLanguageSet.KOTLIN_ONLY)
             val constProperty = fooCompanion.assertProperty("FOO")
             assertThat(constProperty.modifiers.isPublishedApi()).isTrue()
+            assertThat(constProperty.modifiers.hasApiVisibility()).isTrue()
             assertThat(constProperty.targetLanguages).isEqualTo(TargetLanguageSet.KOTLIN_ONLY)
         }
     }
@@ -420,12 +432,14 @@ class CommonPublishedApiTest : BaseModelTest() {
             val fooClass = codebase.assertClass("test.pkg.Foo")
             val fooSourceCtor = fooClass.assertConstructor(listOf("test.pkg.IntValue"))
             assertThat(fooSourceCtor.modifiers.isPublishedApi()).isTrue()
+            assertThat(fooSourceCtor.modifiers.hasApiVisibility()).isTrue()
             assertThat(fooSourceCtor.targetLanguages).isEqualTo(TargetLanguageSet.KOTLIN_ONLY)
             val fooBytecodeCtor =
                 fooClass.assertConstructor(
                     listOf("int", "kotlin.jvm.internal.DefaultConstructorMarker")
                 )
             assertThat(fooBytecodeCtor.modifiers.isPublishedApi()).isTrue()
+            assertThat(fooBytecodeCtor.modifiers.hasApiVisibility()).isTrue()
             assertThat(fooBytecodeCtor.targetLanguages).isEqualTo(TargetLanguageSet.BYTECODE_ONLY)
         }
     }
@@ -500,9 +514,11 @@ class CommonPublishedApiTest : BaseModelTest() {
             val fooClass = codebase.assertClass("test.pkg.Foo")
             val fooSourceMethod = fooClass.assertMethod("foo", listOf("test.pkg.IntValue"))
             assertThat(fooSourceMethod.modifiers.isPublishedApi()).isTrue()
+            assertThat(fooSourceMethod.modifiers.hasApiVisibility()).isTrue()
             assertThat(fooSourceMethod.targetLanguages).isEqualTo(TargetLanguageSet.KOTLIN_ONLY)
             val fooBytecodeMethod = fooClass.assertMethod("foo-Vxmw0xk", listOf("int"))
             assertThat(fooBytecodeMethod.modifiers.isPublishedApi()).isTrue()
+            assertThat(fooBytecodeMethod.modifiers.hasApiVisibility()).isTrue()
             assertThat(fooBytecodeMethod.targetLanguages).isEqualTo(TargetLanguageSet.BYTECODE_ONLY)
         }
     }
@@ -580,12 +596,15 @@ class CommonPublishedApiTest : BaseModelTest() {
             val fooClass = codebase.assertClass("test.pkg.Foo")
             val fooProperty = fooClass.assertProperty("foo")
             assertThat(fooProperty.modifiers.isPublishedApi()).isTrue()
+            assertThat(fooProperty.modifiers.hasApiVisibility()).isTrue()
             assertThat(fooProperty.targetLanguages).isEqualTo(TargetLanguageSet.KOTLIN_ONLY)
             val fooGetter = fooClass.assertMethod("getFoo-RVb1_dM", emptyList())
             assertThat(fooGetter.modifiers.isPublishedApi()).isTrue()
+            assertThat(fooGetter.modifiers.hasApiVisibility()).isTrue()
             assertThat(fooGetter.targetLanguages).isEqualTo(TargetLanguageSet.BYTECODE_ONLY)
             val fooSetter = fooClass.assertMethod("setFoo-Vxmw0xk", listOf("int"))
             assertThat(fooSetter.modifiers.isPublishedApi()).isTrue()
+            assertThat(fooSetter.modifiers.hasApiVisibility()).isTrue()
             assertThat(fooSetter.targetLanguages).isEqualTo(TargetLanguageSet.BYTECODE_ONLY)
         }
     }
@@ -645,10 +664,12 @@ class CommonPublishedApiTest : BaseModelTest() {
         ) {
             val fooClass = codebase.assertClass("test.pkg.Foo")
             assertThat(fooClass.modifiers.isPublishedApi()).isTrue()
+            assertThat(fooClass.modifiers.hasApiVisibility()).isTrue()
             assertThat(fooClass.targetLanguages).isEqualTo(TargetLanguageSet.ALL)
             val fooCompanion = codebase.assertClass("test.pkg.Foo.Companion")
             // This needs to have visibility propagated from the containing class
             assertThat(fooCompanion.modifiers.isPublishedApi()).isFalse()
+            assertThat(fooCompanion.modifiers.hasApiVisibility()).isTrue()
             assertThat(fooCompanion.targetLanguages).isEqualTo(TargetLanguageSet.ALL)
         }
     }
