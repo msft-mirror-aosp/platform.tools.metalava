@@ -283,6 +283,12 @@ class SelectedApiUpdater(
             inheritableApiVariants = enclosingApiVariants
         }
 
+        // A file facade class does not belong to any API surfaces directly. Instead, it is only
+        // included in surfaces to which its members belong.
+        if (item is ClassItem && item.isFileFacade) {
+            itemApiVariants = ApiVariantSet.EMPTY
+        }
+
         // Get the API surface to which the item belongs.
         val surface = itemApiVariants.narrowestSurfaceFor(apiSurfaces)
         if (surface != null) {

@@ -86,12 +86,18 @@ internal class ClassSelectedApi(
         // If there are no variants to propagate then return immediately.
         if (propagateVariants.isEmpty()) return
 
-        // Add them to the class.
-        contentApiVariants += propagateVariants
+        if (item.isFileFacade) {
+            // A file facade class only belongs to the surfaces to which its members belong.
+            itemApiVariants += propagateVariants
+        } else {
+            // Add them to the class.
+            contentApiVariants += propagateVariants
+        }
 
         // Propagate to containing package.
         propagateToContainingPackage(propagateVariants)
     }
 
-    override fun areChildrenCompletelyHidden() = itemApiVariants.isEmpty()
+    override fun areChildrenCompletelyHidden() =
+        if (item.isFileFacade) explicitlyHidden else itemApiVariants.isEmpty()
 }

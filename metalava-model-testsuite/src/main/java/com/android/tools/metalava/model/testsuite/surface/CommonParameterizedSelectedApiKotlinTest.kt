@@ -376,14 +376,12 @@ class CommonParameterizedSelectedApiKotlinTest : BaseCommonParameterizedSelected
             ) {
                 surfaceTest(
                     surface = "public",
-                    // TODO(b/512093496): File facade classes should not be visible if they have no
-                    //  visible members.
                     expected =
                         """
                             package test.pkg
-                                   self - ApiVariantSet[public(C)]
+                                   self - ApiVariantSet[]
                               class test.pkg.TestKt
-                                     self - ApiVariantSet[public(C)]
+                                     self - ApiVariantSet[]
                                 method test.pkg.TestKt.foo()
                                        self - ApiVariantSet[]
                         """,
@@ -425,15 +423,12 @@ class CommonParameterizedSelectedApiKotlinTest : BaseCommonParameterizedSelected
 
                 surfaceTest(
                     surface = "system",
-                    // TODO(b/512093496): The file facade should be in all the surfaces to which its
-                    //  members belong.
                     expected =
                         """
                             package test.pkg
                                    self - ApiVariantSet[public(C),system(C)]
                               class test.pkg.TestKt
-                                     self - ApiVariantSet[public(C)]
-                                  content - ApiVariantSet[system(C)]
+                                     self - ApiVariantSet[public(C),system(C)]
                                 method test.pkg.TestKt.foo()
                                        self - ApiVariantSet[public(C)]
                                 method test.pkg.TestKt.bar()
