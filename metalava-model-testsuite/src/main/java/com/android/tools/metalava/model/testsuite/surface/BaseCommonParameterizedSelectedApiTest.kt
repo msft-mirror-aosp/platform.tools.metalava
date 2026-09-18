@@ -66,6 +66,7 @@ abstract class BaseCommonParameterizedSelectedApiTest : BaseModelTest() {
         val name: String,
         val surfaceRules: ApiSurfaceRules,
         val sources: List<TestFile>,
+        val compiledSources: TestFile?,
         val surface: String,
         val expected: String,
         /** Optional configured [ApiFlags] to use when resolving flagged APIs. */
@@ -127,6 +128,7 @@ abstract class BaseCommonParameterizedSelectedApiTest : BaseModelTest() {
             name: String,
             surfaceRules: ApiSurfaceRules,
             sources: List<TestFile>,
+            compiledSources: TestFile? = null,
             apiFlags: ApiFlags? = null,
             previouslyReleasedSources: List<TestFile>? = null,
             expectedContainsRevertedItem: Boolean = false,
@@ -139,6 +141,7 @@ abstract class BaseCommonParameterizedSelectedApiTest : BaseModelTest() {
                     name,
                     surfaceRules,
                     sources,
+                    compiledSources,
                     extraSources,
                     apiFlags,
                     previouslyReleasedSources,
@@ -164,6 +167,7 @@ abstract class BaseCommonParameterizedSelectedApiTest : BaseModelTest() {
             private val name: String,
             private val surfaceRules: ApiSurfaceRules,
             private val sources: List<TestFile>,
+            private val compiledSources: TestFile?,
             private val extraSources: List<TestFile>,
             private val apiFlags: ApiFlags? = null,
             private val previouslyReleasedSources: List<TestFile>? = null,
@@ -186,6 +190,7 @@ abstract class BaseCommonParameterizedSelectedApiTest : BaseModelTest() {
                         "$name/$surface",
                         surfaceRules,
                         sources + extraSources,
+                        compiledSources,
                         surface,
                         expected,
                         apiFlags,
@@ -214,6 +219,7 @@ abstract class BaseCommonParameterizedSelectedApiTest : BaseModelTest() {
                         "$name without addAdditionalOverrides/$surface",
                         surfaceRules,
                         sources + extraSources,
+                        compiledSources,
                         surface,
                         expectedWithoutAdditionalOverrides,
                         apiFlags,
@@ -228,6 +234,7 @@ abstract class BaseCommonParameterizedSelectedApiTest : BaseModelTest() {
                         "$name with addAdditionalOverrides/$surface",
                         surfaceRules,
                         sources + extraSources,
+                        compiledSources,
                         surface,
                         expectedWithAdditionalOverrides,
                         apiFlags,
@@ -266,6 +273,7 @@ abstract class BaseCommonParameterizedSelectedApiTest : BaseModelTest() {
         fun runSelectedApiTest(annotationManagerFactory: (TestFixture.() -> AnnotationManager)?) {
             runCodebaseTest(
                 inputSet(params.sources),
+                compiledSourceJar = params.compiledSources,
                 testFixture =
                     TestFixture(
                         // Match test packages (e.g. `test` and `test.pkg`) but exclude `test.api.*`

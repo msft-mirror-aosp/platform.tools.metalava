@@ -594,7 +594,7 @@ class ShowAnnotationTest : DriverTest() {
                 """
                 // Signature format: 4.0
                 package test.pkg {
-                  @kotlin.PublishedApi internal final class WeAreSoCool {
+                  @BytecodeOnly @kotlin.PublishedApi internal final class WeAreSoCool {
                     ctor public WeAreSoCool();
                   }
                 }
@@ -627,14 +627,11 @@ class ShowAnnotationTest : DriverTest() {
                 """
                 package test.pkg {
                   public final class Foo {
-                    method @InaccessibleFromKotlin @kotlin.PublishedApi internal int getRegularProperty();
-                    method @InaccessibleFromKotlin @kotlin.PublishedApi internal void setRegularProperty(int);
-                    property @kotlin.PublishedApi internal static int CONST;
-                    property @kotlin.PublishedApi internal int jvmField;
-                    property @kotlin.PublishedApi internal int regularProperty;
-                    field @kotlin.PublishedApi internal static final int CONST = 0; // 0x0
+                    method @BytecodeOnly @kotlin.PublishedApi internal int getRegularProperty();
+                    method @BytecodeOnly @kotlin.PublishedApi internal void setRegularProperty(int);
+                    field @BytecodeOnly @kotlin.PublishedApi internal static final int CONST = 0; // 0x0
                     field public static final test.pkg.Foo INSTANCE;
-                    field @kotlin.PublishedApi internal static int jvmField;
+                    field @BytecodeOnly @kotlin.PublishedApi internal static int jvmField;
                   }
                 }
                 """
@@ -688,14 +685,49 @@ class ShowAnnotationTest : DriverTest() {
                         """
                     )
                 ),
+            compiledSourceJar =
+                base64gzip(
+                    "test.jar",
+                    // kotlinc version info: kotlinc-jvm 2.3.20 (JRE 21.0.9+10-b1163.91)
+                    "" +
+                        "H4sIAAAAAAAA/wvwZmYRYeDg4GBgYFBkQAYiDLwMvq4hjrqefm76vo5+nm6u" +
+                        "wSF6vm6hIawMjAzLzgn9O8XA8Nn3zGkfb129i7zeulrnzpzfHGRwxfjB0yI9" +
+                        "L18dT9+Lpau2BH3w0i3U8jpzRjvswzn9kyfPPH766CkTQ4A3O8d6Yc31lkCb" +
+                        "zIE4AKc7ZBk4GUpSi0v0C7LT9QNKk3IyizNSU5xzEouL9ZJBJNxBpQG++cKG" +
+                        "ArXbNu9+aXYh1zvz0qer0YydvqvvLfBYKnRp0QdFh51PnqSsPXb2WPRRvyvJ" +
+                        "ddz/Fyz3sg0RdK8LOWrRwt+44clM8/xnvcc/v332SuoAY5mE2dxNerbSc5bI" +
+                        "H7vrdHvfqX7uzFyWYxPmnOr04c70u/T9bvDVYkEW5x9O0m/jjDruHn8rxdRi" +
+                        "qNUhobVuva7z4q/z5533tA5ZF/+MR3qt40uu3LrpMnMztSL+ntwf6vfskuej" +
+                        "HwVKGXHvej+w8eQ8YDx74vxWd1+nn3LOVrPVDNd/nqG+OfPM6iaG9Zt+5ew6" +
+                        "P/tN6Jev3hErP7ns4Zx8SiyfLW7b+ZrjJ/z/5jx4IX88dZ1EWNStFeWPE8N7" +
+                        "7U7nOZ6JWv3m5CJd91vHuY3+hfS5236N+r3gY2HOHLlV27bN2uR+bIqfVazU" +
+                        "rdPflKbPPGkf+abxstDfhybcb6e8MXNd+V/754OTqqvEP3+x3fRwjsgO/23f" +
+                        "FjN4d5xcn/Rz+o+XNaEl/8XY6jluOml8SIjb2tr+hL9zv2vpdmsByTAjFcmt" +
+                        "cac39FlLmhVsZ07b2FnFvtA15+IGjjXHT7d8zPgYwvuDDxTvuTcS1y5hZGDI" +
+                        "Y8IX71IY8Z6MNdIDvfMvOwj8K5t745jvisvLVHMrt7PLCflp5yksEWopEJXT" +
+                        "0pg+x2zj1ZzHaxa/UXs04/4h+wctRxhdZX4GdkSqK8gdvXSuxvjz2Ypvt/Pv" +
+                        "29czfhD4zVM6OUu4tz394uxM/cl/w9S2fDsgcajYUDhQ7Urkl13l8771srcf" +
+                        "rNWZauIvMce63Fp0ykM2jYPJGjMbr/DcftvNZpcUIX87gP/Sk9QstspDG67K" +
+                        "PVObnOW5ZerjjSrPloWozdWYqNvJrqwo6vxWffYmJUE3gcn9aXyxLdGPI5jZ" +
+                        "zLY0fHv+fqmrr9NJxcObj+6R+8DGX7FjBvudco6AB5+PJdUdmf1m5fevzdGf" +
+                        "Kl/M+ZGYOd38tP4NT9MS7i0zgif+nje39MibfL3/O1Wa09//Tcjw6Aybt6Tk" +
+                        "4baQl6tfrpjud68zzm1mb9k98Uh3nyW94Sf3Xl5pVDTlWJba1iVXNgbtFHR7" +
+                        "1vWE596zy572tXq6pemub/84H1G0sG3+KxPVF9f6xrRLaTXHz097/T/YR60t" +
+                        "mLsmWqX2jkJ0pFABJ+NPqWsrTnU/+926oORfHk9ddsrqY7NXZy2VCPq79WB9" +
+                        "e4iexKHC1RvCC2fXnH7lM3tt+cMjHMlXknISjN1kow23FS7lXnbxgJ/4PrcF" +
+                        "G1cHXiswvca1Z3ngX0ZQSukX+rb5JjClvMGbUqSBKQVeUuUmZubpZeeX5GTm" +
+                        "xefmp5TmpMKTSnJCQkIaECc1XEhYcGTBUQZwKRQuX3lFCGiKBLgUYmQSYUDY" +
+                        "glxCgcpDVECwdEQ3Djnhg4o1BOgAYuIKOXQzkYNICsXMBiZ0M7FmIHQDkcND" +
+                        "GsXAVSwMRIVzgDcrG0g9CxC6AZ3GxwriAQBTd+B6agYAAA=="
+                ),
             expectedApiSignature =
                 """
                     package test.pkg {
                       public final class PublicClass {
                         ctor public PublicClass();
-                        method @kotlin.PublishedApi internal void publishedMethod();
+                        method @BytecodeOnly @kotlin.PublishedApi internal void publishedMethod();
                       }
-                      @kotlin.PublishedApi internal final class PublishedClass {
+                      @BytecodeOnly @kotlin.PublishedApi internal final class PublishedClass {
                         method public void method();
                       }
                     }
@@ -728,11 +760,50 @@ class ShowAnnotationTest : DriverTest() {
                         """
                     )
                 ),
+            compiledSourceJar =
+                base64gzip(
+                    "test.jar",
+                    // kotlinc version info: kotlinc-jvm 2.3.20 (JRE 21.0.9+10-b1163.91)
+                    "" +
+                        "H4sIAAAAAAAA/wvwZmYRYeDg4GBgYFBkQAYiDLwMvq4hjrqefm76vo5+nm6u" +
+                        "wSF6vm6hIawMjAzLzgn9O8XA8Nn3zGkfb129i7zeulrnzpzfHGRwxfjB0yI9" +
+                        "L18dT9+Lpau2BH3w0i3U8jpzRjvswzn9kyfPPH766CkTQ4A3O8d6Yc31lkCb" +
+                        "zIE4AKc7ZBk4GUpSi0v0C7LT9QNKk3IyizNSU5xzEouL9ZJBJNxBpQG++cKG" +
+                        "ArXbNu9+aXYh1zvz0qer0YydvqvvLfBYKnRp0QdFh51PnqSsPXb2WPRRvyvJ" +
+                        "ddz/Fyz3sg0RdK8LOWrRwt+44clM8/xnvcc/v332SuoAY5mE2dxNerbSc5bI" +
+                        "H7vrdHvfqX7uzFyWYxPmnOr04c70u/T9bvDVYkEW5x9O0m/jjDruHn8rxdRi" +
+                        "qNUhobVuva7z4q/z5533tA5ZF/+MR3qt40uu3LrpMnMztSL+ntwf6vfskuej" +
+                        "HwVKGXHvej+w8eQ8YDx74vxWd1+nn3LOVrPVDNd/nqG+OfPM6iaG9Zt+5ew6" +
+                        "P/tN6Jev3hErP7ns4Zx8SiyfLW7b+ZrjJ/z/5jx4IX88dZ1EWNStFeWPE8N7" +
+                        "7U7nOZ6JWv3m5CJd91vHuY3+hfS5236N+r3gY2HOHLlV27bN2uR+bIqfVazU" +
+                        "rdPflKbPPGkf+abxstDfhybcb6e8MXNd+V/754OTqqvEP3+x3fRwjsgO/23f" +
+                        "FjN4d5xcn/Rz+o+XNaEl/8XY6jluOml8SIjb2tr+hL9zv2vpdmsByTAjFcmt" +
+                        "cac39FlLmhVsZ07b2FnFvtA15+IGjjXHT7d8zPgYwvuDDxTvuTcS1y5hZGDI" +
+                        "Y8IX71IY8Z6MNdIDvfMvOwj8K5t745jvisvLVHMrt7PLCflp5yksEWopEJXT" +
+                        "0pg+x2zj1ZzHaxa/UXs04/4h+wctRxhdZX4GdkSqK8gdvXSuxvjz2Ypvt/Pv" +
+                        "29czfhD4zVM6OUu4tz394uxM/cl/w9S2fDsgcajYUDhQ7Urkl13l8771srcf" +
+                        "rNWZauIvMce63Fp0ykM2jYPJGjMbr/DcftvNZpcUIX87gP/Sk9QstspDG67K" +
+                        "PVObnOW5ZerjjSrPloWozdWYqNvJrqwo6vxWffYmJUE3gcn9aXyxLdGPI5jZ" +
+                        "zLY0fHv+fqmrr9NJxcObj+6R+8DGX7FjBvudco6AB5+PJdUdmf1m5fevzdGf" +
+                        "Kl/M+ZGYOd38tP4NT9MS7i0zgif+nje39MibfL3/O1Wa09//Tcjw6Aybt6Tk" +
+                        "4baQl6tfrpjud68zzm1mb9k98Uh3nyW94Sf3Xl5pVDTlWJba1iVXNgbtFHR7" +
+                        "1vWE596zy572tXq6pemub/84H1G0sG3+KxPVF9f6xrRLaTXHz097/T/YR60t" +
+                        "mLsmWqX2jkJ0pFABJ+NPqWsrTnU/+926oORfHk9ddsrqY7NXZy2VCPq79WB9" +
+                        "e4iexKHC1RvCC2fXnH7lM3tt+cMjHMlXknISjN1kow23FS7lXnbxgJ/4PrcF" +
+                        "G1cHXiswvca1Z3ngX0ZQSukX+rb5JjClvMGbUqSBKQVeUuUmZubpZeeX5GTm" +
+                        "xefmp5TmpMKTSnJCQkIaECc1XEhYcGTBUQZwKRQuX3lFCGiKBLgUYmQSYUDY" +
+                        "glxCgcpDVECwdEQ3Djnhg4o1BOgAYuIKOXQzkYNICsXMBiZ0M7FmIHQDkcND" +
+                        "GsXAVSwMRIVzgDcrG0g9CxC6AZ3GxwriAQBTd+B6agYAAA=="
+                ),
             expectedApiSignature =
                 """
                     package test.pkg {
                       public final class PublicClass {
                         ctor public PublicClass();
+                        method @BytecodeOnly @kotlin.PublishedApi internal void publishedMethod();
+                      }
+                      @BytecodeOnly @kotlin.PublishedApi internal final class PublishedClass {
+                        method public void method();
                       }
                     }
                 """,
@@ -765,6 +836,9 @@ class ShowAnnotationTest : DriverTest() {
                 """
                     package test.pkg {
                       public interface PublicInterface {
+                        method public void foo();
+                      }
+                      @BytecodeOnly @kotlin.PublishedApi internal final class PublishedClass implements test.pkg.PublicInterface {
                         method public void foo();
                       }
                     }

@@ -30,7 +30,6 @@ import com.android.tools.metalava.model.api.SurfaceSelectionRule
 import com.android.tools.metalava.model.api.surface.ApiSurfaces
 import com.android.tools.metalava.model.noOpAnnotationManager
 import com.android.tools.metalava.model.provider.InputFormat
-import com.android.tools.metalava.model.source.hasApiVisibility
 import com.android.tools.metalava.model.testing.SupportedInputFormats
 import com.android.tools.metalava.model.testing.classTypeItem
 import com.android.tools.metalava.model.testing.testTypeString
@@ -1646,17 +1645,17 @@ class CommonAnnotationItemTest : BaseModelTest() {
         ) {
             // This should be defined and accessible.
             codebase.assertClass("test.pkg.Foo").also { testClass ->
-                assertTrue(testClass.modifiers.hasApiVisibility, message = "Foo")
+                assertTrue(testClass.modifiers.hasApiVisibility(), message = "Foo")
             }
 
             // This should be defined but not accessible.
             codebase.assertClass("test.pkg.Bar").also { testClass ->
-                assertFalse(testClass.modifiers.hasApiVisibility, message = "Bar")
+                assertFalse(testClass.modifiers.hasApiVisibility(), message = "Bar")
             }
 
             // This should be defined but not accessible.
             codebase.assertClass("test.pkg.Baz").also { testClass ->
-                assertFalse(testClass.modifiers.hasApiVisibility, message = "Baz")
+                assertFalse(testClass.modifiers.hasApiVisibility(), message = "Baz")
             }
         }
     }

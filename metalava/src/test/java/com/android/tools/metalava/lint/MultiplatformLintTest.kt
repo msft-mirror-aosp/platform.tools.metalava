@@ -269,6 +269,13 @@ class MultiplatformLintTest : DriverTest() {
                         """
                     ),
                     kotlin(
+                        "commonMain/src/test/pkg/Show.kt",
+                        """
+                        package test.pkg
+                        annotation class Show
+                        """
+                    ),
+                    kotlin(
                         "commonMain/src/test/pkg/Foo.kt",
                         """
                         package test.pkg
@@ -276,8 +283,8 @@ class MultiplatformLintTest : DriverTest() {
                             @Hide val hiddenInCommon: Int
                             fun hiddenInNative(): Unit
 
-                            @PublishedApi internal fun shownInCommon(): Unit
-                            internal val shownInAndroid: Int
+                            @Show fun shownInCommon(): Unit
+                            val shownInAndroid: Int
                         }
                         """
                     )
@@ -292,8 +299,8 @@ class MultiplatformLintTest : DriverTest() {
                             actual val hiddenInCommon: Int
                             actual fun hiddenInNative(): Unit
 
-                            actual internal fun shownInCommon(): Unit
-                            @PublishedApi actual internal val shownInAndroid: Int
+                            actual fun shownInCommon(): Unit
+                            @Show actual val shownInAndroid: Int
                         }
                         """
                     )
@@ -308,13 +315,13 @@ class MultiplatformLintTest : DriverTest() {
                             actual val hiddenInCommon: Int
                             @Hide actual fun hiddenInNative(): Unit
 
-                            actual internal fun shownInCommon(): Unit
-                            actual internal val shownInAndroid: Int
+                            actual fun shownInCommon(): Unit
+                            actual val shownInAndroid: Int
                         }
                         """
                     )
                 ),
-            showAnnotations = arrayOf("kotlin.PublishedApi"),
+            showAnnotations = arrayOf("test.pkg.Show"),
             hideAnnotations = arrayOf("test.pkg.Hide"),
             expectedIssues =
                 """
