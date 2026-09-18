@@ -30,6 +30,7 @@ import com.android.tools.metalava.model.ExceptionTypeItem
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.ItemKind
 import com.android.tools.metalava.model.JVM_NAME
+import com.android.tools.metalava.model.KOTLIN_PUBLISHED_API
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ModifierContext
 import com.android.tools.metalava.model.MutableModifierList
@@ -152,6 +153,22 @@ internal class PsiClassBuilder(
                 ModifierContext.forClassKind(classKind),
                 psiClass,
             )
+        // If the containing class is internal, this class cannot be more visible than internal
+        // (e.g. it can't be public). Correct the visibility to internal in this case.
+        if (
+            containingClassItem != null &&
+                containingClassItem.modifiers.getVisibilityLevel() == VisibilityLevel.INTERNAL &&
+                modifiers.getVisibilityLevel() > VisibilityLevel.INTERNAL
+        ) {
+            modifiers.setVisibilityLevel(VisibilityLevel.INTERNAL)
+            // With the class visibility now internal, @PublishedApi needs to be added if it was on
+            // the containing class to give this class API visibility.
+            if (containingClassItem.modifiers.isPublishedApi()) {
+                modifiers.addAnnotation(
+                    AnnotationItem.createMarkerAnnotation(codebase, KOTLIN_PUBLISHED_API)
+                )
+            }
+        }
 
         if (classKind == ClassKind.ANNOTATION_TYPE && !hasExplicitRetention(modifiers, isKotlin)) {
             modifiers.addDefaultRetentionPolicyAnnotation(codebase, isKotlin)

@@ -667,8 +667,7 @@ class CommonPublishedApiTest : BaseModelTest() {
             assertThat(fooClass.modifiers.hasApiVisibility()).isTrue()
             assertThat(fooClass.targetLanguages).isEqualTo(TargetLanguageSet.ALL)
             val fooCompanion = codebase.assertClass("test.pkg.Foo.Companion")
-            // This needs to have visibility propagated from the containing class
-            assertThat(fooCompanion.modifiers.isPublishedApi()).isFalse()
+            assertThat(fooCompanion.modifiers.isPublishedApi()).isTrue()
             assertThat(fooCompanion.modifiers.hasApiVisibility()).isTrue()
             assertThat(fooCompanion.targetLanguages).isEqualTo(TargetLanguageSet.ALL)
         }
