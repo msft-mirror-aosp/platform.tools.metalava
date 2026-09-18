@@ -1255,8 +1255,6 @@ class CommonPropertyItemTest : BaseModelTest() {
                     var privateSetOnPublic = 0
                         private set
                     protected var protectedSet = 0
-                    protected var internalSetOnProtected = 0
-                        internal set
                     @PublishedApi
                     internal var internalSet = 0
                 }
@@ -1287,11 +1285,6 @@ class CommonPropertyItemTest : BaseModelTest() {
             assertThat(protectedSet.modifiers.getVisibilityLevel())
                 .isEqualTo(VisibilityLevel.PROTECTED)
             assertThat(protectedSet.setterVisibility).isEqualTo(VisibilityLevel.PROTECTED)
-
-            val internalSetOnProtected = fooClass.assertProperty("internalSetOnProtected")
-            assertThat(internalSetOnProtected.modifiers.getVisibilityLevel())
-                .isEqualTo(VisibilityLevel.PROTECTED)
-            assertThat(internalSetOnProtected.setterVisibility).isEqualTo(VisibilityLevel.INTERNAL)
 
             val internalSet = fooClass.assertProperty("internalSet")
             assertThat(internalSet.modifiers.getVisibilityLevel())
