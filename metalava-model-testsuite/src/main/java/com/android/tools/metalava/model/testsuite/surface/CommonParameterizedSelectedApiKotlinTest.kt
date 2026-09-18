@@ -25,7 +25,6 @@ import com.android.tools.metalava.model.testing.surfaces.TestableApiSurfaces.MOD
 import com.android.tools.metalava.model.testing.surfaces.TestableApiSurfaces.PUBLIC_API
 import com.android.tools.metalava.model.testing.surfaces.TestableApiSurfaces.SYSTEM_API
 import com.android.tools.metalava.model.testing.surfaces.TestableApiSurfaces.publicSystemModuleRules
-import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
 import org.junit.runners.Parameterized
 
@@ -159,12 +158,6 @@ class CommonParameterizedSelectedApiKotlinTest : BaseCommonParameterizedSelected
 
             val showOnInternalSources =
                 listOf(
-                    java(
-                        """
-                            package test.api;
-                            public @interface PublicApi {}
-                        """
-                    ),
                     kotlin(
                         """
                             package test.pkg
@@ -199,10 +192,6 @@ class CommonParameterizedSelectedApiKotlinTest : BaseCommonParameterizedSelected
                     surface = "public",
                     expected =
                         """
-                            package test.api
-                                   self - ApiVariantSet[public(C)]
-                              class test.api.PublicApi
-                                     self - ApiVariantSet[public(C)]
                             package test.pkg
                                    self - ApiVariantSet[public(C)]
                               class test.pkg.PublicClass
@@ -234,12 +223,6 @@ class CommonParameterizedSelectedApiKotlinTest : BaseCommonParameterizedSelected
                 surfaceRules = publicSystemModuleRules,
                 sources =
                     listOf(
-                        java(
-                            """
-                                package test.api;
-                                public @interface Hide {}
-                            """
-                        ),
                         kotlin(
                             """
                                 package test.pkg
@@ -257,10 +240,6 @@ class CommonParameterizedSelectedApiKotlinTest : BaseCommonParameterizedSelected
                     surface = "public",
                     expected =
                         """
-                            package test.api
-                                   self - ApiVariantSet[public(C)]
-                              class test.api.Hide
-                                     self - ApiVariantSet[public(C)]
                             package test.pkg
                                    self - ApiVariantSet[public(C)]
                               class test.pkg.Foo
@@ -280,12 +259,6 @@ class CommonParameterizedSelectedApiKotlinTest : BaseCommonParameterizedSelected
                 surfaceRules = publicSystemModuleRules,
                 sources =
                     listOf(
-                        java(
-                            """
-                                package test.api;
-                                public @interface Hide {}
-                            """
-                        ),
                         kotlin(
                             """
                                 package test.pkg
@@ -302,10 +275,6 @@ class CommonParameterizedSelectedApiKotlinTest : BaseCommonParameterizedSelected
                     surface = "public",
                     expected =
                         """
-                            package test.api
-                                   self - ApiVariantSet[public(C)]
-                              class test.api.Hide
-                                     self - ApiVariantSet[public(C)]
                             package test.pkg
                                    self - ApiVariantSet[public(C)]
                               class test.pkg.Foo
@@ -327,12 +296,6 @@ class CommonParameterizedSelectedApiKotlinTest : BaseCommonParameterizedSelected
                 surfaceRules = publishedApiRules,
                 sources =
                     listOf(
-                        java(
-                            """
-                                package test.api;
-                                public @interface Hide {}
-                            """
-                        ),
                         kotlin(
                             """
                                 package test.pkg
@@ -353,10 +316,6 @@ class CommonParameterizedSelectedApiKotlinTest : BaseCommonParameterizedSelected
                     surface = "public",
                     expected =
                         """
-                            package test.api
-                                   self - ApiVariantSet[public(C)]
-                              class test.api.Hide
-                                     self - ApiVariantSet[public(C)]
                             package test.pkg
                                    self - ApiVariantSet[]
                               class test.pkg.Foo

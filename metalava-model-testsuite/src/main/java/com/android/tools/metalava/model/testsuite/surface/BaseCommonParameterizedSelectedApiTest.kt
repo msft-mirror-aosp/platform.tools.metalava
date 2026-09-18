@@ -29,6 +29,7 @@ import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.provider.InputFormat
 import com.android.tools.metalava.model.testing.CodebaseCreatorConfig
 import com.android.tools.metalava.model.testing.SupportedInputFormats
+import com.android.tools.metalava.model.testing.surfaces.TestableApiSurfaces
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.model.testsuite.ModelSuiteRunner
 import com.android.tools.metalava.testing.EntryPoint
@@ -105,7 +106,7 @@ abstract class BaseCommonParameterizedSelectedApiTest : BaseModelTest() {
             listOf(
                 KnownSourceFiles.hideAnnotation,
                 KnownSourceFiles.flaggedApiSource,
-            )
+            ) + TestableApiSurfaces.annotationSources
 
         /**
          * Build [TestParams] and add them to this list.
@@ -267,7 +268,13 @@ abstract class BaseCommonParameterizedSelectedApiTest : BaseModelTest() {
                 inputSet(params.sources),
                 testFixture =
                     TestFixture(
-                        apiPackages = PackageFilter.parse("test.*"),
+                        // Match test packages (e.g. `test` and `test.pkg`) but exclude `test.api.*`
+                        // (which contains the surface selection annotations from
+                        // [TestableApiSurfaces.annotationSources]). This allows the compiler to
+                        // resolve annotations during compilation while preventing the annotation
+                        // classes from being added to the codebase and dumped in
+                        // [assertSelectedApiVariants].
+                        apiPackages = PackageFilter.parse("test.*:-test.api.*"),
                         apiSurfaceRules = rules,
                         apiFlags = params.apiFlags,
                         addAdditionalOverrides = addAdditionalOverrides,
