@@ -281,7 +281,7 @@ class Driver(
             mergeQualifierAnnotations = sourceOptions.mergeQualifierAnnotations,
             mergeInclusionAnnotations = sourceOptions.mergeInclusionAnnotations,
             apiSurfaceName = apiSelectionOptions.apiSurfaceName,
-            apiPredicateConfig = apiPredicateConfig,
+            apiSurface = apiSurface,
             annotationsMergerConfig =
                 AnnotationsMerger.Config(
                     sources = sourceOptions.sourceFiles,
@@ -291,12 +291,6 @@ class Driver(
                     nullabilityAnnotationsValidator =
                         nullabilityValidationOptions.validatorForMerging,
                 ),
-        )
-    }
-
-    private val apiPredicateConfig by lazy {
-        ApiSurfacePredicate.Config(
-            apiSurface = apiSurface,
         )
     }
 
@@ -408,7 +402,7 @@ class Driver(
                 executionEnvironment,
                 reporter,
                 signatureFileCache,
-                apiPredicateConfig,
+                apiSurface,
             )
             .generateStubs()
     }
@@ -440,7 +434,7 @@ class Driver(
                 // Pre-filtered so does not need any filters.
                 null
             } else {
-                ApiSurfacePredicate.apiFilters(ApiType.CORE, apiPredicateConfig)
+                ApiSurfacePredicate.apiFilters(ApiType.CORE, apiSurface)
             }
 
         val codebaseFragment =
@@ -480,7 +474,7 @@ class Driver(
                     // Pre-filtered so does not need any filters.
                     null
                 } else {
-                    ApiSurfacePredicate.apiFilters(ApiType.REMOVED, apiPredicateConfig)
+                    ApiSurfacePredicate.apiFilters(ApiType.REMOVED, apiSurface)
                 }
 
             val removedApiCodebaseFragment =
@@ -628,7 +622,7 @@ class Driver(
                         mainCodebase!!,
                         null,
                         reporter,
-                        apiPredicateConfig,
+                        apiSurface,
                         ApiLint.Config(
                             manifest = miscellaneousOptions.manifest,
                             allowedAcronyms = apiLintOptions.allowedAcronyms,
@@ -659,7 +653,7 @@ class Driver(
                             // but not the actual.
                             oldCodebase = commonCodebase,
                             reporter,
-                            apiPredicateConfig,
+                            apiSurface,
                             ApiLint.Config(
                                 manifest = miscellaneousOptions.manifest,
                                 allowedAcronyms = apiLintOptions.allowedAcronyms,
@@ -688,7 +682,7 @@ class Driver(
                         } else {
                             ApiSurfacePredicate.apiFilters(
                                 ApiType.CORE,
-                                apiPredicateConfig,
+                                apiSurface,
                             )
                         }
 
@@ -774,7 +768,7 @@ class Driver(
         // version history.
         val signatureFileConfigCodeFragmentProvider: () -> CodebaseFragment = {
             val apiType = ApiType.CORE
-            val apiFilters = ApiSurfacePredicate.apiFilters(apiType, apiPredicateConfig)
+            val apiFilters = ApiSurfacePredicate.apiFilters(apiType, apiSurface)
 
             CodebaseFragment.create(codebase) { delegatedVisitor ->
                 FilteringApiVisitor(
@@ -956,7 +950,7 @@ class Driver(
                     codebase,
                     previouslyReleasedCodebase,
                     reporter,
-                    apiPredicateConfig,
+                    apiSurface,
                     ApiLint.Config(
                         manifest = miscellaneousOptions.manifest,
                         allowedAcronyms = apiLintOptions.allowedAcronyms,

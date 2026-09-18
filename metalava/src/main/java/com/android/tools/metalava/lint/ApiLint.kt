@@ -89,6 +89,7 @@ import com.android.tools.metalava.model.TypeParameterListOwner
 import com.android.tools.metalava.model.TypeStringConfiguration
 import com.android.tools.metalava.model.VariableTypeItem
 import com.android.tools.metalava.model.WildcardTypeItem
+import com.android.tools.metalava.model.api.surface.ApiSurface
 import com.android.tools.metalava.model.api.surface.ApiSurfacePredicate
 import com.android.tools.metalava.model.findAnnotation
 import com.android.tools.metalava.model.hasAnnotation
@@ -211,7 +212,7 @@ private constructor(
     private val codebase: Codebase,
     oldCodebase: Codebase?,
     reporter: Reporter,
-    apiPredicateConfig: ApiSurfacePredicate.Config,
+    apiSurface: ApiSurface,
     private val config: Config,
 ) :
     ApiFiltersVisitor(
@@ -219,7 +220,7 @@ private constructor(
         apiFilters =
             ApiSurfacePredicate.forSurfaceFilters(
                     ApiType.CORE,
-                    apiPredicateConfig.apiSurface,
+                    apiSurface,
                 )
                 .forTargetLanguages(TargetLanguageSet.SOURCE),
     ) {
@@ -3487,7 +3488,7 @@ private constructor(
             codebase: Codebase,
             oldCodebase: Codebase?,
             reporter: Reporter,
-            apiPredicateConfig: ApiSurfacePredicate.Config,
+            apiSurface: ApiSurface,
             config: Config,
         ) {
             val apiLint =
@@ -3495,7 +3496,7 @@ private constructor(
                     codebase,
                     oldCodebase,
                     reporter,
-                    apiPredicateConfig,
+                    apiSurface,
                     config,
                 )
             apiLint.check()

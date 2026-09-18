@@ -143,10 +143,7 @@ class ConvertJarsToSignatureFiles(
                 jarFile,
                 apiAnalyzerConfig =
                     ApiAnalyzer.Config(
-                        apiPredicateConfig =
-                            ApiSurfacePredicate.Config(
-                                apiSurface = apiSurface,
-                            )
+                        apiSurface = apiSurface,
                     ),
                 // Do not freeze codebases after loading as they may need to be modified.
                 freezeCodebase = false,
@@ -213,16 +210,12 @@ class ConvertJarsToSignatureFiles(
             throw IllegalStateException("Could not load existing signature file: ${e.message}", e)
         }
 
-        val apiPredicateConfig =
-            ApiSurfacePredicate.Config(
-                apiSurface = apiSurface,
-            )
         val apiFilters =
             if (jarCodebase.preFiltered) {
                 // Pre-filtered so does not need any filters.
                 null
             } else {
-                ApiSurfacePredicate.apiFilters(ApiType.CORE, apiPredicateConfig)
+                ApiSurfacePredicate.apiFilters(ApiType.CORE, apiSurface)
             }
 
         val jarCodebaseFragment =

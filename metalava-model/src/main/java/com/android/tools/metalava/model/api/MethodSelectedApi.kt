@@ -127,7 +127,7 @@ internal class MethodSelectedApi(
         val removedFilterPredicate =
             ApiSurfacePredicate.apiFilters(
                     ApiType.REMOVED,
-                    ApiSurfacePredicate.Config(apiSurface = apiSurfaces.main),
+                    apiSurfaces.main,
                 )
                 .emit
 

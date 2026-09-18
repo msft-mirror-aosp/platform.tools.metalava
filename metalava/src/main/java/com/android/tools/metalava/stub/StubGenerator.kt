@@ -30,6 +30,7 @@ import com.android.tools.metalava.model.CodebaseFragment
 import com.android.tools.metalava.model.EMITTED_ONLY
 import com.android.tools.metalava.model.FilterPredicate
 import com.android.tools.metalava.model.PackageFilter
+import com.android.tools.metalava.model.api.surface.ApiSurface
 import com.android.tools.metalava.model.api.surface.ApiSurfacePredicate
 import com.android.tools.metalava.model.visitors.ApiFilters
 import com.android.tools.metalava.reporter.Reporter
@@ -44,7 +45,7 @@ internal class StubGenerator(
     private val executionEnvironment: ExecutionEnvironment,
     private val reporter: Reporter,
     private val signatureFileCache: SignatureFileCache,
-    private val apiPredicateConfig: ApiSurfacePredicate.Config,
+    private val apiSurface: ApiSurface,
 ) {
     data class Config(
         /** Configuration needed by [StubWriter]. */

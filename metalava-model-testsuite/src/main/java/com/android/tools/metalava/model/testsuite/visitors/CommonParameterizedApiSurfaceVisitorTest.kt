@@ -169,7 +169,7 @@ class CommonParameterizedApiSurfaceVisitorTest : BaseModelTest() {
                 apiVisitorFilters = {
                     ApiSurfacePredicate.nonElidingApiFilters(
                         apiType,
-                        ApiSurfacePredicate.Config(apiSurface()),
+                        apiSurface(),
                     )
                 },
                 apiFiltersVisitorFilters = {

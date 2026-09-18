@@ -26,6 +26,7 @@ import com.android.tools.metalava.cli.common.tracer
 import com.android.tools.metalava.jar.StandaloneJarCodebaseLoader
 import com.android.tools.metalava.model.CodebaseFragment
 import com.android.tools.metalava.model.api.surface.ApiSurfacePredicate
+import com.android.tools.metalava.model.api.surface.ApiSurfaces
 import com.android.tools.metalava.model.visitors.ApiType
 import com.android.tools.metalava.reporter.BasicReporter
 import com.github.ajalt.clikt.parameters.arguments.argument
@@ -73,16 +74,16 @@ class JarToJDiffCommand :
                 BasicReporter(stderr)
             )
             .use { jarCodebaseLoader ->
-                val apiPredicateConfig = ApiSurfacePredicate.Config()
+                val apiSurface = ApiSurfaces.DEFAULT.main
                 val codebase =
                     jarCodebaseLoader.loadFromJarFile(
                         jarFile,
                         ApiAnalyzer.Config(
-                            apiPredicateConfig = apiPredicateConfig,
+                            apiSurface = apiSurface,
                         ),
                     )
 
-                val apiFilters = ApiSurfacePredicate.apiFilters(ApiType.CORE, apiPredicateConfig)
+                val apiFilters = ApiSurfacePredicate.apiFilters(ApiType.CORE, apiSurface)
 
                 val codebaseFragment =
                     CodebaseFragment.create(codebase) { delegate ->

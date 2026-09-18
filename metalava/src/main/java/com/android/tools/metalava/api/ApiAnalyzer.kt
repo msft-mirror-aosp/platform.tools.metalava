@@ -41,7 +41,9 @@ import com.android.tools.metalava.model.SUPPRESS_COMPATIBILITY_ANNOTATION_QUALIF
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.TargetLanguageSet
 import com.android.tools.metalava.model.TypeItem
+import com.android.tools.metalava.model.api.surface.ApiSurface
 import com.android.tools.metalava.model.api.surface.ApiSurfacePredicate
+import com.android.tools.metalava.model.api.surface.ApiSurfaces
 import com.android.tools.metalava.model.doc.DocContentPredicate
 import com.android.tools.metalava.model.hasAnnotation
 import com.android.tools.metalava.model.source.SourceParser
@@ -98,8 +100,8 @@ class ApiAnalyzer(
         /** The API surface name. */
         val apiSurfaceName: String? = null,
 
-        /** Configuration for any [ApiPredicate] instances this needs to create. */
-        val apiPredicateConfig: ApiSurfacePredicate.Config = ApiSurfacePredicate.Config(),
+        /** The API surface. */
+        val apiSurface: ApiSurface = ApiSurfaces.DEFAULT.main,
 
         /** Configuration for [AnnotationsMerger] instances this needs to create. */
         val annotationsMergerConfig: AnnotationsMerger.Config = AnnotationsMerger.Config(),

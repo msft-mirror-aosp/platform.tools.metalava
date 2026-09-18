@@ -25,14 +25,6 @@ import com.android.tools.metalava.model.visitors.ApiType
 
 /** Factory for creating [FilterPredicate] instances based on [ApiSurface]s and [ApiVariant]s. */
 object ApiSurfacePredicate {
-    /**
-     * Contains configuration for predicates that can, or at least could, come from command line
-     * options.
-     */
-    data class Config(
-        /** The [ApiSurface] that this predicate is for. */
-        val apiSurface: ApiSurface = ApiSurfaces.DEFAULT.main,
-    )
 
     /** [ApiVariantType]s for core-only APIs. */
     private val coreOnlyVariantTypes = listOf(ApiVariantType.CORE)
@@ -340,20 +332,21 @@ object ApiSurfacePredicate {
 
     /**
      * Return a [FilterPredicate] for emitting API items for the given [apiType] using the
-     * configuration in [apiPredicateConfig].
+     * configuration for [apiSurface].
      *
      * Unlike [nonElidingFilter], this will elide method overrides that match the overridden method.
      */
-    fun emitFilter(apiType: ApiType, apiPredicateConfig: Config): FilterPredicate {
+    fun emitFilter(
+        apiType: ApiType,
+        apiSurface: ApiSurface,
+    ): FilterPredicate {
         val nonElidingFilter =
             nonElidingFilter(
                 apiType,
-                apiPredicateConfig.apiSurface,
+                apiSurface,
                 includeOverridingMethods = true,
             )
-        return nonElidingFilter.and(
-            elidingFilter(apiPredicateConfig.apiSurface, apiType == ApiType.REMOVED)
-        )
+        return nonElidingFilter.and(elidingFilter(apiSurface, apiType == ApiType.REMOVED))
     }
 
     /**
@@ -377,35 +370,38 @@ object ApiSurfacePredicate {
         }
 
     /**
-     * Return the [ApiFilters] for [apiType] using information from [apiPredicateConfig] to
-     * customize their behavior.
+     * Return the [ApiFilters] for [apiType] using information from [apiSurface] to customize their
+     * behavior.
      *
      * The returned [ApiFilters.emit] will elide method overrides that match the overridden method.
      */
-    fun apiFilters(apiType: ApiType, apiPredicateConfig: Config) =
+    fun apiFilters(
+        apiType: ApiType,
+        apiSurface: ApiSurface,
+    ) =
         ApiFilters(
-            reference = referenceFilter(apiType, apiPredicateConfig.apiSurface),
-            emit = emitFilter(apiType, apiPredicateConfig),
+            reference = referenceFilter(apiType, apiSurface),
+            emit = emitFilter(apiType, apiSurface),
         )
 
     /**
-     * Return the [ApiFilters] for [apiType] using information from [apiPredicateConfig] to
-     * customize their behavior.
+     * Return the [ApiFilters] for [apiType] using information from [apiSurface] to customize their
+     * behavior.
      *
      * The returned [ApiFilters.emit] will NOT elide method overrides that match the overridden
      * method.
      */
     fun nonElidingApiFilters(
         apiType: ApiType,
-        apiPredicateConfig: Config,
+        apiSurface: ApiSurface,
         includeOverridingMethods: Boolean = false,
     ) =
         ApiFilters(
-            reference = referenceFilter(apiType, apiPredicateConfig.apiSurface),
+            reference = referenceFilter(apiType, apiSurface),
             emit =
                 nonElidingFilter(
                     apiType,
-                    apiPredicateConfig.apiSurface,
+                    apiSurface,
                     includeOverridingMethods = includeOverridingMethods,
                 ),
         )
