@@ -198,11 +198,19 @@ internal class PsiClassBuilder(
                 sourceFile(psiClass)
             }
 
+        // Items annotated with PublishedApi can only be used externally from bytecode.
+        val targetLanguages =
+            if (modifiers.isPublishedApi()) {
+                TargetLanguageSet.BYTECODE_ONLY
+            } else {
+                TargetLanguageSet.ALL
+            }
+
         val classItem =
             itemFactory.createClassItem(
                 fileLocation = PsiFileLocation.fromPsiElement(psiClass),
                 sourceLanguage = psiClass.sourceLanguage,
-                targetLanguages = TargetLanguageSet.ALL,
+                targetLanguages = targetLanguages,
                 modifiers = modifiers,
                 documentationFactory = psiClass.createItemDocumentation(psiCodebase),
                 source = sourceFile,
@@ -348,6 +356,10 @@ internal class PsiClassBuilder(
             // source signature will be generated as kotlin-only by KaCodebaseAssembler and the
             // bytecode signature will be generated as bytecode-only by KotlinBytecodeApis.
             if (psiMethod.hasAnnotation(ANDROIDX_COMPOSABLE)) continue
+
+            // Items annotated with PublishedApi can only be used externally from bytecode. The
+            // bytecode version of the method will be added by KotlinBytecodeApis.
+            if (psiMethod.hasAnnotation(KOTLIN_PUBLISHED_API)) continue
 
             if (psiMethod.isConstructor) {
                 val constructor = createConstructor(classItem, psiMethod, classTypeItemFactory)
@@ -618,10 +630,18 @@ internal class PsiClassBuilder(
         val constantValueProvider =
             if (couldHaveConstantValue) constantValueProviderForField(psiField, fieldType) else null
 
+        // Items annotated with PublishedApi can only be used externally from bytecode.
+        val targetLanguages =
+            if (modifiers.isPublishedApi()) {
+                TargetLanguageSet.BYTECODE_ONLY
+            } else {
+                TargetLanguageSet.ALL
+            }
+
         return itemFactory.createFieldItem(
             fileLocation = PsiFileLocation(psiField),
             sourceLanguage = psiField.sourceLanguage,
-            targetLanguages = TargetLanguageSet.ALL,
+            targetLanguages = targetLanguages,
             modifiers = modifiers,
             documentationFactory = psiField.createItemDocumentation(psiCodebase),
             name = name,

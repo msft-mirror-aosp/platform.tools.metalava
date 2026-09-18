@@ -24,6 +24,7 @@ import com.android.tools.metalava.model.KOTLIN_DEPRECATED
 import com.android.tools.metalava.model.KOTLIN_PUBLISHED_API
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.MutableModifierList
+import com.android.tools.metalava.model.TargetLanguageSet
 import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.createMutableModifiers
 import com.android.tools.metalava.model.hasAnnotation
@@ -132,6 +133,8 @@ internal class KaModifierFactory(private val processor: KaModuleProcessor) {
         // Also handle propagating showability annotations (show and hide annotations) and
         // @PublishedApi. These annotations which update API visibility should impact the API
         // visibility of accessors when applied to properties.
+        // @PublishedApi also means that APIs can only be used from bytecode, so update the
+        // target languages as well.
         for (annotationItem in modifiers.annotations()) {
             // Manually setting a RequiresOptIn annotation on a getter causes a
             // compiler warning, but this can be suppressed with
@@ -148,9 +151,15 @@ internal class KaModifierFactory(private val processor: KaModuleProcessor) {
             ) {
                 if (getter != null && annotationItem !in getter.modifiers.annotations()) {
                     getter.mutateModifiers { addAnnotation(annotationItem) }
+                    if (isPublishedApi) {
+                        getter.targetLanguages = TargetLanguageSet.BYTECODE_ONLY
+                    }
                 }
                 if (setter != null && annotationItem !in setter.modifiers.annotations()) {
                     setter.mutateModifiers { addAnnotation(annotationItem) }
+                    if (isPublishedApi) {
+                        setter.targetLanguages = TargetLanguageSet.BYTECODE_ONLY
+                    }
                 }
                 if (
                     backingFieldIsApi &&
@@ -158,6 +167,9 @@ internal class KaModifierFactory(private val processor: KaModuleProcessor) {
                         annotationItem !in backingField.modifiers.annotations()
                 ) {
                     backingField.mutateModifiers { addAnnotation(annotationItem) }
+                    if (isPublishedApi) {
+                        backingField.targetLanguages = TargetLanguageSet.BYTECODE_ONLY
+                    }
                 }
             }
         }

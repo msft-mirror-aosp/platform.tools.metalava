@@ -63,7 +63,7 @@ class CommonPublishedApiTest : BaseModelTest() {
             val fooClass = codebase.assertClass("test.pkg.Foo")
             assertThat(fooClass.modifiers.isPublishedApi()).isTrue()
             assertThat(fooClass.modifiers.hasApiVisibility()).isTrue()
-            assertThat(fooClass.targetLanguages).isEqualTo(TargetLanguageSet.ALL)
+            assertThat(fooClass.targetLanguages).isEqualTo(TargetLanguageSet.BYTECODE_ONLY)
         }
     }
 
@@ -106,7 +106,7 @@ class CommonPublishedApiTest : BaseModelTest() {
             val fooCtor = fooClass.assertConstructor(emptyList())
             assertThat(fooCtor.modifiers.isPublishedApi()).isTrue()
             assertThat(fooCtor.modifiers.hasApiVisibility()).isTrue()
-            assertThat(fooCtor.targetLanguages).isEqualTo(TargetLanguageSet.ALL)
+            assertThat(fooCtor.targetLanguages).isEqualTo(TargetLanguageSet.BYTECODE_ONLY)
         }
     }
 
@@ -152,7 +152,7 @@ class CommonPublishedApiTest : BaseModelTest() {
             val fooMethod = fooClass.assertMethod("foo", emptyList())
             assertThat(fooMethod.modifiers.isPublishedApi()).isTrue()
             assertThat(fooMethod.modifiers.hasApiVisibility()).isTrue()
-            assertThat(fooMethod.targetLanguages).isEqualTo(TargetLanguageSet.ALL)
+            assertThat(fooMethod.targetLanguages).isEqualTo(TargetLanguageSet.BYTECODE_ONLY)
         }
     }
 
@@ -198,18 +198,17 @@ class CommonPublishedApiTest : BaseModelTest() {
                 )
         ) {
             val fooClass = codebase.assertClass("test.pkg.Foo")
-            val fooProperty = fooClass.assertProperty("foo")
-            assertThat(fooProperty.modifiers.isPublishedApi()).isTrue()
-            assertThat(fooProperty.modifiers.hasApiVisibility()).isTrue()
-            assertThat(fooProperty.targetLanguages).isEqualTo(TargetLanguageSet.KOTLIN_ONLY)
+            // No property is created, because it cannot be used from source
+            assertThat(fooClass.properties()).isEmpty()
+
             val fooGetter = fooClass.assertMethod("getFoo", emptyList())
             assertThat(fooGetter.modifiers.isPublishedApi()).isTrue()
             assertThat(fooGetter.modifiers.hasApiVisibility()).isTrue()
-            assertThat(fooGetter.targetLanguages).isEqualTo(TargetLanguageSet.NOT_KOTLIN)
+            assertThat(fooGetter.targetLanguages).isEqualTo(TargetLanguageSet.BYTECODE_ONLY)
             val fooSetter = fooClass.assertMethod("setFoo", listOf("int"))
             assertThat(fooSetter.modifiers.isPublishedApi()).isTrue()
             assertThat(fooSetter.modifiers.hasApiVisibility()).isTrue()
-            assertThat(fooSetter.targetLanguages).isEqualTo(TargetLanguageSet.NOT_KOTLIN)
+            assertThat(fooSetter.targetLanguages).isEqualTo(TargetLanguageSet.BYTECODE_ONLY)
         }
     }
 
@@ -270,11 +269,11 @@ class CommonPublishedApiTest : BaseModelTest() {
             val fooCompanionField = fooClass.assertField("Companion")
             assertThat(fooCompanionField.modifiers.isPublishedApi()).isTrue()
             assertThat(fooCompanionField.modifiers.hasApiVisibility()).isTrue()
-            assertThat(fooCompanionField.targetLanguages).isEqualTo(TargetLanguageSet.ALL)
+            assertThat(fooCompanionField.targetLanguages).isEqualTo(TargetLanguageSet.BYTECODE_ONLY)
             val fooCompanionClass = codebase.assertClass("test.pkg.Foo.Companion")
             assertThat(fooCompanionClass.modifiers.isPublishedApi()).isTrue()
             assertThat(fooCompanionClass.modifiers.hasApiVisibility()).isTrue()
-            assertThat(fooCompanionClass.targetLanguages).isEqualTo(TargetLanguageSet.ALL)
+            assertThat(fooCompanionClass.targetLanguages).isEqualTo(TargetLanguageSet.BYTECODE_ONLY)
         }
     }
 
@@ -345,21 +344,15 @@ class CommonPublishedApiTest : BaseModelTest() {
             val jvmFieldField = fooClass.assertField("foo")
             assertThat(jvmFieldField.modifiers.isPublishedApi()).isTrue()
             assertThat(jvmFieldField.modifiers.hasApiVisibility()).isTrue()
-            assertThat(jvmFieldField.targetLanguages).isEqualTo(TargetLanguageSet.ALL)
+            assertThat(jvmFieldField.targetLanguages).isEqualTo(TargetLanguageSet.BYTECODE_ONLY)
             val constField = fooClass.assertField("FOO")
             assertThat(constField.modifiers.isPublishedApi()).isTrue()
             assertThat(constField.modifiers.hasApiVisibility()).isTrue()
-            assertThat(constField.targetLanguages).isEqualTo(TargetLanguageSet.ALL)
+            assertThat(constField.targetLanguages).isEqualTo(TargetLanguageSet.BYTECODE_ONLY)
 
             val fooCompanion = codebase.assertClass("test.pkg.Foo.Companion")
-            val jvmStaticProperty = fooCompanion.assertProperty("foo")
-            assertThat(jvmStaticProperty.modifiers.isPublishedApi()).isTrue()
-            assertThat(jvmStaticProperty.modifiers.hasApiVisibility()).isTrue()
-            assertThat(jvmStaticProperty.targetLanguages).isEqualTo(TargetLanguageSet.KOTLIN_ONLY)
-            val constProperty = fooCompanion.assertProperty("FOO")
-            assertThat(constProperty.modifiers.isPublishedApi()).isTrue()
-            assertThat(constProperty.modifiers.hasApiVisibility()).isTrue()
-            assertThat(constProperty.targetLanguages).isEqualTo(TargetLanguageSet.KOTLIN_ONLY)
+            // No properties are created, because they cannot be used from source
+            assertThat(fooCompanion.properties()).isEmpty()
         }
     }
 
@@ -430,10 +423,8 @@ class CommonPublishedApiTest : BaseModelTest() {
                 )
         ) {
             val fooClass = codebase.assertClass("test.pkg.Foo")
-            val fooSourceCtor = fooClass.assertConstructor(listOf("test.pkg.IntValue"))
-            assertThat(fooSourceCtor.modifiers.isPublishedApi()).isTrue()
-            assertThat(fooSourceCtor.modifiers.hasApiVisibility()).isTrue()
-            assertThat(fooSourceCtor.targetLanguages).isEqualTo(TargetLanguageSet.KOTLIN_ONLY)
+            // No version of the constructor can be used from source
+            assertThat(fooClass.constructors()).hasSize(1)
             val fooBytecodeCtor =
                 fooClass.assertConstructor(
                     listOf("int", "kotlin.jvm.internal.DefaultConstructorMarker")
@@ -512,10 +503,8 @@ class CommonPublishedApiTest : BaseModelTest() {
                 )
         ) {
             val fooClass = codebase.assertClass("test.pkg.Foo")
-            val fooSourceMethod = fooClass.assertMethod("foo", listOf("test.pkg.IntValue"))
-            assertThat(fooSourceMethod.modifiers.isPublishedApi()).isTrue()
-            assertThat(fooSourceMethod.modifiers.hasApiVisibility()).isTrue()
-            assertThat(fooSourceMethod.targetLanguages).isEqualTo(TargetLanguageSet.KOTLIN_ONLY)
+            // No version of the function can be used from source
+            assertThat(fooClass.methods()).hasSize(1)
             val fooBytecodeMethod = fooClass.assertMethod("foo-Vxmw0xk", listOf("int"))
             assertThat(fooBytecodeMethod.modifiers.isPublishedApi()).isTrue()
             assertThat(fooBytecodeMethod.modifiers.hasApiVisibility()).isTrue()
@@ -594,10 +583,9 @@ class CommonPublishedApiTest : BaseModelTest() {
                 )
         ) {
             val fooClass = codebase.assertClass("test.pkg.Foo")
-            val fooProperty = fooClass.assertProperty("foo")
-            assertThat(fooProperty.modifiers.isPublishedApi()).isTrue()
-            assertThat(fooProperty.modifiers.hasApiVisibility()).isTrue()
-            assertThat(fooProperty.targetLanguages).isEqualTo(TargetLanguageSet.KOTLIN_ONLY)
+            // No property is created, because it cannot be used from source
+            assertThat(fooClass.properties()).isEmpty()
+
             val fooGetter = fooClass.assertMethod("getFoo-RVb1_dM", emptyList())
             assertThat(fooGetter.modifiers.isPublishedApi()).isTrue()
             assertThat(fooGetter.modifiers.hasApiVisibility()).isTrue()
@@ -665,11 +653,11 @@ class CommonPublishedApiTest : BaseModelTest() {
             val fooClass = codebase.assertClass("test.pkg.Foo")
             assertThat(fooClass.modifiers.isPublishedApi()).isTrue()
             assertThat(fooClass.modifiers.hasApiVisibility()).isTrue()
-            assertThat(fooClass.targetLanguages).isEqualTo(TargetLanguageSet.ALL)
+            assertThat(fooClass.targetLanguages).isEqualTo(TargetLanguageSet.BYTECODE_ONLY)
             val fooCompanion = codebase.assertClass("test.pkg.Foo.Companion")
             assertThat(fooCompanion.modifiers.isPublishedApi()).isTrue()
             assertThat(fooCompanion.modifiers.hasApiVisibility()).isTrue()
-            assertThat(fooCompanion.targetLanguages).isEqualTo(TargetLanguageSet.ALL)
+            assertThat(fooCompanion.targetLanguages).isEqualTo(TargetLanguageSet.BYTECODE_ONLY)
         }
     }
 }

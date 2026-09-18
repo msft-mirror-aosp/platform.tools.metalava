@@ -1285,11 +1285,6 @@ class CommonPropertyItemTest : BaseModelTest() {
             assertThat(protectedSet.modifiers.getVisibilityLevel())
                 .isEqualTo(VisibilityLevel.PROTECTED)
             assertThat(protectedSet.setterVisibility).isEqualTo(VisibilityLevel.PROTECTED)
-
-            val internalSet = fooClass.assertProperty("internalSet")
-            assertThat(internalSet.modifiers.getVisibilityLevel())
-                .isEqualTo(VisibilityLevel.INTERNAL)
-            assertThat(internalSet.setterVisibility).isEqualTo(VisibilityLevel.INTERNAL)
         }
     }
 
