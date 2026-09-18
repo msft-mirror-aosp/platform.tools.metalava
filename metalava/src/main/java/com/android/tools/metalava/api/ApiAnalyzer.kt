@@ -118,9 +118,6 @@ class ApiAnalyzer(
 
         skipEmitPackages()
 
-        // Suppress kotlin file facade classes with no public api
-        hideEmptyKotlinFileFacadeClasses()
-
         // Propagate visibility down into individual elements -- if a class is hidden,
         // then the methods and fields are hidden etc
         propagateHiddenRemovedAndDocOnly()
@@ -238,22 +235,6 @@ class ApiAnalyzer(
         for (pkgName in config.skipEmitPackages) {
             val pkg = codebase.findPackage(pkgName) ?: continue
             pkg.emit = false
-        }
-    }
-
-    /** If a file facade class has no public members, don't add it to the api */
-    private fun hideEmptyKotlinFileFacadeClasses() {
-        codebase.getPackages().allClasses().forEach { cls ->
-            if (
-                cls.isFileFacade &&
-                    // a facade class needs to be emitted if it has any top-level fun/prop to emit.
-                    // A member is part of the API if it belongs to any API surface (i.e. is not
-                    // hidden and has API visibility, such as being public or having a show
-                    // annotation).
-                    cls.members().none { member -> member.selectedApi.itemApiVariants.isNotEmpty() }
-            ) {
-                cls.emit = false
-            }
         }
     }
 
