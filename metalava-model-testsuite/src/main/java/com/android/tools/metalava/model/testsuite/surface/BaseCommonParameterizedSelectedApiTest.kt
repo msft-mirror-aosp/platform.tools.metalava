@@ -73,6 +73,15 @@ abstract class BaseCommonParameterizedSelectedApiTest : BaseModelTest() {
         val previouslyReleasedSources: List<TestFile>? = null,
         val expectedContainsRevertedItem: Boolean = false,
         val expectedIssues: String = "",
+        /**
+         * Whether additional overrides are considered when checking if a method override is
+         * elidable:
+         * - `true`: additional overrides are considered.
+         * - `false`: additional overrides are not considered.
+         * - `null`: this test is independent of additional overrides (or does not specify a
+         *   preference) and can run under both settings.
+         */
+        val addAdditionalOverrides: Boolean? = null,
     ) {
         /** The [InputFormat] of [sources]. */
         val inputFormat: InputFormat by lazy {
@@ -109,7 +118,8 @@ abstract class BaseCommonParameterizedSelectedApiTest : BaseModelTest() {
          * @param expectedContainsRevertedItem the [TestParams.expectedContainsRevertedItem].
          * @param expectedIssues the [TestParams.expectedIssues].
          * @param body lambda that will add tests for specific surfaces using [Builder.surfaceTest]
-         *   which creates a [TestParams] using the above plus some surface specific information.
+         *   or [Builder.additionalOverridesTest] which create a [TestParams] using the above plus
+         *   some surface specific information.
          */
         @EntryPoint
         fun MutableList<TestParams>.buildTests(
@@ -161,7 +171,8 @@ abstract class BaseCommonParameterizedSelectedApiTest : BaseModelTest() {
         ) {
             /**
              * Create a test for [surface] that expects [expected] to be the result of calling
-             * [Codebase.assertSelectedApiVariants].
+             * [Codebase.assertSelectedApiVariants], with `addAdditionalOverrides = null` (meaning
+             * the test result is independent of whether additional overrides are considered).
              */
             @EntryPoint
             fun surfaceTest(
@@ -180,6 +191,49 @@ abstract class BaseCommonParameterizedSelectedApiTest : BaseModelTest() {
                         previouslyReleasedSources,
                         expectedContainsRevertedItem,
                         expectedIssues,
+                        addAdditionalOverrides = null,
+                    )
+                )
+            }
+
+            /**
+             * Create two tests for [surface], one with `addAdditionalOverrides = false` expecting
+             * [expectedWithoutAdditionalOverrides] and one with `addAdditionalOverrides = true`
+             * expecting [expectedWithAdditionalOverrides].
+             */
+            @EntryPoint
+            fun additionalOverridesTest(
+                surface: String,
+                expectedWithAdditionalOverrides: String,
+                expectedWithoutAdditionalOverrides: String,
+                expectedContainsRevertedItem: Boolean = this.expectedContainsRevertedItem,
+            ) {
+                params.add(
+                    TestParams(
+                        "$name without addAdditionalOverrides/$surface",
+                        surfaceRules,
+                        sources + extraSources,
+                        surface,
+                        expectedWithoutAdditionalOverrides,
+                        apiFlags,
+                        previouslyReleasedSources,
+                        expectedContainsRevertedItem,
+                        expectedIssues,
+                        addAdditionalOverrides = false,
+                    )
+                )
+                params.add(
+                    TestParams(
+                        "$name with addAdditionalOverrides/$surface",
+                        surfaceRules,
+                        sources + extraSources,
+                        surface,
+                        expectedWithAdditionalOverrides,
+                        apiFlags,
+                        previouslyReleasedSources,
+                        expectedContainsRevertedItem,
+                        expectedIssues,
+                        addAdditionalOverrides = true,
                     )
                 )
             }
@@ -206,6 +260,8 @@ abstract class BaseCommonParameterizedSelectedApiTest : BaseModelTest() {
     fun `Test selected api variants`() {
         val rules = params.surfaceRules.retargetAt(params.surface)
 
+        val addAdditionalOverrides = params.addAdditionalOverrides == true
+
         fun runSelectedApiTest(annotationManagerFactory: (TestFixture.() -> AnnotationManager)?) {
             runCodebaseTest(
                 inputSet(params.sources),
@@ -214,6 +270,7 @@ abstract class BaseCommonParameterizedSelectedApiTest : BaseModelTest() {
                         apiPackages = PackageFilter.parse("test.*"),
                         apiSurfaceRules = rules,
                         apiFlags = params.apiFlags,
+                        addAdditionalOverrides = addAdditionalOverrides,
                         annotationManagerFactory = annotationManagerFactory,
                         javaLanguageLevel = "17",
                         // Disable the supported InputFormat check as this test is already
@@ -278,7 +335,11 @@ abstract class BaseCommonParameterizedSelectedApiTest : BaseModelTest() {
                     DefaultAnnotationManager(
                         DefaultAnnotationManager.Config(
                             reporter = recordingReporter,
-                            apiSurfaceSelector = ApiSurfaceSelector(rules),
+                            apiSurfaceSelector =
+                                ApiSurfaceSelector(
+                                    rules,
+                                    addAdditionalOverrides = addAdditionalOverrides,
+                                ),
                             apiFlags = params.apiFlags,
                             previouslyReleasedCodebaseProvider = { releasedCodebase }
                         )

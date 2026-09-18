@@ -148,6 +148,11 @@ interface Assertions {
                             "${indent}superMethod - ${selectedApi.superMethodApiVariants.formatFor(apiSurfaces)}\n"
                         )
                     }
+                    if (selectedApi.elidableApiVariants.isNotEmpty()) {
+                        append(
+                            "$indent   elidable - ${selectedApi.elidableApiVariants.formatFor(apiSurfaces)}\n"
+                        )
+                    }
                     indent += "  "
                 }
 

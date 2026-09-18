@@ -406,6 +406,7 @@ class CommonParameterizedSelectedApiInheritanceTest : BaseCommonParameterizedSel
                                 method test.pkg.SystemClass.method()
                                        self - ApiVariantSet[]
                                 superMethod - ApiVariantSet[public(R)]
+                                   elidable - ApiVariantSet[public(R),system(R),module(R)]
                         """,
                 )
             }

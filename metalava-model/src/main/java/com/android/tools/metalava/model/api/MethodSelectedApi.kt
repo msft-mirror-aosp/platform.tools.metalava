@@ -21,6 +21,7 @@ import com.android.tools.metalava.model.FilterPredicate
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.api.surface.ApiSurface
 import com.android.tools.metalava.model.api.surface.ApiSurfacePredicate
+import com.android.tools.metalava.model.api.surface.ApiVariant
 import com.android.tools.metalava.model.api.surface.ApiVariantSet
 import com.android.tools.metalava.model.api.surface.ApiVariantType
 import com.android.tools.metalava.model.visitors.ApiType
@@ -36,6 +37,8 @@ internal class MethodSelectedApi(
 ) : MemberSelectedApi<MethodItem>(selectedApiUpdater, item) {
 
     override var superMethodApiVariants = ApiVariantSet.EMPTY
+
+    override var elidableApiVariants = ApiVariantSet.EMPTY
 
     override fun itemSpecificInitialization() {
         // Record components are not separately selectable so need special initialization.
@@ -102,6 +105,8 @@ internal class MethodSelectedApi(
                 checkHidingApiMethodOverride()
             }
         }
+
+        computeElidableApiVariants()
     }
 
     /**
@@ -199,5 +204,139 @@ internal class MethodSelectedApi(
             inheritedSuperVariants += superSelectedApi.superMethodApiVariants
         }
         return inheritedSuperVariants
+    }
+
+    /**
+     * Compute which [ApiVariant]s this method is an elidable override in.
+     *
+     * A method is an elidable override in an [ApiVariant] if an ancestor method with the same
+     * functional signature is already present in the reference API of that variant, meaning this
+     * override does not introduce new API surface and does not need to be emitted in signature
+     * files.
+     *
+     * Preconditions:
+     * - [itemApiVariants] must be initialized and non-empty.
+     * - If [SelectedApiUpdater.addAdditionalOverrides] is true and this method is required for text
+     *   stubs (via [MethodItem.isRequiredOverridingMethodForTextStub]), it cannot be elided in any
+     *   variant.
+     */
+    private fun computeElidableApiVariants() {
+        if (
+            selectedApiUpdater.addAdditionalOverrides &&
+                item.isRequiredOverridingMethodForTextStub()
+        ) {
+            return
+        }
+
+        val elidableVariants = buildList {
+            for (variant in selectedApiUpdater.apiSurfaces.variants) {
+                if (variant.type != ApiVariantType.CORE && variant.type != ApiVariantType.REMOVED) {
+                    continue
+                }
+
+                val referenceMask = referenceMaskFor(variant)
+                val duplicateSuper = findDuplicateSuperMethod(item, item, referenceMask) ?: continue
+
+                // For a REMOVED variant, this method is only an elidable override if this method
+                // or the duplicate super method has a removed variant/annotation. If neither has a
+                // removed status, the override is purely in the core API and not part of the
+                // removed API.
+                if (variant.type == ApiVariantType.REMOVED) {
+                    val itemHasRemoved =
+                        hasRemovedAnnotation() ||
+                            selectedApiUpdater.apiSurfaces.all.any {
+                                it.variantFor(ApiVariantType.REMOVED) in itemApiVariants
+                            }
+                    val superHasRemoved =
+                        duplicateSuper.selectedApi.hasRemovedAnnotation() ||
+                            selectedApiUpdater.apiSurfaces.all.any {
+                                it.variantFor(ApiVariantType.REMOVED) in
+                                    duplicateSuper.selectedApi.itemApiVariants
+                            }
+                    if (!itemHasRemoved && !superHasRemoved) {
+                        continue
+                    }
+                }
+
+                add(variant)
+            }
+        }
+
+        if (elidableVariants.isNotEmpty()) {
+            elidableApiVariants = selectedApiUpdater.apiSurfaces.createVariantSet(elidableVariants)
+        }
+    }
+
+    /**
+     * Computes a bitmask representing the reference API for the given [variant].
+     *
+     * For a [ApiVariantType.CORE] variant, the reference API includes the core variants of the
+     * variant's surface and all surfaces it extends/includes.
+     *
+     * For a [ApiVariantType.REMOVED] variant, the reference API includes both the core and removed
+     * variants of the variant's surface and all surfaces it extends/includes.
+     */
+    private fun referenceMaskFor(variant: ApiVariant): Int {
+        var mask = 0
+        for (surface in variant.surface.includedSurfaces) {
+            mask = mask or surface.variantFor(ApiVariantType.CORE).bitMask
+            if (variant.type == ApiVariantType.REMOVED) {
+                mask = mask or surface.variantFor(ApiVariantType.REMOVED).bitMask
+            }
+        }
+        return mask
+    }
+
+    /**
+     * Recursively checks if this method has a duplicate super method in the reference API.
+     *
+     * Traverses the super method hierarchy starting from [current]. If an ancestor method belongs
+     * to the reference API (matching [referenceMask]), we check if its signature matches [item] via
+     * [MethodItem.sameSignature]. If it matches, [item] is elidable.
+     *
+     * If [item] is abstract and the super method is concrete, [item] is explicitly re-abstracting a
+     * concrete method. We stop traversing that branch because finding an earlier abstract ancestor
+     * (e.g. in an interface) should not cause [item] to be elided.
+     *
+     * If the super method is not in the reference API or does not match, we recursively search its
+     * super methods.
+     */
+    private fun findDuplicateSuperMethod(
+        item: MethodItem,
+        current: MethodItem,
+        referenceMask: Int,
+    ): MethodItem? {
+        val superMethods = current.superMethods()
+        for (superMethod in superMethods) {
+            // Check if this super method is included in the reference API.
+            if (superMethod.selectedApi.itemApiVariants.bits and referenceMask != 0) {
+                // If it is in the API and has the exact same signature, we found a duplicate
+                // super method that allows this item to be elided.
+                if (
+                    MethodItem.sameSignature(
+                        item,
+                        superMethod,
+                        addAdditionalOverrides = selectedApiUpdater.addAdditionalOverrides,
+                    )
+                ) {
+                    return superMethod
+                }
+                // If item is abstract and this included super method is concrete, item is
+                // explicitly re-abstracting a concrete method. Do not search further up this
+                // inheritance path because finding an abstract ancestor (e.g. in a grandparent
+                // interface) would incorrectly cause item to be elided.
+                if (item.modifiers.isAbstract() && !superMethod.modifiers.isAbstract()) {
+                    continue
+                }
+            }
+            // If the super method is not in the API (e.g. from an inaccessible class or interface),
+            // or if it did not match, recursively search its super methods for an ancestor in the
+            // API.
+            val found = findDuplicateSuperMethod(item, superMethod, referenceMask)
+            if (found != null) {
+                return found
+            }
+        }
+        return null
     }
 }

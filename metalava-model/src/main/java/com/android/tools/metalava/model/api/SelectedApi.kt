@@ -77,6 +77,14 @@ sealed class SelectedApi {
         get() = ApiVariantSet.EMPTY
 
     /**
+     * The [ApiVariantSet] for which this method is an elidable override.
+     *
+     * This is always empty by default except for [MethodItem]s.
+     */
+    open val elidableApiVariants: ApiVariantSet
+        get() = ApiVariantSet.EMPTY
+
+    /**
      * The [SelectableItem] from the previously released API that matches this item, if this item is
      * to be reverted.
      */
@@ -172,6 +180,8 @@ private class SimpleSelectedApi : SelectedApi() {
 
     override var superMethodApiVariants = ApiVariantSet.EMPTY
 
+    override var elidableApiVariants = ApiVariantSet.EMPTY
+
     override val revert: Boolean
         get() = false
 
@@ -189,5 +199,6 @@ private class SimpleSelectedApi : SelectedApi() {
         contentApiVariants = original.contentApiVariants
         superClassApiVariants = original.superClassApiVariants
         superMethodApiVariants = original.superMethodApiVariants
+        elidableApiVariants = original.elidableApiVariants
     }
 }

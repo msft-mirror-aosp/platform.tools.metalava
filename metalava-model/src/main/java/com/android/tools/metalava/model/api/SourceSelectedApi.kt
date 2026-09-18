@@ -246,6 +246,10 @@ internal sealed class SourceSelectedApi<S : SelectableItem>(
             append(", superMethodApiVariants=")
             append(superMethodApiVariants.formatFor(selectedApiUpdater.apiSurfaces))
         }
+        if (elidableApiVariants.isNotEmpty()) {
+            append(", elidableApiVariants=")
+            append(elidableApiVariants.formatFor(selectedApiUpdater.apiSurfaces))
+        }
         append(", revert=")
         append(revert)
         append(", revertItem=")
