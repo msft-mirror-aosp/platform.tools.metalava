@@ -261,14 +261,7 @@ object ApiSurfacePredicate {
 
         // Emitted items must belong to this delta (or have a superclass in the delta) and be
         // marked for emission.
-        val emit =
-            EMITTED_ONLY.and(
-                DeltaVariantsPredicate(
-                    apiSurface.surfaces,
-                    emitMask,
-                    includeOverridingMethods,
-                )
-            )
+        val emit = nonElidingFilter(apiType, apiSurface, includeOverridingMethods)
 
         // Traversal includes items in the delta as well as base classes whose contents belong to
         // the delta (via contentApiVariants) so that visitors can visit delta members within
