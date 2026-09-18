@@ -34,6 +34,9 @@ interface BaseModifierList {
 
     fun isInternal(): Boolean
 
+    /** Whether the modifiers have internal visibility and the [PublishedApi] annotation. */
+    fun isPublishedApi(): Boolean
+
     fun isPrivate(): Boolean
 
     fun isPackagePrivate(): Boolean
