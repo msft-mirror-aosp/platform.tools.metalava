@@ -41,6 +41,7 @@ import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.SUPPORT_TYPE_USE_ANNOTATIONS
 import com.android.tools.metalava.model.annotation.DefaultAnnotationManager
+import com.android.tools.metalava.model.api.ApiSurfaceSelector
 import com.android.tools.metalava.model.api.surface.ApiSurface
 import com.android.tools.metalava.model.api.surface.ApiSurfacePredicate
 import com.android.tools.metalava.model.api.surface.ApiSurfaces
@@ -117,7 +118,15 @@ class ConvertJarsToSignatureFiles(
         val jarFile = surfaceInfo.jarFile
         val signatureFile = surfaceInfo.signatureFile
 
-        val annotationManager = DefaultAnnotationManager()
+        val annotationManager =
+            DefaultAnnotationManager(
+                DefaultAnnotationManager.Config(
+                    apiSurfaceSelector =
+                        ApiSurfaceSelector(
+                            addAdditionalOverrides = fileFormat[ADD_ADDITIONAL_OVERRIDES],
+                        )
+                )
+            )
         val codebaseConfig =
             Codebase.Config(
                 annotationManager = annotationManager,

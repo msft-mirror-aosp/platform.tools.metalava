@@ -30,6 +30,7 @@ import com.android.tools.metalava.cli.common.stdout
 import com.android.tools.metalava.cli.common.tracer
 import com.android.tools.metalava.cli.signature.SignatureFormatOptions
 import com.android.tools.metalava.jar.StandaloneJarCodebaseLoader
+import com.android.tools.metalava.model.text.CustomizableProperty.Companion.ADD_ADDITIONAL_OVERRIDES
 import com.android.tools.metalava.reporter.BasicReporter
 import com.github.ajalt.clikt.parameters.arguments.argument
 import com.github.ajalt.clikt.parameters.arguments.validate
@@ -137,6 +138,8 @@ class AndroidJarsToSignaturesCommand :
                 executionEnvironment.disableStderrDumping(),
                 tracer,
                 BasicReporter(stderr),
+                addAdditionalOverrides =
+                    signatureFormat.compute().fileFormat[ADD_ADDITIONAL_OVERRIDES],
             )
             .use { jarCodebaseLoader ->
                 ConvertJarsToSignatureFiles(

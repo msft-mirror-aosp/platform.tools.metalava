@@ -21,6 +21,7 @@ import com.android.tools.metalava.api.ApiAnalyzer
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.EMITTED_ONLY
 import com.android.tools.metalava.model.annotation.DefaultAnnotationManager
+import com.android.tools.metalava.model.api.ApiSurfaceSelector
 import com.android.tools.metalava.model.api.surface.ApiSurfacePredicate
 import com.android.tools.metalava.model.source.EnvironmentManager
 import com.android.tools.metalava.model.source.SourceModelProvider
@@ -133,6 +134,7 @@ private constructor(
             tracer: Tracer,
             reporter: Reporter,
             sourceModelProvider: SourceModelProvider = SourceModelProvider.getImplementation("psi"),
+            addAdditionalOverrides: Boolean = false,
         ): StandaloneJarCodebaseLoader {
 
             val environmentManager =
@@ -140,7 +142,13 @@ private constructor(
                     disableStderrDumping,
                 )
 
-            val annotationManager = DefaultAnnotationManager()
+            val annotationManager =
+                DefaultAnnotationManager(
+                    DefaultAnnotationManager.Config(
+                        apiSurfaceSelector =
+                            ApiSurfaceSelector(addAdditionalOverrides = addAdditionalOverrides)
+                    )
+                )
             val codebaseConfig =
                 Codebase.Config(
                     annotationManager = annotationManager,
