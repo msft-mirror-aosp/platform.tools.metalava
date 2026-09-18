@@ -22,8 +22,6 @@ import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.api.SelectedApi
 import com.android.tools.metalava.model.visitors.ApiFilters
 import com.android.tools.metalava.model.visitors.ApiType
-import com.android.tools.metalava.model.visitors.ApiVisitor
-import com.android.tools.metalava.model.visitors.ElidingPredicate
 
 /** Factory for creating [FilterPredicate] instances based on [ApiSurface]s and [ApiVariant]s. */
 object ApiSurfacePredicate {
@@ -165,10 +163,9 @@ object ApiSurfacePredicate {
      * Unlike [forStubs], this only matches items in [apiSurface] itself, not any surface that it
      * extends. In addition to matching items that directly belong to [apiSurface], it also matches
      * classes that inherit variants from a super class belonging to [apiSurface] via
-     * [SelectedApi.superClassApiVariants].
-     *
-     * Currently, this only works with subclasses of [ApiVisitor] as it relies on its support for
-     * visiting classes that either match the predicate or where one of its members does.
+     * [SelectedApi.superClassApiVariants]. Currently, this only works with subclasses of
+     * [ApiVisitor] as it relies on its support for visiting classes that either match the predicate
+     * or where one of its members does.
      *
      * TODO(b/512093496): Make it work with ApiSurfaceVisitor.
      */
@@ -306,6 +303,28 @@ object ApiSurfacePredicate {
     }
 
     /**
+     * Return a [FilterPredicate] that matches any item that is NOT an elidable override in the
+     * specified [apiSurface] delta.
+     *
+     * If [forRemoved] is true then it checks against variants of type [ApiVariantType.REMOVED] else
+     * it checks against variants of type [ApiVariantType.CORE].
+     */
+    fun elidingFilter(
+        apiSurface: ApiSurface,
+        forRemoved: Boolean,
+    ): FilterPredicate {
+        val variantType = if (forRemoved) ApiVariantType.REMOVED else ApiVariantType.CORE
+        val mask = apiSurface.variantFor(variantType).bitMask
+
+        return NotElidablePredicate(mask)
+    }
+
+    private class NotElidablePredicate(private val mask: Int) : FilterPredicate {
+        override fun test(t: SelectableItem): Boolean =
+            t.selectedApi.elidableApiVariants.bits and mask == 0
+    }
+
+    /**
      * Return a [FilterPredicate] that matches items belonging to the [apiSurface] delta for the
      * given [apiType] and marked for emission.
      *
@@ -339,8 +358,9 @@ object ApiSurfacePredicate {
                 apiPredicateConfig.apiSurface,
                 includeOverridingMethods = true,
             )
-        val referenceFilter = referenceFilter(apiType, apiPredicateConfig.apiSurface)
-        return nonElidingFilter.and(elidingPredicate(referenceFilter, apiPredicateConfig))
+        return nonElidingFilter.and(
+            elidingFilter(apiPredicateConfig.apiSurface, apiType == ApiType.REMOVED)
+        )
     }
 
     /**
@@ -362,19 +382,6 @@ object ApiSurfacePredicate {
                 // References in removed APIs can refer to types across the whole API surface.
                 wholeCoreAndRemovedApi(apiSurface, includeOverridingMethods)
         }
-
-    /**
-     * Create an [ElidingPredicate] that wraps [wrappedPredicate] and uses information from the
-     * [apiPredicateConfig].
-     */
-    private fun elidingPredicate(
-        wrappedPredicate: FilterPredicate,
-        apiPredicateConfig: Config,
-    ) =
-        ElidingPredicate(
-            wrappedPredicate,
-            addAdditionalOverrides = apiPredicateConfig.addAdditionalOverrides,
-        )
 
     /**
      * Return the [ApiFilters] for [apiType] using information from [apiPredicateConfig] to
