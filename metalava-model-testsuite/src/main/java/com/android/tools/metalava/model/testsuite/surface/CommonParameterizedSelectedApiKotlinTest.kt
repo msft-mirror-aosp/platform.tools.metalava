@@ -329,6 +329,118 @@ class CommonParameterizedSelectedApiKotlinTest : BaseCommonParameterizedSelected
                         """,
                 )
             }
+
+            buildTests(
+                name = "file facade with visible members",
+                surfaceRules = publicSystemModuleRules,
+                sources =
+                    listOf(
+                        kotlin(
+                            """
+                                package test.pkg
+
+                                fun foo() {}
+                            """
+                        ),
+                    ),
+            ) {
+                surfaceTest(
+                    surface = "public",
+                    expected =
+                        """
+                            package test.pkg
+                                   self - ApiVariantSet[public(C)]
+                              class test.pkg.TestKt
+                                     self - ApiVariantSet[public(C)]
+                                method test.pkg.TestKt.foo()
+                                       self - ApiVariantSet[public(C)]
+                        """,
+                )
+            }
+
+            buildTests(
+                name = "file facade without visible members",
+                surfaceRules = publicSystemModuleRules,
+                sources =
+                    listOf(
+                        kotlin(
+                            """
+                                package test.pkg
+                                import ${HIDE.qualifiedName}
+
+                                @Hide
+                                fun foo() {}
+                            """
+                        ),
+                    ),
+            ) {
+                surfaceTest(
+                    surface = "public",
+                    // TODO(b/512093496): File facade classes should not be visible if they have no
+                    //  visible members.
+                    expected =
+                        """
+                            package test.pkg
+                                   self - ApiVariantSet[public(C)]
+                              class test.pkg.TestKt
+                                     self - ApiVariantSet[public(C)]
+                                method test.pkg.TestKt.foo()
+                                       self - ApiVariantSet[]
+                        """,
+                )
+            }
+
+            buildTests(
+                name = "file facade with members in different surfaces",
+                surfaceRules = publicSystemModuleRules,
+                sources =
+                    listOf(
+                        kotlin(
+                            """
+                                package test.pkg
+                                import ${SYSTEM_API.qualifiedName}
+
+                                fun foo() {}
+
+                                @SystemApi
+                                fun bar() {}
+                            """
+                        ),
+                    ),
+            ) {
+                surfaceTest(
+                    surface = "public",
+                    expected =
+                        """
+                            package test.pkg
+                                   self - ApiVariantSet[public(C)]
+                              class test.pkg.TestKt
+                                     self - ApiVariantSet[public(C)]
+                                method test.pkg.TestKt.foo()
+                                       self - ApiVariantSet[public(C)]
+                                method test.pkg.TestKt.bar()
+                                       self - ApiVariantSet[]
+                        """,
+                )
+
+                surfaceTest(
+                    surface = "system",
+                    // TODO(b/512093496): The file facade should be in all the surfaces to which its
+                    //  members belong.
+                    expected =
+                        """
+                            package test.pkg
+                                   self - ApiVariantSet[public(C),system(C)]
+                              class test.pkg.TestKt
+                                     self - ApiVariantSet[public(C)]
+                                  content - ApiVariantSet[system(C)]
+                                method test.pkg.TestKt.foo()
+                                       self - ApiVariantSet[public(C)]
+                                method test.pkg.TestKt.bar()
+                                       self - ApiVariantSet[system(C)]
+                        """,
+                )
+            }
         }
     }
 }
