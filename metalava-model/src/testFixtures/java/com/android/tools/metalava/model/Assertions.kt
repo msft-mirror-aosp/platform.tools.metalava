@@ -129,6 +129,9 @@ interface Assertions {
 
                 override fun visitSelectableItem(item: SelectableItem) {
                     append("$indent${item.describe()}\n")
+                    if (!item.emit) {
+                        append("$indent       emit - false\n")
+                    }
                     val selectedApi = item.selectedApi
                     append(
                         "$indent       self - ${selectedApi.itemApiVariants.formatFor(apiSurfaces)}\n"

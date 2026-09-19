@@ -24,7 +24,12 @@ import com.android.tools.metalava.model.testing.surfaces.TestableApiSurfaces.UNA
 import com.android.tools.metalava.model.testing.surfaces.TestableApiSurfaces.annotatedOnlyPublicSystemModuleRules
 import com.android.tools.metalava.model.testing.surfaces.TestableApiSurfaces.annotatedOnlyRules
 import com.android.tools.metalava.model.testing.surfaces.TestableApiSurfaces.publicSystemModuleRules
+import com.android.tools.metalava.testing.TestFileCache
+import com.android.tools.metalava.testing.TestFileCacheRule
+import com.android.tools.metalava.testing.cacheIn
+import com.android.tools.metalava.testing.jarFromSources
 import com.android.tools.metalava.testing.java
+import org.junit.ClassRule
 import org.junit.runners.Parameterized
 
 /**
@@ -47,6 +52,28 @@ import org.junit.runners.Parameterized
 class CommonParameterizedSelectedApiVisibilityTest : BaseCommonParameterizedSelectedApiTest() {
 
     companion object : BaseCompanion() {
+        /** Create a [TestFileCache] whose lifespan encompasses all the tests in this class. */
+        @ClassRule @JvmField val testFileCacheRule = TestFileCacheRule()
+
+        /**
+         * A jar containing a public class (`test.pkg.PublicClass`) to be placed on the classpath.
+         *
+         * Cached across tests using [testFileCacheRule] to test how classpath classes (which have
+         * `emit = false`) interact with API surface selection.
+         */
+        private val publicClasspathJar =
+            jarFromSources(
+                    "public-class.jar",
+                    java(
+                        """
+                            package test.pkg;
+                            public class PublicClass {
+                            }
+                        """
+                    ),
+                )
+                .cacheIn(testFileCacheRule)
+
         @JvmStatic
         @Parameterized.Parameters
         fun params() = buildList {
@@ -420,6 +447,44 @@ class CommonParameterizedSelectedApiVisibilityTest : BaseCommonParameterizedSele
                                          self - ApiVariantSet[public(C)]
                                   method test.pkg.Test.Inner.systemMethod()
                                          self - ApiVariantSet[system(C)]
+                        """,
+                )
+            }
+
+            buildTests(
+                name = "hidden source class and public class on classpath",
+                surfaceRules = publicSystemModuleRules,
+                sources =
+                    listOf(
+                        java(
+                            """
+                                package test.pkg;
+                                $HIDE
+                                public class Hidden extends PublicClass {
+                                }
+                            """
+                        ),
+                    ),
+                classpath = listOf(publicClasspathJar),
+            ) {
+                surfaceTest(
+                    surface = "public",
+                    // TODO(b/512093496): The package should not be in the public API because it
+                    //   does not contain any source classes that are in the public API. The
+                    //   PublicClass from the class path should not make the package public.
+                    expected =
+                        """
+                            package test.pkg
+                                   self - ApiVariantSet[public(C)]
+                              class test.pkg.Hidden
+                                     self - ApiVariantSet[]
+                                constructor test.pkg.Hidden()
+                                       self - ApiVariantSet[]
+                              class test.pkg.PublicClass
+                                     emit - false
+                                     self - ApiVariantSet[public(C)]
+                                constructor test.pkg.PublicClass()
+                                       self - ApiVariantSet[public(C)]
                         """,
                 )
             }

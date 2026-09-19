@@ -84,6 +84,9 @@ abstract class BaseCommonParameterizedSelectedApiTest : BaseModelTest() {
          *   preference) and can run under both settings.
          */
         val addAdditionalOverrides: Boolean? = null,
+
+        /** Optional list of [TestFile]s to add to the class path. */
+        val classpath: List<TestFile> = emptyList(),
     ) {
         /** The [InputFormat] of [sources]. */
         val inputFormat: InputFormat by lazy {
@@ -119,6 +122,7 @@ abstract class BaseCommonParameterizedSelectedApiTest : BaseModelTest() {
          * @param previouslyReleasedSources the [TestParams.previouslyReleasedSources].
          * @param expectedContainsRevertedItem the [TestParams.expectedContainsRevertedItem].
          * @param expectedIssues the [TestParams.expectedIssues].
+         * @param classpath the [TestParams.classpath].
          * @param body lambda that will add tests for specific surfaces using [Builder.surfaceTest]
          *   or [Builder.additionalOverridesTest] which create a [TestParams] using the above plus
          *   some surface specific information.
@@ -133,6 +137,7 @@ abstract class BaseCommonParameterizedSelectedApiTest : BaseModelTest() {
             previouslyReleasedSources: List<TestFile>? = null,
             expectedContainsRevertedItem: Boolean = false,
             expectedIssues: String = "",
+            classpath: List<TestFile> = emptyList(),
             body: Builder.() -> Unit,
         ) {
             val builder =
@@ -147,6 +152,7 @@ abstract class BaseCommonParameterizedSelectedApiTest : BaseModelTest() {
                     previouslyReleasedSources,
                     expectedContainsRevertedItem,
                     expectedIssues,
+                    classpath,
                 )
             buildSurfaceTests(builder, body)
         }
@@ -173,6 +179,7 @@ abstract class BaseCommonParameterizedSelectedApiTest : BaseModelTest() {
             private val previouslyReleasedSources: List<TestFile>? = null,
             private val expectedContainsRevertedItem: Boolean = false,
             private val expectedIssues: String = "",
+            private val classpath: List<TestFile> = emptyList(),
         ) {
             /**
              * Create a test for [surface] that expects [expected] to be the result of calling
@@ -198,6 +205,7 @@ abstract class BaseCommonParameterizedSelectedApiTest : BaseModelTest() {
                         expectedContainsRevertedItem,
                         expectedIssues,
                         addAdditionalOverrides = null,
+                        classpath = classpath,
                     )
                 )
             }
@@ -227,6 +235,7 @@ abstract class BaseCommonParameterizedSelectedApiTest : BaseModelTest() {
                         expectedContainsRevertedItem,
                         expectedIssues,
                         addAdditionalOverrides = false,
+                        classpath = classpath,
                     )
                 )
                 params.add(
@@ -242,6 +251,7 @@ abstract class BaseCommonParameterizedSelectedApiTest : BaseModelTest() {
                         expectedContainsRevertedItem,
                         expectedIssues,
                         addAdditionalOverrides = true,
+                        classpath = classpath,
                     )
                 )
             }
@@ -285,6 +295,7 @@ abstract class BaseCommonParameterizedSelectedApiTest : BaseModelTest() {
                         apiPackages = PackageFilter.parse("test.*:-test.api.*"),
                         apiSurfaceRules = rules,
                         apiFlags = params.apiFlags,
+                        additionalClassPath = params.classpath.map { it.toFile() },
                         addAdditionalOverrides = addAdditionalOverrides,
                         annotationManagerFactory = annotationManagerFactory,
                         javaLanguageLevel = "17",
@@ -343,7 +354,11 @@ abstract class BaseCommonParameterizedSelectedApiTest : BaseModelTest() {
                 inputSet(previouslyReleasedSources),
                 // Disable the supported InputFormat check as this test is already
                 // parameterized and filtered by InputFormat.
-                testFixture = TestFixture(checkSupportedInputFormats = false),
+                testFixture =
+                    TestFixture(
+                        additionalClassPath = params.classpath.map { it.toFile() },
+                        checkSupportedInputFormats = false,
+                    ),
             ) {
                 val releasedCodebase = codebase
                 val annotationManagerFactory: TestFixture.() -> AnnotationManager = {
