@@ -29,12 +29,16 @@ abstract class FilterPredicate : Predicate<SelectableItem> {
     /**
      * Returns a composed [FilterPredicate] that represents a short-circuiting logical AND of this
      * predicate and [other].
+     *
+     * If either predicate is a composed AND predicate, it will be flattened.
      */
     fun and(other: FilterPredicate): FilterPredicate = andPredicates(this, other)
 
     /**
      * Returns a composed [FilterPredicate] that represents a short-circuiting logical OR of this
      * predicate and [other].
+     *
+     * If either predicate is a composed OR predicate, it will be flattened.
      */
     fun or(other: FilterPredicate): FilterPredicate = orPredicates(this, other)
 
@@ -136,8 +140,11 @@ object MatchNonePredicate : FilterPredicate() {
     override fun test(t: SelectableItem) = false
 }
 
-/** [FilterPredicate] that matches if all [predicates] match. */
-private class AndPredicate(private val predicates: List<FilterPredicate>) : FilterPredicate() {
+/** [FilterPredicate] that matches if all [predicates] match. Flattens nested [AndPredicate]s. */
+private class AndPredicate(predicates: List<FilterPredicate>) : FilterPredicate() {
+    private val predicates: List<FilterPredicate> =
+        predicates.flatMap { if (it is AndPredicate) it.predicates else listOf(it) }
+
     override fun test(t: SelectableItem) = predicates.all { it.test(t) }
 
     override fun format(indenter: Indenter) {
@@ -150,8 +157,11 @@ private class AndPredicate(private val predicates: List<FilterPredicate>) : Filt
     }
 }
 
-/** [FilterPredicate] that matches if any [predicates] match. */
-private class OrPredicate(private val predicates: List<FilterPredicate>) : FilterPredicate() {
+/** [FilterPredicate] that matches if any [predicates] match. Flattens nested [OrPredicate]s. */
+private class OrPredicate(predicates: List<FilterPredicate>) : FilterPredicate() {
+    private val predicates: List<FilterPredicate> =
+        predicates.flatMap { if (it is OrPredicate) it.predicates else listOf(it) }
+
     override fun test(t: SelectableItem) = predicates.any { it.test(t) }
 
     override fun format(indenter: Indenter) {
@@ -168,7 +178,8 @@ private class OrPredicate(private val predicates: List<FilterPredicate>) : Filte
  * Returns a composed [FilterPredicate] that represents a short-circuiting logical AND of all
  * [predicates].
  *
- * If no predicates are provided, the returned predicate will match everything.
+ * If any of [predicates] are composed AND predicates, they will be flattened. If no predicates are
+ * provided, the returned predicate will match everything.
  */
 fun andPredicates(predicates: List<FilterPredicate>): FilterPredicate = AndPredicate(predicates)
 
@@ -176,7 +187,8 @@ fun andPredicates(predicates: List<FilterPredicate>): FilterPredicate = AndPredi
  * Returns a composed [FilterPredicate] that represents a short-circuiting logical AND of all
  * [predicates].
  *
- * If no predicates are provided, the returned predicate will match everything.
+ * If any of [predicates] are composed AND predicates, they will be flattened. If no predicates are
+ * provided, the returned predicate will match everything.
  */
 fun andPredicates(vararg predicates: FilterPredicate): FilterPredicate =
     andPredicates(predicates.toList())
@@ -185,7 +197,8 @@ fun andPredicates(vararg predicates: FilterPredicate): FilterPredicate =
  * Returns a composed [FilterPredicate] that represents a short-circuiting logical OR of all
  * [predicates].
  *
- * If no predicates are provided, the returned predicate will match nothing.
+ * If any of [predicates] are composed OR predicates, they will be flattened. If no predicates are
+ * provided, the returned predicate will match nothing.
  */
 fun orPredicates(predicates: List<FilterPredicate>): FilterPredicate = OrPredicate(predicates)
 
@@ -193,7 +206,8 @@ fun orPredicates(predicates: List<FilterPredicate>): FilterPredicate = OrPredica
  * Returns a composed [FilterPredicate] that represents a short-circuiting logical OR of all
  * [predicates].
  *
- * If no predicates are provided, the returned predicate will match nothing.
+ * If any of [predicates] are composed OR predicates, they will be flattened. If no predicates are
+ * provided, the returned predicate will match nothing.
  */
 fun orPredicates(vararg predicates: FilterPredicate): FilterPredicate =
     orPredicates(predicates.toList())

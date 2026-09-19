@@ -309,13 +309,11 @@ class ApiSurfacePredicateTest {
                 ApiFilters(
                     emit =
                         AndPredicate(
-                            AndPredicate(
-                                EmittedOnlyPredicate
-                                OrPredicate(
-                                    ItemApiVariantsPredicate(ApiVariantSet[base(C)])
-                                    SuperClassApiVariantsPredicate(ApiVariantSet[base(C)])
-                                    SuperMethodApiVariantsPredicate(ApiVariantSet[base(C)])
-                                )
+                            EmittedOnlyPredicate
+                            OrPredicate(
+                                ItemApiVariantsPredicate(ApiVariantSet[base(C)])
+                                SuperClassApiVariantsPredicate(ApiVariantSet[base(C)])
+                                SuperMethodApiVariantsPredicate(ApiVariantSet[base(C)])
                             )
                             NotElidablePredicate(ApiVariantSet[base(C)])
                         )
@@ -331,13 +329,11 @@ class ApiSurfacePredicateTest {
                 ApiFilters(
                     emit =
                         AndPredicate(
-                            AndPredicate(
-                                EmittedOnlyPredicate
-                                OrPredicate(
-                                    ItemApiVariantsPredicate(ApiVariantSet[base(R)])
-                                    SuperClassApiVariantsPredicate(ApiVariantSet[base(R)])
-                                    SuperMethodApiVariantsPredicate(ApiVariantSet[base(R)])
-                                )
+                            EmittedOnlyPredicate
+                            OrPredicate(
+                                ItemApiVariantsPredicate(ApiVariantSet[base(R)])
+                                SuperClassApiVariantsPredicate(ApiVariantSet[base(R)])
+                                SuperMethodApiVariantsPredicate(ApiVariantSet[base(R)])
                             )
                             NotElidablePredicate(ApiVariantSet[base(R)])
                         )
@@ -353,13 +349,11 @@ class ApiSurfacePredicateTest {
                 ApiFilters(
                     emit =
                         AndPredicate(
-                            AndPredicate(
-                                EmittedOnlyPredicate
-                                OrPredicate(
-                                    ItemApiVariantsPredicate(ApiVariantSet[main(C)])
-                                    SuperClassApiVariantsPredicate(ApiVariantSet[main(C)])
-                                    SuperMethodApiVariantsPredicate(ApiVariantSet[main(C)])
-                                )
+                            EmittedOnlyPredicate
+                            OrPredicate(
+                                ItemApiVariantsPredicate(ApiVariantSet[main(C)])
+                                SuperClassApiVariantsPredicate(ApiVariantSet[main(C)])
+                                SuperMethodApiVariantsPredicate(ApiVariantSet[main(C)])
                             )
                             NotElidablePredicate(ApiVariantSet[main(C)])
                         )
@@ -375,13 +369,11 @@ class ApiSurfacePredicateTest {
                 ApiFilters(
                     emit =
                         AndPredicate(
-                            AndPredicate(
-                                EmittedOnlyPredicate
-                                OrPredicate(
-                                    ItemApiVariantsPredicate(ApiVariantSet[main(R)])
-                                    SuperClassApiVariantsPredicate(ApiVariantSet[main(R)])
-                                    SuperMethodApiVariantsPredicate(ApiVariantSet[main(R)])
-                                )
+                            EmittedOnlyPredicate
+                            OrPredicate(
+                                ItemApiVariantsPredicate(ApiVariantSet[main(R)])
+                                SuperClassApiVariantsPredicate(ApiVariantSet[main(R)])
+                                SuperMethodApiVariantsPredicate(ApiVariantSet[main(R)])
                             )
                             NotElidablePredicate(ApiVariantSet[main(R)])
                         )
