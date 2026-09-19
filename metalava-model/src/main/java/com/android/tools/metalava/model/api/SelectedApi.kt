@@ -113,16 +113,22 @@ sealed class SelectedApi {
      * snapshotted.
      *
      * This can only be called when creating a snapshot of the codebase using a
-     * [SelectedApi.SIMPLE_FACTORY].
+     * [SelectedApi.SNAPSHOT_FACTORY].
      */
     abstract fun snapshot(original: SelectedApi)
 
     companion object {
         /**
          * Return a [SelectedApi] factory that will create [SelectedApi] instances suitable for
-         * being populated based off information outside the [SelectableItem], e.g. signature files.
+         * being populated from a signature file.
          */
-        val SIMPLE_FACTORY: (SelectableItem) -> SelectedApi = { SimpleSelectedApi() }
+        val MUTABLE_FACTORY: (SelectableItem) -> SelectedApi = { MutableSelectedApi() }
+
+        /**
+         * Return a [SelectedApi] factory that will create [SelectedApi] instances suitable for a
+         * snapshot [Codebase].
+         */
+        val SNAPSHOT_FACTORY: (SelectableItem) -> SelectedApi = { SnapshotSelectedApi() }
 
         /**
          * Create a [SelectedApi] factory that will create [SelectedApi] instances suitable for a
@@ -161,44 +167,5 @@ sealed class SelectedApi {
                 is PackageItem -> PackageSelectedApi(selectedApiUpdater, item)
                 else -> error("unknown selectable item: $item")
             }
-    }
-}
-
-/**
- * A simple [SelectedApi] that stores [itemApiVariants], [contentApiVariants], and
- * [superClassApiVariants] without requiring a [SelectedApiUpdater] or parent hierarchy.
- *
- * Used for snapshot codebases where variants are copied from the original codebase and signature
- * file codebases.
- */
-private class SimpleSelectedApi : SelectedApi() {
-    override var itemApiVariants = ApiVariantSet.EMPTY
-
-    override var contentApiVariants = ApiVariantSet.EMPTY
-
-    override var superClassApiVariants = ApiVariantSet.EMPTY
-
-    override var superMethodApiVariants = ApiVariantSet.EMPTY
-
-    override var elidableApiVariants = ApiVariantSet.EMPTY
-
-    override val revert: Boolean
-        get() = false
-
-    override val revertItem: SelectableItem?
-        get() = null
-
-    override fun initialize() {}
-
-    override fun addItemApiVariant(value: ApiVariant) {
-        itemApiVariants += value
-    }
-
-    override fun snapshot(original: SelectedApi) {
-        itemApiVariants = original.itemApiVariants
-        contentApiVariants = original.contentApiVariants
-        superClassApiVariants = original.superClassApiVariants
-        superMethodApiVariants = original.superMethodApiVariants
-        elidableApiVariants = original.elidableApiVariants
     }
 }

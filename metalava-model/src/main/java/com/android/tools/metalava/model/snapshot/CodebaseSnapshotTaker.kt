@@ -120,9 +120,9 @@ private constructor(
                 // Supports documentation if the copied codebase does.
                 supportsDocumentation = codebase.supportsDocumentation(),
                 assembler = this,
-                // Create a simple [SelectedApi] instance that will be populated from information
+                // Create a [SnapshotSelectedApi] instance that will be populated from information
                 // retrieved from the original [SelectedApi].
-                selectedApiFactory = SelectedApi.SIMPLE_FACTORY,
+                selectedApiFactory = SelectedApi.SNAPSHOT_FACTORY,
             )
 
         this.snapshotCodebase = newCodebase

@@ -197,9 +197,9 @@ internal class TextCodebaseAssembler(
                             trustedApi = true,
                             supportsDocumentation = false,
                             assembler = assembler,
-                            // Create a simple [SelectedApi] instance that will be populated
-                            // while parsing the signature files.
-                            selectedApiFactory = SelectedApi.SIMPLE_FACTORY,
+                            // Create a [SelecteApi] instance that will be populated while parsing
+                            // the signature files.
+                            selectedApiFactory = SelectedApi.MUTABLE_FACTORY,
                         )
                     },
                     classPathResolver = classPathResolver,
