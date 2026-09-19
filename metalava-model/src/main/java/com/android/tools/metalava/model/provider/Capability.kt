@@ -17,6 +17,7 @@
 package com.android.tools.metalava.model.provider
 
 import com.android.tools.metalava.model.ClassPathResolver
+import com.android.tools.metalava.model.api.SelectedApi
 import com.android.tools.metalava.model.multiplatform.MultiplatformCodebase
 
 /** The set of different capabilities that a codebase creator can provide. */
@@ -56,6 +57,9 @@ enum class Capability {
 
     /** Has access to reverted items. */
     REVERTED_ITEMS,
+
+    /** Can mutate the [SelectedApi]. */
+    MUTATE_SELECTED_API,
 
     /** Can create [MultiplatformCodebase]s */
     MULTIPLATFORM,

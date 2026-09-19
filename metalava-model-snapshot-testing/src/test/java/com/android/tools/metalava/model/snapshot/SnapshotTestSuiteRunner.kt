@@ -29,5 +29,6 @@ class SnapshotTestSuiteRunner(val delegate: ModelSuiteRunner) : ModelSuiteRunner
                 Capability.PACKAGE_HTML_FILES,
                 Capability.HIDDEN_ITEMS,
                 Capability.REVERTED_ITEMS,
+                Capability.MUTATE_SELECTED_API,
             )
 }

@@ -18,7 +18,9 @@ package com.android.tools.metalava.model.testsuite
 
 import com.android.tools.metalava.model.api.ApiSurfaceRules
 import com.android.tools.metalava.model.api.surface.ApiVariantType
+import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.provider.InputFormat
+import com.android.tools.metalava.model.testing.RequiresCapabilities
 import com.android.tools.metalava.model.testing.SupportedInputFormats
 import com.android.tools.metalava.testing.java
 import kotlin.test.assertEquals
@@ -96,6 +98,7 @@ class CommonApiSurfacesTest : BaseModelTest() {
         }
     }
 
+    @RequiresCapabilities(Capability.MUTATE_SELECTED_API)
     @SupportedInputFormats(InputFormat.SIGNATURE)
     @Test
     fun `Test mutating selectedApiVariants`() {

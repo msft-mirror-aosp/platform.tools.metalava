@@ -46,7 +46,7 @@ internal class SnapshotSelectedApi : SelectedApi() {
     override fun initialize() {}
 
     override fun addItemApiVariant(value: ApiVariant) {
-        itemApiVariants += value
+        error("Cannot update itemApiVariants in $this")
     }
 
     override fun snapshot(original: SelectedApi) {
