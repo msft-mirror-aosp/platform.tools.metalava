@@ -153,4 +153,88 @@ class ApiSurfacePredicateTest {
             ApiSurfacePredicate.referenceFilter(ApiType.REMOVED, main).toString(),
         )
     }
+
+    @Test
+    fun `Test forSurfaceFilters`() {
+        assertEquals(
+            """
+                ApiFilters(
+                    traversal =
+                        AndPredicate(
+                            EmittedOnlyPredicate
+                            TraversalPredicate(ApiVariantSet[base(C)])
+                        )
+                    emit =
+                        AndPredicate(
+                            EmittedOnlyPredicate
+                            DeltaVariantsPredicate(ApiVariantSet[base(C)])
+                        )
+                    reference =
+                        ItemApiVariantsPredicate(ApiVariantSet[base(C)])
+                )
+            """
+                .trimIndent(),
+            ApiSurfacePredicate.forSurfaceFilters(ApiType.CORE, base).toString(),
+        )
+        assertEquals(
+            """
+                ApiFilters(
+                    traversal =
+                        AndPredicate(
+                            EmittedOnlyPredicate
+                            TraversalPredicate(ApiVariantSet[base(R)])
+                        )
+                    emit =
+                        AndPredicate(
+                            EmittedOnlyPredicate
+                            DeltaVariantsPredicate(ApiVariantSet[base(R)])
+                        )
+                    reference =
+                        ItemApiVariantsPredicate(ApiVariantSet[base(CR)])
+                )
+            """
+                .trimIndent(),
+            ApiSurfacePredicate.forSurfaceFilters(ApiType.REMOVED, base).toString(),
+        )
+        assertEquals(
+            """
+                ApiFilters(
+                    traversal =
+                        AndPredicate(
+                            EmittedOnlyPredicate
+                            TraversalPredicate(ApiVariantSet[main(C)])
+                        )
+                    emit =
+                        AndPredicate(
+                            EmittedOnlyPredicate
+                            DeltaVariantsPredicate(ApiVariantSet[main(C)])
+                        )
+                    reference =
+                        ItemApiVariantsPredicate(ApiVariantSet[base(C),main(C)])
+                )
+            """
+                .trimIndent(),
+            ApiSurfacePredicate.forSurfaceFilters(ApiType.CORE, main).toString(),
+        )
+        assertEquals(
+            """
+                ApiFilters(
+                    traversal =
+                        AndPredicate(
+                            EmittedOnlyPredicate
+                            TraversalPredicate(ApiVariantSet[main(R)])
+                        )
+                    emit =
+                        AndPredicate(
+                            EmittedOnlyPredicate
+                            DeltaVariantsPredicate(ApiVariantSet[main(R)])
+                        )
+                    reference =
+                        ItemApiVariantsPredicate(ApiVariantSet[base(CR),main(CR)])
+                )
+            """
+                .trimIndent(),
+            ApiSurfacePredicate.forSurfaceFilters(ApiType.REMOVED, main).toString(),
+        )
+    }
 }
