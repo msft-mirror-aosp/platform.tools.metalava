@@ -46,3 +46,8 @@ object EmittedOnlyPredicate : FilterPredicate {
 object MatchAllPredicate : FilterPredicate {
     override fun test(t: SelectableItem) = true
 }
+
+/** [FilterPredicate] that matches nothing. */
+object MatchNonePredicate : FilterPredicate {
+    override fun test(t: SelectableItem) = false
+}

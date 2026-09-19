@@ -20,6 +20,7 @@ import com.android.tools.lint.checks.infrastructure.TestFile
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.FilterPredicate
 import com.android.tools.metalava.model.MatchAllPredicate
+import com.android.tools.metalava.model.MatchNonePredicate
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.StripJavaLangPrefix
 import com.android.tools.metalava.model.TypeItem
@@ -680,7 +681,7 @@ class CommonTypeStringTest : BaseModelTest() {
                                     TypeStringConfiguration(
                                         annotations = true,
                                     ),
-                                filter = { false },
+                                filter = MatchNonePredicate,
                                 expectedTypeString = "java.util.List<java.lang.Integer>"
                             ),
                             ConfigurationTestCase(
@@ -690,7 +691,7 @@ class CommonTypeStringTest : BaseModelTest() {
                                         annotations = true,
                                         kotlinStyleNulls = true
                                     ),
-                                filter = { false },
+                                filter = MatchNonePredicate,
                                 expectedTypeString = "java.util.List<java.lang.Integer!>!"
                             ),
                             ConfigurationTestCase(
