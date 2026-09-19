@@ -369,7 +369,7 @@ class CompatibilityCheck(
      */
     private inner class CompatibleKotlinOverloadPredicate(
         private val original: CallableItem,
-    ) : FilterPredicate {
+    ) : FilterPredicate() {
         override fun test(t: SelectableItem): Boolean =
             isCompatibleKotlinOverload(
                 original = original,

@@ -110,8 +110,8 @@ object TargetLanguageSet {
         )
 
     /**
-     * Reverse of [modifierToSet]: mapping from a target language set to the corresponding modifier
-     * to use in signature files.
+     * Reverse of [signatureFileRepresentationToTargetLanguageSet]: mapping from a target language
+     * set to the corresponding modifier to use in signature files.
      */
     val targetLanguageSetToSignatureFileRepresentation =
         signatureFileRepresentationToTargetLanguageSet.entries.associate { it.value to it.key }
@@ -124,5 +124,14 @@ object TargetLanguageSet {
  * If this set is all [TargetLanguage]s then it returns `null` to avoid any filtering.
  */
 fun Set<TargetLanguage>.inclusionFilter(): FilterPredicate? =
-    if (this == TargetLanguageSet.ALL) null
-    else FilterPredicate { item -> any { it in item.targetLanguages } }
+    if (this == TargetLanguageSet.ALL) null else TargetLanguageInclusionPredicate(this)
+
+/**
+ * [FilterPredicate] that returns `true` for any [SelectableItem] that can be targeted for at least
+ * one of [targetLanguages].
+ */
+private class TargetLanguageInclusionPredicate(
+    private val targetLanguages: Set<TargetLanguage>,
+) : FilterPredicate() {
+    override fun test(t: SelectableItem): Boolean = targetLanguages.any { it in t.targetLanguages }
+}

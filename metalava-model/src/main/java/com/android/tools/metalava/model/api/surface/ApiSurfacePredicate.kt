@@ -97,7 +97,7 @@ object ApiSurfacePredicate {
     abstract class ApiVariantsPredicate(
         private val apiSurfaces: ApiSurfaces,
         protected val inclusionMask: Int,
-    ) : FilterPredicate {
+    ) : FilterPredicate() {
         override fun toString() =
             "${javaClass.simpleName}(${ApiVariantSet(inclusionMask).formatFor(apiSurfaces)})"
     }
@@ -119,7 +119,7 @@ object ApiSurfacePredicate {
      * least one [ApiVariant] matching [inclusionMask].
      */
     private class ItemOrSuperMethodApiVariantsPredicate(private val inclusionMask: Int) :
-        FilterPredicate {
+        FilterPredicate() {
         override fun test(t: SelectableItem) =
             t.selectedApi.itemApiVariants.bits and inclusionMask != 0 ||
                 t.selectedApi.superMethodApiVariants.bits and inclusionMask != 0
@@ -298,7 +298,7 @@ object ApiSurfacePredicate {
         return NotElidablePredicate(mask)
     }
 
-    private class NotElidablePredicate(private val mask: Int) : FilterPredicate {
+    private class NotElidablePredicate(private val mask: Int) : FilterPredicate() {
         override fun test(t: SelectableItem): Boolean =
             t.selectedApi.elidableApiVariants.bits and mask == 0
     }

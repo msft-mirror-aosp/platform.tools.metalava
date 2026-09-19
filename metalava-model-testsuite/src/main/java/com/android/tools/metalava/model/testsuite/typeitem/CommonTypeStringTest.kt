@@ -1124,7 +1124,7 @@ class CommonTypeStringTest : BaseModelTest() {
 }
 
 /** [FilterPredicate] that filters out nullness annotations. */
-private object RemoveNullnessAnnotationsPredicate : FilterPredicate {
+private object RemoveNullnessAnnotationsPredicate : FilterPredicate() {
     override fun test(t: SelectableItem): Boolean =
         (t as? ClassItem)?.qualifiedName()?.let { name -> isNullnessAnnotation(name) } != true
 }

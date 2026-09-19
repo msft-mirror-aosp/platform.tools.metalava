@@ -341,7 +341,7 @@ class FlaggedApiLint(
 }
 
 /** [FilterPredicate] that matches items annotated with `@FlaggedApi`. */
-private object FlaggedApiPredicate : FilterPredicate {
+private object FlaggedApiPredicate : FilterPredicate() {
     override fun test(t: SelectableItem): Boolean =
         t.modifiers.hasAnnotation { it.qualifiedName == ANDROID_FLAGGED_API }
 }

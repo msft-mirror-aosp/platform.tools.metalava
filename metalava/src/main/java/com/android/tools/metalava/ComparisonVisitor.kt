@@ -819,6 +819,6 @@ object CodebaseComparator {
  * [FilterPredicate] that matches items whose [SelectableItem.selectedApi] has [SelectedApi.revert]
  * set to true.
  */
-private object RevertedPredicate : FilterPredicate {
+private object RevertedPredicate : FilterPredicate() {
     override fun test(t: SelectableItem): Boolean = t.selectedApi.revert
 }
