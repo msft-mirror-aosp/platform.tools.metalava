@@ -22,6 +22,7 @@ import com.android.tools.metalava.model.FilterPredicate
 import com.android.tools.metalava.model.MatchAllPredicate
 import com.android.tools.metalava.model.MatchNonePredicate
 import com.android.tools.metalava.model.PrimitiveTypeItem
+import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.StripJavaLangPrefix
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeStringConfiguration
@@ -828,11 +829,7 @@ class CommonTypeStringTest : BaseModelTest() {
                                     annotations = true,
                                 ),
                             // Filter that removes nullness annotations
-                            filter = {
-                                (it as? ClassItem)?.qualifiedName()?.let { name ->
-                                    isNullnessAnnotation(name)
-                                } != true
-                            },
+                            filter = RemoveNullnessAnnotationsPredicate,
                             expectedTypeString =
                                 "java.util.List<java.lang.@androidx.annotation.IntRange(from=5L, to=10L) Integer>"
                         ),
@@ -845,11 +842,7 @@ class CommonTypeStringTest : BaseModelTest() {
                                 ),
                             // Filter that removes nullness annotations, but Kotlin-nulls
                             // should still be present
-                            filter = {
-                                (it as? ClassItem)?.qualifiedName()?.let { name ->
-                                    isNullnessAnnotation(name)
-                                } != true
-                            },
+                            filter = RemoveNullnessAnnotationsPredicate,
                             expectedTypeString =
                                 "java.util.List<java.lang.@androidx.annotation.IntRange(from=5L, to=10L) Integer?>!"
                         ),
@@ -1128,4 +1121,10 @@ class CommonTypeStringTest : BaseModelTest() {
                         ),
                 )
     }
+}
+
+/** [FilterPredicate] that filters out nullness annotations. */
+private object RemoveNullnessAnnotationsPredicate : FilterPredicate {
+    override fun test(t: SelectableItem): Boolean =
+        (t as? ClassItem)?.qualifiedName()?.let { name -> isNullnessAnnotation(name) } != true
 }

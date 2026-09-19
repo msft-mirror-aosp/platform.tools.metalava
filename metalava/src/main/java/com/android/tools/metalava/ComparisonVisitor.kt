@@ -31,6 +31,7 @@ import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.TargetLanguage
+import com.android.tools.metalava.model.api.SelectedApi
 import com.android.tools.metalava.model.multiplatform.MultiplatformCodebase
 import com.android.tools.metalava.model.visitors.ApiSurfaceVisitor
 
@@ -391,8 +392,7 @@ object CodebaseComparator {
                 // removed. That is because reverting it will replace it with the old item against
                 // which it is being compared in this compatibility check. So, while this specific
                 // item will not appear in the API the old item will and so it has not been removed.
-                val methodFilter =
-                    filter?.or { method: SelectableItem -> method.selectedApi.revert }
+                val methodFilter = filter?.or(RevertedPredicate)
 
                 // Find an element which matches the methodFilter
                 val superMethod = newParent.findPredicateMethodWithSuper(old, methodFilter)
@@ -813,4 +813,12 @@ object CodebaseComparator {
             }
         }
     }
+}
+
+/**
+ * [FilterPredicate] that matches items whose [SelectableItem.selectedApi] has [SelectedApi.revert]
+ * set to true.
+ */
+private object RevertedPredicate : FilterPredicate {
+    override fun test(t: SelectableItem): Boolean = t.selectedApi.revert
 }

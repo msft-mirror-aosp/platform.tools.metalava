@@ -351,12 +351,7 @@ class CompatibilityCheck(
             is MethodItem ->
                 newContainingClass
                     ?.filteredMethods(
-                        { candidate ->
-                            isCompatibleKotlinOverload(
-                                original = original,
-                                candidate = candidate as CallableItem,
-                            )
-                        },
+                        CompatibleKotlinOverloadPredicate(original),
                         includeSuperClassMethods = true
                     )
                     ?.firstOrNull()
@@ -366,6 +361,20 @@ class CompatibilityCheck(
                 }
             else -> error("Unknown callable $original")
         }
+    }
+
+    /**
+     * [FilterPredicate] that matches callable items that are compatible Kotlin overloads for
+     * [original].
+     */
+    private inner class CompatibleKotlinOverloadPredicate(
+        private val original: CallableItem,
+    ) : FilterPredicate {
+        override fun test(t: SelectableItem): Boolean =
+            isCompatibleKotlinOverload(
+                original = original,
+                candidate = t as CallableItem,
+            )
     }
 
     /**
