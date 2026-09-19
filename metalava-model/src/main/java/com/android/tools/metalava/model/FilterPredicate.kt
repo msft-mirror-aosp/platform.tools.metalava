@@ -170,8 +170,24 @@ private class OrPredicate(private val predicates: List<FilterPredicate>) : Filte
  *
  * If no predicates are provided, the returned predicate will match everything.
  */
+fun andPredicates(predicates: List<FilterPredicate>): FilterPredicate = AndPredicate(predicates)
+
+/**
+ * Returns a composed [FilterPredicate] that represents a short-circuiting logical AND of all
+ * [predicates].
+ *
+ * If no predicates are provided, the returned predicate will match everything.
+ */
 fun andPredicates(vararg predicates: FilterPredicate): FilterPredicate =
-    AndPredicate(predicates.toList())
+    andPredicates(predicates.toList())
+
+/**
+ * Returns a composed [FilterPredicate] that represents a short-circuiting logical OR of all
+ * [predicates].
+ *
+ * If no predicates are provided, the returned predicate will match nothing.
+ */
+fun orPredicates(predicates: List<FilterPredicate>): FilterPredicate = OrPredicate(predicates)
 
 /**
  * Returns a composed [FilterPredicate] that represents a short-circuiting logical OR of all
@@ -180,4 +196,4 @@ fun andPredicates(vararg predicates: FilterPredicate): FilterPredicate =
  * If no predicates are provided, the returned predicate will match nothing.
  */
 fun orPredicates(vararg predicates: FilterPredicate): FilterPredicate =
-    OrPredicate(predicates.toList())
+    orPredicates(predicates.toList())

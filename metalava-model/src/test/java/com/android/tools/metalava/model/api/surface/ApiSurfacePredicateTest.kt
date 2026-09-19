@@ -58,7 +58,10 @@ class ApiSurfacePredicateTest {
                     emit =
                         AndPredicate(
                             EmittedOnlyPredicate
-                            ItemOrSuperMethodApiVariantsPredicate(ApiVariantSet[base(C)])
+                            OrPredicate(
+                                ItemApiVariantsPredicate(ApiVariantSet[base(C)])
+                                SuperMethodApiVariantsPredicate(ApiVariantSet[base(C)])
+                            )
                         )
                     reference =
                         ItemApiVariantsPredicate(ApiVariantSet[base(C)])
@@ -73,7 +76,10 @@ class ApiSurfacePredicateTest {
                     emit =
                         AndPredicate(
                             EmittedOnlyPredicate
-                            ItemOrSuperMethodApiVariantsPredicate(ApiVariantSet[base(CD)])
+                            OrPredicate(
+                                ItemApiVariantsPredicate(ApiVariantSet[base(CD)])
+                                SuperMethodApiVariantsPredicate(ApiVariantSet[base(CD)])
+                            )
                         )
                     reference =
                         ItemApiVariantsPredicate(ApiVariantSet[base(CD)])
@@ -88,7 +94,10 @@ class ApiSurfacePredicateTest {
                     emit =
                         AndPredicate(
                             EmittedOnlyPredicate
-                            ItemOrSuperMethodApiVariantsPredicate(ApiVariantSet[base(C),main(C)])
+                            OrPredicate(
+                                ItemApiVariantsPredicate(ApiVariantSet[base(C),main(C)])
+                                SuperMethodApiVariantsPredicate(ApiVariantSet[base(C),main(C)])
+                            )
                         )
                     reference =
                         ItemApiVariantsPredicate(ApiVariantSet[base(C),main(C)])
@@ -103,7 +112,10 @@ class ApiSurfacePredicateTest {
                     emit =
                         AndPredicate(
                             EmittedOnlyPredicate
-                            ItemOrSuperMethodApiVariantsPredicate(ApiVariantSet[base(CD),main(CD)])
+                            OrPredicate(
+                                ItemApiVariantsPredicate(ApiVariantSet[base(CD),main(CD)])
+                                SuperMethodApiVariantsPredicate(ApiVariantSet[base(CD),main(CD)])
+                            )
                         )
                     reference =
                         ItemApiVariantsPredicate(ApiVariantSet[base(CD),main(CD)])
@@ -117,19 +129,43 @@ class ApiSurfacePredicateTest {
     @Test
     fun `Test forDelta`() {
         assertEquals(
-            "DeltaVariantsPredicate(ApiVariantSet[base(C)])",
+            """
+                OrPredicate(
+                    ItemApiVariantsPredicate(ApiVariantSet[base(C)])
+                    SuperClassApiVariantsPredicate(ApiVariantSet[base(C)])
+                )
+            """
+                .trimIndent(),
             ApiSurfacePredicate.forDelta(base, forRemoved = false).toString(),
         )
         assertEquals(
-            "DeltaVariantsPredicate(ApiVariantSet[base(R)])",
+            """
+                OrPredicate(
+                    ItemApiVariantsPredicate(ApiVariantSet[base(R)])
+                    SuperClassApiVariantsPredicate(ApiVariantSet[base(R)])
+                )
+            """
+                .trimIndent(),
             ApiSurfacePredicate.forDelta(base, forRemoved = true).toString(),
         )
         assertEquals(
-            "DeltaVariantsPredicate(ApiVariantSet[main(C)])",
+            """
+                OrPredicate(
+                    ItemApiVariantsPredicate(ApiVariantSet[main(C)])
+                    SuperClassApiVariantsPredicate(ApiVariantSet[main(C)])
+                )
+            """
+                .trimIndent(),
             ApiSurfacePredicate.forDelta(main, forRemoved = false).toString(),
         )
         assertEquals(
-            "DeltaVariantsPredicate(ApiVariantSet[main(R)])",
+            """
+                OrPredicate(
+                    ItemApiVariantsPredicate(ApiVariantSet[main(R)])
+                    SuperClassApiVariantsPredicate(ApiVariantSet[main(R)])
+                )
+            """
+                .trimIndent(),
             ApiSurfacePredicate.forDelta(main, forRemoved = true).toString(),
         )
     }
@@ -162,12 +198,19 @@ class ApiSurfacePredicateTest {
                     traversal =
                         AndPredicate(
                             EmittedOnlyPredicate
-                            TraversalPredicate(ApiVariantSet[base(C)])
+                            OrPredicate(
+                                ItemApiVariantsPredicate(ApiVariantSet[base(C)])
+                                ContentApiVariantsPredicate(ApiVariantSet[base(C)])
+                                SuperClassApiVariantsPredicate(ApiVariantSet[base(C)])
+                            )
                         )
                     emit =
                         AndPredicate(
                             EmittedOnlyPredicate
-                            DeltaVariantsPredicate(ApiVariantSet[base(C)])
+                            OrPredicate(
+                                ItemApiVariantsPredicate(ApiVariantSet[base(C)])
+                                SuperClassApiVariantsPredicate(ApiVariantSet[base(C)])
+                            )
                         )
                     reference =
                         ItemApiVariantsPredicate(ApiVariantSet[base(C)])
@@ -182,12 +225,19 @@ class ApiSurfacePredicateTest {
                     traversal =
                         AndPredicate(
                             EmittedOnlyPredicate
-                            TraversalPredicate(ApiVariantSet[base(R)])
+                            OrPredicate(
+                                ItemApiVariantsPredicate(ApiVariantSet[base(R)])
+                                ContentApiVariantsPredicate(ApiVariantSet[base(R)])
+                                SuperClassApiVariantsPredicate(ApiVariantSet[base(R)])
+                            )
                         )
                     emit =
                         AndPredicate(
                             EmittedOnlyPredicate
-                            DeltaVariantsPredicate(ApiVariantSet[base(R)])
+                            OrPredicate(
+                                ItemApiVariantsPredicate(ApiVariantSet[base(R)])
+                                SuperClassApiVariantsPredicate(ApiVariantSet[base(R)])
+                            )
                         )
                     reference =
                         ItemApiVariantsPredicate(ApiVariantSet[base(CR)])
@@ -202,12 +252,19 @@ class ApiSurfacePredicateTest {
                     traversal =
                         AndPredicate(
                             EmittedOnlyPredicate
-                            TraversalPredicate(ApiVariantSet[main(C)])
+                            OrPredicate(
+                                ItemApiVariantsPredicate(ApiVariantSet[main(C)])
+                                ContentApiVariantsPredicate(ApiVariantSet[main(C)])
+                                SuperClassApiVariantsPredicate(ApiVariantSet[main(C)])
+                            )
                         )
                     emit =
                         AndPredicate(
                             EmittedOnlyPredicate
-                            DeltaVariantsPredicate(ApiVariantSet[main(C)])
+                            OrPredicate(
+                                ItemApiVariantsPredicate(ApiVariantSet[main(C)])
+                                SuperClassApiVariantsPredicate(ApiVariantSet[main(C)])
+                            )
                         )
                     reference =
                         ItemApiVariantsPredicate(ApiVariantSet[base(C),main(C)])
@@ -222,12 +279,19 @@ class ApiSurfacePredicateTest {
                     traversal =
                         AndPredicate(
                             EmittedOnlyPredicate
-                            TraversalPredicate(ApiVariantSet[main(R)])
+                            OrPredicate(
+                                ItemApiVariantsPredicate(ApiVariantSet[main(R)])
+                                ContentApiVariantsPredicate(ApiVariantSet[main(R)])
+                                SuperClassApiVariantsPredicate(ApiVariantSet[main(R)])
+                            )
                         )
                     emit =
                         AndPredicate(
                             EmittedOnlyPredicate
-                            DeltaVariantsPredicate(ApiVariantSet[main(R)])
+                            OrPredicate(
+                                ItemApiVariantsPredicate(ApiVariantSet[main(R)])
+                                SuperClassApiVariantsPredicate(ApiVariantSet[main(R)])
+                            )
                         )
                     reference =
                         ItemApiVariantsPredicate(ApiVariantSet[base(CR),main(CR)])
@@ -247,7 +311,11 @@ class ApiSurfacePredicateTest {
                         AndPredicate(
                             AndPredicate(
                                 EmittedOnlyPredicate
-                                DeltaVariantsPredicate(ApiVariantSet[base(C)])
+                                OrPredicate(
+                                    ItemApiVariantsPredicate(ApiVariantSet[base(C)])
+                                    SuperClassApiVariantsPredicate(ApiVariantSet[base(C)])
+                                    SuperMethodApiVariantsPredicate(ApiVariantSet[base(C)])
+                                )
                             )
                             NotElidablePredicate(ApiVariantSet[base(C)])
                         )
@@ -265,7 +333,11 @@ class ApiSurfacePredicateTest {
                         AndPredicate(
                             AndPredicate(
                                 EmittedOnlyPredicate
-                                DeltaVariantsPredicate(ApiVariantSet[base(R)])
+                                OrPredicate(
+                                    ItemApiVariantsPredicate(ApiVariantSet[base(R)])
+                                    SuperClassApiVariantsPredicate(ApiVariantSet[base(R)])
+                                    SuperMethodApiVariantsPredicate(ApiVariantSet[base(R)])
+                                )
                             )
                             NotElidablePredicate(ApiVariantSet[base(R)])
                         )
@@ -283,7 +355,11 @@ class ApiSurfacePredicateTest {
                         AndPredicate(
                             AndPredicate(
                                 EmittedOnlyPredicate
-                                DeltaVariantsPredicate(ApiVariantSet[main(C)])
+                                OrPredicate(
+                                    ItemApiVariantsPredicate(ApiVariantSet[main(C)])
+                                    SuperClassApiVariantsPredicate(ApiVariantSet[main(C)])
+                                    SuperMethodApiVariantsPredicate(ApiVariantSet[main(C)])
+                                )
                             )
                             NotElidablePredicate(ApiVariantSet[main(C)])
                         )
@@ -301,7 +377,11 @@ class ApiSurfacePredicateTest {
                         AndPredicate(
                             AndPredicate(
                                 EmittedOnlyPredicate
-                                DeltaVariantsPredicate(ApiVariantSet[main(R)])
+                                OrPredicate(
+                                    ItemApiVariantsPredicate(ApiVariantSet[main(R)])
+                                    SuperClassApiVariantsPredicate(ApiVariantSet[main(R)])
+                                    SuperMethodApiVariantsPredicate(ApiVariantSet[main(R)])
+                                )
                             )
                             NotElidablePredicate(ApiVariantSet[main(R)])
                         )
