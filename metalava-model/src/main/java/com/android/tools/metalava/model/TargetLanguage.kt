@@ -134,4 +134,8 @@ private class TargetLanguageInclusionPredicate(
     private val targetLanguages: Set<TargetLanguage>,
 ) : FilterPredicate() {
     override fun test(t: SelectableItem): Boolean = targetLanguages.any { it in t.targetLanguages }
+
+    override fun format(indenter: Indenter) {
+        indenter.append("TargetLanguageInclusionPredicate($targetLanguages)")
+    }
 }

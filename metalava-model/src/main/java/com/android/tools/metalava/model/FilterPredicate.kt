@@ -37,6 +37,78 @@ abstract class FilterPredicate : Predicate<SelectableItem> {
      * predicate and [other].
      */
     fun or(other: FilterPredicate): FilterPredicate = orPredicates(this, other)
+
+    /**
+     * Formats this predicate into [indenter] for human-readable debug output.
+     *
+     * The default implementation appends the simple class name. Subclasses override this to format
+     * their parameters or nested predicates.
+     */
+    internal open fun format(indenter: Indenter) {
+        indenter.append(javaClass.simpleName)
+    }
+
+    final override fun toString() = buildString {
+        val indenter = Indenter(this)
+        format(indenter)
+
+        // Trim trailing newline if there was one.
+        val lastIndex = length - 1
+        if (get(lastIndex) == '\n') {
+            setLength(lastIndex)
+        }
+    }
+}
+
+/** Helper for building indented, formatted text representations of predicates. */
+internal class Indenter(private val builder: StringBuilder) {
+    private var indent: String = ""
+
+    /**
+     * Appends [prefix] followed by a newline, increases indentation by four spaces for [body],
+     * restores the previous indentation, and appends [suffix].
+     */
+    fun indented(prefix: String, suffix: String, body: (Indenter) -> Unit) {
+        append(prefix)
+        append("\n")
+        val oldIndent = indent
+        indent += "    "
+        body(this)
+        indent = oldIndent
+        append(suffix)
+    }
+
+    /**
+     * Appends [text] to the underlying [builder], prepending [indent] to any line that begins after
+     * a newline.
+     *
+     * The flow processes [text] in line slices without allocating intermediate strings:
+     * 1. Checks whether [builder] currently ends with a newline (`precedingNewline`). If true, any
+     *    text appended at the start of this call starts on a fresh line and needs indentation.
+     * 2. Loops while `start < length` of [text]:
+     *     - Finds the next newline index via `text.indexOf('\n', start)`.
+     *     - Determines the slice [end]: includes the newline (`newline + 1`) if found, or takes the
+     *       remaining characters (`length`) if no further newlines exist.
+     *     - If [precedingNewline] is true, prepends [indent] to [builder].
+     *     - Appends the slice `[start, end)` directly from [text] into [builder].
+     *     - If no newline was found (`newline == -1`), breaks the loop.
+     *     - Advances [start] past the newline (`newline + 1`) for the next line segment.
+     */
+    fun append(text: String) {
+        var start = 0
+        val length = text.length
+        var precedingNewline = builder.isNotEmpty() && builder[builder.length - 1] == '\n'
+        while (start < length) {
+            val newline = text.indexOf('\n', start)
+            val end = if (newline == -1) length else newline + 1
+            if (precedingNewline) {
+                builder.append(indent)
+            }
+            builder.append(text, start, end)
+            if (newline == -1) break
+            start = newline + 1
+        }
+    }
 }
 
 /**
@@ -67,11 +139,29 @@ object MatchNonePredicate : FilterPredicate() {
 /** [FilterPredicate] that matches if all [predicates] match. */
 private class AndPredicate(private val predicates: List<FilterPredicate>) : FilterPredicate() {
     override fun test(t: SelectableItem) = predicates.all { it.test(t) }
+
+    override fun format(indenter: Indenter) {
+        indenter.indented(prefix = "AndPredicate(", suffix = ")") {
+            for (predicate in predicates) {
+                predicate.format(indenter)
+                indenter.append("\n")
+            }
+        }
+    }
 }
 
 /** [FilterPredicate] that matches if any [predicates] match. */
 private class OrPredicate(private val predicates: List<FilterPredicate>) : FilterPredicate() {
     override fun test(t: SelectableItem) = predicates.any { it.test(t) }
+
+    override fun format(indenter: Indenter) {
+        indenter.indented(prefix = "OrPredicate(", suffix = ")") {
+            for (predicate in predicates) {
+                predicate.format(indenter)
+                indenter.append("\n")
+            }
+        }
+    }
 }
 
 /**

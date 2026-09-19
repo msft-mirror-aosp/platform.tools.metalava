@@ -18,6 +18,7 @@ package com.android.tools.metalava.model.api.surface
 
 import com.android.tools.metalava.model.EmittedOnlyPredicate
 import com.android.tools.metalava.model.FilterPredicate
+import com.android.tools.metalava.model.Indenter
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.api.SelectedApi
 import com.android.tools.metalava.model.visitors.ApiFilters
@@ -76,17 +77,18 @@ object ApiSurfacePredicate {
         variantTypes: List<ApiVariantType>,
         includeOverridingMethods: Boolean = false,
     ): FilterPredicate {
+        val apiSurfaces = apiSurface.surfaces
         val inclusionMask =
             computeInclusionMask(
-                apiSurface.surfaces,
+                apiSurfaces,
                 apiSurface.includedSurfaces,
                 variantTypes,
             )
 
         return if (includeOverridingMethods) {
-            ItemOrSuperMethodApiVariantsPredicate(inclusionMask)
+            ItemOrSuperMethodApiVariantsPredicate(apiSurfaces, inclusionMask)
         } else {
-            ItemApiVariantsPredicate(apiSurface.surfaces, inclusionMask)
+            ItemApiVariantsPredicate(apiSurfaces, inclusionMask)
         }
     }
 
@@ -98,8 +100,12 @@ object ApiSurfacePredicate {
         private val apiSurfaces: ApiSurfaces,
         protected val inclusionMask: Int,
     ) : FilterPredicate() {
-        override fun toString() =
-            "${javaClass.simpleName}(${ApiVariantSet(inclusionMask).formatFor(apiSurfaces)})"
+
+        override fun format(indenter: Indenter) {
+            indenter.append(
+                "${javaClass.simpleName}(${ApiVariantSet(inclusionMask).formatFor(apiSurfaces)})"
+            )
+        }
     }
 
     /**
@@ -118,8 +124,10 @@ object ApiSurfacePredicate {
      * A [FilterPredicate] that matches an item if it or its overridden super methods belong to at
      * least one [ApiVariant] matching [inclusionMask].
      */
-    private class ItemOrSuperMethodApiVariantsPredicate(private val inclusionMask: Int) :
-        FilterPredicate() {
+    private class ItemOrSuperMethodApiVariantsPredicate(
+        apiSurfaces: ApiSurfaces,
+        inclusionMask: Int,
+    ) : ApiVariantsPredicate(apiSurfaces, inclusionMask) {
         override fun test(t: SelectableItem) =
             t.selectedApi.itemApiVariants.bits and inclusionMask != 0 ||
                 t.selectedApi.superMethodApiVariants.bits and inclusionMask != 0
@@ -295,12 +303,19 @@ object ApiSurfacePredicate {
         val variantType = if (forRemoved) ApiVariantType.REMOVED else ApiVariantType.CORE
         val mask = apiSurface.variantFor(variantType).bitMask
 
-        return NotElidablePredicate(mask)
+        return NotElidablePredicate(apiSurface.surfaces, mask)
     }
 
-    private class NotElidablePredicate(private val mask: Int) : FilterPredicate() {
+    private class NotElidablePredicate(
+        private val apiSurfaces: ApiSurfaces,
+        private val mask: Int
+    ) : FilterPredicate() {
         override fun test(t: SelectableItem): Boolean =
             t.selectedApi.elidableApiVariants.bits and mask == 0
+
+        override fun format(indenter: Indenter) {
+            indenter.append("NotElidablePredicate(${ApiVariantSet(mask).formatFor(apiSurfaces)})")
+        }
     }
 
     /**
