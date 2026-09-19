@@ -18,6 +18,7 @@ package com.android.tools.metalava.model.visitors
 
 import com.android.tools.metalava.model.EmittedOnlyPredicate
 import com.android.tools.metalava.model.FilterPredicate
+import com.android.tools.metalava.model.Indenter
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.MatchAllPredicate
 import com.android.tools.metalava.model.SelectableItem
@@ -26,7 +27,7 @@ import com.android.tools.metalava.model.TargetLanguageSet
 import com.android.tools.metalava.model.inclusionFilter
 
 /** Encapsulates filters needed by [ApiVisitor]. */
-class ApiFilters(
+data class ApiFilters(
     /**
      * Returns `true` for [Item]s that can be referenced from the API, this is a super set of
      * [Item]s that can be emitted.
@@ -56,6 +57,19 @@ class ApiFilters(
             emit = emit.and(targetLanguagesInclusionFilter),
             traversal = traversal?.and(targetLanguagesInclusionFilter),
         )
+    }
+
+    override fun toString() = buildString {
+        val indenter = Indenter(this)
+        indenter.indented(prefix = "ApiFilters(", suffix = ")") {
+            if (traversal != null) {
+                indenter.indented(prefix = "traversal =", suffix = "\n") {
+                    traversal.format(indenter)
+                }
+            }
+            indenter.indented(prefix = "emit =", suffix = "\n") { emit.format(indenter) }
+            indenter.indented(prefix = "reference =", suffix = "\n") { reference.format(indenter) }
+        }
     }
 
     companion object {
