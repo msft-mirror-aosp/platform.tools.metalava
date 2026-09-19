@@ -86,7 +86,7 @@ class CommonParameterizedSelectedApiElidingTest : BaseCommonParameterizedSelecte
                                 method test.pkg.Child.foo()
                                        self - ApiVariantSet[public(C)]
                                 superMethod - ApiVariantSet[public(C)]
-                                   elidable - ApiVariantSet[public(C),system(C),module(C)]
+                                   elidable - ApiVariantSet[public(C)]
                         """,
                 )
             }
@@ -131,7 +131,7 @@ class CommonParameterizedSelectedApiElidingTest : BaseCommonParameterizedSelecte
                                 method test.pkg.PublicChild.foo()
                                        self - ApiVariantSet[public(C)]
                                 superMethod - ApiVariantSet[system(C)]
-                                   elidable - ApiVariantSet[system(C),module(C)]
+                                   elidable - ApiVariantSet[system(C)]
                         """,
                 )
             }
@@ -175,7 +175,7 @@ class CommonParameterizedSelectedApiElidingTest : BaseCommonParameterizedSelecte
                                 method test.pkg.SystemChild.foo()
                                        self - ApiVariantSet[system(C)]
                                 superMethod - ApiVariantSet[public(C)]
-                                   elidable - ApiVariantSet[public(C),system(C),module(C)]
+                                   elidable - ApiVariantSet[public(C),system(C)]
                         """,
                 )
             }
@@ -271,7 +271,7 @@ class CommonParameterizedSelectedApiElidingTest : BaseCommonParameterizedSelecte
                                 method test.pkg.PublicChild.foo()
                                        self - ApiVariantSet[public(C)]
                                 superMethod - ApiVariantSet[public(C)]
-                                   elidable - ApiVariantSet[public(C),system(C),module(C)]
+                                   elidable - ApiVariantSet[public(C)]
                         """,
                 )
             }
@@ -361,7 +361,7 @@ class CommonParameterizedSelectedApiElidingTest : BaseCommonParameterizedSelecte
                                 method test.pkg.Child.foo()
                                        self - ApiVariantSet[public(C)]
                                 superMethod - ApiVariantSet[public(C)]
-                                   elidable - ApiVariantSet[public(C),system(C),module(C)]
+                                   elidable - ApiVariantSet[public(C)]
                         """,
                     expectedWithAdditionalOverrides =
                         """

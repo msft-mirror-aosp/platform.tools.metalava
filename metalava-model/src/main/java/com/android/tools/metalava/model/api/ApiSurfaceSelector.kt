@@ -270,7 +270,7 @@ class ApiSurfaceRules(
                 }
                 .toMap()
 
-        return ApiSurfaceRules(apiSurfaces, subsetRules, variantRules)
+        return ApiSurfaceRules(subSurfaces, subsetRules, variantRules)
     }
 
     companion object {
