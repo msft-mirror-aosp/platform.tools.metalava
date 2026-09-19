@@ -37,6 +37,7 @@ import com.android.tools.metalava.model.FilterPredicate
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.JAVA_LANG_DEPRECATED
 import com.android.tools.metalava.model.JavaConstants
+import com.android.tools.metalava.model.MatchAllPredicate
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.SUPPORT_TYPE_USE_ANNOTATIONS
@@ -304,7 +305,7 @@ class ConvertJarsToSignatureFiles(
         }
 
         if ((classNode.access and Opcodes.ACC_DEPRECATED) != 0) {
-            val item = codebase.findClass(classNode, MATCH_ALL)
+            val item = codebase.findClass(classNode, MatchAllPredicate)
             item.deprecateIfRequired()
         }
 
@@ -314,7 +315,7 @@ class ConvertJarsToSignatureFiles(
             if ((methodNode.access and Opcodes.ACC_DEPRECATED) == 0) {
                 continue
             }
-            val item = codebase.findMethod(classNode, methodNode, MATCH_ALL)
+            val item = codebase.findMethod(classNode, methodNode, MatchAllPredicate)
             item.deprecateIfRequired()
         }
 
@@ -324,7 +325,7 @@ class ConvertJarsToSignatureFiles(
             if ((fieldNode.access and Opcodes.ACC_DEPRECATED) == 0) {
                 continue
             }
-            val item = codebase.findField(classNode, fieldNode, MATCH_ALL)
+            val item = codebase.findField(classNode, fieldNode, MatchAllPredicate)
             item.deprecateIfRequired()
         }
     }
@@ -340,10 +341,6 @@ class ConvertJarsToSignatureFiles(
                 addAnnotation(AnnotationItem.createMarkerAnnotation(codebase, JAVA_LANG_DEPRECATED))
             }
         }
-    }
-
-    companion object {
-        val MATCH_ALL: FilterPredicate = FilterPredicate { true }
     }
 }
 

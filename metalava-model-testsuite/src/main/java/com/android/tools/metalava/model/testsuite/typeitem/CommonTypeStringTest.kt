@@ -19,6 +19,7 @@ package com.android.tools.metalava.model.testsuite.typeitem
 import com.android.tools.lint.checks.infrastructure.TestFile
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.FilterPredicate
+import com.android.tools.metalava.model.MatchAllPredicate
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.StripJavaLangPrefix
 import com.android.tools.metalava.model.TypeItem
@@ -698,7 +699,7 @@ class CommonTypeStringTest : BaseModelTest() {
                                     TypeStringConfiguration(
                                         annotations = true,
                                     ),
-                                filter = { true },
+                                filter = MatchAllPredicate,
                                 expectedTypeString =
                                     "java.util.List<java.lang.@androidx.annotation.IntRange(from=5L, to=10L) Integer>"
                             )

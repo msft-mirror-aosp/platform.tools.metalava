@@ -49,6 +49,7 @@ import com.android.tools.metalava.model.JVM_NAME
 import com.android.tools.metalava.model.JVM_STATIC
 import com.android.tools.metalava.model.KOTLIN_DEPRECATED
 import com.android.tools.metalava.model.KOTLIN_METADATA
+import com.android.tools.metalava.model.MatchAllPredicate
 import com.android.tools.metalava.model.ModifierList
 import com.android.tools.metalava.model.NO_ANNOTATION_TARGETS
 import com.android.tools.metalava.model.RECENTLY_NONNULL
@@ -89,7 +90,8 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
          * predicate, the annotation is excluded (yielding [NO_ANNOTATION_TARGETS]) unless it is a
          * typedef annotation and [typedefMode] is not [TypedefMode.NONE].
          */
-        val annotationClassPredicate: FilterPredicate = FilterPredicate { true },
+        val annotationClassPredicate: FilterPredicate = MatchAllPredicate,
+
         /**
          * Provider of an optional [Codebase] object that will be used when reverting flagged APIs.
          */

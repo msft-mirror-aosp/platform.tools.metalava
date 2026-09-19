@@ -19,6 +19,7 @@ package com.android.tools.metalava.model.visitors
 import com.android.tools.metalava.model.EmittedOnlyPredicate
 import com.android.tools.metalava.model.FilterPredicate
 import com.android.tools.metalava.model.Item
+import com.android.tools.metalava.model.MatchAllPredicate
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.TargetLanguage
 import com.android.tools.metalava.model.TargetLanguageSet
@@ -64,7 +65,7 @@ class ApiFilters(
          */
         val ALL =
             ApiFilters(
-                reference = { true },
+                reference = MatchAllPredicate,
                 emit = EmittedOnlyPredicate,
             )
     }

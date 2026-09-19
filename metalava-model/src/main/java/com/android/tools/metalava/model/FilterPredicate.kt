@@ -41,3 +41,8 @@ fun FilterPredicate?.testOrTrue(item: SelectableItem) = this?.test(item) ?: true
 object EmittedOnlyPredicate : FilterPredicate {
     override fun test(t: SelectableItem) = t.emit
 }
+
+/** [FilterPredicate] that matches everything. */
+object MatchAllPredicate : FilterPredicate {
+    override fun test(t: SelectableItem) = true
+}
