@@ -27,7 +27,7 @@ import com.android.tools.metalava.doc.ApiVersionLabelProvider
 import com.android.tools.metalava.doc.DocAnalyzer
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.CodebaseFragment
-import com.android.tools.metalava.model.EMITTED_ONLY
+import com.android.tools.metalava.model.EmittedOnlyPredicate
 import com.android.tools.metalava.model.FilterPredicate
 import com.android.tools.metalava.model.PackageFilter
 import com.android.tools.metalava.model.api.surface.ApiSurface
@@ -157,7 +157,7 @@ internal class StubGenerator(
                     )
                 val filterEmit =
                     // Only emit stubs for items marked for emission.
-                    EMITTED_ONLY.and(
+                    EmittedOnlyPredicate.and(
                         ApiSurfacePredicate.forStubs(
                             codebase.apiSurfaces.main,
                             includeDocOnly = isDocStubs,

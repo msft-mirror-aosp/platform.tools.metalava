@@ -16,7 +16,7 @@
 
 package com.android.tools.metalava.model.api.surface
 
-import com.android.tools.metalava.model.EMITTED_ONLY
+import com.android.tools.metalava.model.EmittedOnlyPredicate
 import com.android.tools.metalava.model.FilterPredicate
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.api.SelectedApi
@@ -56,7 +56,7 @@ object ApiSurfacePredicate {
      * emitted API even if they have been assigned API variants during traversal.
      */
     fun wholeCoreEmittableApi(apiSurface: ApiSurface): FilterPredicate =
-        EMITTED_ONLY.and(wholeCoreApi(apiSurface))
+        EmittedOnlyPredicate.and(wholeCoreApi(apiSurface))
 
     /**
      * Return a [FilterPredicate] that matches any item that belongs to the core or removed
@@ -267,7 +267,7 @@ object ApiSurfacePredicate {
         // the delta (via contentApiVariants) so that visitors can visit delta members within
         // base classes.
         val traversal =
-            EMITTED_ONLY.and(
+            EmittedOnlyPredicate.and(
                 TraversalPredicate(
                     apiSurface.surfaces,
                     emitMask,
@@ -315,7 +315,7 @@ object ApiSurfacePredicate {
         includeOverridingMethods: Boolean = false,
     ): FilterPredicate =
         // Only items marked for emission should appear in the signature file.
-        EMITTED_ONLY.and(
+        EmittedOnlyPredicate.and(
             forDelta(
                 apiSurface = apiSurface,
                 forRemoved = apiType == ApiType.REMOVED,

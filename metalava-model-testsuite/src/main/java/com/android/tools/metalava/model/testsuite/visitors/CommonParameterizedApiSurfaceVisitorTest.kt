@@ -19,7 +19,7 @@ package com.android.tools.metalava.model.testsuite.visitors
 import com.android.tools.lint.checks.infrastructure.TestFile
 import com.android.tools.metalava.model.Assertions
 import com.android.tools.metalava.model.Codebase
-import com.android.tools.metalava.model.EMITTED_ONLY
+import com.android.tools.metalava.model.EmittedOnlyPredicate
 import com.android.tools.metalava.model.FilterPredicate
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.api.surface.ApiSurface
@@ -141,7 +141,9 @@ class CommonParameterizedApiSurfaceVisitorTest : BaseModelTest() {
                 expectedNotNested = expectedNotNested,
                 expectedNested = expectedNested,
                 filterEmit = {
-                    EMITTED_ONLY.and(ApiSurfacePredicate.wholeCoreAndRemovedApi(apiSurfaces.main))
+                    EmittedOnlyPredicate.and(
+                        ApiSurfacePredicate.wholeCoreAndRemovedApi(apiSurfaces.main)
+                    )
                 },
                 classpath = classpath,
             )

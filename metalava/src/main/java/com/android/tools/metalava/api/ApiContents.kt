@@ -24,7 +24,7 @@ import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.ClassOrigin
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.Codebase
-import com.android.tools.metalava.model.EMITTED_ONLY
+import com.android.tools.metalava.model.EmittedOnlyPredicate
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.SelectableItem
@@ -67,7 +67,7 @@ internal class ApiContents(
      */
     private val filter =
         // Only consider items that are emitted in the codebase as part of the API.
-        EMITTED_ONLY
+        EmittedOnlyPredicate
             // Don't consider references from elements that only exist in bytecode.
             .and { selectableItem ->
                 selectableItem.targetLanguages != TargetLanguageSet.BYTECODE_ONLY

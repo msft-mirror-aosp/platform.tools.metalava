@@ -16,7 +16,7 @@
 
 package com.android.tools.metalava.model.visitors
 
-import com.android.tools.metalava.model.EMITTED_ONLY
+import com.android.tools.metalava.model.EmittedOnlyPredicate
 import com.android.tools.metalava.model.FilterPredicate
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.SelectableItem
@@ -33,7 +33,7 @@ class ApiFilters(
     val reference: FilterPredicate,
 
     /** Returns `true` for [Item]s that should be defined in the API and emitted as part of it. */
-    val emit: FilterPredicate = EMITTED_ONLY.and(reference),
+    val emit: FilterPredicate = EmittedOnlyPredicate.and(reference),
 
     /**
      * Optional filter that determines whether an [Item] should be visited during traversal.
@@ -65,7 +65,7 @@ class ApiFilters(
         val ALL =
             ApiFilters(
                 reference = { true },
-                emit = EMITTED_ONLY,
+                emit = EmittedOnlyPredicate,
             )
     }
 }

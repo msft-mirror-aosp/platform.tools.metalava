@@ -59,7 +59,7 @@ import com.android.tools.metalava.model.ClassPathResolver
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.CodebaseFragment
 import com.android.tools.metalava.model.DelegatedVisitor
-import com.android.tools.metalava.model.EMITTED_ONLY
+import com.android.tools.metalava.model.EmittedOnlyPredicate
 import com.android.tools.metalava.model.annotation.DefaultAnnotationManager
 import com.android.tools.metalava.model.api.surface.ApiSurface
 import com.android.tools.metalava.model.api.surface.ApiSurfacePredicate
@@ -344,7 +344,7 @@ class Driver(
                     val apiReference = ApiSurfacePredicate.wholeCoreApi(apiSurface)
                     val apiEmit =
                         // Only emit keep rules for items that are marked for emission.
-                        EMITTED_ONLY.and(
+                        EmittedOnlyPredicate.and(
                             ApiSurfacePredicate.wholeCoreApi(
                                 apiSurface,
                                 includeOverridingMethods = true,
@@ -581,7 +581,7 @@ class Driver(
     }
 
     private fun runMultiplatformCodebaseOperations(multiplatformCodebase: MultiplatformCodebase) {
-        val apiPredicate = EMITTED_ONLY.and(ApiSurfacePredicate.wholeCoreApi(apiSurface))
+        val apiPredicate = EmittedOnlyPredicate.and(ApiSurfacePredicate.wholeCoreApi(apiSurface))
         for (codebase in multiplatformCodebase.sourceSetToCodebase.values) {
             val analyzer = ApiAnalyzer(sourceParser, codebase, reporter, apiAnalyzerConfig)
             tracer.trace("computeApi") { analyzer.computeApi() }
@@ -904,7 +904,7 @@ class Driver(
 
         // Only items marked for emission are considered for facade/package experimental status and
         // for receiving inherited stubs.
-        val apiEmit = EMITTED_ONLY.and(apiReference)
+        val apiEmit = EmittedOnlyPredicate.and(apiReference)
 
         tracer.trace("analyzer.handleFileFacadeClassesAndExperimentalPackages") {
             analyzer.handleFileFacadeClassesAndExperimentalPackages(apiEmit)

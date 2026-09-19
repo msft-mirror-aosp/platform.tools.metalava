@@ -19,7 +19,7 @@ package com.android.tools.metalava.jar
 import androidx.tracing.Tracer
 import com.android.tools.metalava.api.ApiAnalyzer
 import com.android.tools.metalava.model.Codebase
-import com.android.tools.metalava.model.EMITTED_ONLY
+import com.android.tools.metalava.model.EmittedOnlyPredicate
 import com.android.tools.metalava.model.annotation.DefaultAnnotationManager
 import com.android.tools.metalava.model.api.ApiSurfaceSelector
 import com.android.tools.metalava.model.api.surface.ApiSurfacePredicate
@@ -83,7 +83,7 @@ sealed interface JarCodebaseLoader {
             val apiReference = ApiSurfacePredicate.wholeCoreApi(codebase.apiSurfaces.main)
 
             // Inherited stubs are only generated for classes marked for emission.
-            val apiEmit = EMITTED_ONLY.and(apiReference)
+            val apiEmit = EmittedOnlyPredicate.and(apiReference)
 
             tracer.trace("analyzer.inheritHiddenAspects") {
                 analyzer.inheritHiddenAspects(

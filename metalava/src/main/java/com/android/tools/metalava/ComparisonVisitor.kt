@@ -20,7 +20,7 @@ import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.ConstructorItem
-import com.android.tools.metalava.model.EMITTED_ONLY
+import com.android.tools.metalava.model.EmittedOnlyPredicate
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.FilterPredicate
 import com.android.tools.metalava.model.Item
@@ -721,7 +721,7 @@ object CodebaseComparator {
         for (codebase in codebases) {
             val filterEmit =
                 if (codebase.preFiltered) null
-                else if (filter == null) EMITTED_ONLY else EMITTED_ONLY.and(filter)
+                else if (filter == null) EmittedOnlyPredicate else EmittedOnlyPredicate.and(filter)
             codebase.accept(
                 object :
                     ApiSurfaceVisitor(

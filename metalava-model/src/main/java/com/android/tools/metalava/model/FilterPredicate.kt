@@ -38,6 +38,6 @@ fun FilterPredicate?.testOrTrue(item: SelectableItem) = this?.test(item) ?: true
 /**
  * [FilterPredicate] that only returns true for items that have [SelectableItem.emit] set to true.
  */
-object EMITTED_ONLY : FilterPredicate {
+object EmittedOnlyPredicate : FilterPredicate {
     override fun test(t: SelectableItem) = t.emit
 }
