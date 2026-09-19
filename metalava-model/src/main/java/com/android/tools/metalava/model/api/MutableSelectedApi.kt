@@ -24,7 +24,9 @@ import com.android.tools.metalava.model.api.surface.ApiVariantSet
  * A [SelectedApi] that that stores [itemApiVariants], [contentApiVariants], etc and can be mutated;
  * for use by signature files.
  */
-internal class MutableSelectedApi : SelectedApi() {
+internal open class MutableSelectedApi<S : SelectableItem>(
+    protected val item: S,
+) : SelectedApi() {
     override var itemApiVariants = ApiVariantSet.EMPTY
 
     override var contentApiVariants = ApiVariantSet.EMPTY

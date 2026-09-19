@@ -122,7 +122,14 @@ sealed class SelectedApi {
          * Return a [SelectedApi] factory that will create [SelectedApi] instances suitable for
          * being populated from a signature file.
          */
-        val MUTABLE_FACTORY: (SelectableItem) -> SelectedApi = { MutableSelectedApi() }
+        val MUTABLE_FACTORY: (SelectableItem) -> SelectedApi = { item ->
+            when (item) {
+                is PackageItem -> MutablePackageSelectedApi(item)
+                is ClassItem -> MutableClassSelectedApi(item)
+                is MemberItem -> MutableMemberSelectedApi(item)
+                else -> error("unknown selectable item: $item")
+            }
+        }
 
         /**
          * Return a [SelectedApi] factory that will create [SelectedApi] instances suitable for a
