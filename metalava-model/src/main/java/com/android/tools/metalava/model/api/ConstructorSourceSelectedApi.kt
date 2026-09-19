@@ -22,10 +22,10 @@ import com.android.tools.metalava.model.ConstructorItem
  * Selected API class for constructors, ensuring canonical record constructors inherit the parent
  * class's API variants.
  */
-internal class ConstructorSelectedApi(
+internal class ConstructorSourceSelectedApi(
     selectedApiUpdater: SelectedApiUpdater,
     item: ConstructorItem,
-) : MemberSelectedApi<ConstructorItem>(selectedApiUpdater, item) {
+) : MemberSourceSelectedApi<ConstructorItem>(selectedApiUpdater, item) {
 
     override fun itemSpecificInitialization() {
         // Record components are not separately selectable so need special initialization.

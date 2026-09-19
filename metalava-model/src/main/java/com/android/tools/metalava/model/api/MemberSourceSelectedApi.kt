@@ -21,7 +21,7 @@ import com.android.tools.metalava.model.api.surface.ApiVariantSet
 import com.android.tools.metalava.reporter.Issues
 
 /** Base [SelectedApi] class for source [MemberItem]s. */
-internal open class MemberSelectedApi<M : MemberItem>(
+internal open class MemberSourceSelectedApi<M : MemberItem>(
     selectedApiUpdater: SelectedApiUpdater,
     item: M,
 ) : SourceSelectedApi<M>(selectedApiUpdater, item) {

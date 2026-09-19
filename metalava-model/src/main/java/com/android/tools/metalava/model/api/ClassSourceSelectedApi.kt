@@ -20,7 +20,7 @@ import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.api.surface.ApiVariantSet
 
 /** Base [SelectedApi] class for source [ClassItem]s. */
-internal class ClassSelectedApi(
+internal class ClassSourceSelectedApi(
     selectedApiUpdater: SelectedApiUpdater,
     item: ClassItem,
 ) : SourceSelectedApi<ClassItem>(selectedApiUpdater, item) {
@@ -69,7 +69,7 @@ internal class ClassSelectedApi(
         // propagated from nested classes to their containing class as that is unnecessary for
         // signature file generation where nested classes are flattened.
         var ancestor: SourceSelectedApi<*> = parent
-        while (ancestor !is PackageSelectedApi) {
+        while (ancestor !is PackageSourceSelectedApi) {
             ancestor = ancestor.parent
         }
 

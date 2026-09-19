@@ -39,8 +39,9 @@ internal sealed class SourceSelectedApi<S : SelectableItem>(
      * to check this for `null` every time it is used at the expense of have a cycle at the top.
      *
      * The cycle should not be an issue as while packages are hierarchical when it comes to hiding
-     * them they are otherwise flat. That means a [PackageSelectedApi] will never try and propagate
-     * information to its parent. So, the root [PackageSelectedApi] will never use its [parent].
+     * them they are otherwise flat. That means a [PackageSourceSelectedApi] will never try and
+     * propagate information to its parent. So, the root [PackageSourceSelectedApi] will never use
+     * its [parent].
      *
      * Initialized in [initialize] which is called after creation but before the object is stored
      * anywhere so it is impossible for this to be accessed before [initialize] has been called so

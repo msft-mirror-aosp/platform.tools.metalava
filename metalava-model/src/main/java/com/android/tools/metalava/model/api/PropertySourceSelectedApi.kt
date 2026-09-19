@@ -25,10 +25,10 @@ import com.android.tools.metalava.model.api.SurfaceSelectionRule.Effect
  * val` or `@JvmField`) inherit the backing field's API variants and status, and properties with an
  * explicitly hidden private backing field are also marked as hidden.
  */
-internal class PropertySelectedApi(
+internal class PropertySourceSelectedApi(
     selectedApiUpdater: SelectedApiUpdater,
     item: PropertyItem,
-) : MemberSelectedApi<PropertyItem>(selectedApiUpdater, item) {
+) : MemberSourceSelectedApi<PropertyItem>(selectedApiUpdater, item) {
 
     override fun itemSpecificInitialization() {
         updateFromSelectableItem()

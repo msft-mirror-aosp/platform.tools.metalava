@@ -49,10 +49,10 @@ sealed class SelectedApi {
      * members and those introduced by the class hierarchy.
      *
      * **How it is set:** Initialized for [ClassItem]s in
-     * [ClassSelectedApi.itemSpecificInitialization]. If the class has a super class whose narrowest
-     * API surface is wider than this class's widest API surface, the super class's variants are
-     * masked to match this class's variant types (e.g. only inherit `system(C)` if this class has
-     * `public(C)`) and added to this set.
+     * [ClassSourceSelectedApi.itemSpecificInitialization]. If the class has a super class whose
+     * narrowest API surface is wider than this class's widest API surface, the super class's
+     * variants are masked to match this class's variant types (e.g. only inherit `system(C)` if
+     * this class has `public(C)`) and added to this set.
      */
     open val superClassApiVariants: ApiVariantSet
         get() = ApiVariantSet.EMPTY
@@ -70,8 +70,8 @@ sealed class SelectedApi {
      * compatibility checking in the super method's API surface.
      *
      * **How it is set:** Initialized for [MethodItem]s in
-     * [MethodSelectedApi.itemSpecificInitialization] by collecting variants from overridden super
-     * methods.
+     * [MethodSourceSelectedApi.itemSpecificInitialization] by collecting variants from overridden
+     * super methods.
      */
     open val superMethodApiVariants: ApiVariantSet
         get() = ApiVariantSet.EMPTY
@@ -159,12 +159,12 @@ sealed class SelectedApi {
             item: SelectableItem,
         ): SelectedApi =
             when (item) {
-                is ClassItem -> ClassSelectedApi(selectedApiUpdater, item)
-                is MethodItem -> MethodSelectedApi(selectedApiUpdater, item)
-                is ConstructorItem -> ConstructorSelectedApi(selectedApiUpdater, item)
-                is PropertyItem -> PropertySelectedApi(selectedApiUpdater, item)
-                is MemberItem -> MemberSelectedApi(selectedApiUpdater, item)
-                is PackageItem -> PackageSelectedApi(selectedApiUpdater, item)
+                is ClassItem -> ClassSourceSelectedApi(selectedApiUpdater, item)
+                is MethodItem -> MethodSourceSelectedApi(selectedApiUpdater, item)
+                is ConstructorItem -> ConstructorSourceSelectedApi(selectedApiUpdater, item)
+                is PropertyItem -> PropertySourceSelectedApi(selectedApiUpdater, item)
+                is MemberItem -> MemberSourceSelectedApi(selectedApiUpdater, item)
+                is PackageItem -> PackageSourceSelectedApi(selectedApiUpdater, item)
                 else -> error("unknown selectable item: $item")
             }
     }

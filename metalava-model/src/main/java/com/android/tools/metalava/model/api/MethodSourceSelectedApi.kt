@@ -31,10 +31,10 @@ import com.android.tools.metalava.reporter.Issues
  * Selected API class for methods, ensuring record component getter methods inherit the parent
  * class's API variants.
  */
-internal class MethodSelectedApi(
+internal class MethodSourceSelectedApi(
     selectedApiUpdater: SelectedApiUpdater,
     item: MethodItem,
-) : MemberSelectedApi<MethodItem>(selectedApiUpdater, item) {
+) : MemberSourceSelectedApi<MethodItem>(selectedApiUpdater, item) {
 
     override var superMethodApiVariants = ApiVariantSet.EMPTY
 

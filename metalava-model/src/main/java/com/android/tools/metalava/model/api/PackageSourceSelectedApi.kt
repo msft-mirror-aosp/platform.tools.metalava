@@ -20,7 +20,7 @@ import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.api.surface.ApiVariantSet
 
 /** Base [SelectedApi] class for source [PackageItem]s. */
-internal class PackageSelectedApi(
+internal class PackageSourceSelectedApi(
     selectedApiUpdater: SelectedApiUpdater,
     item: PackageItem,
 ) : SourceSelectedApi<PackageItem>(selectedApiUpdater, item) {
