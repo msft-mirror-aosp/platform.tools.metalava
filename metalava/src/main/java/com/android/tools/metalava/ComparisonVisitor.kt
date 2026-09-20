@@ -668,8 +668,8 @@ object CodebaseComparator {
     }
 
     /**
-     * Sorts and removes duplicate items. The kept item will be an unhidden item if possible. Ties
-     * are broken in favor of keeping children having lower indices
+     * Sorts and removes duplicate items. Ties are broken in favor of keeping children having lower
+     * indices.
      */
     private fun removeDuplicates(item: ItemTree) {
         item.children.sortWith(treeComparator)
@@ -679,18 +679,9 @@ object CodebaseComparator {
             val child = children[i]
             val prev = children[i + 1]
             if (comparator.compare(child.item, prev.item) == 0) {
-                if (prev.item!!.emit && !child.item!!.emit) {
-                    // merge child into prev because prev is emitted
-                    val prevChildren = prev.children.toList()
-                    prev.children.clear()
-                    prev.children += child.children
-                    prev.children += prevChildren
-                    children.removeAt(i)
-                } else {
-                    // merge prev into child because child was specified first
-                    child.children += prev.children
-                    children.removeAt(i + 1)
-                }
+                // merge prev into child because child was specified first
+                child.children += prev.children
+                children.removeAt(i + 1)
             }
             i--
         }
