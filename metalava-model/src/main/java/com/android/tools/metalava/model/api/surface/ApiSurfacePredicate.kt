@@ -216,8 +216,8 @@ object ApiSurfacePredicate {
      * Return a [FilterPredicate] for matching only that part of the whole API that belongs to the
      * [apiSurface] delta.
      *
-     * If [forRemoved] is true then it will only match variants of type [ApiVariantType.REMOVED]
-     * else it will only match variants of type [ApiVariantType.CORE].
+     * If [apiType] is [ApiType.REMOVED] then it will only match variants of type
+     * [ApiVariantType.REMOVED] else it will only match variants of type [ApiVariantType.CORE].
      *
      * Unlike [forStubs], this only matches items in [apiSurface] itself, not any surface that it
      * extends. In addition to matching items that directly belong to [apiSurface], it also matches
@@ -229,11 +229,12 @@ object ApiSurfacePredicate {
      * TODO(b/512093496): Make it work with ApiSurfaceVisitor.
      */
     fun forDelta(
+        apiType: ApiType,
         apiSurface: ApiSurface,
-        forRemoved: Boolean,
         includeOverridingMethods: Boolean = false,
     ): FilterPredicate {
-        val variantTypes = if (forRemoved) removedOnlyVariantTypes else coreOnlyVariantTypes
+        val variantTypes =
+            if (apiType == ApiType.REMOVED) removedOnlyVariantTypes else coreOnlyVariantTypes
         val apiSurfaces = apiSurface.surfaces
         val inclusionMask =
             computeInclusionMask(
@@ -317,14 +318,15 @@ object ApiSurfacePredicate {
      * Return a [FilterPredicate] that matches any item that is NOT an elidable override in the
      * specified [apiSurface] delta.
      *
-     * If [forRemoved] is true then it checks against variants of type [ApiVariantType.REMOVED] else
-     * it checks against variants of type [ApiVariantType.CORE].
+     * If [apiType] is [ApiType.REMOVED] then it checks against variants of type
+     * [ApiVariantType.REMOVED] else it checks against variants of type [ApiVariantType.CORE].
      */
     fun elidingFilter(
+        apiType: ApiType,
         apiSurface: ApiSurface,
-        forRemoved: Boolean,
     ): FilterPredicate {
-        val variantType = if (forRemoved) ApiVariantType.REMOVED else ApiVariantType.CORE
+        val variantType =
+            if (apiType == ApiType.REMOVED) ApiVariantType.REMOVED else ApiVariantType.CORE
         val mask = apiSurface.variantFor(variantType).bitMask
 
         return NotElidablePredicate(apiSurface.surfaces, mask)
@@ -357,8 +359,8 @@ object ApiSurfacePredicate {
         andPredicates(
             EmittedOnlyPredicate,
             forDelta(
+                apiType = apiType,
                 apiSurface = apiSurface,
-                forRemoved = apiType == ApiType.REMOVED,
                 includeOverridingMethods = includeOverridingMethods,
             ),
         )
@@ -381,7 +383,7 @@ object ApiSurfacePredicate {
             )
         return andPredicates(
             nonElidingFilter,
-            elidingFilter(apiSurface, apiType == ApiType.REMOVED),
+            elidingFilter(apiType, apiSurface),
         )
     }
 

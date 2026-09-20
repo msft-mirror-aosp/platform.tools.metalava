@@ -136,7 +136,7 @@ class ApiSurfacePredicateTest {
                 )
             """
                 .trimIndent(),
-            ApiSurfacePredicate.forDelta(base, forRemoved = false).toString(),
+            ApiSurfacePredicate.forDelta(ApiType.CORE, base).toString(),
         )
         assertEquals(
             """
@@ -146,7 +146,7 @@ class ApiSurfacePredicateTest {
                 )
             """
                 .trimIndent(),
-            ApiSurfacePredicate.forDelta(base, forRemoved = true).toString(),
+            ApiSurfacePredicate.forDelta(ApiType.REMOVED, base).toString(),
         )
         assertEquals(
             """
@@ -156,7 +156,7 @@ class ApiSurfacePredicateTest {
                 )
             """
                 .trimIndent(),
-            ApiSurfacePredicate.forDelta(main, forRemoved = false).toString(),
+            ApiSurfacePredicate.forDelta(ApiType.CORE, main).toString(),
         )
         assertEquals(
             """
@@ -166,7 +166,7 @@ class ApiSurfacePredicateTest {
                 )
             """
                 .trimIndent(),
-            ApiSurfacePredicate.forDelta(main, forRemoved = true).toString(),
+            ApiSurfacePredicate.forDelta(ApiType.REMOVED, main).toString(),
         )
     }
 
