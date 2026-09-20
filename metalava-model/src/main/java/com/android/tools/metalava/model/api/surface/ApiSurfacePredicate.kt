@@ -278,10 +278,9 @@ object ApiSurfacePredicate {
         val reference = referenceFilter(apiType, apiSurface, includeOverridingMethods)
 
         // Create a mask matching the specific variant for this API surface delta.
-        val variantType =
-            if (apiType == ApiType.REMOVED) ApiVariantType.REMOVED else ApiVariantType.CORE
-        val variants = listOf(apiSurface.variantFor(variantType))
-        val emitMask = apiSurface.surfaces.createVariantSet(variants).bits
+        val variantTypes =
+            if (apiType == ApiType.REMOVED) removedOnlyVariantTypes else coreOnlyVariantTypes
+        val emitMask = computeVariantBitMask(apiSurface.surfaces, listOf(apiSurface), variantTypes)
 
         // Emitted items must belong to this delta (or have a superclass in the delta) and be
         // marked for emission.
@@ -325,9 +324,9 @@ object ApiSurfacePredicate {
         apiType: ApiType,
         apiSurface: ApiSurface,
     ): FilterPredicate {
-        val variantType =
-            if (apiType == ApiType.REMOVED) ApiVariantType.REMOVED else ApiVariantType.CORE
-        val mask = apiSurface.variantFor(variantType).bitMask
+        val variantTypes =
+            if (apiType == ApiType.REMOVED) removedOnlyVariantTypes else coreOnlyVariantTypes
+        val mask = computeVariantBitMask(apiSurface.surfaces, listOf(apiSurface), variantTypes)
 
         return NotElidablePredicate(apiSurface.surfaces, mask)
     }
