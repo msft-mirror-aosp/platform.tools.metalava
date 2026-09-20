@@ -92,9 +92,8 @@ sealed class SignatureFile {
     abstract val file: File
 
     /**
-     * Indicates whether [file] is for the main API surface, i.e. the one that is being created.
-     *
-     * This will be stored in [SelectableItem.emit].
+     * Indicates whether [file] is for the main API surface, i.e. the one that is being created, or
+     * a base API surface that it extends.
      */
     protected open val forMainApiSurface: Boolean
         get() = true
@@ -525,11 +524,10 @@ private constructor(
      * Mark this [SelectableItem] as being part of the main API surface, i.e. the one that is being
      * created.
      *
-     * This will set [SelectableItem.emit] to [forMainApiSurface] and should only be called on
-     * [SelectableItem]s which have been created from the main signature file.
+     * Should only be called on [SelectableItem]s which have been created from the main signature
+     * file.
      */
     private fun SelectableItem.markForMainApiSurface() {
-        emit = forMainApiSurface
         markSelectedApiVariant()
     }
 
@@ -545,11 +543,6 @@ private constructor(
      * It is only necessary to mark an existing class as being part of the main API surface, if it
      * should be but is not already.
      *
-     * This will set [SelectableItem.emit] to `true` iff it was previously `false` and
-     * [forMainApiSurface] is `true`. That ensures that a class that is not in the main API surface
-     * can be included in it by another signature file, but once it is included it cannot be
-     * removed.
-     *
      * e.g. Imagine that there are two files, `public.txt` and `system.txt` where the second extends
      * the first. When generating the system API classes in the `public.txt` will not be considered
      * part of it but any classes defined in `system.txt` will be, even if they were initially
@@ -557,10 +550,6 @@ private constructor(
      * behavior irrespective of the order.
      */
     private fun ClassItem.markExistingClassForMainApiSurface() {
-        if (!emit && forMainApiSurface) {
-            markForMainApiSurface()
-        }
-
         // Record the ApiVariant to which this belongs, even if this class was previously loaded.
         // If this class was already defined in a different API surface, markSelectedApiVariant will
         // not add the new surface.
