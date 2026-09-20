@@ -17,8 +17,21 @@
 package com.android.tools.metalava.model.api
 
 import com.android.tools.metalava.model.PackageItem
+import com.android.tools.metalava.model.api.surface.ApiVariant
 
-/** A [MutableSelectedApi] for a [PackageItem]. */
+/**
+ * A [MutableSelectedApi] for a [PackageItem].
+ *
+ * Packages do not belong to an API surface in their own right; instead, they belong to the union of
+ * all API surfaces to which their contained classes and members belong. Therefore,
+ * [addItemApiVariant] allows adding variants from multiple API surfaces.
+ */
 internal class MutablePackageSelectedApi(
     item: PackageItem,
-) : MutableSelectedApi<PackageItem>(item)
+) : MutableSelectedApi<PackageItem>(item) {
+    override fun addItemApiVariant(value: ApiVariant) {
+        // Packages do not belong to an API surface in their own right, but belong to the union of
+        // all API surfaces to which their contained classes/members belong.
+        itemApiVariants += value
+    }
+}

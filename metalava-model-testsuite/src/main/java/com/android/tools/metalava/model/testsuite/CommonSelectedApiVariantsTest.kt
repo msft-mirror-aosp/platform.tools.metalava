@@ -111,24 +111,19 @@ class CommonSelectedApiVariantsTest : BaseModelTest() {
     }
 
     /**
-     * Tests [SelectedApi] variant calculation across multiple API surfaces (`public` and `system`)
-     * for signature files and Java source files.
+     * Tests that signature files and Java source files produce identical [SelectedApi] variants
+     * across multiple API surfaces.
      *
-     * In this setup:
-     * - `Base` and its members (`Base()` and `baseMethod()`) belong to `public`.
-     * - `Test` class and constructor `Test()` belong to `public`.
-     * - `Test.method()` is annotated with `$SYSTEM_API` (or defined in `current.txt`), belonging to
-     *   `system`.
+     * In this test:
+     * - `Base` and `Test` class and constructors belong to `public` (via `base.txt` or standard
+     *   Java visibility).
+     * - `Test.method()` belongs to `system` (via `current.txt` or annotated with `$SYSTEM_API`).
      *
-     * In Java source files:
-     * - `Test` class has `public` in [SelectedApi.itemApiVariants] and `system` in
-     *   [SelectedApi.contentApiVariants] because it contains a method belonging to `system`.
-     * - Package `test.pkg` has both `public` and `system` in [SelectedApi.itemApiVariants] because
-     *   it contains items belonging to both surfaces.
-     *
-     * Note: Signature file loading currently differs from source loading in that delta signature
-     * files do not yet propagate `content` variants to containing classes or multi-surface `self`
-     * variants to packages.
+     * This causes:
+     * - `Test` to have `public` in [SelectedApi.itemApiVariants] and `system` in
+     *   [SelectedApi.contentApiVariants].
+     * - Package `test.pkg` to have both `public` and `system` in [SelectedApi.itemApiVariants]
+     *   because it directly contains elements belonging to both surfaces.
      */
     @SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.JAVA)
     @Test
@@ -195,46 +190,24 @@ class CommonSelectedApiVariantsTest : BaseModelTest() {
             ),
             testFixture = testFixture,
         ) {
-            // TODO: Signature and source should have the same expected variants.
             val expected =
-                when (inputFormat) {
-                    InputFormat.SIGNATURE ->
-                        """
-                            package test.pkg
-                                   self - ApiVariantSet[public(C)]
-                              class test.pkg.Base
-                                     self - ApiVariantSet[public(C)]
-                                constructor test.pkg.Base()
-                                       self - ApiVariantSet[public(C)]
-                                method test.pkg.Base.baseMethod()
-                                       self - ApiVariantSet[public(C)]
-                              class test.pkg.Test
-                                     self - ApiVariantSet[public(C)]
-                                constructor test.pkg.Test()
-                                       self - ApiVariantSet[public(C)]
-                                method test.pkg.Test.method()
-                                       self - ApiVariantSet[system(C)]
-                        """
-                    InputFormat.JAVA ->
-                        """
-                            package test.pkg
-                                   self - ApiVariantSet[public(C),system(C)]
-                              class test.pkg.Base
-                                     self - ApiVariantSet[public(C)]
-                                constructor test.pkg.Base()
-                                       self - ApiVariantSet[public(C)]
-                                method test.pkg.Base.baseMethod()
-                                       self - ApiVariantSet[public(C)]
-                              class test.pkg.Test
-                                     self - ApiVariantSet[public(C)]
-                                  content - ApiVariantSet[system(C)]
-                                constructor test.pkg.Test()
-                                       self - ApiVariantSet[public(C)]
-                                method test.pkg.Test.method()
-                                       self - ApiVariantSet[system(C)]
-                        """
-                    else -> error("unsupported input format: $inputFormat")
-                }
+                """
+                    package test.pkg
+                           self - ApiVariantSet[public(C),system(C)]
+                      class test.pkg.Base
+                             self - ApiVariantSet[public(C)]
+                        constructor test.pkg.Base()
+                               self - ApiVariantSet[public(C)]
+                        method test.pkg.Base.baseMethod()
+                               self - ApiVariantSet[public(C)]
+                      class test.pkg.Test
+                             self - ApiVariantSet[public(C)]
+                          content - ApiVariantSet[system(C)]
+                        constructor test.pkg.Test()
+                               self - ApiVariantSet[public(C)]
+                        method test.pkg.Test.method()
+                               self - ApiVariantSet[system(C)]
+                """
             codebase.assertSelectedApiVariants(expected)
         }
     }

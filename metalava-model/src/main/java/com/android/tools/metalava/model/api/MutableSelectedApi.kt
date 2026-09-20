@@ -46,7 +46,15 @@ internal open class MutableSelectedApi<S : SelectableItem>(
     override fun initialize() {}
 
     override fun addItemApiVariant(value: ApiVariant) {
-        itemApiVariants += value
+        if (value !in itemApiVariants) {
+            // An item must not belong to multiple API surfaces, but can belong to multiple variants
+            // of the same surface (e.g. CORE and REMOVED). Therefore, only add this variant if the
+            // item does not yet belong to any surface or if this variant is part of the same
+            // surface it already belongs to.
+            if (itemApiVariants.isEmpty() || itemApiVariants.containsAny(value.surface)) {
+                itemApiVariants += value
+            }
+        }
     }
 
     override fun snapshot(original: SelectedApi) {

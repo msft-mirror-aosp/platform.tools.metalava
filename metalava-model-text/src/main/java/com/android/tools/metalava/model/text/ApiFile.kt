@@ -538,16 +538,7 @@ private constructor(
      * [apiVariant].
      */
     private fun SelectableItem.markSelectedApiVariant() {
-        val itemApiVariants = selectedApi.itemApiVariants
-        if (apiVariant !in itemApiVariants) {
-            // An item must not belong to multiple API surfaces, but can belong to multiple variants
-            // of the same surface (e.g. CORE and REMOVED). Therefore, only add this variant if the
-            // item does not yet belong to any surface or if this variant is part of the same
-            // surface it already belongs to.
-            if (itemApiVariants.isEmpty() || itemApiVariants.containsAny(apiVariant.surface)) {
-                selectedApi.addItemApiVariant(apiVariant)
-            }
-        }
+        selectedApi.addItemApiVariant(apiVariant)
     }
 
     /**
@@ -719,8 +710,9 @@ private constructor(
 
         val pkg = findOrCreatePackage(tokenizer, name, annotations)
 
-        // Make sure that the package records the ApiVariants to which it belongs.
-        pkg.markSelectedApiVariant()
+        // Note: pkg.markSelectedApiVariant() is not called here because packages do not belong to
+        // an API surface in their own right; their API variants are populated via propagation from
+        // their contained classes and members.
 
         token = tokenizer.requireToken()
         if ("{" != token) {
@@ -1015,15 +1007,18 @@ private constructor(
         val existingClass =
             codebase.findClassInCodebase(classCharacteristics.qualifiedName) ?: return false
 
+        // Although the class was first defined in a separate file it is being modified in the
+        // current file so that may include it in the main API surface.
+        // Marking the class for the main API surface must be done before parsing the class body so
+        // that the class's own API variants are recorded before any members in this file propagate
+        // their variants up to the class.
+        existingClass.markExistingClassForMainApiSurface()
+
         // Parse the class body adding each member created to the existing class (typealiases do not
         // have a class body).
         if (classCharacteristics.classKind != ClassKind.TYPEALIAS) {
             parseClassBody(tokenizer, existingClass, typeItemFactoryForClass(existingClass))
         }
-
-        // Although the class was first defined in a separate file it is being modified in the
-        // current file so that may include it in the main API surface.
-        existingClass.markExistingClassForMainApiSurface()
 
         // Perform any merge checks after loading all the files. That is needed because merging
         // may resolve classes and doing that during parsing can lead to issues.

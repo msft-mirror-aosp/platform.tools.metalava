@@ -218,7 +218,7 @@ val selectedApiVariantsTestData =
             expectedSelectedApiVariants =
                 """
                     package test.pkg
-                           self - ApiVariantSet[base(C)]
+                           self - ApiVariantSet[base(C),main(C)]
                       class test.pkg.Base
                              self - ApiVariantSet[base(C)]
                         constructor test.pkg.Base()
@@ -229,6 +229,7 @@ val selectedApiVariantsTestData =
                                self - ApiVariantSet[base(C)]
                       class test.pkg.Test
                              self - ApiVariantSet[base(C)]
+                          content - ApiVariantSet[main(C)]
                         constructor test.pkg.Test()
                                self - ApiVariantSet[base(C)]
                         method test.pkg.Test.baseMethod(int)

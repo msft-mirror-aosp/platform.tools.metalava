@@ -17,8 +17,22 @@
 package com.android.tools.metalava.model.api
 
 import com.android.tools.metalava.model.MemberItem
+import com.android.tools.metalava.model.api.surface.ApiVariant
 
-/** A [MutableSelectedApi] for a [MemberItem]. */
+/**
+ * A [MutableSelectedApi] for a [MemberItem].
+ *
+ * When an API variant is added to this member, it propagates the variant to its containing class
+ * via [MutableClassSelectedApi.propagateFromMember], which updates the class's content variants and
+ * propagates up to the containing package.
+ */
 internal open class MutableMemberSelectedApi(
     item: MemberItem,
-) : MutableSelectedApi<MemberItem>(item)
+) : MutableSelectedApi<MemberItem>(item) {
+    override fun addItemApiVariant(value: ApiVariant) {
+        super.addItemApiVariant(value)
+        // Propagate the member's variant to its containing class.
+        val containingClass = item.containingClass()
+        (containingClass.selectedApi as? MutableClassSelectedApi)?.propagateFromMember(value)
+    }
+}
