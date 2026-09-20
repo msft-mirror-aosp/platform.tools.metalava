@@ -24,6 +24,7 @@ import com.android.tools.metalava.model.testing.surfaces.TestableApiSurfaces
 import com.android.tools.metalava.model.testing.surfaces.TestableApiSurfaces.SYSTEM_API
 import com.android.tools.metalava.model.testing.surfaces.TestableApiSurfaces.publicSystemModuleRules
 import com.android.tools.metalava.testing.java
+import com.android.tools.metalava.testing.kotlin
 import org.junit.Test
 
 /**
@@ -77,6 +78,44 @@ class CommonSelectedApiVariantsTest : BaseModelTest() {
                                self - ApiVariantSet[main(C)]
                 """
             codebase.assertSelectedApiVariants(expected)
+        }
+    }
+
+    /**
+     * Tests that a single API surface produces identical [SelectedApi] variants for both signature
+     * files and Kotlin source files containing a type alias.
+     *
+     * Note: Signature file loading currently differs from Kotlin source loading in that type
+     * aliases are not yet marked for the main API surface when loaded from signature files.
+     */
+    @SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.KOTLIN)
+    @Test
+    fun `Test typealias in single signature file and api surface`() {
+        runCodebaseTest(
+            signature(
+                """
+                    // Signature format: 5.0
+                    package test.pkg {
+                      public typealias Foo = String;
+                    }
+                """
+            ),
+            kotlin(
+                """
+                    package test.pkg
+                    typealias Foo = String
+                """
+            ),
+        ) {
+            // TODO: Signature and Kotlin should have the same expected variants.
+            val expected =
+                when (inputFormat) {
+                    InputFormat.SIGNATURE -> "ApiVariantSet[]"
+                    InputFormat.KOTLIN -> "ApiVariantSet[main(C)]"
+                    else -> error("unsupported input format: $inputFormat")
+                }
+            val typeAlias = codebase.assertTypeAlias("test.pkg.Foo")
+            typeAlias.assertItemApiVariants(expected)
         }
     }
 
