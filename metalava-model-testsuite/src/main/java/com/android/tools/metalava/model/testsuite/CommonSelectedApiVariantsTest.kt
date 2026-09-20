@@ -84,9 +84,6 @@ class CommonSelectedApiVariantsTest : BaseModelTest() {
     /**
      * Tests that a single API surface produces identical [SelectedApi] variants for both signature
      * files and Kotlin source files containing a type alias.
-     *
-     * Note: Signature file loading currently differs from Kotlin source loading in that type
-     * aliases are not yet marked for the main API surface when loaded from signature files.
      */
     @SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.KOTLIN)
     @Test
@@ -107,13 +104,7 @@ class CommonSelectedApiVariantsTest : BaseModelTest() {
                 """
             ),
         ) {
-            // TODO: Signature and Kotlin should have the same expected variants.
-            val expected =
-                when (inputFormat) {
-                    InputFormat.SIGNATURE -> "ApiVariantSet[]"
-                    InputFormat.KOTLIN -> "ApiVariantSet[main(C)]"
-                    else -> error("unsupported input format: $inputFormat")
-                }
+            val expected = "ApiVariantSet[main(C)]"
             val typeAlias = codebase.assertTypeAlias("test.pkg.Foo")
             typeAlias.assertItemApiVariants(expected)
         }

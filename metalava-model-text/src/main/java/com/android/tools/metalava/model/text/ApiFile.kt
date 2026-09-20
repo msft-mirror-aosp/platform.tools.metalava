@@ -806,16 +806,19 @@ private constructor(
             return
         }
 
-        itemFactory.createTypeAliasItem(
-            fileLocation = location,
-            modifiers = modifiers,
-            qualifiedName = pkg.qualifiedName() + "." + name,
-            containingPackage = pkg,
-            aliasedType = type,
-            typeParameterList = typeParameterList,
-            // All signature files have to be explicitly specified.
-            origin = ClassOrigin.COMMAND_LINE,
-        )
+        val typeAlias =
+            itemFactory.createTypeAliasItem(
+                fileLocation = location,
+                modifiers = modifiers,
+                qualifiedName = pkg.qualifiedName() + "." + name,
+                containingPackage = pkg,
+                aliasedType = type,
+                typeParameterList = typeParameterList,
+                // All signature files have to be explicitly specified.
+                origin = ClassOrigin.COMMAND_LINE,
+            )
+        // Mark type alias as belonging to the main API surface of this signature file.
+        typeAlias.markForMainApiSurface()
     }
 
     /** Parse a class starting with [Tokenizer.current]. */
