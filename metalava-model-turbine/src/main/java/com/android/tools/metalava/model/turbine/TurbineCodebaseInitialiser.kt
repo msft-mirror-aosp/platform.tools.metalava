@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model.turbine
 
+import androidx.tracing.Tracer
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassOrigin
@@ -112,6 +113,7 @@ internal class TurbineCodebaseInitialiser(
     fun initialize(
         sourceSet: SourceSet,
         apiPackages: PackageFilter?,
+        tracer: Tracer,
     ) {
         // Any non-fatal error (like unresolved symbols) will be captured in this log and will
         // be handled below.
@@ -120,12 +122,17 @@ internal class TurbineCodebaseInitialiser(
         // Get the units from the source files provided on the command line.
         val commandLineSources = sourceSet.sources
         val sourceFiles = getSourceFiles(commandLineSources.asSequence())
-        val units = sourceFiles.mapNotNull { parse(log, it) }
+        val units =
+            tracer.trace("turbine.parseSourceFiles") { sourceFiles.mapNotNull { parse(log, it) } }
 
         // Get the sequence of all files that can be found on the source path which are not
         // explicitly listed on the command line.
-        val scannedFiles = scanSourcePath(sourceSet.sourcePath, commandLineSources.toSet())
-        val sourcePathFiles = getSourceFiles(scannedFiles)
+        val scannedFiles =
+            tracer.trace("turbine.scanSourceFiles") {
+                scanSourcePath(sourceSet.sourcePath, commandLineSources.toSet())
+            }
+        val sourcePathFiles =
+            tracer.trace("turbine.getSourceFiles") { getSourceFiles(scannedFiles) }
 
         // Get the set of qualified class names provided on the command line. If a `.java` file
         // contains multiple java classes then it just used the main class name.
@@ -133,12 +140,15 @@ internal class TurbineCodebaseInitialiser(
 
         // Get the units for the extra source files found on the source path.
         val extraUnits =
-            sourcePathFiles
-                .mapNotNull { parse(log, it) }
-                // Ignore any files that contain duplicates of a class that was specified on the
-                // command line. This is needed when merging annotations from other java files as
-                // there may be duplicate definitions of the class on the source path.
-                .filter { unit -> unit.mainClassQualifiedName !in commandLineClasses }
+            tracer.trace("turbine.parseExtraSourceFiles") {
+                sourcePathFiles
+                    .mapNotNull { parse(log, it) }
+
+                    // Ignore any files that contain duplicates of a class that was specified on the
+                    // command line. This is needed when merging annotations from other java files
+                    // as there may be duplicate definitions of the class on the source path.
+                    .filter { unit -> unit.mainClassQualifiedName !in commandLineClasses }
+            }
 
         // If any errors were reported during parsing then report them and abort.
         if (log.anyErrors()) {
@@ -159,18 +169,20 @@ internal class TurbineCodebaseInitialiser(
                     SourceVersion.latest()
                 )
 
-            MoreExecutors.newDirectExecutorService().use { executor ->
-                // Bind the units
-                bindingResult =
-                    Binder.bind(
-                        executor,
-                        log,
-                        allUnits,
-                        classpath,
-                        annotationProcessorInfo,
-                        bootclasspath,
-                        Optional.empty()
-                    )!!
+            tracer.trace("turbine.bind") {
+                MoreExecutors.newDirectExecutorService().use { executor ->
+                    // Bind the units
+                    bindingResult =
+                        Binder.bind(
+                            executor,
+                            log,
+                            allUnits,
+                            classpath,
+                            annotationProcessorInfo,
+                            bootclasspath,
+                            Optional.empty()
+                        )!!
+                }
             }
         } catch (e: TurbineError) {
             // Catch the [TurbineError] and extract its diagnostics. An exception will be rethrown
@@ -179,18 +191,20 @@ internal class TurbineCodebaseInitialiser(
         }
 
         // Report all the diagnostics, filtering those that relate to missing references.
-        log.reportTo(codebase.reporter) { diagnostic ->
-            // Ignore missing references.
-            val errorKind = diagnostic.kind()
-            when (errorKind) {
-                TurbineError.ErrorKind.CANNOT_RESOLVE,
-                TurbineError.ErrorKind.CANNOT_RESOLVE_FIELD,
-                TurbineError.ErrorKind.EXPRESSION_ERROR,
-                TurbineError.ErrorKind.NO_JAVA_LANG,
-                TurbineError.ErrorKind.SYMBOL_NOT_FOUND -> {
-                    false
+        tracer.trace("turbine.reportDiagnostics") {
+            log.reportTo(codebase.reporter) { diagnostic ->
+                // Ignore missing references.
+                val errorKind = diagnostic.kind()
+                when (errorKind) {
+                    TurbineError.ErrorKind.CANNOT_RESOLVE,
+                    TurbineError.ErrorKind.CANNOT_RESOLVE_FIELD,
+                    TurbineError.ErrorKind.EXPRESSION_ERROR,
+                    TurbineError.ErrorKind.NO_JAVA_LANG,
+                    TurbineError.ErrorKind.SYMBOL_NOT_FOUND -> {
+                        false
+                    }
+                    else -> true
                 }
-                else -> true
             }
         }
 
@@ -239,12 +253,16 @@ internal class TurbineCodebaseInitialiser(
 
         // Scan the files looking for package.html and overview.html files and extract the
         // documentation just in case they are needed during package creation.
-        createInitialPackages(sourceSet)
+        tracer.trace("turbine.createInitialPackages") { createInitialPackages(sourceSet) }
 
-        createAllCommandLineClasses(commandLineSourceClasses, apiPackages)
+        tracer.trace("turbine.createAllCommandLineClasses") {
+            createAllCommandLineClasses(commandLineSourceClasses, apiPackages)
+        }
 
         // Copy type use only nullness annotations to items.
-        copyTypeUseOnlyNullnessAnnotationsToItems()
+        tracer.trace("turbine.copyTypeUseOnlyNullnessAnnotationsToItems") {
+            copyTypeUseOnlyNullnessAnnotationsToItems()
+        }
     }
 
     /**
