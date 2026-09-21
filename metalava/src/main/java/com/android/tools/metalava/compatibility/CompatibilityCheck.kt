@@ -69,7 +69,11 @@ import com.android.tools.metalava.reporter.Severity
  * example, you can make a previously nullable parameter non null, but not vice versa.
  */
 class CompatibilityCheck(
-    private val filterReference: FilterPredicate,
+    /**
+     * Filter that matches the reference API (e.g. the full surface hierarchy including base
+     * surfaces).
+     */
+    private val referenceFilter: FilterPredicate,
     private val reporter: Reporter,
     private val issueConfiguration: IssueConfiguration,
     private val apiCompatAnnotations: Set<String>,
@@ -649,7 +653,7 @@ class CompatibilityCheck(
         }
 
         val newCodebase = new.codebase
-        for (iface in new.filteredInterfaceTypes(filterReference)) {
+        for (iface in new.filteredInterfaceTypes(referenceFilter)) {
             val qualifiedName = iface.resolveClass(newCodebase)?.qualifiedName() ?: continue
             if (!old.implements(qualifiedName)) {
                 report(
@@ -1076,7 +1080,7 @@ class CompatibilityCheck(
             }
         }
 
-        for (throwType in new.filteredThrowsTypes(filterReference)) {
+        for (throwType in new.filteredThrowsTypes(referenceFilter)) {
             // Get the throwable class, if none could be found then it is either because there is an
             // error in the codebase or the codebase is incomplete, either way reporting an error
             // would be unhelpful.
@@ -1445,7 +1449,7 @@ class CompatibilityCheck(
     }
 
     private fun handleAdded(issue: Issue, item: SelectableItem) {
-        if (!filterReference.test(item)) {
+        if (!referenceFilter.test(item)) {
             // This item is something we weren't asked to verify
             return
         }
