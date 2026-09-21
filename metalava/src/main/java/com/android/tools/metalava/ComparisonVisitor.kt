@@ -111,8 +111,18 @@ private fun <E> Stack<E>.peek(): E = last()
 
 object CodebaseComparator {
     /**
-     * Visits this codebase and compares it with another codebase, informing the visitors about the
-     * correlations and differences that it finds
+     * Visits [old] and [new] codebases, comparing items and dispatching callbacks to [visitor] for
+     * added, removed, and matching items.
+     *
+     * @param visitor the [ComparisonVisitor] receiving callbacks as differences and matches are
+     *   found.
+     * @param old the baseline or previous codebase.
+     * @param new the current or newer codebase.
+     * @param referenceFilter filter matching items belonging to the full reference API surface
+     *   hierarchy (e.g. the target surface and all base surfaces it extends). Used to construct the
+     *   item trees and to verify whether an item was moved into or inherited from a base surface
+     *   (e.g. inherited methods, fields, properties, interfaces, and thrown types) rather than
+     *   removed.
      */
     fun compare(
         visitor: ComparisonVisitor,
@@ -136,6 +146,20 @@ object CodebaseComparator {
         compare(visitor, oldTree, newTree, null, null, referenceFilter)
     }
 
+    /**
+     * Compares two [MergedCodebase] instances, dispatching callbacks to [visitor] for added,
+     * removed, and matching items.
+     *
+     * @param visitor the [ComparisonVisitor] receiving callbacks as differences and matches are
+     *   found.
+     * @param old the baseline or previous merged codebase.
+     * @param new the current or newer merged codebase.
+     * @param referenceFilter filter matching items belonging to the full reference API surface
+     *   hierarchy (e.g. the target surface and all base surfaces it extends). Used to construct the
+     *   item trees and to verify whether an item was moved into or inherited from a base surface
+     *   (e.g. inherited methods, fields, properties, interfaces, and thrown types) rather than
+     *   removed.
+     */
     fun compare(
         visitor: ComparisonVisitor,
         old: MergedCodebase,
@@ -169,6 +193,15 @@ object CodebaseComparator {
      *
      * If a source set [Codebase] is present in both [old] and [new], uses [compare] to compare all
      * elements of the [Codebase]s.
+     *
+     * @param visitor the [ComparisonVisitor] receiving callbacks as differences and matches are
+     *   found.
+     * @param old the baseline or previous multiplatform codebase.
+     * @param new the current or newer multiplatform codebase.
+     * @param referenceFilter filter matching items belonging to the full reference API surface
+     *   hierarchy (e.g. the target surface and all base surfaces it extends). Used to construct the
+     *   item trees and to verify whether an item was moved into or inherited from a base surface
+     *   rather than removed.
      */
     fun compareMultiplatform(
         visitor: ComparisonVisitor,
@@ -193,6 +226,13 @@ object CodebaseComparator {
         }
     }
 
+    /**
+     * Recursively compares two lists of [ItemTree]s at the same nesting level.
+     *
+     * @param referenceFilter determines if an item is considered present in the reference API
+     *   hierarchy (to distinguish items moved into base surfaces or inherited from base surfaces
+     *   from removals).
+     */
     private fun compare(
         visitor: ComparisonVisitor,
         oldList: List<ItemTree>,
