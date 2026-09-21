@@ -378,15 +378,6 @@ class ComparisonVisitorTest : BaseTemporaryFolderOwner(), Assertions {
             referenceFilter = referenceFilter,
         )
 
-        // TODO(b/512093496): The extra items excluded by surfaceFilter should not be reported as
-        //  added or removed.
-        assertEquals(
-            """
-                method test.pkg.Bar.baseMethod() was added
-                method test.pkg.Foo.baseMethod() was removed
-            """
-                .trimIndent(),
-            differences.sorted().joinToString("\n")
-        )
+        assertEquals("", differences.sorted().joinToString("\n"))
     }
 }

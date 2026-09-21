@@ -337,12 +337,14 @@ object CodebaseComparator {
                     while (index1 < length1) {
                         val oldTree = oldList[index1++]
                         val old = oldTree.item()
-                        dispatchToRemovedOrCompareIfItemWasMoved(
-                            old,
-                            visitor,
-                            newParent,
-                            referenceFilter,
-                        )
+                        if (surfaceFilter.testOrTrue(old)) {
+                            dispatchToRemovedOrCompareIfItemWasMoved(
+                                old,
+                                visitor,
+                                newParent,
+                                referenceFilter,
+                            )
+                        }
                     }
                 }
             } else if (index2 < length2) {
@@ -351,7 +353,9 @@ object CodebaseComparator {
                     val newTree = newList[index2++]
                     val new = newTree.item()
 
-                    dispatchToAddedOrCompareIfItemWasMoved(new, oldParent, visitor)
+                    if (surfaceFilter.testOrTrue(new)) {
+                        dispatchToAddedOrCompareIfItemWasMoved(new, oldParent, visitor)
+                    }
                 }
             } else {
                 break
