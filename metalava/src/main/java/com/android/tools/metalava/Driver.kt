@@ -414,8 +414,10 @@ class Driver(
      * previously released APIs.
      */
     private val previouslyReleasedApiLintCodebase by lazy {
-        apiLintOptions.previouslyReleasedApi?.load { signatureFiles ->
-            signatureFileCache.load(signatureFiles, classPathResolver)
+        tracer.trace("ApiLint.loadPreviouslyReleasedApi") {
+            apiLintOptions.previouslyReleasedApi?.load { signatureFiles ->
+                signatureFileCache.load(signatureFiles, classPathResolver)
+            }
         }
     }
 
