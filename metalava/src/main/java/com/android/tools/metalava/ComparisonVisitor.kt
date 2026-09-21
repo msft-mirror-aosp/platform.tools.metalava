@@ -118,38 +118,44 @@ object CodebaseComparator {
         visitor: ComparisonVisitor,
         old: Codebase,
         new: Codebase,
-        filter: FilterPredicate? = null
+        referenceFilter: FilterPredicate? = null,
     ) {
-        // Algorithm: build up two trees (by nesting level); then visit the
-        // two trees
-        val oldTree = createTree(old, filter)
-        val newTree = createTree(new, filter)
+        // Algorithm: build up two trees (by nesting level); then visit the two trees.
+
+        // Use referenceFilter so that the trees contain all items in
+        // the reference API surface hierarchy (e.g. including base surfaces), allowing items moved
+        // between surfaces or inherited from superclasses in base surfaces to be matched.
+        val oldTree = createTree(old, referenceFilter)
+        val newTree = createTree(new, referenceFilter)
 
         /* Debugging:
         println("Old:\n${ItemTree.prettyPrint(oldTree)}")
         println("New:\n${ItemTree.prettyPrint(newTree)}")
         */
 
-        compare(visitor, oldTree, newTree, null, null, filter)
+        compare(visitor, oldTree, newTree, null, null, referenceFilter)
     }
 
     fun compare(
         visitor: ComparisonVisitor,
         old: MergedCodebase,
         new: MergedCodebase,
-        filter: FilterPredicate? = null
+        referenceFilter: FilterPredicate? = null,
     ) {
-        // Algorithm: build up two trees (by nesting level); then visit the
-        // two trees
-        val oldTree = createTree(old, filter)
-        val newTree = createTree(new, filter)
+        // Algorithm: build up two trees (by nesting level); then visit the two trees.
+
+        // Use referenceFilter so that the trees contain all items in
+        // the reference API surface hierarchy (e.g. including base surfaces), allowing items moved
+        // between surfaces or inherited from superclasses in base surfaces to be matched.
+        val oldTree = createTree(old, referenceFilter)
+        val newTree = createTree(new, referenceFilter)
 
         /* Debugging:
         println("Old:\n${ItemTree.prettyPrint(oldTree)}")
         println("New:\n${ItemTree.prettyPrint(newTree)}")
         */
 
-        compare(visitor, oldTree, newTree, null, null, filter)
+        compare(visitor, oldTree, newTree, null, null, referenceFilter)
     }
 
     /**
@@ -168,7 +174,7 @@ object CodebaseComparator {
         visitor: ComparisonVisitor,
         old: MultiplatformCodebase,
         new: MultiplatformCodebase,
-        filter: FilterPredicate? = null,
+        referenceFilter: FilterPredicate? = null,
     ) {
         val allSourceSetNames = old.sourceSets + new.sourceSets
         for (sourceSetName in allSourceSetNames) {
@@ -182,7 +188,7 @@ object CodebaseComparator {
                         }
                     )
                 newSourceSet == null -> visitor.removedCodebase(oldSourceSet)
-                else -> compare(visitor, oldSourceSet, newSourceSet, filter)
+                else -> compare(visitor, oldSourceSet, newSourceSet, referenceFilter)
             }
         }
     }
@@ -193,7 +199,7 @@ object CodebaseComparator {
         newList: List<ItemTree>,
         newParent: SelectableItem?,
         oldParent: SelectableItem?,
-        filter: FilterPredicate?
+        referenceFilter: FilterPredicate?,
     ) {
         // Debugging tip: You can print out a tree like this: ItemTree.prettyPrint(list)
         var index1 = 0
@@ -229,7 +235,7 @@ object CodebaseComparator {
                                     old,
                                     visitor,
                                     newParent,
-                                    filter,
+                                    referenceFilter,
                                 )
                             }
                         }
@@ -250,7 +256,7 @@ object CodebaseComparator {
                                         old,
                                         visitor,
                                         newParent,
-                                        filter,
+                                        referenceFilter,
                                     )
                                 }
                             }
@@ -262,7 +268,7 @@ object CodebaseComparator {
                                 newTree.children,
                                 newTree.item(),
                                 oldTree.item(),
-                                filter
+                                referenceFilter
                             )
 
                             index1++
@@ -278,7 +284,7 @@ object CodebaseComparator {
                             old,
                             visitor,
                             newParent,
-                            filter,
+                            referenceFilter,
                         )
                     }
                 }
@@ -379,7 +385,7 @@ object CodebaseComparator {
         old: SelectableItem,
         visitor: ComparisonVisitor,
         newParent: SelectableItem?,
-        filter: FilterPredicate?
+        referenceFilter: FilterPredicate?,
     ) {
         // If it's a method, we may not have removed the method, we may have simply
         // removed an override and are now inheriting the method from a superclass.
@@ -393,7 +399,7 @@ object CodebaseComparator {
                 // removed. That is because reverting it will replace it with the old item against
                 // which it is being compared in this compatibility check. So, while this specific
                 // item will not appear in the API the old item will and so it has not been removed.
-                val methodFilter = filter?.or(RevertedPredicate)
+                val methodFilter = referenceFilter?.or(RevertedPredicate)
 
                 // Find an element which matches the methodFilter
                 val superMethod = newParent.findPredicateMethodWithSuper(old, methodFilter)
@@ -417,7 +423,7 @@ object CodebaseComparator {
                         includeInterfaces = true
                     )
 
-                if (superField != null && filter.testOrTrue(superField)) {
+                if (superField != null && referenceFilter.testOrTrue(superField)) {
                     superField.duplicate(newParent)
                 } else {
                     null
@@ -435,7 +441,7 @@ object CodebaseComparator {
         if (old is PropertyItem && newParent is ClassItem) {
             val superProperty =
                 newParent.findProperty(old, includeSuperClasses = true, includeInterfaces = true)
-            if (superProperty != null && filter.testOrTrue(superProperty)) {
+            if (superProperty != null && referenceFilter.testOrTrue(superProperty)) {
                 dispatchToCompare(visitor, old, superProperty.duplicate(newParent))
                 return
             }

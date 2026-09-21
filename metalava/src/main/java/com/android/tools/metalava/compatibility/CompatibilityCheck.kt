@@ -1906,11 +1906,11 @@ class CompatibilityCheck(
             apiName: String?,
             apiSurface: ApiSurface,
         ) {
-            val filter = getFilter(checkType.apiType, apiSurface)
+            val referenceFilter = getReferenceFilter(checkType.apiType, apiSurface)
 
             val checker =
                 CompatibilityCheck(
-                    filter,
+                    referenceFilter,
                     reporter,
                     issueConfiguration,
                     apiCompatAnnotations,
@@ -1935,7 +1935,7 @@ class CompatibilityCheck(
                 }
             val newFullCodebase = MergedCodebase(listOf(newCodebase))
 
-            CodebaseComparator.compare(checker, oldFullCodebase, newFullCodebase, filter)
+            CodebaseComparator.compare(checker, oldFullCodebase, newFullCodebase, referenceFilter)
 
             val message =
                 "Found compatibility problems checking " +
@@ -1956,17 +1956,22 @@ class CompatibilityCheck(
             apiCompatAnnotations: Set<String>,
             apiSurface: ApiSurface,
         ) {
-            val filter = getFilter(apiType, apiSurface)
+            val referenceFilter = getReferenceFilter(apiType, apiSurface)
             val checker =
                 CompatibilityCheck(
-                    filter,
+                    referenceFilter,
                     reporter,
                     issueConfiguration,
                     apiCompatAnnotations,
                     apiName = null,
                 )
 
-            CodebaseComparator.compareMultiplatform(checker, oldCodebase, newCodebase, filter)
+            CodebaseComparator.compareMultiplatform(
+                checker,
+                oldCodebase,
+                newCodebase,
+                referenceFilter,
+            )
 
             if (checker.foundProblems) {
                 cliError("Found problems checking multiplatform codebase compatibility")
@@ -1974,10 +1979,10 @@ class CompatibilityCheck(
         }
 
         /**
-         * Returns a filter based on the [apiType] and [apiSurface] which includes overriding
-         * methods. This is used to filter which items are included in compatibility checks.
+         * Returns a reference filter based on the [apiType] and [apiSurface] which includes
+         * overriding methods. This is used to check referenced types (interfaces, throws).
          */
-        private fun getFilter(apiType: ApiType, apiSurface: ApiSurface) =
+        private fun getReferenceFilter(apiType: ApiType, apiSurface: ApiSurface) =
             ApiSurfacePredicate.referenceFilter(
                 apiType,
                 apiSurface,
