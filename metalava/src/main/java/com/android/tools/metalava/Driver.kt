@@ -407,6 +407,18 @@ class Driver(
             .generateStubs()
     }
 
+    /**
+     * Lazily loaded [Codebase] of the previously released API, if configured in [apiLintOptions].
+     *
+     * Used by API check methods (such as `ApiLint` and `FlaggedApiLint`) to compute deltas against
+     * previously released APIs.
+     */
+    private val previouslyReleasedApiLintCodebase by lazy {
+        apiLintOptions.previouslyReleasedApi?.load { signatureFiles ->
+            signatureFileCache.load(signatureFiles, classPathResolver)
+        }
+    }
+
     private fun runApiChecksFromOptions(
         codebase: Codebase,
         apiCheckMethod: (Codebase, Codebase?) -> Unit
@@ -414,13 +426,7 @@ class Driver(
         apiLintOptions.let { apiLintOptions ->
             if (!apiLintOptions.apiLintEnabled) return@let
 
-            // See if we should provide a previous codebase to provide a delta from?
-            val previouslyReleasedCodebase by lazy {
-                apiLintOptions.previouslyReleasedApi?.load { signatureFiles ->
-                    signatureFileCache.load(signatureFiles, classPathResolver)
-                }
-            }
-            apiCheckMethod(codebase, previouslyReleasedCodebase)
+            apiCheckMethod(codebase, previouslyReleasedApiLintCodebase)
         }
     }
 
