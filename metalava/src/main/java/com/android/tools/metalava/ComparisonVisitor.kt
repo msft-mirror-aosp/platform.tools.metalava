@@ -118,6 +118,9 @@ object CodebaseComparator {
      *   found.
      * @param old the baseline or previous codebase.
      * @param new the current or newer codebase.
+     * @param surfaceFilter filter matching items belonging to the specific API surface being
+     *   compared (e.g. the delta surface). Only items matching this filter are considered for
+     *   addition or removal callbacks. If null, all items are considered.
      * @param referenceFilter filter matching items belonging to the full reference API surface
      *   hierarchy (e.g. the target surface and all base surfaces it extends). Used to construct the
      *   item trees and to verify whether an item was moved into or inherited from a base surface
@@ -128,6 +131,7 @@ object CodebaseComparator {
         visitor: ComparisonVisitor,
         old: Codebase,
         new: Codebase,
+        surfaceFilter: FilterPredicate? = null,
         referenceFilter: FilterPredicate? = null,
     ) {
         // Algorithm: build up two trees (by nesting level); then visit the two trees.
@@ -143,7 +147,7 @@ object CodebaseComparator {
         println("New:\n${ItemTree.prettyPrint(newTree)}")
         */
 
-        compare(visitor, oldTree, newTree, null, null, referenceFilter)
+        compare(visitor, oldTree, newTree, null, null, surfaceFilter, referenceFilter)
     }
 
     /**
@@ -154,6 +158,9 @@ object CodebaseComparator {
      *   found.
      * @param old the baseline or previous merged codebase.
      * @param new the current or newer merged codebase.
+     * @param surfaceFilter filter matching items belonging to the specific API surface being
+     *   compared (e.g. the delta surface). Only items matching this filter are considered for
+     *   addition or removal callbacks. If null, all items are considered.
      * @param referenceFilter filter matching items belonging to the full reference API surface
      *   hierarchy (e.g. the target surface and all base surfaces it extends). Used to construct the
      *   item trees and to verify whether an item was moved into or inherited from a base surface
@@ -164,6 +171,7 @@ object CodebaseComparator {
         visitor: ComparisonVisitor,
         old: MergedCodebase,
         new: MergedCodebase,
+        surfaceFilter: FilterPredicate? = null,
         referenceFilter: FilterPredicate? = null,
     ) {
         // Algorithm: build up two trees (by nesting level); then visit the two trees.
@@ -179,7 +187,7 @@ object CodebaseComparator {
         println("New:\n${ItemTree.prettyPrint(newTree)}")
         */
 
-        compare(visitor, oldTree, newTree, null, null, referenceFilter)
+        compare(visitor, oldTree, newTree, null, null, surfaceFilter, referenceFilter)
     }
 
     /**
@@ -198,6 +206,9 @@ object CodebaseComparator {
      *   found.
      * @param old the baseline or previous multiplatform codebase.
      * @param new the current or newer multiplatform codebase.
+     * @param surfaceFilter filter matching items belonging to the specific API surface being
+     *   compared (e.g. the delta surface). Only items matching this filter are considered for
+     *   addition or removal callbacks. If null, all items are considered.
      * @param referenceFilter filter matching items belonging to the full reference API surface
      *   hierarchy (e.g. the target surface and all base surfaces it extends). Used to construct the
      *   item trees and to verify whether an item was moved into or inherited from a base surface
@@ -207,6 +218,7 @@ object CodebaseComparator {
         visitor: ComparisonVisitor,
         old: MultiplatformCodebase,
         new: MultiplatformCodebase,
+        surfaceFilter: FilterPredicate? = null,
         referenceFilter: FilterPredicate? = null,
     ) {
         val allSourceSetNames = old.sourceSets + new.sourceSets
@@ -221,7 +233,7 @@ object CodebaseComparator {
                         }
                     )
                 newSourceSet == null -> visitor.removedCodebase(oldSourceSet)
-                else -> compare(visitor, oldSourceSet, newSourceSet, referenceFilter)
+                else -> compare(visitor, oldSourceSet, newSourceSet, surfaceFilter, referenceFilter)
             }
         }
     }
@@ -229,6 +241,7 @@ object CodebaseComparator {
     /**
      * Recursively compares two lists of [ItemTree]s at the same nesting level.
      *
+     * @param surfaceFilter determines if an item is considered for addition or removal callbacks.
      * @param referenceFilter determines if an item is considered present in the reference API
      *   hierarchy (to distinguish items moved into base surfaces or inherited from base surfaces
      *   from removals).
@@ -239,6 +252,7 @@ object CodebaseComparator {
         newList: List<ItemTree>,
         newParent: SelectableItem?,
         oldParent: SelectableItem?,
+        surfaceFilter: FilterPredicate?,
         referenceFilter: FilterPredicate?,
     ) {
         // Debugging tip: You can print out a tree like this: ItemTree.prettyPrint(list)
@@ -257,10 +271,12 @@ object CodebaseComparator {
                     val new = newTree.item()
 
                     val compare = compare(old, new)
+                    val newMatches = surfaceFilter.testOrTrue(new)
+                    val oldMatches = surfaceFilter.testOrTrue(old)
                     when {
                         compare > 0 -> {
                             index2++
-                            if (new.emit) {
+                            if (newMatches) {
                                 dispatchToAddedOrCompareIfItemWasMoved(
                                     new,
                                     oldParent,
@@ -270,7 +286,7 @@ object CodebaseComparator {
                         }
                         compare < 0 -> {
                             index1++
-                            if (old.emit) {
+                            if (oldMatches) {
                                 dispatchToRemovedOrCompareIfItemWasMoved(
                                     old,
                                     visitor,
@@ -280,8 +296,8 @@ object CodebaseComparator {
                             }
                         }
                         else -> {
-                            if (new.emit) {
-                                if (old.emit) {
+                            if (newMatches) {
+                                if (oldMatches) {
                                     dispatchToCompare(visitor, old, new)
                                 } else {
                                     dispatchToAddedOrCompareIfItemWasMoved(
@@ -291,7 +307,7 @@ object CodebaseComparator {
                                     )
                                 }
                             } else {
-                                if (old.emit) {
+                                if (oldMatches) {
                                     dispatchToRemovedOrCompareIfItemWasMoved(
                                         old,
                                         visitor,
@@ -308,7 +324,8 @@ object CodebaseComparator {
                                 newTree.children,
                                 newTree.item(),
                                 oldTree.item(),
-                                referenceFilter
+                                surfaceFilter,
+                                referenceFilter,
                             )
 
                             index1++

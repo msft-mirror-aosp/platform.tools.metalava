@@ -29,6 +29,7 @@ import com.android.tools.metalava.model.ClassOrigin
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.ConstructorItem
+import com.android.tools.metalava.model.EmittedOnlyPredicate
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.FilterPredicate
 import com.android.tools.metalava.model.Item
@@ -68,7 +69,14 @@ import com.android.tools.metalava.reporter.Severity
  * Compares the current API with a previous version and makes sure the changes are compatible. For
  * example, you can make a previously nullable parameter non null, but not vice versa.
  */
-class CompatibilityCheck(
+class CompatibilityCheck
+private constructor(
+    /**
+     * Filter that matches items in the specific API surface being checked (e.g. the delta surface
+     * excluding base surfaces).
+     */
+    private val surfaceFilter: FilterPredicate,
+
     /**
      * Filter that matches the reference API (e.g. the full surface hierarchy including base
      * surfaces).
@@ -1468,10 +1476,8 @@ class CompatibilityCheck(
     }
 
     private fun handleRemoved(issue: Issue, item: SelectableItem) {
-        if (!item.emit) {
-            // It's a stub; this can happen when analyzing partial APIs
-            // such as a signature file for a library referencing types
-            // from the upstream library dependencies.
+        if (!surfaceFilter.test(item)) {
+            // This item is something we weren't asked to verify
             return
         }
 
@@ -1906,15 +1912,17 @@ class CompatibilityCheck(
             apiName: String?,
             apiSurface: ApiSurface,
         ) {
+            val surfaceFilter = getSurfaceFilter(checkType.apiType, apiSurface)
             val referenceFilter = getReferenceFilter(checkType.apiType, apiSurface)
 
             val checker =
                 CompatibilityCheck(
-                    referenceFilter,
-                    reporter,
-                    issueConfiguration,
-                    apiCompatAnnotations,
-                    apiName,
+                    surfaceFilter = surfaceFilter,
+                    referenceFilter = referenceFilter,
+                    reporter = reporter,
+                    issueConfiguration = issueConfiguration,
+                    apiCompatAnnotations = apiCompatAnnotations,
+                    apiName = apiName,
                 )
 
             // When checking compatibility against a base public API that does not extend
@@ -1935,7 +1943,13 @@ class CompatibilityCheck(
                 }
             val newFullCodebase = MergedCodebase(listOf(newCodebase))
 
-            CodebaseComparator.compare(checker, oldFullCodebase, newFullCodebase, referenceFilter)
+            CodebaseComparator.compare(
+                checker,
+                oldFullCodebase,
+                newFullCodebase,
+                surfaceFilter,
+                referenceFilter,
+            )
 
             val message =
                 "Found compatibility problems checking " +
@@ -1956,13 +1970,15 @@ class CompatibilityCheck(
             apiCompatAnnotations: Set<String>,
             apiSurface: ApiSurface,
         ) {
+            val surfaceFilter = getSurfaceFilter(apiType, apiSurface)
             val referenceFilter = getReferenceFilter(apiType, apiSurface)
             val checker =
                 CompatibilityCheck(
-                    referenceFilter,
-                    reporter,
-                    issueConfiguration,
-                    apiCompatAnnotations,
+                    surfaceFilter = surfaceFilter,
+                    referenceFilter = referenceFilter,
+                    reporter = reporter,
+                    issueConfiguration = issueConfiguration,
+                    apiCompatAnnotations = apiCompatAnnotations,
                     apiName = null,
                 )
 
@@ -1970,6 +1986,7 @@ class CompatibilityCheck(
                 checker,
                 oldCodebase,
                 newCodebase,
+                surfaceFilter,
                 referenceFilter,
             )
 
@@ -1977,6 +1994,13 @@ class CompatibilityCheck(
                 cliError("Found problems checking multiplatform codebase compatibility")
             }
         }
+
+        /**
+         * Returns a filter based on the [apiType] and [apiSurface] which includes overriding
+         * methods. This is used to filter which items are included in compatibility checks.
+         */
+        private fun getSurfaceFilter(apiType: ApiType, apiSurface: ApiSurface) =
+            EmittedOnlyPredicate
 
         /**
          * Returns a reference filter based on the [apiType] and [apiSurface] which includes
