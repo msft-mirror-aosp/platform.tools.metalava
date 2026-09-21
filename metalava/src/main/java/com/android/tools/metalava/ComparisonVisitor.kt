@@ -699,27 +699,34 @@ object CodebaseComparator {
 
     private fun createTree(
         codebase: MergedCodebase,
-        filter: FilterPredicate? = null
+        referenceFilter: FilterPredicate?,
     ): List<ItemTree> {
-        return createTree(codebase.children, filter)
+        return createTree(codebase.children, referenceFilter)
     }
 
-    private fun createTree(codebase: Codebase, filter: FilterPredicate? = null): List<ItemTree> {
-        return createTree(listOf(codebase), filter)
+    private fun createTree(
+        codebase: Codebase,
+        referenceFilter: FilterPredicate?,
+    ): List<ItemTree> {
+        return createTree(listOf(codebase), referenceFilter)
     }
 
     private fun createTree(
         codebases: List<Codebase>,
-        filter: FilterPredicate? = null
+        referenceFilter: FilterPredicate?,
     ): List<ItemTree> {
         val stack = Stack<ItemTree>()
         val root = ItemTree(null)
         stack.push(root)
 
         for (codebase in codebases) {
+            // For non-prefiltered codebases (e.g. source-based codebases), exclude external
+            // classpath dependencies (which have emit == false) while filtering to the requested
+            // API surface.
             val filterEmit =
                 if (codebase.preFiltered) null
-                else if (filter == null) EmittedOnlyPredicate else EmittedOnlyPredicate.and(filter)
+                else if (referenceFilter == null) EmittedOnlyPredicate
+                else EmittedOnlyPredicate.and(referenceFilter)
             codebase.accept(
                 object :
                     ApiSurfaceVisitor(
