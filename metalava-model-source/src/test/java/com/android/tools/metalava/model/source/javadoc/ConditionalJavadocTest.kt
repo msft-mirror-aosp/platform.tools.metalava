@@ -362,4 +362,63 @@ class ConditionalJavadocTest : BaseJavadocTest() {
                 """,
         )
     }
+
+    @Test
+    fun `Test if - containing inline tag - false`() {
+        checkConditionalParse(
+            """
+                /**
+                 * Before {@if (flag(Flags.TEST_FLAG))
+                 *   {{@code literal content} }
+                 * }after.
+                 */
+            """,
+            flags =
+                mapOf(
+                    "Flags.TEST_FLAG" to false,
+                ),
+            expectedStructure =
+                """
+                    text: 'Before after.'
+                """,
+        )
+    }
+
+    @Test
+    fun `Test if - containing inline tag followed by text - false`() {
+        checkConditionalParse(
+            """
+                /**
+                 * Before {@if (flag(Flags.TEST_FLAG)) { text before {@link SomeClass} text after }} after.
+                 */
+            """,
+            flags =
+                mapOf(
+                    "Flags.TEST_FLAG" to false,
+                ),
+            expectedStructure =
+                """
+                    text: 'Before  after.'
+                """,
+        )
+    }
+
+    @Test
+    fun `Test if - containing inline tag at end of branch - false`() {
+        checkConditionalParse(
+            """
+                /**
+                 * Before {@if (flag(Flags.TEST_FLAG)) { text before {@link SomeClass}}} after.
+                 */
+            """,
+            flags =
+                mapOf(
+                    "Flags.TEST_FLAG" to false,
+                ),
+            expectedStructure =
+                """
+                    text: 'Before  after.'
+                """,
+        )
+    }
 }
