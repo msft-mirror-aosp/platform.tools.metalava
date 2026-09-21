@@ -39,6 +39,43 @@ import org.junit.Test
 class CompatibilityCheckTest : DriverTest() {
 
     @Test
+    fun `Added public items are not reported as added to system API`() {
+        check(
+            apiSurface = KnownApiSurface.SYSTEM,
+            extraArguments = arrayOf(ARG_ERROR_CATEGORY, "Compatibility"),
+            checkCompatibilityApiReleasedList =
+                listOf(
+                    """
+                        // Signature format: 2.0
+                        package test.pkg {
+                          public class Bar {
+                          }
+                        }
+                    """,
+                    // An empty delta for the system API, indicating no system-specific APIs were
+                    // released.
+                    "",
+                ),
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+
+                            public class Bar {
+                            }
+                        """
+                    ),
+                ),
+            // TODO(b/512093496): Added public class should not be reported as added to system API.
+            expectedIssues =
+                """
+                    src/test/pkg/Bar.java:3: error: Added class test.pkg.Bar to the system API [AddedClass]
+                """,
+        )
+    }
+
+    @Test
     fun `Should not raise issue when experimental package is added`() {
         check(
             expectedIssues = "",
