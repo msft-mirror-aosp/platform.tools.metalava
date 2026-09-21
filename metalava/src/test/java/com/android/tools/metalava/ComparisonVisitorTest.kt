@@ -22,6 +22,7 @@ import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.MergedCodebase
 import com.android.tools.metalava.model.MethodItem
+import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.api.surface.ApiSurfacePredicate
 import com.android.tools.metalava.model.api.surface.ApiSurfaces
 import com.android.tools.metalava.model.multiplatform.MultiplatformCodebase
@@ -379,5 +380,119 @@ class ComparisonVisitorTest : BaseTemporaryFolderOwner(), Assertions {
         )
 
         assertEquals("", differences.sorted().joinToString("\n"))
+    }
+
+    @Test
+    fun `Test items moved to base surface are not reported as removed`() {
+        val apiSurfaces = ApiSurfaces.create(needsBase = true)
+
+        val oldCodebase =
+            readCodebase(
+                apiSurfaces,
+                base =
+                    signature(
+                        "old-base.txt",
+                        """
+                            // Signature format: 2.0
+                            package test.pkg {
+                                public class Bar {
+                                    method public void bar();
+                                }
+                            }
+                        """
+                    ),
+                current =
+                    signature(
+                        "old-current.txt",
+                        """
+                            // Signature format: 2.0
+                            package test.pkg {
+                                public class Bar {
+                                    method public void bar();
+                                }
+                                public class Foo {
+                                    method public void foo();
+                                }
+                            }
+                        """
+                    ),
+            )
+
+        val newCodebase =
+            readCodebase(
+                apiSurfaces,
+                base =
+                    signature(
+                        "new-base.txt",
+                        """
+                            // Signature format: 2.0
+                            package test.pkg {
+                                public class Bar {
+                                    method public void bar();
+                                }
+                                public class Foo {
+                                    method public void foo();
+                                }
+                            }
+                        """
+                    ),
+                current =
+                    signature(
+                        "new-current.txt",
+                        """
+                            // Signature format: 2.0
+                            package test.pkg {
+                                public class Bar {
+                                    method public void bar();
+                                }
+                            }
+                        """
+                    ),
+            )
+
+        val surfaceFilter =
+            ApiSurfacePredicate.forDelta(
+                ApiType.CORE,
+                apiSurfaces.main,
+            )
+        val referenceFilter =
+            ApiSurfacePredicate.referenceFilter(
+                ApiType.CORE,
+                apiSurfaces.main,
+            )
+
+        val differences = mutableListOf<String>()
+        CodebaseComparator.compare(
+            object : ComparisonVisitor() {
+                override fun addedClassItem(new: ClassItem) {
+                    differences += "$new was added"
+                }
+
+                override fun removedClassItem(old: ClassItem, from: SelectableItem) {
+                    differences += "$old was removed"
+                }
+
+                override fun addedMethodItem(new: MethodItem) {
+                    differences += "$new was added"
+                }
+
+                override fun removedMethodItem(old: MethodItem, from: ClassItem) {
+                    differences += "$old was removed"
+                }
+            },
+            old = oldCodebase,
+            new = newCodebase,
+            surfaceFilter = surfaceFilter,
+            referenceFilter = referenceFilter,
+        )
+
+        // TODO(b/512093496): Items moved to a base surface should not be reported as removed.
+        assertEquals(
+            """
+                class test.pkg.Foo was removed
+            """
+                .trimIndent(),
+            differences.sorted().joinToString("\n")
+        )
     }
 }
