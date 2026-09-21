@@ -212,16 +212,19 @@ internal class StubGenerator(
     ) {
         if (previouslyReleasedApi != null) {
             val previousCodebase =
-                previouslyReleasedApi.load { signatureFiles ->
-                    signatureFileCache.load(signatureFiles)
+                tracer.trace("NullnessMigration.loadPreviouslyReleasedApi") {
+                    previouslyReleasedApi.load { signatureFiles ->
+                        signatureFileCache.load(signatureFiles)
+                    }
                 }
 
             // If configured, checks for newly added nullness information compared
             // to the previous stable API and marks the newly annotated elements
             // as migrated (which will cause the Kotlin compiler to treat problems
             // as warnings instead of errors
-
-            NullnessMigration.migrateNulls(codebase, previousCodebase)
+            tracer.trace("NullnessMigration.migrateNulls") {
+                NullnessMigration.migrateNulls(codebase, previousCodebase)
+            }
 
             previousCodebase.dispose()
         }
@@ -231,7 +234,9 @@ internal class StubGenerator(
             // their callers make incorrect nullness assumptions (for example, calling a function on
             // a reference of nullable type). The way to communicate this to kotlinc is to mark
             // these APIs as RecentlyNullable/RecentlyNonNull
-            codebase.accept(MarkPackagesAsRecent(filter, codebase.apiSurfaces.main))
+            tracer.trace("MarkPackagesAsRecent") {
+                codebase.accept(MarkPackagesAsRecent(filter, codebase.apiSurfaces.main))
+            }
         }
     }
 }

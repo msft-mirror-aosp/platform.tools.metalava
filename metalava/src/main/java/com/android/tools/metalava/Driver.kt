@@ -374,7 +374,7 @@ class Driver(
 
         miscellaneousOptions.sdkValueDir?.let { dir ->
             dir.mkdirs()
-            SdkFileWriter(codebase, dir).generate()
+            tracer.trace("SdkFileWriter.generate") { SdkFileWriter(codebase, dir).generate() }
         }
 
         for (check in compatibilityCheckOptions.compatibilityChecks) {
@@ -445,13 +445,15 @@ class Driver(
             )
 
         runApiChecksFromOptions(codebase) { _, previouslyReleasedCodebase ->
-            val flaggedApiLintVisitor =
-                FlaggedApiLint(
-                    previouslyReleasedCodebase,
-                    reporter,
-                    apiFilters ?: ApiFilters.ALL,
-                )
-            codebaseFragment.accept(flaggedApiLintVisitor)
+            tracer.trace("FlaggedApiLint") {
+                val flaggedApiLintVisitor =
+                    FlaggedApiLint(
+                        previouslyReleasedCodebase,
+                        reporter,
+                        apiFilters ?: ApiFilters.ALL,
+                    )
+                codebaseFragment.accept(flaggedApiLintVisitor)
+            }
         }
 
         signatureFileOptions.apiFile?.let { apiSignatureFile ->
@@ -941,7 +943,9 @@ class Driver(
         // General API documentation checks for Android APIs.
         // They are pointless if Javadoc comments are not being read.
         if (codebase.config.allowReadingComments) {
-            AndroidApiChecks(reporter, apiSurface).check(codebase)
+            tracer.trace("AndroidApiChecks.check") {
+                AndroidApiChecks(reporter, apiSurface).check(codebase)
+            }
         }
 
         runApiChecksFromOptions(codebase) { codebase, previouslyReleasedCodebase ->
