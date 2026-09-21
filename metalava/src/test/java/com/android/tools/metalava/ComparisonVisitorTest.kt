@@ -486,13 +486,6 @@ class ComparisonVisitorTest : BaseTemporaryFolderOwner(), Assertions {
             referenceFilter = referenceFilter,
         )
 
-        // TODO(b/512093496): Items moved to a base surface should not be reported as removed.
-        assertEquals(
-            """
-                class test.pkg.Foo was removed
-            """
-                .trimIndent(),
-            differences.sorted().joinToString("\n")
-        )
+        assertEquals("", differences.sorted().joinToString("\n"))
     }
 }

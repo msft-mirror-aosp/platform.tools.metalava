@@ -123,9 +123,9 @@ object CodebaseComparator {
      *   addition or removal callbacks. If null, all items are considered.
      * @param referenceFilter filter matching items belonging to the full reference API surface
      *   hierarchy (e.g. the target surface and all base surfaces it extends). Used to construct the
-     *   item trees and to verify whether an item was moved into or inherited from a base surface
-     *   (e.g. inherited methods, fields, properties, interfaces, and thrown types) rather than
-     *   removed.
+     *   item trees and to verify whether an item absent from [surfaceFilter] was moved into or
+     *   inherited from a base surface (e.g. inherited methods, fields, properties, interfaces, and
+     *   thrown types) rather than removed.
      */
     fun compare(
         visitor: ComparisonVisitor,
@@ -163,9 +163,9 @@ object CodebaseComparator {
      *   addition or removal callbacks. If null, all items are considered.
      * @param referenceFilter filter matching items belonging to the full reference API surface
      *   hierarchy (e.g. the target surface and all base surfaces it extends). Used to construct the
-     *   item trees and to verify whether an item was moved into or inherited from a base surface
-     *   (e.g. inherited methods, fields, properties, interfaces, and thrown types) rather than
-     *   removed.
+     *   item trees and to verify whether an item absent from [surfaceFilter] was moved into or
+     *   inherited from a base surface (e.g. inherited methods, fields, properties, interfaces, and
+     *   thrown types) rather than removed.
      */
     fun compare(
         visitor: ComparisonVisitor,
@@ -211,8 +211,8 @@ object CodebaseComparator {
      *   addition or removal callbacks. If null, all items are considered.
      * @param referenceFilter filter matching items belonging to the full reference API surface
      *   hierarchy (e.g. the target surface and all base surfaces it extends). Used to construct the
-     *   item trees and to verify whether an item was moved into or inherited from a base surface
-     *   rather than removed.
+     *   item trees and to verify whether an item absent from [surfaceFilter] was moved into or
+     *   inherited from a base surface rather than removed.
      */
     fun compareMultiplatform(
         visitor: ComparisonVisitor,
@@ -308,12 +308,19 @@ object CodebaseComparator {
                                 }
                             } else {
                                 if (oldMatches) {
-                                    dispatchToRemovedOrCompareIfItemWasMoved(
-                                        old,
-                                        visitor,
-                                        newParent,
-                                        referenceFilter,
-                                    )
+                                    // If new is in the reference API, it was moved to a base
+                                    // surface rather than removed from the API.
+                                    val newInApi = referenceFilter.testOrTrue(new)
+                                    if (newInApi) {
+                                        dispatchToCompare(visitor, old, new)
+                                    } else {
+                                        dispatchToRemovedOrCompareIfItemWasMoved(
+                                            old,
+                                            visitor,
+                                            newParent,
+                                            referenceFilter,
+                                        )
+                                    }
                                 }
                             }
 
