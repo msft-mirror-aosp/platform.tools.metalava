@@ -33,6 +33,7 @@ import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.TargetLanguage
 import com.android.tools.metalava.model.api.SelectedApi
 import com.android.tools.metalava.model.multiplatform.MultiplatformCodebase
+import com.android.tools.metalava.model.testOrTrue
 import com.android.tools.metalava.model.visitors.ApiSurfaceVisitor
 
 /**
@@ -416,7 +417,7 @@ object CodebaseComparator {
                         includeInterfaces = true
                     )
 
-                if (superField != null && (filter == null || filter.test(superField))) {
+                if (superField != null && filter.testOrTrue(superField)) {
                     superField.duplicate(newParent)
                 } else {
                     null
@@ -434,7 +435,7 @@ object CodebaseComparator {
         if (old is PropertyItem && newParent is ClassItem) {
             val superProperty =
                 newParent.findProperty(old, includeSuperClasses = true, includeInterfaces = true)
-            if (superProperty != null && (filter == null || filter.test(superProperty))) {
+            if (superProperty != null && filter.testOrTrue(superProperty)) {
                 dispatchToCompare(visitor, old, superProperty.duplicate(newParent))
                 return
             }
