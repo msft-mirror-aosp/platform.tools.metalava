@@ -469,13 +469,10 @@ class CommonParameterizedSelectedApiVisibilityTest : BaseCommonParameterizedSele
             ) {
                 surfaceTest(
                     surface = "public",
-                    // TODO(b/512093496): The package should not be in the public API because it
-                    //   does not contain any source classes that are in the public API. The
-                    //   PublicClass from the class path should not make the package public.
                     expected =
                         """
                             package test.pkg
-                                   self - ApiVariantSet[public(C)]
+                                   self - ApiVariantSet[]
                               class test.pkg.Hidden
                                      self - ApiVariantSet[]
                                 constructor test.pkg.Hidden()

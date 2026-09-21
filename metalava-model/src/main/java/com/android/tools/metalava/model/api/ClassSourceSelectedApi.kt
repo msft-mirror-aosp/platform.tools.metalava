@@ -65,6 +65,10 @@ internal class ClassSourceSelectedApi(
 
     /** Propagate [childVariants] to the containing package of this. */
     private fun propagateToContainingPackage(childVariants: ApiVariantSet) {
+        // Classes that are not emitted (e.g. from the class path) must not propagate their variants
+        // to the containing package.
+        if (!item.emit) return
+
         // Find the enclosing package. This purposely skips classes as variants must not be
         // propagated from nested classes to their containing class as that is unnecessary for
         // signature file generation where nested classes are flattened.
