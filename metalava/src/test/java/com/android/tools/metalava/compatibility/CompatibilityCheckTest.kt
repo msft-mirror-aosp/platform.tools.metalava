@@ -67,11 +67,7 @@ class CompatibilityCheckTest : DriverTest() {
                         """
                     ),
                 ),
-            // TODO(b/512093496): Added public class should not be reported as added to system API.
-            expectedIssues =
-                """
-                    src/test/pkg/Bar.java:3: error: Added class test.pkg.Bar to the system API [AddedClass]
-                """,
+            expectedIssues = "",
         )
     }
 

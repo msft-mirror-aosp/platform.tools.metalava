@@ -29,7 +29,6 @@ import com.android.tools.metalava.model.ClassOrigin
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.ConstructorItem
-import com.android.tools.metalava.model.EmittedOnlyPredicate
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.FilterPredicate
 import com.android.tools.metalava.model.Item
@@ -1457,7 +1456,7 @@ private constructor(
     }
 
     private fun handleAdded(issue: Issue, item: SelectableItem) {
-        if (!referenceFilter.test(item)) {
+        if (!surfaceFilter.test(item)) {
             // This item is something we weren't asked to verify
             return
         }
@@ -1914,7 +1913,6 @@ private constructor(
         ) {
             val surfaceFilter = getSurfaceFilter(checkType.apiType, apiSurface)
             val referenceFilter = getReferenceFilter(checkType.apiType, apiSurface)
-
             val checker =
                 CompatibilityCheck(
                     surfaceFilter = surfaceFilter,
@@ -2000,7 +1998,11 @@ private constructor(
          * methods. This is used to filter which items are included in compatibility checks.
          */
         private fun getSurfaceFilter(apiType: ApiType, apiSurface: ApiSurface) =
-            EmittedOnlyPredicate
+            ApiSurfacePredicate.forDelta(
+                apiType,
+                apiSurface,
+                includeOverridingMethods = true,
+            )
 
         /**
          * Returns a reference filter based on the [apiType] and [apiSurface] which includes
