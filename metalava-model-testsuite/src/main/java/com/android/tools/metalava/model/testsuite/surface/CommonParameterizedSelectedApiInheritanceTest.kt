@@ -350,8 +350,6 @@ class CommonParameterizedSelectedApiInheritanceTest : BaseCommonParameterizedSel
                         ),
                     ),
             ) {
-                // Middle.method() is marked @Hide and overrides a class method, so it does
-                // not inherit the public(C) API variant from Base.method().
                 surfaceTest(
                     surface = "module",
                     expected =
@@ -369,7 +367,7 @@ class CommonParameterizedSelectedApiInheritanceTest : BaseCommonParameterizedSel
                                 constructor test.pkg.Middle()
                                        self - ApiVariantSet[public(C)]
                                 method test.pkg.Middle.method()
-                                       self - ApiVariantSet[]
+                                       self - ApiVariantSet[public(C)]
                                 superMethod - ApiVariantSet[public(C)]
                               class test.pkg.Sub
                                      self - ApiVariantSet[public(C)]
@@ -378,6 +376,7 @@ class CommonParameterizedSelectedApiInheritanceTest : BaseCommonParameterizedSel
                                 method test.pkg.Sub.method()
                                        self - ApiVariantSet[public(C)]
                                 superMethod - ApiVariantSet[public(C)]
+                                   elidable - ApiVariantSet[public(C),system(C),module(C)]
                         """,
                 )
             }
@@ -598,8 +597,6 @@ class CommonParameterizedSelectedApiInheritanceTest : BaseCommonParameterizedSel
             ) {
                 surfaceTest(
                     surface = "public",
-                    // TODO(b/512093496): The method should not be hidden as it overrides an API
-                    //  method.
                     expected =
                         """
                             package test.pkg
@@ -615,7 +612,7 @@ class CommonParameterizedSelectedApiInheritanceTest : BaseCommonParameterizedSel
                                 constructor test.pkg.Child()
                                        self - ApiVariantSet[public(C)]
                                 method test.pkg.Child.method()
-                                       self - ApiVariantSet[]
+                                       self - ApiVariantSet[public(C)]
                                 superMethod - ApiVariantSet[public(C)]
                                    elidable - ApiVariantSet[public(C)]
                         """,
@@ -651,8 +648,6 @@ class CommonParameterizedSelectedApiInheritanceTest : BaseCommonParameterizedSel
             ) {
                 surfaceTest(
                     surface = "public",
-                    // TODO(b/512093496): The method should not be hidden as it overrides an API
-                    //  method.
                     expected =
                         """
                             package test.pkg
@@ -668,7 +663,7 @@ class CommonParameterizedSelectedApiInheritanceTest : BaseCommonParameterizedSel
                                 constructor test.pkg.Child()
                                        self - ApiVariantSet[public(C)]
                                 method test.pkg.Child.method()
-                                       self - ApiVariantSet[]
+                                       self - ApiVariantSet[public(C)]
                                 superMethod - ApiVariantSet[public(C)]
                                    elidable - ApiVariantSet[public(C)]
                         """,
@@ -710,8 +705,6 @@ class CommonParameterizedSelectedApiInheritanceTest : BaseCommonParameterizedSel
             ) {
                 surfaceTest(
                     surface = "system",
-                    // TODO(b/512093496): The method should not be hidden as it overrides an API
-                    //  method.
                     expected =
                         """
                             package test.pkg
@@ -728,7 +721,7 @@ class CommonParameterizedSelectedApiInheritanceTest : BaseCommonParameterizedSel
                                 constructor test.pkg.Child()
                                        self - ApiVariantSet[public(C)]
                                 method test.pkg.Child.method()
-                                       self - ApiVariantSet[]
+                                       self - ApiVariantSet[system(C)]
                                 superMethod - ApiVariantSet[system(C)]
                                    elidable - ApiVariantSet[system(C)]
                         """,
@@ -768,8 +761,6 @@ class CommonParameterizedSelectedApiInheritanceTest : BaseCommonParameterizedSel
             ) {
                 surfaceTest(
                     surface = "public",
-                    // TODO(b/512093496): The method should not be hidden as it overrides an API
-                    //  method.
                     expected =
                         """
                             package test.pkg
@@ -785,7 +776,7 @@ class CommonParameterizedSelectedApiInheritanceTest : BaseCommonParameterizedSel
                                 constructor test.pkg.Child()
                                        self - ApiVariantSet[public(C)]
                                 method test.pkg.Child.method()
-                                       self - ApiVariantSet[]
+                                       self - ApiVariantSet[public(C)]
                                 superMethod - ApiVariantSet[public(C)]
                                    elidable - ApiVariantSet[public(C)]
                         """,
@@ -829,8 +820,6 @@ class CommonParameterizedSelectedApiInheritanceTest : BaseCommonParameterizedSel
             ) {
                 surfaceTest(
                     surface = "system",
-                    // TODO(b/512093496): The method should not be hidden as it overrides an API
-                    //  method.
                     expected =
                         """
                             package test.pkg
@@ -846,7 +835,7 @@ class CommonParameterizedSelectedApiInheritanceTest : BaseCommonParameterizedSel
                                 constructor test.pkg.Child()
                                        self - ApiVariantSet[system(C)]
                                 method test.pkg.Child.method()
-                                       self - ApiVariantSet[]
+                                       self - ApiVariantSet[system(C)]
                                 superMethod - ApiVariantSet[system(C)]
                                    elidable - ApiVariantSet[system(C)]
                         """,

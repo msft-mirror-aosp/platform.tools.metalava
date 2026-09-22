@@ -793,12 +793,13 @@ class NullabilityLintTest : DriverTest() {
     }
 
     @Test
-    fun `Test overriding method marked with @Hide is not checked for nullability`() {
+    fun `Test overriding method marked with @Hide is checked for nullability`() {
         check(
             apiLint = "",
             expectedIssues =
                 """
                     src/test/pkg/Sub.java:8: error: Attempting to hide method test.pkg.Sub.method(String) which overrides method test.pkg.Base.method(String) which is already part of the API [HidingApiMethodOverride]
+                    src/test/pkg/Sub.java:8: error: Missing nullability on parameter `str` in method `method` [MissingNullability]
                 """,
             apiSurface = KnownApiSurface.PUBLIC,
             sourceFiles =

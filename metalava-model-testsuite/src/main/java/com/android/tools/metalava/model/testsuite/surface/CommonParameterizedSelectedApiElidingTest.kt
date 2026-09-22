@@ -385,8 +385,6 @@ class CommonParameterizedSelectedApiElidingTest : BaseCommonParameterizedSelecte
             ) {
                 surfaceTest(
                     surface = "public",
-                    // TODO(b/512093496): The method should not be hidden as it overrides an API
-                    //  method.
                     expected =
                         """
                             package test.pkg
@@ -402,7 +400,7 @@ class CommonParameterizedSelectedApiElidingTest : BaseCommonParameterizedSelecte
                                 constructor test.pkg.Child()
                                        self - ApiVariantSet[public(C)]
                                 method test.pkg.Child.method(int,String)
-                                       self - ApiVariantSet[]
+                                       self - ApiVariantSet[public(C)]
                                 superMethod - ApiVariantSet[public(C)]
                         """,
                 )

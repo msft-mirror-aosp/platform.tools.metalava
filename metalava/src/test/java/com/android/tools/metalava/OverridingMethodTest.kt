@@ -178,7 +178,6 @@ class OverridingMethodTest : DriverTest() {
                       }
                       public class Sub extends test.pkg.Middle {
                         ctor public Sub();
-                        method public String method();
                       }
                     }
                 """,
