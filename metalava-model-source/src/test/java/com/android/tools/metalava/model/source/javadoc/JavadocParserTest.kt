@@ -262,7 +262,7 @@ class JavadocParserTest : BaseJavadocTest() {
                 """,
             expectedJavadocIssues =
                 """
-                    2:6: token recognition error at: ' ' [InvalidJavadoc]
+                    2:6: unexpected ' ' after '{@' [InvalidJavadoc]
                 """,
         )
     }

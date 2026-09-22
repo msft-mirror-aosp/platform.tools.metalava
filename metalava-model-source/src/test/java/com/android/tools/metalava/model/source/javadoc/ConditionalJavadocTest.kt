@@ -44,17 +44,11 @@ class ConditionalJavadocTest : BaseJavadocTest() {
             expectedJavadocIssues =
                 """
                     2:11: missing <expr> [InvalidIfTag]
-                    2:16: mismatched input '{' expecting '('
-                      Expected:
-                        PAREN_OPEN
-                      Found:
-                        BRACE_OPEN "{"
-                     [InvalidJavadoc]
-                    2:30: extraneous input '}' expecting {<EOF>, NEWLINE} [InvalidJavadoc]
+                    2:16: expected '(', found '{' [InvalidJavadoc]
                 """,
             expectedStructure =
                 """
-                    text: 'Before missing expr'
+                    text: 'Before after.'
                 """,
         )
     }
@@ -69,19 +63,11 @@ class ConditionalJavadocTest : BaseJavadocTest() {
             """,
             expectedJavadocIssues =
                 """
-                    2:39: token recognition error at: '{' [InvalidJavadoc]
-                    2:40: mismatched input 'unbalanced' expecting ')'
-                      Expected:
-                        PAREN_CLOSE
-                      Found:
-                        IDENTIFIER "unbalanced"
-                     [InvalidJavadoc]
-                    2:63: token recognition error at: '}' [InvalidJavadoc]
-                    2:64: token recognition error at: '}' [InvalidJavadoc]
+                    2:39: expected ')', found '{' [InvalidJavadoc]
                 """,
             expectedStructure =
                 """
-                    text: 'Before'
+                    text: 'Before after.'
                 """,
         )
     }
@@ -97,12 +83,7 @@ class ConditionalJavadocTest : BaseJavadocTest() {
             expectedJavadocIssues =
                 """
                     2:17: unknown function 'blah', expected 'flag' [InvalidJavadocExpr]
-                    2:22: mismatched input ')' expecting IDENTIFIER
-                      Expected:
-                        IDENTIFIER
-                      Found:
-                        PAREN_CLOSE ")"
-                     [InvalidJavadoc]
+                    2:22: expected field reference, found ')' [InvalidJavadoc]
                 """,
             expectedStructure =
                 """
@@ -121,14 +102,7 @@ class ConditionalJavadocTest : BaseJavadocTest() {
             """,
             expectedJavadocIssues =
                 """
-                    2:39: missing BRACE_OPEN at '}' [InvalidJavadoc]
-                    2:40: mismatched input 'after.' expecting {BRACE_CLOSE, 'else'}
-                      Expected:
-                        BRACE_CLOSE
-                        IF_TAG_ELSE
-                      Found:
-                        TEXT_CONTENT "after."
-                     [InvalidJavadoc]
+                    2:39: expected '{', found '}' [InvalidJavadoc]
                 """,
             expectedStructure =
                 """
