@@ -516,24 +516,12 @@ private constructor(
         codebase.reporter.report(issue, null, message, location)
     }
 
-    /** See [SignatureFile.forMainApiSurface]. */
-    private val forMainApiSurface
-        get() = apiVariant.surface.isMain
-
-    /**
-     * Mark this [SelectableItem] as being part of the main API surface, i.e. the one that is being
-     * created.
-     *
-     * Should only be called on [SelectableItem]s which have been created from the main signature
-     * file.
-     */
-    private fun SelectableItem.markForMainApiSurface() {
-        markSelectedApiVariant()
-    }
-
     /**
      * Record that this [SelectableItem] was loaded from a signature file that contains
      * [apiVariant].
+     *
+     * If this class was already defined in a different API surface, this will not add the new
+     * surface.
      */
     private fun SelectableItem.markSelectedApiVariant() {
         selectedApi.addItemApiVariant(apiVariant)
@@ -782,7 +770,7 @@ private constructor(
                 origin = ClassOrigin.COMMAND_LINE,
             )
         // Mark type alias as belonging to the main API surface of this signature file.
-        typeAlias.markForMainApiSurface()
+        typeAlias.markSelectedApiVariant()
     }
 
     /** Parse a class starting with [Tokenizer.current]. */
@@ -953,7 +941,7 @@ private constructor(
                             }
                         }
             )
-        cl.markForMainApiSurface()
+        cl.markSelectedApiVariant()
 
         // Store the [TypeItemFactory] for this [ClassItem] so it can be retrieved later in
         // [typeItemFactoryForClass].
@@ -1443,7 +1431,7 @@ private constructor(
                 implicitConstructor = false,
                 targetLanguages = targetLanguages,
             )
-        method.markForMainApiSurface()
+        method.markSelectedApiVariant()
 
         if (appending) {
             // If there is already a constructor with the same signature from a previous file,
@@ -1558,7 +1546,7 @@ private constructor(
         // ensure that the resulting Codebase is consistent with the original source Codebase.
         if (method.isEnumSyntheticMethod()) return
 
-        method.markForMainApiSurface()
+        method.markSelectedApiVariant()
 
         if (appending) {
             // If the method already exists in the class item because it was defined in a previous
@@ -1675,7 +1663,7 @@ private constructor(
                 constantValueProvider = constantValueProvider,
                 targetLanguages = targetLanguages,
             )
-        field.markForMainApiSurface()
+        field.markSelectedApiVariant()
         if (appending) {
             // If the field already exists in the class item because it was defined in a previous
             // signature file then replace it with this one, otherwise just add this field.
@@ -1909,7 +1897,7 @@ private constructor(
                     contextParameters.map { it.create(propertyItem, typeItemFactory) }
                 },
             )
-        property.markForMainApiSurface()
+        property.markSelectedApiVariant()
 
         if (appending) {
             // If there is already a property with the same signature from a previous file, replaces
