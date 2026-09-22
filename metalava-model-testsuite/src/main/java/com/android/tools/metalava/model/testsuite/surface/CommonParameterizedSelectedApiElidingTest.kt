@@ -19,6 +19,7 @@ package com.android.tools.metalava.model.testsuite.surface
 import com.android.tools.metalava.model.api.SelectedApi
 import com.android.tools.metalava.model.junit4.ParameterFilter
 import com.android.tools.metalava.model.testing.CodebaseCreatorConfig
+import com.android.tools.metalava.model.testing.surfaces.TestableApiSurfaces.HIDE
 import com.android.tools.metalava.model.testing.surfaces.TestableApiSurfaces.SYSTEM_API
 import com.android.tools.metalava.model.testing.surfaces.TestableApiSurfaces.publicSystemModuleRules
 import com.android.tools.metalava.model.testsuite.ModelSuiteRunner
@@ -348,6 +349,60 @@ class CommonParameterizedSelectedApiElidingTest : BaseCommonParameterizedSelecte
                                        self - ApiVariantSet[public(C)]
                                 method test.pkg.Child.foo()
                                        self - ApiVariantSet[public(C)]
+                                superMethod - ApiVariantSet[public(C)]
+                        """,
+                )
+            }
+
+            buildTests(
+                name = "hidden method with specialized return type",
+                surfaceRules = publicSystemModuleRules,
+                expectedIssues =
+                    """
+                        MAIN_SRC/src/test/pkg/Child.java: hidden: Attempting to hide method test.pkg.Child.method(int,String) which overrides method test.pkg.Parent.method(int,String) which is already part of the API [HidingApiMethodOverride]
+                    """,
+                sources =
+                    listOf(
+                        java(
+                            """
+                                package test.pkg;
+                                public class Parent {
+                                    protected Object method(int p1, String p2) { return null; }
+                                }
+                            """
+                        ),
+                        java(
+                            """
+                                package test.pkg;
+                                public class Child extends Parent {
+                                    $HIDE
+                                    @Override
+                                    public String method(int q1, String q2) { return null; }
+                                }
+                            """
+                        ),
+                    ),
+            ) {
+                surfaceTest(
+                    surface = "public",
+                    // TODO(b/512093496): The method should not be hidden as it overrides an API
+                    //  method.
+                    expected =
+                        """
+                            package test.pkg
+                                   self - ApiVariantSet[public(C)]
+                              class test.pkg.Parent
+                                     self - ApiVariantSet[public(C)]
+                                constructor test.pkg.Parent()
+                                       self - ApiVariantSet[public(C)]
+                                method test.pkg.Parent.method(int,String)
+                                       self - ApiVariantSet[public(C)]
+                              class test.pkg.Child
+                                     self - ApiVariantSet[public(C)]
+                                constructor test.pkg.Child()
+                                       self - ApiVariantSet[public(C)]
+                                method test.pkg.Child.method(int,String)
+                                       self - ApiVariantSet[]
                                 superMethod - ApiVariantSet[public(C)]
                         """,
                 )
