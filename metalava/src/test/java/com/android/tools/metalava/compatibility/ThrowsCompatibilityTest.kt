@@ -326,4 +326,107 @@ class ThrowsCompatibilityTest : DriverTest() {
             """
         )
     }
+
+    @Test
+    fun `Delete RuntimeException subclass thrown on class method - Incompatible`() {
+        check(
+            // TODO(b/512093496): Removing a RuntimeException subclass from a throws list is not an
+            //  error because unchecked exceptions are not required to be caught or declared.
+            expectedIssues =
+                """
+                    load-api.txt:4: error: Source breaking change: Method test.pkg.Foo.bar no longer throws exception test.pkg.MyRuntimeException [ChangedThrows]
+                """,
+            signatureSource =
+                """
+                    package test.pkg {
+                      public class Foo {
+                        method public void bar(int);
+                      }
+                      public class MyRuntimeException extends java.lang.RuntimeException {
+                        ctor public MyRuntimeException();
+                      }
+                    }
+                """,
+            checkCompatibilityApiReleased =
+                """
+                    package test.pkg {
+                      public class Foo {
+                        method public void bar(int) throws test.pkg.MyRuntimeException;
+                      }
+                      public class MyRuntimeException extends java.lang.RuntimeException {
+                        ctor public MyRuntimeException();
+                      }
+                    }
+                """,
+        )
+    }
+
+    @Test
+    fun `Delete Error subclass thrown on class method - Incompatible`() {
+        check(
+            // TODO(b/512093496): Removing an Error subclass from a throws list is not an error
+            //  because unchecked exceptions are not required to be caught or declared.
+            expectedIssues =
+                """
+                    load-api.txt:4: error: Source breaking change: Method test.pkg.Foo.bar no longer throws exception test.pkg.MyError [ChangedThrows]
+                """,
+            signatureSource =
+                """
+                    package test.pkg {
+                      public class Foo {
+                        method public void bar(int);
+                      }
+                      public class MyError extends java.lang.Error {
+                        ctor public MyError();
+                      }
+                    }
+                """,
+            checkCompatibilityApiReleased =
+                """
+                    package test.pkg {
+                      public class Foo {
+                        method public void bar(int) throws test.pkg.MyError;
+                      }
+                      public class MyError extends java.lang.Error {
+                        ctor public MyError();
+                      }
+                    }
+                """,
+        )
+    }
+
+    @Test
+    fun `Delete checked exception that became RuntimeException subclass thrown on class method - Incompatible`() {
+        check(
+            // TODO(b/512093496): Removing an exception that is now a RuntimeException subclass from
+            //  a throws list is not an error because unchecked exceptions are not required to be
+            //  caught or declared.
+            expectedIssues =
+                """
+                    load-api.txt:4: error: Source breaking change: Method test.pkg.Foo.bar no longer throws exception test.pkg.MyException [ChangedThrows]
+                """,
+            signatureSource =
+                """
+                    package test.pkg {
+                      public class Foo {
+                        method public void bar(int);
+                      }
+                      public class MyException extends java.lang.RuntimeException {
+                        ctor public MyException();
+                      }
+                    }
+                """,
+            checkCompatibilityApiReleased =
+                """
+                    package test.pkg {
+                      public class Foo {
+                        method public void bar(int) throws test.pkg.MyException;
+                      }
+                      public class MyException extends java.lang.Exception {
+                        ctor public MyException();
+                      }
+                    }
+                """,
+        )
+    }
 }
