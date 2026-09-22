@@ -1282,15 +1282,25 @@ private constructor(
      *
      * When the method returns, the [tokenizer] will point to the token after the end of the
      * returned string.
+     *
+     * @param tokenizer the [Tokenizer] from which to read tokens.
+     * @return the complete token string.
      */
     private fun getAnnotationCompleteToken(tokenizer: Tokenizer): String {
         val startingToken = tokenizer.current
-        return if (startingToken.contains('@')) {
-            val prefix = startingToken.substringBefore('@')
-            val annotationStart = startingToken.substring(startingToken.indexOf('@'))
+        val atIndex = startingToken.indexOf('@')
+        return if (atIndex != -1) {
+            // An annotation starts at or within this token (e.g. `@Nullable` or
+            // `prefix.@Nullable`).
+            // Parse the complete annotation (including any arguments) from the tokenizer.
+            val annotationStart = startingToken.substring(atIndex)
             val annotation = getAnnotationSource(tokenizer, annotationStart)
-            "$prefix$annotation"
+            buildString {
+                append(startingToken, 0, atIndex)
+                append(annotation)
+            }
         } else {
+            // No annotation is present; advance the tokenizer and return the token directly.
             tokenizer.requireToken()
             startingToken
         }
