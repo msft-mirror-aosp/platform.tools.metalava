@@ -71,6 +71,27 @@ sealed interface TypeComparator {
             return result
         }
 
+        /**
+         * Compare [param1] and [param2].
+         *
+         * The default compares type parameters by equality ([param1] == [param2]), matching most
+         * subclasses ([STRICT], [NULLABILITY_AWARE], [IGNORE_NULLABILITY], [ERASED], and
+         * [FLATTENED_WILDCARDS]). Only [IDENTICAL] overrides this to compare by identity.
+         */
+        protected open fun compareTypeParameters(
+            param1: TypeParameterItem,
+            param2: TypeParameterItem,
+        ): Boolean = param1 == param2
+
+        /**
+         * Hash [param].
+         *
+         * The default hashes type parameters by equality ([param].hashCode()), matching most
+         * subclasses ([STRICT], [NULLABILITY_AWARE], [IGNORE_NULLABILITY], [ERASED], and
+         * [FLATTENED_WILDCARDS]). Only [IDENTICAL] overrides this to hash by identity.
+         */
+        protected open fun hashTypeParameter(param: TypeParameterItem): Int = param.hashCode()
+
         /** Compare the structural elements of [type1] and [type2]. */
         private fun compareStructure(type1: TypeItem, type2: TypeItem): Boolean {
             return when (type1) {
@@ -90,7 +111,8 @@ sealed interface TypeComparator {
                         compare(type1.outerClassType, type2.outerClassType)
                 }
                 is VariableTypeItem -> {
-                    type2 is VariableTypeItem && type1.asTypeParameter === type2.asTypeParameter
+                    type2 is VariableTypeItem &&
+                        compareTypeParameters(type1.asTypeParameter, type2.asTypeParameter)
                 }
                 is WildcardTypeItem -> {
                     type2 is WildcardTypeItem &&
@@ -117,7 +139,7 @@ sealed interface TypeComparator {
                         31 * result + type.arguments.fold(1) { acc, arg -> 31 * acc + hash(arg) }
                     result
                 }
-                is VariableTypeItem -> System.identityHashCode(type.asTypeParameter)
+                is VariableTypeItem -> hashTypeParameter(type.asTypeParameter)
                 is WildcardTypeItem -> {
                     var result = hash(type.extendsBound)
                     result = 31 * result + hash(type.superBound)
@@ -132,7 +154,21 @@ sealed interface TypeComparator {
      * [TypeComparator] that compares structure (including type parameter identity), nullability,
      * and type-use annotations.
      */
-    data object IDENTICAL : Base()
+    data object IDENTICAL : Base() {
+        override fun compareTypeParameters(
+            param1: TypeParameterItem,
+            param2: TypeParameterItem,
+        ): Boolean = param1 === param2
+
+        override fun hashTypeParameter(param: TypeParameterItem): Int =
+            System.identityHashCode(param)
+    }
+
+    /**
+     * [TypeComparator] that compares structure (including type parameter equality), nullability,
+     * and type-use annotations.
+     */
+    data object STRICT : Base()
 }
 
 /** Compare this [TypeItem] to [other] using [comparator]. */

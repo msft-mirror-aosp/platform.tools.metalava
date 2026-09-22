@@ -62,6 +62,13 @@ class ParameterizedTypeComparatorTest {
 
         /** Result of comparing [type1] and [type2] with [TypeComparator.IDENTICAL]. */
         val expectedIdenticalResult: Boolean,
+
+        /**
+         * Result of comparing [type1] and [type2] with [TypeComparator.STRICT].
+         *
+         * Defaults to [expectedIdenticalResult].
+         */
+        val expectedStrictResult: Boolean = expectedIdenticalResult,
     ) {
         /**
          * Record the stack trace of the creation of this which can be used to provide a stack trace
@@ -392,6 +399,7 @@ class ParameterizedTypeComparatorTest {
                     typeVarT,
                     typeVarTDiffParam,
                     expectedIdenticalResult = false,
+                    expectedStrictResult = true,
                 )
             )
             // Two VariableTypeItems with different TypeParameterItems but the same name and
@@ -401,6 +409,7 @@ class ParameterizedTypeComparatorTest {
                     typeVarTWithBounds,
                     typeVarTWithBounds2,
                     expectedIdenticalResult = false,
+                    expectedStrictResult = true,
                 )
             )
             add(
@@ -714,6 +723,28 @@ class ParameterizedTypeComparatorTest {
             assertEquals(
                 TypeComparator.IDENTICAL.hash(testCase.type1),
                 TypeComparator.IDENTICAL.hash(testCase.type2),
+                message = "hash",
+            )
+        }
+    }
+
+    @Test
+    fun `test strict comparator`() {
+        assertEquals(
+            testCase.expectedStrictResult,
+            TypeComparator.STRICT.compare(testCase.type1, testCase.type2),
+            message = "compare(type1, type2)",
+        )
+        // Also verify symmetry
+        assertEquals(
+            testCase.expectedStrictResult,
+            TypeComparator.STRICT.compare(testCase.type2, testCase.type1),
+            message = "compare(type2, type1)",
+        )
+        if (testCase.expectedStrictResult) {
+            assertEquals(
+                TypeComparator.STRICT.hash(testCase.type1),
+                TypeComparator.STRICT.hash(testCase.type2),
                 message = "hash",
             )
         }
