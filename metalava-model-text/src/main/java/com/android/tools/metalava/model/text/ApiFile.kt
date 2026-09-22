@@ -2488,17 +2488,25 @@ private constructor(
      * Determines whether the [type] is an incomplete type string broken up by annotations. This is
      * the case when there's an annotation that isn't contained within a parameter list (because
      * [Tokenizer.requireToken] handles not breaking in the middle of a parameter list).
+     *
+     * @param type the type token to check.
+     * @return true if the token is an incomplete type string broken up by annotations.
      */
     private fun isIncompleteTypeToken(type: String): Boolean {
+        // If there is no '@' at all, the token cannot have type annotations.
         val firstAnnotationIndex = type.indexOf('@')
+        if (firstAnnotationIndex == -1) return false
+
+        // If there are no type parameters ('<') or the first annotation appears before '<',
+        // then the annotation is outside the parameter list and breaks up the type string.
         val paramStartIndex = type.indexOf('<')
+        if (paramStartIndex == -1 || firstAnnotationIndex < paramStartIndex) return true
+
+        // Otherwise, the first annotation is inside '<...>'. Check whether any annotation
+        // appears after the parameter list (e.g. `List<String> @Nullable []`).
         val lastAnnotationIndex = type.lastIndexOf('@')
         val paramEndIndex = type.lastIndexOf('>')
-        return firstAnnotationIndex != -1 &&
-            (paramStartIndex == -1 ||
-                firstAnnotationIndex < paramStartIndex ||
-                paramEndIndex == -1 ||
-                paramEndIndex < lastAnnotationIndex)
+        return paramEndIndex == -1 || paramEndIndex < lastAnnotationIndex
     }
 
     /**
