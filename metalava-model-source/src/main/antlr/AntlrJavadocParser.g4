@@ -33,6 +33,7 @@ parser grammar AntlrJavadocParser;
 
 @header {
 package com.android.tools.metalava.model.source.javadoc;
+import org.antlr.v4.runtime.Token;
 }
 
 options {
