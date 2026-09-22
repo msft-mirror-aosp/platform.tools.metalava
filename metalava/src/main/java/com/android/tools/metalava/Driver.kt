@@ -49,6 +49,8 @@ import com.android.tools.metalava.cli.signature.SignatureToDexCommand
 import com.android.tools.metalava.cli.signature.SignatureToJDiffCommand
 import com.android.tools.metalava.cli.signature.migration.SignatureMigrateCommand
 import com.android.tools.metalava.cli.signature.migration.SignatureReformatCommand
+import com.android.tools.metalava.cli.surface.MultiSurfaceCommand
+import com.android.tools.metalava.cli.surface.SingleSurfaceCommand
 import com.android.tools.metalava.compatibility.CompatibilityCheck
 import com.android.tools.metalava.jar.JarCodebaseLoader
 import com.android.tools.metalava.lint.ApiLint
@@ -186,6 +188,7 @@ class Driver(
                 SignatureToDexCommand(),
                 SignatureToJDiffCommand(),
                 VersionCommand(),
+                MultiSurfaceCommand().subcommands(SingleSurfaceCommand()),
             )
             return command
         }
