@@ -125,7 +125,8 @@ val selectedApiVariantsTestData =
                     package test.pkg
                            self - ApiVariantSet[main(CR)]
                       class test.pkg.Test
-                             self - ApiVariantSet[main(CR)]
+                             self - ApiVariantSet[main(C)]
+                          content - ApiVariantSet[main(R)]
                         constructor test.pkg.Test()
                                self - ApiVariantSet[main(C)]
                         method test.pkg.Test.foo(int)

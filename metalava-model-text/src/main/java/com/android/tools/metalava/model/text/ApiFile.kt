@@ -540,23 +540,6 @@ private constructor(
     }
 
     /**
-     * It is only necessary to mark an existing class as being part of the main API surface, if it
-     * should be but is not already.
-     *
-     * e.g. Imagine that there are two files, `public.txt` and `system.txt` where the second extends
-     * the first. When generating the system API classes in the `public.txt` will not be considered
-     * part of it but any classes defined in `system.txt` will be, even if they were initially
-     * created in `public.txt`. While `public.txt` should come first this ensures the correct
-     * behavior irrespective of the order.
-     */
-    private fun ClassItem.markExistingClassForMainApiSurface() {
-        // Record the ApiVariant to which this belongs, even if this class was previously loaded.
-        // If this class was already defined in a different API surface, markSelectedApiVariant will
-        // not add the new surface.
-        markSelectedApiVariant()
-    }
-
-    /**
      * Parses all the [signatureFiles], treating the first file as the base API and all other files
      * as extensions.
      */
@@ -995,13 +978,6 @@ private constructor(
     ): Boolean {
         val existingClass =
             codebase.findClassInCodebase(classCharacteristics.qualifiedName) ?: return false
-
-        // Although the class was first defined in a separate file it is being modified in the
-        // current file so that may include it in the main API surface.
-        // Marking the class for the main API surface must be done before parsing the class body so
-        // that the class's own API variants are recorded before any members in this file propagate
-        // their variants up to the class.
-        existingClass.markExistingClassForMainApiSurface()
 
         // Parse the class body adding each member created to the existing class (typealiases do not
         // have a class body).
