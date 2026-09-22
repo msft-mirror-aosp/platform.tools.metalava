@@ -32,6 +32,8 @@ import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.FilterPredicate
 import com.android.tools.metalava.model.Item
+import com.android.tools.metalava.model.JAVA_LANG_ERROR
+import com.android.tools.metalava.model.JAVA_LANG_RUNTIME_EXCEPTION
 import com.android.tools.metalava.model.MergedCodebase
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.MultipleTypeVisitor
@@ -1051,16 +1053,25 @@ class CompatibilityCheck(
             // Get the throwable class, if none could be found then it is either because there is an
             // error in the codebase or the codebase is incomplete, either way reporting an error
             // would be unhelpful.
-            val throwableClass = throwType.asErasedClass(old.codebase) ?: continue
-            if (!new.throws(throwableClass.qualifiedName())) {
+            val oldThrowableClass = throwType.asErasedClass(old.codebase) ?: continue
+            if (!new.throws(oldThrowableClass.qualifiedName())) {
                 // exclude 'throws' changes to finalize() overrides with no arguments
                 if (old.name() != "finalize" || old.parameters().isNotEmpty()) {
-                    report(
-                        Issues.CHANGED_THROWS,
-                        new,
-                        "${new.describeCallableItem(capitalize = true)} no longer throws exception ${throwType.description()}",
-                        oldItem = old,
-                    )
+                    // Check whether the exception is unchecked in the new codebase, because if a
+                    // previously checked exception became unchecked, callers no longer need to
+                    // catch or declare it, so removing it from the throws list is not breaking.
+                    val newThrowableClass = throwType.asErasedClass(new.codebase)
+
+                    // Removing an unchecked exception from a throws list is not a breaking change
+                    // because callers are not required to catch or declare unchecked exceptions.
+                    if (newThrowableClass == null || !newThrowableClass.isUncheckedException()) {
+                        report(
+                            Issues.CHANGED_THROWS,
+                            new,
+                            "${new.describeCallableItem(capitalize = true)} no longer throws exception ${throwType.description()}",
+                            oldItem = old,
+                        )
+                    }
                 }
             }
         }
@@ -1080,6 +1091,12 @@ class CompatibilityCheck(
             }
         }
     }
+
+    /**
+     * Returns true if this class is an unchecked exception (subclass of RuntimeException or Error).
+     */
+    private fun ClassItem.isUncheckedException() =
+        extends(JAVA_LANG_RUNTIME_EXCEPTION) || extends(JAVA_LANG_ERROR)
 
     /** Describe the value for use in [compareMethodItems]. */
     private fun Value?.description() = this?.toValueString() ?: "nothing"

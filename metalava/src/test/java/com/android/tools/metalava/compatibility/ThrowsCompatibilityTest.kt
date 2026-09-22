@@ -34,7 +34,6 @@ class ThrowsCompatibilityTest : DriverTest() {
                     src/test/pkg/MyClass.java:8: error: Source breaking change: Method test.pkg.MyClass.method2 no longer throws exception java.io.IOException [ChangedThrows]
                     src/test/pkg/MyClass.java:9: error: Source breaking change: Method test.pkg.MyClass.method3 added thrown exception java.lang.UnsupportedOperationException [ChangedThrows]
                     src/test/pkg/MyClass.java:9: error: Source breaking change: Method test.pkg.MyClass.method3 no longer throws exception java.io.IOException [ChangedThrows]
-                    src/test/pkg/MyClass.java:9: error: Source breaking change: Method test.pkg.MyClass.method3 no longer throws exception java.lang.NumberFormatException [ChangedThrows]
                 """,
             checkCompatibilityApiReleased =
                 """
@@ -328,14 +327,8 @@ class ThrowsCompatibilityTest : DriverTest() {
     }
 
     @Test
-    fun `Delete RuntimeException subclass thrown on class method - Incompatible`() {
+    fun `Delete RuntimeException subclass thrown on class method - Compatible`() {
         check(
-            // TODO(b/512093496): Removing a RuntimeException subclass from a throws list is not an
-            //  error because unchecked exceptions are not required to be caught or declared.
-            expectedIssues =
-                """
-                    load-api.txt:4: error: Source breaking change: Method test.pkg.Foo.bar no longer throws exception test.pkg.MyRuntimeException [ChangedThrows]
-                """,
             signatureSource =
                 """
                     package test.pkg {
@@ -362,14 +355,8 @@ class ThrowsCompatibilityTest : DriverTest() {
     }
 
     @Test
-    fun `Delete Error subclass thrown on class method - Incompatible`() {
+    fun `Delete Error subclass thrown on class method - Compatible`() {
         check(
-            // TODO(b/512093496): Removing an Error subclass from a throws list is not an error
-            //  because unchecked exceptions are not required to be caught or declared.
-            expectedIssues =
-                """
-                    load-api.txt:4: error: Source breaking change: Method test.pkg.Foo.bar no longer throws exception test.pkg.MyError [ChangedThrows]
-                """,
             signatureSource =
                 """
                     package test.pkg {
@@ -396,15 +383,8 @@ class ThrowsCompatibilityTest : DriverTest() {
     }
 
     @Test
-    fun `Delete checked exception that became RuntimeException subclass thrown on class method - Incompatible`() {
+    fun `Delete checked exception that became RuntimeException subclass thrown on class method - Compatible`() {
         check(
-            // TODO(b/512093496): Removing an exception that is now a RuntimeException subclass from
-            //  a throws list is not an error because unchecked exceptions are not required to be
-            //  caught or declared.
-            expectedIssues =
-                """
-                    load-api.txt:4: error: Source breaking change: Method test.pkg.Foo.bar no longer throws exception test.pkg.MyException [ChangedThrows]
-                """,
             signatureSource =
                 """
                     package test.pkg {
