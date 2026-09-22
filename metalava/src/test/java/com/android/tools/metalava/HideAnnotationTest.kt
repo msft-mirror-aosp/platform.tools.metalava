@@ -60,7 +60,7 @@ class HideAnnotationTest : DriverTest() {
                     )
                 ),
             hideAnnotations = arrayOf("test.pkg.RegularHide"),
-            api =
+            expectedApiSignature =
                 """
                 package test.pkg {
                   public class ExtendingMyHiddenClass<Float> {
@@ -124,7 +124,7 @@ class HideAnnotationTest : DriverTest() {
                 ),
             hideAnnotations = arrayOf("test.pkg.Hide"),
             includeStrippedSuperclassWarnings = true,
-            api =
+            expectedApiSignature =
                 """
                 package test.pkg {
                   public interface InterfaceWithHiddenInterfaceFirst extends test.pkg.VisibleInterface {
@@ -164,10 +164,10 @@ class HideAnnotationTest : DriverTest() {
                     )
                 ),
             hideAnnotations = arrayOf("test.pkg.HideFile"),
-            api =
+            expectedApiSignature =
                 """
                 package test.pkg {
-                  @kotlin.annotation.Target(allowedTargets=kotlin.annotation.AnnotationTarget.FILE) public @interface HideFile {
+                  @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME) @kotlin.annotation.Target(allowedTargets=kotlin.annotation.AnnotationTarget.FILE) public @interface HideFile {
                   }
                   public final class VisibleTopLevelClass {
                     ctor public VisibleTopLevelClass();
@@ -208,7 +208,7 @@ class HideAnnotationTest : DriverTest() {
                     )
                 ),
             hideAnnotations = arrayOf("test.pkg.HideAnnotation"),
-            api =
+            expectedApiSignature =
                 """
                 // Signature format: 5.0
                 package test.pkg {
@@ -259,7 +259,7 @@ class HideAnnotationTest : DriverTest() {
                     )
                 ),
             hideAnnotations = arrayOf("test.pkg.HideAnnotation"),
-            api =
+            expectedApiSignature =
                 """
                 // Signature format: 5.0
                 package test.pkg {
@@ -273,6 +273,41 @@ class HideAnnotationTest : DriverTest() {
                   }
                 }
                 """
+        )
+    }
+
+    @Test
+    @RequiresCapabilities(Capability.KOTLIN)
+    fun `Hide annotation is inherited from package to type alias`() {
+        check(
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                        package test.pkg;
+                        import java.lang.annotation.ElementType;
+                        import java.lang.annotation.Target;
+                        @Target(ElementType.PACKAGE)
+                        @interface HideAnnotation {}
+                        """
+                    ),
+                    java(
+                        "test/pkg/package-info.java",
+                        """
+                        @HideAnnotation
+                        package test.pkg;
+                        """
+                    ),
+                    kotlin(
+                        """
+                        package test.pkg
+                        typealias Foo = String
+                        """
+                    )
+                ),
+            hideAnnotations = arrayOf("test.pkg.HideAnnotation"),
+            // No public API, everything is in the hidden package
+            expectedApiSignature = ""
         )
     }
 }

@@ -18,9 +18,6 @@ package com.android.tools.metalava.model.text
 
 import com.android.tools.metalava.model.ArrayTypeItem
 import com.android.tools.metalava.model.ClassTypeItem
-import com.android.tools.metalava.model.JAVA_LANG_ANNOTATION
-import com.android.tools.metalava.model.JAVA_LANG_ENUM
-import com.android.tools.metalava.model.JAVA_LANG_OBJECT
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterScope
 import com.android.tools.metalava.model.type.ContextNullability
@@ -31,18 +28,6 @@ internal class TextTypeItemFactory(
     private val typeParser: TextTypeParser,
     typeParameterScope: TypeParameterScope = TypeParameterScope.empty,
 ) : DefaultTypeItemFactory<String, TextTypeItemFactory>(typeParameterScope) {
-
-    /** A [JAVA_LANG_ANNOTATION] suitable for use as a super type. */
-    val superAnnotationType
-        get() = getInterfaceType(JAVA_LANG_ANNOTATION)
-
-    /** A [JAVA_LANG_ENUM] suitable for use as a super type. */
-    val superEnumType
-        get() = getSuperClassType(JAVA_LANG_ENUM)
-
-    /** A [JAVA_LANG_OBJECT] suitable for use as a super type. */
-    val superObjectType
-        get() = getSuperClassType(JAVA_LANG_OBJECT)
 
     override fun self() = this
 

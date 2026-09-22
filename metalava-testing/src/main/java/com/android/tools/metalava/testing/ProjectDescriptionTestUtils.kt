@@ -19,7 +19,10 @@ package com.android.tools.metalava.testing
 import com.android.tools.lint.checks.infrastructure.TestFile
 import org.jetbrains.kotlin.config.serializeComponentPlatforms
 import org.jetbrains.kotlin.platform.CommonPlatforms
+import org.jetbrains.kotlin.platform.js.JsPlatforms
 import org.jetbrains.kotlin.platform.jvm.JvmPlatforms
+import org.jetbrains.kotlin.platform.konan.NativePlatforms
+import org.jetbrains.kotlin.platform.wasm.WasmPlatforms
 
 private val standardClasspath = getKotlinStdlibPaths() + getAndroidJar()
 val standardProjectXmlClasspath =
@@ -28,14 +31,21 @@ val standardProjectXmlClasspath =
 val defaultCommonKotlinPlatforms =
     CommonPlatforms.defaultCommonPlatform.serializeComponentPlatforms()
 val defaultJvmPlatforms = JvmPlatforms.defaultJvmPlatform.serializeComponentPlatforms()
+val defaultNativePlatforms = NativePlatforms.unspecifiedNativePlatform.serializeComponentPlatforms()
+val defaultWasmPlatforms = WasmPlatforms.unspecifiedWasmPlatform.serializeComponentPlatforms()
+val defaultJsPlatforms = JsPlatforms.defaultJsPlatform.serializeComponentPlatforms()
 
-/** The XML string for one module of a project (using the [standardProjectXmlClasspath]). */
+/**
+ * The XML string for one module of a project (using the [standardProjectXmlClasspath] unless a
+ * different [classpathXml] is provided).
+ */
 fun createModuleDescription(
     moduleName: String,
     android: Boolean,
     kotlinPlatforms: String,
     sourceFiles: Array<TestFile>,
     dependsOn: List<String> = listOf("commonMain"),
+    classpathXml: String = standardProjectXmlClasspath,
 ): String {
     val sourceLines = sourceFiles.joinToString("\n") { "<src file=\"${it.targetRelativePath}\" />" }
     val dependsOnLines = dependsOn.joinToString("\n") { "<dep module=\"$it\" kind=\"dependsOn\"/>" }
@@ -43,7 +53,7 @@ fun createModuleDescription(
         <module name="$moduleName" android="$android" kotlinPlatforms="$kotlinPlatforms">
           $dependsOnLines
           $sourceLines
-          $standardProjectXmlClasspath
+          $classpathXml
         </module>
         """
 }
@@ -68,6 +78,19 @@ fun createAndroidModuleDescription(
         moduleName = "androidMain",
         android = true,
         kotlinPlatforms = defaultJvmPlatforms,
+        sourceFiles = sourceFiles,
+        dependsOn = dependsOn,
+    )
+}
+
+fun createNativeModuleDescription(
+    sourceFiles: Array<TestFile>,
+    dependsOn: List<String> = listOf("commonMain"),
+): String {
+    return createModuleDescription(
+        moduleName = "nativeMain",
+        android = false,
+        kotlinPlatforms = defaultNativePlatforms,
         sourceFiles = sourceFiles,
         dependsOn = dependsOn,
     )

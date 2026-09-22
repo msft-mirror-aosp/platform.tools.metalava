@@ -19,11 +19,6 @@ plugins {
     `java-gradle-plugin`
 }
 
-repositories {
-    mavenCentral()
-    google()
-}
-
 dependencies {
     implementation(gradleApi())
     implementation(gradleKotlinDsl())
