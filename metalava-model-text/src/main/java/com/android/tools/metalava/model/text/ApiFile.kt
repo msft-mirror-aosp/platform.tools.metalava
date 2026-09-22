@@ -2442,23 +2442,43 @@ private constructor(
      *
      * To handle arrays with type-use annotations, this looks forward at the next token and includes
      * it if it contains an annotation. This is necessary to handle type strings like "Foo @A []".
+     *
+     * @param tokenizer the [Tokenizer] from which to read tokens.
+     * @return the complete type string.
      */
     private fun scanForTypeString(tokenizer: Tokenizer): String {
-        var prev = getAnnotationCompleteToken(tokenizer)
-        var type = prev
+        val prev = getAnnotationCompleteToken(tokenizer)
+        var prevIsIncomplete = isIncompleteTypeToken(prev)
         var token = tokenizer.current
-        // Look both at the last used token and the next one:
-        // If the last token has annotations, the type string was broken up by annotations, and the
-        // next token is also part of the type.
-        // If the next token has annotations, this is an array type like "Foo @A []", so the next
-        // token is part of the type.
-        while (isIncompleteTypeToken(prev) || isIncompleteTypeToken(token)) {
-            token = getAnnotationCompleteToken(tokenizer)
-            type += " $token"
-            prev = token
-            token = tokenizer.current
+        var tokenIsIncomplete = isIncompleteTypeToken(token)
+
+        // If neither the initial token nor the next token has annotations that break up the type,
+        // the initial token is the entire type string (the common case, avoiding StringBuilder).
+        if (!prevIsIncomplete && !tokenIsIncomplete) {
+            return prev
         }
-        return type
+
+        return buildString {
+            append(prev)
+
+            // Look both at the last used token and the next one:
+            // 1. If the last token has annotations, the type string was broken up by annotations
+            //    and the next token is also part of the type.
+            // 2. If the next token has annotations, this is an array type like "Foo @A []",
+            //    so the next token is part of the type.
+            while (prevIsIncomplete || tokenIsIncomplete) {
+                token = getAnnotationCompleteToken(tokenizer)
+                append(' ').append(token)
+
+                // The token just consumed becomes `prev`. Its incompleteness was already evaluated
+                // as `tokenIsIncomplete`, so transfer that status without scanning again.
+                prevIsIncomplete = tokenIsIncomplete
+
+                // Look ahead at the next token and evaluate only this new token.
+                token = tokenizer.current
+                tokenIsIncomplete = isIncompleteTypeToken(token)
+            }
+        }
     }
 
     /**
