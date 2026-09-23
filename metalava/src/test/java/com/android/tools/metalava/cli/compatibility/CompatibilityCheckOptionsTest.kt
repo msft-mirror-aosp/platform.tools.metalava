@@ -18,8 +18,8 @@ package com.android.tools.metalava.cli.compatibility
 
 import com.android.tools.metalava.cli.common.BaseOptionGroupTest
 import com.android.tools.metalava.cli.common.SignatureBasedApi
+import com.android.tools.metalava.cli.compatibility.CheckRequest.CheckType
 import com.android.tools.metalava.model.api.surface.ApiVariantType
-import com.android.tools.metalava.model.visitors.ApiType
 import com.android.tools.metalava.testing.signature
 import com.android.tools.metalava.testing.source
 import com.google.common.truth.Truth.assertThat
@@ -87,12 +87,12 @@ class CompatibilityCheckOptionsTest :
     fun `check compatibility api released`() {
         val file = signature("released.txt", "// Signature format: 2.0\n").toFile()
         runTest(ARG_CHECK_COMPATIBILITY_API_RELEASED, file.path) {
-            assertThat(options.compatibilityChecks)
+            assertThat(options.compute().compatibilityChecks)
                 .isEqualTo(
                     listOf(
-                        CompatibilityCheckOptions.CheckRequest(
+                        CheckRequest(
                             previouslyReleasedApi = SignatureBasedApi.fromFiles(listOf(file)),
-                            apiType = ApiType.PUBLIC_API,
+                            type = CheckType.PUBLIC_API,
                         ),
                     )
                 )
@@ -109,13 +109,13 @@ class CompatibilityCheckOptionsTest :
             ARG_CHECK_COMPATIBILITY_API_RELEASED,
             file2.path,
         ) {
-            assertThat(options.compatibilityChecks)
+            assertThat(options.compute().compatibilityChecks)
                 .isEqualTo(
                     listOf(
-                        CompatibilityCheckOptions.CheckRequest(
+                        CheckRequest(
                             previouslyReleasedApi =
                                 SignatureBasedApi.fromFiles(listOf(file1, file2)),
-                            apiType = ApiType.PUBLIC_API,
+                            type = CheckType.PUBLIC_API,
                         ),
                     )
                 )
@@ -126,16 +126,16 @@ class CompatibilityCheckOptionsTest :
     fun `check compatibility removed api released`() {
         val file = signature("removed.txt", "// Signature format: 2.0\n").toFile()
         runTest(ARG_CHECK_COMPATIBILITY_REMOVED_RELEASED, file.path) {
-            assertThat(options.compatibilityChecks)
+            assertThat(options.compute().compatibilityChecks)
                 .isEqualTo(
                     listOf(
-                        CompatibilityCheckOptions.CheckRequest(
+                        CheckRequest(
                             previouslyReleasedApi =
                                 SignatureBasedApi.fromFiles(
                                     listOf(file),
                                     apiVariantType = ApiVariantType.REMOVED,
                                 ),
-                            apiType = ApiType.REMOVED,
+                            type = CheckType.REMOVED,
                         ),
                     )
                 )
@@ -154,7 +154,7 @@ class CompatibilityCheckOptionsTest :
         val exception =
             assertThrows(IllegalStateException::class.java) {
                 runTest(ARG_CHECK_COMPATIBILITY_API_RELEASED, jarFile.path) {
-                    options.compatibilityChecks
+                    options.compute().compatibilityChecks
                 }
             }
 
@@ -177,7 +177,7 @@ class CompatibilityCheckOptionsTest :
                     ARG_CHECK_COMPATIBILITY_API_RELEASED,
                     signatureFile.path,
                 ) {
-                    options.compatibilityChecks
+                    options.compute().compatibilityChecks
                 }
             }
 
@@ -194,7 +194,7 @@ class CompatibilityCheckOptionsTest :
         val exception =
             assertThrows(IllegalStateException::class.java) {
                 runTest(ARG_CHECK_COMPATIBILITY_REMOVED_RELEASED, jarFile.path) {
-                    options.compatibilityChecks
+                    options.compute().compatibilityChecks
                 }
             }
         assertThat(exception.message)
@@ -211,7 +211,7 @@ class CompatibilityCheckOptionsTest :
             ARG_API_COMPAT_ANNOTATION,
             "com.example.MyOtherAnnotation",
         ) {
-            assertThat(options.apiCompatAnnotations)
+            assertThat(options.compute().apiCompatAnnotations)
                 .containsExactly("com.example.MyAnnotation", "com.example.MyOtherAnnotation")
         }
     }
@@ -225,12 +225,13 @@ class CompatibilityCheckOptionsTest :
             ARG_CHECK_COMPATIBILITY,
             "disabled",
         ) {
+            val computedOptions = options.compute()
             // Make sure that no compatibility checks are returned when they are disabled.
-            assertThat(options.compatibilityChecks).isEmpty()
+            assertThat(computedOptions.compatibilityChecks).isEmpty()
 
             // Make sure that the previously released API is returned even when the checks are
             // disabled.
-            assertThat(options.previouslyReleasedApi).isNotNull()
+            assertThat(computedOptions.previouslyReleasedApi).isNotNull()
         }
     }
 }

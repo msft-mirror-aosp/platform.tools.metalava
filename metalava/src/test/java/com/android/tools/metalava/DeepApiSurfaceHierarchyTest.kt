@@ -453,7 +453,6 @@ class DeepApiSurfaceHierarchyTest : DriverTest() {
                       }
                       public class SystemClass {
                         method public void module();
-                        method public void moduleAndSystem();
                         method public void referFromModuleToSystem(test.pkg.SystemClass2);
                       }
                       public static class SystemClass.NestedDefault {

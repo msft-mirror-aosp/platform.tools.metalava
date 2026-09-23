@@ -22,23 +22,73 @@ import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.MemberItem
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
+import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.SelectableItem
+import com.android.tools.metalava.model.api.surface.ApiVariant
 import com.android.tools.metalava.model.api.surface.ApiVariantSet
 import com.android.tools.metalava.model.item.DefaultSelectableItem
 
 /** Provides access to the [ApiVariantSet] to which a specific [SelectableItem] belongs. */
 sealed class SelectedApi {
     /** The [ApiVariantSet] for the [SelectableItem]. */
-    abstract var itemApiVariants: ApiVariantSet
+    abstract val itemApiVariants: ApiVariantSet
+
+    /** The [ApiVariantSet] for child items. */
+    abstract val contentApiVariants: ApiVariantSet
+
+    /**
+     * The [ApiVariantSet] inherited from the super class of a [ClassItem].
+     *
+     * This is always empty by default except for [ClassItem]s.
+     *
+     * **Why this is needed:** When a class belongs to a narrower API surface than its super class
+     * (e.g. a public class extending a `SystemApi` class), the class must also be included in the
+     * wider API surface so that the type hierarchy in the wider API surface remains complete and
+     * consistent. Tracking these variants separately from [contentApiVariants] (which tracks
+     * variants from child items) allows distinguishing between variants introduced by enclosed
+     * members and those introduced by the class hierarchy.
+     *
+     * **How it is set:** Initialized for [ClassItem]s in
+     * [ClassSourceSelectedApi.itemSpecificInitialization]. If the class has a super class whose
+     * narrowest API surface is wider than this class's widest API surface, the super class's
+     * variants are masked to match this class's variant types (e.g. only inherit `system(C)` if
+     * this class has `public(C)`) and added to this set.
+     */
+    open val superClassApiVariants: ApiVariantSet
+        get() = ApiVariantSet.EMPTY
+
+    /** Indicates whether the associated [SelectableItem] is being reverted. */
+    abstract val revert: Boolean
+
+    /**
+     * The [ApiVariantSet] inherited from overridden methods of a [MethodItem].
+     *
+     * This is only ever non-empty for [MethodItem]s.
+     *
+     * **Why this is needed:** When a method belongs to an API surface (or no surface) but overrides
+     * a method in another API surface, the method must also be considered for emission or
+     * compatibility checking in the super method's API surface.
+     *
+     * **How it is set:** Initialized for [MethodItem]s in
+     * [MethodSourceSelectedApi.itemSpecificInitialization] by collecting variants from overridden
+     * super methods.
+     */
+    open val superMethodApiVariants: ApiVariantSet
+        get() = ApiVariantSet.EMPTY
+
+    /**
+     * The [ApiVariantSet] for which this method is an elidable override.
+     *
+     * This is always empty by default except for [MethodItem]s.
+     */
+    open val elidableApiVariants: ApiVariantSet
+        get() = ApiVariantSet.EMPTY
 
     /**
      * The [SelectableItem] from the previously released API that matches this item, if this item is
      * to be reverted.
      */
     abstract val revertItem: SelectableItem?
-
-    /** Checks to see if the associated [SelectableItem] contains any doconly annotations. */
-    open fun hasDocOnlyAnnotation(): Boolean = false
 
     /** Checks to see if the associated [SelectableItem] contains any removed annotations. */
     open fun hasRemovedAnnotation(): Boolean = false
@@ -51,12 +101,41 @@ sealed class SelectedApi {
      */
     internal abstract fun initialize()
 
+    /**
+     * Add [value] to [itemApiVariants].
+     *
+     * This can only be called on items loaded from signature files.
+     */
+    abstract fun addItemApiVariant(value: ApiVariant)
+
+    /**
+     * Populate this instance with the state from the [original] [SelectedApi] of the item being
+     * snapshotted.
+     *
+     * This can only be called when creating a snapshot of the codebase using a
+     * [SelectedApi.SNAPSHOT_FACTORY].
+     */
+    abstract fun snapshot(original: SelectedApi)
+
     companion object {
         /**
          * Return a [SelectedApi] factory that will create [SelectedApi] instances suitable for
-         * being populated based off information outside the [SelectableItem], e.g. signature files.
+         * being populated from a signature file.
          */
-        val SIMPLE_FACTORY: (SelectableItem) -> SelectedApi = { SimpleSelectedApi() }
+        val MUTABLE_FACTORY: (SelectableItem) -> SelectedApi = { item ->
+            when (item) {
+                is PackageItem -> MutablePackageSelectedApi(item)
+                is ClassItem -> MutableClassSelectedApi(item)
+                is MemberItem -> MutableMemberSelectedApi(item)
+                else -> error("unknown selectable item: $item")
+            }
+        }
+
+        /**
+         * Return a [SelectedApi] factory that will create [SelectedApi] instances suitable for a
+         * snapshot [Codebase].
+         */
+        val SNAPSHOT_FACTORY: (SelectableItem) -> SelectedApi = { SnapshotSelectedApi() }
 
         /**
          * Create a [SelectedApi] factory that will create [SelectedApi] instances suitable for a
@@ -87,267 +166,13 @@ sealed class SelectedApi {
             item: SelectableItem,
         ): SelectedApi =
             when (item) {
-                is ClassItem -> ClassSelectedApi(selectedApiUpdater, item)
-                is MethodItem -> MethodSelectedApi(selectedApiUpdater, item)
-                is ConstructorItem -> ConstructorSelectedApi(selectedApiUpdater, item)
-                is MemberItem -> MemberSelectedApi(selectedApiUpdater, item)
-                is PackageItem -> PackageSelectedApi(selectedApiUpdater, item)
+                is ClassItem -> ClassSourceSelectedApi(selectedApiUpdater, item)
+                is MethodItem -> MethodSourceSelectedApi(selectedApiUpdater, item)
+                is ConstructorItem -> ConstructorSourceSelectedApi(selectedApiUpdater, item)
+                is PropertyItem -> PropertySourceSelectedApi(selectedApiUpdater, item)
+                is MemberItem -> MemberSourceSelectedApi(selectedApiUpdater, item)
+                is PackageItem -> PackageSourceSelectedApi(selectedApiUpdater, item)
                 else -> error("unknown selectable item: $item")
             }
-    }
-}
-
-/** A simple [SelectedApi] that just stores [itemApiVariants]. */
-private class SimpleSelectedApi : SelectedApi() {
-    override var itemApiVariants = ApiVariantSet.EMPTY
-
-    override val revertItem: SelectableItem?
-        get() = null
-
-    override fun initialize() {}
-}
-
-/** Base [SelectedApi] class for use on [SelectableItem]s created from sources. */
-internal sealed class SourceSelectedApi<S : SelectableItem>(
-    internal val selectedApiUpdater: SelectedApiUpdater,
-    internal val item: S,
-) : SelectedApi() {
-    /**
-     * The parent [SourceSelectedApi], used for propagating information up to the parent
-     * [SourceSelectedApi].
-     *
-     * e.g. A package belongs in the API surfaces of all its top level child classes. That requires
-     * the child classes propagate information about the API surfaces to which they belong up to the
-     * parent package.
-     *
-     * This is the [SelectableItem.selectedApi] for [item]'s [SelectableItem.parent]. If the latter
-     * is `null`, i.e. [item] is the root package then this will refer to [item]. That avoids having
-     * to check this for `null` every time it is used at the expense of have a cycle at the top.
-     *
-     * The cycle should not be an issue as while packages are hierarchical when it comes to hiding
-     * them they are otherwise flat. That means a [PackageSelectedApi] will never try and propagate
-     * information to its parent. So, the root [PackageSelectedApi] will never use its [parent].
-     *
-     * Initialized in [initialize] which is called after creation but before the object is stored
-     * anywhere so it is impossible for this to be accessed before [initialize] has been called so
-     * there is no need to check is this has been initialized before using it.
-     */
-    protected lateinit var parent: SourceSelectedApi<*>
-
-    /**
-     * Indicates whether the associated [SelectableItem] is accessible as part of an API.
-     *
-     * An item is accessible if its enclosing item (parent) is accessible and its visibility level
-     * allows API access.
-     */
-    var accessible: Boolean = false
-        internal set
-
-    /**
-     * Indicates whether the associated [SelectableItem] has a doc only annotation.
-     *
-     * Initialized by [SelectedApiUpdater.updateSelectedApi] called from [updateFromSelectableItem].
-     */
-    var docOnly: Boolean = false
-        internal set
-
-    /**
-     * Indicates whether the associated [SelectableItem] has a removed annotation.
-     *
-     * Initialized by [SelectedApiUpdater.updateSelectedApi] called from [updateFromSelectableItem].
-     */
-    var removed: Boolean = false
-        internal set
-
-    /**
-     * Indicates whether the associated [SelectableItem] is being reverted.
-     *
-     * Initialized by [SelectedApiUpdater.updateSelectedApi] called from [updateFromSelectableItem].
-     */
-    var revert: Boolean = false
-
-    /**
-     * The [SelectableItem] from the previously released API that matches this item, if this item is
-     * being reverted.
-     *
-     * Initialized by [SelectedApiUpdater.updateSelectedApi] called from [updateFromSelectableItem].
-     */
-    override var revertItem: SelectableItem? = null
-
-    /**
-     * The [ApiVariantSet] for the [item].
-     *
-     * This is initialized in [initialize] which must have been called and which must initialize
-     * this before it is accessed.
-     */
-    override var itemApiVariants = ApiVariantSet.EMPTY
-
-    /**
-     * The [ApiVariantSet] that will be inherited by [SelectableItem]s enclosed within [item].
-     *
-     * This is initialized in [initialize] which must have been called and which must initialize
-     * this before it is accessed.
-     *
-     * This is tracked separately to [itemApiVariants] for a couple of reasons:
-     * * Non-recursive show annotations can include an item in a surface without automatically
-     *   including enclosed items.
-     * * [itemApiVariants] can be modified by enclosed items, e.g. a package's [itemApiVariants] is
-     *   the aggregate of all its classes.
-     */
-    var inheritableApiVariants = ApiVariantSet.EMPTY
-
-    /** Checks to see if the associated [SelectableItem] contains any doconly annotations. */
-    override fun hasDocOnlyAnnotation() = docOnly
-
-    /** Checks to see if the associated [SelectableItem] contains any removed annotations. */
-    override fun hasRemovedAnnotation() = removed
-
-    final override fun initialize() {
-        // Initialize the parent first.
-        parent =
-            item.parent().let { parentItem ->
-                if (parentItem == null) {
-                    // Initialize inheritableApiVariants for the root package to the default variant
-                    // set so that any unannotated items will inherit the correct surfaces. This is
-                    // done here as otherwise this will be accessed in [updateFromSelectableItem]
-                    // before it is initialized.
-                    inheritableApiVariants = selectedApiUpdater.defaultVariantSet
-                    accessible = true
-                    // Use this as its own parent to avoid having to make parent nullable.
-                    this
-                } else {
-                    parentItem.selectedApi as? SourceSelectedApi<*>
-                        // This error should never happen as all items in a codebase use the same
-                        // SelectedApi factory.
-                        ?: error("Incompatible selectable items for $item and $parentItem")
-                }
-            }
-
-        // Perform any item specific initialization.
-        itemSpecificInitialization()
-    }
-
-    /** Update this from information in [item]. */
-    fun updateFromSelectableItem() {
-        selectedApiUpdater.updateSelectedApi(this, parent)
-    }
-
-    /**
-     * Perform any item specific initialization.
-     *
-     * This is called after [parent] has been initialized, and it is the responsibility of this to
-     * call [updateFromSelectableItem] to update the state before accessing the
-     * [SelectableItem.selectedApi] of any enclosed items.
-     */
-    abstract fun itemSpecificInitialization()
-
-    override fun toString() = buildString {
-        append("SourceSelectedApi(")
-
-        append("item=")
-        append(item)
-        append(", accessible=")
-        append(accessible)
-        append(", itemApiVariants=")
-        append(itemApiVariants.formatFor(selectedApiUpdater.apiSurfaces))
-        append(", inheritableApiVariants=")
-        append(inheritableApiVariants.formatFor(selectedApiUpdater.apiSurfaces))
-        append(", revert=")
-        append(revert)
-        append(", revertItem=")
-        append(revertItem)
-        append(")")
-    }
-}
-
-/** Base [SelectedApi] class for source [PackageItem]s. */
-private class PackageSelectedApi(
-    selectedApiUpdater: SelectedApiUpdater,
-    item: PackageItem,
-) : SourceSelectedApi<PackageItem>(selectedApiUpdater, item) {
-    override fun itemSpecificInitialization() {
-
-        updateFromSelectableItem()
-
-        // Packages do not belong to an API surface in their own right. They belong to the union of
-        // the API surfaces to which their contained classes belong. So, reset this to empty to
-        // ignore the default values.
-        itemApiVariants = ApiVariantSet.EMPTY
-
-        // At this point itemApiVariants has been set which means it is now safe to compute the
-        // selectedApi for the contained classes which may access itemApiVariants.
-
-        // Make sure that all the classes in the package have also had their selectedApi initialized
-        // as that can affect this package's selectedApi.
-        for (classItem in item.topLevelClasses()) {
-            classItem.selectedApi
-        }
-    }
-}
-
-/** Base [SelectedApi] class for source [ClassItem]s. */
-private class ClassSelectedApi(
-    selectedApiUpdater: SelectedApiUpdater,
-    item: ClassItem,
-) : SourceSelectedApi<ClassItem>(selectedApiUpdater, item) {
-    override fun itemSpecificInitialization() {
-        updateFromSelectableItem()
-
-        // Propagate information from this to the parent, which may be a containing class or
-        // package.
-        parent.itemApiVariants += itemApiVariants
-    }
-}
-
-/** Base [SelectedApi] class for source [MemberItem]s. */
-private open class MemberSelectedApi<M : MemberItem>(
-    selectedApiUpdater: SelectedApiUpdater,
-    item: M,
-) : SourceSelectedApi<M>(selectedApiUpdater, item) {
-
-    /** This does not initialize [inheritableApiVariants] as [MemberItem]s do not have children. */
-    override fun itemSpecificInitialization() {
-        updateFromSelectableItem()
-    }
-}
-
-/**
- * Selected API class for methods, ensuring record component getter methods inherit the parent
- * class's API variants.
- */
-private class MethodSelectedApi(
-    selectedApiUpdater: SelectedApiUpdater,
-    item: MethodItem,
-) : MemberSelectedApi<MethodItem>(selectedApiUpdater, item) {
-
-    override fun itemSpecificInitialization() {
-        // Make sure that the record component getters are all in the same API surfaces as the
-        // class.
-        if (item.isRecordComponentGetter) {
-            itemApiVariants = parent.itemApiVariants
-            return
-        }
-
-        super.itemSpecificInitialization()
-    }
-}
-
-/**
- * Selected API class for constructors, ensuring canonical record constructors inherit the parent
- * class's API variants.
- */
-private class ConstructorSelectedApi(
-    selectedApiUpdater: SelectedApiUpdater,
-    item: ConstructorItem,
-) : MemberSelectedApi<ConstructorItem>(selectedApiUpdater, item) {
-
-    override fun itemSpecificInitialization() {
-        // Make sure that the canonical record constructor is in the same API surfaces as the class.
-        if (item.isCanonicalRecordComponentConstructor) {
-            itemApiVariants = parent.itemApiVariants
-            return
-        }
-
-        super.itemSpecificInitialization()
     }
 }

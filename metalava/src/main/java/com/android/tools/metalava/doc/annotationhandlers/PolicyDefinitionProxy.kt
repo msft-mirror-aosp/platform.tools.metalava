@@ -34,6 +34,7 @@ class PolicyDefinitionProxy(
     private val affectedResource: Int,
     private val requiredPermission: String?,
     private val requiredCrossUserPermission: String?,
+    private val applyOnFullUsersOnly: Boolean = false,
     private val allowedDpcTypes: AllowedDpcTypesProxy,
     private val allowedRoles: AllowedRolesProxy,
 ) {
@@ -150,6 +151,15 @@ class PolicyDefinitionProxy(
 
     /** Generates table entries for the base policy definition. */
     fun getTableEntries(): List<Pair<String, String>> = buildList {
+        if (applyOnFullUsersOnly) {
+            add(
+                Pair(
+                    "Supported users",
+                    "Full users only (does not support profiles including work profiles)."
+                )
+            )
+        }
+
         if (allowedScopes.isNotEmpty()) {
             val docLines = mutableListOf<String>()
 

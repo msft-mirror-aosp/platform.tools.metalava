@@ -27,8 +27,15 @@ class LongPolicyAnnotationHandler(
 ) : BaseDevicePolicyAnnotationHandler(context) {
     /** Processes the [LongPolicyDefinitionProxy] and returns the documentation for the policy. */
     override fun processPolicyAnnotation(annotation: AnnotationItem, item: Item): String {
-        val proxy = annotation.bindTo<LongPolicyDefinitionProxy>(item)
-        return proxy?.generateDocs() ?: ""
+        val hasValidation =
+            annotation.findAttribute("validation") != null ||
+                annotation.resolve()?.methods()?.any { it.name() == "validation" } == true
+        if (hasValidation) {
+            val proxy = annotation.bindTo<LongPolicyDefinitionProxy>(item)
+            return proxy?.generateDocs() ?: ""
+        }
+        val legacyProxy = annotation.bindTo<LegacyLongPolicyDefinitionProxy>(item)
+        return legacyProxy?.generateDocs() ?: ""
     }
 }
 
@@ -39,6 +46,34 @@ class LongPolicyAnnotationHandler(
  * @see bindTo
  */
 data class LongPolicyDefinitionProxy(
+    val base: PolicyDefinitionProxy,
+    val validation: LongValidationProxy,
+    val resolutionMechanism: LongResolutionMechanismProxy,
+) {
+    fun generateDocs() = buildString {
+        val tableEntries = buildList {
+            addAll(base.getTableEntries())
+            val resolutionMechanismDoc = resolutionMechanism.generateDocs()
+            if (resolutionMechanismDoc.isNotEmpty()) {
+                add(Pair("Conflict resolution mechanism", resolutionMechanismDoc))
+            }
+            val policyValueValidations = validation.getPolicyValueValidations()
+            add(Pair("Policy value", renderPolicyValue("Long", policyValueValidations)))
+        }
+
+        append(renderTable(tableEntries))
+    }
+}
+
+// TODO(b/550199902): Remove when validators are extracted from policy definitions
+/**
+ * Proxy class bound to an instance of the legacy
+ * `android.processor.devicepolicy.LongPolicyDefinition` annotation class where validation
+ * properties were inline.
+ *
+ * @see bindTo
+ */
+data class LegacyLongPolicyDefinitionProxy(
     val base: PolicyDefinitionProxy,
     val minValue: Long,
     val maxValue: Long,
@@ -51,14 +86,32 @@ data class LongPolicyDefinitionProxy(
             if (resolutionMechanismDoc.isNotEmpty()) {
                 add(Pair("Conflict resolution mechanism", resolutionMechanismDoc))
             }
-            val policyValueValidations = buildList {
-                if (minValue != Long.MIN_VALUE) add("Minimum value $minValue")
-                if (maxValue != Long.MAX_VALUE) add("Maximum value $maxValue")
-            }
+            val policyValueValidations =
+                LongValidationProxy(
+                        minValue = minValue,
+                        maxValue = maxValue,
+                    )
+                    .getPolicyValueValidations()
             add(Pair("Policy value", renderPolicyValue("Long", policyValueValidations)))
         }
 
         append(renderTable(tableEntries))
+    }
+}
+
+/**
+ * Proxy class bound to an instance of the `android.processor.devicepolicy.LongValidation`
+ * annotation class.
+ *
+ * @see bindTo
+ */
+data class LongValidationProxy(
+    val minValue: Long,
+    val maxValue: Long,
+) {
+    fun getPolicyValueValidations(): List<String> = buildList {
+        if (minValue != Long.MIN_VALUE) add("Minimum value $minValue")
+        if (maxValue != Long.MAX_VALUE) add("Maximum value $maxValue")
     }
 }
 

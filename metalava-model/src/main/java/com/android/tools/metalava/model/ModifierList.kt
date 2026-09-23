@@ -34,11 +34,22 @@ interface BaseModifierList {
 
     fun isInternal(): Boolean
 
+    /** Whether the modifiers have internal visibility and the [PublishedApi] annotation. */
+    fun isPublishedApi(): Boolean
+
     fun isPrivate(): Boolean
 
     fun isPackagePrivate(): Boolean
 
     fun isPublicOrProtected() = isPublic() || isProtected()
+
+    /**
+     * Check if the [BaseModifierList] is accessible as part of an API.
+     *
+     * If this has [VisibilityLevel.INTERNAL] then it is only accessible if it is annotated with the
+     * [PublishedApi] annotation.
+     */
+    fun hasApiVisibility(): Boolean
 
     @MetalavaApi fun isStatic(): Boolean
 

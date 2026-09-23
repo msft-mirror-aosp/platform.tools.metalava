@@ -59,9 +59,6 @@ sealed interface AnnotationFormatter {
          */
         fun normalizingFormatter(): AnnotationFormatter = NormalizingFormatter()
 
-        /** True if this [FieldItem] is not-null, is not hidden or removed and is public. */
-        private fun FieldItem?.isAccessible() = this != null && !isHiddenOrRemoved() && isPublic
-
         /** Inline [value] if it references an inaccessible field. */
         private fun inlineInaccessibleFieldReference(value: FieldReferenceValue) =
             !value.resolve().isAccessible()
@@ -163,3 +160,6 @@ sealed interface AnnotationFormatter {
         }
     }
 }
+
+/** True if this [FieldItem] is not-null, is not hidden or removed and is public. */
+internal fun FieldItem?.isAccessible(): Boolean = this != null && !isHiddenOrRemoved() && isPublic

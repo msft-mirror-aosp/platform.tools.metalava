@@ -393,4 +393,46 @@ class KeepFileTest : DriverTest() {
                 ),
         )
     }
+
+    @Test
+    fun `Proguard file contains public API items when generated for system API`() {
+        check(
+            apiSurface = KnownApiSurface.TEST_SYSTEM_API_SURFACE,
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+
+                            public class PublicClass {
+                                public void publicMethod() {}
+                            }
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+
+                            import test.annotation.SystemApi;
+
+                            @SystemApi
+                            public class SystemClass {
+                                public void systemMethod() {}
+                            }
+                        """
+                    ),
+                ),
+            proguard =
+                """
+                -keep class test.pkg.PublicClass {
+                    <init>();
+                    public void publicMethod();
+                }
+                -keep class test.pkg.SystemClass {
+                    <init>();
+                    public void systemMethod();
+                }
+                """,
+        )
+    }
 }
