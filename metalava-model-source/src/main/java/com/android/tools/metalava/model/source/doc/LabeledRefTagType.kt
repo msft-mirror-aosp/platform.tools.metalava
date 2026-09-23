@@ -23,6 +23,7 @@ import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.InvalidReferencableItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ReferencableMethodSet
+import com.android.tools.metalava.model.TypeComparator
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.TypeStringConfiguration
@@ -689,6 +690,18 @@ internal data class CallableSourceReference(
         val name: String? = null,
     ) {
         override fun toString() = if (name == null) type.toString() else "$name: $type"
+
+        override fun equals(other: Any?): Boolean {
+            if (this === other) return true
+            if (other !is SourceParameter) return false
+            return name == other.name && TypeComparator.IGNORE_NULLABILITY.compare(type, other.type)
+        }
+
+        override fun hashCode(): Int {
+            var result = name?.hashCode() ?: 0
+            result = 31 * result + TypeComparator.IGNORE_NULLABILITY.hash(type)
+            return result
+        }
     }
 
     companion object {
