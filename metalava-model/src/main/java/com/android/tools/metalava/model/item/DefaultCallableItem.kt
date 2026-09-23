@@ -16,7 +16,6 @@
 
 package com.android.tools.metalava.model.item
 
-import com.android.tools.metalava.model.ApiVariantSelectorsFactory
 import com.android.tools.metalava.model.BaseModifierList
 import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
@@ -51,7 +50,6 @@ internal sealed class DefaultCallableItem(
     targetLanguages: Set<TargetLanguage>,
     modifiers: BaseModifierList,
     documentationFactory: ItemDocumentationFactory,
-    variantSelectorsFactory: ApiVariantSelectorsFactory,
     name: String,
     containingClass: ClassItem,
     override val typeParameterList: TypeParameterList,
@@ -66,7 +64,6 @@ internal sealed class DefaultCallableItem(
         targetLanguages,
         modifiers,
         documentationFactory,
-        variantSelectorsFactory,
         name,
         containingClass,
     ),

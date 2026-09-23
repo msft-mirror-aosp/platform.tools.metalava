@@ -30,6 +30,7 @@ import com.android.tools.metalava.model.ExceptionTypeItem
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.ItemKind
 import com.android.tools.metalava.model.JVM_NAME
+import com.android.tools.metalava.model.KOTLIN_PUBLISHED_API
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ModifierContext
 import com.android.tools.metalava.model.MutableModifierList
@@ -73,16 +74,12 @@ import com.intellij.psi.PsiTypeParameter
 import com.intellij.psi.PsiTypeParameterListOwner
 import com.intellij.psi.impl.JavaConstantExpressionEvaluator
 import org.jetbrains.kotlin.asJava.classes.KtLightClassForFacade
-import org.jetbrains.kotlin.asJava.elements.KotlinLightTypeParameterBuilder
-import org.jetbrains.kotlin.asJava.elements.KtLightDeclaration
-import org.jetbrains.kotlin.lexer.KtTokens
 import org.jetbrains.kotlin.psi.KtAnnotated
 import org.jetbrains.kotlin.psi.KtClassOrObject
 import org.jetbrains.kotlin.psi.KtParameter
 import org.jetbrains.kotlin.psi.KtPrimaryConstructor
 import org.jetbrains.kotlin.psi.KtProperty
 import org.jetbrains.kotlin.psi.KtPropertyAccessor
-import org.jetbrains.kotlin.psi.KtTypeParameter
 import org.jetbrains.kotlin.psi.KtTypeReference
 import org.jetbrains.kotlin.psi.psiUtil.isExtensionDeclaration
 import org.jetbrains.uast.UAnnotation
@@ -156,6 +153,22 @@ internal class PsiClassBuilder(
                 ModifierContext.forClassKind(classKind),
                 psiClass,
             )
+        // If the containing class is internal, this class cannot be more visible than internal
+        // (e.g. it can't be public). Correct the visibility to internal in this case.
+        if (
+            containingClassItem != null &&
+                containingClassItem.modifiers.getVisibilityLevel() == VisibilityLevel.INTERNAL &&
+                modifiers.getVisibilityLevel() > VisibilityLevel.INTERNAL
+        ) {
+            modifiers.setVisibilityLevel(VisibilityLevel.INTERNAL)
+            // With the class visibility now internal, @PublishedApi needs to be added if it was on
+            // the containing class to give this class API visibility.
+            if (containingClassItem.modifiers.isPublishedApi()) {
+                modifiers.addAnnotation(
+                    AnnotationItem.createMarkerAnnotation(codebase, KOTLIN_PUBLISHED_API)
+                )
+            }
+        }
 
         if (classKind == ClassKind.ANNOTATION_TYPE && !hasExplicitRetention(modifiers, isKotlin)) {
             modifiers.addDefaultRetentionPolicyAnnotation(codebase, isKotlin)
@@ -185,11 +198,19 @@ internal class PsiClassBuilder(
                 sourceFile(psiClass)
             }
 
+        // Items annotated with PublishedApi can only be used externally from bytecode.
+        val targetLanguages =
+            if (modifiers.isPublishedApi()) {
+                TargetLanguageSet.BYTECODE_ONLY
+            } else {
+                TargetLanguageSet.ALL
+            }
+
         val classItem =
             itemFactory.createClassItem(
                 fileLocation = PsiFileLocation.fromPsiElement(psiClass),
                 sourceLanguage = psiClass.sourceLanguage,
-                targetLanguages = TargetLanguageSet.ALL,
+                targetLanguages = targetLanguages,
                 modifiers = modifiers,
                 documentationFactory = psiClass.createItemDocumentation(psiCodebase),
                 source = sourceFile,
@@ -335,6 +356,10 @@ internal class PsiClassBuilder(
             // source signature will be generated as kotlin-only by KaCodebaseAssembler and the
             // bytecode signature will be generated as bytecode-only by KotlinBytecodeApis.
             if (psiMethod.hasAnnotation(ANDROIDX_COMPOSABLE)) continue
+
+            // Items annotated with PublishedApi can only be used externally from bytecode. The
+            // bytecode version of the method will be added by KotlinBytecodeApis.
+            if (psiMethod.hasAnnotation(KOTLIN_PUBLISHED_API)) continue
 
             if (psiMethod.isConstructor) {
                 val constructor = createConstructor(classItem, psiMethod, classTypeItemFactory)
@@ -605,10 +630,18 @@ internal class PsiClassBuilder(
         val constantValueProvider =
             if (couldHaveConstantValue) constantValueProviderForField(psiField, fieldType) else null
 
+        // Items annotated with PublishedApi can only be used externally from bytecode.
+        val targetLanguages =
+            if (modifiers.isPublishedApi()) {
+                TargetLanguageSet.BYTECODE_ONLY
+            } else {
+                TargetLanguageSet.ALL
+            }
+
         return itemFactory.createFieldItem(
             fileLocation = PsiFileLocation(psiField),
             sourceLanguage = psiField.sourceLanguage,
-            targetLanguages = TargetLanguageSet.ALL,
+            targetLanguages = targetLanguages,
             modifiers = modifiers,
             documentationFactory = psiField.createItemDocumentation(psiCodebase),
             name = name,
@@ -902,7 +935,7 @@ internal class PsiClassBuilder(
                 parameterIndex = parameterIndex,
                 type = type,
                 hasDefaultValue =
-                    PsiParameterDefaultValue.compute(psiParameter, parameterIndex, kind),
+                    PsiParameterDefaultValue.compute(psiParameter, parameterIndex, kind, psiMethod),
                 kind = kind,
             )
         return parameter
@@ -1060,27 +1093,11 @@ internal class PsiClassBuilder(
         return itemFactory.createTypeParameterItem(
             modifiers = modifiers,
             name = simpleName,
-            isReified = isReified(psiTypeParameter),
+            // Functions with reified type parameters can only be used from Kotlin source, which
+            // means they are processed by KaCodebaseAssembler instead of through PsiClassBuilder
+            // because they don't exist as real UAST.
+            isReified = false,
         )
-    }
-
-    /** Check whether the [PsiTypeParameter] is reified, i.e. available in inline functions. */
-    private fun isReified(element: PsiTypeParameter?): Boolean {
-        element ?: return false
-        // TODO(jsjeon): Handle PsiElementWithOrigin<*> when available
-        if (
-            element is KtLightDeclaration<*, *> &&
-                element.kotlinOrigin is KtTypeParameter &&
-                element.kotlinOrigin?.text?.startsWith(KtTokens.REIFIED_KEYWORD.value) == true
-        ) {
-            return true
-        } else if (
-            element is KotlinLightTypeParameterBuilder &&
-                element.origin.text.startsWith(KtTokens.REIFIED_KEYWORD.value)
-        ) {
-            return true
-        }
-        return false
     }
 }
 

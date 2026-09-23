@@ -16,7 +16,6 @@
 
 package com.android.tools.metalava.model.item
 
-import com.android.tools.metalava.model.ApiVariantSelectorsFactory
 import com.android.tools.metalava.model.BaseModifierList
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassKind
@@ -56,9 +55,6 @@ class DefaultItemFactory(
 
     /** The default language for [Item]s created by this. */
     private val defaultSourceLanguage: SourceLanguage,
-
-    /** The default [ApiVariantSelectorsFactory] for [Item]s created by this. */
-    private val defaultVariantSelectorsFactory: ApiVariantSelectorsFactory,
 ) {
     /** Create a [PackageItem]. */
     fun createPackageItem(
@@ -81,7 +77,6 @@ class DefaultItemFactory(
             targetLanguages,
             modifiers,
             documentationFactory,
-            defaultVariantSelectorsFactory,
             qualifiedName,
             containingPackage,
             overviewDocumentation,
@@ -117,7 +112,6 @@ class DefaultItemFactory(
             targetLanguages,
             modifiers,
             documentationFactory,
-            defaultVariantSelectorsFactory,
             source,
             classKind,
             containingClass,
@@ -157,7 +151,6 @@ class DefaultItemFactory(
             targetLanguages,
             modifiers,
             documentationFactory,
-            defaultVariantSelectorsFactory,
             name,
             containingClass,
             typeParameterList,
@@ -186,7 +179,6 @@ class DefaultItemFactory(
             fileLocation,
             sourceLanguage,
             targetLanguages,
-            defaultVariantSelectorsFactory,
             modifiers,
             documentationFactory,
             name,
@@ -220,7 +212,6 @@ class DefaultItemFactory(
             targetLanguages,
             modifiers,
             documentationFactory,
-            defaultVariantSelectorsFactory,
             name,
             containingClass,
             typeParameterList,
@@ -282,7 +273,6 @@ class DefaultItemFactory(
             fileLocation,
             sourceLanguage,
             documentationFactory,
-            defaultVariantSelectorsFactory,
             modifiers,
             name,
             containingClass,
@@ -338,7 +328,6 @@ class DefaultItemFactory(
             TargetLanguageSet.KOTLIN_ONLY,
             modifiers,
             documentationFactory,
-            defaultVariantSelectorsFactory,
             null,
             ClassKind.TYPEALIAS,
             // Typealiases can only be defined at the top leve.

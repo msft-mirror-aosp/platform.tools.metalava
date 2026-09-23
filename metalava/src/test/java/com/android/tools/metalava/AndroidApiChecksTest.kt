@@ -284,14 +284,14 @@ class AndroidApiChecksTest : DriverTest() {
                         /** Blah blah. Never null. */
                         public Object method2(Object param1) { return null; }
                         /** Blah blah. Never null.
-                         *  @param param1 Sometimes null. */
+                         *  @param param1 sometimes null */
                         public Object method3(Object param1) { return null; }
                         /** Blah blah. Never null.
-                         *  @return Sometimes null. */
+                         *  @return sometimes null */
                         public Object method4(Object param1) { return null; }
                         /** Blah blah. Never null.
-                         *  @param param1 Sometimes null.
-                         *  @return Sometimes null. */
+                         *  @param param1 sometimes null
+                         *  @return sometimes null */
                         public @Nullable Object method5(@Nullable Object param1) { return null; }
                     }
                     """
