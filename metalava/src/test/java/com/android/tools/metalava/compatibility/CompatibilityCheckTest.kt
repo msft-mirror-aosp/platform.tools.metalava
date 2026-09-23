@@ -2430,7 +2430,6 @@ class CompatibilityCheckTest : DriverTest() {
     @Test
     fun `Moving removed api back to public api`() {
         check(
-            extraArguments = errorIssues(Issues.HIDING_API_METHOD_OVERRIDE),
             checkCompatibilityRemovedApiReleased =
                 """
                 package android.content {
@@ -2585,7 +2584,6 @@ class CompatibilityCheckTest : DriverTest() {
     @Test
     fun `Inherited deprecated protected @removed method`() {
         check(
-            extraArguments = errorIssues(Issues.HIDING_API_METHOD_OVERRIDE),
             checkCompatibilityApiReleased =
                 """
                 package android.icu.util {
@@ -2925,7 +2923,6 @@ class CompatibilityCheckTest : DriverTest() {
     @Test
     fun `Inherited abstract method`() {
         check(
-            extraArguments = errorIssues(Issues.HIDING_API_METHOD_OVERRIDE),
             checkCompatibilityApiReleased =
                 """
                 package test.pkg {

@@ -3166,7 +3166,6 @@ class ApiFileTest : DriverTest() {
     @Test
     fun `Test include overridden @Deprecated even if annotated with @hide`() {
         check(
-            extraArguments = errorIssues(Issues.HIDING_API_METHOD_OVERRIDE),
             format = FileFormat.V2,
             sourceFiles =
                 arrayOf(

@@ -118,6 +118,10 @@ class OverridingMethodTest : DriverTest() {
     @Test
     fun `Test public class overriding method from superclass marked as @Hide with specialized return type`() {
         check(
+            expectedIssues =
+                """
+                    src/test/pkg/Middle.java:8: error: Attempting to hide method test.pkg.Middle.method() which overrides method test.pkg.Base.method() which is already part of the API [HidingApiMethodOverride]
+                """,
             apiSurface = KnownApiSurface.PUBLIC,
             format = FileFormat.V2,
             sourceFiles =

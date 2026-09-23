@@ -20,7 +20,6 @@ import com.android.tools.lint.checks.infrastructure.TestFile
 import com.android.tools.metalava.KnownApiSurface
 import com.android.tools.metalava.KnownConfigFiles
 import com.android.tools.metalava.model.ANDROID_FLAGGED_API
-import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.testing.KnownSourceFiles.flaggedApiSource
 import com.android.tools.metalava.testing.java
 import org.junit.Test
@@ -29,7 +28,6 @@ class StubsMethodTest : AbstractStubsTest() {
     @Test
     fun `Test hiding override of public method`() {
         check(
-            extraArguments = errorIssues(Issues.HIDING_API_METHOD_OVERRIDE),
             apiSurface = KnownApiSurface.PUBLIC,
             sourceFiles =
                 arrayOf(
@@ -104,7 +102,6 @@ class StubsMethodTest : AbstractStubsTest() {
     @Test
     fun `Test hiding override of protected method in final class`() {
         check(
-            extraArguments = errorIssues(Issues.HIDING_API_METHOD_OVERRIDE),
             apiSurface = KnownApiSurface.PUBLIC,
             sourceFiles =
                 arrayOf(
@@ -170,7 +167,6 @@ class StubsMethodTest : AbstractStubsTest() {
     @Test
     fun `Test hiding override of removed method`() {
         check(
-            extraArguments = errorIssues(Issues.HIDING_API_METHOD_OVERRIDE),
             apiSurface = KnownApiSurface.PUBLIC,
             sourceFiles =
                 arrayOf(
@@ -338,7 +334,6 @@ class StubsMethodTest : AbstractStubsTest() {
     fun `Test hiding of public override of SystemApi method in system API`() {
         checkPublicOverrideOfSystemApiMethod(
             apiSurface = KnownApiSurface.SYSTEM,
-            extraArguments = errorIssues(Issues.HIDING_API_METHOD_OVERRIDE),
             expectedIssues =
                 """
                     src/test/pkg/Child.java:6: error: Attempting to hide method test.pkg.Child.method() which overrides method test.pkg.Parent.method() which is already part of the API [HidingApiMethodOverride]
@@ -436,7 +431,6 @@ class StubsMethodTest : AbstractStubsTest() {
     fun `Test SystemApi override of public method in public API`() {
         checkSystemApiOverrideOfPublicMethod(
             apiSurface = KnownApiSurface.PUBLIC,
-            extraArguments = errorIssues(Issues.HIDING_API_METHOD_OVERRIDE),
             expectedIssues =
                 """
                     src/test/pkg/Child.java:6: error: Attempting to hide method test.pkg.Child.method() which overrides method test.pkg.Parent.method() which is already part of the API [HidingApiMethodOverride]
@@ -605,7 +599,6 @@ class StubsMethodTest : AbstractStubsTest() {
     @Test
     fun `Test flagged override of public method does not report HidingApiMethodOverride`() {
         check(
-            extraArguments = errorIssues(Issues.HIDING_API_METHOD_OVERRIDE),
             configFiles = arrayOf(KnownConfigFiles.configEmptyApiFlags),
             checkCompatibilityApiReleased =
                 """

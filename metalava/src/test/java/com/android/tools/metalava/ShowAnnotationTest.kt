@@ -899,7 +899,6 @@ class ShowAnnotationTest : DriverTest() {
         // and if a client refers to Class2.FIELD, that resolves to Class*1*.FIELD.
         // - Class3 is (very naturally) hidden even though the super class is visible.
         check(
-            extraArguments = errorIssues(Issues.HIDING_API_METHOD_OVERRIDE),
             format = FileFormat.V2,
             sourceFiles =
                 arrayOf(

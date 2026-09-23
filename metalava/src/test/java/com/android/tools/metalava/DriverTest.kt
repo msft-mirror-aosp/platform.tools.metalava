@@ -830,6 +830,12 @@ abstract class DriverTest :
                 emptyArray()
             }
 
+        // Add HIDING_API_METHOD_OVERRIDE as an error by default to ensure all tests run with it as
+        // an error without forcing external users of Metalava to treat it as an error. This is
+        // added at the start of extraArguments so individual tests can override it (e.g. via
+        // hideIssues) if needed.
+        val extraArguments = errorIssues(Issues.HIDING_API_METHOD_OVERRIDE) + extraArguments
+
         val apiLintArgs =
             if (apiLint != null) {
                 if (apiLint.isBlank()) {
