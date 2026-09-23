@@ -81,7 +81,6 @@ import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.model.text.SignatureFile
 import com.android.tools.metalava.model.text.assertSignatureFilesMatch
 import com.android.tools.metalava.model.text.prepareSignatureFileForTest
-import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Issues.Issue
 import com.android.tools.metalava.reporter.ReporterEnvironment
 import com.android.tools.metalava.reporter.Severity
@@ -437,8 +436,6 @@ abstract class DriverTest :
          * This is added to [signatureSources]. This argument exists for backward compatibility.
          */
         @Language("TEXT") signatureSource: String? = null,
-        /** An optional API jar file content to load **instead** of Java/Kotlin source files */
-        apiJar: File? = null,
         /**
          * An optional API signature to check the last released API's compatibility with.
          *
@@ -506,8 +503,6 @@ abstract class DriverTest :
         skipEmitPackages: List<String>? = null,
         /** Optional test surface to use. */
         apiSurface: KnownApiSurface? = null,
-        /** Whether we should warn about super classes that are stripped because they are hidden */
-        includeStrippedSuperclassWarnings: Boolean = false,
         /**
          * Apply level to XML.
          *
@@ -730,16 +725,7 @@ abstract class DriverTest :
                     signatureFile.writeSignatureText(file)
                     args.add(signatureFile.path)
                 }
-                if (!includeStrippedSuperclassWarnings) {
-                    args.addAll(hiddenIssues(Issues.HIDDEN_SUPERCLASS)) // Suppress warning #111
-                }
                 args.toTypedArray()
-            } else if (apiJar != null) {
-                sourcePathDir.mkdirs()
-                assert(allSourceFiles.isEmpty()) {
-                    "Shouldn't combine sources with API jar file loads"
-                }
-                arrayOf(apiJar.path)
             } else {
                 allSourceFiles
                     .asSequence()
