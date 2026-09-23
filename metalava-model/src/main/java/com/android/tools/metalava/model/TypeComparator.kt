@@ -30,6 +30,13 @@ sealed interface TypeComparator {
             if (type1 === type2) return true
             if (type1 == null || type2 == null) return false
 
+            return compareDifferentInstances(type1, type2)
+        }
+
+        /**
+         * Compare [type1] and [type2], which are known to be non-null and not the same instance.
+         */
+        protected open fun compareDifferentInstances(type1: TypeItem, type2: TypeItem): Boolean {
             if (!compareModifiers(type1.modifiers, type2.modifiers)) return false
 
             return compareStructure(type1, type2)
@@ -38,6 +45,11 @@ sealed interface TypeComparator {
         override fun hash(type: TypeItem?): Int {
             if (type == null) return 0
 
+            return hashInstance(type)
+        }
+
+        /** Hash [type], which is known to be non-null. */
+        protected open fun hashInstance(type: TypeItem): Int {
             var result = hashStructure(type)
             result = 31 * result + hashModifiers(type.modifiers)
             return result
@@ -325,6 +337,46 @@ sealed interface TypeComparator {
             }
             return current
         }
+    }
+
+    /**
+     * [TypeComparator] that compares types after flattening wildcards to their bounds, comparing
+     * structure and nullability, but ignoring type-use annotations.
+     */
+    data object FLATTENED_WILDCARDS : Base() {
+        /**
+         * Flattens any [WildcardTypeItem] to its bound before comparing modifiers and structure.
+         */
+        override fun compareDifferentInstances(type1: TypeItem, type2: TypeItem): Boolean {
+            val actualType1 = if (type1 is WildcardTypeItem) type1.flatten() else type1
+            val actualType2 = if (type2 is WildcardTypeItem) type2.flatten() else type2
+
+            if (actualType1 === actualType2) return true
+
+            return super.compareDifferentInstances(actualType1, actualType2)
+        }
+
+        /** Flattens any [WildcardTypeItem] to its bound before hashing modifiers and structure. */
+        override fun hashInstance(type: TypeItem): Int {
+            val actualType = if (type is WildcardTypeItem) type.flatten() else type
+            return super.hashInstance(actualType)
+        }
+
+        /** Compares nullability while ignoring type-use annotations. */
+        override fun compareModifiers(
+            modifiers1: TypeModifiers,
+            modifiers2: TypeModifiers,
+        ): Boolean = modifiers1.nullability == modifiers2.nullability
+
+        /** Hashes nullability while ignoring type-use annotations. */
+        override fun hashModifiers(modifiers: TypeModifiers): Int = modifiers.nullability.hashCode()
+
+        /**
+         * Flatten this [WildcardTypeItem] to its bound.
+         *
+         * Returns this [WildcardTypeItem] if it is unbounded.
+         */
+        private fun WildcardTypeItem.flatten(): TypeItem = superBound ?: extendsBound ?: this
     }
 }
 

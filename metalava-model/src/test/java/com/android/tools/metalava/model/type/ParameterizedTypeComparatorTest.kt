@@ -78,6 +78,13 @@ class ParameterizedTypeComparatorTest {
         val expectedNullabilityAwareResult: Boolean = expectedStrictResult,
 
         /**
+         * Result of comparing [type1] and [type2] with [TypeComparator.FLATTENED_WILDCARDS].
+         *
+         * Defaults to [expectedNullabilityAwareResult].
+         */
+        val expectedFlattenedWildcardsResult: Boolean = expectedNullabilityAwareResult,
+
+        /**
          * Result of comparing [type1] and [type2] with [TypeComparator.IGNORE_NULLABILITY].
          *
          * Defaults to [expectedNullabilityAwareResult].
@@ -527,6 +534,7 @@ class ParameterizedTypeComparatorTest {
                     wildcardSuperString,
                     wildcardExtendsString,
                     expectedIdenticalResult = false,
+                    expectedFlattenedWildcardsResult = true,
                 )
             )
             add(
@@ -551,6 +559,7 @@ class ParameterizedTypeComparatorTest {
                     listString,
                     listWildcardExtendsString,
                     expectedIdenticalResult = false,
+                    expectedFlattenedWildcardsResult = true,
                     expectedErasedResult = true,
                 )
             )
@@ -559,6 +568,7 @@ class ParameterizedTypeComparatorTest {
                     listString,
                     listWildcardSuperString,
                     expectedIdenticalResult = false,
+                    expectedFlattenedWildcardsResult = true,
                     expectedErasedResult = true,
                 )
             )
@@ -567,6 +577,7 @@ class ParameterizedTypeComparatorTest {
                     listWildcardExtendsString,
                     listWildcardSuperString,
                     expectedIdenticalResult = false,
+                    expectedFlattenedWildcardsResult = true,
                     expectedErasedResult = true,
                 )
             )
@@ -591,6 +602,7 @@ class ParameterizedTypeComparatorTest {
                     listWildcardExtendsNullableString,
                     listNullableString,
                     expectedIdenticalResult = false,
+                    expectedFlattenedWildcardsResult = true,
                     expectedErasedResult = true,
                 )
             )
@@ -599,6 +611,7 @@ class ParameterizedTypeComparatorTest {
                     listWildcardExtendsNullableString,
                     listWildcardExtendsString,
                     expectedIdenticalResult = false,
+                    expectedFlattenedWildcardsResult = false,
                     expectedIgnoreNullabilityResult = true,
                     expectedErasedResult = true,
                 )
@@ -725,6 +738,7 @@ class ParameterizedTypeComparatorTest {
                     string,
                     wildcardExtendsString,
                     expectedIdenticalResult = false,
+                    expectedFlattenedWildcardsResult = true,
                 )
             )
             add(
@@ -859,6 +873,28 @@ class ParameterizedTypeComparatorTest {
             assertEquals(
                 TypeComparator.ERASED.hash(testCase.type1),
                 TypeComparator.ERASED.hash(testCase.type2),
+                message = "hash",
+            )
+        }
+    }
+
+    @Test
+    fun `test flattened wildcards comparator`() {
+        assertEquals(
+            testCase.expectedFlattenedWildcardsResult,
+            TypeComparator.FLATTENED_WILDCARDS.compare(testCase.type1, testCase.type2),
+            message = "compare(type1, type2)",
+        )
+        // Also verify symmetry
+        assertEquals(
+            testCase.expectedFlattenedWildcardsResult,
+            TypeComparator.FLATTENED_WILDCARDS.compare(testCase.type2, testCase.type1),
+            message = "compare(type2, type1)",
+        )
+        if (testCase.expectedFlattenedWildcardsResult) {
+            assertEquals(
+                TypeComparator.FLATTENED_WILDCARDS.hash(testCase.type1),
+                TypeComparator.FLATTENED_WILDCARDS.hash(testCase.type2),
                 message = "hash",
             )
         }
