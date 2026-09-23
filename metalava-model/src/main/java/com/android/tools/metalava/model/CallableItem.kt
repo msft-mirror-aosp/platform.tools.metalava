@@ -257,7 +257,9 @@ interface CallableItem : MemberItem, TypeParameterListOwner, PossiblyRecordCompo
             if (TypeComparator.ERASED.compare(parameter1Type, parameter2Type)) {
                 if (TargetLanguage.BYTECODE in targetLanguages) {
                     continue
-                } else if (equalWithFlattenedWildcards(parameter1Type, parameter2Type)) {
+                } else if (
+                    TypeComparator.FLATTENED_WILDCARDS.compare(parameter1Type, parameter2Type)
+                ) {
                     continue
                 }
             }
