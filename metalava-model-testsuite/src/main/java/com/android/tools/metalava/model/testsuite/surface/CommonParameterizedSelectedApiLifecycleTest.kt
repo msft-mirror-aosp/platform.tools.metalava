@@ -170,6 +170,81 @@ class CommonParameterizedSelectedApiLifecycleTest : BaseCommonParameterizedSelec
             }
 
             buildTests(
+                name = "reverted class with unannotated override",
+                surfaceRules = publicSystemModuleRules,
+                sources =
+                    listOf(
+                        java(
+                            """
+                                package test.pkg;
+                                public class Base {
+                                    public void method() {}
+                                }
+                            """
+                        ),
+                        java(
+                            """
+                                package test.pkg;
+                                import android.annotation.FlaggedApi;
+                                @FlaggedApi("reverted_flag")
+                                public class Foo extends Base {
+                                    @Override
+                                    public void method() {}
+                                }
+                            """
+                        ),
+                    ),
+                apiFlags =
+                    ApiFlags(
+                        listOf(
+                            ApiFlag("reverted_flag", REVERT),
+                        )
+                    ),
+                previouslyReleasedSources =
+                    listOf(
+                        java(
+                            """
+                                package test.pkg;
+                                public class Base {}
+                            """
+                        ),
+                        java(
+                            """
+                                package test.pkg;
+                                public class Foo extends Base {}
+                            """
+                        ),
+                    ),
+                expectedContainsRevertedItem = true,
+            ) {
+                surfaceTest(
+                    surface = "public",
+                    // TODO(b/512093496): Foo.method should be public even though Foo is reverted
+                    //  and Foo.method does not exist in the previous release because it overrides
+                    //  a method that is part of the public API.
+                    expected =
+                        """
+                            package test.pkg
+                                   self - ApiVariantSet[public(C)]
+                              class test.pkg.Base
+                                     self - ApiVariantSet[public(C)]
+                                constructor test.pkg.Base()
+                                       self - ApiVariantSet[public(C)]
+                                method test.pkg.Base.method()
+                                       self - ApiVariantSet[public(C)]
+                              class test.pkg.Foo
+                                     self - ApiVariantSet[public(C)]
+                                constructor test.pkg.Foo()
+                                       self - ApiVariantSet[public(C)]
+                                method test.pkg.Foo.method()
+                                       self - ApiVariantSet[]
+                                superMethod - ApiVariantSet[public(C)]
+                                   elidable - ApiVariantSet[public(C)]
+                        """,
+                )
+            }
+
+            buildTests(
                 name = "doconly",
                 surfaceRules = publicSystemModuleRules,
                 sources =
