@@ -18,7 +18,6 @@ package com.android.tools.metalava.model
 
 import com.android.tools.metalava.model.type.InternalTypeItemFactory
 import com.android.tools.metalava.model.utils.extractSimpleName
-import java.util.Objects
 
 /**
  * Whether metalava supports type use annotations. Note that you can't just turn this flag back on;
@@ -54,25 +53,6 @@ interface TypeItem {
 
     /** Returns a hash code value for this [TypeItem], consistent with [equals]. */
     override fun hashCode(): Int
-
-    /**
-     * Whether this type is equal to [other]. If [includeNullability] is false, does not consider
-     * modifiers. If [includeNullability] is true, nullability is considered but not annotations.
-     *
-     * This is implemented on each sub-interface of [TypeItem] instead of [equals] because
-     * interfaces are not allowed to implement [equals]. An [equals] implementation is provided by
-     * [DefaultTypeItem].
-     */
-    fun equalToType(other: TypeItem?, includeNullability: Boolean): Boolean
-
-    /**
-     * Hashcode for the type.
-     *
-     * This is implemented on each sub-interface of [TypeItem] instead of [hashCode] because
-     * interfaces are not allowed to implement [hashCode]. A [hashCode] implementation is provided
-     * by [DefaultTypeItem].
-     */
-    fun hashCodeForType(): Int
 
     /**
      * Provide a helpful description of the type, for use in error messages.
@@ -1002,13 +982,6 @@ interface PrimitiveTypeItem : TypeItem {
      * [TypeModifiers.nullability], and [TypeModifiers.annotations].
      */
     override fun hashCode(): Int
-
-    override fun equalToType(other: TypeItem?, includeNullability: Boolean): Boolean {
-        return (other as? PrimitiveTypeItem)?.kind == kind &&
-            (!includeNullability || modifiers.nullability == other.modifiers.nullability)
-    }
-
-    override fun hashCodeForType(): Int = kind.hashCode()
 }
 
 /** Represents an array type, including vararg types. */
@@ -1082,15 +1055,6 @@ interface ArrayTypeItem : TypeItem, ReferenceTypeItem {
      * [TypeModifiers.nullability], and [TypeModifiers.annotations].
      */
     override fun hashCode(): Int
-
-    override fun equalToType(other: TypeItem?, includeNullability: Boolean): Boolean {
-        if (other !is ArrayTypeItem) return false
-        return isVarargs == other.isVarargs &&
-            (!includeNullability || modifiers.nullability == other.modifiers.nullability) &&
-            componentType.equalToType(other.componentType, includeNullability)
-    }
-
-    override fun hashCodeForType(): Int = Objects.hash(isVarargs, componentType)
 }
 
 /** Represents a class type. */
@@ -1201,20 +1165,6 @@ interface ClassTypeItem : TypeItem, BoundsTypeItem, ReferenceTypeItem, Exception
      * [outerClassType], [TypeModifiers.nullability], and [TypeModifiers.annotations].
      */
     override fun hashCode(): Int
-
-    override fun equalToType(other: TypeItem?, includeNullability: Boolean): Boolean {
-        if (other !is ClassTypeItem) return false
-        return qualifiedName == other.qualifiedName &&
-            arguments.size == other.arguments.size &&
-            (!includeNullability || modifiers.nullability == other.modifiers.nullability) &&
-            arguments.zip(other.arguments).all { (p1, p2) ->
-                p1.equalToType(p2, includeNullability)
-            } &&
-            ((outerClassType == null && other.outerClassType == null) ||
-                outerClassType?.equalToType(other.outerClassType, includeNullability) == true)
-    }
-
-    override fun hashCodeForType(): Int = Objects.hash(qualifiedName, outerClassType, arguments)
 
     override fun isSamCompatibleOrKotlinLambda(classResolver: ClassResolver): Boolean {
         // Check if this is a lambda type that was not created as a LambdaTypeItem (e.g. from the
@@ -1371,13 +1321,6 @@ interface VariableTypeItem : TypeItem, BoundsTypeItem, ReferenceTypeItem, Except
      */
     override fun hashCode(): Int
 
-    override fun equalToType(other: TypeItem?, includeNullability: Boolean): Boolean {
-        return (other as? VariableTypeItem)?.name == name &&
-            (!includeNullability || modifiers.nullability == other.modifiers.nullability)
-    }
-
-    override fun hashCodeForType(): Int = name.hashCode()
-
     override fun isSamCompatibleOrKotlinLambda(classResolver: ClassResolver): Boolean {
         // A variable type can be used with trailing lambda syntax if its bound is a Kotlin
         // functional type, but not if the bound is a different SAM compatible type.
@@ -1470,15 +1413,6 @@ interface WildcardTypeItem : TypeItem, TypeArgumentTypeItem {
      * [superBound], [TypeModifiers.nullability], and [TypeModifiers.annotations].
      */
     override fun hashCode(): Int
-
-    override fun equalToType(other: TypeItem?, includeNullability: Boolean): Boolean {
-        if (other !is WildcardTypeItem) return false
-        return (!includeNullability || modifiers.nullability == other.modifiers.nullability) &&
-            extendsBound?.equalToType(other.extendsBound, includeNullability) != false &&
-            superBound?.equalToType(other.superBound, includeNullability) != false
-    }
-
-    override fun hashCodeForType(): Int = Objects.hash(extendsBound, superBound)
 }
 
 /**
