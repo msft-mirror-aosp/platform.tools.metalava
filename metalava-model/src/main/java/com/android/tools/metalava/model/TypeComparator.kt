@@ -93,22 +93,16 @@ sealed interface TypeComparator {
         protected open fun hashTypeParameter(param: TypeParameterItem): Int = param.hashCode()
 
         /** Compare the structural elements of [type1] and [type2]. */
-        private fun compareStructure(type1: TypeItem, type2: TypeItem): Boolean {
+        protected open fun compareStructure(type1: TypeItem, type2: TypeItem): Boolean {
             return when (type1) {
                 is PrimitiveTypeItem -> {
                     type2 is PrimitiveTypeItem && type1.kind == type2.kind
                 }
                 is ArrayTypeItem -> {
-                    type2 is ArrayTypeItem &&
-                        type1.isVarargs == type2.isVarargs &&
-                        compare(type1.componentType, type2.componentType)
+                    type2 is ArrayTypeItem && compareArrays(type1, type2)
                 }
                 is ClassTypeItem -> {
-                    type2 is ClassTypeItem &&
-                        type1.qualifiedName == type2.qualifiedName &&
-                        type1.arguments.size == type2.arguments.size &&
-                        type1.arguments.zip(type2.arguments).all { (a1, a2) -> compare(a1, a2) } &&
-                        compare(type1.outerClassType, type2.outerClassType)
+                    type2 is ClassTypeItem && compareClasses(type1, type2)
                 }
                 is VariableTypeItem -> {
                     type2 is VariableTypeItem &&
@@ -124,21 +118,11 @@ sealed interface TypeComparator {
         }
 
         /** Hash the structural elements of [type]. */
-        private fun hashStructure(type: TypeItem): Int {
+        protected open fun hashStructure(type: TypeItem): Int {
             return when (type) {
                 is PrimitiveTypeItem -> type.kind.hashCode()
-                is ArrayTypeItem -> {
-                    var result = type.isVarargs.hashCode()
-                    result = 31 * result + hash(type.componentType)
-                    result
-                }
-                is ClassTypeItem -> {
-                    var result = type.qualifiedName.hashCode()
-                    result = 31 * result + hash(type.outerClassType)
-                    result =
-                        31 * result + type.arguments.fold(1) { acc, arg -> 31 * acc + hash(arg) }
-                    result
-                }
+                is ArrayTypeItem -> hashArray(type)
+                is ClassTypeItem -> hashClass(type)
                 is VariableTypeItem -> hashTypeParameter(type.asTypeParameter)
                 is WildcardTypeItem -> {
                     var result = hash(type.extendsBound)
@@ -147,6 +131,35 @@ sealed interface TypeComparator {
                 }
                 else -> 0
             }
+        }
+
+        /** Compare [type1] and [type2] when both are [ArrayTypeItem]. */
+        protected open fun compareArrays(type1: ArrayTypeItem, type2: ArrayTypeItem): Boolean {
+            return type1.isVarargs == type2.isVarargs &&
+                compare(type1.componentType, type2.componentType)
+        }
+
+        /** Hash [type] when it is an [ArrayTypeItem]. */
+        protected open fun hashArray(type: ArrayTypeItem): Int {
+            var result = type.isVarargs.hashCode()
+            result = 31 * result + hash(type.componentType)
+            return result
+        }
+
+        /** Compare [type1] and [type2] when both are [ClassTypeItem]. */
+        protected open fun compareClasses(type1: ClassTypeItem, type2: ClassTypeItem): Boolean {
+            return type1.qualifiedName == type2.qualifiedName &&
+                type1.arguments.size == type2.arguments.size &&
+                type1.arguments.zip(type2.arguments).all { (a1, a2) -> compare(a1, a2) } &&
+                compare(type1.outerClassType, type2.outerClassType)
+        }
+
+        /** Hash [type] when it is a [ClassTypeItem]. */
+        protected open fun hashClass(type: ClassTypeItem): Int {
+            var result = type.qualifiedName.hashCode()
+            result = 31 * result + hash(type.outerClassType)
+            result = 31 * result + type.arguments.fold(1) { acc, arg -> 31 * acc + hash(arg) }
+            return result
         }
     }
 
@@ -191,6 +204,127 @@ sealed interface TypeComparator {
         ): Boolean = true
 
         override fun hashModifiers(modifiers: TypeModifiers): Int = 0
+    }
+
+    /**
+     * [TypeComparator] that compares erased types, ignoring nullability, type-use annotations, and
+     * generic type arguments.
+     */
+    data object ERASED : Base() {
+        /** Erased types ignore all modifiers (nullability and type-use annotations). */
+        override fun compareModifiers(
+            modifiers1: TypeModifiers,
+            modifiers2: TypeModifiers,
+        ): Boolean = true
+
+        /** Erased types ignore all modifiers (nullability and type-use annotations). */
+        override fun hashModifiers(modifiers: TypeModifiers): Int = 0
+
+        /**
+         * Resolves any [VariableTypeItem] to its bound before comparing, as type variables erase to
+         * their upper bounds.
+         */
+        override fun compareStructure(type1: TypeItem, type2: TypeItem): Boolean {
+            if (type1 is VariableTypeItem || type2 is VariableTypeItem) {
+                return compareVariableType(type1, type2)
+            }
+            return super.compareStructure(type1, type2)
+        }
+
+        /**
+         * Resolves any [VariableTypeItem] to its bound before hashing, as type variables erase to
+         * their upper bounds.
+         */
+        override fun hashStructure(type: TypeItem): Int {
+            if (type is VariableTypeItem) {
+                return hashVariableType(type)
+            }
+            return super.hashStructure(type)
+        }
+
+        /**
+         * Compares arrays ignoring whether either is a varargs array, as varargs erases to a
+         * regular array.
+         */
+        override fun compareArrays(type1: ArrayTypeItem, type2: ArrayTypeItem): Boolean {
+            return compare(type1.componentType, type2.componentType)
+        }
+
+        /**
+         * Hashes arrays ignoring whether either is a varargs array, as varargs erases to a regular
+         * array.
+         */
+        override fun hashArray(type: ArrayTypeItem): Int = hash(type.componentType)
+
+        /**
+         * Compares classes ignoring type arguments, as generic classes erase to their raw types.
+         */
+        override fun compareClasses(type1: ClassTypeItem, type2: ClassTypeItem): Boolean {
+            return type1.qualifiedName == type2.qualifiedName &&
+                compare(type1.outerClassType, type2.outerClassType)
+        }
+
+        /** Hashes classes ignoring type arguments, as generic classes erase to their raw types. */
+        override fun hashClass(type: ClassTypeItem): Int {
+            var result = type.qualifiedName.hashCode()
+            result = 31 * result + hash(type.outerClassType)
+            return result
+        }
+
+        /**
+         * Compare [type1] and [type2] when at least one of them is a [VariableTypeItem].
+         *
+         * In Java type erasure (JLS §4.6), a type variable erases to the erasure of its leftmost
+         * bound, or to `java.lang.Object` if no bound was specified.
+         *
+         * This resolves any [VariableTypeItem] to its bound (or `null` if unbounded, representing
+         * `java.lang.Object`) and compares:
+         * - If either is `java.lang.Object` (or unbounded), both must be `java.lang.Object` (or
+         *   unbounded).
+         * - Otherwise, their resolved bounds are recursively compared with [compare].
+         */
+        private fun compareVariableType(type1: TypeItem, type2: TypeItem): Boolean {
+            val bound1 = if (type1 is VariableTypeItem) type1.resolveBound() else type1
+            val bound2 = if (type2 is VariableTypeItem) type2.resolveBound() else type2
+
+            val isObj1 = bound1 == null || bound1.isJavaLangObject()
+            val isObj2 = bound2 == null || bound2.isJavaLangObject()
+            return when {
+                // If either bound represents java.lang.Object (explicitly or via an unbounded
+                // type variable), then both must represent java.lang.Object to be equal.
+                isObj1 || isObj2 -> isObj1 && isObj2
+                else -> compare(bound1, bound2)
+            }
+        }
+
+        private fun hashVariableType(type: VariableTypeItem): Int {
+            val bound = type.resolveBound()
+            return if (bound == null || bound.isJavaLangObject()) {
+                JAVA_LANG_OBJECT.hashCode() * 31
+            } else {
+                hashStructure(bound)
+            }
+        }
+
+        /**
+         * Resolve the leftmost bound of this [VariableTypeItem], following any chains of type
+         * variables until a non-variable [TypeItem] is reached.
+         *
+         * Returns `null` if this type variable is unbounded (representing an implicit bound of
+         * `java.lang.Object`), or if a cycle is detected in malformed bounds.
+         */
+        private fun VariableTypeItem.resolveBound(): TypeItem? {
+            var current: TypeItem = this
+            val visited = mutableSetOf<TypeParameterItem>()
+            while (current is VariableTypeItem) {
+                val param = current.asTypeParameter
+                if (!visited.add(param)) return null
+                val bounds = param.typeBounds()
+                if (bounds.isEmpty()) return null
+                current = bounds.first()
+            }
+            return current
+        }
     }
 }
 

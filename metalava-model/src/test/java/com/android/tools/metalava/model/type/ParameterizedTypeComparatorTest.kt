@@ -83,6 +83,13 @@ class ParameterizedTypeComparatorTest {
          * Defaults to [expectedNullabilityAwareResult].
          */
         val expectedIgnoreNullabilityResult: Boolean = expectedNullabilityAwareResult,
+
+        /**
+         * Result of comparing [type1] and [type2] with [TypeComparator.ERASED].
+         *
+         * Defaults to [expectedIgnoreNullabilityResult].
+         */
+        val expectedErasedResult: Boolean = expectedIgnoreNullabilityResult,
     ) {
         /**
          * Record the stack trace of the creation of this which can be used to provide a stack trace
@@ -220,6 +227,7 @@ class ParameterizedTypeComparatorTest {
                     listString,
                     listObject,
                     expectedIdenticalResult = false,
+                    expectedErasedResult = true,
                 )
             )
             add(
@@ -234,6 +242,7 @@ class ParameterizedTypeComparatorTest {
                     listString,
                     rawList,
                     expectedIdenticalResult = false,
+                    expectedErasedResult = true,
                 )
             )
 
@@ -265,6 +274,7 @@ class ParameterizedTypeComparatorTest {
                     mapStringInt,
                     mapStringLong,
                     expectedIdenticalResult = false,
+                    expectedErasedResult = true,
                 )
             )
 
@@ -350,6 +360,7 @@ class ParameterizedTypeComparatorTest {
                     intArray,
                     intVarargs,
                     expectedIdenticalResult = false,
+                    expectedErasedResult = true,
                 )
             )
             add(
@@ -438,6 +449,7 @@ class ParameterizedTypeComparatorTest {
                     typeVarT,
                     typeVarU,
                     expectedIdenticalResult = false,
+                    expectedErasedResult = true,
                 )
             )
             add(
@@ -539,6 +551,7 @@ class ParameterizedTypeComparatorTest {
                     listString,
                     listWildcardExtendsString,
                     expectedIdenticalResult = false,
+                    expectedErasedResult = true,
                 )
             )
             add(
@@ -546,6 +559,7 @@ class ParameterizedTypeComparatorTest {
                     listString,
                     listWildcardSuperString,
                     expectedIdenticalResult = false,
+                    expectedErasedResult = true,
                 )
             )
             add(
@@ -553,6 +567,7 @@ class ParameterizedTypeComparatorTest {
                     listWildcardExtendsString,
                     listWildcardSuperString,
                     expectedIdenticalResult = false,
+                    expectedErasedResult = true,
                 )
             )
             add(
@@ -560,6 +575,7 @@ class ParameterizedTypeComparatorTest {
                     listString,
                     listWildcard,
                     expectedIdenticalResult = false,
+                    expectedErasedResult = true,
                 )
             )
             add(
@@ -567,6 +583,7 @@ class ParameterizedTypeComparatorTest {
                     listWildcardExtendsNullableString,
                     listString,
                     expectedIdenticalResult = false,
+                    expectedErasedResult = true,
                 )
             )
             add(
@@ -574,6 +591,7 @@ class ParameterizedTypeComparatorTest {
                     listWildcardExtendsNullableString,
                     listNullableString,
                     expectedIdenticalResult = false,
+                    expectedErasedResult = true,
                 )
             )
             add(
@@ -582,6 +600,7 @@ class ParameterizedTypeComparatorTest {
                     listWildcardExtendsString,
                     expectedIdenticalResult = false,
                     expectedIgnoreNullabilityResult = true,
+                    expectedErasedResult = true,
                 )
             )
 
@@ -720,6 +739,7 @@ class ParameterizedTypeComparatorTest {
                     typeVarTWithBounds,
                     string,
                     expectedIdenticalResult = false,
+                    expectedErasedResult = true,
                 )
             )
             add(
@@ -817,6 +837,28 @@ class ParameterizedTypeComparatorTest {
             assertEquals(
                 TypeComparator.IGNORE_NULLABILITY.hash(testCase.type1),
                 TypeComparator.IGNORE_NULLABILITY.hash(testCase.type2),
+                message = "hash",
+            )
+        }
+    }
+
+    @Test
+    fun `test erased comparator`() {
+        assertEquals(
+            testCase.expectedErasedResult,
+            TypeComparator.ERASED.compare(testCase.type1, testCase.type2),
+            message = "compare(type1, type2)",
+        )
+        // Also verify symmetry
+        assertEquals(
+            testCase.expectedErasedResult,
+            TypeComparator.ERASED.compare(testCase.type2, testCase.type1),
+            message = "compare(type2, type1)",
+        )
+        if (testCase.expectedErasedResult) {
+            assertEquals(
+                TypeComparator.ERASED.hash(testCase.type1),
+                TypeComparator.ERASED.hash(testCase.type2),
                 message = "hash",
             )
         }
