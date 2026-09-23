@@ -28,6 +28,7 @@ import com.android.tools.metalava.model.ItemDocumentationFactory
 import com.android.tools.metalava.model.SourceLanguage
 import com.android.tools.metalava.model.TargetLanguage
 import com.android.tools.metalava.model.TargetLanguageSet
+import com.android.tools.metalava.model.TypeComparator
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.VisibilityLevel
@@ -131,7 +132,7 @@ internal class DefaultConstructorItem(
             for (index in 0..<count) {
                 val component = components[index]
                 val parameter = parameters[index]
-                if (component.type != parameter.type()) {
+                if (!TypeComparator.IGNORE_NULLABILITY.compare(component.type, parameter.type())) {
                     return false
                 }
             }

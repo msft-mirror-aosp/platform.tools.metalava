@@ -130,17 +130,17 @@ interface MethodItem : CallableItem, InheritableItem, PossiblyPropertyRelated {
             addAdditionalOverrides: Boolean,
         ): Boolean {
             // Compare the types in two ways.
-            // 1. Using `TypeItem.equals(TypeItem)` which is basically a textual comparison that
-            //    ignores type parameter bounds but includes everuthing else that is present in the
-            //    string representation of the type apart from white space differences. This is
-            //    needed to preserve methods that change annotations, e.g. adding `@NonNull`, which
-            //    are significant to the API, and also to preserver legacy behavior to reduce churn
-            //    in API signature files.
+            // 1. It should probably use `TypeComparator.STRICT` which includes everything that is
+            //    present in the type (structure, nullability, and type-use annotations) apart from
+            //    type parameter bounds. This is needed to preserve methods that change annotations,
+            //    e.g. adding `@NonNull`, which are significant to the API. However, for legacy
+            //    reasons it is using `TypeComparator.IGNORE_NULLABILITY` to preserve legacy
+            //    behavior and reduce churn in API signature files.
             // 2. Comparing their erased types which takes into account type parameter bounds but
             //    ignores annotations and generic types. Comparing erased types will retain more
             //    methods overrides in the signature file so only do it when adding additional
             //    overrides.
-            return t1 == t2 &&
+            return TypeComparator.IGNORE_NULLABILITY.compare(t1, t2) &&
                 (!addAdditionalOverrides || t1.toErasedTypeString() == t2.toErasedTypeString())
         }
 

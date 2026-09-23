@@ -278,7 +278,7 @@ interface CallableItem : MemberItem, TypeParameterListOwner, PossiblyRecordCompo
         return when (targetLanguages) {
             TargetLanguageSet.KOTLIN_ONLY ->
                 TypeComparator.NULLABILITY_AWARE.compare(parameterType1, parameterType2)
-            else -> parameterType1 == parameterType2
+            else -> TypeComparator.IGNORE_NULLABILITY.compare(parameterType1, parameterType2)
         }
     }
 

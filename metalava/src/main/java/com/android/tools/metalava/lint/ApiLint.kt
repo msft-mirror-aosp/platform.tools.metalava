@@ -82,6 +82,7 @@ import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.RecordComponentItem
 import com.android.tools.metalava.model.SourceLanguage
 import com.android.tools.metalava.model.TargetLanguageSet
+import com.android.tools.metalava.model.TypeComparator
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.TypeParameterItem
@@ -3412,7 +3413,8 @@ private constructor(
             val setterParamType = setter.parameters().single().type()
             // Don't check nullness if the methods don't use the same type (this type equality check
             // doesn't consider modifiers).
-            if (getterReturnType != setterParamType) return
+            if (!TypeComparator.IGNORE_NULLABILITY.compare(getterReturnType, setterParamType))
+                return
 
             // Recur through the getter and setter type simultaneously.
             getterReturnType.accept(
