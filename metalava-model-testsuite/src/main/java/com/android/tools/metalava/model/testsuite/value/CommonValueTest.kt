@@ -168,21 +168,29 @@ class CommonValueTest : BaseModelTest() {
         }
     }
 
-    @SupportedInputFormats(InputFormat.JAVA)
+    @SupportedInputFormats(InputFormat.JAVA, InputFormat.SIGNATURE)
     @Test
     fun `Test array class literal nullability`() {
         runCodebaseTest(
-            inputSet(
-                java(
-                    """
-                        package test.pkg;
-                        import java.util.BitSet;
-                        public @interface Anno {
-                            Class<?> value() default BitSet[].class;
-                        }
-                    """
-                ),
-            )
+            java(
+                """
+                    package test.pkg;
+                    import java.util.BitSet;
+                    public @interface Anno {
+                        Class<?> value() default BitSet[].class;
+                    }
+                """
+            ),
+            signature(
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public @interface Anno {
+                        method public abstract Class<?> value() default java.util.BitSet[].class;
+                      }
+                    }
+                """
+            ),
         ) {
             val anno = codebase.assertClass("test.pkg.Anno")
             val method = anno.methods().single()

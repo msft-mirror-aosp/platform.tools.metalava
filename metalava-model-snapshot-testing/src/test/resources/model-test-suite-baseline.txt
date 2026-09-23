@@ -79,6 +79,7 @@ com.android.tools.metalava.model.testsuite.value.CommonParameterizedFieldWriteWi
   testLegacySource[text,source,short - cast]
 
 com.android.tools.metalava.model.testsuite.value.CommonValueTest
+  Test array class literal nullability[text]
   Test use field reference in a type annotation[turbine]
 
 com.android.tools.metalava.model.testsuite.value.ParameterizedValueParserTest
