@@ -22,7 +22,6 @@ import com.android.tools.metalava.ARG_SHOW_UNANNOTATED
 import com.android.tools.metalava.DriverTest
 import com.android.tools.metalava.KnownApiSurface
 import com.android.tools.metalava.cli.common.ARG_ERROR_CATEGORY
-import com.android.tools.metalava.model.ANDROID_SYSTEM_API
 import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.testing.RequiresCapabilities
 import com.android.tools.metalava.model.text.FileFormat
@@ -38,6 +37,39 @@ import com.android.tools.metalava.testing.kotlin
 import org.junit.Test
 
 class CompatibilityCheckTest : DriverTest() {
+
+    @Test
+    fun `Added public items are not reported as added to system API`() {
+        check(
+            apiSurface = KnownApiSurface.SYSTEM,
+            extraArguments = arrayOf(ARG_ERROR_CATEGORY, "Compatibility"),
+            checkCompatibilityApiReleasedList =
+                listOf(
+                    """
+                        // Signature format: 2.0
+                        package test.pkg {
+                          public class Bar {
+                          }
+                        }
+                    """,
+                    // An empty delta for the system API, indicating no system-specific APIs were
+                    // released.
+                    "",
+                ),
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+
+                            public class Bar {
+                            }
+                        """
+                    ),
+                ),
+            expectedIssues = "",
+        )
+    }
 
     @Test
     fun `Should not raise issue when experimental package is added`() {
@@ -2315,6 +2347,7 @@ class CompatibilityCheckTest : DriverTest() {
     @Test
     fun `Empty prev api with @hide and --show-annotation`() {
         check(
+            apiSurface = KnownApiSurface.SYSTEM,
             checkCompatibilityApiReleased =
                 """
                 """,
@@ -2339,21 +2372,12 @@ class CompatibilityCheckTest : DriverTest() {
                     package android.media;
                     import android.annotation.SystemApi;
 
-                    /**
-                     * @hide
-                     */
                     @SystemApi
                     @SuppressWarnings("HiddenSuperclass")
                     public class MediaPlayer implements SubtitleController.Listener {
                     }
                     """
                     ),
-                    systemApiSource,
-                ),
-            extraArguments =
-                arrayOf(
-                    ARG_SHOW_ANNOTATION,
-                    "android.annotation.SystemApi",
                 ),
             expectedIssues = ""
         )
@@ -2362,6 +2386,7 @@ class CompatibilityCheckTest : DriverTest() {
     @Test
     fun `Inherited systemApi method in an inner class`() {
         check(
+            apiSurface = KnownApiSurface.SYSTEM,
             checkCompatibilityApiReleased =
                 """
                 package android.telephony {
@@ -2376,9 +2401,6 @@ class CompatibilityCheckTest : DriverTest() {
                         """
                     package android.telephony;
 
-                    /**
-                     * @hide
-                     */
                     @android.annotation.SystemApi
                     public class MmTelFeature {
                         public static class Capabilities extends Parent.ParentCapabilities {
@@ -2392,9 +2414,6 @@ class CompatibilityCheckTest : DriverTest() {
                         """
                     package android.telephony;
 
-                    /**
-                     * @hide
-                     */
                     @android.annotation.SystemApi
                     public class Parent {
                         public static class ParentCapabilities {
@@ -2403,12 +2422,6 @@ class CompatibilityCheckTest : DriverTest() {
                     }
                     """
                     ),
-                    systemApiSource,
-                ),
-            extraArguments =
-                arrayOf(
-                    ARG_SHOW_ANNOTATION,
-                    "android.annotation.SystemApi",
                 ),
             expectedIssues = ""
         )
@@ -2621,6 +2634,7 @@ class CompatibilityCheckTest : DriverTest() {
     @Test
     fun `Move class from SystemApi to public and then remove a method`() {
         check(
+            apiSurface = KnownApiSurface.SYSTEM,
             checkCompatibilityApiReleased =
                 """
                 package android.hardware.lights {
@@ -2655,20 +2669,11 @@ class CompatibilityCheckTest : DriverTest() {
 
                     import android.annotation.SystemApi;
 
-                    /**
-                     * @hide
-                     */
                     @SystemApi
                     public class LightsManager {
                     }
                     """
                     ),
-                    systemApiSource,
-                ),
-            extraArguments =
-                arrayOf(
-                    ARG_SHOW_ANNOTATION,
-                    "android.annotation.SystemApi",
                 ),
             expectedIssues =
                 """
@@ -2680,6 +2685,7 @@ class CompatibilityCheckTest : DriverTest() {
     @Test
     fun `Change item in nested SystemApi`() {
         check(
+            apiSurface = KnownApiSurface.SYSTEM,
             checkCompatibilityApiReleased =
                 """
                 package android.foobar {
@@ -2698,7 +2704,6 @@ class CompatibilityCheckTest : DriverTest() {
                     import android.annotation.SystemApi;
 
                     public class Foo {
-                        /** @hide */
                         @SystemApi
                         public static final class Nested {
                             public final int existing();
@@ -2706,14 +2711,12 @@ class CompatibilityCheckTest : DriverTest() {
                     }
                     """
                     ),
-                    systemApiSource
                 ),
-            showAnnotations = arrayOf(ANDROID_SYSTEM_API),
             expectedIssues =
                 """
-                src/android/foobar/Foo.java:8: error: Binary breaking change: Class android.foobar.Foo.Nested added 'final' qualifier [AddedFinal]
-                src/android/foobar/Foo.java:9: error: Binary breaking change: Method android.foobar.Foo.Nested.existing has added 'final' qualifier [AddedFinal]
-                src/android/foobar/Foo.java:9: error: Binary breaking change: Method android.foobar.Foo.Nested.existing has changed return type from void to int [ChangedType]
+                src/android/foobar/Foo.java:7: error: Binary breaking change: Class android.foobar.Foo.Nested added 'final' qualifier [AddedFinal]
+                src/android/foobar/Foo.java:8: error: Binary breaking change: Method android.foobar.Foo.Nested.existing has added 'final' qualifier [AddedFinal]
+                src/android/foobar/Foo.java:8: error: Binary breaking change: Method android.foobar.Foo.Nested.existing has changed return type from void to int [ChangedType]
                 """
         )
     }
@@ -2721,6 +2724,7 @@ class CompatibilityCheckTest : DriverTest() {
     @Test
     fun `Moving a field from SystemApi to public`() {
         check(
+            apiSurface = KnownApiSurface.SYSTEM,
             checkCompatibilityApiReleased =
                 """
                 package android.content {
@@ -2742,20 +2746,11 @@ class CompatibilityCheckTest : DriverTest() {
                     public class Context {
                         public static final String BUGREPORT_SERVICE = "bugreport";
 
-                        /**
-                         * @hide
-                         */
                         @SystemApi
                         public File getPreloadsFileCache() { return null; }
                     }
                     """
                     ),
-                    systemApiSource,
-                ),
-            extraArguments =
-                arrayOf(
-                    ARG_SHOW_ANNOTATION,
-                    "android.annotation.SystemApi",
                 ),
             expectedIssues =
                 """

@@ -99,6 +99,8 @@ abstract class AbstractStubsTest : DriverTest() {
          * [com.android.tools.metalava.model.source.DEFAULT_JAVA_LANGUAGE_LEVEL] is used.
          */
         javaLanguageLevel: String? = null,
+        /** Any jars to add to the class path */
+        classpath: Array<TestFile>? = null,
     ) {
         val stubFilesArr = if (source.isNotEmpty()) arrayOf(java(source)) else expectedStubFiles
         if (stubFilesArr.isEmpty()) {
@@ -106,6 +108,7 @@ abstract class AbstractStubsTest : DriverTest() {
         }
 
         check(
+            classpath = classpath,
             sourceFiles = sourceFiles,
             signatureSources = signatureSources,
             showAnnotations = showAnnotations,
@@ -125,6 +128,7 @@ abstract class AbstractStubsTest : DriverTest() {
         }
         if (checkTextStubEquivalence ?: !docStubs) {
             check(
+                classpath = classpath,
                 signatureSources = arrayOf(readFileFilterBlankLines(getApiFile())),
                 showAnnotations = showAnnotations,
                 expectedStubFiles = stubFilesArr,

@@ -18,15 +18,10 @@ package com.android.tools.metalava.model.visitors
 
 import com.android.tools.metalava.model.BaseItemVisitor
 import com.android.tools.metalava.model.ClassItem
-import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.FilterPredicate
 import com.android.tools.metalava.model.ItemVisitor
 import com.android.tools.metalava.model.MemberItem
 import com.android.tools.metalava.model.PackageItem
-import com.android.tools.metalava.model.SelectableItem
-import com.android.tools.metalava.model.TargetLanguage
-import com.android.tools.metalava.model.TargetLanguageSet
-import com.android.tools.metalava.model.nullableAndNullable
 import com.android.tools.metalava.model.testOrTrue
 
 open class ApiVisitor(
@@ -36,97 +31,23 @@ open class ApiVisitor(
     /** @see BaseItemVisitor.visitParameterItems */
     visitParameterItems: Boolean = true,
 
-    /** Whether to visit typealiases in a package after all other [ClassItem]s have been visited. */
-    private val sortTypeAliasesLast: Boolean = true,
-
     /** The filters to use to determine what parts of the API will be visited. */
-    private val apiFilters: ApiFilters?,
+    apiFilters: ApiFilters?,
 
-    /**
-     * Whether this visitor should visit elements that have not been annotated with one of the
-     * annotations passed in using the --show-annotation flag. This is normally true, but signature
-     * files sometimes sets this to false so the signature file only contains the "diff" of the
-     * annotated API relative to the base API.
-     */
-    protected val showUnannotated: Boolean = true,
-
-    /**
-     * The target languages to consider. If an item's target languages do not include any of these
-     * languages, it will be skipped.
-     */
-    targetLanguages: Set<TargetLanguage> = TargetLanguageSet.ALL,
-) : BaseItemVisitor(preserveClassNesting, visitParameterItems) {
-    constructor(
-        /** @see BaseItemVisitor.visitParameterItems */
-        visitParameterItems: Boolean = true,
-
-        /** Configuration that may come from the command line. */
-        apiPredicateConfig: ApiPredicate.Config,
-
-        /** The target languages to consider. */
-        targetLanguages: Set<TargetLanguage> = TargetLanguageSet.ALL,
-    ) : this(
+    /** @see BaseItemVisitor.orderClassesByName */
+    orderClassesByName: Boolean = true,
+) :
+    BaseItemVisitor(
+        preserveClassNesting = preserveClassNesting,
         visitParameterItems = visitParameterItems,
-        apiFilters = defaultFilters(apiPredicateConfig),
-        targetLanguages = targetLanguages,
-    )
+        orderClassesByName = orderClassesByName,
+    ) {
 
     /** The filter to use to determine if we should emit an item */
-    protected val filterEmit: FilterPredicate?
+    protected val filterEmit: FilterPredicate? = apiFilters?.emit
 
     /** The filter to use to determine if we should emit a reference to an item */
-    protected val filterReference: FilterPredicate?
-
-    init {
-        // Create an optional [FilterPredicate] that will ignore any items that do not target at
-        // least one language in targetLanguages.
-        val targetLanguagesInclusionFilter = targetLanguages.inclusionFilter()
-
-        // Combine the filters with the target language filter.
-        filterEmit = apiFilters?.emit.nullableAndNullable(targetLanguagesInclusionFilter)
-        filterReference = apiFilters?.reference.nullableAndNullable(targetLanguagesInclusionFilter)
-    }
-
-    companion object {
-        /** Get the default [ApiFilters] to use with [ApiVisitor]. */
-        fun defaultFilters(
-            apiPredicateConfig: ApiPredicate.Config,
-        ): ApiFilters {
-            return ApiFilters(
-                emit = defaultEmitFilter(apiPredicateConfig),
-                reference =
-                    ApiPredicate(
-                        ignoreRemoved = false,
-                        config = apiPredicateConfig.copy(ignoreShown = true),
-                    ),
-            )
-        }
-
-        /** Get the default emit filter to use with [ApiVisitor]. */
-        fun defaultEmitFilter(apiPredicateConfig: ApiPredicate.Config) =
-            ApiPredicate(
-                matchRemoved = false,
-                includeApisForStubPurposes = true,
-                config = apiPredicateConfig.copy(ignoreShown = true),
-            )
-    }
-
-    /**
-     * Visit a [List] of [ClassItem]s after sorting it into order defined by
-     * [ClassItem.classNameSorter]. If [sortTypeAliasesLast] is true, type aliases are after all
-     * other classes.
-     */
-    private fun visitClassList(classes: List<ClassItem>) {
-        val sortedByName = classes.sortedWith(ClassItem.classNameSorter())
-        if (sortTypeAliasesLast) {
-                // [sortedBy] is a stable sort, so the name order will be preserved within the
-                // non-typealias classes and within the typealiases.
-                sortedByName.sortedBy { it.classKind == ClassKind.TYPEALIAS }
-            } else {
-                sortedByName
-            }
-            .forEach { it.accept(this) }
-    }
+    protected val filterReference: FilterPredicate? = apiFilters?.reference
 
     /**
      * Implement to redirect to [VisitCandidate.accept] if necessary,
@@ -275,13 +196,3 @@ open class ApiVisitor(
         }
     }
 }
-
-/**
- * Get a [FilterPredicate] that will return `true` if the [SelectableItem] on which it is called is
- * for at least one of this set's [TargetLanguage].
- *
- * If this set is all [TargetLanguage]s then it returns `null` to avoid any filtering.
- */
-private fun Set<TargetLanguage>.inclusionFilter() =
-    if (this == TargetLanguageSet.ALL) null
-    else FilterPredicate { item -> item.targetLanguages.intersect(this).isNotEmpty() }

@@ -17,7 +17,6 @@
 package com.android.tools.metalava.model.text
 
 import com.android.tools.metalava.model.AnnotationItem
-import com.android.tools.metalava.model.ApiVariantSelectors
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.ClassOrigin
@@ -60,9 +59,6 @@ internal class ClassLoaderBasedCodebaseAssembler(
             // Class files do not contain information about whether an item was originally
             // created from Java or Kotlin.
             defaultSourceLanguage = SourceLanguage.UNKNOWN,
-            // Class files do not have any information about API surfaces so they can use
-            // the same immutable ApiVariantSelectors.
-            defaultVariantSelectorsFactory = ApiVariantSelectors.IMMUTABLE_FACTORY,
         )
 
     private val classLoader by

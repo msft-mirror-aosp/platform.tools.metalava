@@ -16,7 +16,6 @@
 
 package com.android.tools.metalava.config
 
-import com.android.tools.metalava.model.api.surface.ApiSurface
 import com.android.tools.metalava.model.api.surface.ApiVariantType
 import com.fasterxml.jackson.annotation.JsonIgnore
 import com.fasterxml.jackson.annotation.JsonValue
@@ -153,6 +152,27 @@ data class ApiSurfacesConfig(
      */
     fun contributesTo(targetSurface: ApiSurfaceConfig): Set<ApiSurfaceConfig> {
         return buildSet { targetSurface.flattenExtends(this, mutableSetOf()) }
+    }
+
+    /**
+     * Get the ordered set of [ApiSurfaceConfig]s needed when generating [targetSurface].
+     *
+     * This walks backwards along [ApiSurfaceConfig.extends] starting from [targetSurface], stopping
+     * when it reaches a standalone surface or a root surface.
+     *
+     * This is returned in order from narrowest to widest [targetSurface].
+     */
+    fun surfacesFor(targetSurface: ApiSurfaceConfig): Set<ApiSurfaceConfig> {
+        val result = mutableListOf<ApiSurfaceConfig>()
+        var current: ApiSurfaceConfig? = targetSurface
+        while (current != null) {
+            result.add(current)
+            if (current.contents == ContentsConfig.STANDALONE) {
+                break
+            }
+            current = current.extends?.let { byName[it] }
+        }
+        return result.asReversed().toSet()
     }
 
     /**
@@ -316,17 +336,16 @@ data class ApiSurfaceConfig(
 
     /** The selection criteria that determines what is included in this API surface. */
     @field:JacksonXmlProperty(localName = "selection-criteria", namespace = CONFIG_NAMESPACE)
-    val selectionCriteria: SelectionCriteriaConfig =
-        SelectionCriteriaConfig(unannotated = EffectConfig.SHOW),
+    val selectionCriteria: SelectionCriteriaConfig = SelectionCriteriaConfig(),
 )
 
 /** Enumeration of the possible contents of this surface. */
-enum class ContentsConfig(val surfaceContents: ApiSurface.Contents) {
+enum class ContentsConfig {
     /** It is a delta on a surface that it extends. */
-    DELTA(ApiSurface.Contents.DELTA),
+    DELTA,
 
     /** It is a standalone surface that includes everything that its extended surfaces contain. */
-    STANDALONE(ApiSurface.Contents.STANDALONE),
+    STANDALONE,
     ;
 
     /** Name to use when serializing and deserializing this [ContentsConfig] instance. */
@@ -356,6 +375,8 @@ data class SelectionCriteriaConfig(
     /**
      * Determines what is done with items that are not annotated with one of the annotations in
      * [annotationRules].
+     *
+     * If unspecified this defaults to [EffectConfig.HIDE].
      */
     @field:JacksonXmlProperty(isAttribute = true) val unannotated: EffectConfig? = null,
 

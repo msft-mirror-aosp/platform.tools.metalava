@@ -18,6 +18,7 @@ package com.android.tools.metalava
 
 import com.android.tools.metalava.apilevels.ApiVersion
 import com.android.tools.metalava.cli.common.MetalavaCliException
+import com.android.tools.metalava.cli.common.MetalavaOptionGroup
 import com.android.tools.metalava.cli.common.PreviouslyReleasedApi
 import com.android.tools.metalava.cli.common.existingFile
 import com.android.tools.metalava.cli.common.map
@@ -25,7 +26,6 @@ import com.android.tools.metalava.cli.common.newDir
 import com.android.tools.metalava.model.PackageFilter
 import com.android.tools.metalava.stub.StubGenerator
 import com.android.tools.metalava.stub.StubWriterConfig
-import com.github.ajalt.clikt.parameters.groups.OptionGroup
 import com.github.ajalt.clikt.parameters.options.OptionWithValues
 import com.github.ajalt.clikt.parameters.options.convert
 import com.github.ajalt.clikt.parameters.options.flag
@@ -50,7 +50,7 @@ const val ARG_APPLY_API_LEVELS = "--apply-api-levels"
 const val ARG_API_VERSION_LABEL = "--api-version-label"
 
 class StubGenerationOptions :
-    OptionGroup(
+    MetalavaOptionGroup(
         name = STUB_GENERATION_GROUP,
         help = "Options controlling the generation of stub files.",
     ) {
