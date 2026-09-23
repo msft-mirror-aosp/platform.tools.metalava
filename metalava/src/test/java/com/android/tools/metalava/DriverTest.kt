@@ -436,8 +436,6 @@ abstract class DriverTest :
          * This is added to [signatureSources]. This argument exists for backward compatibility.
          */
         @Language("TEXT") signatureSource: String? = null,
-        /** An optional API jar file content to load **instead** of Java/Kotlin source files */
-        apiJar: File? = null,
         /**
          * An optional API signature to check the last released API's compatibility with.
          *
@@ -728,12 +726,6 @@ abstract class DriverTest :
                     args.add(signatureFile.path)
                 }
                 args.toTypedArray()
-            } else if (apiJar != null) {
-                sourcePathDir.mkdirs()
-                assert(allSourceFiles.isEmpty()) {
-                    "Shouldn't combine sources with API jar file loads"
-                }
-                arrayOf(apiJar.path)
             } else {
                 allSourceFiles
                     .asSequence()
