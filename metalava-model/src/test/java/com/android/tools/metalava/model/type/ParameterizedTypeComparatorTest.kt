@@ -76,6 +76,13 @@ class ParameterizedTypeComparatorTest {
          * Defaults to [expectedStrictResult].
          */
         val expectedNullabilityAwareResult: Boolean = expectedStrictResult,
+
+        /**
+         * Result of comparing [type1] and [type2] with [TypeComparator.IGNORE_NULLABILITY].
+         *
+         * Defaults to [expectedNullabilityAwareResult].
+         */
+        val expectedIgnoreNullabilityResult: Boolean = expectedNullabilityAwareResult,
     ) {
         /**
          * Record the stack trace of the creation of this which can be used to provide a stack trace
@@ -150,6 +157,7 @@ class ParameterizedTypeComparatorTest {
                     string,
                     nullableString,
                     expectedIdenticalResult = false,
+                    expectedIgnoreNullabilityResult = true,
                 )
             )
             add(
@@ -157,6 +165,7 @@ class ParameterizedTypeComparatorTest {
                     string,
                     platformString,
                     expectedIdenticalResult = false,
+                    expectedIgnoreNullabilityResult = true,
                 )
             )
             add(
@@ -171,6 +180,7 @@ class ParameterizedTypeComparatorTest {
                     nullableString,
                     platformString,
                     expectedIdenticalResult = false,
+                    expectedIgnoreNullabilityResult = true,
                 )
             )
             add(
@@ -202,6 +212,7 @@ class ParameterizedTypeComparatorTest {
                     listString,
                     listNullableString,
                     expectedIdenticalResult = false,
+                    expectedIgnoreNullabilityResult = true,
                 )
             )
             add(
@@ -274,6 +285,7 @@ class ParameterizedTypeComparatorTest {
                     listListString,
                     listListNullableString,
                     expectedIdenticalResult = false,
+                    expectedIgnoreNullabilityResult = true,
                 )
             )
 
@@ -352,6 +364,7 @@ class ParameterizedTypeComparatorTest {
                     stringArray,
                     nullableStringArray,
                     expectedIdenticalResult = false,
+                    expectedIgnoreNullabilityResult = true,
                 )
             )
             add(
@@ -359,6 +372,7 @@ class ParameterizedTypeComparatorTest {
                     stringArray,
                     stringArrayNullable,
                     expectedIdenticalResult = false,
+                    expectedIgnoreNullabilityResult = true,
                 )
             )
             add(
@@ -431,6 +445,7 @@ class ParameterizedTypeComparatorTest {
                     typeVarT,
                     nullableTypeVarT,
                     expectedIdenticalResult = false,
+                    expectedIgnoreNullabilityResult = true,
                 )
             )
 
@@ -464,6 +479,7 @@ class ParameterizedTypeComparatorTest {
                     wildcardExtendsString,
                     wildcardExtendsNullableString,
                     expectedIdenticalResult = false,
+                    expectedIgnoreNullabilityResult = true,
                 )
             )
             add(
@@ -565,6 +581,7 @@ class ParameterizedTypeComparatorTest {
                     listWildcardExtendsNullableString,
                     listWildcardExtendsString,
                     expectedIdenticalResult = false,
+                    expectedIgnoreNullabilityResult = true,
                 )
             )
 
@@ -778,6 +795,28 @@ class ParameterizedTypeComparatorTest {
             assertEquals(
                 TypeComparator.NULLABILITY_AWARE.hash(testCase.type1),
                 TypeComparator.NULLABILITY_AWARE.hash(testCase.type2),
+                message = "hash",
+            )
+        }
+    }
+
+    @Test
+    fun `test ignore nullability comparator`() {
+        assertEquals(
+            testCase.expectedIgnoreNullabilityResult,
+            TypeComparator.IGNORE_NULLABILITY.compare(testCase.type1, testCase.type2),
+            message = "compare(type1, type2)",
+        )
+        // Also verify symmetry
+        assertEquals(
+            testCase.expectedIgnoreNullabilityResult,
+            TypeComparator.IGNORE_NULLABILITY.compare(testCase.type2, testCase.type1),
+            message = "compare(type2, type1)",
+        )
+        if (testCase.expectedIgnoreNullabilityResult) {
+            assertEquals(
+                TypeComparator.IGNORE_NULLABILITY.hash(testCase.type1),
+                TypeComparator.IGNORE_NULLABILITY.hash(testCase.type2),
                 message = "hash",
             )
         }

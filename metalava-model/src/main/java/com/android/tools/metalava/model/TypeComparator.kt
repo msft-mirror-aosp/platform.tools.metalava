@@ -182,6 +182,16 @@ sealed interface TypeComparator {
 
         override fun hashModifiers(modifiers: TypeModifiers): Int = modifiers.nullability.hashCode()
     }
+
+    /** [TypeComparator] that compares structure, ignoring nullability and type-use annotations. */
+    data object IGNORE_NULLABILITY : Base() {
+        override fun compareModifiers(
+            modifiers1: TypeModifiers,
+            modifiers2: TypeModifiers,
+        ): Boolean = true
+
+        override fun hashModifiers(modifiers: TypeModifiers): Int = 0
+    }
 }
 
 /** Compare this [TypeItem] to [other] using [comparator]. */
