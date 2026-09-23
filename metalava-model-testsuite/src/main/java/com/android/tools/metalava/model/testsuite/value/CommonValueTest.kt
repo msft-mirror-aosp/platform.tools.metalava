@@ -22,7 +22,6 @@ import com.android.tools.metalava.model.testing.SupportedInputFormats
 import com.android.tools.metalava.model.testing.value.fieldReferenceValue
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.model.testsuite.assertHasNonNullNullability
-import com.android.tools.metalava.model.testsuite.assertHasPlatformNullability
 import com.android.tools.metalava.model.value.ClassObjectValue
 import com.android.tools.metalava.model.value.Value
 import com.android.tools.metalava.model.value.ValueStringConfiguration
@@ -193,10 +192,8 @@ class CommonValueTest : BaseModelTest() {
             // The array type of a class literal is non-null.
             arrayType.assertHasNonNullNullability(expectAnnotation = false)
 
-            // TODO: Array class literals currently do not have non-null component types, which is
-            //  incorrect. In Java, class literals cannot refer to null types, so the component type
-            //  should be non-null.
-            arrayType.componentType.assertHasPlatformNullability()
+            // The component type of an array class literal is also non-null.
+            arrayType.componentType.assertHasNonNullNullability(expectAnnotation = false)
         }
     }
 }
