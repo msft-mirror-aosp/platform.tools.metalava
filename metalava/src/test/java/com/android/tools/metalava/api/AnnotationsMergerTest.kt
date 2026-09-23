@@ -25,49 +25,10 @@ import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.testing.KnownSourceFiles
 import com.android.tools.metalava.testing.java
-import com.android.tools.metalava.testing.xml
 import com.android.tools.metalava.uiThreadSource
 import org.junit.Test
 
 class AnnotationsMergerTest : DriverTest() {
-    companion object {
-        private val nonRecursiveConfigFile =
-            xml(
-                "non-recursive.xml",
-                """
-                    <config xmlns="http://www.google.com/tools/metalava/config"
-                        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-                        xsi:schemaLocation="http://www.google.com/tools/metalava/config ../../../../../../resources/schemas/config.xsd">
-                        <api-surfaces>
-                            <api-surface name="non-recursive">
-                                <selection-criteria>
-                                    <annotation-rule pattern="test.annotation.Hide" effect="hide"/>
-                                    <annotation-rule pattern="test.annotation.Show" recursive="false"/>
-                                </selection-criteria>
-                            </api-surface>
-                            <api-surface name="non-recursive-plus-unannotated">
-                                <selection-criteria>
-                                    <annotation-rule pattern="test.annotation.Hide" effect="hide"/>
-                                    <annotation-rule pattern="test.annotation.Show" recursive="false"/>
-                                </selection-criteria>
-                            </api-surface>
-                        </api-surfaces>
-                    </config>
-                """
-            )
-
-        private val NON_RECURSIVE_SHOW =
-            KnownApiSurface(
-                "non-recursive",
-                nonRecursiveConfigFile,
-            )
-
-        private val NON_RECURSIVE_SHOW_PLUS_UNANNOTATED =
-            KnownApiSurface(
-                "non-recursive-plus-unannotated",
-                nonRecursiveConfigFile,
-            )
-    }
 
     // TODO: Test what happens when we have conflicting data
     //   - NULLABLE_SOURCE on one non null on the other
@@ -755,7 +716,7 @@ class AnnotationsMergerTest : DriverTest() {
     @Test
     fun `Merge inclusion annotations from Java stub files using non-recursive show annotation`() {
         check(
-            apiSurface = NON_RECURSIVE_SHOW_PLUS_UNANNOTATED,
+            apiSurface = KnownApiSurface.NON_RECURSIVE_SHOW_WITH_UNANNOTATED,
             format = FileFormat.V2,
             sourceFiles =
                 arrayOf(
@@ -800,7 +761,7 @@ class AnnotationsMergerTest : DriverTest() {
     @Test
     fun `Merge inclusion annotations on api in java namespace`() {
         check(
-            apiSurface = NON_RECURSIVE_SHOW,
+            apiSurface = KnownApiSurface.NON_RECURSIVE_SHOW_WITHOUT_UNANNOTATED,
             format = FileFormat.V2,
             sourceFiles =
                 arrayOf(
@@ -822,6 +783,7 @@ class AnnotationsMergerTest : DriverTest() {
                         """
                             package java.net;
 
+                            @test.annotation.Show
                             public class Example {
                                 void aNotAnnotated();
                                 @test.annotation.Show void bShown();
@@ -843,7 +805,7 @@ class AnnotationsMergerTest : DriverTest() {
     @Test
     fun `Redefining java lang object plus using some internal classes`() {
         check(
-            apiSurface = NON_RECURSIVE_SHOW,
+            apiSurface = KnownApiSurface.NON_RECURSIVE_SHOW_WITHOUT_UNANNOTATED,
             sourceFiles =
                 arrayOf(
                     java(

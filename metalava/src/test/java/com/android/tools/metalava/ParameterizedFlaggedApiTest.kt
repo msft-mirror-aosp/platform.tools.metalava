@@ -52,8 +52,6 @@ private val annotationsList =
  *    `showUnannotated`.
  * 2. An API surface that extends another, e.g. `system` which extends `public`; controlled through
  *    `showUnannotated`, and `showAnnotations`.
- * 2. An API surface that extends another, e.g. `system` which extends `public`; controlled through
- *    `showUnannotated`, `showAnnotations`, and `showForStubPurposesAnnotations`.
  */
 class ParameterizedFlaggedApiTest(private val config: Configuration) : DriverTest() {
 
