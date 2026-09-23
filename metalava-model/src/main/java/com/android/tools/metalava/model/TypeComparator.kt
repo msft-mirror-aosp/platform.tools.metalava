@@ -169,6 +169,19 @@ sealed interface TypeComparator {
      * and type-use annotations.
      */
     data object STRICT : Base()
+
+    /**
+     * [TypeComparator] that compares structure (including type parameter equality) and nullability,
+     * ignoring type-use annotations.
+     */
+    data object NULLABILITY_AWARE : Base() {
+        override fun compareModifiers(
+            modifiers1: TypeModifiers,
+            modifiers2: TypeModifiers,
+        ): Boolean = modifiers1.nullability == modifiers2.nullability
+
+        override fun hashModifiers(modifiers: TypeModifiers): Int = modifiers.nullability.hashCode()
+    }
 }
 
 /** Compare this [TypeItem] to [other] using [comparator]. */

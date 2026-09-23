@@ -69,6 +69,13 @@ class ParameterizedTypeComparatorTest {
          * Defaults to [expectedIdenticalResult].
          */
         val expectedStrictResult: Boolean = expectedIdenticalResult,
+
+        /**
+         * Result of comparing [type1] and [type2] with [TypeComparator.NULLABILITY_AWARE].
+         *
+         * Defaults to [expectedStrictResult].
+         */
+        val expectedNullabilityAwareResult: Boolean = expectedStrictResult,
     ) {
         /**
          * Record the stack trace of the creation of this which can be used to provide a stack trace
@@ -582,6 +589,7 @@ class ParameterizedTypeComparatorTest {
                     annotatedStringA,
                     annotatedStringB,
                     expectedIdenticalResult = false,
+                    expectedNullabilityAwareResult = true,
                 )
             )
             add(
@@ -589,6 +597,7 @@ class ParameterizedTypeComparatorTest {
                     annotatedStringA,
                     string,
                     expectedIdenticalResult = false,
+                    expectedNullabilityAwareResult = true,
                 )
             )
 
@@ -611,6 +620,7 @@ class ParameterizedTypeComparatorTest {
                     listAnnotatedStringA,
                     listAnnotatedStringB,
                     expectedIdenticalResult = false,
+                    expectedNullabilityAwareResult = true,
                 )
             )
             add(
@@ -618,6 +628,7 @@ class ParameterizedTypeComparatorTest {
                     listAnnotatedStringA,
                     listString,
                     expectedIdenticalResult = false,
+                    expectedNullabilityAwareResult = true,
                 )
             )
 
@@ -745,6 +756,28 @@ class ParameterizedTypeComparatorTest {
             assertEquals(
                 TypeComparator.STRICT.hash(testCase.type1),
                 TypeComparator.STRICT.hash(testCase.type2),
+                message = "hash",
+            )
+        }
+    }
+
+    @Test
+    fun `test nullability aware comparator`() {
+        assertEquals(
+            testCase.expectedNullabilityAwareResult,
+            TypeComparator.NULLABILITY_AWARE.compare(testCase.type1, testCase.type2),
+            message = "compare(type1, type2)",
+        )
+        // Also verify symmetry
+        assertEquals(
+            testCase.expectedNullabilityAwareResult,
+            TypeComparator.NULLABILITY_AWARE.compare(testCase.type2, testCase.type1),
+            message = "compare(type2, type1)",
+        )
+        if (testCase.expectedNullabilityAwareResult) {
+            assertEquals(
+                TypeComparator.NULLABILITY_AWARE.hash(testCase.type1),
+                TypeComparator.NULLABILITY_AWARE.hash(testCase.type2),
                 message = "hash",
             )
         }
