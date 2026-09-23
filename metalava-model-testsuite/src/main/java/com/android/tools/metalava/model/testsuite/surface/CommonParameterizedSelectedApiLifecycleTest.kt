@@ -219,9 +219,6 @@ class CommonParameterizedSelectedApiLifecycleTest : BaseCommonParameterizedSelec
             ) {
                 surfaceTest(
                     surface = "public",
-                    // TODO(b/512093496): Foo.method should be public even though Foo is reverted
-                    //  and Foo.method does not exist in the previous release because it overrides
-                    //  a method that is part of the public API.
                     expected =
                         """
                             package test.pkg
@@ -237,7 +234,7 @@ class CommonParameterizedSelectedApiLifecycleTest : BaseCommonParameterizedSelec
                                 constructor test.pkg.Foo()
                                        self - ApiVariantSet[public(C)]
                                 method test.pkg.Foo.method()
-                                       self - ApiVariantSet[]
+                                       self - ApiVariantSet[public(C)]
                                 superMethod - ApiVariantSet[public(C)]
                                    elidable - ApiVariantSet[public(C)]
                         """,
