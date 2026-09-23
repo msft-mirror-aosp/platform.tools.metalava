@@ -517,10 +517,16 @@ open class TypeItemParser(
     /**
      * Removes all annotations at the beginning of the type, returning the trimmed type and list of
      * annotations.
+     *
+     * @param type the type string from which to trim leading annotations.
+     * @return a pair of the trimmed type string and the list of trimmed [AnnotationItem]s.
      */
     fun trimLeadingAnnotations(type: String): Pair<String, List<AnnotationItem>> {
-        val annotations = mutableListOf<AnnotationItem>()
         var trimmed = type.trim()
+        if (!trimmed.startsWith('@')) {
+            return Pair(trimmed, emptyList())
+        }
+        val annotations = mutableListOf<AnnotationItem>()
         while (trimmed.startsWith('@')) {
             val end = findAnnotationEnd(trimmed, 1)
             val annotationSource = trimmed.substring(0, end).trim()
