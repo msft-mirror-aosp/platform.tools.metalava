@@ -1,7 +1,3 @@
-com.android.tools.metalava.model.testsuite.BootstrapSourceModelProviderTest
-  260 - test doconly members[psi,java]
-  260 - test doconly members[turbine]
-
 com.android.tools.metalava.model.testsuite.CommonModifierListWriterTest
   modifiers public explicitly final method in final class[text]
 

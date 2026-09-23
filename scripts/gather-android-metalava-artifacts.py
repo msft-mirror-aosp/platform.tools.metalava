@@ -205,8 +205,12 @@ def default_dex_writer_files():
     """:return: A representative sample list of dex writer related files created by the Android build using Metalava."""
     return create_targets([
         # This is not actually a dex writer file but it contains information derived from lots of dex writer files so
-        # any differences in the dex writer files will affect this file.
+        # most differences in dex writer files will affect this file.
         "out/soong/hiddenapi/hiddenapi-flags.csv",
+        # The combined=removed-dex file does contribute to the above but some aspects of this, like order, will not
+        # change the above file as it is sorted. While the order of this does not matter for the end result, ensuring
+        # that this has a consistent and stable order will prevent the build from being dependent on source order.
+        "out/soong/.intermediates/frameworks/base/api/combined-removed-dex/android_common/gen/combined-removed-dex.txt",
     ])
 
 

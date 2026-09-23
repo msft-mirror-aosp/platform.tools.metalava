@@ -94,7 +94,7 @@ class CommonPackageItemTest : BaseModelTest() {
             ),
         ) {
             val packageItem = codebase.assertPackage("test.pkg")
-            assertEquals(true, packageItem.originallyHidden)
+            packageItem.assertItemApiVariants("ApiVariantSet[]")
         }
     }
 
@@ -122,7 +122,7 @@ class CommonPackageItemTest : BaseModelTest() {
             ),
         ) {
             val packageItem = codebase.assertPackage("test.pkg")
-            assertEquals(true, packageItem.originallyHidden)
+            packageItem.assertItemApiVariants("ApiVariantSet[]")
         }
     }
 
@@ -150,7 +150,7 @@ class CommonPackageItemTest : BaseModelTest() {
             ),
         ) {
             val packageItem = codebase.assertPackage("test.pkg")
-            assertEquals(true, packageItem.originallyHidden)
+            packageItem.assertItemApiVariants("ApiVariantSet[]")
         }
     }
 

@@ -148,6 +148,76 @@ class ApiVariantSetTest {
     }
 
     @Test
+    fun `Test isHiddenOrRemoved`() {
+        // An empty set represents an item not present in any API variant (i.e. hidden).
+        assertTrue(ApiVariantSet.EMPTY.isHiddenOrRemoved(), "empty set is hidden")
+
+        // Sets containing only REMOVED variants across one or more surfaces are hiddenOrRemoved.
+        val mainRemovedSet = apiSurfaces.createVariantSet(mainRemoved)
+        assertTrue(mainRemovedSet.isHiddenOrRemoved(), "main(R) is hidden or removed")
+
+        val baseRemovedSet = apiSurfaces.createVariantSet(baseRemoved)
+        assertTrue(baseRemovedSet.isHiddenOrRemoved(), "base(R) is hidden or removed")
+
+        val allRemovedSet = apiSurfaces.createVariantSet(mainRemoved, baseRemoved)
+        assertTrue(allRemovedSet.isHiddenOrRemoved(), "base(R),main(R) is hidden or removed")
+
+        // Sets containing CORE variants are not hidden or removed.
+        val mainCoreSet = apiSurfaces.createVariantSet(mainCore)
+        assertFalse(mainCoreSet.isHiddenOrRemoved(), "main(C) is not hidden or removed")
+
+        val baseCore = base.variantFor(ApiVariantType.CORE)
+        val baseCoreSet = apiSurfaces.createVariantSet(baseCore)
+        assertFalse(baseCoreSet.isHiddenOrRemoved(), "base(C) is not hidden or removed")
+
+        // Sets containing DOC_ONLY variants are not hidden or removed.
+        val baseDocOnlySet = apiSurfaces.createVariantSet(baseDocOnly)
+        assertFalse(baseDocOnlySet.isHiddenOrRemoved(), "base(D) is not hidden or removed")
+
+        val mainDocOnly = main.variantFor(ApiVariantType.DOC_ONLY)
+        val mainDocOnlySet = apiSurfaces.createVariantSet(mainDocOnly)
+        assertFalse(mainDocOnlySet.isHiddenOrRemoved(), "main(D) is not hidden or removed")
+
+        // Sets containing a mix of REMOVED and non-removed variants are not hidden or removed.
+        val mixedSet1 = apiSurfaces.createVariantSet(mainCore, mainRemoved)
+        assertFalse(mixedSet1.isHiddenOrRemoved(), "main(CR) is not hidden or removed")
+
+        val mixedSet2 = apiSurfaces.createVariantSet(baseRemoved, mainCore)
+        assertFalse(mixedSet2.isHiddenOrRemoved(), "base(R),main(C) is not hidden or removed")
+
+        val mixedSet3 = apiSurfaces.createVariantSet(baseRemoved, baseDocOnly)
+        assertFalse(mixedSet3.isHiddenOrRemoved(), "base(RD) is not hidden or removed")
+
+        // Test across 3 surfaces
+        val threeSurfaces =
+            ApiSurfaces.build {
+                createSurface("public")
+                createSurface("system", extends = "public")
+                createSurface("module", extends = "system", isMain = true)
+            }
+        val publicRemoved =
+            threeSurfaces.byName.getValue("public").variantFor(ApiVariantType.REMOVED)
+        val systemRemoved =
+            threeSurfaces.byName.getValue("system").variantFor(ApiVariantType.REMOVED)
+        val moduleRemoved =
+            threeSurfaces.byName.getValue("module").variantFor(ApiVariantType.REMOVED)
+        val moduleCore = threeSurfaces.byName.getValue("module").variantFor(ApiVariantType.CORE)
+
+        val threeRemoved =
+            threeSurfaces.createVariantSet(publicRemoved, systemRemoved, moduleRemoved)
+        assertTrue(
+            threeRemoved.isHiddenOrRemoved(),
+            "3 surfaces with only REMOVED are hidden or removed",
+        )
+
+        val threeMixed = threeSurfaces.createVariantSet(publicRemoved, systemRemoved, moduleCore)
+        assertFalse(
+            threeMixed.isHiddenOrRemoved(),
+            "3 surfaces with REMOVED and CORE is not hidden or removed",
+        )
+    }
+
+    @Test
     fun `Test narrowest and widest surfaces`() {
         val emptySet = ApiVariantSet.EMPTY
         assertEquals(null, emptySet.narrowestSurfaceFor(apiSurfaces), "empty narrowest")
@@ -164,5 +234,115 @@ class ApiVariantSetTest {
         val mixedSet = apiSurfaces.createVariantSet(mainCore, baseDocOnly)
         assertEquals(base, mixedSet.narrowestSurfaceFor(apiSurfaces), "mixed narrowest")
         assertEquals(main, mixedSet.widestSurfaceFor(apiSurfaces), "mixed widest")
+    }
+
+    @Test
+    fun `Test moveVariantsBetweenSurfaces`() {
+        val baseCore = base.variantFor(ApiVariantType.CORE)
+        val mainDocOnly = main.variantFor(ApiVariantType.DOC_ONLY)
+
+        // Move from narrower to wider surface.
+        val baseSet = apiSurfaces.createVariantSet(baseCore, baseRemoved)
+        assertEquals(
+            "ApiVariantSet[main(CR)]",
+            baseSet.moveVariantsBetweenSurfaces(from = base, to = main).format(),
+            message = "move base to main",
+        )
+
+        // Move from wider to narrower surface.
+        val mainSet = apiSurfaces.createVariantSet(mainRemoved, mainDocOnly)
+        assertEquals(
+            "ApiVariantSet[base(RD)]",
+            mainSet.moveVariantsBetweenSurfaces(from = main, to = base).format(),
+            message = "move main to base",
+        )
+
+        // Move ignores variants that are not from the source surface.
+        val mixedSet = apiSurfaces.createVariantSet(baseCore, mainRemoved)
+        assertEquals(
+            "ApiVariantSet[main(C)]",
+            mixedSet.moveVariantsBetweenSurfaces(from = base, to = main).format(),
+            message = "move base to main from mixed set",
+        )
+        assertEquals(
+            "ApiVariantSet[base(R)]",
+            mixedSet.moveVariantsBetweenSurfaces(from = main, to = base).format(),
+            message = "move main to base from mixed set",
+        )
+
+        // Move from empty set or a set with no variants in source surface returns empty set.
+        assertEquals(
+            "ApiVariantSet[]",
+            ApiVariantSet.EMPTY.moveVariantsBetweenSurfaces(from = base, to = main).format(),
+            message = "move from empty set",
+        )
+        assertEquals(
+            "ApiVariantSet[]",
+            mainSet.moveVariantsBetweenSurfaces(from = base, to = main).format(),
+            message = "move when no variants in from surface",
+        )
+
+        // Move between same surface preserves variants from that surface and filters out others.
+        assertEquals(
+            "ApiVariantSet[base(C)]",
+            mixedSet.moveVariantsBetweenSurfaces(from = base, to = base).format(),
+            message = "move base to base",
+        )
+        assertEquals(
+            "ApiVariantSet[main(R)]",
+            mixedSet.moveVariantsBetweenSurfaces(from = main, to = main).format(),
+            message = "move main to main",
+        )
+
+        // Test with 3 surfaces: public -> system -> module
+        val threeSurfaces =
+            ApiSurfaces.build {
+                createSurface("public")
+                createSurface("system", extends = "public")
+                createSurface("module", extends = "system", isMain = true)
+            }
+        val publicSurface = threeSurfaces.byName.getValue("public")
+        val systemSurface = threeSurfaces.byName.getValue("system")
+        val moduleSurface = threeSurfaces.byName.getValue("module")
+
+        val publicCore = publicSurface.variantFor(ApiVariantType.CORE)
+        val publicRemoved = publicSurface.variantFor(ApiVariantType.REMOVED)
+        val testSet = threeSurfaces.createVariantSet(publicCore, publicRemoved)
+
+        // public -> system (shift 1 surface up)
+        assertEquals(
+            "ApiVariantSet[system(CR)]",
+            testSet
+                .moveVariantsBetweenSurfaces(from = publicSurface, to = systemSurface)
+                .formatFor(threeSurfaces),
+            message = "move public to system",
+        )
+        // public -> module (shift 2 surfaces up)
+        assertEquals(
+            "ApiVariantSet[module(CR)]",
+            testSet
+                .moveVariantsBetweenSurfaces(from = publicSurface, to = moduleSurface)
+                .formatFor(threeSurfaces),
+            message = "move public to module",
+        )
+
+        // module -> public (shift 2 surfaces down)
+        val moduleSet =
+            testSet.moveVariantsBetweenSurfaces(from = publicSurface, to = moduleSurface)
+        assertEquals(
+            "ApiVariantSet[public(CR)]",
+            moduleSet
+                .moveVariantsBetweenSurfaces(from = moduleSurface, to = publicSurface)
+                .formatFor(threeSurfaces),
+            message = "move module to public",
+        )
+        // module -> system (shift 1 surface down)
+        assertEquals(
+            "ApiVariantSet[system(CR)]",
+            moduleSet
+                .moveVariantsBetweenSurfaces(from = moduleSurface, to = systemSurface)
+                .formatFor(threeSurfaces),
+            message = "move module to system",
+        )
     }
 }

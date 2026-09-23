@@ -25,7 +25,6 @@ import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.source.DEFAULT_JAVA_LANGUAGE_LEVEL
 import com.android.tools.metalava.model.source.DEFAULT_KOTLIN_LANGUAGE_LEVEL
 import com.android.tools.metalava.model.source.SourceModelProvider
-import com.github.ajalt.clikt.parameters.groups.OptionGroup
 import com.github.ajalt.clikt.parameters.options.convert
 import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.flag
@@ -70,7 +69,7 @@ class SourceOptions(
     /** Provider of additional source files, i.e. those supplied as command line arguments. */
     private val additionalSourceFilesProvider: () -> List<File> = { emptyList() },
 ) :
-    OptionGroup(
+    MetalavaOptionGroup(
         name = SOURCE_OPTIONS_GROUP,
         help =
             """
@@ -102,8 +101,10 @@ class SourceOptions(
                     .trimIndent(),
         )
 
+    // It is safe to use lazy here because SourceOptions can't be reused by multiple subcommands in
+    // one invocation.
     internal val sourcePath by
-        lazy(LazyThreadSafetyMode.NONE) { getSourcePath(ARG_SOURCE_PATH, sourcePathString) }
+        kotlin.lazy(LazyThreadSafetyMode.NONE) { getSourcePath(ARG_SOURCE_PATH, sourcePathString) }
 
     private fun getSourcePath(argName: String, path: String?) =
         if (path == null) {
@@ -340,8 +341,10 @@ class SourceOptions(
     val allowReadingComments
         get() = !skipReadingComments
 
+    // It is safe to use lazy here because SourceOptions can't be reused by multiple subcommands in
+    // one invocation.
     val modelOptions: ModelOptions by
-        lazy(LazyThreadSafetyMode.NONE) {
+        kotlin.lazy(LazyThreadSafetyMode.NONE) {
             // Use the [ModelOptions] specified in the [TestEnvironment] if any.
             executionEnvironment.testEnvironment?.modelOptions
                 // Otherwise, use the default
