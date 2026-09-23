@@ -178,15 +178,13 @@ sealed interface TypeComparator {
     /**
      * [TypeComparator] that compares structure (including type parameter identity), nullability,
      * and type-use annotations.
+     *
+     * Delegates directly to [TypeItem.equals].
      */
-    data object IDENTICAL : Base() {
-        override fun compareTypeParameters(
-            param1: TypeParameterItem,
-            param2: TypeParameterItem,
-        ): Boolean = param1 === param2
+    data object IDENTICAL : TypeComparator {
+        override fun compare(type1: TypeItem?, type2: TypeItem?): Boolean = type1 == type2
 
-        override fun hashTypeParameter(param: TypeParameterItem): Int =
-            System.identityHashCode(param)
+        override fun hash(type: TypeItem?): Int = type?.hashCode() ?: 0
     }
 
     /**

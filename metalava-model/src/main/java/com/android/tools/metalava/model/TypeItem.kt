@@ -40,6 +40,22 @@ interface TypeItem {
     fun accept(visitor: MultipleTypeVisitor, other: List<TypeItem>)
 
     /**
+     * Compares this [TypeItem] to [other] for equality.
+     *
+     * Returns `true` if and only if [other] is a [TypeItem] that is identical to this one,
+     * including type kind, structural elements, [modifiers] (nullability and annotations), and type
+     * parameter identity (for type variables).
+     *
+     * This is suitable for use when caching or interning [TypeItem]s but it is most likely not
+     * correct for comparing types for API purposes. See [TypeComparator] for more suitable ways to
+     * compare [TypeItem]s.
+     */
+    override fun equals(other: Any?): Boolean
+
+    /** Returns a hash code value for this [TypeItem], consistent with [equals]. */
+    override fun hashCode(): Int
+
+    /**
      * Whether this type is equal to [other]. If [includeNullability] is false, does not consider
      * modifiers. If [includeNullability] is true, nullability is considered but not annotations.
      *
@@ -373,14 +389,6 @@ abstract class DefaultTypeItem(
         // Default implementation; PSI subclass is more accurate
         return toSlashFormat(toErasedTypeString())
     }
-
-    override fun equals(other: Any?): Boolean {
-        if (this === other) return true
-        if (other !is TypeItem) return false
-        return equalToType(other, includeNullability = false)
-    }
-
-    override fun hashCode(): Int = hashCodeForType()
 
     companion object {
         private val ERASED_TYPE_STRING_CONFIGURATION =
@@ -981,6 +989,20 @@ interface PrimitiveTypeItem : TypeItem {
 
     override fun transform(transformer: TypeTransformer?) = transformer?.transform(this) ?: this
 
+    /**
+     * Compares this [PrimitiveTypeItem] to [other] for equality.
+     *
+     * Returns `true` if [other] is a [PrimitiveTypeItem] with the same [kind],
+     * [TypeModifiers.nullability], and [TypeModifiers.annotations].
+     */
+    override fun equals(other: Any?): Boolean
+
+    /**
+     * Returns a hash code value for this [PrimitiveTypeItem] based on its [kind],
+     * [TypeModifiers.nullability], and [TypeModifiers.annotations].
+     */
+    override fun hashCode(): Int
+
     override fun equalToType(other: TypeItem?, includeNullability: Boolean): Boolean {
         return (other as? PrimitiveTypeItem)?.kind == kind &&
             (!includeNullability || modifiers.nullability == other.modifiers.nullability)
@@ -1045,6 +1067,21 @@ interface ArrayTypeItem : TypeItem, ReferenceTypeItem {
     }
 
     override fun transform(transformer: TypeTransformer?) = transformer?.transform(this) ?: this
+
+    /**
+     * Compares this [ArrayTypeItem] to [other] for equality.
+     *
+     * Returns `true` if [other] is an [ArrayTypeItem] with the same [isVarargs] flag,
+     * [componentType] (compared using [equals]), [TypeModifiers.nullability], and
+     * [TypeModifiers.annotations].
+     */
+    override fun equals(other: Any?): Boolean
+
+    /**
+     * Returns a hash code value for this [ArrayTypeItem] based on its [isVarargs], [componentType],
+     * [TypeModifiers.nullability], and [TypeModifiers.annotations].
+     */
+    override fun hashCode(): Int
 
     override fun equalToType(other: TypeItem?, includeNullability: Boolean): Boolean {
         if (other !is ArrayTypeItem) return false
@@ -1150,6 +1187,21 @@ interface ClassTypeItem : TypeItem, BoundsTypeItem, ReferenceTypeItem, Exception
 
     override fun transform(transformer: TypeTransformer?) = transformer?.transform(this) ?: this
 
+    /**
+     * Compares this [ClassTypeItem] to [other] for equality.
+     *
+     * Returns `true` if [other] is a [ClassTypeItem] with the same [qualifiedName],
+     * [TypeModifiers.nullability], and [TypeModifiers.annotations], and equal [arguments] and
+     * [outerClassType] (compared using [equals]).
+     */
+    override fun equals(other: Any?): Boolean
+
+    /**
+     * Returns a hash code value for this [ClassTypeItem] based on its [qualifiedName], [arguments],
+     * [outerClassType], [TypeModifiers.nullability], and [TypeModifiers.annotations].
+     */
+    override fun hashCode(): Int
+
     override fun equalToType(other: TypeItem?, includeNullability: Boolean): Boolean {
         if (other !is ClassTypeItem) return false
         return qualifiedName == other.qualifiedName &&
@@ -1225,6 +1277,21 @@ interface LambdaTypeItem : ClassTypeItem {
 
     override fun transform(transformer: TypeTransformer?) = transformer?.transform(this) ?: this
 
+    /**
+     * Compares this [LambdaTypeItem] to [other] for equality.
+     *
+     * As a [ClassTypeItem], returns `true` if [other] is a [ClassTypeItem] with the same
+     * [qualifiedName], [TypeModifiers.nullability], and [TypeModifiers.annotations], and equal
+     * [arguments] and [outerClassType] (compared using [equals]).
+     */
+    override fun equals(other: Any?): Boolean
+
+    /**
+     * Returns a hash code value for this [LambdaTypeItem] based on its [qualifiedName],
+     * [arguments], [outerClassType], [TypeModifiers.nullability], and [TypeModifiers.annotations].
+     */
+    override fun hashCode(): Int
+
     override fun isSamCompatibleOrKotlinLambda(classResolver: ClassResolver): Boolean {
         // This is a Kotlin lambda type
         return true
@@ -1288,6 +1355,21 @@ interface VariableTypeItem : TypeItem, BoundsTypeItem, ReferenceTypeItem, Except
     }
 
     override fun transform(transformer: TypeTransformer?) = transformer?.transform(this) ?: this
+
+    /**
+     * Compares this [VariableTypeItem] to [other] for equality.
+     *
+     * Returns `true` if [other] is a [VariableTypeItem] with the identical [asTypeParameter]
+     * (compared using `===`), [TypeModifiers.nullability], and [TypeModifiers.annotations].
+     */
+    override fun equals(other: Any?): Boolean
+
+    /**
+     * Returns a hash code value for this [VariableTypeItem] based on the identity of
+     * [asTypeParameter] (using [System.identityHashCode]), [TypeModifiers.nullability], and
+     * [TypeModifiers.annotations].
+     */
+    override fun hashCode(): Int
 
     override fun equalToType(other: TypeItem?, includeNullability: Boolean): Boolean {
         return (other as? VariableTypeItem)?.name == name &&
@@ -1373,6 +1455,21 @@ interface WildcardTypeItem : TypeItem, TypeArgumentTypeItem {
 
     // Any [TypeArgumentTypeItem] can be used in any context where a [WildcardTypeItem] is valid.
     override fun transform(transformer: TypeTransformer?) = transformer?.transform(this) ?: this
+
+    /**
+     * Compares this [WildcardTypeItem] to [other] for equality.
+     *
+     * Returns `true` if [other] is a [WildcardTypeItem] with the same [extendsBound] and
+     * [superBound] (both compared using [equals]), [TypeModifiers.nullability], and
+     * [TypeModifiers.annotations].
+     */
+    override fun equals(other: Any?): Boolean
+
+    /**
+     * Returns a hash code value for this [WildcardTypeItem] based on its [extendsBound],
+     * [superBound], [TypeModifiers.nullability], and [TypeModifiers.annotations].
+     */
+    override fun hashCode(): Int
 
     override fun equalToType(other: TypeItem?, includeNullability: Boolean): Boolean {
         if (other !is WildcardTypeItem) return false
