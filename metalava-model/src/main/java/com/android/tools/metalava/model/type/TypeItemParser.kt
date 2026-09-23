@@ -682,10 +682,32 @@ open class TypeItemParser(
         }
 
         /**
-         * Returns the minimum valid list index from the input, or null if there isn't one. -1 is
-         * not a valid index.
+         * Maps an invalid index (-1) to [Int.MAX_VALUE].
+         *
+         * This is safe because -1 indicates an index not found (e.g. from [String.indexOf]), and
+         * [Int.MAX_VALUE] acts as the identity element for finding the minimum index via [minOf]. A
+         * valid index in a type string will never reach [Int.MAX_VALUE].
          */
-        private fun minIndex(vararg index: Int): Int? = index.filter { it != -1 }.minOrNull()
+        private fun Int.mapInvalidIndexToMaxValue(): Int = if (this == -1) Int.MAX_VALUE else this
+
+        /**
+         * Returns the minimum valid list index from [a], [b], and [c], or null if all are -1. -1 is
+         * not a valid index.
+         *
+         * @param a first index to compare.
+         * @param b second index to compare.
+         * @param c third index to compare.
+         * @return the smallest non-negative index, or null if all indices are -1.
+         */
+        private fun minIndex(a: Int, b: Int, c: Int): Int? {
+            val min =
+                minOf(
+                    a.mapInvalidIndexToMaxValue(),
+                    b.mapInvalidIndexToMaxValue(),
+                    c.mapInvalidIndexToMaxValue(),
+                )
+            return if (min != Int.MAX_VALUE) min else null
+        }
 
         /**
          * Given a string and the index in that string which is the start of an annotation (the
