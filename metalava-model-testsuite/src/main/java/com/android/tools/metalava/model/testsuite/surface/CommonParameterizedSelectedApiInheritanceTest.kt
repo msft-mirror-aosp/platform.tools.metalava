@@ -59,6 +59,11 @@ class CommonParameterizedSelectedApiInheritanceTest : BaseCommonParameterizedSel
                                 $SYSTEM_API
                                 public class SystemClass {
                                 }
+                            """
+                        ),
+                        java(
+                            """
+                                package test.pkg;
                                 public class PublicClass extends SystemClass {
                                 }
                             """
@@ -95,6 +100,11 @@ class CommonParameterizedSelectedApiInheritanceTest : BaseCommonParameterizedSel
                                 $MODULE_API
                                 public class ModuleClass {
                                 }
+                            """
+                        ),
+                        java(
+                            """
+                                package test.pkg;
                                 public class PublicClass extends ModuleClass {
                                 }
                             """
@@ -131,6 +141,11 @@ class CommonParameterizedSelectedApiInheritanceTest : BaseCommonParameterizedSel
                                 $STANDALONE_API
                                 public class StandaloneClass {
                                 }
+                            """
+                        ),
+                        java(
+                            """
+                                package test.pkg;
                                 public class PublicClass extends StandaloneClass {
                                 }
                             """
@@ -167,6 +182,11 @@ class CommonParameterizedSelectedApiInheritanceTest : BaseCommonParameterizedSel
                                 $REMOVED_FROM_API
                                 public class SystemClass {
                                 }
+                            """
+                        ),
+                        java(
+                            """
+                                package test.pkg;
                                 $REMOVED_FROM_API
                                 public class PublicClass extends SystemClass {
                                 }
@@ -205,6 +225,11 @@ class CommonParameterizedSelectedApiInheritanceTest : BaseCommonParameterizedSel
                                 $REMOVED_FROM_API
                                 public class SystemClass {
                                 }
+                            """
+                        ),
+                        java(
+                            """
+                                package test.pkg;
                                 public class PublicClass extends SystemClass {
                                 }
                             """

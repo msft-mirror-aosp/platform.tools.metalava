@@ -59,6 +59,11 @@ class CommonParameterizedSelectedApiElidingTest : BaseCommonParameterizedSelecte
                                 public class Parent {
                                     public void foo() {}
                                 }
+                            """
+                        ),
+                        java(
+                            """
+                                package test.pkg;
                                 public class Child extends Parent {
                                     @Override
                                     public void foo() {}
@@ -103,6 +108,11 @@ class CommonParameterizedSelectedApiElidingTest : BaseCommonParameterizedSelecte
                                 public class SystemParent {
                                     public void foo() {}
                                 }
+                            """
+                        ),
+                        java(
+                            """
+                                package test.pkg;
                                 public class PublicChild extends SystemParent {
                                     @Override
                                     public void foo() {}
@@ -147,6 +157,11 @@ class CommonParameterizedSelectedApiElidingTest : BaseCommonParameterizedSelecte
                                 public class PublicParent {
                                     public void foo() {}
                                 }
+                            """
+                        ),
+                        java(
+                            """
+                                package test.pkg;
                                 $SYSTEM_API
                                 public class SystemChild extends PublicParent {
                                     @Override
@@ -191,6 +206,11 @@ class CommonParameterizedSelectedApiElidingTest : BaseCommonParameterizedSelecte
                                 public class ConcreteParent {
                                     public void foo() {}
                                 }
+                            """
+                        ),
+                        java(
+                            """
+                                package test.pkg;
                                 public abstract class AbstractChild extends ConcreteParent {
                                     @Override
                                     public abstract void foo();
@@ -233,10 +253,20 @@ class CommonParameterizedSelectedApiElidingTest : BaseCommonParameterizedSelecte
                                 public class PublicGrandParent {
                                     public void foo() {}
                                 }
+                            """
+                        ),
+                        java(
+                            """
+                                package test.pkg;
                                 class InaccessibleParent extends PublicGrandParent {
                                     @Override
                                     public void foo() {}
                                 }
+                            """
+                        ),
+                        java(
+                            """
+                                package test.pkg;
                                 public class PublicChild extends InaccessibleParent {
                                     @Override
                                     public void foo() {}
@@ -287,6 +317,11 @@ class CommonParameterizedSelectedApiElidingTest : BaseCommonParameterizedSelecte
                                 public class Parent {
                                     public Object foo() { return null; }
                                 }
+                            """
+                        ),
+                        java(
+                            """
+                                package test.pkg;
                                 public class Child extends Parent {
                                     @Override
                                     public String foo() { return null; }
@@ -329,9 +364,19 @@ class CommonParameterizedSelectedApiElidingTest : BaseCommonParameterizedSelecte
                                 public interface InterfaceA {
                                     default void foo() {}
                                 }
+                            """
+                        ),
+                        java(
+                            """
+                                package test.pkg;
                                 public interface InterfaceB {
                                     void foo();
                                 }
+                            """
+                        ),
+                        java(
+                            """
+                                package test.pkg;
                                 public class Child implements InterfaceA, InterfaceB {
                                     @Override
                                     public void foo() {}
@@ -400,6 +445,11 @@ class CommonParameterizedSelectedApiElidingTest : BaseCommonParameterizedSelecte
                                      */
                                     public void foo() {}
                                 }
+                            """
+                        ),
+                        java(
+                            """
+                                package test.pkg;
                                 public class Child extends Parent {
                                     @Override
                                     public void foo() {}
@@ -447,6 +497,11 @@ class CommonParameterizedSelectedApiElidingTest : BaseCommonParameterizedSelecte
                                      */
                                     public void foo() {}
                                 }
+                            """
+                        ),
+                        java(
+                            """
+                                package test.pkg;
                                 @Deprecated
                                 public class Child extends Parent {
                                     @Override
@@ -494,6 +549,11 @@ class CommonParameterizedSelectedApiElidingTest : BaseCommonParameterizedSelecte
                                      */
                                     public void foo() {}
                                 }
+                            """
+                        ),
+                        java(
+                            """
+                                package test.pkg;
                                 @Deprecated
                                 public class Child extends Parent {
                                     @Override
