@@ -141,7 +141,7 @@ interface MethodItem : CallableItem, InheritableItem, PossiblyPropertyRelated {
             //    methods overrides in the signature file so only do it when adding additional
             //    overrides.
             return TypeComparator.IGNORE_NULLABILITY.compare(t1, t2) &&
-                (!addAdditionalOverrides || t1.toErasedTypeString() == t2.toErasedTypeString())
+                (!addAdditionalOverrides || TypeComparator.ERASED.compare(t1, t2))
         }
 
         fun sameSignature(

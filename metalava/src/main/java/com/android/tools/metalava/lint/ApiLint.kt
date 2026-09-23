@@ -1276,7 +1276,7 @@ private constructor(
 
                 // If the return type and builder type are not equal (after erasing to handle
                 // type variables) then it is an error.
-                if (returnType.asErasedType() != builderType.asErasedType()) {
+                if (!TypeComparator.ERASED.compare(returnType, builderType)) {
                     report(
                         SETTER_RETURNS_THIS,
                         method,

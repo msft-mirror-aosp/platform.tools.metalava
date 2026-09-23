@@ -254,7 +254,7 @@ interface CallableItem : MemberItem, TypeParameterListOwner, PossiblyRecordCompo
             // is a Kotlin-only callable, don't accept any equivalent-erased types as equal, but
             // allow for the case that one version has wildcards that the other doesn't (common
             // when comparing types generated from PSI vs the Kotlin analysis API).
-            if (parameter1Type.toErasedTypeString() == parameter2Type.toErasedTypeString()) {
+            if (TypeComparator.ERASED.compare(parameter1Type, parameter2Type)) {
                 if (TargetLanguage.BYTECODE in targetLanguages) {
                     continue
                 } else if (equalWithFlattenedWildcards(parameter1Type, parameter2Type)) {

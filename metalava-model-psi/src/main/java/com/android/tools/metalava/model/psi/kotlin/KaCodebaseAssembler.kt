@@ -41,6 +41,7 @@ import com.android.tools.metalava.model.SkeletonClassItem
 import com.android.tools.metalava.model.SourceLanguage
 import com.android.tools.metalava.model.TargetLanguage
 import com.android.tools.metalava.model.TargetLanguageSet
+import com.android.tools.metalava.model.TypeComparator
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.TypeParameterScope
@@ -906,11 +907,10 @@ private constructor(
                 methodItem.containingClass().methods().firstOrNull {
                     it.name() == methodItem.name() &&
                         it.name() == jvmName &&
-                        it.returnType().toErasedTypeString() ==
-                            methodItem.returnType().toErasedTypeString() &&
+                        TypeComparator.ERASED.compare(it.returnType(), methodItem.returnType()) &&
                         it.parameters().size == methodItem.parameters().size &&
                         it.parameters().zip(methodItem.parameters()).all { (p1, p2) ->
-                            p1.type().toErasedTypeString() == p2.type().toErasedTypeString()
+                            TypeComparator.ERASED.compare(p1.type(), p2.type())
                         }
                 }
             if (existingMethod != null) {
@@ -1349,20 +1349,16 @@ private constructor(
             possiblyInlinedContextParameterTypes = contextParameterTypes
         }
 
-        val parameters =
-            buildList {
-                    // Both the getter and setter have the context parameters and receiver as the
-                    // first parameters, if they exist
-                    addAll(possiblyInlinedContextParameterTypes)
-                    possiblyInlinedReceiverType?.let { add(it) }
-                    // The setter also has the property type as a parameter
-                    if (!isGetter) {
-                        add(possiblyInlinedPropertyType)
-                    }
-                }
-                // Compare types by erased string to work around differences like `List<String>` vs
-                // `List<? extends String>` that can exist in the two representations.
-                .map { it.toErasedTypeString() }
+        val parameters = buildList {
+            // Both the getter and setter have the context parameters and receiver as the
+            // first parameters, if they exist
+            addAll(possiblyInlinedContextParameterTypes)
+            possiblyInlinedReceiverType?.let { add(it) }
+            // The setter also has the property type as a parameter
+            if (!isGetter) {
+                add(possiblyInlinedPropertyType)
+            }
+        }
 
         return containingClass.methods().firstOrNull { methodItem ->
             // Find a method with the right name, but if the property is internal, the accessor name
@@ -1371,7 +1367,13 @@ private constructor(
                 (visibility == KaSymbolVisibility.INTERNAL &&
                     methodItem.name().startsWith("$name\$"))) &&
                 methodItem.isKotlinProperty &&
-                methodItem.parameters().map { it.type().toErasedTypeString() } == parameters
+                methodItem.parameters().size == parameters.size &&
+                // Compare types using TypeComparator.ERASED to work around differences like
+                // `List<String>` vs `List<? extends String>` that can exist in the two
+                // representations.
+                methodItem.parameters().zip(parameters).all { (param, expected) ->
+                    TypeComparator.ERASED.compare(param.type(), expected)
+                }
         }
     }
 
