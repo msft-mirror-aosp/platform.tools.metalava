@@ -32,6 +32,7 @@ import java.io.StringWriter
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
 import kotlin.test.assertNotNull
+import kotlin.test.fail
 
 interface Assertions {
 
@@ -482,6 +483,19 @@ interface Assertions {
      */
     fun TypeItem?.assertWildcardItem(body: (WildcardTypeItem.() -> Unit)? = null) {
         assertIsInstanceOf(body ?: {})
+    }
+
+    /** Assert that [expected] and [actual] are equal according to [comparator]. */
+    fun assertTypeComparison(
+        expected: TypeItem?,
+        actual: TypeItem?,
+        comparator: TypeComparator,
+        message: String? = null,
+    ) {
+        if (!comparator.compare(expected, actual)) {
+            val prefix = if (message == null) "" else "$message: "
+            fail("${prefix}Expected <$expected> but was <$actual> (compared using $comparator)")
+        }
     }
 
     /** Checks that the element exists in exactly the source sets of [expectedSourceSets]. */
