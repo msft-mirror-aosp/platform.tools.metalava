@@ -16,8 +16,6 @@
 
 package com.android.tools.metalava.model
 
-import java.util.Objects
-
 interface PropertyItem : MemberItem, TypeParameterListOwner, InheritableItem {
     /** The getter for this property, if it exists; inverse of [MethodItem.property] */
     val getter: MethodItem?
@@ -113,7 +111,14 @@ interface PropertyItem : MemberItem, TypeParameterListOwner, InheritableItem {
     }
 
     override fun hashCodeForItem(): Int {
-        return Objects.hash(name(), receiver, contextParameters)
+        var result = name().hashCode()
+        result = 31 * result + TypeComparator.NULLABILITY_AWARE.hash(receiver)
+        result =
+            31 * result +
+                contextParameters.fold(1) { acc, param ->
+                    31 * acc + TypeComparator.NULLABILITY_AWARE.hash(param.type())
+                }
+        return result
     }
 
     override fun describe(capitalize: Boolean) = buildString {

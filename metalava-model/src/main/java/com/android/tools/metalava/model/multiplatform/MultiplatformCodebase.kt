@@ -597,7 +597,14 @@ private constructor(
         }
 
         override fun hashCode(): Int {
-            return Objects.hash(name, receiver, contextParameters)
+            var result = name.hashCode()
+            result = 31 * result + TypeComparator.NULLABILITY_AWARE.hash(receiver)
+            result =
+                31 * result +
+                    contextParameters.fold(1) { acc, param ->
+                        31 * acc + TypeComparator.NULLABILITY_AWARE.hash(param)
+                    }
+            return result
         }
     }
 }
@@ -698,7 +705,13 @@ protected constructor(
         }
 
         override fun hashCode(): Int {
-            return Objects.hash(name, parameterTypes)
+            var result = name.hashCode()
+            result =
+                31 * result +
+                    parameterTypes.fold(1) { acc, param ->
+                        31 * acc + TypeComparator.NULLABILITY_AWARE.hash(param)
+                    }
+            return result
         }
     }
 }
