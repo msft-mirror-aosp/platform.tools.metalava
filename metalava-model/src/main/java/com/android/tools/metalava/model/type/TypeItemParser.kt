@@ -594,10 +594,14 @@ open class TypeItemParser(
      *
      * For `test.pkg.@test.pkg.A Outer<P1>.@test.pkg.B Inner<P2>`, returns the triple
      * ("test.pkg.Outer", "<P1>.@test.pkg.B Inner<P2>", listOf("@test.pkg.A")).
+     *
+     * @param type the type string representing a class to split.
+     * @return a triple of the qualified class name, optional remainder of the type string, and
+     *   type-use annotations.
      */
     fun splitClassType(type: String): Triple<String, String?, List<AnnotationItem>> {
         // The constructed qualified type name
-        var name = ""
+        val name = StringBuilder()
         // The part of the type which still needs to be parsed
         var remaining = type.trim()
         // The annotations of the type, may be set later
@@ -614,30 +618,29 @@ open class TypeItemParser(
                 // '.' is first, the next part is part of the qualified class name.
                 dotIndex -> {
                     val nextNameChunk = remaining.substring(0, dotIndex)
-                    name += nextNameChunk
+                    name.append(nextNameChunk)
                     remaining = remaining.substring(dotIndex)
                     // Assumes that package names are all lower case and class names will have
                     // an upper class character (the [START_WITH_UPPER] API lint check should
                     // make this a safe assumption). If the name is a class name, we've found
                     // the complete class name, return.
                     if (nextNameChunk.any { it.isUpperCase() }) {
-                        return Triple(name, remaining, annotations)
+                        return Triple(name.toString(), remaining, annotations)
                     }
                 }
                 // '<' is first, the end of the class name has been reached.
                 paramIndex -> {
-                    name += remaining.substring(0, paramIndex)
+                    name.append(remaining, 0, paramIndex)
                     remaining = remaining.substring(paramIndex)
-                    return Triple(name, remaining, annotations)
+                    return Triple(name.toString(), remaining, annotations)
                 }
                 // '@' is first, trim all annotations.
                 annotationIndex -> {
-                    name += remaining.substring(0, annotationIndex)
-                    trimLeadingAnnotations(remaining.substring(annotationIndex)).let {
-                        (first, second) ->
-                        remaining = first
-                        annotations = second
-                    }
+                    name.append(remaining, 0, annotationIndex)
+                    val (first, second) =
+                        trimLeadingAnnotations(remaining.substring(annotationIndex))
+                    remaining = first
+                    annotations = second
                 }
             }
             // Reset indices -- the string may now start with '.' for the next chunk of the name
@@ -648,8 +651,8 @@ open class TypeItemParser(
             minIndex = minIndex(dotIndex, paramIndex, annotationIndex)
         }
         // End of the name reached with no leftover string.
-        name += remaining
-        return Triple(name, null, annotations)
+        name.append(remaining)
+        return Triple(name.toString(), null, annotations)
     }
 
     companion object {
