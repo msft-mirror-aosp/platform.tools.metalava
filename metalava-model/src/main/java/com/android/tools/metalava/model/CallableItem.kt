@@ -277,7 +277,7 @@ interface CallableItem : MemberItem, TypeParameterListOwner, PossiblyRecordCompo
     private fun equalParameterTypes(parameterType1: TypeItem, parameterType2: TypeItem): Boolean {
         return when (targetLanguages) {
             TargetLanguageSet.KOTLIN_ONLY ->
-                parameterType1.equalToType(parameterType2, includeNullability = true)
+                TypeComparator.NULLABILITY_AWARE.compare(parameterType1, parameterType2)
             else -> parameterType1 == parameterType2
         }
     }

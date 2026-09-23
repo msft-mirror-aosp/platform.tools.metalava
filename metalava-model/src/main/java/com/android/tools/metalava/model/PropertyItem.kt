@@ -144,7 +144,7 @@ interface PropertyItem : MemberItem, TypeParameterListOwner, InheritableItem {
         fun equalReceivers(receiver1: TypeItem?, receiver2: TypeItem?): Boolean {
             // Nullability is important for property receivers because kotlin allows defining
             // properties which differ only in receiver nullability.
-            return receiver1?.equalToType(receiver2, true) ?: (receiver2 == null)
+            return TypeComparator.NULLABILITY_AWARE.compare(receiver1, receiver2)
         }
 
         /** Returns whether the two lists should be considered equal context parameters. */
@@ -167,7 +167,7 @@ interface PropertyItem : MemberItem, TypeParameterListOwner, InheritableItem {
             // defining properties which differ only in context parameter nullability.
             return contextParameters1.size == contextParameters2.size &&
                 contextParameters1.zip(contextParameters2).all { (thisParam, otherParam) ->
-                    thisParam.equalToType(otherParam, includeNullability = true)
+                    TypeComparator.NULLABILITY_AWARE.compare(thisParam, otherParam)
                 }
         }
     }
