@@ -16,9 +16,11 @@
 
 package com.android.tools.metalava.stub
 
+import com.android.tools.metalava.KnownConfigFiles
 import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.testing.RequiresCapabilities
 import com.android.tools.metalava.model.text.FileFormat
+import com.android.tools.metalava.testing.KnownSourceFiles.flaggedApiSource
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
 import org.junit.Test
@@ -931,6 +933,72 @@ class StubsConstructorTest : AbstractStubsTest() {
                         """
                     )
                 )
+        )
+    }
+
+    @Test
+    fun `Super constructor call to classpath class when reverting flagged API`() {
+        check(
+            configFiles = arrayOf(KnownConfigFiles.configEmptyApiFlags),
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            import android.annotation.FlaggedApi;
+                            import java.io.FilterInputStream;
+                            import java.io.InputStream;
+
+                            public class CustomInputStream extends FilterInputStream {
+                                public CustomInputStream(InputStream in) {
+                                    super(in);
+                                }
+
+                                /** @deprecated */
+                                @Deprecated
+                                @FlaggedApi("flag.name")
+                                public void flaggedMethod() {}
+                            }
+                        """
+                    ),
+                    flaggedApiSource,
+                ),
+            checkCompatibilityApiReleased =
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public class CustomInputStream extends java.io.FilterInputStream {
+                        ctor public CustomInputStream(java.io.InputStream);
+                        method public void flaggedMethod();
+                      }
+                    }
+                """,
+            // TODO(b/512093496): The stub constructor below is broken and fails to compile
+            //  (`checkCompilation = false`) because it is missing
+            //  `super((java.io.InputStream)null);`. When `containsRevertedItem` is true,
+            //  `StubGenerator` snapshots the codebase using a `referenceVisitor`
+            //  (`FilteringApiVisitor` with `ignoreEmit = true`) whose `apiFilters` come from
+            //  `ApiSurfacePredicate.forStubs`. Because `forStubs` sets `traversal = filterEmit`
+            //  (which includes `EmittedOnlyPredicate`), `ApiVisitor` skips non-emitted classpath
+            //  classes (`java.io.FilterInputStream`, where `emit == false`) in
+            //  `CodebaseSnapshotTaker.createClassFromUnderlyingModel`, preventing
+            //  `StubConstructorManager` from resolving the superclass in the snapshot codebase and
+            //  finding its constructors.
+            expectedStubFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            @SuppressWarnings({"unchecked", "deprecation", "all"})
+                            public class CustomInputStream extends java.io.FilterInputStream {
+                            public CustomInputStream(java.io.InputStream in) { throw new RuntimeException("Stub!"); }
+                            /** */
+                            public void flaggedMethod() { throw new RuntimeException("Stub!"); }
+                            }
+                        """
+                    )
+                ),
+            checkCompilation = false,
         )
     }
 }
