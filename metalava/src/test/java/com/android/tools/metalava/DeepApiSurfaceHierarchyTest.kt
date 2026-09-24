@@ -16,10 +16,9 @@
 
 package com.android.tools.metalava
 
-import com.android.tools.metalava.KnownApiSurface.Companion.TEST_HIDE_ANNOTATION
-import com.android.tools.metalava.KnownApiSurface.Companion.TEST_MODULE_API_ANNOTATION
 import com.android.tools.metalava.KnownApiSurface.Companion.TEST_MODULE_API_SURFACE
-import com.android.tools.metalava.KnownApiSurface.Companion.TEST_SYSTEM_API_ANNOTATION
+import com.android.tools.metalava.KnownApiSurface.Companion.TEST_SYSTEM_AND_MODULE_API_SURFACE
+import com.android.tools.metalava.KnownApiSurface.Companion.TEST_SYSTEM_API_SURFACE
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.testing.java
@@ -329,10 +328,9 @@ class DeepApiSurfaceHierarchyTest : DriverTest() {
     @Test
     fun `Hierarchy test - SystemApi + ModuleApi`() {
         check(
+            apiSurface = TEST_SYSTEM_AND_MODULE_API_SURFACE,
             extraArguments = EXTRA_ARGS,
             format = FileFormat.V2,
-            hideAnnotations = arrayOf(TEST_HIDE_ANNOTATION),
-            showAnnotations = arrayOf(TEST_MODULE_API_ANNOTATION, TEST_SYSTEM_API_ANNOTATION),
             sourceFiles = SOURCE_FILES_A,
             expectedApiSignature =
                 """
@@ -386,10 +384,9 @@ class DeepApiSurfaceHierarchyTest : DriverTest() {
     @Test
     fun `Hierarchy test - SystemApi only`() {
         check(
+            apiSurface = TEST_SYSTEM_API_SURFACE,
             extraArguments = EXTRA_ARGS,
             format = FileFormat.V2,
-            hideAnnotations = arrayOf(TEST_HIDE_ANNOTATION),
-            showAnnotations = arrayOf(TEST_SYSTEM_API_ANNOTATION),
             sourceFiles = SOURCE_FILES_A,
             expectedApiSignature =
                 """
@@ -542,10 +539,9 @@ class DeepApiSurfaceHierarchyTest : DriverTest() {
     @Test
     fun `Hierarchy test - Can't refer from system to module`() {
         check(
+            apiSurface = TEST_SYSTEM_API_SURFACE,
             extraArguments = EXTRA_ARGS,
             format = FileFormat.V2,
-            hideAnnotations = arrayOf(TEST_HIDE_ANNOTATION),
-            showAnnotations = arrayOf(TEST_SYSTEM_API_ANNOTATION),
             sourceFiles =
                 arrayOf(
                     java(
@@ -583,10 +579,9 @@ class DeepApiSurfaceHierarchyTest : DriverTest() {
     @Test
     fun `Complicated case - SystemApi + ModuleApi`() {
         check(
+            apiSurface = TEST_SYSTEM_AND_MODULE_API_SURFACE,
             extraArguments = EXTRA_ARGS,
             format = FileFormat.V2,
-            hideAnnotations = arrayOf(TEST_HIDE_ANNOTATION),
-            showAnnotations = arrayOf(TEST_SYSTEM_API_ANNOTATION, TEST_MODULE_API_ANNOTATION),
             sourceFiles = SOURCE_FILES_B,
             expectedApiSignature =
                 """
@@ -624,10 +619,9 @@ class DeepApiSurfaceHierarchyTest : DriverTest() {
     @Test
     fun `Complicated case - SystemApi only`() {
         check(
+            apiSurface = TEST_SYSTEM_API_SURFACE,
             extraArguments = EXTRA_ARGS,
             format = FileFormat.V2,
-            hideAnnotations = arrayOf(TEST_HIDE_ANNOTATION),
-            showAnnotations = arrayOf(TEST_SYSTEM_API_ANNOTATION),
             sourceFiles = SOURCE_FILES_B,
             expectedApiSignature =
                 """
