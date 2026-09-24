@@ -2007,25 +2007,23 @@ private constructor(
         }
 
         /**
-         * Returns a filter based on the [apiType] and [apiSurface] which includes overriding
-         * methods. This is used to filter which items are included in compatibility checks.
+         * Returns a filter based on the [apiType] and [apiSurface]. This is used to filter which
+         * items are included in compatibility checks.
          */
         private fun getSurfaceFilter(apiType: ApiType, apiSurface: ApiSurface) =
             ApiSurfacePredicate.forDelta(
                 apiType,
                 apiSurface,
-                includeOverridingMethods = true,
             )
 
         /**
-         * Returns a reference filter based on the [apiType] and [apiSurface] which includes
-         * overriding methods. This is used to check referenced types (interfaces, throws).
+         * Returns a reference filter based on the [apiType] and [apiSurface]. This is used to check
+         * referenced types (interfaces, throws).
          */
         private fun getReferenceFilter(apiType: ApiType, apiSurface: ApiSurface) =
             ApiSurfacePredicate.referenceFilter(
                 apiType,
                 apiSurface,
-                includeOverridingMethods = true,
             )
     }
 }
