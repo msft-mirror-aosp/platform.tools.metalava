@@ -27,7 +27,6 @@ import com.android.tools.metalava.doc.ApiVersionLabelProvider
 import com.android.tools.metalava.doc.DocAnalyzer
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.CodebaseFragment
-import com.android.tools.metalava.model.FilterPredicate
 import com.android.tools.metalava.model.MatchAllPredicate
 import com.android.tools.metalava.model.PackageFilter
 import com.android.tools.metalava.model.api.surface.ApiSurface
@@ -179,9 +178,9 @@ internal class StubGenerator(
         }
 
         // Add additional constructors needed by the stubs across the whole API surface.
-        val filterEmit: FilterPredicate = apiFilters?.reference ?: MatchAllPredicate
+        val filterReference = apiFilters?.reference ?: MatchAllPredicate
         val stubConstructorManager = StubConstructorManager(codebaseFragment.codebase)
-        stubConstructorManager.addConstructors(filterEmit)
+        stubConstructorManager.addConstructors(filterReference)
 
         val stubWriter =
             StubWriter(
