@@ -33,8 +33,6 @@ internal class SnapshotSelectedApi : SelectedApi() {
 
     override var superClassApiVariants = ApiVariantSet.EMPTY
 
-    override var superMethodApiVariants = ApiVariantSet.EMPTY
-
     override var elidableApiVariants = ApiVariantSet.EMPTY
 
     override val revert: Boolean
@@ -53,7 +51,6 @@ internal class SnapshotSelectedApi : SelectedApi() {
         itemApiVariants = original.itemApiVariants
         contentApiVariants = original.contentApiVariants
         superClassApiVariants = original.superClassApiVariants
-        superMethodApiVariants = original.superMethodApiVariants
         elidableApiVariants = original.elidableApiVariants
     }
 }
