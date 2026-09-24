@@ -28,7 +28,7 @@ import com.android.tools.metalava.model.testing.value.classObjectValue
 import com.android.tools.metalava.model.testing.value.fieldReferenceValue
 import com.android.tools.metalava.model.testing.value.literalValue
 import com.android.tools.metalava.model.testsuite.BaseModelTest
-import com.android.tools.metalava.model.testsuite.assertHasPlatformNullability
+import com.android.tools.metalava.model.testsuite.assertHasNonNullNullability
 import com.android.tools.metalava.testing.createAndroidModuleDescription
 import com.android.tools.metalava.testing.createCommonModuleDescription
 import com.android.tools.metalava.testing.createProjectDescription
@@ -288,8 +288,7 @@ class CommonMethodItemTest : BaseModelTest() {
         ) {
             val methodItem = codebase.assertClass("test.pkg.Test").methods().single()
             val throwsType = methodItem.throwsTypes().single()
-            // TODO(b/564898216): Should be non-null.
-            throwsType.assertHasPlatformNullability()
+            throwsType.assertHasNonNullNullability()
         }
     }
 

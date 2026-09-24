@@ -336,7 +336,9 @@ abstract class DefaultTypeItemFactory<in T, F : DefaultTypeItemFactory<T, F>>(
 
     override fun getBoundsType(underlyingType: T) = getType(underlyingType) as BoundsTypeItem
 
-    override fun getExceptionType(underlyingType: T) = getType(underlyingType) as ExceptionTypeItem
+    override fun getExceptionType(underlyingType: T) =
+        getType(underlyingType, contextNullability = ContextNullability.forceNonNull)
+            as ExceptionTypeItem
 
     override fun getGeneralType(underlyingType: T) = getType(underlyingType)
 

@@ -236,11 +236,6 @@ class StubsTest : AbstractStubsTest() {
                     """
                     )
                 ),
-            // TODO: PublicException should only appear once in the throws list. It currently
-            //  appears twice because the PublicException from the throws list has platform
-            //  nullability, whereas the PublicException substituted for PackagePrivateException via
-            //  superClass.type() is non-null, so LinkedHashSet does not deduplicate them.
-            checkTextStubEquivalence = false,
             api =
                 """
                 // Signature format: 5.0
@@ -248,7 +243,7 @@ class StubsTest : AbstractStubsTest() {
                 package test.pkg {
                   public class Foo {
                     ctor public Foo();
-                    method public void method() throws test.pkg.Foo.PublicException, test.pkg.Foo.PublicException;
+                    method public void method() throws test.pkg.Foo.PublicException;
                   }
                   public static class Foo.PublicException extends java.lang.RuntimeException {
                     ctor public Foo.PublicException();
@@ -261,7 +256,7 @@ class StubsTest : AbstractStubsTest() {
                 @SuppressWarnings({"unchecked", "deprecation", "all"})
                 public class Foo {
                 public Foo() { throw new RuntimeException("Stub!"); }
-                public void method() throws test.pkg.Foo.PublicException, test.pkg.Foo.PublicException { throw new RuntimeException("Stub!"); }
+                public void method() throws test.pkg.Foo.PublicException { throw new RuntimeException("Stub!"); }
                 public static class PublicException extends java.lang.RuntimeException {
                 public PublicException() { throw new RuntimeException("Stub!"); }
                 }
