@@ -621,9 +621,6 @@ class DeepApiSurfaceHierarchyTest : DriverTest() {
     fun `Complicated case - SystemApi + ModuleApi - system and module`() {
         checkComplicatedCaseSystemAndModuleApi(
             apiSurface = TEST_SYSTEM_AND_MODULE_API_SURFACE,
-            // TODO(b/512093496): PublicSubClass.abstractMethodOverridden() should not be included
-            //  in the signature file because it is already part of the public API surface, which
-            //  this surface extends.
             expectedApiSignature =
                 """
                     // Signature format: 2.0
@@ -645,7 +642,6 @@ class DeepApiSurfaceHierarchyTest : DriverTest() {
                         method public void systemMethodOverridden();
                       }
                       public class PublicSubClass extends test.pkg.PublicClass {
-                        method public void abstractMethodOverridden();
                         method public void subMethod();
                       }
                     }
@@ -697,9 +693,6 @@ class DeepApiSurfaceHierarchyTest : DriverTest() {
     fun `Complicated case - SystemApi only - system`() {
         checkComplicatedCaseSystemApiOnly(
             apiSurface = TEST_SYSTEM_API_SURFACE,
-            // TODO(b/512093496): PublicSubClass.abstractMethodOverridden() should not be included
-            //  in the signature file because it is already part of the public API surface, which
-            //  this surface extends.
             expectedApiSignature =
                 """
                     // Signature format: 2.0
@@ -713,7 +706,6 @@ class DeepApiSurfaceHierarchyTest : DriverTest() {
                         method public void systemMethodOverridden();
                       }
                       public class PublicSubClass extends test.pkg.PublicClass {
-                        method public void abstractMethodOverridden();
                         method public void subMethod();
                       }
                     }

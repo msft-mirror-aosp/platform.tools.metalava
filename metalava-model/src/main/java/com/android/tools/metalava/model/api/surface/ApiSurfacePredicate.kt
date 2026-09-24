@@ -379,7 +379,6 @@ object ApiSurfacePredicate {
             nonElidingFilter(
                 apiType,
                 apiSurface,
-                includeOverridingMethods = true,
             )
         return andPredicates(
             nonElidingFilter,
