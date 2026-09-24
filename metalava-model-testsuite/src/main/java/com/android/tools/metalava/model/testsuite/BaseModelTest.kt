@@ -238,6 +238,9 @@ abstract class BaseModelTest :
          * [BaseModelTest.supportedInputFormatsRule].
          */
         val checkSupportedInputFormats: Boolean = true,
+
+        /** Whether to include additional overrides when matching method signatures. */
+        val addAdditionalOverrides: Boolean = false,
     ) {
         /** The [RecordingReporter] used by the test. */
         val recordingReporter =
@@ -262,7 +265,11 @@ abstract class BaseModelTest :
                             ?: DefaultAnnotationManager(
                                 DefaultAnnotationManager.Config(
                                     reporter = recordingReporter,
-                                    apiSurfaceSelector = ApiSurfaceSelector(apiSurfaceRules),
+                                    apiSurfaceSelector =
+                                        ApiSurfaceSelector(
+                                            apiSurfaceRules,
+                                            addAdditionalOverrides = addAdditionalOverrides,
+                                        ),
                                     apiFlags = apiFlags,
                                 )
                             ),

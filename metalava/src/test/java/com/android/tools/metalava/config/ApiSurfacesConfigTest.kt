@@ -507,6 +507,85 @@ class ApiSurfacesConfigTest : BaseConfigParserTest() {
     }
 
     /**
+     * Check that [ApiSurfacesConfig.surfacesFor] returns the expected result.
+     *
+     * @param name The name of the surface whose needed surfaces are to be checked.
+     * @param expectedSurfaces The list of expected surface names.
+     */
+    private fun ApiSurfacesConfig.assertSurfacesFor(
+        name: String,
+        expectedSurfaces: List<String>,
+    ) {
+        val surfaceConfig = getByNameOrError(name) { "unknown `$it`" }
+        assertEquals(
+            expectedSurfaces,
+            surfacesFor(surfaceConfig).map { it.name },
+            "surfaces for $name",
+        )
+    }
+
+    @Test
+    fun `Test surfacesFor`() {
+        val apiSurfacesConfig =
+            ApiSurfacesConfig(
+                apiSurfaceList =
+                    listOf(
+                        ApiSurfaceConfig(name = "public"),
+                        ApiSurfaceConfig(
+                            name = "intermediate",
+                            extends = "public",
+                            contents = ContentsConfig.STANDALONE,
+                        ),
+                        ApiSurfaceConfig(
+                            name = "restricted",
+                            extends = "intermediate",
+                            contents = ContentsConfig.STANDALONE,
+                        ),
+                        ApiSurfaceConfig(name = "other", extends = "intermediate"),
+                        ApiSurfaceConfig(name = "other-delta", extends = "other"),
+                    ),
+            )
+
+        apiSurfacesConfig.assertSurfacesFor(
+            "public",
+            listOf(
+                "public",
+            ),
+        )
+
+        apiSurfacesConfig.assertSurfacesFor(
+            "intermediate",
+            listOf(
+                "intermediate",
+            ),
+        )
+
+        apiSurfacesConfig.assertSurfacesFor(
+            "restricted",
+            listOf(
+                "restricted",
+            ),
+        )
+
+        apiSurfacesConfig.assertSurfacesFor(
+            "other",
+            listOf(
+                "intermediate",
+                "other",
+            ),
+        )
+
+        apiSurfacesConfig.assertSurfacesFor(
+            "other-delta",
+            listOf(
+                "intermediate",
+                "other",
+                "other-delta",
+            ),
+        )
+    }
+
+    /**
      * Check that [ApiSurfacesConfig.relatedTo] returns the expected result.
      *
      * @param name The name of the surface whose relation is to be checked.

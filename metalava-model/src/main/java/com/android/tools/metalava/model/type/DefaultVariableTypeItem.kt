@@ -32,4 +32,16 @@ internal class DefaultVariableTypeItem(
     override fun substitute(modifiers: TypeModifiers) =
         if (modifiers !== this.modifiers) DefaultVariableTypeItem(modifiers, asTypeParameter)
         else this
+
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is VariableTypeItem) return false
+        return asTypeParameter === other.asTypeParameter && modifiers == other.modifiers
+    }
+
+    override fun hashCode(): Int {
+        var result = System.identityHashCode(asTypeParameter)
+        result = 31 * result + modifiers.hashCode()
+        return result
+    }
 }

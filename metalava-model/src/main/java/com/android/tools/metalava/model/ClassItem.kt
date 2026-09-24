@@ -106,7 +106,7 @@ interface ClassItem :
      */
     fun isEffectivelySealed(): Boolean {
         return modifiers.isSealed() ||
-            (isClass() && (constructors().none { (it.isPublic || it.isProtected) && !it.hidden }))
+            (isClass() && constructors().none { it.selectedApi.itemApiVariants.isNotEmpty() })
     }
 
     /**

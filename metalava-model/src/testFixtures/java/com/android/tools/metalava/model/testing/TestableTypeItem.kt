@@ -18,6 +18,7 @@ package com.android.tools.metalava.model.testing
 
 import com.android.tools.metalava.model.ArrayTypeItem
 import com.android.tools.metalava.model.BaseTypeVisitor
+import com.android.tools.metalava.model.BoundsTypeItem
 import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.DefaultModifierList
@@ -85,12 +86,15 @@ fun arrayTypeItem(componentType: TypeItem, isVarargs: Boolean = false): ArrayTyp
         isVarargs,
     )
 
-/** Create a [VariableTypeItem] for a [TypeParameterItem] called [name]. */
-fun variableTypeItem(name: String): VariableTypeItem =
+/** Create a [VariableTypeItem] for [typeParameterItem]. */
+fun variableTypeItem(typeParameterItem: TypeParameterItem): VariableTypeItem =
     TypeItem.createVariableType(
         TypeModifiers.emptyNonNullModifiers,
-        typeParameterItem(name),
+        typeParameterItem,
     )
+
+/** Create a [VariableTypeItem] for a [TypeParameterItem] called [name]. */
+fun variableTypeItem(name: String): VariableTypeItem = variableTypeItem(typeParameterItem(name))
 
 /** Create a [WildcardTypeItem] for [extendsBound] of [superBound] . */
 fun wildcardTypeItem(
@@ -103,9 +107,14 @@ fun wildcardTypeItem(
         superBound,
     )
 
-/** Create a [TypeParameterItem] called [name]. */
-fun typeParameterItem(name: String): SkeletonTypeParameterItem =
-    DefaultTypeParameterItem(DefaultModifierList.create(0), name, isReified = false)
+/** Create a [TypeParameterItem] called [name] with [bounds]. */
+fun typeParameterItem(
+    name: String,
+    bounds: List<BoundsTypeItem> = emptyList(),
+): SkeletonTypeParameterItem =
+    DefaultTypeParameterItem(DefaultModifierList.create(0), name, isReified = false).also {
+        it.bounds = bounds
+    }
 
 /** Force the resolving of all [ClassTypeItem]s in this [TypeItem]. */
 fun TypeItem.forceResolveClasses(classResolver: ClassResolver) =

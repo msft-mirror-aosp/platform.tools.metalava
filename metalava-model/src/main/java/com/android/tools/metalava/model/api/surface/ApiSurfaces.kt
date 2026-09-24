@@ -16,8 +16,6 @@
 
 package com.android.tools.metalava.model.api.surface
 
-import com.android.tools.metalava.model.api.surface.ApiSurface.Contents
-
 /** The configured set of [ApiSurface]s. */
 sealed interface ApiSurfaces {
     /**
@@ -104,8 +102,7 @@ sealed interface ApiSurfaces {
          * Create an [ApiSurface] with the specified [name] which has an optional [extends].
          *
          * If [extends] is not `null` then the referenced [ApiSurface] must already have been
-         * created with this method. The [contents] determines how the surface relates to the one it
-         * extends.
+         * created with this method.
          *
          * If the surface is the one to be created then [isMain] must be `true`. Exactly one surface
          * can have [isMain] set to `true`, none or more than one will fail.
@@ -113,7 +110,6 @@ sealed interface ApiSurfaces {
         fun createSurface(
             name: String,
             extends: String? = null,
-            contents: Contents = Contents.DELTA,
             isMain: Boolean = false,
         )
     }
@@ -180,7 +176,6 @@ private class DefaultApiSurfaces(initializer: ApiSurfaces.Builder.() -> Unit) : 
         override fun createSurface(
             name: String,
             extends: String?,
-            contents: Contents,
             isMain: Boolean,
         ) {
             val existing = nameToSurface[name]
@@ -199,7 +194,6 @@ private class DefaultApiSurfaces(initializer: ApiSurfaces.Builder.() -> Unit) : 
                     index,
                     name,
                     extendsSurface,
-                    contents,
                     isMain,
                     allVariants,
                 )
@@ -229,7 +223,6 @@ private class DefaultApiSurface(
     private val index: Int,
     override val name: String,
     override val extends: DefaultApiSurface?,
-    override val contents: Contents,
     override val isMain: Boolean,
     allVariants: MutableList<ApiVariant>,
 ) : ApiSurface() {

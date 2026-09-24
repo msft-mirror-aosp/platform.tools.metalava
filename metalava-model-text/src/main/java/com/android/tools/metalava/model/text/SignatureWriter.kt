@@ -69,6 +69,12 @@ class SignatureWriter(
     private val fileFormat: FileFormat,
     private val writeTargetLanguages: Boolean = true,
 ) : DelegatedVisitor {
+    /**
+     * Signature files require classes to be visited in deterministic, alphabetical order by
+     * qualified name (with typealiases last) for stable signature generation and diffing.
+     */
+    override val requiresSortedClasses: Boolean
+        get() = true
 
     init {
         // If a header must always be written out (even if the file is empty) then write it here.

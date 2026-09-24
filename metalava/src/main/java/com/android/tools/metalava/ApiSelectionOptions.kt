@@ -17,12 +17,14 @@
 package com.android.tools.metalava
 
 import com.android.tools.metalava.cli.common.MetalavaCliException
+import com.android.tools.metalava.cli.common.MetalavaOptionGroup
 import com.android.tools.metalava.cli.common.cliError
 import com.android.tools.metalava.cli.common.enumOption
 import com.android.tools.metalava.cli.common.map
 import com.android.tools.metalava.cli.common.splitMultiple
 import com.android.tools.metalava.config.ApiSurfaceConfig
 import com.android.tools.metalava.config.ApiSurfacesConfig
+import com.android.tools.metalava.config.ContentsConfig
 import com.android.tools.metalava.config.EffectConfig
 import com.android.tools.metalava.model.TypedefMode
 import com.android.tools.metalava.model.api.ApiSurfaceRules
@@ -31,9 +33,7 @@ import com.android.tools.metalava.model.api.SurfaceSelectionRule
 import com.android.tools.metalava.model.api.SurfaceSelectionRule.Companion.unannotated
 import com.android.tools.metalava.model.api.SurfaceSelectionRule.Effect
 import com.android.tools.metalava.model.api.surface.ApiSurface
-import com.android.tools.metalava.model.api.surface.ApiSurface.Contents
 import com.android.tools.metalava.model.api.surface.ApiSurfaces
-import com.github.ajalt.clikt.parameters.groups.OptionGroup
 import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.deprecated
 import com.github.ajalt.clikt.parameters.options.multiple
@@ -64,14 +64,9 @@ const val API_SELECTION_OPTIONS_GROUP = "Api Selection"
 
 /**
  * Options related to selecting which parts of the source files will be part of the generated API.
- *
- * @param apiSurfacesConfigProvider Provides the [ApiSurfacesConfig] that was provided in an
- *   [ARG_CONFIG_FILE], if any. This must only be called after all the options have been parsed.
  */
-class ApiSelectionOptions(
-    private val apiSurfacesConfigProvider: () -> ApiSurfacesConfig? = { null },
-) :
-    OptionGroup(
+class ApiSelectionOptions() :
+    MetalavaOptionGroup(
         name = API_SELECTION_OPTIONS_GROUP,
         help =
             """
@@ -80,20 +75,6 @@ class ApiSelectionOptions(
             """
                 .trimIndent()
     ) {
-    /** The [ApiSurfaceConfig] extracted from configuration files. */
-    private val apiSurfacesConfig by lazy(LazyThreadSafetyMode.NONE) { apiSurfacesConfigProvider() }
-
-    /**
-     * Return true if at least one `--show*-annotation`, `--show-unannotated` or `--hide-annotation`
-     * option was specified.
-     */
-    private fun atLeastOneApiSelectionOptionWasSpecified() =
-        optionalShowUnannotated == ShowUnannotated.SPECIFIED ||
-            hideAnnotationValues.isNotEmpty() ||
-            atLeastOneShowAnnotationOptionWasSpecified()
-
-    /** Return true if at least one `--show*-annotation` option was specified. */
-    private fun atLeastOneShowAnnotationOptionWasSpecified() = showAnnotationValues.isNotEmpty()
 
     internal val apiSurfaceName by
         option(
@@ -107,7 +88,7 @@ class ApiSelectionOptions(
         )
 
     /** The values of [optionalShowUnannotated]. */
-    private enum class ShowUnannotated {
+    internal enum class ShowUnannotated {
         /** Indicates that [ARG_SHOW_UNANNOTATED] was not specified on the command line. */
         UNSPECIFIED,
 
@@ -123,26 +104,6 @@ class ApiSelectionOptions(
                 defaultForHelp = "true if no --show*-annotation options specified",
             )
             .deprecated(DEPRECATED_API_SURFACE_OPTION_MESSAGE)
-
-    /**
-     * Convert [optionalShowUnannotated] into a [Boolean], defaulting to `true` if no show options
-     * were specified.
-     */
-    private val showUnannotatedOption by
-        lazy(LazyThreadSafetyMode.NONE) {
-            when (optionalShowUnannotated) {
-                ShowUnannotated.UNSPECIFIED -> {
-                    // If the caller has not explicitly requested that unannotated classes and
-                    // members should be shown in the output then only show them if no show
-                    // annotations were provided.
-                    !atLeastOneShowAnnotationOptionWasSpecified()
-                }
-                else -> true
-            }
-        }
-
-    val showUnannotated
-        get() = apiSurfaceSelector.showUnannotated
 
     private val showAnnotationValues by
         option(
@@ -166,6 +127,141 @@ class ApiSelectionOptions(
             )
             .multiple()
             .deprecated(DEPRECATED_API_SURFACE_OPTION_MESSAGE)
+
+    internal val excludeAnnotations by
+        option(
+                ARG_EXCLUDE_ANNOTATION,
+                metavar = "<annotation-classes>",
+                help =
+                    """
+                A comma separated list of fully qualified names of annotation classes that must be
+                stripped from metalava's outputs.
+            """
+                        .trimIndent(),
+            )
+            .splitMultiple(",")
+            .map { it.toSet() }
+
+    private val passThroughAnnotations by
+        option(
+                ARG_PASS_THROUGH_ANNOTATION,
+                metavar = "<annotation-classes>",
+                help =
+                    """
+                A comma separated list of fully qualified names of annotation classes that must be
+                passed through unchanged.
+            """
+                        .trimIndent(),
+            )
+            .splitMultiple(",")
+            .map { it.toSet() }
+
+    private val suppressCompatibilityMetaAnnotations by
+        option(
+                ARG_SUPPRESS_COMPATIBILITY_META_ANNOTATION,
+                metavar = "<meta-annotation-class>",
+                help =
+                    """
+                       Suppress compatibility checks for any elements within the scope of an
+                       annotation which is itself annotated with the given `meta-annotation-class`.
+                    """
+                        .trimIndent(),
+            )
+            .multiple()
+            .unique()
+
+    private val typedefMode by
+        enumOption(
+            ARG_TYPEDEFS_IN_SIGNATURES,
+            help = "Whether to include typedef annotations in signature files.",
+            enumValueHelpGetter = { it.help },
+            default = TypedefMode.NONE,
+            key = { it.optionValue },
+        )
+
+    /**
+     * Returns a [ComputedApiSelectionOptions] instance based on the current state of the options.
+     *
+     * @param apiSurfacesConfig The [ApiSurfacesConfig] that was provided in an [ARG_CONFIG_FILE],
+     *   if any.
+     * @param addAdditionalOverrides Whether to include additional overrides when matching method
+     *   signatures.
+     */
+    fun compute(
+        apiSurfacesConfig: ApiSurfacesConfig? = null,
+        addAdditionalOverrides: Boolean = false,
+    ): ComputedApiSelectionOptions {
+        return ComputedApiSelectionOptions(
+            apiSurfaceName,
+            optionalShowUnannotated,
+            showAnnotationValues,
+            hideAnnotationValues,
+            excludeAnnotations,
+            passThroughAnnotations,
+            suppressCompatibilityMetaAnnotations,
+            typedefMode,
+            apiSurfacesConfig,
+            addAdditionalOverrides,
+        )
+    }
+}
+
+/**
+ * Options related to selecting which parts of the source files will be part of the generated API
+ * and additional values computed based on those options.
+ */
+class ComputedApiSelectionOptions
+internal constructor(
+    val apiSurfaceName: String?,
+    private val optionalShowUnannotated: ApiSelectionOptions.ShowUnannotated,
+    private val showAnnotationValues: List<String>,
+    private val hideAnnotationValues: List<String>,
+    /** The set of annotation classes that should be removed from all outputs */
+    val excludeAnnotations: Set<String>,
+    /** The set of annotation classes that should be passed through unchanged */
+    val passThroughAnnotations: Set<String>,
+    /** Meta-annotations for which annotated APIs should not be checked for compatibility. */
+    val suppressCompatibilityMetaAnnotations: Set<String>,
+    /**
+     * How to handle typedef annotations in signature files; corresponds to
+     * $ARG_TYPEDEFS_IN_SIGNATURES
+     */
+    val typedefMode: TypedefMode,
+    private val apiSurfacesConfig: ApiSurfacesConfig?,
+    private val addAdditionalOverrides: Boolean = false,
+) {
+
+    /**
+     * Return true if at least one `--show*-annotation`, `--show-unannotated` or `--hide-annotation`
+     * option was specified.
+     */
+    private fun atLeastOneApiSelectionOptionWasSpecified() =
+        optionalShowUnannotated == ApiSelectionOptions.ShowUnannotated.SPECIFIED ||
+            hideAnnotationValues.isNotEmpty() ||
+            atLeastOneShowAnnotationOptionWasSpecified()
+
+    /** Return true if at least one `--show*-annotation` option was specified. */
+    private fun atLeastOneShowAnnotationOptionWasSpecified() = showAnnotationValues.isNotEmpty()
+
+    /**
+     * Convert [optionalShowUnannotated] into a [Boolean], defaulting to `true` if no show options
+     * were specified.
+     */
+    private val showUnannotatedOption by
+        lazy(LazyThreadSafetyMode.NONE) {
+            when (optionalShowUnannotated) {
+                ApiSelectionOptions.ShowUnannotated.UNSPECIFIED -> {
+                    // If the caller has not explicitly requested that unannotated classes and
+                    // members should be shown in the output then only show them if no show
+                    // annotations were provided.
+                    !atLeastOneShowAnnotationOptionWasSpecified()
+                }
+                else -> true
+            }
+        }
+
+    val showUnannotated
+        get() = apiSurfaceSelector.showUnannotated
 
     /**
      * Select the [ApiSurfaceRules] to use between the [apiSurfaceRulesFromConfig] and
@@ -198,7 +294,10 @@ class ApiSelectionOptions(
                     apiSurfaceRulesFromOptions,
                 )
 
-            ApiSurfaceSelector(apiSurfaceRules)
+            ApiSurfaceSelector(
+                apiSurfaceRules,
+                addAdditionalOverrides = addAdditionalOverrides,
+            )
         }
 
     /**
@@ -238,40 +337,22 @@ class ApiSelectionOptions(
         // Get the main surface.
         val main = apiSurfaces.main
 
-        // Compute the actual surfaces to use.
-        val actualSurfaces =
-            when (main.contents) {
-                // Delta uses the full set of api surfaces.
-                Contents.DELTA -> apiSurfaces
-
-                // Standalone creates a new set of api surfaces that only contains a single
-                // surface.
-                Contents.STANDALONE -> ApiSurfaces.build { createSurface(main.name, isMain = true) }
-            }
-
         // Build a map from surface name to the [SurfaceSelectionRule]s that apply to that surface.
         val rulesBySurfaceName = buildMap {
-            when (main.contents) {
-                Contents.DELTA -> {
-                    // Iterate over the surfaces, adding information from the --show-* and
-                    // --hide-annotation options.
-                    for (surface in apiSurfaces.all) {
-                        val surfaceRules = surfacesConfig.createRulesForSurface(surface) ?: continue
+            for (surface in apiSurfaces.all) {
+                val surfaceConfig = surfacesConfig.byName[surface.name] ?: continue
+                val surfaceRules =
+                    if (surface.extends == null) {
+                        // A root surface combines all rules from the surfaces that contribute to it
+                        // in the configuration file.
+                        val contributingSurfaces = surfacesConfig.contributesTo(surfaceConfig)
+                        surfacesConfig.rulesForSurfaces(contributingSurfaces)
+                    } else {
+                        // A delta surface only has rules for its own surface.
+                        surfacesConfig.createRulesForSurface(surfaceConfig)
+                    } ?: continue
 
-                        val name = surface.name
-                        put(name, surfaceRules)
-                    }
-                }
-                Contents.STANDALONE -> {
-                    // Combine all the rules from each of the API surfaces into a single list which
-                    // is used for the standalone API surface.
-                    val allSurfaceRules =
-                        apiSurfaces.all.flatMap {
-                            surfacesConfig.createRulesForSurface(it) ?: emptyList()
-                        }
-                    val name = main.name
-                    put(name, allSurfaceRules)
-                }
+                put(surface.name, surfaceRules)
             }
 
             // Check to see if any related API surfaces need to be hidden. If so, add them to the
@@ -279,7 +360,7 @@ class ApiSelectionOptions(
             val hideRules = surfacesConfig.createHideRulesForRelatedButUntrackedSurfaces(main.name)
             if (hideRules.isNotEmpty()) {
                 // Add the hide rules to the narrowest API in the actual surfaces.
-                val narrowestName = actualSurfaces.all.first().name
+                val narrowestName = apiSurfaces.all.first().name
                 val existing = this[narrowestName]
                 this[narrowestName] =
                     if (existing == null) {
@@ -328,18 +409,24 @@ class ApiSelectionOptions(
 
         // Create and return the rules.
         return ApiSurfaceRules(
-            actualSurfaces,
+            apiSurfaces,
             rulesBySurfaceName,
             variantRules,
         )
     }
 
-    /** Create the [SurfaceSelectionRule]s for [surface] from this [ApiSurfacesConfig]. */
-    private fun ApiSurfacesConfig.createRulesForSurface(
-        surface: ApiSurface,
+    /** Create the [SurfaceSelectionRule]s for [surfaceConfigs] from this [ApiSurfacesConfig]. */
+    private fun ApiSurfacesConfig.rulesForSurfaces(
+        surfaceConfigs: Collection<ApiSurfaceConfig>,
     ): List<SurfaceSelectionRule>? {
-        val name = surface.name
-        val surfaceConfig = byName[name] ?: return null
+        val rules = surfaceConfigs.flatMap { createRulesForSurface(it) ?: emptyList() }
+        return rules.ifEmpty { null }
+    }
+
+    /** Create the [SurfaceSelectionRule]s for [surfaceConfig] from this [ApiSurfacesConfig]. */
+    private fun ApiSurfacesConfig.createRulesForSurface(
+        surfaceConfig: ApiSurfaceConfig,
+    ): List<SurfaceSelectionRule>? {
         val selectionCriteria = surfaceConfig.selectionCriteria
 
         val surfaceRules = buildList {
@@ -362,7 +449,7 @@ class ApiSelectionOptions(
             }
         }
 
-        return surfaceRules
+        return surfaceRules.ifEmpty { null }
     }
 
     /**
@@ -371,8 +458,14 @@ class ApiSelectionOptions(
     private fun ApiSurfacesConfig.createHideRulesForRelatedButUntrackedSurfaces(
         surfaceName: String,
     ): List<SurfaceSelectionRule> {
-        // Get the tracked surfaces by name.
-        val trackedSurfaces = apiSurfaces.byName
+        // A surface is tracked if it is in apiSurfaces or if it contributes to a tracked surface.
+        val trackedSurfaces =
+            apiSurfaces.all
+                .flatMap { surface ->
+                    val surfaceConfig = byName[surface.name] ?: return@flatMap emptyList()
+                    contributesTo(surfaceConfig).map { it.name }
+                }
+                .toSet()
 
         // Get the set of annotation rules that must be hidden.
         val rulesToHide =
@@ -442,64 +535,6 @@ class ApiSelectionOptions(
             rulesBySurfaceName,
         )
     }
-
-    /** The set of annotation classes that should be removed from all outputs */
-    internal val excludeAnnotations by
-        option(
-                ARG_EXCLUDE_ANNOTATION,
-                metavar = "<annotation-classes>",
-                help =
-                    """
-                A comma separated list of fully qualified names of annotation classes that must be
-                stripped from metalava's outputs.
-            """
-                        .trimIndent(),
-            )
-            .splitMultiple(",")
-            .map { it.toSet() }
-
-    /** The set of annotation classes that should be passed through unchanged */
-    internal val passThroughAnnotations by
-        option(
-                ARG_PASS_THROUGH_ANNOTATION,
-                metavar = "<annotation-classes>",
-                help =
-                    """
-                A comma separated list of fully qualified names of annotation classes that must be
-                passed through unchanged.
-            """
-                        .trimIndent(),
-            )
-            .splitMultiple(",")
-            .map { it.toSet() }
-
-    /** Meta-annotations for which annotated APIs should not be checked for compatibility. */
-    internal val suppressCompatibilityMetaAnnotations by
-        option(
-                ARG_SUPPRESS_COMPATIBILITY_META_ANNOTATION,
-                metavar = "<meta-annotation-class>",
-                help =
-                    """
-                       Suppress compatibility checks for any elements within the scope of an
-                       annotation which is itself annotated with the given `meta-annotation-class`.
-                    """
-                        .trimIndent(),
-            )
-            .multiple()
-            .unique()
-
-    /**
-     * How to handle typedef annotations in signature files; corresponds to
-     * $ARG_TYPEDEFS_IN_SIGNATURES
-     */
-    internal val typedefMode by
-        enumOption(
-            ARG_TYPEDEFS_IN_SIGNATURES,
-            help = "Whether to include typedef annotations in signature files.",
-            enumValueHelpGetter = { it.help },
-            default = TypedefMode.NONE,
-            key = { it.optionValue },
-        )
 
     val apiSurfaces by
         lazy(LazyThreadSafetyMode.NONE) {
@@ -590,7 +625,7 @@ class ApiSelectionOptions(
 
             // Create the ApiSurfaces from the configured API surfaces.
             return apiSurfacesFromConfig(
-                apiSurfacesConfig.contributesTo(targetApiSurfaceConfig),
+                apiSurfacesConfig.surfacesFor(targetApiSurfaceConfig),
                 targetApiSurfaceName
             )
         }
@@ -615,8 +650,9 @@ internal fun apiSurfacesFromConfig(
         for (surfaceConfig in surfaceConfigs) {
             createSurface(
                 name = surfaceConfig.name,
-                extends = surfaceConfig.extends,
-                contents = surfaceConfig.contents?.surfaceContents ?: Contents.DELTA,
+                extends =
+                    if (surfaceConfig.contents == ContentsConfig.STANDALONE) null
+                    else surfaceConfig.extends,
                 isMain = surfaceConfig.name == targetApiSurface,
             )
         }

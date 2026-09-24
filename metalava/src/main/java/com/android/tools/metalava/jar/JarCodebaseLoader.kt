@@ -19,11 +19,13 @@ package com.android.tools.metalava.jar
 import androidx.tracing.Tracer
 import com.android.tools.metalava.api.ApiAnalyzer
 import com.android.tools.metalava.model.Codebase
+import com.android.tools.metalava.model.EmittedOnlyPredicate
 import com.android.tools.metalava.model.annotation.DefaultAnnotationManager
+import com.android.tools.metalava.model.api.ApiSurfaceSelector
+import com.android.tools.metalava.model.api.surface.ApiSurfacePredicate
 import com.android.tools.metalava.model.source.EnvironmentManager
 import com.android.tools.metalava.model.source.SourceModelProvider
 import com.android.tools.metalava.model.source.SourceParser
-import com.android.tools.metalava.model.visitors.ApiPredicate
 import com.android.tools.metalava.reporter.Reporter
 import com.android.tools.metalava.trace
 import java.io.Closeable
@@ -75,16 +77,18 @@ sealed interface JarCodebaseLoader {
             tracer.trace("analyzer.mergeExternalQualifierAnnotations") {
                 analyzer.mergeExternalQualifierAnnotations()
             }
-            val apiEmit =
-                ApiPredicate(
-                    // When loading from a prebuilt jar, all APIs in the jar represent the whole API
-                    // surface, so inherited stubs must be generated for all classes across the jar.
-                    config = apiAnalyzerConfig.apiPredicateConfig,
-                )
+
+            // Ancestor classes and methods can be inherited from non-emitted items in
+            // the hierarchy.
+            val apiReference = ApiSurfacePredicate.wholeCoreApi(codebase.apiSurfaces.main)
+
+            // Inherited stubs are only generated for classes marked for emission.
+            val apiEmit = EmittedOnlyPredicate.and(apiReference)
+
             tracer.trace("analyzer.inheritHiddenAspects") {
                 analyzer.inheritHiddenAspects(
                     apiEmit,
-                    apiEmit,
+                    apiReference,
                 )
             }
 
@@ -130,6 +134,7 @@ private constructor(
             tracer: Tracer,
             reporter: Reporter,
             sourceModelProvider: SourceModelProvider = SourceModelProvider.getImplementation("psi"),
+            addAdditionalOverrides: Boolean = false,
         ): StandaloneJarCodebaseLoader {
 
             val environmentManager =
@@ -137,7 +142,13 @@ private constructor(
                     disableStderrDumping,
                 )
 
-            val annotationManager = DefaultAnnotationManager()
+            val annotationManager =
+                DefaultAnnotationManager(
+                    DefaultAnnotationManager.Config(
+                        apiSurfaceSelector =
+                            ApiSurfaceSelector(addAdditionalOverrides = addAdditionalOverrides)
+                    )
+                )
             val codebaseConfig =
                 Codebase.Config(
                     annotationManager = annotationManager,

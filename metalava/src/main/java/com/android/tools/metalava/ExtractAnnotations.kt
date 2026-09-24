@@ -35,6 +35,8 @@ import com.android.tools.metalava.model.JAVA_LANG_PREFIX
 import com.android.tools.metalava.model.MemberItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
+import com.android.tools.metalava.model.api.surface.ApiSurface
+import com.android.tools.metalava.model.api.surface.ApiSurfacePredicate
 import com.android.tools.metalava.model.findAnnotation
 import com.android.tools.metalava.model.testOrTrue
 import com.android.tools.metalava.model.value.AnnotationValue
@@ -42,8 +44,8 @@ import com.android.tools.metalava.model.value.FieldReferenceValue
 import com.android.tools.metalava.model.value.SingleArrayElementFormat
 import com.android.tools.metalava.model.value.Value
 import com.android.tools.metalava.model.value.ValueStringConfiguration
-import com.android.tools.metalava.model.visitors.ApiPredicate
-import com.android.tools.metalava.model.visitors.ApiVisitor
+import com.android.tools.metalava.model.visitors.ApiFilters
+import com.android.tools.metalava.model.visitors.ApiFiltersVisitor
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
 import com.google.common.xml.XmlEscapers
@@ -61,10 +63,10 @@ class ExtractAnnotations(
     private val codebase: Codebase,
     private val reporter: Reporter,
     private val outputFile: File,
-    apiPredicateConfig: ApiPredicate.Config,
+    apiSurface: ApiSurface,
 ) :
-    ApiVisitor(
-        apiFilters = apiPredicateConfig.defaultFilters(),
+    ApiFiltersVisitor(
+        apiFilters = ApiFilters(reference = ApiSurfacePredicate.wholeCoreApi(apiSurface)),
     ) {
     // Used linked hash map for order such that we always emit parameters after their surrounding
     // method etc

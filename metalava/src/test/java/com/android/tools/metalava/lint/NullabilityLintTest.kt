@@ -17,10 +17,12 @@
 package com.android.tools.metalava.lint
 
 import com.android.tools.metalava.DriverTest
+import com.android.tools.metalava.KnownApiSurface
 import com.android.tools.metalava.libcoreNonNullSource
 import com.android.tools.metalava.libcoreNullableSource
 import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.testing.RequiresCapabilities
+import com.android.tools.metalava.nonNullSource
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.testing.KnownSourceFiles
 import com.android.tools.metalava.testing.java
@@ -787,6 +789,46 @@ class NullabilityLintTest : DriverTest() {
                     libcoreNonNullSource,
                     libcoreNullableSource,
                 )
+        )
+    }
+
+    @Test
+    fun `Test overriding method marked with @Hide is not checked for nullability`() {
+        check(
+            apiLint = "",
+            expectedIssues =
+                """
+                    src/test/pkg/Sub.java:8: error: Attempting to hide method test.pkg.Sub.method(String) which overrides method test.pkg.Base.method(String) which is already part of the API [HidingApiMethodOverride]
+                """,
+            apiSurface = KnownApiSurface.PUBLIC,
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+
+                            import android.annotation.NonNull;
+
+                            public class Base {
+                                public void method(@NonNull String str) {}
+                            }
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+
+                            import android.annotation.Hide;
+
+                            public class Sub extends Base {
+                                @Override
+                                @Hide
+                                public void method(String str) {}
+                            }
+                        """
+                    ),
+                    nonNullSource,
+                ),
         )
     }
 }

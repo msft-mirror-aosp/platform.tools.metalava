@@ -302,6 +302,7 @@ data class ContextNullability(
         val forceNonNull =
             ContextNullability(
                 forcedNullability = TypeNullability.NONNULL,
+                forcedComponentNullability = TypeNullability.NONNULL,
             )
 
         /**

@@ -25,7 +25,8 @@ import com.android.tools.metalava.model.SelectableItem
  * [SelectableItem.emit] is `true`.
  *
  * Preserves class nesting as required by the [delegate]'s [DelegatedVisitor.requiresClassNesting]
- * property.
+ * property and sorts classes as required by the [delegate]'s
+ * [DelegatedVisitor.requiresSortedClasses] property.
  */
 class EmittableDelegatingVisitor(private val delegate: DelegatedVisitor) :
     NonFilteringDelegatingVisitor(delegate) {

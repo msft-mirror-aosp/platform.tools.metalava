@@ -60,6 +60,7 @@ import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.TraversingVisitor
 import com.android.tools.metalava.model.TypeNullability
+import com.android.tools.metalava.model.api.surface.ApiSurfacePredicate
 import com.android.tools.metalava.model.source.SourceParser
 import com.android.tools.metalava.model.source.SourceSet
 import com.android.tools.metalava.model.text.ApiFile
@@ -69,7 +70,6 @@ import com.android.tools.metalava.model.type.TypeItemParser
 import com.android.tools.metalava.model.typeNullability
 import com.android.tools.metalava.model.value.Value
 import com.android.tools.metalava.model.value.ValueParser
-import com.android.tools.metalava.model.visitors.ApiPredicate
 import com.android.tools.metalava.reporter.FileLocation
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
@@ -95,7 +95,6 @@ class AnnotationsMerger(
     private val config: Config,
 ) {
     data class Config(
-        val apiPredicateConfig: ApiPredicate.Config = ApiPredicate.Config(),
         val sources: List<File> = emptyList(),
         val sourcePath: List<File> = emptyList(),
         val classpath: List<File> = emptyList(),
@@ -618,11 +617,9 @@ class AnnotationsMerger(
                         if (reflectionFields != null) {
                             // Create predicate that matches core variants across all the API
                             // surfaces. It will not include items that only have removed or doc
-                            // only variants.
+                            // only variants or are not emitted.
                             val filterEmit =
-                                ApiPredicate(
-                                    config = config.apiPredicateConfig,
-                                )
+                                ApiSurfacePredicate.wholeCoreEmittableApi(codebase.apiSurfaces.main)
 
                             // Attempt with reflection
                             var first = true

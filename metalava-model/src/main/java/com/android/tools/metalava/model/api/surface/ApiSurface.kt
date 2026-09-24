@@ -31,14 +31,6 @@ sealed class ApiSurface : Comparable<ApiSurface> {
     /** The optional [ApiSurface] that this extends. */
     abstract val extends: ApiSurface?
 
-    /**
-     * Specifies the contents of this surface.
-     *
-     * This is only of significance if [extends] is set to non-null. Defaults to [Contents.DELTA] if
-     * unspecified.
-     */
-    abstract val contents: Contents
-
     /** True if this is the main [ApiSurface] being generated. */
     abstract val isMain: Boolean
 
@@ -78,13 +70,4 @@ sealed class ApiSurface : Comparable<ApiSurface> {
 
     /** Get the [ApiVariant] for [ApiVariantType] in this [ApiSurface]. */
     abstract fun variantFor(type: ApiVariantType): ApiVariant
-
-    /** Specifies how a surface relates to the one it extends. */
-    enum class Contents {
-        /** A delta on top of the extended surface. */
-        DELTA,
-
-        /** A standalone API that incorporates everything from its extended surface(s). */
-        STANDALONE,
-    }
 }

@@ -28,10 +28,10 @@ import com.android.tools.metalava.doc.DocAnalyzer
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.CodebaseFragment
 import com.android.tools.metalava.model.FilterPredicate
+import com.android.tools.metalava.model.MatchAllPredicate
 import com.android.tools.metalava.model.PackageFilter
-import com.android.tools.metalava.model.visitors.ApiFilters
-import com.android.tools.metalava.model.visitors.ApiPredicate
-import com.android.tools.metalava.model.visitors.MatchOverridingMethodPredicate
+import com.android.tools.metalava.model.api.surface.ApiSurface
+import com.android.tools.metalava.model.api.surface.ApiSurfacePredicate
 import com.android.tools.metalava.reporter.Reporter
 import com.android.tools.metalava.trace
 import java.io.File
@@ -44,7 +44,7 @@ internal class StubGenerator(
     private val executionEnvironment: ExecutionEnvironment,
     private val reporter: Reporter,
     private val signatureFileCache: SignatureFileCache,
-    private val apiPredicateConfig: ApiPredicate.Config,
+    private val apiSurface: ApiSurface,
 ) {
     data class Config(
         /** Configuration needed by [StubWriter]. */
@@ -128,7 +128,7 @@ internal class StubGenerator(
                 codebase,
                 reporter,
                 config.apiVersionLabelProvider,
-                apiPredicateConfig,
+                codebase.apiSurfaces.main,
             )
         tracer.trace("DocAnalyzer.enhance") { docAnalyzer.enhance() }
 
@@ -146,19 +146,9 @@ internal class StubGenerator(
             if (codebase.preFiltered) {
                 null
             } else {
-                // Stubs must include the whole API surface (both base and extended surfaces, such
-                // as public API when generating system stubs) so code compiling against stubs can
-                // resolve all referenced and inherited APIs.
-                val filterReference =
-                    ApiPredicate(
-                        includeDocOnly = isDocStubs,
-                        config = apiPredicateConfig,
-                    )
-                val filterEmit = MatchOverridingMethodPredicate(filterReference)
-
-                ApiFilters(
-                    emit = filterEmit,
-                    reference = filterReference,
+                ApiSurfacePredicate.forStubs(
+                    apiSurface,
+                    includeDocOnly = isDocStubs,
                 )
             }
 
@@ -189,15 +179,7 @@ internal class StubGenerator(
         }
 
         // Add additional constructors needed by the stubs across the whole API surface.
-        val filterEmit: FilterPredicate =
-            if (codebaseFragment.codebase.preFiltered) {
-                FilterPredicate { true }
-            } else {
-                ApiPredicate(
-                    // Stub constructors must be added to all classes across the whole API surface.
-                    config = apiPredicateConfig,
-                )
-            }
+        val filterEmit: FilterPredicate = apiFilters?.reference ?: MatchAllPredicate
         val stubConstructorManager = StubConstructorManager(codebaseFragment.codebase)
         stubConstructorManager.addConstructors(filterEmit)
 
@@ -230,16 +212,19 @@ internal class StubGenerator(
     ) {
         if (previouslyReleasedApi != null) {
             val previousCodebase =
-                previouslyReleasedApi.load { signatureFiles ->
-                    signatureFileCache.load(signatureFiles)
+                tracer.trace("NullnessMigration.loadPreviouslyReleasedApi") {
+                    previouslyReleasedApi.load { signatureFiles ->
+                        signatureFileCache.load(signatureFiles)
+                    }
                 }
 
             // If configured, checks for newly added nullness information compared
             // to the previous stable API and marks the newly annotated elements
             // as migrated (which will cause the Kotlin compiler to treat problems
             // as warnings instead of errors
-
-            NullnessMigration.migrateNulls(codebase, previousCodebase)
+            tracer.trace("NullnessMigration.migrateNulls") {
+                NullnessMigration.migrateNulls(codebase, previousCodebase)
+            }
 
             previousCodebase.dispose()
         }
@@ -249,7 +234,9 @@ internal class StubGenerator(
             // their callers make incorrect nullness assumptions (for example, calling a function on
             // a reference of nullable type). The way to communicate this to kotlinc is to mark
             // these APIs as RecentlyNullable/RecentlyNonNull
-            codebase.accept(MarkPackagesAsRecent(filter, apiPredicateConfig))
+            tracer.trace("MarkPackagesAsRecent") {
+                codebase.accept(MarkPackagesAsRecent(filter, codebase.apiSurfaces.main))
+            }
         }
     }
 }

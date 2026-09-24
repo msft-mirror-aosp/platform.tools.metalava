@@ -104,12 +104,43 @@ interface Reporter {
     ): Boolean
 }
 
+/** Base implementation of a [Reporter] that provides issue suppression logic. */
+abstract class BaseReporter : Reporter {
+    override fun isSuppressed(
+        id: Issues.Issue,
+        reportable: Reportable?,
+        message: String?
+    ): Boolean {
+        reportable ?: return false
+        return reportable.suppressedIssues().any { suppressMatches(it, id.name, message) }
+    }
+
+    protected fun suppressMatches(value: String, id: String?, message: String?): Boolean {
+        id ?: return false
+
+        if (value == id) {
+            return true
+        }
+
+        if (
+            message != null &&
+                value.startsWith(id) &&
+                value.endsWith(message) &&
+                (value == "$id:$message" || value == "$id: $message")
+        ) {
+            return true
+        }
+
+        return false
+    }
+}
+
 /**
  * Abstract implementation of a [Reporter] that performs no filtering and delegates the handling of
  * a report to [handleFormattedMessage].
  */
 abstract class AbstractBasicReporter(private val excludedIssues: Set<Issues.Issue> = emptySet()) :
-    Reporter {
+    BaseReporter() {
     override fun report(
         id: Issues.Issue,
         reportable: Reportable?,
@@ -118,6 +149,10 @@ abstract class AbstractBasicReporter(private val excludedIssues: Set<Issues.Issu
         maximumSeverity: Severity,
     ): Boolean {
         if (excludedIssues.contains(id)) {
+            return false
+        }
+
+        if (isSuppressed(id, reportable, message)) {
             return false
         }
 
@@ -148,12 +183,6 @@ abstract class AbstractBasicReporter(private val excludedIssues: Set<Issues.Issu
     }
 
     abstract fun handleFormattedMessage(formattedMessage: String): Boolean
-
-    override fun isSuppressed(
-        id: Issues.Issue,
-        reportable: Reportable?,
-        message: String?
-    ): Boolean = false
 }
 
 /**
@@ -168,12 +197,6 @@ class BasicReporter(private val stderr: PrintWriter) : AbstractBasicReporter() {
         stderr.flush()
         return true
     }
-
-    override fun isSuppressed(
-        id: Issues.Issue,
-        reportable: Reportable?,
-        message: String?
-    ): Boolean = false
 }
 
 /** A [Reporter] which will record issues in an internal buffer, accessible through [issues]. */

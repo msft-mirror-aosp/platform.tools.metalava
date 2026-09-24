@@ -54,6 +54,8 @@ import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.annotation.binding.bindTo
+import com.android.tools.metalava.model.api.surface.ApiSurface
+import com.android.tools.metalava.model.api.surface.ApiSurfacePredicate
 import com.android.tools.metalava.model.doc.DocContentOwner
 import com.android.tools.metalava.model.getCallableParameterDescriptorUsingDots
 import com.android.tools.metalava.model.testOrTrue
@@ -65,8 +67,9 @@ import com.android.tools.metalava.model.value.Value
 import com.android.tools.metalava.model.value.asBoolean
 import com.android.tools.metalava.model.value.asInt
 import com.android.tools.metalava.model.value.asString
-import com.android.tools.metalava.model.visitors.ApiPredicate
-import com.android.tools.metalava.model.visitors.ApiVisitor
+import com.android.tools.metalava.model.visitors.ApiFilters
+import com.android.tools.metalava.model.visitors.ApiFiltersVisitor
+import com.android.tools.metalava.model.visitors.ApiSurfaceVisitor
 import com.android.tools.metalava.permission.getRequiresPermissionProxy
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
@@ -103,9 +106,12 @@ class DocAnalyzer(
     /** Provides a string label for each [ApiVersion]. */
     private val apiVersionLabelProvider: ApiVersionLabelProvider,
 
-    /** Selects [Item]s whose documentation will be analyzed and/or enhanced. */
-    private val apiPredicateConfig: ApiPredicate.Config,
+    /** The [ApiSurface] whose items will be analyzed and/or enhanced. */
+    apiSurface: ApiSurface,
 ) {
+    /** Filters that selects items that will be analyzed and/or enhanced. */
+    private val apiFilters = ApiFilters(reference = ApiSurfacePredicate.wholeCoreApi(apiSurface))
+
     /** Computes the visible part of the API from all the available code in the codebase */
     fun enhance() {
         // Apply options for packages that should be hidden
@@ -155,7 +161,7 @@ class DocAnalyzer(
         // like an unreasonable burden.
 
         codebase.accept(
-            object : ApiVisitor(apiFilters = apiPredicateConfig.defaultFilters()) {
+            object : ApiFiltersVisitor(apiFilters = apiFilters) {
                 /** Contextual information for [BaseDevicePolicyAnnotationHandler]s. */
                 private val devicePolicyContext = DevicePolicyContext(filterReference)
 
@@ -748,10 +754,10 @@ class DocAnalyzer(
         val packageToVersion = HashMap<PackageItem, ApiVersion>(300)
         codebase.accept(
             object :
-                ApiVisitor(
+                ApiSurfaceVisitor(
                     // Only SelectableItems have documentation associated with them.
                     visitParameterItems = false,
-                    apiFilters = apiPredicateConfig.defaultFilters(),
+                    filterEmit = apiFilters.emit,
                 ) {
 
                 override fun visitCallable(callable: CallableItem) {
@@ -869,12 +875,6 @@ class DocAnalyzer(
      */
     private fun addDeprecatedDocumentation(version: ApiVersion?, item: SelectableItem) {
         if (version != null) {
-            if (item.originallyHidden) {
-                // @SystemApi, @TestApi etc -- don't apply API versions here since we don't have
-                // accurate historical data
-                return
-            }
-
             // Always set @deprecatedSince, overriding any existing value.
             val apiVersionLabel = apiVersionLabelProvider(version)
             addUniqueVersionBlockTag(item, "deprecatedSince", apiVersionLabel)

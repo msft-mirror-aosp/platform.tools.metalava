@@ -22,32 +22,35 @@ import com.android.tools.metalava.api.AnnotationsMerger
 import com.android.tools.metalava.api.ApiAnalyzer
 import com.android.tools.metalava.apilevels.ApiGenerator
 import com.android.tools.metalava.cli.common.CheckerContext
+import com.android.tools.metalava.cli.common.ComputedIssueReportingOptions
 import com.android.tools.metalava.cli.common.DefaultSignatureFileLoader
 import com.android.tools.metalava.cli.common.EarlyOptions
 import com.android.tools.metalava.cli.common.ExecutionEnvironment
-import com.android.tools.metalava.cli.common.IssueReportingOptions
 import com.android.tools.metalava.cli.common.MetalavaCommand
 import com.android.tools.metalava.cli.common.SourceOptions
 import com.android.tools.metalava.cli.common.Verbosity
 import com.android.tools.metalava.cli.common.VersionCommand
 import com.android.tools.metalava.cli.common.cliError
 import com.android.tools.metalava.cli.common.commonOptions
-import com.android.tools.metalava.cli.compatibility.CompatibilityCheckOptions
-import com.android.tools.metalava.cli.compatibility.CompatibilityCheckOptions.CheckRequest
+import com.android.tools.metalava.cli.compatibility.CheckRequest
+import com.android.tools.metalava.cli.compatibility.CheckRequest.CheckType
+import com.android.tools.metalava.cli.compatibility.ComputedCompatibilityCheckOptions
 import com.android.tools.metalava.cli.flag.FlagReportCommand
 import com.android.tools.metalava.cli.flag.ListFlagsCommand
 import com.android.tools.metalava.cli.help.HelpCommand
 import com.android.tools.metalava.cli.historical.AndroidJarsToSignaturesCommand
 import com.android.tools.metalava.cli.internal.MakeAnnotationsPackagePrivateCommand
-import com.android.tools.metalava.cli.lint.ApiLintOptions
+import com.android.tools.metalava.cli.lint.ComputedApiLintOptions
 import com.android.tools.metalava.cli.multiplatform.MultiplatformOptions
+import com.android.tools.metalava.cli.signature.ComputedSignatureFormatOptions
 import com.android.tools.metalava.cli.signature.MergeSignaturesCommand
 import com.android.tools.metalava.cli.signature.SignatureCatCommand
-import com.android.tools.metalava.cli.signature.SignatureFormatOptions
 import com.android.tools.metalava.cli.signature.SignatureToDexCommand
 import com.android.tools.metalava.cli.signature.SignatureToJDiffCommand
 import com.android.tools.metalava.cli.signature.migration.SignatureMigrateCommand
 import com.android.tools.metalava.cli.signature.migration.SignatureReformatCommand
+import com.android.tools.metalava.cli.surface.MultiSurfaceCommand
+import com.android.tools.metalava.cli.surface.SingleSurfaceCommand
 import com.android.tools.metalava.compatibility.CompatibilityCheck
 import com.android.tools.metalava.jar.JarCodebaseLoader
 import com.android.tools.metalava.lint.ApiLint
@@ -58,13 +61,15 @@ import com.android.tools.metalava.model.ClassPathResolver
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.CodebaseFragment
 import com.android.tools.metalava.model.DelegatedVisitor
+import com.android.tools.metalava.model.EmittedOnlyPredicate
 import com.android.tools.metalava.model.annotation.DefaultAnnotationManager
+import com.android.tools.metalava.model.api.surface.ApiSurface
+import com.android.tools.metalava.model.api.surface.ApiSurfacePredicate
 import com.android.tools.metalava.model.multiplatform.MultiplatformCodebase
 import com.android.tools.metalava.model.snapshot.NonFilteringDelegatingVisitor
 import com.android.tools.metalava.model.source.EnvironmentManager
 import com.android.tools.metalava.model.source.SourceParser
 import com.android.tools.metalava.model.source.SourceSet
-import com.android.tools.metalava.model.text.CustomizableProperty.Companion.ADD_ADDITIONAL_OVERRIDES
 import com.android.tools.metalava.model.text.CustomizableProperty.Companion.JAVA_RECORD_CLASSES
 import com.android.tools.metalava.model.text.CustomizableProperty.Companion.JAVA_SEALED_CLASSES
 import com.android.tools.metalava.model.text.FileFormat
@@ -73,10 +78,8 @@ import com.android.tools.metalava.model.text.SignatureFile
 import com.android.tools.metalava.model.text.SignatureWriter
 import com.android.tools.metalava.model.text.createCodebaseFragmentForSignatureFile
 import com.android.tools.metalava.model.visitors.ApiFilters
-import com.android.tools.metalava.model.visitors.ApiPredicate
 import com.android.tools.metalava.model.visitors.ApiType
 import com.android.tools.metalava.model.visitors.FilteringApiVisitor
-import com.android.tools.metalava.model.visitors.MatchOverridingMethodPredicate
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
 import com.android.tools.metalava.stub.StubGenerator
@@ -96,17 +99,17 @@ class Driver(
     private val environmentManager: EnvironmentManager,
     private val reporter: Reporter,
     private val verbosity: Verbosity,
-    private val miscellaneousOptions: MiscellaneousOptions,
+    private val miscellaneousOptions: ComputedMiscellaneousOptions,
     private val apiLevelsGenerationOptions: ApiLevelsGenerationOptions,
-    private val apiLintOptions: ApiLintOptions,
-    internal val apiSelectionOptions: ApiSelectionOptions,
-    internal val compatibilityCheckOptions: CompatibilityCheckOptions,
+    private val apiLintOptions: ComputedApiLintOptions,
+    internal val apiSelectionOptions: ComputedApiSelectionOptions,
+    internal val compatibilityCheckOptions: ComputedCompatibilityCheckOptions,
     internal val configFileOptions: ConfigFileOptions,
-    private val issueReportingOptions: IssueReportingOptions,
+    private val issueReportingOptions: ComputedIssueReportingOptions,
     private val multiplatformOptions: MultiplatformOptions,
-    private val nullabilityValidationOptions: NullabilityValidationOptions,
+    private val nullabilityValidationOptions: ComputedNullabilityValidationOptions,
     private val signatureFileOptions: SignatureFileOptions,
-    private val signatureFormatOptions: SignatureFormatOptions,
+    private val signatureFormatOptions: ComputedSignatureFormatOptions,
     private val sourceOptions: SourceOptions,
     private val stubGenerationOptions: StubGenerationOptions,
 ) {
@@ -185,6 +188,7 @@ class Driver(
                 SignatureToDexCommand(),
                 SignatureToJDiffCommand(),
                 VersionCommand(),
+                MultiSurfaceCommand().subcommands(SingleSurfaceCommand()),
             )
             return command
         }
@@ -204,7 +208,10 @@ class Driver(
                     apiSelectionOptions.suppressCompatibilityMetaAnnotations,
                 excludeAnnotations = apiSelectionOptions.excludeAnnotations,
                 typedefMode = apiSelectionOptions.typedefMode,
-                apiPredicate = ApiPredicate(config = apiPredicateConfig),
+
+                // Treat an annotation class as part of the API if it belongs to the core API of
+                // this surface or any surface that it includes.
+                annotationClassPredicate = ApiSurfacePredicate.wholeCoreApi(apiSurface),
                 previouslyReleasedCodebaseProvider = {
                     compatibilityCheckOptions.previouslyReleasedApi?.load {
                         signatureFileCache.load(it)
@@ -265,6 +272,9 @@ class Driver(
         }
     }
 
+    /** The [ApiSurface] being generated. */
+    private val apiSurface: ApiSurface = apiSelectionOptions.apiSurfaces.main
+
     /** The configuration options for the [ApiAnalyzer] class. */
     private val apiAnalyzerConfig by lazy {
         val skipEmitPackages = executionEnvironment.testEnvironment?.skipEmitPackages ?: emptyList()
@@ -274,10 +284,9 @@ class Driver(
             mergeQualifierAnnotations = sourceOptions.mergeQualifierAnnotations,
             mergeInclusionAnnotations = sourceOptions.mergeInclusionAnnotations,
             apiSurfaceName = apiSelectionOptions.apiSurfaceName,
-            apiPredicateConfig = apiPredicateConfig,
+            apiSurface = apiSurface,
             annotationsMergerConfig =
                 AnnotationsMerger.Config(
-                    apiPredicateConfig = apiPredicateConfig,
                     sources = sourceOptions.sourceFiles,
                     sourcePath = sourceOptions.sourcePath,
                     classpath = sourceOptions.classpath,
@@ -285,22 +294,6 @@ class Driver(
                     nullabilityAnnotationsValidator =
                         nullabilityValidationOptions.validatorForMerging,
                 ),
-
-            // If the API surfaces are configured then any annotations that are used by related API
-            // surfaces but which are not needed to track the target API surface and all those that
-            // contribute to it are automatically treated as hidden. e.g. when generating the public
-            // API, @SystemApi is treated as a hide annotation. That means there is no need to
-            // perform the UnhiddenSystemApi check.
-            needUnhiddenSystemApiCheck = apiSelectionOptions.apiSurfaceName == null,
-        )
-    }
-
-    private val apiPredicateConfig by lazy {
-        ApiPredicate.Config(
-            ignoreShown = apiSelectionOptions.showUnannotated,
-            ignoreShownForWholeApiSurface =
-                apiSelectionOptions.apiSurfaceSelector.unannotatedApiSurface != null,
-            addAdditionalOverrides = signatureFormatOptions.fileFormat[ADD_ADDITIONAL_OVERRIDES],
         )
     }
 
@@ -351,9 +344,17 @@ class Driver(
                     // ProGuard rules emit items matching the whole API surface, and referenced
                     // types (e.g. superclasses and interfaces) can belong to any surface across the
                     // whole API surface.
-                    val apiReference = ApiPredicate(config = apiPredicateConfig)
-                    val apiEmit = MatchOverridingMethodPredicate(apiReference)
-                    ApiFilters(emit = apiEmit, reference = apiReference)
+                    val apiReference = ApiSurfacePredicate.wholeCoreApi(apiSurface)
+                    val apiEmit =
+                        // Only emit keep rules for items that are marked for emission.
+                        EmittedOnlyPredicate.and(
+                            ApiSurfacePredicate.wholeCoreApi(
+                                apiSurface,
+                                includeOverridingMethods = true,
+                            )
+                        )
+
+                    ApiFilters(reference = apiReference, emit = apiEmit)
                 }
 
             val codebaseFragment =
@@ -376,7 +377,7 @@ class Driver(
 
         miscellaneousOptions.sdkValueDir?.let { dir ->
             dir.mkdirs()
-            SdkFileWriter(codebase, dir).generate()
+            tracer.trace("SdkFileWriter.generate") { SdkFileWriter(codebase, dir).generate() }
         }
 
         for (check in compatibilityCheckOptions.compatibilityChecks) {
@@ -404,9 +405,23 @@ class Driver(
                 executionEnvironment,
                 reporter,
                 signatureFileCache,
-                apiPredicateConfig,
+                apiSurface,
             )
             .generateStubs()
+    }
+
+    /**
+     * Lazily loaded [Codebase] of the previously released API, if configured in [apiLintOptions].
+     *
+     * Used by API check methods (such as `ApiLint` and `FlaggedApiLint`) to compute deltas against
+     * previously released APIs.
+     */
+    private val previouslyReleasedApiLintCodebase by lazy {
+        tracer.trace("ApiLint.loadPreviouslyReleasedApi") {
+            apiLintOptions.previouslyReleasedApi?.load { signatureFiles ->
+                signatureFileCache.load(signatureFiles, classPathResolver)
+            }
+        }
     }
 
     private fun runApiChecksFromOptions(
@@ -416,13 +431,7 @@ class Driver(
         apiLintOptions.let { apiLintOptions ->
             if (!apiLintOptions.apiLintEnabled) return@let
 
-            // See if we should provide a previous codebase to provide a delta from?
-            val previouslyReleasedCodebase by lazy {
-                apiLintOptions.previouslyReleasedApi?.load { signatureFiles ->
-                    signatureFileCache.load(signatureFiles, classPathResolver)
-                }
-            }
-            apiCheckMethod(codebase, previouslyReleasedCodebase)
+            apiCheckMethod(codebase, previouslyReleasedApiLintCodebase)
         }
     }
 
@@ -436,7 +445,7 @@ class Driver(
                 // Pre-filtered so does not need any filters.
                 null
             } else {
-                ApiType.PUBLIC_API.getApiFilters(apiPredicateConfig)
+                ApiSurfacePredicate.apiFilters(ApiType.CORE, apiSurface)
             }
 
         val codebaseFragment =
@@ -447,13 +456,15 @@ class Driver(
             )
 
         runApiChecksFromOptions(codebase) { _, previouslyReleasedCodebase ->
-            val flaggedApiLintVisitor =
-                FlaggedApiLint(
-                    previouslyReleasedCodebase,
-                    reporter,
-                    apiFilters ?: ApiFilters.ALL,
-                )
-            codebaseFragment.accept(flaggedApiLintVisitor)
+            tracer.trace("FlaggedApiLint") {
+                val flaggedApiLintVisitor =
+                    FlaggedApiLint(
+                        previouslyReleasedCodebase,
+                        reporter,
+                        apiFilters ?: ApiFilters.ALL,
+                    )
+                codebaseFragment.accept(flaggedApiLintVisitor)
+            }
         }
 
         signatureFileOptions.apiFile?.let { apiSignatureFile ->
@@ -476,7 +487,7 @@ class Driver(
                     // Pre-filtered so does not need any filters.
                     null
                 } else {
-                    ApiType.REMOVED.getApiFilters(apiPredicateConfig)
+                    ApiSurfacePredicate.apiFilters(ApiType.REMOVED, apiSurface)
                 }
 
             val removedApiCodebaseFragment =
@@ -583,10 +594,14 @@ class Driver(
     }
 
     private fun runMultiplatformCodebaseOperations(multiplatformCodebase: MultiplatformCodebase) {
+        val apiPredicate = EmittedOnlyPredicate.and(ApiSurfacePredicate.wholeCoreApi(apiSurface))
         for (codebase in multiplatformCodebase.sourceSetToCodebase.values) {
-            tracer.trace("computeApi") {
-                ApiAnalyzer(sourceParser, codebase, reporter, apiAnalyzerConfig).computeApi()
+            val analyzer = ApiAnalyzer(sourceParser, codebase, reporter, apiAnalyzerConfig)
+            tracer.trace("computeApi") { analyzer.computeApi() }
+            tracer.trace("handleFileFacadeClassesAndExperimentalPackages") {
+                analyzer.handleFileFacadeClassesAndExperimentalPackages(apiPredicate)
             }
+            tracer.trace("performChecks") { analyzer.performChecks() }
         }
 
         if (apiLintOptions.apiLintEnabled) {
@@ -620,7 +635,7 @@ class Driver(
                         mainCodebase!!,
                         null,
                         reporter,
-                        apiPredicateConfig,
+                        apiSurface,
                         ApiLint.Config(
                             manifest = miscellaneousOptions.manifest,
                             allowedAcronyms = apiLintOptions.allowedAcronyms,
@@ -651,7 +666,7 @@ class Driver(
                             // but not the actual.
                             oldCodebase = commonCodebase,
                             reporter,
-                            apiPredicateConfig,
+                            apiSurface,
                             ApiLint.Config(
                                 manifest = miscellaneousOptions.manifest,
                                 allowedAcronyms = apiLintOptions.allowedAcronyms,
@@ -678,7 +693,10 @@ class Driver(
                             // Pre-filtered so does not need any filters.
                             null
                         } else {
-                            ApiType.PUBLIC_API.getApiFilters(apiPredicateConfig)
+                            ApiSurfacePredicate.apiFilters(
+                                ApiType.CORE,
+                                apiSurface,
+                            )
                         }
 
                     createSignatureFileFragment(
@@ -716,11 +734,11 @@ class Driver(
             CompatibilityCheck.checkMultiplatformCompatibility(
                 newCodebase = multiplatformCodebase,
                 oldCodebase = releasedApi,
-                apiType = ApiType.PUBLIC_API,
+                apiType = ApiType.CORE,
                 reporter = reporter,
                 issueConfiguration = issueReportingOptions.issueConfiguration,
-                compatibilityCheckOptions.apiCompatAnnotations,
-                apiPredicateConfig = apiPredicateConfig,
+                apiCompatAnnotations = compatibilityCheckOptions.apiCompatAnnotations,
+                apiSurface = apiSurface,
             )
         }
     }
@@ -734,7 +752,12 @@ class Driver(
                 CodebaseFragment.create(codebase) { delegatedVisitor ->
                     FilteringApiVisitor(
                         delegate = delegatedVisitor,
-                        apiFilters = apiPredicateConfig.defaultFilters(),
+                        apiFilters =
+                            ApiFilters(
+                                reference =
+                                    ApiSurfacePredicate.wholeCoreApi(codebase.apiSurfaces.main),
+                                emit = ApiSurfacePredicate.wholeCoreApi(codebase.apiSurfaces.main)
+                            ),
                     )
                 }
 
@@ -757,8 +780,8 @@ class Driver(
         // Provide a CodebaseFragment from the sources that will be included in the generated
         // version history.
         val signatureFileConfigCodeFragmentProvider: () -> CodebaseFragment = {
-            val apiType = ApiType.PUBLIC_API
-            val apiFilters = apiType.getApiFilters(apiPredicateConfig)
+            val apiType = ApiType.CORE
+            val apiFilters = ApiSurfacePredicate.apiFilters(apiType, apiSurface)
 
             CodebaseFragment.create(codebase) { delegatedVisitor ->
                 FilteringApiVisitor(
@@ -775,6 +798,7 @@ class Driver(
                 // Codebase is discarded immediately after use so caching just uses memory for no
                 // performance benefit.
                 signatureFileLoader,
+                apiSelectionOptions.apiSurfaces,
                 androidConfigCodeFragmentProvider,
             )
             ?.let { config ->
@@ -805,11 +829,11 @@ class Driver(
         newCodebase: Codebase,
         check: CheckRequest,
     ) {
-        val apiType = check.apiType
+        val checkType = check.type
         val generatedApiFile =
-            when (apiType) {
-                ApiType.PUBLIC_API -> signatureFileOptions.apiFile
-                ApiType.REMOVED -> signatureFileOptions.removedApiFile
+            when (checkType) {
+                CheckType.PUBLIC_API -> signatureFileOptions.apiFile
+                CheckType.REMOVED -> signatureFileOptions.removedApiFile
             }
 
         // Fast path: if we've already generated a signature file, and it's identical to the
@@ -834,7 +858,7 @@ class Driver(
             }
 
         val apiName =
-            if (apiType == ApiType.REMOVED) {
+            if (checkType == CheckType.REMOVED) {
                 "removed"
             } else apiSelectionOptions.apiSurfaceName
 
@@ -843,12 +867,12 @@ class Driver(
         CompatibilityCheck.checkCompatibility(
             newCodebase,
             oldCodebase,
-            apiType,
+            checkType,
             reporter,
             issueReportingOptions.issueConfiguration,
             compatibilityCheckOptions.apiCompatAnnotations,
             apiName,
-            apiPredicateConfig,
+            apiSurface,
         )
     }
 
@@ -889,10 +913,14 @@ class Driver(
 
         // Handling file facade classes and generating inherited stubs operates on the entire API
         // surface across all surfaces in the codebase, not just a specific delta surface.
-        val apiEmitAndReference = ApiPredicate(config = apiPredicateConfig)
+        val apiReference = ApiSurfacePredicate.wholeCoreApi(apiSurface)
+
+        // Only items marked for emission are considered for facade/package experimental status and
+        // for receiving inherited stubs.
+        val apiEmit = EmittedOnlyPredicate.and(apiReference)
 
         tracer.trace("analyzer.handleFileFacadeClassesAndExperimentalPackages") {
-            analyzer.handleFileFacadeClassesAndExperimentalPackages(apiEmitAndReference)
+            analyzer.handleFileFacadeClassesAndExperimentalPackages(apiEmit)
         }
 
         // Copy methods from soon-to-be-hidden parents into descendant classes, when necessary. Do
@@ -900,8 +928,8 @@ class Driver(
         // methods can have annotations added and are checked properly.
         tracer.trace("analyzer.generateInheritedStubs") {
             analyzer.inheritHiddenAspects(
-                apiEmitAndReference,
-                apiEmitAndReference,
+                apiEmit,
+                apiReference,
             )
         }
 
@@ -926,7 +954,9 @@ class Driver(
         // General API documentation checks for Android APIs.
         // They are pointless if Javadoc comments are not being read.
         if (codebase.config.allowReadingComments) {
-            AndroidApiChecks(reporter, apiPredicateConfig).check(codebase)
+            tracer.trace("AndroidApiChecks.check") {
+                AndroidApiChecks(reporter, apiSurface).check(codebase)
+            }
         }
 
         runApiChecksFromOptions(codebase) { codebase, previouslyReleasedCodebase ->
@@ -935,7 +965,7 @@ class Driver(
                     codebase,
                     previouslyReleasedCodebase,
                     reporter,
-                    apiPredicateConfig,
+                    apiSurface,
                     ApiLint.Config(
                         manifest = miscellaneousOptions.manifest,
                         allowedAcronyms = apiLintOptions.allowedAcronyms,
@@ -965,7 +995,7 @@ class Driver(
                     codebase,
                     reporter,
                     outputFile,
-                    apiPredicateConfig,
+                    apiSurface,
                 )
                 .extractAnnotations()
         }

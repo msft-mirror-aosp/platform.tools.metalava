@@ -44,7 +44,8 @@ import com.android.tools.metalava.model.typeUseAnnotationFilter
  * writers which will allow access to unfiltered `Item`s.
  *
  * Preserves class nesting as required by the [delegate]'s [DelegatedVisitor.requiresClassNesting]
- * property.
+ * property and sorts classes as required by the [delegate]'s
+ * [DelegatedVisitor.requiresSortedClasses] property.
  */
 class FilteringApiVisitor(
     val delegate: DelegatedVisitor,
@@ -79,6 +80,7 @@ class FilteringApiVisitor(
         // Only `SelectableItem`s can be filtered separately, i.e. `ParameterItem`s will be included
         // if and only if their containing method is included.
         visitParameterItems = false,
+        orderClassesByName = delegate.requiresSortedClasses,
         apiFilters = apiFilters ?: ApiFilters.ALL,
     ),
     ItemVisitor {

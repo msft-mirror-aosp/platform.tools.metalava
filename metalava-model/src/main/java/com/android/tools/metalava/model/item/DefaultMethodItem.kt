@@ -16,7 +16,6 @@
 
 package com.android.tools.metalava.model.item
 
-import com.android.tools.metalava.model.ApiVariantSelectorsFactory
 import com.android.tools.metalava.model.BaseModifierList
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
@@ -39,7 +38,6 @@ internal class DefaultMethodItem(
     targetLanguages: Set<TargetLanguage>,
     modifiers: BaseModifierList,
     documentationFactory: ItemDocumentationFactory,
-    variantSelectorsFactory: ApiVariantSelectorsFactory,
     name: String,
     containingClass: ClassItem,
     typeParameterList: TypeParameterList,
@@ -57,7 +55,6 @@ internal class DefaultMethodItem(
         targetLanguages,
         modifiers,
         documentationFactory,
-        variantSelectorsFactory,
         name,
         containingClass,
         typeParameterList,
@@ -122,7 +119,6 @@ internal class DefaultMethodItem(
                 targetLanguages = targetLanguages,
                 modifiers = modifiers,
                 documentationFactory = documentation.duplicatingFactory(),
-                variantSelectorsFactory = variantSelectors::duplicate,
                 name = name(),
                 containingClass = targetContainingClass,
                 typeParameterList = typeParameterList,
@@ -142,9 +138,6 @@ internal class DefaultMethodItem(
         if (duplicate.modifiers.isDefault() && !duplicate.containingClass().isInterface()) {
             duplicate.mutateModifiers { setDefault(false) }
         }
-
-        // Make sure that the deprecated status is set correctly.
-        duplicate.updateDeprecatedFromJavadocIfNeeded()
 
         return duplicate
     }

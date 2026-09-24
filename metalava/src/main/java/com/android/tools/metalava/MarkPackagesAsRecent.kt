@@ -16,11 +16,12 @@
 
 package com.android.tools.metalava
 
-import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.PackageFilter
-import com.android.tools.metalava.model.visitors.ApiPredicate
-import com.android.tools.metalava.model.visitors.ApiVisitor
+import com.android.tools.metalava.model.PackageItem
+import com.android.tools.metalava.model.api.surface.ApiSurface
+import com.android.tools.metalava.model.api.surface.ApiSurfacePredicate
+import com.android.tools.metalava.model.visitors.ApiSurfaceVisitor
 
 /**
  * Iterates over APIs matching a certain filter, and calls markRecent on each.
@@ -33,13 +34,18 @@ import com.android.tools.metalava.model.visitors.ApiVisitor
  */
 class MarkPackagesAsRecent(
     private val filter: PackageFilter,
-    config: ApiPredicate.Config,
+    apiSurface: ApiSurface,
 ) :
-    ApiVisitor(
-        apiFilters = config.defaultFilters(),
+    ApiSurfaceVisitor(
+        filterEmit = ApiSurfacePredicate.wholeCoreEmittableApi(apiSurface),
     ) {
-    override fun include(cls: ClassItem): Boolean {
-        return filter.matches(cls.containingPackage())
+
+    /** Override to skip packages that do not match [filter]. */
+    override fun skipPackage(pkg: PackageItem): Boolean {
+        // Skip packages that do not match the filter.
+        if (!filter.matches(pkg)) return true
+
+        return super.skipPackage(pkg)
     }
 
     override fun visitItem(item: Item) {

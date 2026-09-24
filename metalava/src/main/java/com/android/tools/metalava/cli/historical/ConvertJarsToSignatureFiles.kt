@@ -21,6 +21,7 @@ import com.android.SdkConstants
 import com.android.tools.metalava.CodebaseComparator
 import com.android.tools.metalava.ComparisonVisitor
 import com.android.tools.metalava.NullnessMigration
+import com.android.tools.metalava.api.ApiAnalyzer
 import com.android.tools.metalava.apilevels.ApiVersion
 import com.android.tools.metalava.apilevels.PatternNode
 import com.android.tools.metalava.cli.common.DefaultSignatureFileLoader
@@ -36,20 +37,22 @@ import com.android.tools.metalava.model.FilterPredicate
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.JAVA_LANG_DEPRECATED
 import com.android.tools.metalava.model.JavaConstants
+import com.android.tools.metalava.model.MatchAllPredicate
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.SUPPORT_TYPE_USE_ANNOTATIONS
 import com.android.tools.metalava.model.annotation.DefaultAnnotationManager
+import com.android.tools.metalava.model.api.ApiSurfaceSelector
 import com.android.tools.metalava.model.api.surface.ApiSurface
+import com.android.tools.metalava.model.api.surface.ApiSurfacePredicate
 import com.android.tools.metalava.model.api.surface.ApiSurfaces
 import com.android.tools.metalava.model.text.CustomizableProperty.Companion.ADD_ADDITIONAL_OVERRIDES
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.model.text.SignatureWriter
 import com.android.tools.metalava.model.text.SnapshotDeltaMaker
 import com.android.tools.metalava.model.text.createCodebaseFragmentForSignatureFile
-import com.android.tools.metalava.model.visitors.ApiPredicate
+import com.android.tools.metalava.model.visitors.ApiSurfaceVisitor
 import com.android.tools.metalava.model.visitors.ApiType
-import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.android.tools.metalava.reporter.BasicReporter
 import com.android.tools.metalava.trace
 import java.io.File
@@ -116,7 +119,15 @@ class ConvertJarsToSignatureFiles(
         val jarFile = surfaceInfo.jarFile
         val signatureFile = surfaceInfo.signatureFile
 
-        val annotationManager = DefaultAnnotationManager()
+        val annotationManager =
+            DefaultAnnotationManager(
+                DefaultAnnotationManager.Config(
+                    apiSurfaceSelector =
+                        ApiSurfaceSelector(
+                            addAdditionalOverrides = fileFormat[ADD_ADDITIONAL_OVERRIDES],
+                        )
+                )
+            )
         val codebaseConfig =
             Codebase.Config(
                 annotationManager = annotationManager,
@@ -125,9 +136,16 @@ class ConvertJarsToSignatureFiles(
             )
         val signatureFileLoader = DefaultSignatureFileLoader(codebaseConfig)
 
+        // Use the default API surface.
+        val apiSurface = ApiSurfaces.DEFAULT.main
+
         val jarCodebase =
             jarCodebaseLoader.loadFromJarFile(
                 jarFile,
+                apiAnalyzerConfig =
+                    ApiAnalyzer.Config(
+                        apiSurface = apiSurface,
+                    ),
                 // Do not freeze codebases after loading as they may need to be modified.
                 freezeCodebase = false,
             )
@@ -138,8 +156,8 @@ class ConvertJarsToSignatureFiles(
             // @Nullable/@NonNull
             jarCodebase.accept(
                 object :
-                    ApiVisitor(
-                        apiFilters = ApiPredicate.Config().defaultFilters(),
+                    ApiSurfaceVisitor(
+                        filterEmit = ApiSurfacePredicate.wholeCoreEmittableApi(apiSurface),
                     ) {
                     override fun visitItem(item: Item) {
                         unmarkRecent(item)
@@ -193,16 +211,12 @@ class ConvertJarsToSignatureFiles(
             throw IllegalStateException("Could not load existing signature file: ${e.message}", e)
         }
 
-        val apiPredicateConfig =
-            ApiPredicate.Config(
-                addAdditionalOverrides = fileFormat[ADD_ADDITIONAL_OVERRIDES],
-            )
         val apiFilters =
             if (jarCodebase.preFiltered) {
                 // Pre-filtered so does not need any filters.
                 null
             } else {
-                ApiType.PUBLIC_API.getApiFilters(apiPredicateConfig)
+                ApiSurfacePredicate.apiFilters(ApiType.CORE, apiSurface)
             }
 
         val jarCodebaseFragment =
@@ -291,7 +305,7 @@ class ConvertJarsToSignatureFiles(
         }
 
         if ((classNode.access and Opcodes.ACC_DEPRECATED) != 0) {
-            val item = codebase.findClass(classNode, MATCH_ALL)
+            val item = codebase.findClass(classNode, MatchAllPredicate)
             item.deprecateIfRequired()
         }
 
@@ -301,7 +315,7 @@ class ConvertJarsToSignatureFiles(
             if ((methodNode.access and Opcodes.ACC_DEPRECATED) == 0) {
                 continue
             }
-            val item = codebase.findMethod(classNode, methodNode, MATCH_ALL)
+            val item = codebase.findMethod(classNode, methodNode, MatchAllPredicate)
             item.deprecateIfRequired()
         }
 
@@ -311,7 +325,7 @@ class ConvertJarsToSignatureFiles(
             if ((fieldNode.access and Opcodes.ACC_DEPRECATED) == 0) {
                 continue
             }
-            val item = codebase.findField(classNode, fieldNode, MATCH_ALL)
+            val item = codebase.findField(classNode, fieldNode, MatchAllPredicate)
             item.deprecateIfRequired()
         }
     }
@@ -327,10 +341,6 @@ class ConvertJarsToSignatureFiles(
                 addAnnotation(AnnotationItem.createMarkerAnnotation(codebase, JAVA_LANG_DEPRECATED))
             }
         }
-    }
-
-    companion object {
-        val MATCH_ALL: FilterPredicate = FilterPredicate { true }
     }
 }
 
