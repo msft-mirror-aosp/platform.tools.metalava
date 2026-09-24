@@ -302,7 +302,7 @@ class FlaggedApiLintTest : DriverTest() {
                         """
                     ),
                 ),
-            extraArguments = arrayOf("--warning", "UnflaggedApi"),
+            extraArguments = warningIssues(Issues.UNFLAGGED_API),
         )
     }
 

@@ -1408,37 +1408,6 @@ fun FilterPredicate.typeUseAnnotationFilter(): TypeTransformer =
     }
 
 /**
- * A [TypeTransformer] which replaces [WildcardTypeItem]s with their bounds. If neither a super nor
- * extends bound is defined for a wildcard, it leaves the unbounded wildcard in place.
- */
-private object WildcardFlatteningTransformer : BaseTypeTransformer() {
-    override fun transform(typeItem: WildcardTypeItem): TypeArgumentTypeItem {
-        val bound = typeItem.superBound ?: typeItem.extendsBound
-        return bound?.transform(this) ?: typeItem
-    }
-}
-
-/**
- * Checks if [type1] and [type2] are equal if any wildcards present in the type are replaced with
- * their bounds.
- *
- * This is meant for comparing Kotlin types generated through PSI and the Kotlin analysis API, which
- * often differ in whether wildcards are present, in cases where it does not make sense to simply
- * compared erased types.
- *
- * For instance, `List<String>` and `List<? extends String>` would be considered equal, as would
- * `List<? super String>`. These types are not equal, but considering them equal enables comparing
- * types generated from UAST and the analysis API.
- *
- * This type comparison includes nullability because it is intended to compare Kotlin types.
- */
-fun equalWithFlattenedWildcards(type1: TypeItem, type2: TypeItem): Boolean {
-    val transformedType1 = type1.transform(WildcardFlatteningTransformer)
-    val transformedType2 = type2.transform(WildcardFlatteningTransformer)
-    return transformedType1.equalToType(transformedType2, includeNullability = true)
-}
-
-/**
  * Create a new [MutableList] containing the first [count] items from this list.
  *
  * Helper method for [filterIfNotSame] and [mapIfNotSameNotNull].

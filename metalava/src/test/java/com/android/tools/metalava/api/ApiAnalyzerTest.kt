@@ -43,7 +43,7 @@ class ApiAnalyzerTest : DriverTest() {
                 """
                     src/test/pkg/PublicClass.java:5: error: badAbstractHiddenMethod cannot be hidden and abstract when PublicClass has a visible constructor, in case a third-party attempts to subclass it. [HiddenAbstractMethod]
                     src/test/pkg/PublicClass.java:6: error: badPackagePrivateMethod cannot be hidden and abstract when PublicClass has a visible constructor, in case a third-party attempts to subclass it. [HiddenAbstractMethod]
-                    src/test/pkg/SystemApiClass.java:7: error: badAbstractHiddenMethod cannot be hidden and abstract when SystemApiClass has a visible constructor, in case a third-party attempts to subclass it. [HiddenAbstractMethod]
+                    src/test/pkg/SystemApiClass.java:6: error: badAbstractHiddenMethod cannot be hidden and abstract when SystemApiClass has a visible constructor, in case a third-party attempts to subclass it. [HiddenAbstractMethod]
                 """,
             sourceFiles =
                 arrayOf(
@@ -58,7 +58,6 @@ class ApiAnalyzerTest : DriverTest() {
                                 /**
                                  * This method does not fail because it is visible due to showAnnotations,
                                  * instead it will fail when running analysis on public API. See test below.
-                                 * @hide
                                  */
                                 @SystemApi
                                 public abstract boolean goodAbstractSystemHiddenMethod() { return true; }
@@ -80,14 +79,12 @@ class ApiAnalyzerTest : DriverTest() {
                         """
                            package test.pkg;
                            import android.annotation.SystemApi;
-                           /** @hide */
                            @SystemApi
                            public abstract class SystemApiClass {
                                 /** @hide */
                                 public abstract boolean badAbstractHiddenMethod() { return true; }
                                 /**
                                  * This method is OK, because it matches visibility of the class
-                                 * @hide
                                  */
                                 @SystemApi
                                 public abstract boolean goodAbstractSystemHiddenMethod() { return true; }
@@ -179,6 +176,35 @@ class ApiAnalyzerTest : DriverTest() {
     }
 
     @Test
+    fun `Hidden abstract method in non-API interface referenced by public API`() {
+        check(
+            extraArguments = errorIssues(Issues.HIDDEN_ABSTRACT_METHOD_IN_INTERFACE),
+            expectedIssues =
+                """
+                    src/test/pkg/PublicClass.java:4: warning: Parameter p references hidden type test.pkg.PackagePrivateInterface. [HiddenTypeParameter]
+                    src/test/pkg/PublicClass.java:4: error: Class test.pkg.PackagePrivateInterface is not public but was referenced (in parameter type) from public parameter p in test.pkg.PublicClass.foo(test.pkg.PackagePrivateInterface p) [ReferencesHidden]
+                """,
+            sourceFiles =
+                @Suppress("ClassEscapesDefinedScope") // For PackagePrivateInterface
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+
+                            public class PublicClass {
+                                public void foo(PackagePrivateInterface p) {}
+                            }
+
+                            interface PackagePrivateInterface {
+                                void hiddenAbstractMethod();
+                            }
+                        """
+                    ),
+                ),
+        )
+    }
+
+    @Test
     fun `Deprecation mismatch check look at inherited docs for overriding methods`() {
         check(
             expectedIssues =
@@ -240,6 +266,39 @@ class ApiAnalyzerTest : DriverTest() {
                         """
                     )
                 )
+        )
+    }
+
+    @Test
+    fun `Test that DeprecationMismatch is not reported when comments are ignored`() {
+        check(
+            expectedIssues = "",
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                        package test.pkg;
+                        @Deprecated
+                        public class MissingDeprecatedDoc {}
+                        """
+                    ),
+                    java(
+                        """
+                        package test.pkg;
+                        /** @deprecated reason */
+                        public class MissingDeprecatedAnno {}
+                        """
+                    ),
+                    java(
+                        """
+                        package test.pkg;
+                        /** @deprecated reason */
+                        @Deprecated
+                        public class CorrectDeprecation {}
+                        """
+                    )
+                ),
+            extraArguments = arrayOf(ARG_SKIP_READING_COMMENTS),
         )
     }
 

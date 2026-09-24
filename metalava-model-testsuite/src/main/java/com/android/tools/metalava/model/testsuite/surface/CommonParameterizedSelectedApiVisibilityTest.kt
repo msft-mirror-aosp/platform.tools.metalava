@@ -16,145 +16,63 @@
 
 package com.android.tools.metalava.model.testsuite.surface
 
-import com.android.tools.lint.checks.infrastructure.TestFile
-import com.android.tools.metalava.model.AnnotationManager
-import com.android.tools.metalava.model.Codebase
-import com.android.tools.metalava.model.PackageFilter
-import com.android.tools.metalava.model.annotation.DefaultAnnotationManager
-import com.android.tools.metalava.model.api.ApiSurfaceRules
-import com.android.tools.metalava.model.api.ApiSurfaceSelector
-import com.android.tools.metalava.model.api.flags.ApiFlag
-import com.android.tools.metalava.model.api.flags.ApiFlagAction.*
-import com.android.tools.metalava.model.api.flags.ApiFlags
-import com.android.tools.metalava.model.provider.InputFormat
-import com.android.tools.metalava.model.testing.SupportedInputFormats
 import com.android.tools.metalava.model.testing.surfaces.TestableApiSurfaces.HIDE
+import com.android.tools.metalava.model.testing.surfaces.TestableApiSurfaces.PUBLIC_API
+import com.android.tools.metalava.model.testing.surfaces.TestableApiSurfaces.SYSTEM_API
 import com.android.tools.metalava.model.testing.surfaces.TestableApiSurfaces.UNANNOTATED_API
 import com.android.tools.metalava.model.testing.surfaces.TestableApiSurfaces.UNANNOTATED_NON_RECURSIVE_API
+import com.android.tools.metalava.model.testing.surfaces.TestableApiSurfaces.annotatedOnlyPublicSystemModuleRules
 import com.android.tools.metalava.model.testing.surfaces.TestableApiSurfaces.annotatedOnlyRules
 import com.android.tools.metalava.model.testing.surfaces.TestableApiSurfaces.publicSystemModuleRules
-import com.android.tools.metalava.model.testsuite.BaseModelTest
-import com.android.tools.metalava.testing.EntryPoint
-import com.android.tools.metalava.testing.EntryPointCallerRule
-import com.android.tools.metalava.testing.EntryPointCallerTracker
-import com.android.tools.metalava.testing.ExitPoint
-import com.android.tools.metalava.testing.KnownSourceFiles
+import com.android.tools.metalava.testing.TestFileCache
+import com.android.tools.metalava.testing.TestFileCacheRule
+import com.android.tools.metalava.testing.cacheIn
+import com.android.tools.metalava.testing.jarFromSources
 import com.android.tools.metalava.testing.java
-import kotlin.collections.plus
-import org.junit.Rule
-import org.junit.Test
+import org.junit.ClassRule
 import org.junit.runners.Parameterized
 
-@SupportedInputFormats(InputFormat.JAVA)
-class CommonParameterizedSelectedApiTest : BaseModelTest() {
+/**
+ * Tests verifying selected API variants based on declaration visibility, scoping, and explicit hide
+ * markers within a single type or nested type hierarchy.
+ *
+ * Add tests to this class for:
+ * - Basic class/interface and member visibility in public API.
+ * - `@hide` annotations and `@hide` Javadoc/KDoc tags on classes or members.
+ * - Annotated-only and non-recursive API surface selection rules.
+ * - Lexical enclosure and visibility scoping (e.g. public classes nested in package-private
+ *   classes, package-private classes nested in public classes).
+ * - Member visibility within unannotated or inner classes.
+ * - Java record components and accessor visibility.
+ *
+ * For tests involving inheritance across surfaces or overridden methods, see
+ * [CommonParameterizedSelectedApiInheritanceTest]. For Kotlin-specific visibility (such as
+ * `internal` or `@PublishedApi`), see [CommonParameterizedSelectedApiKotlinTest].
+ */
+class CommonParameterizedSelectedApiVisibilityTest : BaseCommonParameterizedSelectedApiTest() {
 
-    @Parameterized.Parameter(0) internal lateinit var params: TestParams
-
-    /**
-     * Will try and rewrite the stack trace of any test failures to refer to the location where the
-     * [TestParams] that is currently being tested was created.
-     */
-    @get:Rule val entryPointCallerRule = EntryPointCallerRule { params.entryPointCallerTracker }
-
-    data class TestParams
-    @EntryPoint
-    constructor(
-        val name: String,
-        val surfaceRules: ApiSurfaceRules,
-        val sources: List<TestFile>,
-        val surface: String,
-        val expected: String,
-        /** Optional configured [ApiFlags] to use when resolving flagged APIs. */
-        val apiFlags: ApiFlags? = null,
-        /** Optional previously released codebase sources, used to test API reverting/stability. */
-        val previouslyReleasedSources: List<TestFile>? = null,
-    ) {
-        /**
-         * Record the stack trace of the creation of this which can be used to provide a stack trace
-         * to the creator of this instance in the event of a test failure.
-         */
-        val entryPointCallerTracker = EntryPointCallerTracker()
-
-        override fun toString() = name
-    }
-
-    companion object {
-        private val extraSources =
-            listOf(
-                KnownSourceFiles.hideAnnotation,
-                KnownSourceFiles.flaggedApiSource,
-            )
+    companion object : BaseCompanion() {
+        /** Create a [TestFileCache] whose lifespan encompasses all the tests in this class. */
+        @ClassRule @JvmField val testFileCacheRule = TestFileCacheRule()
 
         /**
-         * Build [TestParams] and add them to this list.
+         * A jar containing a public class (`test.pkg.PublicClass`) to be placed on the classpath.
          *
-         * @param name the [TestParams.name].
-         * @param surfaceRules the [TestParams.surfaceRules].
-         * @param sources the [TestParams.sources].
-         * @param apiFlags the [TestParams.apiFlags].
-         * @param previouslyReleasedSources the [TestParams.previouslyReleasedSources].
-         * @param body lambda that will add tests for specific surfaces using [Builder.surfaceTest]
-         *   which creates a [TestParams] using the above plus some surface specific information.
+         * Cached across tests using [testFileCacheRule] to test how classpath classes (which have
+         * `emit = false`) interact with API surface selection.
          */
-        @EntryPoint
-        fun MutableList<TestParams>.buildTests(
-            name: String,
-            surfaceRules: ApiSurfaceRules,
-            sources: List<TestFile>,
-            apiFlags: ApiFlags? = null,
-            previouslyReleasedSources: List<TestFile>? = null,
-            body: Builder.() -> Unit,
-        ) {
-            val builder =
-                Builder(
-                    this,
-                    name,
-                    surfaceRules,
-                    sources,
-                    apiFlags,
-                    previouslyReleasedSources,
+        private val publicClasspathJar =
+            jarFromSources(
+                    "public-class.jar",
+                    java(
+                        """
+                            package test.pkg;
+                            public class PublicClass {
+                            }
+                        """
+                    ),
                 )
-            buildSurfaceTests(builder, body)
-        }
-
-        /**
-         * Invokes [body] on [builder].
-         *
-         * Separated out as per instructions in [ExitPoint].
-         */
-        @ExitPoint
-        fun buildSurfaceTests(builder: Builder, body: Builder.() -> Unit) {
-            builder.body()
-        }
-
-        /** Builder of [TestParams]. */
-        class Builder(
-            private val params: MutableList<TestParams>,
-            private val name: String,
-            private val surfaceRules: ApiSurfaceRules,
-            private val sources: List<TestFile>,
-            private val apiFlags: ApiFlags? = null,
-            private val previouslyReleasedSources: List<TestFile>? = null,
-        ) {
-            /**
-             * Create a test for [surface] that expects [expected] to be the result of calling
-             * [Codebase.assertSelectedApiVariants].
-             */
-            @EntryPoint
-            fun surfaceTest(surface: String, expected: String) {
-                params.add(
-                    TestParams(
-                        "$name/$surface",
-                        surfaceRules,
-                        sources + extraSources,
-                        surface,
-                        expected,
-                        apiFlags,
-                        previouslyReleasedSources,
-                    )
-                )
-            }
-        }
+                .cacheIn(testFileCacheRule)
 
         @JvmStatic
         @Parameterized.Parameters
@@ -222,19 +140,28 @@ class CommonParameterizedSelectedApiTest : BaseModelTest() {
                                 package test;
                                 $HIDE
                                 public interface Hidden {
+                                    $PUBLIC_API
+                                    void method();
                                 }
                             """
                         ),
                     ),
+                expectedIssues =
+                    """
+                        MAIN_SRC/src/test/Hidden.java: error: Attempting to unhide method test.Hidden.method(), but surrounding class test.Hidden is hidden and should also be annotated with @test.api.PublicApi [ShowingMemberInHiddenClass]
+                    """,
             ) {
                 surfaceTest(
                     surface = "public",
+                    // TODO(b/512093496): A hidden class cannot contain any non-hidden members.
                     expected =
                         """
                             package test
                                    self - ApiVariantSet[]
                               class test.Hidden
                                      self - ApiVariantSet[]
+                                method test.Hidden.method()
+                                       self - ApiVariantSet[]
                         """,
                 )
             }
@@ -379,61 +306,6 @@ class CommonParameterizedSelectedApiTest : BaseModelTest() {
                         """,
                 )
             }
-            buildTests(
-                name = "flagged APIs",
-                surfaceRules = publicSystemModuleRules,
-                sources =
-                    listOf(
-                        java(
-                            """
-                                package test.pkg;
-                                import android.annotation.FlaggedApi;
-                                public class Outer {
-                                    @FlaggedApi("reverted_flag")
-                                    public void revertedMethod() {}
-
-                                    @FlaggedApi("removed_flag")
-                                    public void removedMethod() {}
-                                }
-                            """
-                        ),
-                    ),
-                apiFlags =
-                    ApiFlags(
-                        listOf(
-                            ApiFlag("reverted_flag", REVERT),
-                            ApiFlag("removed_flag", REVERT),
-                        )
-                    ),
-                previouslyReleasedSources =
-                    listOf(
-                        java(
-                            """
-                                package test.pkg;
-                                public class Outer {
-                                    public void revertedMethod() {}
-                                }
-                            """
-                        )
-                    ),
-            ) {
-                surfaceTest(
-                    surface = "public",
-                    expected =
-                        """
-                            package test.pkg
-                                   self - ApiVariantSet[public(C)]
-                              class test.pkg.Outer
-                                     self - ApiVariantSet[public(C)]
-                                constructor test.pkg.Outer()
-                                       self - ApiVariantSet[public(C)]
-                                method test.pkg.Outer.revertedMethod()
-                                       self - ApiVariantSet[public(C)]
-                                method test.pkg.Outer.removedMethod()
-                                       self - ApiVariantSet[]
-                        """,
-                )
-            }
 
             buildTests(
                 name = "record component",
@@ -448,6 +320,11 @@ class CommonParameterizedSelectedApiTest : BaseModelTest() {
                             """
                         ),
                     ),
+                expectedIssues =
+                    """
+                        MAIN_SRC/src/test/pkg/MyRecord.java: error: Cannot hide canonical constructor test.pkg.MyRecord(int) as it is an indivisible part of a record class [HidingRecordComponent]
+                        MAIN_SRC/src/test/pkg/MyRecord.java: error: Cannot hide record component getter method test.pkg.MyRecord.x() as it is an indivisible part of a record class [HidingRecordComponent]
+                    """,
             ) {
                 surfaceTest(
                     surface = "public",
@@ -464,51 +341,150 @@ class CommonParameterizedSelectedApiTest : BaseModelTest() {
                         """,
                 )
             }
-        }
-    }
 
-    @Test
-    fun `Test selected api variants`() {
-        val rules = params.surfaceRules.retargetAt(params.surface)
-
-        fun runSelectedApiTest(annotationManagerFactory: (TestFixture.() -> AnnotationManager)?) {
-            runCodebaseTest(
-                inputSet(params.sources),
-                testFixture =
-                    TestFixture(
-                        apiPackages = PackageFilter.parse("test.*"),
-                        apiSurfaceRules = rules,
-                        apiFlags = params.apiFlags,
-                        annotationManagerFactory = annotationManagerFactory,
-                        javaLanguageLevel = "17",
+            buildTests(
+                name = "nested class in public class",
+                surfaceRules = publicSystemModuleRules,
+                sources =
+                    listOf(
+                        java(
+                            """
+                                package test.pkg;
+                                public class Outer {
+                                    $SYSTEM_API
+                                    public class Inner {
+                                    }
+                                }
+                            """
+                        ),
                     ),
             ) {
-                codebase.assertSelectedApiVariants(params.expected)
+                surfaceTest(
+                    surface = "system",
+                    expected =
+                        """
+                            package test.pkg
+                                   self - ApiVariantSet[public(C),system(C)]
+                              class test.pkg.Outer
+                                     self - ApiVariantSet[public(C)]
+                                constructor test.pkg.Outer()
+                                       self - ApiVariantSet[public(C)]
+                                class test.pkg.Outer.Inner
+                                       self - ApiVariantSet[system(C)]
+                                  constructor test.pkg.Outer.Inner()
+                                         self - ApiVariantSet[system(C)]
+                        """,
+                )
             }
-        }
 
-        val previouslyReleasedSources = params.previouslyReleasedSources
-
-        if (previouslyReleasedSources != null) {
-            runCodebaseTest(
-                inputSet(previouslyReleasedSources),
+            buildTests(
+                name = "system method in unannotated class",
+                surfaceRules = annotatedOnlyPublicSystemModuleRules,
+                sources =
+                    listOf(
+                        java(
+                            """
+                                package test.pkg;
+                                public class Test {
+                                    $SYSTEM_API
+                                    public void systemMethod() {}
+                                }
+                            """
+                        ),
+                    ),
             ) {
-                val releasedCodebase = codebase
-                val annotationManagerFactory: TestFixture.() -> AnnotationManager = {
-                    DefaultAnnotationManager(
-                        DefaultAnnotationManager.Config(
-                            reporter = recordingReporter,
-                            apiSurfaceSelector = ApiSurfaceSelector(rules),
-                            apiFlags = params.apiFlags,
-                            previouslyReleasedCodebaseProvider = { releasedCodebase }
-                        )
-                    )
-                }
-
-                runSelectedApiTest(annotationManagerFactory)
+                surfaceTest(
+                    surface = "system",
+                    expected =
+                        """
+                            package test.pkg
+                                   self - ApiVariantSet[]
+                              class test.pkg.Test
+                                     self - ApiVariantSet[]
+                                constructor test.pkg.Test()
+                                       self - ApiVariantSet[]
+                                method test.pkg.Test.systemMethod()
+                                       self - ApiVariantSet[]
+                        """,
+                )
             }
-        } else {
-            runSelectedApiTest(annotationManagerFactory = null)
+
+            buildTests(
+                name = "system method in public inner class",
+                surfaceRules = publicSystemModuleRules,
+                sources =
+                    listOf(
+                        java(
+                            """
+                                package test.pkg;
+                                public class Test {
+                                    public class Inner {
+                                        $SYSTEM_API
+                                        public void systemMethod() {}
+                                    }
+                                }
+                            """
+                        ),
+                    ),
+            ) {
+                // TODO(b/512093496): The behavior shown below is not correct as propagating
+                //  variants from members to the containing package is broken and will be fixed in
+                //  follow up changes.
+                surfaceTest(
+                    surface = "system",
+                    expected =
+                        """
+                            package test.pkg
+                                   self - ApiVariantSet[public(C),system(C)]
+                              class test.pkg.Test
+                                     self - ApiVariantSet[public(C)]
+                                constructor test.pkg.Test()
+                                       self - ApiVariantSet[public(C)]
+                                class test.pkg.Test.Inner
+                                       self - ApiVariantSet[public(C)]
+                                    content - ApiVariantSet[system(C)]
+                                  constructor test.pkg.Test.Inner()
+                                         self - ApiVariantSet[public(C)]
+                                  method test.pkg.Test.Inner.systemMethod()
+                                         self - ApiVariantSet[system(C)]
+                        """,
+                )
+            }
+
+            buildTests(
+                name = "hidden source class and public class on classpath",
+                surfaceRules = publicSystemModuleRules,
+                sources =
+                    listOf(
+                        java(
+                            """
+                                package test.pkg;
+                                $HIDE
+                                public class Hidden extends PublicClass {
+                                }
+                            """
+                        ),
+                    ),
+                classpath = listOf(publicClasspathJar),
+            ) {
+                surfaceTest(
+                    surface = "public",
+                    expected =
+                        """
+                            package test.pkg
+                                   self - ApiVariantSet[]
+                              class test.pkg.Hidden
+                                     self - ApiVariantSet[]
+                                constructor test.pkg.Hidden()
+                                       self - ApiVariantSet[]
+                              class test.pkg.PublicClass
+                                     emit - false
+                                     self - ApiVariantSet[public(C)]
+                                constructor test.pkg.PublicClass()
+                                       self - ApiVariantSet[public(C)]
+                        """,
+                )
+            }
         }
     }
 }

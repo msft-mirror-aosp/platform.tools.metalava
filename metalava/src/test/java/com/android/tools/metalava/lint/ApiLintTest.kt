@@ -2804,7 +2804,7 @@ class ApiLintTest : DriverTest() {
                     """
                     )
                 ),
-            extraArguments = arrayOf("--error", "NoSettingsProvider")
+            extraArguments = errorIssues(Issues.NO_SETTINGS_PROVIDER)
         )
     }
 

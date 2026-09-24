@@ -81,6 +81,7 @@ import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.model.text.SignatureFile
 import com.android.tools.metalava.model.text.assertSignatureFilesMatch
 import com.android.tools.metalava.model.text.prepareSignatureFileForTest
+import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Issues.Issue
 import com.android.tools.metalava.reporter.ReporterEnvironment
 import com.android.tools.metalava.reporter.Severity
@@ -730,8 +731,7 @@ abstract class DriverTest :
                     args.add(signatureFile.path)
                 }
                 if (!includeStrippedSuperclassWarnings) {
-                    args.add(ARG_HIDE)
-                    args.add("HiddenSuperclass") // Suppress warning #111
+                    args.addAll(hiddenIssues(Issues.HIDDEN_SUPERCLASS)) // Suppress warning #111
                 }
                 args.toTypedArray()
             } else if (apiJar != null) {
@@ -1523,19 +1523,28 @@ abstract class DriverTest :
         }
     }
 
-    private inline fun <T> Array<T>.prefixWith(prefix: String, lamba: (T) -> String) =
-        flatMap { listOf(prefix, lamba(it)) }.toTypedArray()
-
     /** Issues that should be treated as [ARG_HIDE]. */
-    fun hiddenIssues(vararg issues: Issue) = issues.prefixWith(ARG_HIDE) { it.name }
+    fun hiddenIssues(vararg issues: Issue) = Companion.hiddenIssues(*issues)
 
     /** Issues that should be treated as [ARG_WARNING]. */
-    fun warningIssues(vararg issues: Issue) = issues.prefixWith(ARG_WARNING) { it.name }
+    fun warningIssues(vararg issues: Issue) = Companion.warningIssues(*issues)
 
     /** Issues that should be treated as [ARG_ERROR]. */
-    fun errorIssues(vararg issues: Issue) = issues.prefixWith(ARG_ERROR) { it.name }
+    fun errorIssues(vararg issues: Issue) = Companion.errorIssues(*issues)
 
     companion object {
+        private inline fun <T> Array<T>.prefixWith(prefix: String, lamba: (T) -> String) =
+            flatMap { listOf(prefix, lamba(it)) }.toTypedArray()
+
+        /** Issues that should be treated as [ARG_HIDE]. */
+        fun hiddenIssues(vararg issues: Issue) = issues.prefixWith(ARG_HIDE) { it.name }
+
+        /** Issues that should be treated as [ARG_WARNING]. */
+        fun warningIssues(vararg issues: Issue) = issues.prefixWith(ARG_WARNING) { it.name }
+
+        /** Issues that should be treated as [ARG_ERROR]. */
+        fun errorIssues(vararg issues: Issue) = issues.prefixWith(ARG_ERROR) { it.name }
+
         /** Read a text file, filtering out any blank lines and removing whitespace from the end. */
         @JvmStatic
         protected fun readFileFilterBlankLines(file: File): String {
@@ -2192,6 +2201,9 @@ data class KnownApiSurface(
     companion object {
         val additionalAndroidSourceFiles =
             listOf(
+                KnownSourceFiles.hideAnnotation,
+                KnownSourceFiles.docOnlyAnnotation,
+                KnownSourceFiles.removedFromApiAnnotation,
                 KnownSourceFiles.systemApiSource,
                 KnownSourceFiles.testApiSource,
             )
@@ -2281,24 +2293,28 @@ data class KnownApiSurface(
                 java(
                     """
                         package test.annotation;
+                        @Hide
                         public @interface Hide {}
                     """
                 ),
                 java(
                     """
                         package test.annotation;
+                        @Hide
                         public @interface SystemApi {}
                     """
                 ),
                 java(
                     """
                         package test.annotation;
+                        @Hide
                         public @interface TestApi {}
                     """
                 ),
                 java(
                     """
                         package test.annotation;
+                        @Hide
                         public @interface ModuleApi {}
                     """
                 ),
@@ -2363,6 +2379,43 @@ data class KnownApiSurface(
                 "module-lib",
                 apiSurfacesConfig,
                 additionalTestSourceFiles,
+            )
+
+        private val nonRecursiveConfigFile =
+            xml(
+                "non-recursive.xml",
+                """
+                    <config xmlns="http://www.google.com/tools/metalava/config"
+                        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                        xsi:schemaLocation="http://www.google.com/tools/metalava/config ../../../../../resources/schemas/config.xsd">
+                        <api-surfaces>
+                            <api-surface name="non-recursive-without-unannotated">
+                                <selection-criteria unannotated="hide">
+                                    <annotation-rule pattern="test.annotation.Hide" effect="hide"/>
+                                    <annotation-rule pattern="test.annotation.Show" recursive="false"/>
+                                </selection-criteria>
+                            </api-surface>
+                            <api-surface name="non-recursive-with-unannotated">
+                                <selection-criteria unannotated="show">
+                                    <annotation-rule pattern="test.annotation.Hide" effect="hide"/>
+                                    <annotation-rule pattern="test.annotation.Show" recursive="false"/>
+                                </selection-criteria>
+                            </api-surface>
+                        </api-surfaces>
+                    </config>
+                """
+            )
+
+        val NON_RECURSIVE_SHOW_WITHOUT_UNANNOTATED =
+            KnownApiSurface(
+                "non-recursive-without-unannotated",
+                nonRecursiveConfigFile,
+            )
+
+        val NON_RECURSIVE_SHOW_WITH_UNANNOTATED =
+            KnownApiSurface(
+                "non-recursive-with-unannotated",
+                nonRecursiveConfigFile,
             )
     }
 }

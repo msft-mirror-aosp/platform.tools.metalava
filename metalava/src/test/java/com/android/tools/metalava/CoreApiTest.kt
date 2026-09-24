@@ -289,9 +289,6 @@ val libcoreCoreApi: TestFile =
             import java.lang.annotation.RetentionPolicy;
             import java.lang.annotation.Target;
 
-            /**
-             * @hide
-             */
             @SuppressWarnings("ALL")
             @IntraCoreApi // @IntraCoreApi is itself part of the intra-core API
             @Target({TYPE, FIELD, METHOD, CONSTRUCTOR, ANNOTATION_TYPE, PACKAGE})

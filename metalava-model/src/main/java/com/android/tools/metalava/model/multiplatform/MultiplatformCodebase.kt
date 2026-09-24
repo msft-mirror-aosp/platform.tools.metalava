@@ -30,6 +30,7 @@ import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.PropertyItem
+import com.android.tools.metalava.model.TypeComparator
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.TypeParameterListOwner
@@ -692,7 +693,7 @@ protected constructor(
             return name == other.name &&
                 parameterTypes.size == other.parameterTypes.size &&
                 parameterTypes.zip(other.parameterTypes).all { (t1, t2) ->
-                    t1.equalToType(t2, includeNullability = true)
+                    TypeComparator.NULLABILITY_AWARE.compare(t1, t2)
                 }
         }
 

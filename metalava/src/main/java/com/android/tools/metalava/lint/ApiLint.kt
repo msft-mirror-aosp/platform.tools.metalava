@@ -82,6 +82,7 @@ import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.RecordComponentItem
 import com.android.tools.metalava.model.SourceLanguage
 import com.android.tools.metalava.model.TargetLanguageSet
+import com.android.tools.metalava.model.TypeComparator
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.TypeParameterItem
@@ -89,13 +90,14 @@ import com.android.tools.metalava.model.TypeParameterListOwner
 import com.android.tools.metalava.model.TypeStringConfiguration
 import com.android.tools.metalava.model.VariableTypeItem
 import com.android.tools.metalava.model.WildcardTypeItem
+import com.android.tools.metalava.model.api.surface.ApiSurface
+import com.android.tools.metalava.model.api.surface.ApiSurfacePredicate
 import com.android.tools.metalava.model.findAnnotation
 import com.android.tools.metalava.model.hasAnnotation
 import com.android.tools.metalava.model.value.asInt
 import com.android.tools.metalava.model.value.asString
-import com.android.tools.metalava.model.visitors.ApiPredicate
+import com.android.tools.metalava.model.visitors.ApiFiltersVisitor
 import com.android.tools.metalava.model.visitors.ApiType
-import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.android.tools.metalava.reporter.FileLocation
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Issues.ABSTRACT_INNER
@@ -119,6 +121,7 @@ import com.android.tools.metalava.reporter.Issues.CONFIG_FIELD_NAME
 import com.android.tools.metalava.reporter.Issues.CONTEXT_FIRST
 import com.android.tools.metalava.reporter.Issues.CONTEXT_NAME_SUFFIX
 import com.android.tools.metalava.reporter.Issues.DATA_CLASS_DEFINITION
+import com.android.tools.metalava.reporter.Issues.EMPTY_BUILDER
 import com.android.tools.metalava.reporter.Issues.ENDS_WITH_IMPL
 import com.android.tools.metalava.reporter.Issues.ENUM
 import com.android.tools.metalava.reporter.Issues.EQUALS_AND_HASH_CODE
@@ -210,13 +213,17 @@ private constructor(
     private val codebase: Codebase,
     oldCodebase: Codebase?,
     reporter: Reporter,
-    apiPredicateConfig: ApiPredicate.Config,
+    apiSurface: ApiSurface,
     private val config: Config,
 ) :
-    ApiVisitor(
+    ApiFiltersVisitor(
         visitParameterItems = false,
-        apiFilters = ApiType.PUBLIC_API.getNonElidingApiFilters(apiPredicateConfig),
-        targetLanguages = TargetLanguageSet.SOURCE,
+        apiFilters =
+            ApiSurfacePredicate.forSurfaceFilters(
+                    ApiType.CORE,
+                    apiSurface,
+                )
+                .forTargetLanguages(TargetLanguageSet.SOURCE),
     ) {
 
     data class Config(
@@ -1269,7 +1276,7 @@ private constructor(
 
                 // If the return type and builder type are not equal (after erasing to handle
                 // type variables) then it is an error.
-                if (returnType.asErasedType() != builderType.asErasedType()) {
+                if (!TypeComparator.ERASED.compare(returnType, builderType)) {
                     report(
                         SETTER_RETURNS_THIS,
                         method,
@@ -1363,6 +1370,16 @@ private constructor(
         builtType?.builtClass()?.let { builtClass ->
             // Check to make sure it provides the expected getters.
             checkGettersOnBuiltClass(builtClass, expectedGetters)
+        }
+
+        if (builtType != null && methods.all { it.name() == "build" }) {
+            report(
+                EMPTY_BUILDER,
+                builderClass,
+                "Public API for builder class ${builderClass.qualifiedName()} only contains " +
+                    "`build` method. A public constructor on the built class should be provided " +
+                    "instead."
+            )
         }
     }
 
@@ -3396,7 +3413,8 @@ private constructor(
             val setterParamType = setter.parameters().single().type()
             // Don't check nullness if the methods don't use the same type (this type equality check
             // doesn't consider modifiers).
-            if (getterReturnType != setterParamType) return
+            if (!TypeComparator.IGNORE_NULLABILITY.compare(getterReturnType, setterParamType))
+                return
 
             // Recur through the getter and setter type simultaneously.
             getterReturnType.accept(
@@ -3472,7 +3490,7 @@ private constructor(
             codebase: Codebase,
             oldCodebase: Codebase?,
             reporter: Reporter,
-            apiPredicateConfig: ApiPredicate.Config,
+            apiSurface: ApiSurface,
             config: Config,
         ) {
             val apiLint =
@@ -3480,7 +3498,7 @@ private constructor(
                     codebase,
                     oldCodebase,
                     reporter,
-                    apiPredicateConfig,
+                    apiSurface,
                     config,
                 )
             apiLint.check()

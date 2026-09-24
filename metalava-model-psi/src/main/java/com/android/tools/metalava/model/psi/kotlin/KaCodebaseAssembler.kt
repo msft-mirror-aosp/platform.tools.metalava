@@ -20,7 +20,6 @@ import androidx.tracing.Tracer
 import com.android.tools.metalava.model.ANDROIDX_COMPOSABLE
 import com.android.tools.metalava.model.AnnotationAttribute
 import com.android.tools.metalava.model.AnnotationItem
-import com.android.tools.metalava.model.ApiVariantSelectors
 import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassKind
@@ -31,6 +30,7 @@ import com.android.tools.metalava.model.ExceptionTypeItem
 import com.android.tools.metalava.model.ItemDocumentationFactory
 import com.android.tools.metalava.model.JVM_NAME
 import com.android.tools.metalava.model.KOTLIN_DEPRECATED
+import com.android.tools.metalava.model.KOTLIN_PUBLISHED_API
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.MutableModifierList
 import com.android.tools.metalava.model.PackageItem
@@ -41,6 +41,7 @@ import com.android.tools.metalava.model.SkeletonClassItem
 import com.android.tools.metalava.model.SourceLanguage
 import com.android.tools.metalava.model.TargetLanguage
 import com.android.tools.metalava.model.TargetLanguageSet
+import com.android.tools.metalava.model.TypeComparator
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.TypeParameterScope
@@ -291,7 +292,6 @@ private constructor(
         DefaultItemFactory(
             codebase = codebase,
             defaultSourceLanguage = SourceLanguage.KOTLIN,
-            defaultVariantSelectorsFactory = ApiVariantSelectors.MUTABLE_FACTORY
         )
 
     override fun getPackageInfoFromUnderlyingModel(packageName: String) = PackageInfo.NO_COMMENT
@@ -666,6 +666,8 @@ private constructor(
     ): Boolean {
         // Deprecation level hidden items can't be resolved from source.
         if (constructorSymbol.isDeprecatedHidden()) return false
+        // Don't generate @PublishedApi constructors since they can't be used externally from source
+        if (constructorSymbol.isPublishedApi()) return false
         // If this codebase is being created just from the KaModule, all other source constructors
         // should be generated. Only skip constructors when adding to a PsiBasedCodebase.
         if (!addingToPsiCodebase) return true
@@ -703,6 +705,12 @@ private constructor(
             }
 
         val modifiers = kaModifierFactory.createForDeclaration(constructorSymbol)
+        // Sealed abstract classes cannot be externally instantiated so treat the constructors as
+        // private. This mirrors [PsiClassBuilder.treatConstructorAsPrivate].
+        if (containingClass.modifiers.isSealed()) {
+            modifiers.setVisibilityLevel(VisibilityLevel.PRIVATE)
+        }
+
         val constructorItem =
             itemFactory.createConstructorItem(
                 fileLocation = PsiFileLocation.fromPsiElement(constructorSymbol.psi),
@@ -766,6 +774,8 @@ private constructor(
     private fun KaSession.shouldGenerateMethod(functionSymbol: KaNamedFunctionSymbol): Boolean {
         // Don't generate hidden functions since they cannot be resolved from source.
         if (functionSymbol.isDeprecatedHidden()) return false
+        // Don't generate @PublishedApi functions since they can't be used externally from source
+        if (functionSymbol.isPublishedApi()) return false
         // Skip generated equals and hashCode methods, when they aren't implemented in source.
         if (
             functionSymbol.origin == KaSymbolOrigin.SOURCE_MEMBER_GENERATED &&
@@ -897,11 +907,10 @@ private constructor(
                 methodItem.containingClass().methods().firstOrNull {
                     it.name() == methodItem.name() &&
                         it.name() == jvmName &&
-                        it.returnType().toErasedTypeString() ==
-                            methodItem.returnType().toErasedTypeString() &&
+                        TypeComparator.ERASED.compare(it.returnType(), methodItem.returnType()) &&
                         it.parameters().size == methodItem.parameters().size &&
                         it.parameters().zip(methodItem.parameters()).all { (p1, p2) ->
-                            p1.type().toErasedTypeString() == p2.type().toErasedTypeString()
+                            TypeComparator.ERASED.compare(p1.type(), p2.type())
                         }
                 }
             if (existingMethod != null) {
@@ -1039,6 +1048,20 @@ private constructor(
                 null
             }
 
+        val modifiers =
+            kaModifierFactory.createForProperty(
+                propertySymbol,
+                containingClass,
+            )
+        kaModifierFactory.updatePropertyAccessors(modifiers, getter, setter, backingField)
+
+        // Don't generate @PublishedApi properties since they can't be used externally from source.
+        // Return after updating the accessor modifiers so that the annotation and visibility are
+        // propagated to the accessors.
+        if (propertySymbol.isPublishedApi()) {
+            return
+        }
+
         val constructorParameter =
             if (propertySymbol.isFromPrimaryConstructor) {
                 containingClass
@@ -1074,12 +1097,6 @@ private constructor(
             }
         }
 
-        val modifiers =
-            kaModifierFactory.createForProperty(
-                propertySymbol,
-                containingClass,
-            )
-        kaModifierFactory.updatePropertyAccessors(modifiers, getter, setter, backingField)
         val propertyItem =
             itemFactory.createPropertyItem(
                 fileLocation = PsiFileLocation.fromPsiElement(propertySymbol.psi),
@@ -1266,6 +1283,13 @@ private constructor(
         }
     }
 
+    private fun KaDeclarationSymbol.isPublishedApi(): Boolean {
+        return visibility == KaSymbolVisibility.INTERNAL &&
+            annotations.any { kaAnnotation ->
+                kaAnnotation.classId?.asFqNameString() == KOTLIN_PUBLISHED_API
+            }
+    }
+
     /** Creates documentation for the symbol through psi, if possible. */
     private fun KaSymbol.getDocumentation(): ItemDocumentationFactory {
         return psiCodebase?.let { psiCodebase -> psi?.createItemDocumentation(psiCodebase) }
@@ -1325,20 +1349,16 @@ private constructor(
             possiblyInlinedContextParameterTypes = contextParameterTypes
         }
 
-        val parameters =
-            buildList {
-                    // Both the getter and setter have the context parameters and receiver as the
-                    // first parameters, if they exist
-                    addAll(possiblyInlinedContextParameterTypes)
-                    possiblyInlinedReceiverType?.let { add(it) }
-                    // The setter also has the property type as a parameter
-                    if (!isGetter) {
-                        add(possiblyInlinedPropertyType)
-                    }
-                }
-                // Compare types by erased string to work around differences like `List<String>` vs
-                // `List<? extends String>` that can exist in the two representations.
-                .map { it.toErasedTypeString() }
+        val parameters = buildList {
+            // Both the getter and setter have the context parameters and receiver as the
+            // first parameters, if they exist
+            addAll(possiblyInlinedContextParameterTypes)
+            possiblyInlinedReceiverType?.let { add(it) }
+            // The setter also has the property type as a parameter
+            if (!isGetter) {
+                add(possiblyInlinedPropertyType)
+            }
+        }
 
         return containingClass.methods().firstOrNull { methodItem ->
             // Find a method with the right name, but if the property is internal, the accessor name
@@ -1347,7 +1367,13 @@ private constructor(
                 (visibility == KaSymbolVisibility.INTERNAL &&
                     methodItem.name().startsWith("$name\$"))) &&
                 methodItem.isKotlinProperty &&
-                methodItem.parameters().map { it.type().toErasedTypeString() } == parameters
+                methodItem.parameters().size == parameters.size &&
+                // Compare types using TypeComparator.ERASED to work around differences like
+                // `List<String>` vs `List<? extends String>` that can exist in the two
+                // representations.
+                methodItem.parameters().zip(parameters).all { (param, expected) ->
+                    TypeComparator.ERASED.compare(param.type(), expected)
+                }
         }
     }
 

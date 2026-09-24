@@ -114,7 +114,7 @@ internal class PsiBasedCodebase(
      * * There is an optimization in [PsiCodebaseAssembler] where it will not create inaccessible
      *   classes.
      * * An `internal` class may be accessible if it has a show annotation.
-     * * Computing the [AnnotationItem.showability] requires getting values for all an
+     * * Determining whether an annotation is a show annotation requires getting values for all an
      *   [AnnotationItem]'s attributes, including default values.
      * * Getting [AnnotationDefaults] using the default implementation of this will resolve the
      *   [AnnotationItem]'s [ClassItem].

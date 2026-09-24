@@ -16,7 +16,6 @@
 
 package com.android.tools.metalava
 
-import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.testing.RequiresCapabilities
 import com.android.tools.metalava.model.text.FileFormat
@@ -25,7 +24,7 @@ import com.android.tools.metalava.testing.kotlin
 import com.android.tools.metalava.testing.xml
 import org.junit.Test
 
-/** Test settings of [SelectableItem.showability] */
+/** Test different show annotations. */
 class ShowabilityTest : DriverTest() {
 
     companion object {

@@ -44,6 +44,12 @@ internal class JavaStubWriter(
     private val stubConstructorManager: StubConstructorManager,
     private val inaccessibleSealedSubclassManager: InaccessibleSealedSubclassManager,
 ) : DelegatedVisitor {
+    /**
+     * Stubs require nested classes to be visited in deterministic sorted order so that the contents
+     * of the generated source files are reproducible.
+     */
+    override val requiresSortedClasses: Boolean
+        get() = true
 
     /**
      * If true then include Java record class related information in the generated stubs. Otherwise,

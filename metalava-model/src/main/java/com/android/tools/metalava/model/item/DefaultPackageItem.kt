@@ -16,7 +16,6 @@
 
 package com.android.tools.metalava.model.item
 
-import com.android.tools.metalava.model.ApiVariantSelectorsFactory
 import com.android.tools.metalava.model.BaseModifierList
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
@@ -38,7 +37,6 @@ internal class DefaultPackageItem(
     targetLanguages: Set<TargetLanguage>,
     modifiers: BaseModifierList,
     documentationFactory: ItemDocumentationFactory,
-    variantSelectorsFactory: ApiVariantSelectorsFactory,
     private val qualifiedName: String,
     val containingPackage: PackageItem?,
     override val overviewDocumentation: ResourceFile?,
@@ -50,7 +48,6 @@ internal class DefaultPackageItem(
         targetLanguages = targetLanguages,
         modifiers = modifiers,
         documentationFactory = documentationFactory,
-        variantSelectorsFactory = variantSelectorsFactory,
     ),
     PackageItem {
 

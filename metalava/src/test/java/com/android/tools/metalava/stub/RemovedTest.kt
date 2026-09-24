@@ -17,7 +17,6 @@
 package com.android.tools.metalava.stub
 
 import com.android.tools.metalava.KnownApiSurface
-import com.android.tools.metalava.testing.KnownSourceFiles
 import com.android.tools.metalava.testing.java
 import org.junit.Test
 
@@ -51,7 +50,6 @@ class RemovedTest : AbstractStubsTest() {
             apiSurface = KnownApiSurface.PUBLIC,
             sourceFiles =
                 arrayOf(
-                    KnownSourceFiles.removedFromApiAnnotation,
                     removedClass,
                     publicClass,
                 ),
