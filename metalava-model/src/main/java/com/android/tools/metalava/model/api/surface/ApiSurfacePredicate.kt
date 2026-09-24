@@ -177,6 +177,11 @@ object ApiSurfacePredicate {
      *   if [includeDocOnly] is true).
      * - [ApiFilters.emit]: matches items marked for emission across the whole API surface,
      *   including overriding methods (via [SelectedApi.superMethodApiVariants]).
+     * - [ApiFilters.traversal]: uses the same predicate as [ApiFilters.emit]. Because stubs include
+     *   the whole API surface rather than a delta, any package or class containing an emitted item
+     *   is also part of the whole API surface and matches [ApiFilters.emit]. Setting this
+     *   explicitly enables `ApiVisitor` to filter items during traversal instead of creating
+     *   `VisitCandidate`s.
      */
     fun forStubs(
         apiSurface: ApiSurface,
@@ -202,6 +207,11 @@ object ApiSurfacePredicate {
             )
 
         return ApiFilters(
+            // Because stubs include the whole API surface rather than a delta, any container of an
+            // emitted item is also emitted, so `filterEmit` can be used directly for traversal.
+            // Setting `traversal` explicitly enables `ApiVisitor` to filter items via `skip`
+            // instead of creating `VisitCandidate`s.
+            traversal = filterEmit,
             reference = filterReference,
             emit = filterEmit,
         )

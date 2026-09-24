@@ -102,7 +102,7 @@ internal class MethodSourceSelectedApi(
             if (maxSuperSurface != null) {
                 itemApiVariants = maxSuperVariants
             } else {
-                checkHidingApiMethodOverride()
+                handleHidingApiMethodOverride()
             }
         }
 
@@ -110,17 +110,16 @@ internal class MethodSourceSelectedApi(
     }
 
     /**
-     * Checks whether a method attempts to hide an override of a method that is already part of the
-     * API.
+     * Handles an attempt by this method to hide an override of a method that is already part of the
+     * API (or was removed from it) by unhiding it (adopting the overridden method's API variants)
+     * and reporting an issue.
      *
      * It is an error to attempt to hide a method in a class if the method overrides an API method
      * in a superclass or interface, unless hiding from a narrower API surface (e.g. a public class
      * hiding a system API override).
      */
-    private fun checkHidingApiMethodOverride() {
+    private fun handleHidingApiMethodOverride() {
         if (revert) return
-        val reporter = item.codebase.reporter
-        if (reporter.isSuppressed(Issues.HIDING_API_METHOD_OVERRIDE)) return
 
         val apiSurfaces = selectedApiUpdater.apiSurfaces
         val filterReference = ApiSurfacePredicate.wholeCoreApi(apiSurfaces.main)
@@ -131,49 +130,64 @@ internal class MethodSourceSelectedApi(
                 )
                 .emit
 
-        // Check to see if the method overrides an API method, if so report an issue.
+        // Check to see if the method overrides an API method, if so unhide it and report an issue.
         if (
-            !reportIfOverridingApiMethod(filterReference) { method, overriddenMethod ->
+            !handleHidingApiMethodOverride(filterReference) { method, overriddenMethod ->
                 "Attempting to hide ${method.describe()} which overrides ${overriddenMethod.describe()} which is already part of the API"
             }
         ) {
             // Check to see if the method overrides a method that was previously part of the API
             // but has since been removed.
-            reportIfOverridingApiMethod(removedFilterPredicate) { method, overriddenMethod ->
+            handleHidingApiMethodOverride(removedFilterPredicate) { method, overriddenMethod ->
                 "Attempting to hide ${method.describe()} which overrides ${overriddenMethod.describe()} which was part of the API but has now been removed"
             }
         }
     }
 
     /**
-     * Report an [Issues.HIDING_API_METHOD_OVERRIDE] issue if this method overrides a method that
-     * matches [predicate].
+     * Handles an attempt by this method to hide an override of an ancestor method that matches
+     * [predicate].
      *
-     * If the overridden method is from the class path then do not report an error as it may not be
-     * possible to determine if a method in a jar matches a specific API version.
-     *
-     * Do not report an error if a final class hides a protected method from its superclass, as
-     * there is no way to call a method of a final class through a protected method of the
-     * superclass.
+     * If such an overridden method is found, this unhides the method (when their erased parameter
+     * types match) by adopting the overridden method's [itemApiVariants], reports an
+     * [Issues.HIDING_API_METHOD_OVERRIDE] issue if appropriate, and returns `true`. Otherwise, this
+     * returns `false`.
      */
-    private inline fun reportIfOverridingApiMethod(
+    private inline fun handleHidingApiMethodOverride(
         predicate: FilterPredicate,
         reportMessageProvider: (MethodItem, MethodItem) -> String,
-    ): Boolean =
-        item
-            .findPredicateSuperMethod(predicate)
-            ?.takeIf { overriddenMethod ->
+    ): Boolean {
+        // Find an ancestor method that matches the predicate; if none exists, this method is not
+        // hiding an API method override.
+        val overriddenMethod = item.findPredicateSuperMethod(predicate) ?: return false
+
+        // If the erased parameter types match (which may not be true when overriding a generic
+        // method with specialized type arguments), unhide this method by adopting the overridden
+        // method's API variants.
+        if (MethodItem.overridesMethod(item, overriddenMethod)) {
+            itemApiVariants = overriddenMethod.selectedApi.itemApiVariants
+        }
+
+        // Report an issue unless:
+        // - The issue is suppressed.
+        // - The overridden method comes from the classpath, as it may not be possible to determine
+        //   if a method in a jar matches a specific API version.
+        // - A final class is hiding a protected method from its superclass, as there is no way to
+        //   call a method of a final class through a protected method of the superclass.
+        if (
+            !item.codebase.reporter.isSuppressed(Issues.HIDING_API_METHOD_OVERRIDE) &&
                 overriddenMethod.origin != ClassOrigin.CLASS_PATH &&
-                    !(item.containingClass().modifiers.isFinal() &&
-                        overriddenMethod.modifiers.isProtected())
-            }
-            ?.also { overriddenMethod ->
-                item.codebase.reporter.report(
-                    Issues.HIDING_API_METHOD_OVERRIDE,
-                    item,
-                    reportMessageProvider(item, overriddenMethod),
-                )
-            } != null
+                !(item.containingClass().modifiers.isFinal() &&
+                    overriddenMethod.modifiers.isProtected())
+        ) {
+            item.codebase.reporter.report(
+                Issues.HIDING_API_METHOD_OVERRIDE,
+                item,
+                reportMessageProvider(item, overriddenMethod),
+            )
+        }
+        return true
+    }
 
     /**
      * Collect all API variants belonging to any ancestor method being overridden.

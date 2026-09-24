@@ -181,6 +181,11 @@ class CommonParameterizedSelectedApiLifecycleTest : BaseCommonParameterizedSelec
                                 public class DocOnlyClass {
                                     public void method() {}
                                 }
+                            """
+                        ),
+                        java(
+                            """
+                                package test.pkg;
                                 public class Test {
                                     $DOC_ONLY
                                     public void docOnlyMethod() {}
@@ -223,6 +228,11 @@ class CommonParameterizedSelectedApiLifecycleTest : BaseCommonParameterizedSelec
                                 public class RemovedClass {
                                     public void method() {}
                                 }
+                            """
+                        ),
+                        java(
+                            """
+                                package test.pkg;
                                 public class Test {
                                     $REMOVED_FROM_API
                                     public void removedMethod() {}
@@ -267,6 +277,11 @@ class CommonParameterizedSelectedApiLifecycleTest : BaseCommonParameterizedSelec
                                 public class DocOnlyAndRemovedClass {
                                     public void method() {}
                                 }
+                            """
+                        ),
+                        java(
+                            """
+                                package test.pkg;
                                 public class Test {
                                     $DOC_ONLY
                                     $REMOVED_FROM_API
@@ -311,6 +326,11 @@ class CommonParameterizedSelectedApiLifecycleTest : BaseCommonParameterizedSelec
                                 public class RemovedClass {
                                     public void method() {}
                                 }
+                            """
+                        ),
+                        java(
+                            """
+                                package test.pkg;
                                 public class Test {
                                     /** @removed */
                                     public void removedMethod() {}

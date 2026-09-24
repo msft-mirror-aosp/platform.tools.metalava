@@ -59,6 +59,11 @@ class CommonParameterizedSelectedApiInheritanceTest : BaseCommonParameterizedSel
                                 $SYSTEM_API
                                 public class SystemClass {
                                 }
+                            """
+                        ),
+                        java(
+                            """
+                                package test.pkg;
                                 public class PublicClass extends SystemClass {
                                 }
                             """
@@ -95,6 +100,11 @@ class CommonParameterizedSelectedApiInheritanceTest : BaseCommonParameterizedSel
                                 $MODULE_API
                                 public class ModuleClass {
                                 }
+                            """
+                        ),
+                        java(
+                            """
+                                package test.pkg;
                                 public class PublicClass extends ModuleClass {
                                 }
                             """
@@ -131,6 +141,11 @@ class CommonParameterizedSelectedApiInheritanceTest : BaseCommonParameterizedSel
                                 $STANDALONE_API
                                 public class StandaloneClass {
                                 }
+                            """
+                        ),
+                        java(
+                            """
+                                package test.pkg;
                                 public class PublicClass extends StandaloneClass {
                                 }
                             """
@@ -167,6 +182,11 @@ class CommonParameterizedSelectedApiInheritanceTest : BaseCommonParameterizedSel
                                 $REMOVED_FROM_API
                                 public class SystemClass {
                                 }
+                            """
+                        ),
+                        java(
+                            """
+                                package test.pkg;
                                 $REMOVED_FROM_API
                                 public class PublicClass extends SystemClass {
                                 }
@@ -205,6 +225,11 @@ class CommonParameterizedSelectedApiInheritanceTest : BaseCommonParameterizedSel
                                 $REMOVED_FROM_API
                                 public class SystemClass {
                                 }
+                            """
+                        ),
+                        java(
+                            """
+                                package test.pkg;
                                 public class PublicClass extends SystemClass {
                                 }
                             """
@@ -325,8 +350,6 @@ class CommonParameterizedSelectedApiInheritanceTest : BaseCommonParameterizedSel
                         ),
                     ),
             ) {
-                // Middle.method() is marked @Hide and overrides a class method, so it does
-                // not inherit the public(C) API variant from Base.method().
                 surfaceTest(
                     surface = "module",
                     expected =
@@ -344,7 +367,7 @@ class CommonParameterizedSelectedApiInheritanceTest : BaseCommonParameterizedSel
                                 constructor test.pkg.Middle()
                                        self - ApiVariantSet[public(C)]
                                 method test.pkg.Middle.method()
-                                       self - ApiVariantSet[]
+                                       self - ApiVariantSet[public(C)]
                                 superMethod - ApiVariantSet[public(C)]
                               class test.pkg.Sub
                                      self - ApiVariantSet[public(C)]
@@ -353,6 +376,7 @@ class CommonParameterizedSelectedApiInheritanceTest : BaseCommonParameterizedSel
                                 method test.pkg.Sub.method()
                                        self - ApiVariantSet[public(C)]
                                 superMethod - ApiVariantSet[public(C)]
+                                   elidable - ApiVariantSet[public(C),system(C),module(C)]
                         """,
                 )
             }
@@ -536,6 +560,284 @@ class CommonParameterizedSelectedApiInheritanceTest : BaseCommonParameterizedSel
                                 method test.pkg.SystemClass.method()
                                        self - ApiVariantSet[system(C)]
                                 superMethod - ApiVariantSet[public(C),system(C)]
+                        """,
+                )
+            }
+
+            buildTests(
+                name = "public class overriding public method marked as @Hide",
+                surfaceRules = publicSystemModuleRules,
+                expectedIssues =
+                    """
+                        MAIN_SRC/src/test/pkg/Child.java: hidden: Attempting to hide method test.pkg.Child.method() which overrides method test.pkg.Parent.method() which is already part of the API [HidingApiMethodOverride]
+                    """,
+                sources =
+                    listOf(
+                        java(
+                            """
+                                package test.pkg;
+
+                                public class Parent {
+                                    public void method() {}
+                                }
+                            """
+                        ),
+                        java(
+                            """
+                                package test.pkg;
+
+                                public class Child extends Parent {
+                                    $HIDE
+                                    @Override
+                                    public void method() {}
+                                }
+                            """
+                        ),
+                    ),
+            ) {
+                surfaceTest(
+                    surface = "public",
+                    expected =
+                        """
+                            package test.pkg
+                                   self - ApiVariantSet[public(C)]
+                              class test.pkg.Parent
+                                     self - ApiVariantSet[public(C)]
+                                constructor test.pkg.Parent()
+                                       self - ApiVariantSet[public(C)]
+                                method test.pkg.Parent.method()
+                                       self - ApiVariantSet[public(C)]
+                              class test.pkg.Child
+                                     self - ApiVariantSet[public(C)]
+                                constructor test.pkg.Child()
+                                       self - ApiVariantSet[public(C)]
+                                method test.pkg.Child.method()
+                                       self - ApiVariantSet[public(C)]
+                                superMethod - ApiVariantSet[public(C)]
+                                   elidable - ApiVariantSet[public(C)]
+                        """,
+                )
+            }
+
+            buildTests(
+                name = "final public class overriding protected method marked as @Hide",
+                surfaceRules = publicSystemModuleRules,
+                sources =
+                    listOf(
+                        java(
+                            """
+                                package test.pkg;
+
+                                public class Parent {
+                                    protected void method() {}
+                                }
+                            """
+                        ),
+                        java(
+                            """
+                                package test.pkg;
+
+                                public final class Child extends Parent {
+                                    $HIDE
+                                    @Override
+                                    protected void method() {}
+                                }
+                            """
+                        ),
+                    ),
+            ) {
+                surfaceTest(
+                    surface = "public",
+                    expected =
+                        """
+                            package test.pkg
+                                   self - ApiVariantSet[public(C)]
+                              class test.pkg.Parent
+                                     self - ApiVariantSet[public(C)]
+                                constructor test.pkg.Parent()
+                                       self - ApiVariantSet[public(C)]
+                                method test.pkg.Parent.method()
+                                       self - ApiVariantSet[public(C)]
+                              class test.pkg.Child
+                                     self - ApiVariantSet[public(C)]
+                                constructor test.pkg.Child()
+                                       self - ApiVariantSet[public(C)]
+                                method test.pkg.Child.method()
+                                       self - ApiVariantSet[public(C)]
+                                superMethod - ApiVariantSet[public(C)]
+                                   elidable - ApiVariantSet[public(C)]
+                        """,
+                )
+            }
+
+            buildTests(
+                name =
+                    "public class overriding system method from system superclass marked as @Hide",
+                surfaceRules = publicSystemModuleRules,
+                expectedIssues =
+                    """
+                        MAIN_SRC/src/test/pkg/Child.java: hidden: Attempting to hide method test.pkg.Child.method() which overrides method test.pkg.Parent.method() which is already part of the API [HidingApiMethodOverride]
+                    """,
+                sources =
+                    listOf(
+                        java(
+                            """
+                                package test.pkg;
+
+                                $SYSTEM_API
+                                public class Parent {
+                                    public void method() {}
+                                }
+                            """
+                        ),
+                        java(
+                            """
+                                package test.pkg;
+
+                                public class Child extends Parent {
+                                    $HIDE
+                                    @Override
+                                    public void method() {}
+                                }
+                            """
+                        ),
+                    ),
+            ) {
+                surfaceTest(
+                    surface = "system",
+                    expected =
+                        """
+                            package test.pkg
+                                   self - ApiVariantSet[public(C),system(C)]
+                              class test.pkg.Parent
+                                     self - ApiVariantSet[system(C)]
+                                constructor test.pkg.Parent()
+                                       self - ApiVariantSet[system(C)]
+                                method test.pkg.Parent.method()
+                                       self - ApiVariantSet[system(C)]
+                              class test.pkg.Child
+                                     self - ApiVariantSet[public(C)]
+                               superClass - ApiVariantSet[system(C)]
+                                constructor test.pkg.Child()
+                                       self - ApiVariantSet[public(C)]
+                                method test.pkg.Child.method()
+                                       self - ApiVariantSet[system(C)]
+                                superMethod - ApiVariantSet[system(C)]
+                                   elidable - ApiVariantSet[system(C)]
+                        """,
+                )
+            }
+
+            buildTests(
+                name = "public class overriding public method marked as @SystemApi",
+                surfaceRules = publicSystemModuleRules,
+                expectedIssues =
+                    """
+                        MAIN_SRC/src/test/pkg/Child.java: hidden: Attempting to hide method test.pkg.Child.method() which overrides method test.pkg.Parent.method() which is already part of the API [HidingApiMethodOverride]
+                    """,
+                sources =
+                    listOf(
+                        java(
+                            """
+                                package test.pkg;
+
+                                public class Parent {
+                                    public void method() {}
+                                }
+                            """
+                        ),
+                        java(
+                            """
+                                package test.pkg;
+
+                                public class Child extends Parent {
+                                    $SYSTEM_API
+                                    @Override
+                                    public void method() {}
+                                }
+                            """
+                        ),
+                    ),
+            ) {
+                surfaceTest(
+                    surface = "public",
+                    expected =
+                        """
+                            package test.pkg
+                                   self - ApiVariantSet[public(C)]
+                              class test.pkg.Parent
+                                     self - ApiVariantSet[public(C)]
+                                constructor test.pkg.Parent()
+                                       self - ApiVariantSet[public(C)]
+                                method test.pkg.Parent.method()
+                                       self - ApiVariantSet[public(C)]
+                              class test.pkg.Child
+                                     self - ApiVariantSet[public(C)]
+                                constructor test.pkg.Child()
+                                       self - ApiVariantSet[public(C)]
+                                method test.pkg.Child.method()
+                                       self - ApiVariantSet[public(C)]
+                                superMethod - ApiVariantSet[public(C)]
+                                   elidable - ApiVariantSet[public(C)]
+                        """,
+                )
+            }
+
+            buildTests(
+                name =
+                    "system class overriding system method from system superclass marked as @Hide",
+                surfaceRules = publicSystemModuleRules,
+                expectedIssues =
+                    """
+                        MAIN_SRC/src/test/pkg/Child.java: hidden: Attempting to hide method test.pkg.Child.method() which overrides method test.pkg.Parent.method() which is already part of the API [HidingApiMethodOverride]
+                    """,
+                sources =
+                    listOf(
+                        java(
+                            """
+                                package test.pkg;
+
+                                $SYSTEM_API
+                                public class Parent {
+                                    $SYSTEM_API
+                                    public void method() {}
+                                }
+                            """
+                        ),
+                        java(
+                            """
+                                package test.pkg;
+
+                                $SYSTEM_API
+                                public class Child extends Parent {
+                                    $HIDE
+                                    @Override
+                                    public void method() {}
+                                }
+                            """
+                        ),
+                    ),
+            ) {
+                surfaceTest(
+                    surface = "system",
+                    expected =
+                        """
+                            package test.pkg
+                                   self - ApiVariantSet[system(C)]
+                              class test.pkg.Parent
+                                     self - ApiVariantSet[system(C)]
+                                constructor test.pkg.Parent()
+                                       self - ApiVariantSet[system(C)]
+                                method test.pkg.Parent.method()
+                                       self - ApiVariantSet[system(C)]
+                              class test.pkg.Child
+                                     self - ApiVariantSet[system(C)]
+                                constructor test.pkg.Child()
+                                       self - ApiVariantSet[system(C)]
+                                method test.pkg.Child.method()
+                                       self - ApiVariantSet[system(C)]
+                                superMethod - ApiVariantSet[system(C)]
+                                   elidable - ApiVariantSet[system(C)]
                         """,
                 )
             }

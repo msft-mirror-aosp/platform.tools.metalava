@@ -55,6 +55,14 @@ class ApiSurfacePredicateTest {
         assertEquals(
             """
                 ApiFilters(
+                    traversal =
+                        AndPredicate(
+                            EmittedOnlyPredicate
+                            OrPredicate(
+                                ItemApiVariantsPredicate(ApiVariantSet[base(C)])
+                                SuperMethodApiVariantsPredicate(ApiVariantSet[base(C)])
+                            )
+                        )
                     emit =
                         AndPredicate(
                             EmittedOnlyPredicate
@@ -69,10 +77,19 @@ class ApiSurfacePredicateTest {
             """
                 .trimIndent(),
             ApiSurfacePredicate.forStubs(base, includeDocOnly = false).toString(),
+            message = "base without docOnly",
         )
         assertEquals(
             """
                 ApiFilters(
+                    traversal =
+                        AndPredicate(
+                            EmittedOnlyPredicate
+                            OrPredicate(
+                                ItemApiVariantsPredicate(ApiVariantSet[base(CD)])
+                                SuperMethodApiVariantsPredicate(ApiVariantSet[base(CD)])
+                            )
+                        )
                     emit =
                         AndPredicate(
                             EmittedOnlyPredicate
@@ -87,10 +104,19 @@ class ApiSurfacePredicateTest {
             """
                 .trimIndent(),
             ApiSurfacePredicate.forStubs(base, includeDocOnly = true).toString(),
+            message = "base with docOnly",
         )
         assertEquals(
             """
                 ApiFilters(
+                    traversal =
+                        AndPredicate(
+                            EmittedOnlyPredicate
+                            OrPredicate(
+                                ItemApiVariantsPredicate(ApiVariantSet[base(C),main(C)])
+                                SuperMethodApiVariantsPredicate(ApiVariantSet[base(C),main(C)])
+                            )
+                        )
                     emit =
                         AndPredicate(
                             EmittedOnlyPredicate
@@ -105,10 +131,19 @@ class ApiSurfacePredicateTest {
             """
                 .trimIndent(),
             ApiSurfacePredicate.forStubs(main, includeDocOnly = false).toString(),
+            message = "main without docOnly",
         )
         assertEquals(
             """
                 ApiFilters(
+                    traversal =
+                        AndPredicate(
+                            EmittedOnlyPredicate
+                            OrPredicate(
+                                ItemApiVariantsPredicate(ApiVariantSet[base(CD),main(CD)])
+                                SuperMethodApiVariantsPredicate(ApiVariantSet[base(CD),main(CD)])
+                            )
+                        )
                     emit =
                         AndPredicate(
                             EmittedOnlyPredicate
@@ -123,6 +158,7 @@ class ApiSurfacePredicateTest {
             """
                 .trimIndent(),
             ApiSurfacePredicate.forStubs(main, includeDocOnly = true).toString(),
+            message = "main with docOnly",
         )
     }
 

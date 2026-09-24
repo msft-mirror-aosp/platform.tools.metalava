@@ -117,6 +117,29 @@ interface MethodItem : CallableItem, InheritableItem, PossiblyPropertyRelated {
 
     companion object {
         /**
+         * Checks whether [method] overrides [superMethod] by checking whether their parameter
+         * counts match and their erased parameter types match.
+         */
+        fun overridesMethod(
+            method: MethodItem,
+            superMethod: MethodItem,
+        ): Boolean {
+            val parameters1 = method.parameters()
+            val parameters2 = superMethod.parameters()
+            if (parameters1.size != parameters2.size) {
+                return false
+            }
+            for (i in parameters1.indices) {
+                val pt1 = parameters1[i].type().toErasedTypeString()
+                val pt2 = parameters2[i].type().toErasedTypeString()
+                if (pt1 != pt2) {
+                    return false
+                }
+            }
+            return true
+        }
+
+        /**
          * Compare two types to see if they are considered the same.
          *
          * Same means, functionally equivalent at both compile time and runtime.
