@@ -973,17 +973,6 @@ class StubsConstructorTest : AbstractStubsTest() {
                       }
                     }
                 """,
-            // TODO(b/512093496): The stub constructor below is broken and fails to compile
-            //  (`checkCompilation = false`) because it is missing
-            //  `super((java.io.InputStream)null);`. When `containsRevertedItem` is true,
-            //  `StubGenerator` snapshots the codebase using a `referenceVisitor`
-            //  (`FilteringApiVisitor` with `ignoreEmit = true`) whose `apiFilters` come from
-            //  `ApiSurfacePredicate.forStubs`. Because `forStubs` sets `traversal = filterEmit`
-            //  (which includes `EmittedOnlyPredicate`), `ApiVisitor` skips non-emitted classpath
-            //  classes (`java.io.FilterInputStream`, where `emit == false`) in
-            //  `CodebaseSnapshotTaker.createClassFromUnderlyingModel`, preventing
-            //  `StubConstructorManager` from resolving the superclass in the snapshot codebase and
-            //  finding its constructors.
             expectedStubFiles =
                 arrayOf(
                     java(
@@ -991,14 +980,14 @@ class StubsConstructorTest : AbstractStubsTest() {
                             package test.pkg;
                             @SuppressWarnings({"unchecked", "deprecation", "all"})
                             public class CustomInputStream extends java.io.FilterInputStream {
-                            public CustomInputStream(java.io.InputStream in) { throw new RuntimeException("Stub!"); }
+                            public CustomInputStream(java.io.InputStream in) { super((java.io.InputStream)null); throw new RuntimeException("Stub!"); }
                             /** */
                             public void flaggedMethod() { throw new RuntimeException("Stub!"); }
                             }
                         """
                     )
                 ),
-            checkCompilation = false,
+            checkCompilation = true,
         )
     }
 }

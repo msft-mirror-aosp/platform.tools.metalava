@@ -31,6 +31,7 @@ import com.android.tools.metalava.model.MatchAllPredicate
 import com.android.tools.metalava.model.PackageFilter
 import com.android.tools.metalava.model.api.surface.ApiSurface
 import com.android.tools.metalava.model.api.surface.ApiSurfacePredicate
+import com.android.tools.metalava.model.visitors.ApiFilters
 import com.android.tools.metalava.reporter.Reporter
 import com.android.tools.metalava.trace
 import java.io.File
@@ -159,17 +160,32 @@ internal class StubGenerator(
                 )
             }
 
+        val filterReference = apiFilters?.reference ?: MatchAllPredicate
+
         // If reverting some changes then create a snapshot that combines the items from the sources
         // for any un-reverted changes and items from the previously released API for any reverted
         // changes.
         if (codebaseFragment.codebase.containsRevertedItem) {
+            // The reference visitor is used to snapshot referenced classes that are not part of the
+            // emitted stubs, such as superclasses from the classpath (where `emit == false`).
+            // `apiFilters` cannot be used directly because its `emit` and `traversal` predicates
+            // require `item.emit == true`, which would cause `ApiVisitor` to skip non-emitted
+            // classes and their members (such as superclass constructors needed by
+            // `StubConstructorManager`). Instead, use `filterReference` for `reference`, `emit`,
+            // and `traversal` so that any class or member that can be referenced from the API
+            // surface is visited and included in the snapshot.
+            val referenceApiFilters =
+                ApiFilters(
+                    reference = filterReference,
+                    emit = filterReference,
+                    traversal = filterReference,
+                )
             codebaseFragment =
                 codebaseFragment.snapshotIncludingRevertedItems(
                     referenceVisitorFactory = { delegate ->
                         createFilteringVisitorForStubs(
                             delegate = delegate,
-                            apiFilters = apiFilters,
-                            ignoreEmit = true,
+                            apiFilters = referenceApiFilters,
                         )
                     },
                     // Include documentation if required for writing the stubs.
@@ -178,7 +194,6 @@ internal class StubGenerator(
         }
 
         // Add additional constructors needed by the stubs across the whole API surface.
-        val filterReference = apiFilters?.reference ?: MatchAllPredicate
         val stubConstructorManager = StubConstructorManager(codebaseFragment.codebase)
         stubConstructorManager.addConstructors(filterReference)
 
