@@ -299,7 +299,6 @@ class CommonParameterizedSelectedApiInheritanceTest : BaseCommonParameterizedSel
                                        self - ApiVariantSet[system(R)]
                                 method test.pkg.RemovedClass.method()
                                        self - ApiVariantSet[public(C)]
-                                superMethod - ApiVariantSet[public(C)]
                         """,
                 )
             }
@@ -368,14 +367,12 @@ class CommonParameterizedSelectedApiInheritanceTest : BaseCommonParameterizedSel
                                        self - ApiVariantSet[public(C)]
                                 method test.pkg.Middle.method()
                                        self - ApiVariantSet[public(C)]
-                                superMethod - ApiVariantSet[public(C)]
                               class test.pkg.Sub
                                      self - ApiVariantSet[public(C)]
                                 constructor test.pkg.Sub()
                                        self - ApiVariantSet[public(C)]
                                 method test.pkg.Sub.method()
                                        self - ApiVariantSet[public(C)]
-                                superMethod - ApiVariantSet[public(C)]
                                    elidable - ApiVariantSet[public(C),system(C),module(C)]
                         """,
                 )
@@ -429,7 +426,6 @@ class CommonParameterizedSelectedApiInheritanceTest : BaseCommonParameterizedSel
                                        self - ApiVariantSet[system(C)]
                                 method test.pkg.SystemClass.method()
                                        self - ApiVariantSet[]
-                                superMethod - ApiVariantSet[public(R)]
                                    elidable - ApiVariantSet[public(R),system(R),module(R)]
                         """,
                 )
@@ -490,14 +486,12 @@ class CommonParameterizedSelectedApiInheritanceTest : BaseCommonParameterizedSel
                                        self - ApiVariantSet[]
                                 method test.pkg.InaccessibleClass.method()
                                        self - ApiVariantSet[]
-                                superMethod - ApiVariantSet[public(C)]
                               class test.pkg.PublicSubClass
                                      self - ApiVariantSet[public(C)]
                                 constructor test.pkg.PublicSubClass()
                                        self - ApiVariantSet[public(C)]
                                 method test.pkg.PublicSubClass.method()
                                        self - ApiVariantSet[public(C)]
-                                superMethod - ApiVariantSet[public(C)]
                         """,
                 )
             }
@@ -559,7 +553,6 @@ class CommonParameterizedSelectedApiInheritanceTest : BaseCommonParameterizedSel
                                        self - ApiVariantSet[system(C)]
                                 method test.pkg.SystemClass.method()
                                        self - ApiVariantSet[system(C)]
-                                superMethod - ApiVariantSet[public(C),system(C)]
                         """,
                 )
             }
@@ -613,7 +606,6 @@ class CommonParameterizedSelectedApiInheritanceTest : BaseCommonParameterizedSel
                                        self - ApiVariantSet[public(C)]
                                 method test.pkg.Child.method()
                                        self - ApiVariantSet[public(C)]
-                                superMethod - ApiVariantSet[public(C)]
                                    elidable - ApiVariantSet[public(C)]
                         """,
                 )
@@ -664,7 +656,6 @@ class CommonParameterizedSelectedApiInheritanceTest : BaseCommonParameterizedSel
                                        self - ApiVariantSet[public(C)]
                                 method test.pkg.Child.method()
                                        self - ApiVariantSet[public(C)]
-                                superMethod - ApiVariantSet[public(C)]
                                    elidable - ApiVariantSet[public(C)]
                         """,
                 )
@@ -722,7 +713,6 @@ class CommonParameterizedSelectedApiInheritanceTest : BaseCommonParameterizedSel
                                        self - ApiVariantSet[public(C)]
                                 method test.pkg.Child.method()
                                        self - ApiVariantSet[system(C)]
-                                superMethod - ApiVariantSet[system(C)]
                                    elidable - ApiVariantSet[system(C)]
                         """,
                 )
@@ -777,7 +767,6 @@ class CommonParameterizedSelectedApiInheritanceTest : BaseCommonParameterizedSel
                                        self - ApiVariantSet[public(C)]
                                 method test.pkg.Child.method()
                                        self - ApiVariantSet[public(C)]
-                                superMethod - ApiVariantSet[public(C)]
                                    elidable - ApiVariantSet[public(C)]
                         """,
                 )
@@ -836,7 +825,6 @@ class CommonParameterizedSelectedApiInheritanceTest : BaseCommonParameterizedSel
                                        self - ApiVariantSet[system(C)]
                                 method test.pkg.Child.method()
                                        self - ApiVariantSet[system(C)]
-                                superMethod - ApiVariantSet[system(C)]
                                    elidable - ApiVariantSet[system(C)]
                         """,
                 )
