@@ -119,8 +119,6 @@ internal class MethodSourceSelectedApi(
      * hiding a system API override).
      */
     private fun handleHidingApiMethodOverride() {
-        if (revert) return
-
         val apiSurfaces = selectedApiUpdater.apiSurfaces
         val filterReference = ApiSurfacePredicate.wholeCoreApi(apiSurfaces.main)
         val removedFilterPredicate =
@@ -169,13 +167,16 @@ internal class MethodSourceSelectedApi(
         }
 
         // Report an issue unless:
+        // - The method is being reverted (e.g. via a disabled `@FlaggedApi`), as it was hidden by
+        //   the revert rather than an explicit `@hide`.
         // - The issue is suppressed.
         // - The overridden method comes from the classpath, as it may not be possible to determine
         //   if a method in a jar matches a specific API version.
         // - A final class is hiding a protected method from its superclass, as there is no way to
         //   call a method of a final class through a protected method of the superclass.
         if (
-            !item.codebase.reporter.isSuppressed(Issues.HIDING_API_METHOD_OVERRIDE) &&
+            !revert &&
+                !item.codebase.reporter.isSuppressed(Issues.HIDING_API_METHOD_OVERRIDE) &&
                 overriddenMethod.origin != ClassOrigin.CLASS_PATH &&
                 !(item.containingClass().modifiers.isFinal() &&
                     overriddenMethod.modifiers.isProtected())

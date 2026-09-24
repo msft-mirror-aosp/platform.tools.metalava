@@ -202,7 +202,6 @@ object ApiSurfacePredicate {
                 wholeApiForVariants(
                     apiSurface,
                     variantTypes,
-                    includeOverridingMethods = true,
                 ),
             )
 
