@@ -268,6 +268,10 @@ class DeepApiSurfaceHierarchyTest : DriverTest() {
 
                         public class PublicClass {
                             @test.annotation.Hide
+                            public PublicClass() {
+                            }
+
+                            @test.annotation.Hide
                             @test.annotation.SystemApi
                             public abstract void abstractMethodOverridden();
 
@@ -580,7 +584,7 @@ class DeepApiSurfaceHierarchyTest : DriverTest() {
     private fun checkComplicatedCaseSystemAndModuleApi(
         apiSurface: KnownApiSurface,
         expectedApiSignature: String,
-        expectedIssues: String,
+        expectedIssues: String = "",
     ) {
         check(
             apiSurface = apiSurface,
@@ -601,7 +605,6 @@ class DeepApiSurfaceHierarchyTest : DriverTest() {
                     // Signature format: 2.0
                     package test.pkg {
                       public class PublicClass {
-                        ctor public PublicClass();
                       }
                       public class PublicSubClass extends test.pkg.PublicClass {
                         ctor public PublicSubClass();
@@ -610,12 +613,6 @@ class DeepApiSurfaceHierarchyTest : DriverTest() {
                         method public void systemMethodOverridden();
                       }
                     }
-                """,
-            expectedIssues =
-                """
-                    src/test/pkg/PublicClass.java:6: error: abstractMethodOverridden cannot be hidden and abstract when PublicClass has a visible constructor, in case a third-party attempts to subclass it. [HiddenAbstractMethod]
-                    src/test/pkg/PublicClass.java:10: error: abstractMethodNotOverridden cannot be hidden and abstract when PublicClass has a visible constructor, in case a third-party attempts to subclass it. [HiddenAbstractMethod]
-                    src/test/pkg/PublicClass.java:14: error: abstractMethodOverriddenByAbstract cannot be hidden and abstract when PublicClass has a visible constructor, in case a third-party attempts to subclass it. [HiddenAbstractMethod]
                 """,
         )
     }
@@ -663,7 +660,7 @@ class DeepApiSurfaceHierarchyTest : DriverTest() {
     private fun checkComplicatedCaseSystemApiOnly(
         apiSurface: KnownApiSurface,
         expectedApiSignature: String,
-        expectedIssues: String,
+        expectedIssues: String = "",
     ) {
         check(
             apiSurface = apiSurface,
@@ -684,7 +681,6 @@ class DeepApiSurfaceHierarchyTest : DriverTest() {
                     // Signature format: 2.0
                     package test.pkg {
                       public class PublicClass {
-                        ctor public PublicClass();
                       }
                       public class PublicSubClass extends test.pkg.PublicClass {
                         ctor public PublicSubClass();
@@ -693,12 +689,6 @@ class DeepApiSurfaceHierarchyTest : DriverTest() {
                         method public void systemMethodOverridden();
                       }
                     }
-                """,
-            expectedIssues =
-                """
-                    src/test/pkg/PublicClass.java:6: error: abstractMethodOverridden cannot be hidden and abstract when PublicClass has a visible constructor, in case a third-party attempts to subclass it. [HiddenAbstractMethod]
-                    src/test/pkg/PublicClass.java:10: error: abstractMethodNotOverridden cannot be hidden and abstract when PublicClass has a visible constructor, in case a third-party attempts to subclass it. [HiddenAbstractMethod]
-                    src/test/pkg/PublicClass.java:14: error: abstractMethodOverriddenByAbstract cannot be hidden and abstract when PublicClass has a visible constructor, in case a third-party attempts to subclass it. [HiddenAbstractMethod]
                 """,
         )
     }
