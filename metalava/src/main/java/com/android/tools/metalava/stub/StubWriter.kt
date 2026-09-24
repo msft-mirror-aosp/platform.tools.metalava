@@ -306,12 +306,10 @@ internal class StubWriter(
 fun createFilteringVisitorForStubs(
     delegate: DelegatedVisitor,
     apiFilters: ApiFilters?,
-    ignoreEmit: Boolean = false,
 ): ItemVisitor {
     return FilteringApiVisitor(
         delegate = delegate,
         apiFilters = apiFilters,
-        ignoreEmit = ignoreEmit,
     )
 }
 

@@ -126,7 +126,7 @@ open class ApiVisitor(
     }
 
     /** @return Whether this class is generally one that we want to recurse into */
-    open fun include(cls: ClassItem): Boolean {
+    private fun include(cls: ClassItem): Boolean {
         if (skip(cls)) {
             return false
         }

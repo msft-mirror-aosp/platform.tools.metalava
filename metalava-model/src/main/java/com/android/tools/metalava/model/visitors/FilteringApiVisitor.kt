@@ -73,7 +73,6 @@ class FilteringApiVisitor(
      */
     private val interfaceListComparator: Comparator<TypeItem>? = null,
     apiFilters: ApiFilters?,
-    private val ignoreEmit: Boolean = false,
 ) :
     ApiVisitor(
         preserveClassNesting = delegate.requiresClassNesting,
@@ -116,10 +115,6 @@ class FilteringApiVisitor(
 
     /** The current [ClassItem] being visited, */
     private var currentClassItem: FilteringClassItem? = null
-
-    override fun include(cls: ClassItem): Boolean {
-        return ignoreEmit || cls.emit
-    }
 
     override fun visitClass(cls: ClassItem) {
         // Switch the current class, if any, to be a containing class.
