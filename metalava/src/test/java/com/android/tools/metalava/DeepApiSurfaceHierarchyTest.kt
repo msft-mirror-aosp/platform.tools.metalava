@@ -17,6 +17,7 @@
 package com.android.tools.metalava
 
 import com.android.tools.metalava.KnownApiSurface.Companion.TEST_MODULE_API_SURFACE
+import com.android.tools.metalava.KnownApiSurface.Companion.TEST_PUBLIC_API_SURFACE
 import com.android.tools.metalava.KnownApiSurface.Companion.TEST_SYSTEM_AND_MODULE_API_SURFACE
 import com.android.tools.metalava.KnownApiSurface.Companion.TEST_SYSTEM_API_SURFACE
 import com.android.tools.metalava.model.text.FileFormat
@@ -576,13 +577,56 @@ class DeepApiSurfaceHierarchyTest : DriverTest() {
         )
     }
 
-    @Test
-    fun `Complicated case - SystemApi + ModuleApi`() {
+    private fun checkComplicatedCaseSystemAndModuleApi(
+        apiSurface: KnownApiSurface,
+        expectedApiSignature: String,
+        expectedIssues: String,
+    ) {
         check(
-            apiSurface = TEST_SYSTEM_AND_MODULE_API_SURFACE,
+            apiSurface = apiSurface,
             extraArguments = EXTRA_ARGS,
             format = FileFormat.V2,
             sourceFiles = SOURCE_FILES_B,
+            expectedApiSignature = expectedApiSignature,
+            expectedIssues = expectedIssues,
+        )
+    }
+
+    @Test
+    fun `Complicated case - SystemApi + ModuleApi - public`() {
+        checkComplicatedCaseSystemAndModuleApi(
+            apiSurface = TEST_PUBLIC_API_SURFACE,
+            expectedApiSignature =
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public class PublicClass {
+                        ctor public PublicClass();
+                      }
+                      public class PublicSubClass extends test.pkg.PublicClass {
+                        ctor public PublicSubClass();
+                        method public void abstractMethodOverridden();
+                        method public abstract void abstractMethodOverriddenByAbstract();
+                        method public void systemMethodOverridden();
+                      }
+                    }
+                """,
+            expectedIssues =
+                """
+                    src/test/pkg/PublicClass.java:6: error: abstractMethodOverridden cannot be hidden and abstract when PublicClass has a visible constructor, in case a third-party attempts to subclass it. [HiddenAbstractMethod]
+                    src/test/pkg/PublicClass.java:10: error: abstractMethodNotOverridden cannot be hidden and abstract when PublicClass has a visible constructor, in case a third-party attempts to subclass it. [HiddenAbstractMethod]
+                    src/test/pkg/PublicClass.java:14: error: abstractMethodOverriddenByAbstract cannot be hidden and abstract when PublicClass has a visible constructor, in case a third-party attempts to subclass it. [HiddenAbstractMethod]
+                """,
+        )
+    }
+
+    @Test
+    fun `Complicated case - SystemApi + ModuleApi - system and module`() {
+        checkComplicatedCaseSystemAndModuleApi(
+            apiSurface = TEST_SYSTEM_AND_MODULE_API_SURFACE,
+            // TODO(b/512093496): PublicSubClass.abstractMethodOverridden() should not be included
+            //  in the signature file because it is already part of the public API surface, which
+            //  this surface extends.
             expectedApiSignature =
                 """
                     // Signature format: 2.0
@@ -616,13 +660,56 @@ class DeepApiSurfaceHierarchyTest : DriverTest() {
         )
     }
 
-    @Test
-    fun `Complicated case - SystemApi only`() {
+    private fun checkComplicatedCaseSystemApiOnly(
+        apiSurface: KnownApiSurface,
+        expectedApiSignature: String,
+        expectedIssues: String,
+    ) {
         check(
-            apiSurface = TEST_SYSTEM_API_SURFACE,
+            apiSurface = apiSurface,
             extraArguments = EXTRA_ARGS,
             format = FileFormat.V2,
             sourceFiles = SOURCE_FILES_B,
+            expectedApiSignature = expectedApiSignature,
+            expectedIssues = expectedIssues,
+        )
+    }
+
+    @Test
+    fun `Complicated case - SystemApi only - public`() {
+        checkComplicatedCaseSystemApiOnly(
+            apiSurface = TEST_PUBLIC_API_SURFACE,
+            expectedApiSignature =
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public class PublicClass {
+                        ctor public PublicClass();
+                      }
+                      public class PublicSubClass extends test.pkg.PublicClass {
+                        ctor public PublicSubClass();
+                        method public void abstractMethodOverridden();
+                        method public abstract void abstractMethodOverriddenByAbstract();
+                        method public void systemMethodOverridden();
+                      }
+                    }
+                """,
+            expectedIssues =
+                """
+                    src/test/pkg/PublicClass.java:6: error: abstractMethodOverridden cannot be hidden and abstract when PublicClass has a visible constructor, in case a third-party attempts to subclass it. [HiddenAbstractMethod]
+                    src/test/pkg/PublicClass.java:10: error: abstractMethodNotOverridden cannot be hidden and abstract when PublicClass has a visible constructor, in case a third-party attempts to subclass it. [HiddenAbstractMethod]
+                    src/test/pkg/PublicClass.java:14: error: abstractMethodOverriddenByAbstract cannot be hidden and abstract when PublicClass has a visible constructor, in case a third-party attempts to subclass it. [HiddenAbstractMethod]
+                """,
+        )
+    }
+
+    @Test
+    fun `Complicated case - SystemApi only - system`() {
+        checkComplicatedCaseSystemApiOnly(
+            apiSurface = TEST_SYSTEM_API_SURFACE,
+            // TODO(b/512093496): PublicSubClass.abstractMethodOverridden() should not be included
+            //  in the signature file because it is already part of the public API surface, which
+            //  this surface extends.
             expectedApiSignature =
                 """
                     // Signature format: 2.0
