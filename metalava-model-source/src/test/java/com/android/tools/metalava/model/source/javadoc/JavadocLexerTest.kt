@@ -50,7 +50,7 @@ class JavadocLexerTest : BaseDocCommentTest() {
                 }
             }
         assertEquals(expectedTokens.trimIndent(), actual)
-        reporter.assertJavadocParserIssues(expectedIssues)
+        assertJavadocParserIssues(expectedIssues)
     }
 
     @Test

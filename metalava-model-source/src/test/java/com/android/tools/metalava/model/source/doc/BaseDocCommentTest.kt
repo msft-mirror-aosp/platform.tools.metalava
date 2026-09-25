@@ -34,6 +34,11 @@ abstract class BaseDocCommentTest {
     internal val reporter = CollatingDocumentationIssueReporter()
     internal val context = TestDocCommentContext(reporter)
 
+    /** Verify that the reported issues matches [expectedIssues]. */
+    internal fun assertJavadocParserIssues(expectedIssues: String) {
+        reporter.assertJavadocParserIssues(expectedIssues)
+    }
+
     /**
      * Create a [DocComment] from [input] for testing, verifying that [expectedIssues] were found.
      */
@@ -52,7 +57,7 @@ abstract class BaseDocCommentTest {
         docComment.description
         docComment.blockTagSections.forEach { it.description }
 
-        reporter.assertJavadocParserIssues(expectedIssues)
+        assertJavadocParserIssues(expectedIssues)
         return docComment
     }
 

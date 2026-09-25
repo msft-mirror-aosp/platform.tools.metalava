@@ -36,7 +36,7 @@ import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 
 @RunWith(Parameterized::class)
-class ParameterizedParsedReferenceTest {
+class ParameterizedParsedReferenceTest : BaseDocCommentTest() {
 
     @Parameterized.Parameter(0) internal lateinit var params: TestParams
 
@@ -503,14 +503,12 @@ class ParameterizedParsedReferenceTest {
             )
     }
 
-    internal val reporter = CollatingDocumentationIssueReporter()
-
     val docTypeParser = DocTypeParser.create(reporter, typeParameterScope)
 
     @Test
     fun `Test parsing`() {
         val parsed = LabeledRefTagType.parseReference(params.reference, docTypeParser)
-        reporter.assertJavadocParserIssues(params.expectedIssues)
+        assertJavadocParserIssues(params.expectedIssues)
         assertEquals(params.expectedParsed, parsed)
     }
 

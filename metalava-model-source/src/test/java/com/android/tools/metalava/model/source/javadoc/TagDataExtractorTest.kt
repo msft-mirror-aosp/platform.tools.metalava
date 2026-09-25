@@ -39,7 +39,7 @@ class TagDataExtractorTest : BaseDocCommentTest() {
                 reporter,
             )
 
-        reporter.assertJavadocParserIssues(expectedJavadocIssues)
+        assertJavadocParserIssues(expectedJavadocIssues)
 
         val tagData = result?.tagData
         assertEquals(expectedTagData, tagData, message = "tagData")
