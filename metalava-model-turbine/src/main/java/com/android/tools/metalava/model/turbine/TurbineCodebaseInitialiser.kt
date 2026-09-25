@@ -417,7 +417,7 @@ internal class TurbineCodebaseInitialiser(
                 SourcePackageInfo(
                     sourceFile = turbineSourceFile,
                     annotations = annotationFactory.createAnnotations(annoInfos, fieldResolver),
-                    commentFactory = itemDocumentationFactoryForDecl(turbineSourceFile, pkgDecl),
+                    commentFactory = itemDocumentationFactoryForDecl(pkgDecl),
                 )
             }
             // Handle a package-info.class file.

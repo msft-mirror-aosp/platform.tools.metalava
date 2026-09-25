@@ -24,7 +24,6 @@ import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.ClassOrVariableTypeItem
 import com.android.tools.metalava.model.ClassOrigin
 import com.android.tools.metalava.model.ConstructorItem
-import com.android.tools.metalava.model.ItemDocumentationFactory
 import com.android.tools.metalava.model.ItemKind
 import com.android.tools.metalava.model.ModifierContext
 import com.android.tools.metalava.model.ModifierFlags
@@ -193,7 +192,7 @@ internal class TurbineClassBuilder(
             itemFactory.createClassItem(
                 fileLocation = fileLocation,
                 modifiers = modifiers,
-                documentationFactory = itemDocumentationFactoryForDecl(sourceFile, decl),
+                documentationFactory = itemDocumentationFactoryForDecl(decl),
                 source = sourceFile,
                 classKind = classKind,
                 containingClass = containingClassItem,
@@ -481,7 +480,7 @@ internal class TurbineClassBuilder(
                 itemFactory.createFieldItem(
                     fileLocation = TurbineFileLocation.forTree(classItem, decl),
                     modifiers = fieldmodifiers,
-                    documentationFactory = itemDocumentationFactoryForDecl(classItem, decl),
+                    documentationFactory = itemDocumentationFactoryForDecl(decl),
                     name = field.name(),
                     containingClass = classItem,
                     type = type,
@@ -567,7 +566,7 @@ internal class TurbineClassBuilder(
                 itemFactory.createMethodItem(
                     fileLocation = TurbineFileLocation.forTree(classItem, decl),
                     modifiers = methodmodifiers,
-                    documentationFactory = itemDocumentationFactoryForDecl(classItem, decl),
+                    documentationFactory = itemDocumentationFactoryForDecl(decl),
                     name = name,
                     containingClass = classItem,
                     typeParameterList = typeParams,
@@ -725,7 +724,7 @@ internal class TurbineClassBuilder(
                 itemFactory.createConstructorItem(
                     fileLocation = TurbineFileLocation.forTree(classItem, decl),
                     modifiers = modifiers,
-                    documentationFactory = itemDocumentationFactoryForDecl(classItem, decl),
+                    documentationFactory = itemDocumentationFactoryForDecl(decl),
                     // Turbine's Binder gives return type of constructors as void but the
                     // model expects it to the type of object being created. So, use the
                     // containing [ClassItem]'s type as the constructor return type.
@@ -792,10 +791,6 @@ internal class TurbineClassBuilder(
                 recordComponentIndex = index,
             )
         }
-
-    /** Get an [ItemDocumentationFactory] for [decl] in [classItem]. */
-    private fun itemDocumentationFactoryForDecl(classItem: ClassItem, decl: Tree?) =
-        itemDocumentationFactoryForDecl(classItem.sourceFile() as? TurbineSourceFile, decl)
 
     /**
      * Check to see whether the initial value for [field] is non-null.

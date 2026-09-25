@@ -16,28 +16,27 @@
 
 package com.android.tools.metalava.model.turbine
 
+import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.source.LazySourceComment
 import com.android.tools.metalava.reporter.FileLocation
 import com.google.turbine.model.TurbineJavadoc
 
 /** A Turbine implementation of [LazySourceComment]. */
 internal class TurbineSourceComment(
-    private val sourceFile: TurbineSourceFile?,
+    private val item: SelectableItem,
     private val turbineJavadoc: TurbineJavadoc,
 ) : LazySourceComment() {
 
-    override fun obtainFileLocation() =
-        if (sourceFile == null) {
-            FileLocation.UNKNOWN
-        } else {
-            TurbineFileLocation(
-                sourceFile,
-                turbineJavadoc.startPosition(),
-                // Report character position for documentation locations as that is consistent
-                // across models (because it is computed by Metalava not the underlying models).
-                reportCharacterPosition = true,
-            )
-        }
+    override fun obtainFileLocation(): FileLocation {
+        val sourceFile = item.sourceFile() as? TurbineSourceFile ?: return FileLocation.UNKNOWN
+        return TurbineFileLocation(
+            sourceFile,
+            turbineJavadoc.startPosition(),
+            // Report character position for documentation locations as that is consistent
+            // across models (because it is computed by Metalava not the underlying models).
+            reportCharacterPosition = true,
+        )
+    }
 
     override fun obtainText(): String {
         // Reconstruct the original comment.
