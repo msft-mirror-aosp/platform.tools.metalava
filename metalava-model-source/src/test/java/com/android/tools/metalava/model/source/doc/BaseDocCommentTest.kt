@@ -32,7 +32,6 @@ import org.mockito.kotlin.mock
 
 abstract class BaseDocCommentTest {
     internal val reporter = CollatingDocumentationIssueReporter()
-    internal val context = TestDocCommentContext(reporter)
 
     /** Verify that the reported issues matches [expectedIssues]. */
     internal fun assertJavadocParserIssues(expectedIssues: String) {
@@ -40,17 +39,31 @@ abstract class BaseDocCommentTest {
     }
 
     /**
+     * Create a [TestDocCommentContext] using [reporter] and the optional [flagToEnabledStatus] map
+     * from flag name to enabled status.
+     */
+    internal fun createDocContext(
+        flagToEnabledStatus: Map<String, Boolean> = emptyMap(),
+    ): TestDocCommentContext =
+        TestDocCommentContext(
+            reporter,
+            flagToEnabledStatus,
+        )
+
+    /**
      * Create a [DocComment] from [input] for testing, verifying that [expectedIssues] were found.
      */
     internal fun createTestDocComment(
         input: String,
         expectedIssues: String = "",
+        flagToEnabledStatus: Map<String, Boolean> = emptyMap(),
     ): DocComment {
-        var docComment =
+        val context = createDocContext(flagToEnabledStatus)
+        val docComment =
             DocCommentParser.parseText(
                 context,
                 input.trimIndent(),
-                reporter,
+                context.reporter,
             )
 
         // Parse all the descriptions
@@ -123,10 +136,12 @@ internal class CollatingDocumentationIssueReporter : DocumentationIssueReporter 
 }
 
 /** A test [DocCommentContext] that provides basic implementations. */
-internal class TestDocCommentContext(reporter: DocumentationIssueReporter) : DocCommentContext {
+internal class TestDocCommentContext(
+    val reporter: DocumentationIssueReporter,
 
-    /** A map from flage name to enabled status. */
-    var flags: Map<String, Boolean> = emptyMap()
+    /** A map from flag name to enabled status. */
+    val flagToEnabledStatus: Map<String, Boolean> = emptyMap(),
+) : DocCommentContext {
 
     /** Qualify [sourceReference], if needed. */
     private fun qualifySourceReference(sourceReference: String): String =
@@ -155,7 +170,7 @@ internal class TestDocCommentContext(reporter: DocumentationIssueReporter) : Doc
         }
 
     /** Implements [ExprContext.isFlagEnabled]. */
-    override fun isFlagEnabled(flagName: String) = flags[flagName] ?: false
+    override fun isFlagEnabled(flagName: String) = flagToEnabledStatus[flagName] ?: false
 
     override fun ordinalInParamsList(name: String) = 0
 

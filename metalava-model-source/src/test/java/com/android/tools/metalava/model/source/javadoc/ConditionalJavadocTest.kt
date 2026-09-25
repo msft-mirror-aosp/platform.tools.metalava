@@ -25,9 +25,9 @@ class ConditionalJavadocTest : BaseJavadocTest() {
         expectedJavadocIssues: String = "",
         expectedStructure: String,
     ) {
-        context.flags = flags
         checkParse(
             text,
+            flagToEnabledStatus = flags,
             expectedJavadocIssues = expectedJavadocIssues,
             expectedStructure = expectedStructure,
         )

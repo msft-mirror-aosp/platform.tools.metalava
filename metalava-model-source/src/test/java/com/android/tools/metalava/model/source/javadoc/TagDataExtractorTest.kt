@@ -32,11 +32,12 @@ class TagDataExtractorTest : BaseDocCommentTest() {
         val content = docComment.description
         content.assertStructure(expectedInputStructure, message = "input structure")
 
-        var result =
+        val context = createDocContext()
+        val result =
             content?.extractTagDataForTagType(
                 context,
                 TestTagTypes.BAR_TAG_TYPE,
-                reporter,
+                context.reporter,
             )
 
         assertJavadocParserIssues(expectedJavadocIssues)
