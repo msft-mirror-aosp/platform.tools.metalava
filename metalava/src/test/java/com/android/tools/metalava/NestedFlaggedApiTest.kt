@@ -89,6 +89,10 @@ class NestedFlaggedApiTest : DriverTest() {
     private fun checkNestedFlags(
         outerAction: ApiFlagAction,
         nestedAction: ApiFlagAction,
+        checkCompatibilityApiReleased: String =
+            """
+                // Signature format: 5.0
+            """,
         expectedApiSignature: String,
         expectedStubFiles: Array<TestFile> = emptyArray(),
         expectedIssues: String = "",
@@ -128,10 +132,7 @@ class NestedFlaggedApiTest : DriverTest() {
                     ),
                     flaggedApiSource,
                 ),
-            checkCompatibilityApiReleased =
-                """
-                    // Signature format: 5.0
-                """,
+            checkCompatibilityApiReleased = checkCompatibilityApiReleased,
             expectedApiSignature = expectedApiSignature,
             expectedStubFiles = expectedStubFiles,
             stubPaths = expectedStubFiles.map { it.targetRelativePath }.toTypedArray(),
@@ -172,6 +173,58 @@ class NestedFlaggedApiTest : DriverTest() {
     }
 
     @Test
+    fun `Test outer revert and nested keep with outer in previously released API`() {
+        // Because Foo was in the previously released API, reverting test.pkg.outer reverts Foo to
+        // its previously released state (public class Foo {}) rather than removing it, and reverts
+        // unflagged new members (Foo(), method(), Nested). However, flaggedMethod() and
+        // FlaggedNested are explicitly guarded by test.pkg.nested (KEEP) inside an existing class
+        // Foo, so they should be kept in the signature and stubs (with @FlaggedApi /
+        // @RequiresFlag("test.pkg.nested")), and no InvalidFlagNesting issue should be reported.
+        // TODO: Currently SelectedApiUpdater reports InvalidFlagNesting and marks all members and
+        //  nested classes of a class marked for revert as reverted even when they have their own
+        //  @FlaggedApi annotation, causing flaggedMethod() and FlaggedNested to be dropped from the
+        //  signature and stubs.
+        checkNestedFlags(
+            outerAction = REVERT,
+            nestedAction = KEEP,
+            checkCompatibilityApiReleased =
+                """
+                    // Signature format: 5.0
+                    package test.pkg {
+                      public class Foo {
+                      }
+                    }
+                """,
+            expectedApiSignature =
+                """
+                    // Signature format: 5.0
+                    package test.pkg {
+                      public class Foo {
+                      }
+                    }
+                """,
+            expectedStubFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            @SuppressWarnings({"unchecked", "deprecation", "all"})
+                            public class Foo {
+                            Foo() { throw new RuntimeException("Stub!"); }
+                            }
+                        """
+                    ),
+                ),
+            expectedIssues =
+                """
+                    src/test/pkg/Foo.java:5: error: @FlaggedApi flag test.pkg.outer is reverted but contains flags in a conflicting state [InvalidFlagNesting]
+                    src/test/pkg/Foo.java:11: error: @FlaggedApi flag test.pkg.nested is not-finalized but is contained by a flag in a conflicting state [InvalidFlagNesting]
+                    src/test/pkg/Foo.java:19: error: @FlaggedApi flag test.pkg.nested is not-finalized but is contained by a flag in a conflicting state [InvalidFlagNesting]
+                """,
+        )
+    }
+
+    @Test
     fun `Test outer revert and nested finalize`() {
         checkNestedFlags(
             outerAction = REVERT,
@@ -181,6 +234,58 @@ class NestedFlaggedApiTest : DriverTest() {
                     // Signature format: 5.0
                 """,
             expectedStubFiles = emptyArray(),
+            expectedIssues =
+                """
+                    src/test/pkg/Foo.java:5: error: @FlaggedApi flag test.pkg.outer is reverted but contains flags in a conflicting state [InvalidFlagNesting]
+                    src/test/pkg/Foo.java:11: error: @FlaggedApi flag test.pkg.nested is finalized but is contained by a flag in a conflicting state [InvalidFlagNesting]
+                    src/test/pkg/Foo.java:19: error: @FlaggedApi flag test.pkg.nested is finalized but is contained by a flag in a conflicting state [InvalidFlagNesting]
+                """,
+        )
+    }
+
+    @Test
+    fun `Test outer revert and nested finalize with outer in previously released API`() {
+        // Because Foo was in the previously released API, reverting test.pkg.outer reverts Foo to
+        // its previously released state (public class Foo {}) rather than removing it, and reverts
+        // unflagged new members (Foo(), method(), Nested). However, flaggedMethod() and
+        // FlaggedNested are explicitly guarded by test.pkg.nested (FINALIZE) inside an existing
+        // class Foo, so they should be included as finalized (unflagged) APIs in the signature and
+        // stubs, and no InvalidFlagNesting issue should be reported.
+        // TODO: Currently SelectedApiUpdater reports InvalidFlagNesting and marks all members and
+        //  nested classes of a class marked for revert as reverted even when they have their own
+        //  @FlaggedApi annotation, causing flaggedMethod() and FlaggedNested to be dropped from the
+        //  signature and stubs.
+        checkNestedFlags(
+            outerAction = REVERT,
+            nestedAction = FINALIZE,
+            checkCompatibilityApiReleased =
+                """
+                    // Signature format: 5.0
+                    package test.pkg {
+                      public class Foo {
+                      }
+                    }
+                """,
+            expectedApiSignature =
+                """
+                    // Signature format: 5.0
+                    package test.pkg {
+                      public class Foo {
+                      }
+                    }
+                """,
+            expectedStubFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            @SuppressWarnings({"unchecked", "deprecation", "all"})
+                            public class Foo {
+                            Foo() { throw new RuntimeException("Stub!"); }
+                            }
+                        """
+                    ),
+                ),
             expectedIssues =
                 """
                     src/test/pkg/Foo.java:5: error: @FlaggedApi flag test.pkg.outer is reverted but contains flags in a conflicting state [InvalidFlagNesting]
@@ -325,6 +430,78 @@ class NestedFlaggedApiTest : DriverTest() {
                             package test.pkg;
                             @SuppressWarnings({"unchecked", "deprecation", "all"})
                             @android.annotation.RequiresFlag("test.pkg.outer")
+                            public class Foo {
+                            @android.annotation.RequiresFlag("test.pkg.outer")
+                            public Foo() { throw new RuntimeException("Stub!"); }
+                            public void flaggedMethod() { throw new RuntimeException("Stub!"); }
+                            @android.annotation.RequiresFlag("test.pkg.outer")
+                            public void method() { throw new RuntimeException("Stub!"); }
+                            public static class FlaggedNested {
+                            public FlaggedNested() { throw new RuntimeException("Stub!"); }
+                            public void method() { throw new RuntimeException("Stub!"); }
+                            }
+                            @android.annotation.RequiresFlag("test.pkg.outer")
+                            public static class Nested {
+                            @android.annotation.RequiresFlag("test.pkg.outer")
+                            public Nested() { throw new RuntimeException("Stub!"); }
+                            @android.annotation.RequiresFlag("test.pkg.outer")
+                            public void method() { throw new RuntimeException("Stub!"); }
+                            }
+                            }
+                        """
+                    ),
+                ),
+            expectedIssues =
+                """
+                    src/test/pkg/Foo.java:5: error: @FlaggedApi flag test.pkg.outer is not-finalized but contains flags in a conflicting state [InvalidFlagNesting]
+                    src/test/pkg/Foo.java:11: error: @FlaggedApi flag test.pkg.nested is finalized but is contained by a flag in a conflicting state [InvalidFlagNesting]
+                    src/test/pkg/Foo.java:19: error: @FlaggedApi flag test.pkg.nested is finalized but is contained by a flag in a conflicting state [InvalidFlagNesting]
+                """,
+        )
+    }
+
+    @Test
+    fun `Test outer keep and nested finalize with outer in previously released API`() {
+        // Because Foo was in the previously released API, Foo is already part of the released API,
+        // so finalizing nested items inside Foo does not conflict with Foo's @FlaggedApi.
+        // TODO: Currently SelectedApiUpdater reports InvalidFlagNesting even though Foo was in the
+        //  previously released API.
+        checkNestedFlags(
+            outerAction = KEEP,
+            nestedAction = FINALIZE,
+            checkCompatibilityApiReleased =
+                """
+                    // Signature format: 5.0
+                    package test.pkg {
+                      public class Foo {
+                      }
+                    }
+                """,
+            expectedApiSignature =
+                """
+                    // Signature format: 5.0
+                    package test.pkg {
+                      @FlaggedApi("test.pkg.outer") public class Foo {
+                        ctor public Foo();
+                        method public void flaggedMethod();
+                        method public void method();
+                      }
+                      public static class Foo.FlaggedNested {
+                        ctor public Foo.FlaggedNested();
+                        method public void method();
+                      }
+                      public static class Foo.Nested {
+                        ctor public Foo.Nested();
+                        method public void method();
+                      }
+                    }
+                """,
+            expectedStubFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            @SuppressWarnings({"unchecked", "deprecation", "all"})
                             public class Foo {
                             @android.annotation.RequiresFlag("test.pkg.outer")
                             public Foo() { throw new RuntimeException("Stub!"); }
