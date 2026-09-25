@@ -663,6 +663,8 @@ internal class SourceFileSnapshot(
     override val fileLocation: FileLocation
         get() = originalSourceFile.fileLocation
 
+    override fun computeLineMap() = originalSourceFile.lineMap
+
     override fun computeContainingPackageName() =
         originalSourceFile.containingPackage.qualifiedName()
 

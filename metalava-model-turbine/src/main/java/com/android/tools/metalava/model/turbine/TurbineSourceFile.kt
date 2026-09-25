@@ -20,9 +20,9 @@ import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.JavaImport
 import com.android.tools.metalava.model.item.AbstractSourceFile
 import com.android.tools.metalava.model.item.DefaultCodebase
-import com.android.tools.metalava.model.source.doc.characterOffsetFor
+import com.android.tools.metalava.model.parser.LineMap
 import com.android.tools.metalava.reporter.FileLocation
-import com.google.turbine.diag.LineMap
+import com.google.turbine.diag.LineMap as TurbineDiagLineMap
 import com.google.turbine.tree.Tree.CompUnit
 
 internal class TurbineSourceFile(
@@ -31,6 +31,9 @@ internal class TurbineSourceFile(
 ) : AbstractSourceFile() {
 
     override val fileLocation: FileLocation = TurbineFileLocation.forTree(this)
+
+    override fun computeLineMap(): LineMap =
+        TurbineLineMap(TurbineDiagLineMap.create(compUnit.source().source()))
 
     override fun computeContainingPackageName() = getPackageName(compUnit)
 
@@ -62,14 +65,6 @@ internal class TurbineSourceFile(
         }
 
     /**
-     * The [LineMap] used to map positions in the source file into line numbers.
-     *
-     * Created lazily as it can be expensive to create.
-     */
-    private val lineMap by
-        lazy(LazyThreadSafetyMode.NONE) { LineMap.create(compUnit.source().source()) }
-
-    /**
      * Get the line number for [position] which was retrieved from
      * [com.google.turbine.tree.Tree.position].
      */
@@ -79,6 +74,14 @@ internal class TurbineSourceFile(
      * Get the character position for [position] which was retrieved from
      * [com.google.turbine.tree.Tree.position].
      */
-    fun characterPositionForPosition(position: Int) =
-        compUnit.source().source().characterOffsetFor(position) + 1
+    fun characterPositionForPosition(position: Int) = lineMap.characterPosition(position)
+}
+
+/** A [LineMap] that wraps a [TurbineDiagLineMap]. */
+private class TurbineLineMap(private val delegate: TurbineDiagLineMap) : LineMap {
+    override fun lineNumber(charIndex: Int): Int = delegate.lineNumber(charIndex)
+
+    override fun characterPosition(charIndex: Int): Int = delegate.column(charIndex) + 1
+
+    override fun characterOffset(charIndex: Int): Int = delegate.column(charIndex)
 }
