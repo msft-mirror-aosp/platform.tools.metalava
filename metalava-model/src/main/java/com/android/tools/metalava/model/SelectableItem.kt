@@ -69,4 +69,7 @@ interface SelectableItem : Item, ReferencableNameScope {
 
     override val descriptionOwner: DocContentOwner
         get() = requiredDocumentation.mainDescriptionOwner
+
+    /** Returns the corresponding source file, if any. */
+    fun sourceFile(): SourceFile? = containingClass()?.sourceFile()
 }

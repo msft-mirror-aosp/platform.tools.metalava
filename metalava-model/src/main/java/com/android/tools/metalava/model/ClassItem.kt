@@ -533,7 +533,7 @@ interface ClassItem :
     }
 
     /** Returns the corresponding source file, if any */
-    fun sourceFile(): SourceFile?
+    override fun sourceFile(): SourceFile?
 
     /**
      * Get the [AnnotationClass] for this class.
