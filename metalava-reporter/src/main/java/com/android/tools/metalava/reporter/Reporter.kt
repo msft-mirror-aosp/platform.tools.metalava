@@ -22,7 +22,6 @@ import java.io.StringWriter
 import java.io.Writer
 
 interface Reporter {
-
     /**
      * Report an issue with a specific file.
      *
@@ -139,8 +138,10 @@ abstract class BaseReporter : Reporter {
  * Abstract implementation of a [Reporter] that performs no filtering and delegates the handling of
  * a report to [handleFormattedMessage].
  */
-abstract class AbstractBasicReporter(private val excludedIssues: Set<Issues.Issue> = emptySet()) :
-    BaseReporter() {
+abstract class AbstractBasicReporter(
+    private val excludedIssues: Set<Issues.Issue> = emptySet(),
+    private val includeSeverity: Boolean = true,
+) : BaseReporter() {
     override fun report(
         id: Issues.Issue,
         reportable: Reportable?,
@@ -177,10 +178,14 @@ abstract class AbstractBasicReporter(private val excludedIssues: Set<Issues.Issu
             }
             append(" ")
             val severity = id.defaultLevel
-            append(severity)
-            append(": ")
+            if (includeSeverity) {
+                append(severity)
+                append(": ")
+            }
             append(message)
-            append(severity.messageSuffix)
+            if (includeSeverity) {
+                append(severity.messageSuffix)
+            }
             append(" [")
             append(id.name)
             append("]")
@@ -208,7 +213,8 @@ class BasicReporter(private val stderr: PrintWriter) : AbstractBasicReporter() {
 /** A [Reporter] which will record issues in an internal buffer, accessible through [issues]. */
 class RecordingReporter(
     excludedIssues: Set<Issues.Issue> = emptySet(),
-) : AbstractBasicReporter(excludedIssues) {
+    includeSeverity: Boolean = true,
+) : AbstractBasicReporter(excludedIssues, includeSeverity) {
     private val stringWriter = StringWriter()
 
     override fun handleFormattedMessage(formattedMessage: String): Boolean {
