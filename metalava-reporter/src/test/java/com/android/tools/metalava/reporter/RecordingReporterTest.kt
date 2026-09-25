@@ -43,7 +43,7 @@ class RecordingReporterTest {
     @Test
     fun `Test reporter with unknown file location`() {
         checkReporter(
-            expectedOutput = "null: error: message [InvalidSyntax]",
+            expectedOutput = "error: message [InvalidSyntax]",
         ) {
             reporter.report(Issues.INVALID_SYNTAX, NULL_REPORTABLE, "message", FileLocation.UNKNOWN)
         }

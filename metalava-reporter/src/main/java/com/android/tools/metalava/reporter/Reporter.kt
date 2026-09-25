@@ -158,18 +158,24 @@ abstract class AbstractBasicReporter(private val excludedIssues: Set<Issues.Issu
 
         val formattedMessage = buildString {
             val usableLocation = reportable?.fileLocation ?: location
-            append(usableLocation.path)
-            var line = usableLocation.line
+            usableLocation.path?.let { path ->
+                val stringPath = path.toString()
+                if (stringPath.isNotEmpty()) {
+                    append(stringPath)
+                    append(":")
+                }
+            }
+            val line = usableLocation.line
             if (line > 0) {
-                append(":")
                 append(line)
-            }
-            var characterPosition = usableLocation.characterPosition
-            if (characterPosition > 0) {
                 append(":")
-                append(characterPosition)
             }
-            append(": ")
+            val characterPosition = usableLocation.characterPosition
+            if (characterPosition > 0) {
+                append(characterPosition)
+                append(":")
+            }
+            append(" ")
             val severity = id.defaultLevel
             append(severity)
             append(": ")
