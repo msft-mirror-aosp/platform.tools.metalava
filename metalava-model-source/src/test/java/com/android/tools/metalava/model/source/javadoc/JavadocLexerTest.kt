@@ -17,6 +17,7 @@
 package com.android.tools.metalava.model.source.javadoc
 
 import com.android.tools.metalava.model.source.doc.BaseDocCommentTest
+import com.android.tools.metalava.model.source.doc.TestDocumentationIssueReporter
 import kotlin.test.assertEquals
 import org.junit.Test
 
@@ -37,7 +38,13 @@ class JavadocLexerTest : BaseDocCommentTest() {
         expectedIssues: String = "",
         includePosition: Boolean = false,
     ) {
-        val lexer = JavadocLexer(text, startInclusive, endExclusive, reporter)
+        val lexer =
+            JavadocLexer(
+                text,
+                startInclusive,
+                endExclusive,
+                TestDocumentationIssueReporter(reporter),
+            )
         val tokens = lexer.tokenize()
         val actual =
             tokens.joinToString("\n") { token ->

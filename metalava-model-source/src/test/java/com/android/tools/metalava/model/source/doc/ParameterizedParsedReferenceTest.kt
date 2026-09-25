@@ -503,10 +503,14 @@ class ParameterizedParsedReferenceTest : BaseDocCommentTest() {
             )
     }
 
-    val docTypeParser = DocTypeParser.create(reporter, typeParameterScope)
+    private fun createDocTypeParser(): DocTypeParser {
+        val reporter = TestDocumentationIssueReporter(reporter)
+        return DocTypeParser.create(reporter, typeParameterScope)
+    }
 
     @Test
     fun `Test parsing`() {
+        val docTypeParser = createDocTypeParser()
         val parsed = LabeledRefTagType.parseReference(params.reference, docTypeParser)
         assertJavadocParserIssues(params.expectedIssues)
         assertEquals(params.expectedParsed, parsed)
@@ -514,6 +518,7 @@ class ParameterizedParsedReferenceTest : BaseDocCommentTest() {
 
     @Test
     fun `Test normalized form`() {
+        val docTypeParser = createDocTypeParser()
         assumeNotNull(params.expectedParsed)
 
         val parsed = LabeledRefTagType.parseReference(params.reference, docTypeParser)

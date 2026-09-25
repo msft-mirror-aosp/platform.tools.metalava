@@ -24,18 +24,31 @@ import com.android.tools.metalava.model.scope.NameClassification
 import com.android.tools.metalava.model.source.javadoc.ExprContext
 import com.android.tools.metalava.model.source.javadoc.TestTagTypes
 import com.android.tools.metalava.model.value.Value
+import com.android.tools.metalava.reporter.FileLocation
 import com.android.tools.metalava.reporter.Issues.Issue
+import com.android.tools.metalava.reporter.RecordingReporter
+import com.android.tools.metalava.reporter.Reportable
+import com.android.tools.metalava.reporter.Reporter
+import java.nio.file.Path
 import kotlin.test.assertEquals
 import org.junit.Before
 import org.mockito.kotlin.doReturn
 import org.mockito.kotlin.mock
 
 abstract class BaseDocCommentTest {
-    internal val reporter = CollatingDocumentationIssueReporter()
+    internal val reporter =
+        RecordingReporter(
+            includeSeverity = false,
+            sortIssues = true,
+        )
 
     /** Verify that the reported issues matches [expectedIssues]. */
     internal fun assertJavadocParserIssues(expectedIssues: String) {
-        reporter.assertJavadocParserIssues(expectedIssues)
+        assertEquals(
+            expectedIssues.trimIndent(),
+            reporter.removeIssues(),
+            message = "javadoc parser issues"
+        )
     }
 
     /**
@@ -46,7 +59,7 @@ abstract class BaseDocCommentTest {
         flagToEnabledStatus: Map<String, Boolean> = emptyMap(),
     ): TestDocCommentContext =
         TestDocCommentContext(
-            reporter,
+            TestDocumentationIssueReporter(reporter),
             flagToEnabledStatus,
         )
 
@@ -83,7 +96,7 @@ abstract class BaseDocCommentTest {
         expectedPrintOutput: String,
         message: String? = null,
     ) {
-        var actualPrintOutput = docComment.asJavadocCommentString().trim()
+        val actualPrintOutput = docComment.asJavadocCommentString().trim()
         assertEquals(expectedPrintOutput.trimIndent(), actualPrintOutput, message)
     }
 
@@ -94,44 +107,13 @@ abstract class BaseDocCommentTest {
     }
 }
 
-/**
- * A [DocumentationIssueReporter] that collates any issues reported and returns them from
- * [toString].
- */
-internal class CollatingDocumentationIssueReporter : DocumentationIssueReporter {
-    private val list = mutableListOf<Report>()
-
-    private data class Report(
-        val line: Int,
-        val charPosition: Int,
-        val issue: Issue,
-        val message: String,
-    )
-
+/** A [DocumentationIssueReporter] that delegates any issues reported to [reporter]. */
+internal class TestDocumentationIssueReporter(private val reporter: Reporter) :
+    DocumentationIssueReporter {
     override fun report(issue: Issue, message: String, lineOffset: Int, charOffset: Int) {
-        list.add(Report(lineOffset + 1, charOffset + 1, issue, message))
-    }
-
-    override fun toString(): String {
-        list.sortWith(reportComparator)
-        return list.joinToString("\n") { report ->
-            "${report.line}:${report.charPosition}: ${report.message} [${report.issue.name}]"
-        }
-    }
-
-    /** Verify that the reported issues matches [expectedIssues]. */
-    fun assertJavadocParserIssues(expectedIssues: String) {
-        assertEquals(expectedIssues.trimIndent(), toString(), message = "javadoc parser issues")
-    }
-
-    companion object {
-        private val reportComparator =
-            compareBy<Report>(
-                { it.line },
-                { it.charPosition },
-                { it.issue?.name },
-                { it.message },
-            )
+        val reportable: Reportable? = null
+        val fileLocation = FileLocation.createLocation(Path.of(""), lineOffset + 1, charOffset + 1)
+        reporter.report(issue, reportable, message, fileLocation)
     }
 }
 
