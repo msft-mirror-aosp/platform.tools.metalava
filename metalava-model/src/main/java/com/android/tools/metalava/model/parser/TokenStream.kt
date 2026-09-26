@@ -16,6 +16,16 @@
 
 package com.android.tools.metalava.model.parser
 
+/** Produces [Token]s on demand for a [TokenStream]. */
+fun interface TokenProducer {
+    /**
+     * Returns the next [Token] from the input.
+     *
+     * Once the input is exhausted, subsequent calls must return an EOF token.
+     */
+    fun nextToken(): Token
+}
+
 /** A forward-moving stream of [Token]s. */
 sealed interface TokenStream {
     /** Returns the next token to be consumed without consuming it. */
@@ -45,6 +55,9 @@ sealed interface TokenStream {
     companion object {
         /** Creates a [TokenStream] backed by a pre-tokenized [List] of [Token]s. */
         fun eager(tokens: List<Token>): TokenStream = EagerTokenStream(tokens)
+
+        /** Creates a lazy [TokenStream] that pulls tokens on demand from [producer]. */
+        fun lazy(producer: TokenProducer): TokenStream = LazyTokenStream(producer)
     }
 }
 
@@ -71,4 +84,21 @@ internal class EagerTokenStream(
         }
         return token
     }
+}
+
+/**
+ * A lazy [TokenStream] implementation that pulls [Token]s on demand from [producer].
+ *
+ * Only the single peeked lookahead token is buffered in memory; once consumed via [consume] or
+ * [skip], the token is immediately discarded.
+ */
+internal class LazyTokenStream(
+    private val producer: TokenProducer,
+) : TokenStream {
+    /** The next token to be consumed, if already peeked. */
+    private var next: Token? = null
+
+    override fun peek(): Token = next ?: producer.nextToken().also { next = it }
+
+    override fun consume(): Token = next?.also { next = null } ?: producer.nextToken()
 }
