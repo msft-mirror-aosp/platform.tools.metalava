@@ -16,9 +16,8 @@
 
 package com.android.tools.metalava.model.source.javadoc
 
+import com.android.tools.metalava.model.parser.AbstractLexer
 import com.android.tools.metalava.model.parser.Token
-import com.android.tools.metalava.model.parser.TokenProducer
-import com.android.tools.metalava.model.parser.TokenStream
 import com.android.tools.metalava.model.parser.TokenType
 import com.android.tools.metalava.model.source.doc.DocumentationIssueReporter
 import com.android.tools.metalava.reporter.Issues
@@ -166,14 +165,16 @@ private enum class LexerMode {
  * @param reporter used for reporting any syntax issues encountered during lexing.
  */
 internal class JavadocLexer(
-    private val text: String,
-    private val startInclusive: Int,
-    private val endExclusive: Int,
+    text: String,
+    startInclusive: Int,
+    endExclusive: Int,
     private val reporter: DocumentationIssueReporter,
-) : TokenProducer {
-    /** Current reading position in [text]. */
-    private var index = startInclusive
-
+) :
+    AbstractLexer(
+        text,
+        startInclusive,
+        endExclusive,
+    ) {
     /** Stack of [LexerMode]s controlling context-dependent tokenization. */
     private val modeStack = ArrayDeque<LexerMode>()
 
@@ -197,18 +198,18 @@ internal class JavadocLexer(
     }
 
     /** Creates and returns a [Token], flushing any pending unexpected character sequence first. */
-    private fun createToken(
+    override fun createToken(
         type: TokenType,
         text: String,
         startIndex: Int,
         endIndex: Int,
     ): Token {
         flushUnexpected()
-        return Token(
+        return super.createToken(
             type,
             text,
-            startIndex - startInclusive,
-            endIndex - startInclusive,
+            startIndex,
+            endIndex,
         )
     }
 
@@ -246,13 +247,6 @@ internal class JavadocLexer(
             unexpectedContext = null
         }
     }
-
-    /**
-     * Tokenize the text from [startInclusive] to [endExclusive].
-     *
-     * @return a [TokenStream] ending with a [JavadocTokenType.EOF] token.
-     */
-    fun tokenize(): TokenStream = TokenStream.lazy(this)
 
     override fun nextToken(): Token {
         while (index < endExclusive) {
