@@ -209,12 +209,15 @@ class SelectedApiUpdater(
 
             // If this item is not explicitly hidden (i.e. its parent was hidden because it was
             // reverted and not in the previously released API), still check its @FlaggedApi
-            // annotation for invalid flag nesting against the reverted parent.
+            // annotation for invalid flag nesting against the reverted parent. Because the
+            // enclosing class is completely hidden from the API, this item cannot be in the
+            // previously released API either.
             if (!explicitlyHidden && flaggedApiAnnotation != null) {
                 checkFlaggedApi(
                     selectedApi,
                     parent,
                     flaggedApiAnnotation,
+                    mayBeInPreviouslyReleasedApi = false,
                 )
             }
 
@@ -287,12 +290,14 @@ class SelectedApiUpdater(
             if (revertedItem == null) {
                 // The item is being completely hidden by revert rather than reverting to a
                 // previously released item, so check its @FlaggedApi annotation and record its
-                // reverted state for enclosed items.
+                // reverted state for enclosed items. findRevertItem(item) has already checked
+                // previouslyReleasedCodebase and returned null.
                 if (flaggedApiAnnotation != null) {
                     checkFlaggedApi(
                         selectedApi,
                         parent,
                         flaggedApiAnnotation,
+                        mayBeInPreviouslyReleasedApi = false,
                     )
                 }
 
@@ -308,11 +313,13 @@ class SelectedApiUpdater(
             }
         } else if (flaggedApiAnnotation != null) {
             // The item is neither explicitly hidden nor being reverted, so check its @FlaggedApi
-            // annotation.
+            // annotation. Unlike the reverted path above, previouslyReleasedCodebase has not yet
+            // been queried for this item.
             checkFlaggedApi(
                 selectedApi,
                 parent,
                 flaggedApiAnnotation,
+                mayBeInPreviouslyReleasedApi = true,
             )
         }
 
@@ -502,11 +509,17 @@ class SelectedApiUpdater(
      * If [annotation]'s [ApiFlagAction] is more permanent than `parent.maxValidFlagAction`, reports
      * [Issues.INVALID_FLAG_NESTING] on any unreported enclosing conflicting `@FlaggedApi`
      * annotations as well as on [annotation].
+     *
+     * @param mayBeInPreviouslyReleasedApi `true` if the item has not yet been checked against
+     *   [previouslyReleasedCodebase] and might exist in the previously released API, or `false` if
+     *   the caller has already determined that the item is not in the previously released API (e.g.
+     *   because [findRevertItem] returned `null` or its enclosing class is completely hidden).
      */
     private fun checkFlaggedApi(
         selectedApi: SourceSelectedApi<*>,
         parent: SourceSelectedApi<*>,
         annotation: AnnotationItem,
+        mayBeInPreviouslyReleasedApi: Boolean,
     ) {
         // Ignore PropertyItems as their annotations are duplicated from their accessors/backing
         // fields.
@@ -519,11 +532,13 @@ class SelectedApiUpdater(
         // class does not already exist in the previously released API. Only ClassItems can enclose
         // other items with @FlaggedApi annotations, and if the class was already released, it will
         // remain in the API even if the flag is later reverted, so enclosed items can safely be
-        // finalized.
+        // finalized. Avoid querying previouslyReleasedCodebase if the caller already knows the item
+        // is not in the previously released API.
         if (
             item is ClassItem &&
                 action != ApiFlagAction.FINALIZE &&
-                previouslyReleasedCodebase?.let { item.findCorrespondingItemIn(it) } == null
+                (!mayBeInPreviouslyReleasedApi ||
+                    previouslyReleasedCodebase?.let { item.findCorrespondingItemIn(it) } == null)
         ) {
             if (action < selectedApi.maxValidFlagAction) {
                 selectedApi.maxValidFlagAction = action
