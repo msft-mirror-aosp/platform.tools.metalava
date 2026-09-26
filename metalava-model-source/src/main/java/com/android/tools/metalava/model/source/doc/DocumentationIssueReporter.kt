@@ -72,7 +72,7 @@ internal interface DocumentationIssueReporter {
     fun report(issue: Issue, message: String, lineOffset: Int = 0, charOffset: Int = 0)
 
     /** Temporary overload to disambiguate between the two other versions */
-    fun report(issue: Issue, message: String) = report(issue, message, 0, 0)
+    fun report(issue: Issue, message: String) = report(issue, message, 0)
 
     /**
      * Report [issue] with [message] at [charOffset] from the beginning of the associated comment or

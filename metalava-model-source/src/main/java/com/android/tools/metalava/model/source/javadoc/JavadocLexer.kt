@@ -215,12 +215,6 @@ internal class JavadocLexer(
     /** Exclusive end index in [text] of an unexpected character sequence. */
     private var unexpectedEndIndex = startInclusive
 
-    /** Line number where the unexpected character sequence started. */
-    private var unexpectedStartLine = -1
-
-    /** Character position in line where the unexpected character sequence started. */
-    private var unexpectedStartChar = -1
-
     /** Context description for the unexpected character sequence (e.g. "in expression"). */
     private var unexpectedContext: String? = null
 
@@ -259,11 +253,9 @@ internal class JavadocLexer(
     private fun reportIssue(
         issue: Issues.Issue,
         message: String,
-        line: Int,
-        charPositionInLine: Int,
     ) {
         flushUnexpected()
-        reporter.report(issue, message, line, charPositionInLine)
+        reporter.report(issue, message, index - startInclusive)
     }
 
     /**
@@ -273,8 +265,6 @@ internal class JavadocLexer(
     private fun recordUnexpected(context: String) {
         if (unexpectedStartIndex == unexpectedEndIndex) {
             unexpectedStartIndex = index
-            unexpectedStartLine = line
-            unexpectedStartChar = charPositionInLine
             unexpectedContext = context
         }
         index++
@@ -289,8 +279,7 @@ internal class JavadocLexer(
             reporter.report(
                 Issues.INVALID_JAVADOC,
                 "unexpected '$chunk' $unexpectedContext",
-                unexpectedStartLine - 1,
-                unexpectedStartChar,
+                unexpectedStartIndex - startInclusive,
             )
             unexpectedStartIndex = unexpectedEndIndex
             unexpectedContext = null
@@ -334,8 +323,6 @@ internal class JavadocLexer(
             reportIssue(
                 Issues.INVALID_JAVADOC,
                 "missing inline tag name",
-                line - 1,
-                charPositionInLine,
             )
             modeStack.pop()
         }
@@ -583,8 +570,6 @@ internal class JavadocLexer(
             reportIssue(
                 Issues.INVALID_JAVADOC,
                 "missing inline tag name",
-                line - 1,
-                charPositionInLine,
             )
             modeStack.pop()
         } else {

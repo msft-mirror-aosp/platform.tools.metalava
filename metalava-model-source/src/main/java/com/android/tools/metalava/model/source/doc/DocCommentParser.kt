@@ -145,8 +145,7 @@ internal object DocCommentParser {
                     reporter.report(
                         Issues.INVALID_TAG_FORM,
                         "Cannot use '$tagTypeName' as a block tag",
-                        text.lineOffsetFor(position),
-                        text.characterOffsetFor(position),
+                        position,
                     )
                 }
 
@@ -156,8 +155,7 @@ internal object DocCommentParser {
                         reporter.report(
                             error.issue,
                             error.message,
-                            text.lineOffsetFor(position),
-                            text.characterOffsetFor(position),
+                            position,
                         )
                     }
                 }
