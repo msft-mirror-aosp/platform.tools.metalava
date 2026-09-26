@@ -19,6 +19,7 @@ package com.android.tools.metalava.model.source.javadoc
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.InvalidReferencableItem
 import com.android.tools.metalava.model.ReferencableItem
+import com.android.tools.metalava.model.parser.Token
 import com.android.tools.metalava.model.scope.NameClassification
 import com.android.tools.metalava.model.value.StringValue
 import com.android.tools.metalava.model.value.Value

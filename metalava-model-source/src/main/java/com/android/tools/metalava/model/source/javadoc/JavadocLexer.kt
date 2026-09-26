@@ -16,12 +16,11 @@
 
 package com.android.tools.metalava.model.source.javadoc
 
+import com.android.tools.metalava.model.parser.Token
+import com.android.tools.metalava.model.parser.TokenType
 import com.android.tools.metalava.model.source.doc.DocumentationIssueReporter
 import com.android.tools.metalava.reporter.Issues
 import java.util.ArrayDeque
-
-/** Base interface for token types produced by a lexer. */
-internal interface TokenType
 
 /** Token types produced by [JavadocLexer]. */
 internal enum class JavadocTokenType : TokenType {
@@ -69,39 +68,6 @@ internal enum class JavadocTokenType : TokenType {
 
     /** End of file / input marker. */
     EOF,
-}
-
-/**
- * A token produced by [JavadocLexer].
- *
- * @property type the [TokenType] representing the kind of token.
- * @property text the raw string content of this token.
- * @property startOffset 0-based start index of this token relative to the start of the parsed text
- *   range.
- * @property endOffset 0-based exclusive end index of this token relative to the start of the parsed
- *   text range.
- */
-internal data class Token(
-    val type: TokenType,
-    val text: String,
-    val startOffset: Int,
-    val endOffset: Int,
-) {
-    /**
-     * Formats this token as a human-readable string, escaping `\r`, `\n`, and `\t` in [text], and
-     * optionally appending the token's character offset range `([startOffset]..[endOffset])` when
-     * [includePosition] is `true`.
-     */
-    fun format(includePosition: Boolean = true): String {
-        val escaped = text.replace("\r", "\\r").replace("\n", "\\n").replace("\t", "\\t")
-        return if (includePosition) {
-            "$type '$escaped' ($startOffset..$endOffset)"
-        } else {
-            "$type '$escaped'"
-        }
-    }
-
-    override fun toString(): String = format()
 }
 
 /** Lexer modes for [JavadocLexer]. */

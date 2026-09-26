@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model.source.javadoc
 
+import com.android.tools.metalava.model.parser.Token
 import com.android.tools.metalava.model.source.doc.DocumentationFragmentIssueReporter
 import com.android.tools.metalava.model.source.doc.DocumentationIssueReporter
 import com.android.tools.metalava.reporter.Issues.Issue
