@@ -34,6 +34,18 @@ internal class SourceItemDocumentation(
     override val fileLocation: FileLocation
         get() = sourceComment.fileLocation
 
+    override fun fileLocation(charOffset: Int): FileLocation {
+        val startOffset = sourceComment.startOffset
+        if (startOffset < 0) return fileLocation
+        val sourceFile = item.sourceFile() ?: return fileLocation
+        val path = sourceFile.fileLocation.path ?: return fileLocation
+        return sourceFile.lineMap.fileLocation(
+            path,
+            startOffset + charOffset,
+            includeCharacterPosition = true,
+        )
+    }
+
     /** Lazily initialized backing property for [docComment]. */
     private lateinit var _docComment: DocComment
 
@@ -62,13 +74,20 @@ interface SourceComment {
     /** The location of the beginning of the comment. */
     val fileLocation: FileLocation
 
+    /**
+     * The 0-based character offset of the start of the comment from the start of the source file,
+     * or `-1` if there is no comment.
+     */
+    val startOffset: Int
+
     /** The text contents of the source comment, including javadoc start and end tokens */
     val text: String
 }
 
 /**
- * An abstract [SourceComment] that initializes [fileLocation] and [text] lazily through subclass
- * provided methods [obtainFileLocation] and [obtainText] respectively.
+ * An abstract [SourceComment] that initializes [fileLocation], [startOffset], and [text] lazily
+ * through subclass provided methods [obtainFileLocation], [obtainStartOffset], and [obtainText]
+ * respectively.
  */
 abstract class LazySourceComment : SourceComment {
     /** Lazily initialized backing property for [fileLocation]. */
@@ -83,6 +102,23 @@ abstract class LazySourceComment : SourceComment {
                 _fileLocation = obtainFileLocation()
             }
             return _fileLocation
+        }
+
+    /**
+     * Obtain the 0-based character offset of the start of the comment from the start of the source
+     * file, or `-1` if there is no comment.
+     */
+    protected abstract fun obtainStartOffset(): Int
+
+    /** Lazily initialized backing property for [startOffset]. */
+    private var _startOffset: Int = Int.MIN_VALUE
+
+    override val startOffset: Int
+        get() {
+            if (_startOffset == Int.MIN_VALUE) {
+                _startOffset = obtainStartOffset()
+            }
+            return _startOffset
         }
 
     /** Lazily initialized backing property for [text]. */
@@ -104,6 +140,9 @@ abstract class LazySourceComment : SourceComment {
 private data class SourceCommentFromString(override val text: String) : SourceComment {
     override val fileLocation: FileLocation
         get() = FileLocation.UNKNOWN
+
+    override val startOffset: Int
+        get() = -1
 }
 
 /** Wrap a [String] in an [ItemDocumentationFactory]. */
