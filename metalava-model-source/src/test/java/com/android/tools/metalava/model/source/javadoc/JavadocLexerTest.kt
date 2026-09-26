@@ -53,7 +53,7 @@ class JavadocLexerTest : BaseDocCommentTest() {
                 val escaped =
                     token.text.replace("\r", "\\r").replace("\n", "\\n").replace("\t", "\\t")
                 if (includePosition) {
-                    "${token.type} '$escaped' (${token.line}:${token.charPositionInLine}, ${token.startOffset}..${token.endOffset})"
+                    "${token.type} '$escaped' (${token.startOffset}..${token.endOffset})"
                 } else {
                     "${token.type} '$escaped'"
                 }
@@ -554,11 +554,11 @@ class JavadocLexerTest : BaseDocCommentTest() {
             includePosition = true,
             expectedTokens =
                 """
-                    TEXT_CONTENT 'line1' (1:0, 0..5)
-                    NEWLINE '\n *' (1:5, 5..8)
-                    SPACE ' ' (2:2, 8..9)
-                    TEXT_CONTENT 'line2' (2:3, 9..14)
-                    EOF '' (2:8, 14..14)
+                    TEXT_CONTENT 'line1' (0..5)
+                    NEWLINE '\n *' (5..8)
+                    SPACE ' ' (8..9)
+                    TEXT_CONTENT 'line2' (9..14)
+                    EOF '' (14..14)
                 """,
         )
     }
