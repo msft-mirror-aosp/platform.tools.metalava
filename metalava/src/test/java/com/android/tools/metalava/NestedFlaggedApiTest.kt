@@ -439,8 +439,6 @@ class NestedFlaggedApiTest : DriverTest() {
     fun `Test outer keep and nested finalize with outer in previously released API`() {
         // Because Foo was in the previously released API, Foo is already part of the released API,
         // so finalizing nested items inside Foo does not conflict with Foo's @FlaggedApi.
-        // TODO: Currently SelectedApiUpdater reports InvalidFlagNesting even though Foo was in the
-        //  previously released API.
         checkNestedFlags(
             outerAction = KEEP,
             nestedAction = FINALIZE,
@@ -498,12 +496,6 @@ class NestedFlaggedApiTest : DriverTest() {
                         """
                     ),
                 ),
-            expectedIssues =
-                """
-                    src/test/pkg/Foo.java:5: error: @FlaggedApi flag test.pkg.outer is not-finalized but contains flags in a conflicting state [InvalidFlagNesting]
-                    src/test/pkg/Foo.java:11: error: @FlaggedApi flag test.pkg.nested is finalized but is contained by a flag in a conflicting state [InvalidFlagNesting]
-                    src/test/pkg/Foo.java:19: error: @FlaggedApi flag test.pkg.nested is finalized but is contained by a flag in a conflicting state [InvalidFlagNesting]
-                """,
         )
     }
 
