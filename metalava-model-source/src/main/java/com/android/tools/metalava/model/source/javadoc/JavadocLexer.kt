@@ -76,8 +76,10 @@ internal enum class TokenType {
  * @property line 1-based line number relative to the start of the parsed text range.
  * @property charPositionInLine 0-based character position relative to the start of the containing
  *   line.
- * @property startOffset 0-based start index of this token within the input text.
- * @property endOffset 0-based exclusive end index of this token within the input text.
+ * @property startOffset 0-based start index of this token relative to the start of the parsed text
+ *   range.
+ * @property endOffset 0-based exclusive end index of this token relative to the start of the parsed
+ *   text range.
  */
 internal data class Token(
     val type: TokenType,
@@ -174,9 +176,9 @@ private enum class LexerMode {
  * - `charPositionInLine`: 0-based character position within the current line.
  * - `startIndex` and `endIndex`: absolute character offsets within [text].
  *
- * Every emitted [Token] carries these location coordinates. Any lexical syntax errors encountered
- * during scanning (such as unexpected characters after `{@` or in expressions) are reported
- * directly via [reporter].
+ * Every emitted [Token] carries these location coordinates (with `startOffset` and `endOffset`
+ * relative to [startInclusive]). Any lexical syntax errors encountered during scanning (such as
+ * unexpected characters after `{@` or in expressions) are reported directly via [reporter].
  *
  * @param text the full string containing the Javadoc text to tokenize.
  * @param startInclusive the index in [text] where tokenization should begin.
@@ -235,8 +237,8 @@ internal class JavadocLexer(
         text: String,
         line: Int,
         charPositionInLine: Int,
-        startOffset: Int,
-        endOffset: Int,
+        startIndex: Int,
+        endIndex: Int,
     ) {
         flushUnexpected()
         tokens.add(
@@ -245,8 +247,8 @@ internal class JavadocLexer(
                 text,
                 line,
                 charPositionInLine,
-                startOffset,
-                endOffset,
+                startIndex - startInclusive,
+                endIndex - startInclusive,
             )
         )
     }
