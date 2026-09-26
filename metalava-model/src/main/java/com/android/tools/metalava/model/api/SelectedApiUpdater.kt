@@ -117,8 +117,11 @@ class SelectedApiUpdater(
         // Mark selectedApi as accessible so that enclosed items can inherit accessibility from it.
         selectedApi.accessible = true
 
-        // Inherit the maximum valid @FlaggedApi action from the parent.
-        selectedApi.maxValidFlagAction = parent.maxValidFlagAction
+        // Only track maxValidFlagAction on classes as only classes can enclose other items with
+        // @FlaggedApi annotations.
+        if (item is ClassItem) {
+            selectedApi.maxValidFlagAction = parent.maxValidFlagAction
+        }
 
         val enclosingApiVariants = parent.inheritableApiVariants
 
@@ -490,10 +493,11 @@ class SelectedApiUpdater(
     /**
      * Check `@FlaggedApi` [annotation] on [selectedApi]'s item for invalid flag nesting.
      *
-     * If [annotation]'s flag has an [ApiFlagAction] other than [ApiFlagAction.FINALIZE] and the
-     * item was not in the previously released API, lowers [SourceSelectedApi.maxValidFlagAction] on
-     * [selectedApi] if necessary and saves [annotation] in [SourceSelectedApi.flaggedApiAnnotation]
-     * so it can be reported if an enclosed item has a conflicting (more permanent) `@FlaggedApi`.
+     * If [selectedApi]'s item is a [ClassItem], [annotation]'s flag has an [ApiFlagAction] other
+     * than [ApiFlagAction.FINALIZE], and the class was not in the previously released API, lowers
+     * [SourceSelectedApi.maxValidFlagAction] on [selectedApi] if necessary and saves [annotation]
+     * in [SourceSelectedApi.flaggedApiAnnotation] so it can be reported if an enclosed item has a
+     * conflicting (more permanent) `@FlaggedApi`.
      *
      * If [annotation]'s [ApiFlagAction] is more permanent than `parent.maxValidFlagAction`, reports
      * [Issues.INVALID_FLAG_NESTING] on any unreported enclosing conflicting `@FlaggedApi`
@@ -511,12 +515,14 @@ class SelectedApiUpdater(
 
         val apiFlag = annotation.apiFlag!!
         val action = apiFlag.action
-        // Only record a non-finalized @FlaggedApi as restricting enclosed items if the item does
-        // not already exist in the previously released API. If the item was already released, it
-        // will remain in the API even if the flag is later reverted, so enclosed items can safely
-        // be finalized.
+        // Only record a non-finalized @FlaggedApi on a class as restricting enclosed items if the
+        // class does not already exist in the previously released API. Only ClassItems can enclose
+        // other items with @FlaggedApi annotations, and if the class was already released, it will
+        // remain in the API even if the flag is later reverted, so enclosed items can safely be
+        // finalized.
         if (
-            action != ApiFlagAction.FINALIZE &&
+            item is ClassItem &&
+                action != ApiFlagAction.FINALIZE &&
                 previouslyReleasedCodebase?.let { item.findCorrespondingItemIn(it) } == null
         ) {
             if (action < selectedApi.maxValidFlagAction) {
