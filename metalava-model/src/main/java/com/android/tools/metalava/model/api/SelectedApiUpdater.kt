@@ -266,16 +266,6 @@ class SelectedApiUpdater(
             inheritableApiVariants = enclosingApiVariants
         }
 
-        // Now that the item is known not to be explicitly hidden, check its @FlaggedApi
-        // annotation.
-        if (flaggedApiAnnotation != null) {
-            checkFlaggedApi(
-                selectedApi,
-                parent,
-                flaggedApiAnnotation,
-            )
-        }
-
         // Check whether the item is marked for revert only after verifying that it is not
         // explicitly hidden from the target API surface.
         if (!revert) {
@@ -292,15 +282,35 @@ class SelectedApiUpdater(
         if (revert) {
             revertedItem = findRevertItem(item)
             if (revertedItem == null) {
+                // The item is being completely hidden by revert rather than reverting to a
+                // previously released item, so check its @FlaggedApi annotation and record its
+                // reverted state for enclosed items.
+                if (flaggedApiAnnotation != null) {
+                    checkFlaggedApi(
+                        selectedApi,
+                        parent,
+                        flaggedApiAnnotation,
+                    )
+                }
+
                 // If the item was hidden then neither the context item nor its enclosed items
                 // belong to any api variants.
                 selectedApi.markAsHidden(revert = true)
                 return
             } else {
                 // The codebase contains items which are to be reverted to previously released
-                // items.
+                // items. Because the item reverts to its previously released state, its
+                // @FlaggedApi annotation does not apply or restrict enclosed items.
                 item.codebase.markContainsRevertedItem()
             }
+        } else if (flaggedApiAnnotation != null) {
+            // The item is neither explicitly hidden nor being reverted, so check its @FlaggedApi
+            // annotation.
+            checkFlaggedApi(
+                selectedApi,
+                parent,
+                flaggedApiAnnotation,
+            )
         }
 
         // A file facade class does not belong to any API surfaces directly. Instead, it is only

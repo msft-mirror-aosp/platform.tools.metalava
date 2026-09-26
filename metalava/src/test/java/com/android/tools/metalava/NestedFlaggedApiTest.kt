@@ -176,15 +176,8 @@ class NestedFlaggedApiTest : DriverTest() {
     @Test
     fun `Test outer revert and nested keep with outer in previously released API`() {
         // Because Foo was in the previously released API, reverting test.pkg.outer reverts Foo to
-        // its previously released state (public class Foo {}) rather than removing it, and reverts
-        // unflagged new members (Foo(), method(), Nested). However, flaggedMethod() and
-        // FlaggedNested are explicitly guarded by test.pkg.nested (KEEP) inside an existing class
-        // Foo, so they should be kept in the signature and stubs (with @FlaggedApi /
-        // @RequiresFlag("test.pkg.nested")), and no InvalidFlagNesting issue should be reported.
-        // TODO: Currently SelectedApiUpdater reports InvalidFlagNesting and marks all members and
-        //  nested classes of a class marked for revert as reverted even when they have their own
-        //  @FlaggedApi annotation, causing flaggedMethod() and FlaggedNested to be dropped from the
-        //  signature and stubs.
+        // its previously released state (public class Foo {}) rather than removing it, so no
+        // InvalidFlagNesting issue should be reported.
         checkNestedFlags(
             outerAction = REVERT,
             nestedAction = KEEP,
@@ -216,12 +209,6 @@ class NestedFlaggedApiTest : DriverTest() {
                         """
                     ),
                 ),
-            expectedIssues =
-                """
-                    src/test/pkg/Foo.java:5: error: @FlaggedApi flag test.pkg.outer is reverted but contains flags in a conflicting state [InvalidFlagNesting]
-                    src/test/pkg/Foo.java:11: error: @FlaggedApi flag test.pkg.nested is not-finalized but is contained by a flag in a conflicting state [InvalidFlagNesting]
-                    src/test/pkg/Foo.java:19: error: @FlaggedApi flag test.pkg.nested is not-finalized but is contained by a flag in a conflicting state [InvalidFlagNesting]
-                """,
         )
     }
 
@@ -247,15 +234,8 @@ class NestedFlaggedApiTest : DriverTest() {
     @Test
     fun `Test outer revert and nested finalize with outer in previously released API`() {
         // Because Foo was in the previously released API, reverting test.pkg.outer reverts Foo to
-        // its previously released state (public class Foo {}) rather than removing it, and reverts
-        // unflagged new members (Foo(), method(), Nested). However, flaggedMethod() and
-        // FlaggedNested are explicitly guarded by test.pkg.nested (FINALIZE) inside an existing
-        // class Foo, so they should be included as finalized (unflagged) APIs in the signature and
-        // stubs, and no InvalidFlagNesting issue should be reported.
-        // TODO: Currently SelectedApiUpdater reports InvalidFlagNesting and marks all members and
-        //  nested classes of a class marked for revert as reverted even when they have their own
-        //  @FlaggedApi annotation, causing flaggedMethod() and FlaggedNested to be dropped from the
-        //  signature and stubs.
+        // its previously released state (public class Foo {}) rather than removing it, so no
+        // InvalidFlagNesting issue should be reported.
         checkNestedFlags(
             outerAction = REVERT,
             nestedAction = FINALIZE,
@@ -287,12 +267,6 @@ class NestedFlaggedApiTest : DriverTest() {
                         """
                     ),
                 ),
-            expectedIssues =
-                """
-                    src/test/pkg/Foo.java:5: error: @FlaggedApi flag test.pkg.outer is reverted but contains flags in a conflicting state [InvalidFlagNesting]
-                    src/test/pkg/Foo.java:11: error: @FlaggedApi flag test.pkg.nested is finalized but is contained by a flag in a conflicting state [InvalidFlagNesting]
-                    src/test/pkg/Foo.java:19: error: @FlaggedApi flag test.pkg.nested is finalized but is contained by a flag in a conflicting state [InvalidFlagNesting]
-                """,
         )
     }
 
