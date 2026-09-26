@@ -140,6 +140,9 @@ class CommonParameterizedSelectedApiLifecycleTest : BaseCommonParameterizedSelec
             ) {
                 surfaceTest(
                     surface = "public",
+                    // In the public surface, $SYSTEM_API hides revertedMethod() before its
+                    // reverted @FlaggedApi annotation is evaluated.
+                    expectedContainsRevertedItem = false,
                     expected =
                         """
                             package test.pkg

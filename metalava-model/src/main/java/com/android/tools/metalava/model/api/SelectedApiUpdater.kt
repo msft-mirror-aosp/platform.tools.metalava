@@ -203,31 +203,6 @@ class SelectedApiUpdater(
             return
         }
 
-        if (!revert) {
-            if (item.containingClass()?.isMarkedForRevert() == true) {
-                revert = true
-            } else if (item is MethodItem) {
-                // If any of a method's super methods are part of a unstable API that needs to be
-                // reverted then treat the method as if it is too.
-                revert = item.superMethods().any { methodItem -> methodItem.isMarkedForRevert() }
-            }
-        }
-
-        var revertedItem: SelectableItem? = null
-        if (revert) {
-            revertedItem = findRevertItem(item)
-            if (revertedItem == null) {
-                // If the item was hidden then neither the context item nor its enclosed items
-                // belong to any api variants.
-                selectedApi.markAsHidden(revert = true)
-                return
-            } else {
-                // The codebase contains items which are to be reverted to previously released
-                // items.
-                item.codebase.markContainsRevertedItem()
-            }
-        }
-
         // If any annotations matched then check for an overlap.
         if (itemApiVariants.isNotEmpty()) {
             val narrowestSurface = itemApiVariants.narrowestSurfaceFor(apiSurfaces)
@@ -273,6 +248,33 @@ class SelectedApiUpdater(
                     ApiVariantSet.EMPTY
                 }
             inheritableApiVariants = enclosingApiVariants
+        }
+
+        // Check whether the item is marked for revert only after verifying that it is not
+        // explicitly hidden from the target API surface.
+        if (!revert) {
+            if (item.containingClass()?.isMarkedForRevert() == true) {
+                revert = true
+            } else if (item is MethodItem) {
+                // If any of a method's super methods are part of a unstable API that needs to be
+                // reverted then treat the method as if it is too.
+                revert = item.superMethods().any { methodItem -> methodItem.isMarkedForRevert() }
+            }
+        }
+
+        var revertedItem: SelectableItem? = null
+        if (revert) {
+            revertedItem = findRevertItem(item)
+            if (revertedItem == null) {
+                // If the item was hidden then neither the context item nor its enclosed items
+                // belong to any api variants.
+                selectedApi.markAsHidden(revert = true)
+                return
+            } else {
+                // The codebase contains items which are to be reverted to previously released
+                // items.
+                item.codebase.markContainsRevertedItem()
+            }
         }
 
         // A file facade class does not belong to any API surfaces directly. Instead, it is only
