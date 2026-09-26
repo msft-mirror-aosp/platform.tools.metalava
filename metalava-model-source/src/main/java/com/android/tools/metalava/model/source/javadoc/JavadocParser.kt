@@ -630,20 +630,27 @@ private constructor(
      */
     private fun skipUntilParenClose() {
         var parenDepth = 1
-        while (peekType() != JavadocTokenType.EOF && parenDepth > 0) {
-            val token = consume()
-            if (token.type == JavadocTokenType.PAREN_OPEN) {
-                // Nested opening parenthesis: increase depth.
-                parenDepth++
-            } else if (token.type == JavadocTokenType.PAREN_CLOSE) {
-                // Closing parenthesis: decrease depth.
-                parenDepth--
-            } else if (token.type == JavadocTokenType.BRACE_OPEN) {
-                // Opening brace encountered: expression was likely unclosed before body block.
-                // Step back so the parser can handle the opening brace.
-                current--
-                break
+        while (parenDepth > 0) {
+            val tokenType = peekType()
+            when (tokenType) {
+                JavadocTokenType.PAREN_OPEN -> {
+                    // Nested opening parenthesis: increase depth.
+                    parenDepth++
+                }
+                JavadocTokenType.PAREN_CLOSE -> {
+                    // Closing parenthesis: decrease depth.
+                    parenDepth--
+                }
+                JavadocTokenType.BRACE_OPEN,
+                JavadocTokenType.EOF -> {
+                    // Opening brace or EOF encountered: expression was likely unclosed before body
+                    // block. Stop before consuming so the parser can handle it.
+                    break
+                }
             }
+
+            // Consume the token as it is part of the parenthesized expression being skipped.
+            consume()
         }
     }
 
