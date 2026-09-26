@@ -26,6 +26,7 @@ import com.android.tools.metalava.config.ApiFlagsConfig
 import com.android.tools.metalava.config.Config
 import com.android.tools.metalava.config.toTestFile
 import com.android.tools.metalava.model.ANDROID_FLAGGED_API
+import com.android.tools.metalava.model.ANDROID_SYSTEM_API
 import com.android.tools.metalava.model.api.flags.ApiFlagAction
 import com.android.tools.metalava.model.api.flags.ApiFlagAction.FINALIZE
 import com.android.tools.metalava.model.api.flags.ApiFlagAction.KEEP
@@ -784,6 +785,66 @@ class NestedFlaggedApiTest : DriverTest() {
                     src/test/pkg/Foo.java:5: error: @FlaggedApi flag test.pkg.outer is reverted but contains flags in a conflicting state [InvalidFlagNesting]
                     src/test/pkg/Foo.java:9: error: @FlaggedApi flag test.pkg.nested1 is reverted but contains flags in a conflicting state [InvalidFlagNesting]
                     src/test/pkg/Foo.java:13: error: @FlaggedApi flag test.pkg.nested2 is finalized but is contained by a flag in a conflicting state [InvalidFlagNesting]
+                """,
+        )
+    }
+
+    @Test
+    fun `Test outer revert and nested finalize on SystemApi class in public surface`() {
+        check(
+            apiSurface = KnownApiSurface.PUBLIC,
+            configFiles =
+                arrayOf(
+                    flagsConfigFile(
+                        "outer" to REVERT,
+                        "nested" to FINALIZE,
+                    )
+                ),
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+
+                            import $ANDROID_FLAGGED_API;
+                            import $ANDROID_SYSTEM_API;
+
+                            @FlaggedApi("test.pkg.outer")
+                            @SystemApi
+                            public class Foo {
+                                public Foo() {}
+
+                                @FlaggedApi("test.pkg.nested")
+                                public void flaggedMethod() {}
+                            }
+                        """
+                    ),
+                    flaggedApiSource,
+                ),
+            checkCompatibilityApiReleased =
+                """
+                    // Signature format: 5.0
+                """,
+            expectedApiSignature =
+                """
+                    // Signature format: 5.0
+                """,
+            expectedStubFiles = emptyArray(),
+            stubPaths = emptyArray(),
+            // TODO(b/561433523): InvalidFlagNesting should not be reported on Foo or its members
+            //  when generating the public API surface because Foo is annotated with @SystemApi
+            //  (which is treated as a hide annotation in the public surface) and is therefore
+            //  hidden from the public API surface. Even if Foo was already released in the system
+            //  API surface (making this flag combination valid for system), it is not in the
+            //  previously released public API. Currently, SelectedApiUpdater.updateSelectedApi
+            //  evaluates `revert` (and calls `checkFlaggedApi`) before checking `hide`, so it
+            //  treats Foo as being hidden due to its reverted @FlaggedApi annotation rather than
+            //  hidden by @SystemApi, and then checks @FlaggedApi on its enclosed members inside
+            //  `if (parent.areChildrenCompletelyHidden())`.
+            expectedIssues =
+                """
+                    src/test/pkg/Foo.java:6: error: @FlaggedApi flag test.pkg.outer is reverted but contains flags in a conflicting state [InvalidFlagNesting]
+                    src/test/pkg/Foo.java:11: error: @FlaggedApi flag test.pkg.nested is finalized but is contained by a flag in a conflicting state [InvalidFlagNesting]
                 """,
         )
     }
