@@ -28,8 +28,8 @@ abstract class BaseJavadocTest : BaseDocCommentTest() {
         expectedStructure: String,
         expectedJavadocIssues: String = "",
     ) {
-        val docComment =
-            createTestDocComment(
+        val (docComment, _) =
+            createTestDocCommentAndContext(
                 text,
                 expectedJavadocIssues,
                 flagToEnabledStatus = flagToEnabledStatus,

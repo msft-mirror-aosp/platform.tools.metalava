@@ -37,7 +37,7 @@ class DocCommentParserTest : BaseDocCommentTest() {
         expectedIssues: String = "",
         checker: DocCommentContext.() -> Unit = {},
     ) {
-        val docComment = createTestDocComment(input, expectedIssues)
+        val (docComment, _) = createTestDocCommentAndContext(input, expectedIssues)
         if (expectedString != null) {
             assertEquals(expectedString.trimIndent(), docComment.toString())
         }

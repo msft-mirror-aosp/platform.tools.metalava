@@ -53,11 +53,11 @@ abstract class BaseDocCommentTest {
     /**
      * Create a [DocComment] from [input] for testing, verifying that [expectedIssues] were found.
      */
-    internal fun createTestDocComment(
+    internal fun createTestDocCommentAndContext(
         input: String,
         expectedIssues: String = "",
         flagToEnabledStatus: Map<String, Boolean> = emptyMap(),
-    ): DocComment {
+    ): Pair<DocComment, TestDocCommentContext> {
         val context = createDocContext(flagToEnabledStatus)
         val docComment =
             DocCommentParser.parseText(
@@ -71,7 +71,7 @@ abstract class BaseDocCommentTest {
         docComment.blockTagSections.forEach { it.description }
 
         assertJavadocParserIssues(expectedIssues)
-        return docComment
+        return docComment to context
     }
 
     /**

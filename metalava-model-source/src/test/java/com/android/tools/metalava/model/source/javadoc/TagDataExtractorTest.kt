@@ -28,11 +28,10 @@ class TagDataExtractorTest : BaseDocCommentTest() {
         expectedTagData: BarTagData?,
         expectedRemainderStructure: String? = expectedInputStructure,
     ) {
-        val docComment = createTestDocComment("/** $input */")
+        val (docComment, context) = createTestDocCommentAndContext("/** $input */")
         val content = docComment.description
         content.assertStructure(expectedInputStructure, message = "input structure")
 
-        val context = createDocContext()
         val result =
             content?.extractTagDataForTagType(
                 context,
