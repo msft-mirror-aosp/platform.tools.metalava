@@ -18,8 +18,8 @@ package com.android.tools.metalava.reporter
 
 import java.io.File
 import java.io.PrintWriter
-import java.io.StringWriter
 import java.io.Writer
+import java.nio.file.Path
 
 interface Reporter {
     /**
@@ -136,12 +136,21 @@ abstract class BaseReporter : Reporter {
 
 /**
  * Abstract implementation of a [Reporter] that performs no filtering and delegates the handling of
- * a report to [handleFormattedMessage].
+ * a report to [handleReport].
  */
 abstract class AbstractBasicReporter(
     private val excludedIssues: Set<Issues.Issue> = emptySet(),
     private val includeSeverity: Boolean = true,
 ) : BaseReporter() {
+    /** Encapsulates the information from a single call to [report] that was not filtered out. */
+    protected data class Report(
+        val path: Path?,
+        val line: Int,
+        val charPosition: Int,
+        val issue: Issues.Issue,
+        val message: String,
+    )
+
     override fun report(
         id: Issues.Issue,
         reportable: Reportable?,
@@ -157,43 +166,57 @@ abstract class AbstractBasicReporter(
             return false
         }
 
-        val formattedMessage = buildString {
-            val usableLocation = reportable?.fileLocation ?: location
-            usableLocation.path?.let { path ->
-                val stringPath = path.toString()
-                if (stringPath.isNotEmpty()) {
-                    append(stringPath)
-                    append(":")
-                }
-            }
-            val line = usableLocation.line
-            if (line > 0) {
-                append(line)
-                append(":")
-            }
-            val characterPosition = usableLocation.characterPosition
-            if (characterPosition > 0) {
-                append(characterPosition)
-                append(":")
-            }
-            append(" ")
-            val severity = id.defaultLevel
-            if (includeSeverity) {
-                append(severity)
-                append(": ")
-            }
-            append(message)
-            if (includeSeverity) {
-                append(severity.messageSuffix)
-            }
-            append(" [")
-            append(id.name)
-            append("]")
-        }
-        return handleFormattedMessage(formattedMessage)
+        val usableLocation = reportable?.fileLocation ?: location
+        val report =
+            Report(
+                path = usableLocation.path,
+                line = usableLocation.line,
+                charPosition = usableLocation.characterPosition,
+                issue = id,
+                message = message,
+            )
+        return handleReport(report)
     }
 
-    abstract fun handleFormattedMessage(formattedMessage: String): Boolean
+    /** Format [this] as a single-line string suitable for output or comparison in tests. */
+    protected fun Report.format(): String = buildString {
+        path?.let { path ->
+            val stringPath = path.toString()
+            if (stringPath.isNotEmpty()) {
+                this.append(stringPath)
+                this.append(":")
+            }
+        }
+        val line = line
+        if (line > 0) {
+            this.append(line)
+            this.append(":")
+        }
+        val characterPosition = charPosition
+        if (characterPosition > 0) {
+            this.append(characterPosition)
+            this.append(":")
+        }
+        if (isNotEmpty()) {
+            this.append(" ")
+        }
+        val issue = issue
+        val severity = issue.defaultLevel
+        if (includeSeverity) {
+            append(severity)
+            this.append(": ")
+        }
+        this.append(message)
+        if (includeSeverity) {
+            this.append(severity.messageSuffix)
+        }
+        this.append(" [")
+        this.append(issue.name)
+        this.append("]")
+    }
+
+    /** Handle a [Report]. */
+    protected abstract fun handleReport(report: Report): Boolean
 }
 
 /**
@@ -203,7 +226,8 @@ abstract class AbstractBasicReporter(
 class BasicReporter(private val stderr: PrintWriter) : AbstractBasicReporter() {
     constructor(writer: Writer) : this(stderr = PrintWriter(writer))
 
-    override fun handleFormattedMessage(formattedMessage: String): Boolean {
+    override fun handleReport(report: Report): Boolean {
+        val formattedMessage = report.format()
         stderr.println(formattedMessage)
         stderr.flush()
         return true
@@ -214,22 +238,39 @@ class BasicReporter(private val stderr: PrintWriter) : AbstractBasicReporter() {
 class RecordingReporter(
     excludedIssues: Set<Issues.Issue> = emptySet(),
     includeSeverity: Boolean = true,
+    private val sortIssues: Boolean = false,
 ) : AbstractBasicReporter(excludedIssues, includeSeverity) {
-    private val stringWriter = StringWriter()
+    private val list = mutableListOf<Report>()
 
-    override fun handleFormattedMessage(formattedMessage: String): Boolean {
-        stringWriter.append(formattedMessage).append("\n")
+    override fun handleReport(report: Report): Boolean {
+        list.add(report)
         return true
     }
 
     val issues: String
-        get() = stringWriter.toString().trim()
+        get() {
+            if (sortIssues) {
+                list.sortWith(reportComparator)
+            }
+            return list.joinToString("\n") { it.format() }
+        }
 
     /** Remove and return any existing issues. */
     fun removeIssues(): String {
-        val issues = stringWriter.toString().trim()
-        stringWriter.buffer.setLength(0)
+        val issues = this.issues
+        list.clear()
         return issues
+    }
+
+    companion object {
+        private val reportComparator =
+            compareBy<Report>(
+                { it.path },
+                { it.line },
+                { it.charPosition },
+                { it.issue.name },
+                { it.message },
+            )
     }
 }
 
@@ -241,7 +282,8 @@ class RecordingReporter(
  * ignored.
  */
 class ThrowingReporter private constructor() : AbstractBasicReporter() {
-    override fun handleFormattedMessage(formattedMessage: String): Boolean {
+    override fun handleReport(report: Report): Boolean {
+        val formattedMessage = report.format()
         error(formattedMessage)
     }
 
