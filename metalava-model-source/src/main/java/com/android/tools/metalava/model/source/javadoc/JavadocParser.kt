@@ -17,6 +17,7 @@
 package com.android.tools.metalava.model.source.javadoc
 
 import com.android.tools.metalava.model.parser.Token
+import com.android.tools.metalava.model.parser.TokenStream
 import com.android.tools.metalava.model.parser.TokenType
 import com.android.tools.metalava.model.source.doc.DocCommentContext
 import com.android.tools.metalava.model.source.doc.DocumentationIssueReporter
@@ -28,8 +29,8 @@ import com.android.tools.metalava.reporter.Issues
 /**
  * Parses a block of text into a [JavadocContent].
  *
- * This parser operates as a recursive-descent parser on a stream of [Token]s produced by
- * [JavadocLexer]. The parsing process is divided into two distinct phases:
+ * This parser operates as a recursive-descent parser on a [TokenStream] produced by [JavadocLexer].
+ * The parsing process is divided into two distinct phases:
  * 1. **Lexing ([JavadocLexer])**:
  *     - The lexer scans the raw character sequence from `startInclusive` to `endExclusive`.
  *     - It uses a mode stack to handle context-sensitive syntax. For example, it distinguishes
@@ -38,10 +39,10 @@ import com.android.tools.metalava.reporter.Issues
  *       expressions (`INLINE_IF_TAG` and `EXPR` modes).
  *     - The lexer handles comment formatting nuances, such as collapsing line-break continuation
  *       prefixes (e.g. `\n * `) into [JavadocTokenType.NEWLINE] tokens.
- *     - The result is a flat [List] of [Token]s ending with a [JavadocTokenType.EOF] token.
+ *     - The result is a [TokenStream] ending with a [JavadocTokenType.EOF] token.
  * 2. **Parsing ([JavadocParser])**:
- *     - Operates over the pre-tokenized [Token] stream using recursive-descent methods ([peek],
- *       [consume], [match], [expect]).
+ *     - Operates over the [TokenStream] using recursive-descent methods ([peek], [consume],
+ *       [match], [expect]).
  *     - **Text Accumulation**: Consecutive text, whitespace, and newline tokens are accumulated
  *       into [textBuffer]. When a non-text structure (such as an inline tag) is encountered or at
  *       the end of parsing, buffered text is flushed into a [JavadocText] node, trimming leading or
@@ -57,13 +58,13 @@ import com.android.tools.metalava.reporter.Issues
  *     - **Issue Reporting**: Syntax and validation errors are reported through
  *       [tokenIssueReporter], using the character offsets tracked in each [Token].
  *
- * @param tokens the list of [Token]s to parse.
+ * @param tokens the [TokenStream] to parse.
  * @param context context that applies to the Javadoc comment (such as resolving references).
  * @param reporter used for reporting issues found during parsing.
  */
 internal class JavadocParser
 private constructor(
-    private val tokens: List<Token>,
+    private val tokens: TokenStream,
     private val context: DocCommentContext,
     reporter: DocumentationIssueReporter,
 ) {
@@ -72,9 +73,6 @@ private constructor(
 
     /** [ExprBuilder] used to construct [Expr] for conditional javadoc processing. */
     private val exprBuilder = ExprBuilder(context, tokenIssueReporter)
-
-    /** The index of the current token being examined in [tokens]. */
-    private var current = 0
 
     /**
      * Determines whether whitespace should be trimmed from the start of the content.
@@ -166,29 +164,22 @@ private constructor(
             }
     }
 
-    /** Returns the token at [current] without advancing. */
-    private fun peek(): Token = tokens[current]
+    /** Returns the current token in [tokens] without advancing. */
+    private fun peek(): Token = tokens.peek()
 
-    /** Returns the type of the token at [current]. */
-    private fun peekType(): TokenType = peek().type
+    /** Returns the type of the current token in [tokens]. */
+    private fun peekType(): TokenType = tokens.peekType()
 
-    /** Consumes and returns the token at [current], advancing [current] by 1. */
-    private fun consume(): Token = tokens[current++]
+    /** Consumes and returns the current token in [tokens]. */
+    private fun consume(): Token = tokens.consume()
 
-    /** Consumes the token at [current] if its type equals [type], returning `true`. */
-    private fun match(type: TokenType): Boolean {
-        // If the current token matches the expected type, consume it and return true.
-        if (peekType() == type) {
-            consume()
-            return true
-        }
-        return false
-    }
+    /** Consumes the current token in [tokens] if its type equals [type], returning `true`. */
+    private fun match(type: TokenType): Boolean = tokens.match(type)
 
     /**
-     * Consumes and returns the token at [current] if its type equals [type]. Otherwise, reports an
-     * [Issues.INVALID_JAVADOC] issue with [errorMessage] at the token's location and returns
-     * `null`.
+     * Consumes and returns the current token in [tokens] if its type equals [type]. Otherwise,
+     * reports an [Issues.INVALID_JAVADOC] issue with [errorMessage] at the token's location and
+     * returns `null`.
      */
     private fun expect(type: TokenType, errorMessage: String): Token? {
         // If the current token matches the expected type, consume and return it.

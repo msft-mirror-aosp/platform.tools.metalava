@@ -47,7 +47,13 @@ class JavadocLexerTest : BaseDocCommentTest() {
                 endExclusive,
                 TestDocumentationIssueReporter(reporter, lineMap),
             )
-        val tokens = lexer.tokenize()
+        val tokenStream = lexer.tokenize()
+        val tokens = buildList {
+            do {
+                val token = tokenStream.consume()
+                add(token)
+            } while (token.type != JavadocTokenType.EOF)
+        }
         val actual = tokens.joinToString("\n") { it.format(includePosition) }
         assertEquals(expectedTokens.trimIndent(), actual)
         assertJavadocParserIssues(expectedIssues)

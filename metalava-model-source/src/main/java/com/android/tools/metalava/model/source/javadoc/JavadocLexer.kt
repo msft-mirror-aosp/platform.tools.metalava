@@ -17,6 +17,7 @@
 package com.android.tools.metalava.model.source.javadoc
 
 import com.android.tools.metalava.model.parser.Token
+import com.android.tools.metalava.model.parser.TokenStream
 import com.android.tools.metalava.model.parser.TokenType
 import com.android.tools.metalava.model.source.doc.DocumentationIssueReporter
 import com.android.tools.metalava.reporter.Issues
@@ -253,9 +254,9 @@ internal class JavadocLexer(
     /**
      * Tokenize the text from [startInclusive] to [endExclusive].
      *
-     * @return a list of [Token]s ending with a [JavadocTokenType.EOF] token.
+     * @return a [TokenStream] ending with a [JavadocTokenType.EOF] token.
      */
-    fun tokenize(): List<Token> {
+    fun tokenize(): TokenStream {
         while (index < endExclusive) {
             val currentMode = modeStack.peek()
             when (currentMode) {
@@ -296,7 +297,7 @@ internal class JavadocLexer(
             endExclusive,
             endExclusive,
         )
-        return tokens
+        return TokenStream.eager(tokens)
     }
 
     /**
