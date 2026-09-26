@@ -121,4 +121,7 @@ internal class LazyContentSupplier(
     /** Get the character offset of [startInclusive] within [text]. */
     override val firstLineCharacterOffset: Int
         get() = text.characterOffsetFor(startInclusive)
+
+    override val charOffsetFromContainer: Int
+        get() = startInclusive
 }

@@ -40,6 +40,7 @@ import com.android.tools.metalava.model.source.javadoc.ExprContext
 import com.android.tools.metalava.model.source.javadoc.InvalidBlockUseVisitor
 import com.android.tools.metalava.model.source.javadoc.JavadocText
 import com.android.tools.metalava.model.source.javadoc.toOptionalJavadocContent
+import com.android.tools.metalava.reporter.FileLocation
 import com.android.tools.metalava.reporter.Issues
 import java.io.PrintWriter
 
@@ -243,6 +244,17 @@ internal abstract class AbstractItemDocumentation(
         val location = fileLocation.adjustForLineAndCharOffset(lineOffset, charOffset)
         item.codebase.reporter.report(issue, null, message, location)
     }
+
+    override fun report(issue: Issues.Issue, message: String, charOffset: Int) {
+        val location = fileLocation(charOffset)
+        item.codebase.reporter.report(issue, null, message, location)
+    }
+
+    /**
+     * Get the [FileLocation] for [charOffset], which is the 0-based character offset from the
+     * beginning of the documentation.
+     */
+    protected open fun fileLocation(charOffset: Int): FileLocation = fileLocation
 
     override fun duplicate(item: SelectableItem): ItemDocumentation =
         DefaultItemDocumentation(item, docComment, fileLocation)

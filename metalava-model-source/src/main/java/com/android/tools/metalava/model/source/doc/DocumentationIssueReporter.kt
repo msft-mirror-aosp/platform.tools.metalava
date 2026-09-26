@@ -71,6 +71,20 @@ internal interface DocumentationIssueReporter {
      */
     fun report(issue: Issue, message: String, lineOffset: Int = 0, charOffset: Int = 0)
 
+    /** Temporary overload to disambiguate between the two other versions */
+    fun report(issue: Issue, message: String) = report(issue, message, 0, 0)
+
+    /**
+     * Report [issue] with [message] at [charOffset] from the beginning of the associated comment or
+     * comment fragment.
+     *
+     * @param issue the [Issue] to report.
+     * @param message the message to report.
+     * @param charOffset is the 0-based index of the character within the comment or comment
+     *   fragment where the issue occurred.
+     */
+    fun report(issue: Issue, message: String, charOffset: Int = 0)
+
     companion object {
         /**
          * A special [DocumentationIssueReporter] that will immediately throw an error for the first
@@ -86,6 +100,14 @@ internal interface DocumentationIssueReporter {
                 ) {
                     error("${lineOffset + 1}:${charOffset + 1}: $message [${issue.name}]")
                 }
+
+                override fun report(
+                    issue: Issue,
+                    message: String,
+                    charOffset: Int,
+                ) {
+                    error("$charOffset: $message [${issue.name}]")
+                }
             }
 
         /** A special [DocumentationIssueReporter] that will ignore all the issues. */
@@ -96,6 +118,12 @@ internal interface DocumentationIssueReporter {
                     message: String,
                     lineOffset: Int,
                     charOffset: Int
+                ) {}
+
+                override fun report(
+                    issue: Issue,
+                    message: String,
+                    charOffset: Int,
                 ) {}
             }
     }
