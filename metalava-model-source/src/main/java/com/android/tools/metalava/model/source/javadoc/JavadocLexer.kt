@@ -20,8 +20,11 @@ import com.android.tools.metalava.model.source.doc.DocumentationIssueReporter
 import com.android.tools.metalava.reporter.Issues
 import java.util.ArrayDeque
 
+/** Base interface for token types produced by a lexer. */
+internal interface TokenType
+
 /** Token types produced by [JavadocLexer]. */
-internal enum class TokenType {
+internal enum class JavadocTokenType : TokenType {
     /** Plain text content outside of tags or within tag bodies. */
     TEXT_CONTENT,
 
@@ -123,7 +126,7 @@ private enum class LexerMode {
  * A modal lexer for Javadoc comments.
  *
  * Scans a slice of Javadoc comment text from [startInclusive] to [endExclusive] and converts it
- * into a stream of [Token]s ending with [TokenType.EOF].
+ * into a stream of [Token]s ending with [JavadocTokenType.EOF].
  *
  * ### Architecture and How It Works
  *
@@ -141,34 +144,35 @@ private enum class LexerMode {
  * starting with [LexerMode.DEFAULT]. As delimiters are encountered, modes are pushed or popped:
  * 1. **[LexerMode.DEFAULT]**:
  *     - The initial mode for general comment description text outside any tag.
- *     - Matches newlines ([TokenType.NEWLINE]), horizontal whitespace ([TokenType.SPACE]), inline
- *       tag starts (`{@` as [TokenType.INLINE_TAG_START], `{@if` as
- *       [TokenType.INLINE_IF_TAG_START]), or general text ([TokenType.TEXT_CONTENT]).
+ *     - Matches newlines ([JavadocTokenType.NEWLINE]), horizontal whitespace
+ *       ([JavadocTokenType.SPACE]), inline tag starts (`{@` as [JavadocTokenType.INLINE_TAG_START],
+ *       `{@if` as [JavadocTokenType.INLINE_IF_TAG_START]), or general text
+ *       ([JavadocTokenType.TEXT_CONTENT]).
  *     - Standalone `{` (not followed by `@`) and `}` are emitted as plain text.
  * 2. **[LexerMode.INLINE_TAG]**:
  *     - Entered immediately upon encountering `{@`.
- *     - Matches the tag name (`[a-zA-Z]+`, emitted as [TokenType.INLINE_TAG_NAME]) and transitions
- *       to [LexerMode.BALANCED_BRACE] to tokenize the tag body.
+ *     - Matches the tag name (`[a-zA-Z]+`, emitted as [JavadocTokenType.INLINE_TAG_NAME]) and
+ *       transitions to [LexerMode.BALANCED_BRACE] to tokenize the tag body.
  *     - If unexpected characters (e.g. whitespace) appear before the tag name, an issue is reported
  *       via [reporter] and the lexer recovers.
  * 3. **[LexerMode.BALANCED_BRACE]**:
  *     - Active within inline tag bodies or conditional branch bodies.
- *     - Tracks brace nesting: an opening `{` ([TokenType.BRACE_OPEN]) pushes another
- *       [LexerMode.BALANCED_BRACE] mode, while a closing `}` ([TokenType.BRACE_CLOSE]) pops the
- *       mode.
+ *     - Tracks brace nesting: an opening `{` ([JavadocTokenType.BRACE_OPEN]) pushes another
+ *       [LexerMode.BALANCED_BRACE] mode, while a closing `}` ([JavadocTokenType.BRACE_CLOSE]) pops
+ *       the mode.
  *     - Nested inline tags (`{@` and `{@if`) are also recognized.
  * 4. **[LexerMode.INLINE_IF_TAG]**:
  *     - Active inside `{@if ...}` tags.
  *     - Skips horizontal whitespace and newlines (including continuation asterisks).
- *     - Matches `(` ([TokenType.PAREN_OPEN], switching to [LexerMode.EXPR]), `{`
- *       ([TokenType.BRACE_OPEN], switching to [LexerMode.BALANCED_BRACE] for branch bodies), `}`
- *       ([TokenType.BRACE_CLOSE], popping the [LexerMode.INLINE_IF_TAG] mode), and the `else`
- *       keyword ([TokenType.IF_TAG_ELSE]).
+ *     - Matches `(` ([JavadocTokenType.PAREN_OPEN], switching to [LexerMode.EXPR]), `{`
+ *       ([JavadocTokenType.BRACE_OPEN], switching to [LexerMode.BALANCED_BRACE] for branch bodies),
+ *       `}` ([JavadocTokenType.BRACE_CLOSE], popping the [LexerMode.INLINE_IF_TAG] mode), and the
+ *       `else` keyword ([JavadocTokenType.IF_TAG_ELSE]).
  * 5. **[LexerMode.EXPR]**:
  *     - Active within conditional expressions (`{@if (expr)}`).
  *     - Skips horizontal whitespace and newlines.
  *     - Recognizes parentheses `(` and `)`, dot operators `.`, and identifiers
- *       ([TokenType.IDENTIFIER]).
+ *       ([JavadocTokenType.IDENTIFIER]).
  *     - If an unexpected `{` or `}` is encountered, pops [LexerMode.EXPR] to recover from an
  *       unclosed expression.
  *
@@ -176,9 +180,10 @@ private enum class LexerMode {
  *
  * Multi-line Javadoc comments typically prefix continuation lines with optional whitespace and one
  * or more asterisks (e.g. `\n * `). The lexer collapses a newline sequence (`\r\n`, `\n`, or `\r`)
- * and any following continuation asterisks on the next line into a single [TokenType.NEWLINE] token
- * in [LexerMode.DEFAULT] and [LexerMode.BALANCED_BRACE] modes. In [LexerMode.INLINE_IF_TAG] and
- * [LexerMode.EXPR] modes, newlines and continuation asterisks are skipped along with whitespace.
+ * and any following continuation asterisks on the next line into a single
+ * [JavadocTokenType.NEWLINE] token in [LexerMode.DEFAULT] and [LexerMode.BALANCED_BRACE] modes. In
+ * [LexerMode.INLINE_IF_TAG] and [LexerMode.EXPR] modes, newlines and continuation asterisks are
+ * skipped along with whitespace.
  *
  * ### Position Tracking and Issue Reporting
  *
@@ -282,7 +287,7 @@ internal class JavadocLexer(
     /**
      * Tokenize the text from [startInclusive] to [endExclusive].
      *
-     * @return a list of [Token]s ending with a [TokenType.EOF] token.
+     * @return a list of [Token]s ending with a [JavadocTokenType.EOF] token.
      */
     fun tokenize(): List<Token> {
         while (index < endExclusive) {
@@ -320,7 +325,7 @@ internal class JavadocLexer(
             modeStack.pop()
         }
         addToken(
-            TokenType.EOF,
+            JavadocTokenType.EOF,
             "",
             endExclusive,
             endExclusive,
@@ -333,8 +338,8 @@ internal class JavadocLexer(
      * continuation prefix on the next line (optional horizontal whitespace followed by one or more
      * asterisks).
      *
-     * If matched, advances [index], adds a [TokenType.NEWLINE] token, and returns `true`. Otherwise
-     * returns `false`.
+     * If matched, advances [index], adds a [JavadocTokenType.NEWLINE] token, and returns `true`.
+     * Otherwise returns `false`.
      */
     private fun tryMatchNewline(): Boolean {
         // Return false if there are no characters remaining to match.
@@ -371,7 +376,7 @@ internal class JavadocLexer(
 
         val tokenText = text.substring(startIndex, index)
         addToken(
-            TokenType.NEWLINE,
+            JavadocTokenType.NEWLINE,
             tokenText,
             startIndex,
             index,
@@ -382,8 +387,8 @@ internal class JavadocLexer(
     /**
      * Attempt to match one or more horizontal whitespace characters (spaces or tabs).
      *
-     * If matched, advances [index], adds a [TokenType.SPACE] token, and returns `true`. Otherwise
-     * returns `false`.
+     * If matched, advances [index], adds a [JavadocTokenType.SPACE] token, and returns `true`.
+     * Otherwise returns `false`.
      */
     private fun tryMatchSpace(): Boolean {
         // Return false if there are no characters remaining to match.
@@ -402,7 +407,7 @@ internal class JavadocLexer(
 
         val tokenText = text.substring(startIndex, index)
         addToken(
-            TokenType.SPACE,
+            JavadocTokenType.SPACE,
             tokenText,
             startIndex,
             index,
@@ -414,8 +419,8 @@ internal class JavadocLexer(
      * Attempt to match an inline tag start sequence (`{@if` or `{@`).
      *
      * If `{@if` is followed by a non-identifier character, switches to [LexerMode.INLINE_IF_TAG]
-     * and emits [TokenType.INLINE_IF_TAG_START]. Otherwise switches to [LexerMode.INLINE_TAG] and
-     * emits [TokenType.INLINE_TAG_START].
+     * and emits [JavadocTokenType.INLINE_IF_TAG_START]. Otherwise switches to
+     * [LexerMode.INLINE_TAG] and emits [JavadocTokenType.INLINE_TAG_START].
      */
     private fun tryMatchInlineTagStart(): Boolean {
         // Check if there are at least two characters remaining and they match '{@'.
@@ -433,7 +438,7 @@ internal class JavadocLexer(
                 index += 4
                 modeStack.push(LexerMode.INLINE_IF_TAG)
                 addToken(
-                    TokenType.INLINE_IF_TAG_START,
+                    JavadocTokenType.INLINE_IF_TAG_START,
                     "{@if",
                     startIndex,
                     index,
@@ -447,7 +452,7 @@ internal class JavadocLexer(
         index += 2
         modeStack.push(LexerMode.INLINE_TAG)
         addToken(
-            TokenType.INLINE_TAG_START,
+            JavadocTokenType.INLINE_TAG_START,
             "{@",
             startIndex,
             index,
@@ -488,7 +493,7 @@ internal class JavadocLexer(
 
         val tokenText = text.substring(startIndex, index)
         addToken(
-            TokenType.TEXT_CONTENT,
+            JavadocTokenType.TEXT_CONTENT,
             tokenText,
             startIndex,
             index,
@@ -515,7 +520,7 @@ internal class JavadocLexer(
             modeStack.pop()
             modeStack.push(LexerMode.BALANCED_BRACE)
             addToken(
-                TokenType.INLINE_TAG_NAME,
+                JavadocTokenType.INLINE_TAG_NAME,
                 tagName,
                 startIndex,
                 index,
@@ -564,7 +569,7 @@ internal class JavadocLexer(
             index++
             modeStack.push(LexerMode.BALANCED_BRACE)
             addToken(
-                TokenType.BRACE_OPEN,
+                JavadocTokenType.BRACE_OPEN,
                 "{",
                 startIndex,
                 index,
@@ -578,7 +583,7 @@ internal class JavadocLexer(
             index++
             modeStack.pop()
             addToken(
-                TokenType.BRACE_CLOSE,
+                JavadocTokenType.BRACE_CLOSE,
                 "}",
                 startIndex,
                 index,
@@ -598,7 +603,7 @@ internal class JavadocLexer(
 
         val tokenText = text.substring(startIndex, index)
         addToken(
-            TokenType.TEXT_CONTENT,
+            JavadocTokenType.TEXT_CONTENT,
             tokenText,
             startIndex,
             index,
@@ -666,7 +671,7 @@ internal class JavadocLexer(
                 index++
                 modeStack.push(LexerMode.EXPR)
                 addToken(
-                    TokenType.PAREN_OPEN,
+                    JavadocTokenType.PAREN_OPEN,
                     "(",
                     startIndex,
                     index,
@@ -678,7 +683,7 @@ internal class JavadocLexer(
                 index++
                 modeStack.push(LexerMode.BALANCED_BRACE)
                 addToken(
-                    TokenType.BRACE_OPEN,
+                    JavadocTokenType.BRACE_OPEN,
                     "{",
                     startIndex,
                     index,
@@ -690,7 +695,7 @@ internal class JavadocLexer(
                 index++
                 modeStack.pop()
                 addToken(
-                    TokenType.BRACE_CLOSE,
+                    JavadocTokenType.BRACE_CLOSE,
                     "}",
                     startIndex,
                     index,
@@ -704,7 +709,7 @@ internal class JavadocLexer(
                 (index + 4 == endExclusive || !text[index + 4].isJavaIdentifierPart()) -> {
                 index += 4
                 addToken(
-                    TokenType.IF_TAG_ELSE,
+                    JavadocTokenType.IF_TAG_ELSE,
                     "else",
                     startIndex,
                     index,
@@ -740,7 +745,7 @@ internal class JavadocLexer(
                 index++
                 modeStack.push(LexerMode.EXPR)
                 addToken(
-                    TokenType.PAREN_OPEN,
+                    JavadocTokenType.PAREN_OPEN,
                     "(",
                     startIndex,
                     index,
@@ -752,7 +757,7 @@ internal class JavadocLexer(
                 index++
                 modeStack.pop()
                 addToken(
-                    TokenType.PAREN_CLOSE,
+                    JavadocTokenType.PAREN_CLOSE,
                     ")",
                     startIndex,
                     index,
@@ -762,7 +767,7 @@ internal class JavadocLexer(
                 // Dot '.' separator in qualified names (e.g. package or class qualifiers).
                 index++
                 addToken(
-                    TokenType.DOT,
+                    JavadocTokenType.DOT,
                     ".",
                     startIndex,
                     index,
@@ -776,7 +781,7 @@ internal class JavadocLexer(
                 }
                 val ident = text.substring(startIndex, index)
                 addToken(
-                    TokenType.IDENTIFIER,
+                    JavadocTokenType.IDENTIFIER,
                     ident,
                     startIndex,
                     index,
