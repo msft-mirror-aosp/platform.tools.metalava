@@ -791,6 +791,9 @@ class NestedFlaggedApiTest : DriverTest() {
 
     @Test
     fun `Test outer revert and nested finalize on SystemApi class in public surface`() {
+        // Because Foo is annotated with @SystemApi, it is explicitly hidden from the public API
+        // surface, so its @FlaggedApi annotation and those of its members should not be checked
+        // for invalid flag nesting when generating the public surface.
         check(
             apiSurface = KnownApiSurface.PUBLIC,
             configFiles =
@@ -831,21 +834,6 @@ class NestedFlaggedApiTest : DriverTest() {
                 """,
             expectedStubFiles = emptyArray(),
             stubPaths = emptyArray(),
-            // TODO(b/561433523): InvalidFlagNesting should not be reported on Foo or its members
-            //  when generating the public API surface because Foo is annotated with @SystemApi
-            //  (which is treated as a hide annotation in the public surface) and is therefore
-            //  hidden from the public API surface. Even if Foo was already released in the system
-            //  API surface (making this flag combination valid for system), it is not in the
-            //  previously released public API. Currently, SelectedApiUpdater.updateSelectedApi
-            //  evaluates `revert` (and calls `checkFlaggedApi`) before checking `hide`, so it
-            //  treats Foo as being hidden due to its reverted @FlaggedApi annotation rather than
-            //  hidden by @SystemApi, and then checks @FlaggedApi on its enclosed members inside
-            //  `if (parent.areChildrenCompletelyHidden())`.
-            expectedIssues =
-                """
-                    src/test/pkg/Foo.java:6: error: @FlaggedApi flag test.pkg.outer is reverted but contains flags in a conflicting state [InvalidFlagNesting]
-                    src/test/pkg/Foo.java:11: error: @FlaggedApi flag test.pkg.nested is finalized but is contained by a flag in a conflicting state [InvalidFlagNesting]
-                """,
         )
     }
 }

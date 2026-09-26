@@ -24,7 +24,6 @@ import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.api.SurfaceSelectionRule.Effect
-import com.android.tools.metalava.model.api.flags.ApiFlag
 import com.android.tools.metalava.model.api.flags.ApiFlagAction
 import com.android.tools.metalava.model.api.surface.ApiSurfaces
 import com.android.tools.metalava.model.api.surface.ApiVariant
@@ -138,6 +137,10 @@ class SelectedApiUpdater(
 
         var revert = false
 
+        // Any @FlaggedApi annotation found on the item. Checking is deferred until after
+        // determining whether the item is explicitly hidden.
+        var flaggedApiAnnotation: AnnotationItem? = null
+
         // Iterate over the annotations, checking to see if any match the surface rules.
         val annotations = item.modifiers.annotations()
         for (annotationItem in annotations) {
@@ -175,7 +178,9 @@ class SelectedApiUpdater(
                 }
             }
                 ?: annotationItem.apiFlag?.let { apiFlag ->
-                    checkFlaggedApi(selectedApi, parent, annotationItem, apiFlag)
+                    // Save the @FlaggedApi annotation to check after verifying that the item is not
+                    // explicitly hidden.
+                    flaggedApiAnnotation = annotationItem
                     if (apiFlag.revert) {
                         revert = true
                     }
@@ -197,6 +202,17 @@ class SelectedApiUpdater(
             // reporting SHOWING_MEMBER_IN_HIDDEN_CLASS if so.
             if (itemApiVariants.isNotEmpty()) {
                 checkParentIsVisible(item, parent)
+            }
+
+            // If this item is not explicitly hidden (i.e. its parent was hidden because it was
+            // reverted and not in the previously released API), still check its @FlaggedApi
+            // annotation for invalid flag nesting against the reverted parent.
+            if (!explicitlyHidden && flaggedApiAnnotation != null) {
+                checkFlaggedApi(
+                    selectedApi,
+                    parent,
+                    flaggedApiAnnotation,
+                )
             }
 
             selectedApi.markAsHidden(revert = false)
@@ -248,6 +264,16 @@ class SelectedApiUpdater(
                     ApiVariantSet.EMPTY
                 }
             inheritableApiVariants = enclosingApiVariants
+        }
+
+        // Now that the item is known not to be explicitly hidden, check its @FlaggedApi
+        // annotation.
+        if (flaggedApiAnnotation != null) {
+            checkFlaggedApi(
+                selectedApi,
+                parent,
+                flaggedApiAnnotation,
+            )
         }
 
         // Check whether the item is marked for revert only after verifying that it is not
@@ -454,12 +480,12 @@ class SelectedApiUpdater(
     /**
      * Check `@FlaggedApi` [annotation] on [selectedApi]'s item for invalid flag nesting.
      *
-     * If [apiFlag] has an [ApiFlagAction] other than [ApiFlagAction.FINALIZE], lowers
+     * If [annotation]'s [ApiFlagAction] is not [ApiFlagAction.FINALIZE], lowers
      * [SourceSelectedApi.maxValidFlagAction] on [selectedApi] if necessary and saves [annotation]
      * in [SourceSelectedApi.flaggedApiAnnotation] so it can be reported if an enclosed item has a
      * conflicting (more permanent) `@FlaggedApi`.
      *
-     * If [apiFlag]'s [ApiFlagAction] is more permanent than `parent.maxValidFlagAction`, reports
+     * If [annotation]'s [ApiFlagAction] is more permanent than `parent.maxValidFlagAction`, reports
      * [Issues.INVALID_FLAG_NESTING] on any unreported enclosing conflicting `@FlaggedApi`
      * annotations as well as on [annotation].
      */
@@ -467,13 +493,13 @@ class SelectedApiUpdater(
         selectedApi: SourceSelectedApi<*>,
         parent: SourceSelectedApi<*>,
         annotation: AnnotationItem,
-        apiFlag: ApiFlag,
     ) {
         // Ignore PropertyItems as their annotations are duplicated from their accessors/backing
         // fields.
         val item = selectedApi.item
         if (item is PropertyItem) return
 
+        val apiFlag = annotation.apiFlag!!
         val action = apiFlag.action
         if (action != ApiFlagAction.FINALIZE) {
             if (action < selectedApi.maxValidFlagAction) {
