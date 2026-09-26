@@ -97,8 +97,7 @@ internal class LazyContentSupplier(
             startInclusive,
             trimmedEnd,
             // Pass this as the reporter so that this can apply corrections to the
-            // line and char offset based on the [startInclusive] position within
-            // [text].
+            // char offset based on the [startInclusive] position within [text].
             this,
         )
     }
@@ -113,14 +112,6 @@ internal class LazyContentSupplier(
         }
         append(">>")
     }
-
-    /** Get the line offset of [startInclusive] within [text]. */
-    override val lineOffsetFromContainer: Int
-        get() = text.lineOffsetFor(startInclusive)
-
-    /** Get the character offset of [startInclusive] within [text]. */
-    override val firstLineCharacterOffset: Int
-        get() = text.characterOffsetFor(startInclusive)
 
     override val charOffsetFromContainer: Int
         get() = startInclusive

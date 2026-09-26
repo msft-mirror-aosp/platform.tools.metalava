@@ -26,19 +26,6 @@ internal class TokenIssueReporter(reporter: DocumentationIssueReporter) :
     /** The [Token] on which the issues will be reported. */
     internal var token: Token? = null
 
-    /** The line offset of [token] from the beginning of the content parsed by [JavadocParser]. */
-    override val lineOffsetFromContainer: Int
-        get() =
-            // The token's `line` property is 1-based but this is 0-based so convert the former
-            // to the latter.
-            token!!.line - 1
-
-    /** The character offset of [token] from the beginning of the line containing it. */
-    override val firstLineCharacterOffset: Int
-        get() =
-            // The token's `charPositionInLine` is already 0-based like this.
-            token!!.charPositionInLine
-
     /**
      * The character offset of [token] from the beginning of the content parsed by [JavadocParser].
      */

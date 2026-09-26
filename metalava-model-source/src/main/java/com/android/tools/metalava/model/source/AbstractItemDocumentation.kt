@@ -240,11 +240,6 @@ internal abstract class AbstractItemDocumentation(
         docComment.addBlockTagSection(tagTypeName, text.toOptionalJavadocContent())
     }
 
-    override fun report(issue: Issues.Issue, message: String, lineOffset: Int, charOffset: Int) {
-        val location = fileLocation.adjustForLineAndCharOffset(lineOffset, charOffset)
-        item.codebase.reporter.report(issue, null, message, location)
-    }
-
     override fun report(issue: Issues.Issue, message: String, charOffset: Int) {
         val location = fileLocation(charOffset)
         item.codebase.reporter.report(issue, null, message, location)

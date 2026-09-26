@@ -115,12 +115,6 @@ internal class TestDocumentationIssueReporter(
     private val reporter: Reporter,
     private val lineMap: LineMap,
 ) : DocumentationIssueReporter {
-    override fun report(issue: Issue, message: String, lineOffset: Int, charOffset: Int) {
-        val reportable: Reportable? = null
-        val fileLocation = FileLocation.createLocation(Path.of(""), lineOffset + 1, charOffset + 1)
-        reporter.report(issue, reportable, message, fileLocation)
-    }
-
     override fun report(issue: Issue, message: String, charOffset: Int) {
         val lineNumber = lineMap.lineNumber(charOffset)
         val charPosition = lineMap.characterPosition(charOffset)
