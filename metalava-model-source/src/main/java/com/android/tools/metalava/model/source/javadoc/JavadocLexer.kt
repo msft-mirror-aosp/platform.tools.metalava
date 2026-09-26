@@ -17,6 +17,7 @@
 package com.android.tools.metalava.model.source.javadoc
 
 import com.android.tools.metalava.model.parser.Token
+import com.android.tools.metalava.model.parser.TokenProducer
 import com.android.tools.metalava.model.parser.TokenStream
 import com.android.tools.metalava.model.parser.TokenType
 import com.android.tools.metalava.model.source.doc.DocumentationIssueReporter
@@ -169,7 +170,7 @@ internal class JavadocLexer(
     private val startInclusive: Int,
     private val endExclusive: Int,
     private val reporter: DocumentationIssueReporter,
-) {
+) : TokenProducer {
     /** Current reading position in [text]. */
     private var index = startInclusive
 
@@ -187,6 +188,9 @@ internal class JavadocLexer(
 
     /** Context description for the unexpected character sequence (e.g. "in expression"). */
     private var unexpectedContext: String? = null
+
+    /** Cached [JavadocTokenType.EOF] token returned once the end of input is reached. */
+    private var eofToken: Token? = null
 
     init {
         modeStack.push(LexerMode.DEFAULT)
@@ -248,8 +252,9 @@ internal class JavadocLexer(
      *
      * @return a [TokenStream] ending with a [JavadocTokenType.EOF] token.
      */
-    fun tokenize(): TokenStream {
-        val tokens = mutableListOf<Token>()
+    fun tokenize(): TokenStream = TokenStream.lazy(this)
+
+    override fun nextToken(): Token {
         while (index < endExclusive) {
             val currentMode = modeStack.peek()
             val token =
@@ -275,8 +280,15 @@ internal class JavadocLexer(
                     LexerMode.EXPR -> tokenizeExpr()
                 }
             if (token != null) {
-                tokens.add(token)
+                return token
             }
+        }
+
+        // TokenProducer.nextToken() must continue to return an EOF token on all subsequent calls
+        // once the input is exhausted. If EOF has already been reached, return the cached EOF
+        // token immediately without re-running end-of-input checks or allocating a new Token.
+        eofToken?.let {
+            return it
         }
 
         // If the input ended while expecting an inline tag name (e.g. '{@' at EOF), report the
@@ -288,15 +300,15 @@ internal class JavadocLexer(
             )
             modeStack.pop()
         }
-        tokens.add(
-            createToken(
+
+        // Create and cache the EOF token for this and any subsequent calls to nextToken().
+        return createToken(
                 JavadocTokenType.EOF,
                 "",
                 endExclusive,
                 endExclusive,
             )
-        )
-        return TokenStream.eager(tokens)
+            .also { eofToken = it }
     }
 
     /**
