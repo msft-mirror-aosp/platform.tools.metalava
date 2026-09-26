@@ -176,9 +176,6 @@ internal class JavadocLexer(
     /** Stack of [LexerMode]s controlling context-dependent tokenization. */
     private val modeStack = ArrayDeque<LexerMode>()
 
-    /** Accumulated tokens produced by this lexer. */
-    private val tokens = mutableListOf<Token>()
-
     /**
      * Start index in [text] of an unexpected character sequence, or equal to [unexpectedEndIndex]
      * if none.
@@ -195,24 +192,19 @@ internal class JavadocLexer(
         modeStack.push(LexerMode.DEFAULT)
     }
 
-    /**
-     * Creates and adds a [Token] to [tokens], flushing any pending unexpected character sequence
-     * first.
-     */
-    private fun addToken(
+    /** Creates and returns a [Token], flushing any pending unexpected character sequence first. */
+    private fun createToken(
         type: TokenType,
         text: String,
         startIndex: Int,
         endIndex: Int,
-    ) {
+    ): Token {
         flushUnexpected()
-        tokens.add(
-            Token(
-                type,
-                text,
-                startIndex - startInclusive,
-                endIndex - startInclusive,
-            )
+        return Token(
+            type,
+            text,
+            startIndex - startInclusive,
+            endIndex - startInclusive,
         )
     }
 
@@ -257,28 +249,33 @@ internal class JavadocLexer(
      * @return a [TokenStream] ending with a [JavadocTokenType.EOF] token.
      */
     fun tokenize(): TokenStream {
+        val tokens = mutableListOf<Token>()
         while (index < endExclusive) {
             val currentMode = modeStack.peek()
-            when (currentMode) {
-                // In DEFAULT mode: general comment text outside tags, matching newlines, spaces,
-                // inline tag starts, or plain text.
-                LexerMode.DEFAULT -> tokenizeDefault()
+            val token =
+                when (currentMode) {
+                    // In DEFAULT mode: general comment text outside tags, matching newlines,
+                    // spaces, inline tag starts, or plain text.
+                    LexerMode.DEFAULT -> tokenizeDefault()
 
-                // In INLINE_TAG mode: immediately after '{@', expecting the tag name (e.g. 'link',
-                // 'code').
-                LexerMode.INLINE_TAG -> tokenizeInlineTag()
+                    // In INLINE_TAG mode: immediately after '{@', expecting the tag name (e.g.
+                    // 'link', 'code').
+                    LexerMode.INLINE_TAG -> tokenizeInlineTag()
 
-                // In BALANCED_BRACE mode: inside an inline tag or brace block, tracking '{' and '}'
-                // nesting.
-                LexerMode.BALANCED_BRACE -> tokenizeBalancedBrace()
+                    // In BALANCED_BRACE mode: inside an inline tag or brace block, tracking '{' and
+                    // '}' nesting.
+                    LexerMode.BALANCED_BRACE -> tokenizeBalancedBrace()
 
-                // In INLINE_IF_TAG mode: inside '{@if ...}', ignoring whitespace and matching '(',
-                // '{', '}', and 'else'.
-                LexerMode.INLINE_IF_TAG -> tokenizeInlineIfTag()
+                    // In INLINE_IF_TAG mode: inside '{@if ...}', ignoring whitespace and matching
+                    // '(', '{', '}', and 'else'.
+                    LexerMode.INLINE_IF_TAG -> tokenizeInlineIfTag()
 
-                // In EXPR mode: inside the condition of '{@if (expr)}', matching identifiers, dots,
-                // and parens.
-                LexerMode.EXPR -> tokenizeExpr()
+                    // In EXPR mode: inside the condition of '{@if (expr)}', matching identifiers,
+                    // dots, and parens.
+                    LexerMode.EXPR -> tokenizeExpr()
+                }
+            if (token != null) {
+                tokens.add(token)
             }
         }
 
@@ -291,11 +288,13 @@ internal class JavadocLexer(
             )
             modeStack.pop()
         }
-        addToken(
-            JavadocTokenType.EOF,
-            "",
-            endExclusive,
-            endExclusive,
+        tokens.add(
+            createToken(
+                JavadocTokenType.EOF,
+                "",
+                endExclusive,
+                endExclusive,
+            )
         )
         return TokenStream.eager(tokens)
     }
@@ -305,16 +304,16 @@ internal class JavadocLexer(
      * continuation prefix on the next line (optional horizontal whitespace followed by one or more
      * asterisks).
      *
-     * If matched, advances [index], adds a [JavadocTokenType.NEWLINE] token, and returns `true`.
-     * Otherwise returns `false`.
+     * If matched, advances [index] and returns a [JavadocTokenType.NEWLINE] token. Otherwise
+     * returns `null`.
      */
-    private fun tryMatchNewline(): Boolean {
-        // Return false if there are no characters remaining to match.
-        if (index >= endExclusive) return false
+    private fun tryMatchNewline(): Token? {
+        // Return null if there are no characters remaining to match.
+        if (index >= endExclusive) return null
         val c = text[index]
 
         // If the current character is not a newline indicator (\n or \r), then no newline matches.
-        if (c != '\n' && c != '\r') return false
+        if (c != '\n' && c != '\r') return null
 
         val startIndex = index
 
@@ -342,28 +341,27 @@ internal class JavadocLexer(
         }
 
         val tokenText = text.substring(startIndex, index)
-        addToken(
+        return createToken(
             JavadocTokenType.NEWLINE,
             tokenText,
             startIndex,
             index,
         )
-        return true
     }
 
     /**
      * Attempt to match one or more horizontal whitespace characters (spaces or tabs).
      *
-     * If matched, advances [index], adds a [JavadocTokenType.SPACE] token, and returns `true`.
-     * Otherwise returns `false`.
+     * If matched, advances [index] and returns a [JavadocTokenType.SPACE] token. Otherwise returns
+     * `null`.
      */
-    private fun tryMatchSpace(): Boolean {
-        // Return false if there are no characters remaining to match.
-        if (index >= endExclusive) return false
+    private fun tryMatchSpace(): Token? {
+        // Return null if there are no characters remaining to match.
+        if (index >= endExclusive) return null
         val c = text[index]
 
-        // If the current character is not horizontal whitespace (space or tab), return false.
-        if (c != ' ' && c != '\t') return false
+        // If the current character is not horizontal whitespace (space or tab), return null.
+        if (c != ' ' && c != '\t') return null
 
         val startIndex = index
 
@@ -373,25 +371,24 @@ internal class JavadocLexer(
         }
 
         val tokenText = text.substring(startIndex, index)
-        addToken(
+        return createToken(
             JavadocTokenType.SPACE,
             tokenText,
             startIndex,
             index,
         )
-        return true
     }
 
     /**
      * Attempt to match an inline tag start sequence (`{@if` or `{@`).
      *
      * If `{@if` is followed by a non-identifier character, switches to [LexerMode.INLINE_IF_TAG]
-     * and emits [JavadocTokenType.INLINE_IF_TAG_START]. Otherwise switches to
-     * [LexerMode.INLINE_TAG] and emits [JavadocTokenType.INLINE_TAG_START].
+     * and returns [JavadocTokenType.INLINE_IF_TAG_START]. Otherwise switches to
+     * [LexerMode.INLINE_TAG] and returns [JavadocTokenType.INLINE_TAG_START].
      */
-    private fun tryMatchInlineTagStart(): Boolean {
+    private fun tryMatchInlineTagStart(): Token? {
         // Check if there are at least two characters remaining and they match '{@'.
-        if (index + 1 >= endExclusive || text[index] != '{' || text[index + 1] != '@') return false
+        if (index + 1 >= endExclusive || text[index] != '{' || text[index + 1] != '@') return null
 
         val startIndex = index
 
@@ -404,13 +401,12 @@ internal class JavadocLexer(
                 // INLINE_IF_TAG_START token.
                 index += 4
                 modeStack.push(LexerMode.INLINE_IF_TAG)
-                addToken(
+                return createToken(
                     JavadocTokenType.INLINE_IF_TAG_START,
                     "{@if",
                     startIndex,
                     index,
                 )
-                return true
             }
         }
 
@@ -418,13 +414,12 @@ internal class JavadocLexer(
         // emit INLINE_TAG_START token.
         index += 2
         modeStack.push(LexerMode.INLINE_TAG)
-        addToken(
+        return createToken(
             JavadocTokenType.INLINE_TAG_START,
             "{@",
             startIndex,
             index,
         )
-        return true
     }
 
     /**
@@ -433,15 +428,21 @@ internal class JavadocLexer(
      * Matches newlines, spaces, inline tag starts (`{@` and `{@if`), or general text content. In
      * this mode, standalone `{` (not followed by `@`) and `}` are treated as plain text.
      */
-    private fun tokenizeDefault() {
+    private fun tokenizeDefault(): Token {
         // First, check for newline sequences (including continuation asterisks on the next line).
-        if (tryMatchNewline()) return
+        tryMatchNewline()?.let {
+            return it
+        }
 
         // Next, check for horizontal whitespace.
-        if (tryMatchSpace()) return
+        tryMatchSpace()?.let {
+            return it
+        }
 
         // Check for inline tag starts ('{@if' or '{@').
-        if (tryMatchInlineTagStart()) return
+        tryMatchInlineTagStart()?.let {
+            return it
+        }
 
         val startIndex = index
 
@@ -459,7 +460,7 @@ internal class JavadocLexer(
         }
 
         val tokenText = text.substring(startIndex, index)
-        addToken(
+        return createToken(
             JavadocTokenType.TEXT_CONTENT,
             tokenText,
             startIndex,
@@ -474,9 +475,9 @@ internal class JavadocLexer(
      * unexpected characters (such as whitespace) occur before the tag name, reports an issue and
      * skips them to recover.
      */
-    private fun tokenizeInlineTag() {
+    private fun tokenizeInlineTag(): Token? {
         val c = text[index]
-        if (c in 'a'..'z' || c in 'A'..'Z') {
+        return if (c in 'a'..'z' || c in 'A'..'Z') {
             // An alphabetical character indicates a valid tag name (e.g. "link", "code").
             // Consume the full tag name and switch to BALANCED_BRACE mode for parsing the tag body.
             val startIndex = index
@@ -486,7 +487,7 @@ internal class JavadocLexer(
             val tagName = text.substring(startIndex, index)
             modeStack.pop()
             modeStack.push(LexerMode.BALANCED_BRACE)
-            addToken(
+            createToken(
                 JavadocTokenType.INLINE_TAG_NAME,
                 tagName,
                 startIndex,
@@ -496,6 +497,7 @@ internal class JavadocLexer(
             // Whitespace immediately follows '{@' (e.g. '{@ link}').
             // Record unexpected whitespace to report as a chunk once a valid character is reached.
             recordUnexpected("after '{@'")
+            null
         } else if (c == '}' || c == '\n' || c == '\r') {
             // A closing brace or newline immediately follows '{@' (e.g. '{@}' or '{@\n').
             // Report a missing tag name issue and pop INLINE_TAG mode without consuming the
@@ -505,10 +507,12 @@ internal class JavadocLexer(
                 "missing inline tag name",
             )
             modeStack.pop()
+            null
         } else {
             // Any other unexpected characters (e.g. symbols, punctuation, digits).
             // Record unexpected characters to report as a chunk once a valid character is reached.
             recordUnexpected("after '{@', expected tag name")
+            null
         }
     }
 
@@ -518,15 +522,21 @@ internal class JavadocLexer(
      * In this mode, braces `{` and `}` are tracked: `{` pushes another balanced brace mode, and `}`
      * pops the mode. Nested inline tags (`{@` and `{@if`) are also recognized.
      */
-    private fun tokenizeBalancedBrace() {
+    private fun tokenizeBalancedBrace(): Token {
         // Check for newline sequences.
-        if (tryMatchNewline()) return
+        tryMatchNewline()?.let {
+            return it
+        }
 
         // Check for horizontal whitespace.
-        if (tryMatchSpace()) return
+        tryMatchSpace()?.let {
+            return it
+        }
 
         // Check for nested inline tag starts ('{@if' or '{@').
-        if (tryMatchInlineTagStart()) return
+        tryMatchInlineTagStart()?.let {
+            return it
+        }
 
         val c = text[index]
         if (c == '{') {
@@ -535,13 +545,12 @@ internal class JavadocLexer(
             val startIndex = index
             index++
             modeStack.push(LexerMode.BALANCED_BRACE)
-            addToken(
+            return createToken(
                 JavadocTokenType.BRACE_OPEN,
                 "{",
                 startIndex,
                 index,
             )
-            return
         }
         if (c == '}') {
             // Closing brace '}'.
@@ -549,13 +558,12 @@ internal class JavadocLexer(
             val startIndex = index
             index++
             modeStack.pop()
-            addToken(
+            return createToken(
                 JavadocTokenType.BRACE_CLOSE,
                 "}",
                 startIndex,
                 index,
             )
-            return
         }
 
         // Plain text content within the balanced brace block.
@@ -569,7 +577,7 @@ internal class JavadocLexer(
         }
 
         val tokenText = text.substring(startIndex, index)
-        addToken(
+        return createToken(
             JavadocTokenType.TEXT_CONTENT,
             tokenText,
             startIndex,
@@ -622,22 +630,22 @@ internal class JavadocLexer(
      *
      * Skips whitespace and recognizes `(`, `{`, `}`, and `else`.
      */
-    private fun tokenizeInlineIfTag() {
+    private fun tokenizeInlineIfTag(): Token? {
         skipWhitespaceAndNewlinesInIfOrExpr()
 
         // If end of input is reached, return.
-        if (index >= endExclusive) return
+        if (index >= endExclusive) return null
 
         val c = text[index]
         val startIndex = index
 
-        when {
+        return when {
             c == '(' -> {
                 // Opening parenthesis '(' begins the condition expression.
                 // Switch to EXPR mode to tokenize the condition.
                 index++
                 modeStack.push(LexerMode.EXPR)
-                addToken(
+                createToken(
                     JavadocTokenType.PAREN_OPEN,
                     "(",
                     startIndex,
@@ -649,7 +657,7 @@ internal class JavadocLexer(
                 // Switch to BALANCED_BRACE mode to handle nested content.
                 index++
                 modeStack.push(LexerMode.BALANCED_BRACE)
-                addToken(
+                createToken(
                     JavadocTokenType.BRACE_OPEN,
                     "{",
                     startIndex,
@@ -661,7 +669,7 @@ internal class JavadocLexer(
                 // Pop INLINE_IF_TAG mode to return to the enclosing mode.
                 index++
                 modeStack.pop()
-                addToken(
+                createToken(
                     JavadocTokenType.BRACE_CLOSE,
                     "}",
                     startIndex,
@@ -675,7 +683,7 @@ internal class JavadocLexer(
                 text.startsWith("else", index) &&
                 (index + 4 == endExclusive || !text[index + 4].isJavaIdentifierPart()) -> {
                 index += 4
-                addToken(
+                createToken(
                     JavadocTokenType.IF_TAG_ELSE,
                     "else",
                     startIndex,
@@ -687,6 +695,7 @@ internal class JavadocLexer(
                 // Record unexpected characters to report as a chunk once a valid token or issue is
                 // reached.
                 recordUnexpected("in '@if' tag")
+                null
             }
         }
     }
@@ -696,22 +705,22 @@ internal class JavadocLexer(
      *
      * Recognizes `(`, `)`, `.`, and identifier names within conditional expressions.
      */
-    private fun tokenizeExpr() {
+    private fun tokenizeExpr(): Token? {
         skipWhitespaceAndNewlinesInIfOrExpr()
 
         // If end of input is reached, return.
-        if (index >= endExclusive) return
+        if (index >= endExclusive) return null
 
         val c = text[index]
         val startIndex = index
 
-        when {
+        return when {
             c == '(' -> {
                 // Opening parenthesis '(' for nested expression or function call argument list.
                 // Push EXPR mode to track nested parentheses.
                 index++
                 modeStack.push(LexerMode.EXPR)
-                addToken(
+                createToken(
                     JavadocTokenType.PAREN_OPEN,
                     "(",
                     startIndex,
@@ -723,7 +732,7 @@ internal class JavadocLexer(
                 // Pop the current EXPR mode.
                 index++
                 modeStack.pop()
-                addToken(
+                createToken(
                     JavadocTokenType.PAREN_CLOSE,
                     ")",
                     startIndex,
@@ -733,7 +742,7 @@ internal class JavadocLexer(
             c == '.' -> {
                 // Dot '.' separator in qualified names (e.g. package or class qualifiers).
                 index++
-                addToken(
+                createToken(
                     JavadocTokenType.DOT,
                     ".",
                     startIndex,
@@ -747,7 +756,7 @@ internal class JavadocLexer(
                     index++
                 }
                 val ident = text.substring(startIndex, index)
-                addToken(
+                createToken(
                     JavadocTokenType.IDENTIFIER,
                     ident,
                     startIndex,
@@ -760,12 +769,14 @@ internal class JavadocLexer(
                 // of tag '}'.
                 // Pop EXPR mode to recover and allow INLINE_IF_TAG mode to handle the brace.
                 modeStack.pop()
+                null
             }
             else -> {
                 // Unexpected character sequence in expression.
                 // Record unexpected characters to report as a chunk once a valid token or issue is
                 // reached.
                 recordUnexpected("in expression")
+                null
             }
         }
     }
