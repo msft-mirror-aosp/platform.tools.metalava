@@ -182,6 +182,14 @@ class SelectedApiUpdater(
                 }
         }
 
+        // An item is explicitly hidden if no show rules matched and it has a hide annotation, a
+        // @hide doc tag, or its parent was explicitly hidden. Save this on selectedApi before
+        // returning early in parent.areChildrenCompletelyHidden() so nested classes propagate
+        // their explicitlyHidden state to their own children.
+        val explicitlyHidden =
+            itemApiVariants.isEmpty() && (hide || item.hasHideDocTag || parent.explicitlyHidden)
+        selectedApi.explicitlyHidden = explicitlyHidden
+
         // If the parent needs to hide its children then mark this child as hidden and return
         // immediately.
         if (parent.areChildrenCompletelyHidden()) {
@@ -190,10 +198,6 @@ class SelectedApiUpdater(
             if (itemApiVariants.isNotEmpty()) {
                 checkParentIsVisible(item, parent)
             }
-
-            // Propagate explicitlyHidden so that if this item is a nested class, its enclosing
-            // state is preserved for its own children.
-            selectedApi.explicitlyHidden = hide || parent.explicitlyHidden || item.hasHideDocTag
 
             selectedApi.markAsHidden(revert = false)
             return
@@ -251,17 +255,9 @@ class SelectedApiUpdater(
         // Check to see if any show rules matched; if they had then they would have set
         // itemApiVariants to non-null.
         if (itemApiVariants.isEmpty()) {
-            // No show rules matched. Check to see if the context item should be hidden.
-
-            // If no hide annotations were found then check for @hide doc tag or inherited
-            // explicitly hidden.
-            if (!hide) {
-                hide = item.hasHideDocTag || parent.explicitlyHidden
-            }
-
-            if (hide) {
-                selectedApi.explicitlyHidden = true
-                // Mark the selectedApi as being hidden.
+            // No show rules matched. If the context item was explicitly hidden then mark it as
+            // hidden and return immediately.
+            if (explicitlyHidden) {
                 selectedApi.markAsHidden(revert = false)
 
                 // Return immediately to avoid falling through.
