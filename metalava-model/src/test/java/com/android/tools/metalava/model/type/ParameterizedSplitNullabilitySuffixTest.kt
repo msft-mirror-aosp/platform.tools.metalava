@@ -131,7 +131,7 @@ class ParameterizedSplitNullabilitySuffixTest {
     fun `test split nullability`() {
         val collatingErrorReporter = CollatingErrorReporter()
         val result =
-            TypeItemParser.splitNullabilitySuffix(
+            LegacyTypeItemParser.splitNullabilitySuffix(
                 params.type,
                 params.kotlinStyleNulls,
                 collatingErrorReporter

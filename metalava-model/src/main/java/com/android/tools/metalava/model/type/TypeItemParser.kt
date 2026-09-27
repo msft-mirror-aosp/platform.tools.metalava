@@ -34,6 +34,66 @@ import com.android.tools.metalava.model.WellKnownTypes.JAVA_LANG_OBJECT_PLATFORM
 import com.android.tools.metalava.model.WildcardTypeItem
 import com.android.tools.metalava.model.value.ValueParser
 
+/** Parses and caches types within an [AnnotationContext]. */
+interface TypeItemParser {
+    /**
+     * Creates or retrieves from the cache a [TypeItem] representing [type], in the context of the
+     * type parameters from [typeParameterScope], if applicable.
+     */
+    fun obtainTypeFromString(
+        type: String,
+        typeParameterScope: TypeParameterScope = TypeParameterScope.empty,
+        contextNullability: ContextNullability = ContextNullability.none,
+    ): TypeItem
+
+    /**
+     * Companion object providing factory and utility functions that currently delegate to
+     * [LegacyTypeItemParser].
+     *
+     * The intention is that [LegacyTypeItemParser] will eventually be replaced, so providing these
+     * methods on [TypeItemParser] minimizes churn at call sites.
+     */
+    companion object {
+        /**
+         * Creates and returns a [LegacyTypeItemParser] as a [TypeItemParser].
+         *
+         * The intention is that [LegacyTypeItemParser] will eventually be replaced, so this factory
+         * method reduces churn at call sites.
+         */
+        operator fun invoke(
+            annotationContext: AnnotationContext,
+            unqualifiedClassHandler: UnqualifiedClassHandler,
+            kotlinStyleNulls: Boolean = false,
+            errorReporter: TypeItemParserErrorReporter = TypeItemParserErrorReporter.THROWING,
+        ): TypeItemParser =
+            LegacyTypeItemParser(
+                annotationContext,
+                unqualifiedClassHandler,
+                kotlinStyleNulls,
+                errorReporter,
+            )
+
+        /**
+         * Breaks a string representing type parameters into a list of the type parameter strings.
+         *
+         * E.g. `"<A, B, C>"` -> `["A", "B", "C"]` and `"<List<A>, B>"` -> `["List<A>", "B"]`.
+         */
+        fun typeParameterStrings(typeString: String?): List<String> =
+            LegacyTypeItemParser.typeParameterStrings(typeString)
+
+        /**
+         * Returns a [TypeItemParser] suitable for use by the [ValueParser].
+         *
+         * It does not support kotlin style nulls, or annotations and treats unqualified types as if
+         * they were qualified.
+         */
+        fun forValueParser(
+            classResolver: ClassResolver,
+            errorReporter: TypeItemParserErrorReporter = TypeItemParserErrorReporter.THROWING,
+        ): TypeItemParser = LegacyTypeItemParser.forValueParser(classResolver, errorReporter)
+    }
+}
+
 /**
  * Parses and caches types within an [annotationContext].
  *
@@ -42,12 +102,12 @@ import com.android.tools.metalava.model.value.ValueParser
  *   for nullable, and `!` for platform are supported or not.
  * @param errorReporter channel for reporting recoverable errors found while parsing.
  */
-open class TypeItemParser(
+open class LegacyTypeItemParser(
     private val annotationContext: AnnotationContext,
     private val unqualifiedClassHandler: UnqualifiedClassHandler,
     private val kotlinStyleNulls: Boolean = false,
     private val errorReporter: TypeItemParserErrorReporter = TypeItemParserErrorReporter.THROWING,
-) {
+) : TypeItemParser {
     /** [ValueParser] used for parsing type use annotations. */
     private val valueParser = ValueParser(annotationContext, this)
 
@@ -55,14 +115,10 @@ open class TypeItemParser(
     private val objectType =
         if (kotlinStyleNulls) JAVA_LANG_OBJECT_NON_NULL_TYPE else JAVA_LANG_OBJECT_PLATFORM_TYPE
 
-    /**
-     * Creates or retrieves from the cache a [TypeItem] representing [type], in the context of the
-     * type parameters from [typeParameterScope], if applicable.
-     */
-    fun obtainTypeFromString(
+    override fun obtainTypeFromString(
         type: String,
         typeParameterScope: TypeParameterScope,
-        contextNullability: ContextNullability = ContextNullability.none,
+        contextNullability: ContextNullability,
     ): TypeItem {
         var typeItem =
             parseTypeWithContextNullability(
@@ -830,7 +886,7 @@ open class TypeItemParser(
                         get() = error("Annotations not supported")
                 }
 
-            return TypeItemParser(
+            return LegacyTypeItemParser(
                 annotationContext,
                 UnqualifiedClassHandler.PREFIX_WITH_JAVA_LANG,
                 kotlinStyleNulls = false,

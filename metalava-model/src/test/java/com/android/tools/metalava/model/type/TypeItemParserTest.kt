@@ -36,7 +36,7 @@ class TypeItemParserTest {
     private val annotationContext = AnnotationContext.DEFAULT_RESOLVE_NULL
 
     private val typeParser =
-        TypeItemParser(
+        LegacyTypeItemParser(
             annotationContext,
             UnqualifiedClassHandler.PREFIX_WITH_JAVA_LANG_OR_REPORT_ERROR,
         )
@@ -86,15 +86,17 @@ class TypeItemParserTest {
 
     @Test
     fun `Test type parameter strings with remainder`() {
-        assertThat(TypeItemParser.typeParameterStringsWithRemainder(null))
+        assertThat(LegacyTypeItemParser.typeParameterStringsWithRemainder(null))
             .isEqualTo(Pair(emptyList<String>(), null))
-        assertThat(TypeItemParser.typeParameterStringsWithRemainder(""))
+        assertThat(LegacyTypeItemParser.typeParameterStringsWithRemainder(""))
             .isEqualTo(Pair(emptyList<String>(), ""))
-        assertThat(TypeItemParser.typeParameterStringsWithRemainder("<X>"))
+        assertThat(LegacyTypeItemParser.typeParameterStringsWithRemainder("<X>"))
             .isEqualTo(Pair(listOf("X"), null))
-        assertThat(TypeItemParser.typeParameterStringsWithRemainder("<X>.Inner"))
+        assertThat(LegacyTypeItemParser.typeParameterStringsWithRemainder("<X>.Inner"))
             .isEqualTo(Pair(listOf("X"), ".Inner"))
-        assertThat(TypeItemParser.typeParameterStringsWithRemainder("<X, Y, Z>.Inner<A, B, C>"))
+        assertThat(
+                LegacyTypeItemParser.typeParameterStringsWithRemainder("<X, Y, Z>.Inner<A, B, C>")
+            )
             .isEqualTo(Pair(listOf("X", "Y", "Z"), ".Inner<A, B, C>"))
     }
 
@@ -246,7 +248,7 @@ class TypeItemParserTest {
     }
 
     /**
-     * Verifies that calling [TypeItemParser.splitClassType] returns the triple of
+     * Verifies that calling [LegacyTypeItemParser.splitClassType] returns the triple of
      * [expectedClassName], [expectedParams], [expectedAnnotations].
      */
     private fun testClassAnnotations(
