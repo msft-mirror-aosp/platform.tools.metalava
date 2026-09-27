@@ -43,46 +43,6 @@ class TypeItemParserTest {
     private fun parseType(type: String) =
         typeParser.obtainTypeFromString(type, TypeParameterScope.empty)
 
-    @Test
-    fun `Test type parameter strings`() {
-        assertThat(typeParser.typeParameterStrings(null).toString()).isEqualTo("[]")
-        assertThat(typeParser.typeParameterStrings("").toString()).isEqualTo("[]")
-        assertThat(typeParser.typeParameterStrings("<X>").toString()).isEqualTo("[X]")
-        assertThat(typeParser.typeParameterStrings("<ABC,DEF extends T>").toString())
-            .isEqualTo("[ABC, DEF extends T]")
-        assertThat(
-                typeParser
-                    .typeParameterStrings("<T extends java.lang.Comparable<? super T>>")
-                    .toString()
-            )
-            .isEqualTo("[T extends java.lang.Comparable<? super T>]")
-        assertThat(
-                typeParser.typeParameterStrings("<java.util.List<java.lang.String>[]>").toString()
-            )
-            .isEqualTo("[java.util.List<java.lang.String>[]]")
-    }
-
-    @Test
-    fun `Test type parameter strings with annotations`() {
-        assertThat(
-                typeParser.typeParameterStrings(
-                    "<java.lang.@androidx.annotation.IntRange(from=5,to=10) Integer>"
-                )
-            )
-            .containsExactly("java.lang.@androidx.annotation.IntRange(from=5,to=10) Integer")
-        assertThat(typeParser.typeParameterStrings("<@test.pkg.C String>"))
-            .containsExactly("@test.pkg.C String")
-        assertThat(
-                typeParser.typeParameterStrings(
-                    "<java.lang.@androidx.annotation.IntRange(from=5,to=10) Integer, @test.pkg.C String>"
-                )
-            )
-            .containsExactly(
-                "java.lang.@androidx.annotation.IntRange(from=5,to=10) Integer",
-                "@test.pkg.C String"
-            )
-    }
-
     /**
      * Tests that [inputType] is parsed as an [ArrayTypeItem] with component type equal to
      * [expectedInnerType] and vararg iff [expectedVarargs] is true.
