@@ -43,7 +43,7 @@ import com.android.tools.metalava.model.value.ValueParser
  * @param errorReporter channel for reporting recoverable errors found while parsing.
  */
 open class TypeItemParser(
-    val annotationContext: AnnotationContext,
+    private val annotationContext: AnnotationContext,
     private val unqualifiedClassHandler: UnqualifiedClassHandler,
     private val kotlinStyleNulls: Boolean = false,
     private val errorReporter: TypeItemParserErrorReporter = TypeItemParserErrorReporter.THROWING,
