@@ -46,19 +46,19 @@ class TypeItemParserTest {
 
     @Test
     fun `Test type parameter strings`() {
-        assertThat(TypeItemParser.typeParameterStrings(null).toString()).isEqualTo("[]")
-        assertThat(TypeItemParser.typeParameterStrings("").toString()).isEqualTo("[]")
-        assertThat(TypeItemParser.typeParameterStrings("<X>").toString()).isEqualTo("[X]")
-        assertThat(TypeItemParser.typeParameterStrings("<ABC,DEF extends T>").toString())
+        assertThat(typeParser.typeParameterStrings(null).toString()).isEqualTo("[]")
+        assertThat(typeParser.typeParameterStrings("").toString()).isEqualTo("[]")
+        assertThat(typeParser.typeParameterStrings("<X>").toString()).isEqualTo("[X]")
+        assertThat(typeParser.typeParameterStrings("<ABC,DEF extends T>").toString())
             .isEqualTo("[ABC, DEF extends T]")
         assertThat(
-                TypeItemParser.typeParameterStrings("<T extends java.lang.Comparable<? super T>>")
+                typeParser
+                    .typeParameterStrings("<T extends java.lang.Comparable<? super T>>")
                     .toString()
             )
             .isEqualTo("[T extends java.lang.Comparable<? super T>]")
         assertThat(
-                TypeItemParser.typeParameterStrings("<java.util.List<java.lang.String>[]>")
-                    .toString()
+                typeParser.typeParameterStrings("<java.util.List<java.lang.String>[]>").toString()
             )
             .isEqualTo("[java.util.List<java.lang.String>[]]")
     }
@@ -66,15 +66,15 @@ class TypeItemParserTest {
     @Test
     fun `Test type parameter strings with annotations`() {
         assertThat(
-                TypeItemParser.typeParameterStrings(
+                typeParser.typeParameterStrings(
                     "<java.lang.@androidx.annotation.IntRange(from=5,to=10) Integer>"
                 )
             )
             .containsExactly("java.lang.@androidx.annotation.IntRange(from=5,to=10) Integer")
-        assertThat(TypeItemParser.typeParameterStrings("<@test.pkg.C String>"))
+        assertThat(typeParser.typeParameterStrings("<@test.pkg.C String>"))
             .containsExactly("@test.pkg.C String")
         assertThat(
-                TypeItemParser.typeParameterStrings(
+                typeParser.typeParameterStrings(
                     "<java.lang.@androidx.annotation.IntRange(from=5,to=10) Integer, @test.pkg.C String>"
                 )
             )

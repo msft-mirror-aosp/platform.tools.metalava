@@ -519,6 +519,7 @@ private constructor(
         val parser =
             SingleSignatureFileParser(
                 assembler = assembler,
+                typeParser = typeParser,
                 globalTypeItemFactory = globalTypeItemFactory,
                 valueParser = valueParser,
                 defaultTargetLanguageSet = defaultTargetLanguageSet,
@@ -555,6 +556,9 @@ private constructor(
 internal class SingleSignatureFileParser(
     /** Populates the [Codebase] from the parsed signature file. */
     private val assembler: TextCodebaseAssembler,
+
+    /** Provides support for parsing and caching [TypeItem]s. */
+    private val typeParser: TextTypeParser,
 
     /** Provides support for creating [TypeItem]s for specific uses. */
     private val globalTypeItemFactory: TextTypeItemFactory,
@@ -2038,7 +2042,7 @@ internal class SingleSignatureFileParser(
     ): TypeParameterListAndFactory<TextTypeItemFactory> {
         // Split the type parameter list string into a list of strings, one for each type
         // parameter.
-        val typeParameterStrings = TypeItemParser.typeParameterStrings(typeParameterListString)
+        val typeParameterStrings = typeParser.typeParameterStrings(typeParameterListString)
 
         // Create the List<TypeParameterItem> and the corresponding TypeItemFactory that can be
         // used to resolve TypeParameterItems from the list. This performs the construction in two

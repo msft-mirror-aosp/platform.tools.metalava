@@ -47,6 +47,13 @@ interface TypeItemParser {
     ): TypeItem
 
     /**
+     * Breaks a string representing type parameters into a list of the type parameter strings.
+     *
+     * E.g. `"<A, B, C>"` -> `["A", "B", "C"]` and `"<List<A>, B>"` -> `["List<A>", "B"]`.
+     */
+    fun typeParameterStrings(typeString: String?): List<String>
+
+    /**
      * Companion object providing factory and utility functions that currently delegate to
      * [LegacyTypeItemParser].
      *
@@ -72,14 +79,6 @@ interface TypeItemParser {
                 kotlinStyleNulls,
                 errorReporter,
             )
-
-        /**
-         * Breaks a string representing type parameters into a list of the type parameter strings.
-         *
-         * E.g. `"<A, B, C>"` -> `["A", "B", "C"]` and `"<List<A>, B>"` -> `["List<A>", "B"]`.
-         */
-        fun typeParameterStrings(typeString: String?): List<String> =
-            LegacyTypeItemParser.typeParameterStrings(typeString)
 
         /**
          * Returns a [TypeItemParser] suitable for use by the [ValueParser].
@@ -711,6 +710,10 @@ open class LegacyTypeItemParser(
         return Triple(name.toString(), null, annotations)
     }
 
+    override fun typeParameterStrings(typeString: String?): List<String> {
+        return typeParameterStringsWithRemainder(typeString).first
+    }
+
     companion object {
         /**
          * Splits the Kotlin-style nullability marker off the type string, returning a pair of the
@@ -791,15 +794,6 @@ open class LegacyTypeItemParser(
                 index++
             }
             return index
-        }
-
-        /**
-         * Breaks a string representing type parameters into a list of the type parameter strings.
-         *
-         * E.g. `"<A, B, C>"` -> `["A", "B", "C"]` and `"<List<A>, B>"` -> `["List<A>", "B"]`.
-         */
-        fun typeParameterStrings(typeString: String?): List<String> {
-            return typeParameterStringsWithRemainder(typeString).first
         }
 
         /**
