@@ -248,12 +248,13 @@ private constructor(
     /**
      * Provides support for parsing and caching [TypeItem]s.
      *
-     * Defer creation until after the first file has been read and [kotlinStyleNulls] has been set
-     * to a non-null value to ensure that it picks up the correct setting of [kotlinStyleNulls].
+     * Defer creation until after the first file has been read and [deferredKotlinStyleNulls] has
+     * been set to a non-null value to ensure that it picks up the correct setting of
+     * [kotlinStyleNulls].
      */
     private val typeParser by
         lazy(LazyThreadSafetyMode.NONE) {
-            TextTypeParser(codebase, kotlinStyleNulls!!, typeItemParserErrorReporter)
+            TextTypeParser(codebase, kotlinStyleNulls, typeItemParserErrorReporter)
         }
 
     /**
@@ -275,12 +276,21 @@ private constructor(
         )
 
     /**
+     * Backing property for [kotlinStyleNulls]; should not be read directly outside
+     * [parseApiSingleFile] where it is initialized and checked for consistency across files. All
+     * other code should read [kotlinStyleNulls] instead.
+     */
+    private var deferredKotlinStyleNulls: Boolean? = null
+
+    /**
      * Whether types should be interpreted to be in Kotlin format (e.g. `?` suffix means nullable,
      * `!` suffix means unknown, and absence of a suffix means not nullable).
      *
-     * Updated based on the header of the signature file being parsed.
+     * Initialized from the header of the signature file being parsed in [parseApiSingleFile], so it
+     * is only safe to read after the header of the first signature file has been parsed.
      */
-    private var kotlinStyleNulls: Boolean? = null
+    private val kotlinStyleNulls: Boolean
+        get() = deferredKotlinStyleNulls!!
 
     /** See [KOTLIN_NAME_TYPE_ORDER]. */
     private var kotlinNameTypeOrder: Boolean = false
@@ -581,14 +591,17 @@ private constructor(
 
         // Disallow a mixture of kotlinStyleNulls settings.
         val kotlinStyleNullsForThisFile = format[KOTLIN_STYLE_NULLS]
-        if (kotlinStyleNulls != null && kotlinStyleNulls != kotlinStyleNullsForThisFile) {
+        if (
+            deferredKotlinStyleNulls != null &&
+                deferredKotlinStyleNulls != kotlinStyleNullsForThisFile
+        ) {
             val precedingFile = precedingTracker!!.fileLocation().path
             reportIssue(
                 Issues.SIGNATURE_FILE_ERROR,
                 "Preceding file $precedingFile has different setting of kotlin-style-nulls which may cause issues"
             )
         }
-        kotlinStyleNulls = kotlinStyleNullsForThisFile
+        deferredKotlinStyleNulls = kotlinStyleNullsForThisFile
         kotlinNameTypeOrder = format[KOTLIN_NAME_TYPE_ORDER]
 
         while (true) {
@@ -2362,7 +2375,7 @@ private constructor(
      * @param modifiers the API item's modifiers.
      */
     private fun synchronizeNullability(typeItem: TypeItem, modifiers: MutableModifierList) {
-        if (typeParser.kotlinStyleNulls) {
+        if (kotlinStyleNulls) {
             // Add an annotation to the context item for the type's nullability if applicable.
             val annotationClassNameToAdd =
                 // Treat varargs as non-null for consistency with the psi model.

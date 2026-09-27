@@ -45,7 +45,7 @@ import com.android.tools.metalava.model.value.ValueParser
 open class TypeItemParser(
     val annotationContext: AnnotationContext,
     private val unqualifiedClassHandler: UnqualifiedClassHandler,
-    val kotlinStyleNulls: Boolean = false,
+    private val kotlinStyleNulls: Boolean = false,
     private val errorReporter: TypeItemParserErrorReporter = TypeItemParserErrorReporter.THROWING,
 ) {
     /** [ValueParser] used for parsing type use annotations. */
