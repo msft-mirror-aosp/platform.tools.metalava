@@ -17,7 +17,6 @@
 package com.android.tools.metalava.model.type
 
 import com.android.tools.metalava.model.TypeNullability
-import com.android.tools.metalava.reporter.Issues.Issue
 import com.android.tools.metalava.testing.EntryPoint
 import com.android.tools.metalava.testing.EntryPointCallerRule
 import com.android.tools.metalava.testing.EntryPointCallerTracker
@@ -140,31 +139,5 @@ class ParameterizedSplitNullabilitySuffixTest {
         assertEquals(params.expectedRemainder, result.first, message = "remainder")
         assertEquals(params.expectedNullability, result.second, message = "nullability")
         assertEquals(params.expectedIssues, collatingErrorReporter.toString())
-    }
-}
-
-private class CollatingErrorReporter : TypeItemParserErrorReporter {
-    private val list = mutableListOf<Report>()
-
-    private data class Report(
-        val issue: Issue,
-        val message: String,
-    )
-
-    override fun report(issue: Issue, message: String) {
-        list.add(Report(issue, message))
-    }
-
-    override fun toString(): String {
-        list.sortWith(reportComparator)
-        return list.joinToString("\n") { report -> "${report.message} [${report.issue.name}]" }
-    }
-
-    companion object {
-        private val reportComparator =
-            compareBy<Report>(
-                { it.issue.name },
-                { it.message },
-            )
     }
 }

@@ -17,9 +17,10 @@
 package com.android.tools.metalava.model.type
 
 import com.android.tools.metalava.model.AnnotationContext
+import com.android.tools.metalava.reporter.Issues.Issue
 
 /**
- * Provides a [TypeItemParser] implementation and the list of [testCases] supported by it for
+ * Provides a [TypeItemParser] factory and the list of [testCases] supported by that parser for
  * parameterized tests.
  */
 class TypeItemParserProvider<T>(
@@ -47,14 +48,41 @@ class TypeItemParserProvider<T>(
             errorReporter,
         )
 
-    override fun toString(): String = name
+    override fun toString() = name
 }
 
+/** Expand a list of [TypeItemParserProvider]s into `(provider, testCase)` parameter pairs. */
+fun <T : Any> List<TypeItemParserProvider<T>>.toTestParameters(): List<Array<Any>> =
+    flatMap { provider ->
+        provider.testCases.map { testCase -> arrayOf(provider, testCase) }
+    }
+
 /**
- * Flattens a list of [TypeItemParserProvider]s and their supported
- * [TypeItemParserProvider.testCases] into `(provider, testCase)` parameter arrays for JUnit
- * [org.junit.runners.Parameterized].
+ * [TypeItemParserErrorReporter] that collates reported issues and formats them as a newline
+ * separated string for test assertions.
  */
-fun <T> List<TypeItemParserProvider<T>>.toTestParameters(): List<Array<Any>> = flatMap { provider ->
-    provider.testCases.map { testCase -> arrayOf(provider as Any, testCase as Any) }
+internal class CollatingErrorReporter : TypeItemParserErrorReporter {
+    private val list = mutableListOf<Report>()
+
+    private data class Report(
+        val issue: Issue,
+        val message: String,
+    )
+
+    override fun report(issue: Issue, message: String) {
+        list.add(Report(issue, message))
+    }
+
+    override fun toString(): String {
+        list.sortWith(reportComparator)
+        return list.joinToString("\n") { report -> "${report.message} [${report.issue.name}]" }
+    }
+
+    companion object {
+        private val reportComparator =
+            compareBy<Report>(
+                { it.issue.name },
+                { it.message },
+            )
+    }
 }

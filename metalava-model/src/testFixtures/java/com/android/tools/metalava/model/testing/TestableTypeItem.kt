@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model.testing
 
+import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ArrayTypeItem
 import com.android.tools.metalava.model.BaseTypeVisitor
 import com.android.tools.metalava.model.BoundsTypeItem
@@ -30,6 +31,7 @@ import com.android.tools.metalava.model.SkeletonTypeParameterItem
 import com.android.tools.metalava.model.TypeArgumentTypeItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeModifiers
+import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.TypeStringConfiguration
 import com.android.tools.metalava.model.VariableTypeItem
@@ -59,12 +61,29 @@ fun TypeItem.testTypeString(
     )
 
 /** Create a [PrimitiveTypeItem] for [kind]. */
-fun primitiveTypeForKind(kind: Primitive, isValueClassType: Boolean = false): PrimitiveTypeItem =
-    TypeItem.createPrimitiveType(TypeModifiers.emptyNonNullModifiers, kind, isValueClassType)
+fun primitiveTypeForKind(
+    kind: Primitive,
+    isValueClassType: Boolean = false,
+    annotations: List<AnnotationItem> = emptyList(),
+): PrimitiveTypeItem =
+    TypeItem.createPrimitiveType(
+        TypeModifiers.create(annotations, TypeNullability.NONNULL),
+        kind,
+        isValueClassType,
+    )
 
 /** Create a [ClassTypeItem] for [JAVA_LANG_STRING]. */
-fun stringType(isValueClassType: Boolean = false): ClassTypeItem =
-    classTypeItem(JAVA_LANG_STRING, isValueClassType = isValueClassType)
+fun stringType(
+    isValueClassType: Boolean = false,
+    nullability: TypeNullability = TypeNullability.NONNULL,
+    annotations: List<AnnotationItem> = emptyList(),
+): ClassTypeItem =
+    classTypeItem(
+        JAVA_LANG_STRING,
+        isValueClassType = isValueClassType,
+        nullability = nullability,
+        annotations = annotations,
+    )
 
 /** Create a [ClassTypeItem] for [qualifiedName] with [arguments] inside [outerClassType]. */
 fun classTypeItem(
@@ -72,9 +91,11 @@ fun classTypeItem(
     arguments: List<TypeArgumentTypeItem> = emptyList(),
     outerClassType: ClassTypeItem? = null,
     isValueClassType: Boolean = false,
+    nullability: TypeNullability = TypeNullability.NONNULL,
+    annotations: List<AnnotationItem> = emptyList(),
 ): ClassTypeItem =
     TypeItem.createClassType(
-        TypeModifiers.emptyNonNullModifiers,
+        TypeModifiers.create(annotations, nullability),
         qualifiedName,
         arguments,
         outerClassType,
@@ -86,9 +107,11 @@ fun arrayTypeItem(
     componentType: TypeItem,
     isVarargs: Boolean = false,
     isValueClassType: Boolean = false,
+    nullability: TypeNullability = TypeNullability.NONNULL,
+    annotations: List<AnnotationItem> = emptyList(),
 ): ArrayTypeItem =
     TypeItem.createArrayType(
-        TypeModifiers.emptyNonNullModifiers,
+        TypeModifiers.create(annotations, nullability),
         componentType,
         isVarargs,
         isValueClassType,
@@ -98,24 +121,37 @@ fun arrayTypeItem(
 fun variableTypeItem(
     typeParameterItem: TypeParameterItem,
     isValueClassType: Boolean = false,
+    nullability: TypeNullability = TypeNullability.NONNULL,
+    annotations: List<AnnotationItem> = emptyList(),
 ): VariableTypeItem =
     TypeItem.createVariableType(
-        TypeModifiers.emptyNonNullModifiers,
+        TypeModifiers.create(annotations, nullability),
         typeParameterItem,
         isValueClassType,
     )
 
 /** Create a [VariableTypeItem] for a [TypeParameterItem] called [name]. */
-fun variableTypeItem(name: String, isValueClassType: Boolean = false): VariableTypeItem =
-    variableTypeItem(typeParameterItem(name), isValueClassType)
+fun variableTypeItem(
+    name: String,
+    isValueClassType: Boolean = false,
+    nullability: TypeNullability = TypeNullability.NONNULL,
+    annotations: List<AnnotationItem> = emptyList(),
+): VariableTypeItem =
+    variableTypeItem(
+        typeParameterItem(name),
+        isValueClassType = isValueClassType,
+        nullability = nullability,
+        annotations = annotations,
+    )
 
 /** Create a [WildcardTypeItem] for [extendsBound] of [superBound] . */
 fun wildcardTypeItem(
     extendsBound: ReferenceTypeItem? = null,
     superBound: ReferenceTypeItem? = null,
+    annotations: List<AnnotationItem> = emptyList(),
 ): WildcardTypeItem =
     TypeItem.createWildcardType(
-        TypeModifiers.emptyUndefinedModifiers,
+        TypeModifiers.create(annotations, TypeNullability.UNDEFINED),
         extendsBound,
         superBound,
     )
