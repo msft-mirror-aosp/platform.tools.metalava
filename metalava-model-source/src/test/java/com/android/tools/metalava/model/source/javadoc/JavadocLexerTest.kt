@@ -48,16 +48,7 @@ class JavadocLexerTest : BaseDocCommentTest() {
                 TestDocumentationIssueReporter(reporter, lineMap),
             )
         val tokens = lexer.tokenize()
-        val actual =
-            tokens.joinToString("\n") { token ->
-                val escaped =
-                    token.text.replace("\r", "\\r").replace("\n", "\\n").replace("\t", "\\t")
-                if (includePosition) {
-                    "${token.type} '$escaped' (${token.startOffset}..${token.endOffset})"
-                } else {
-                    "${token.type} '$escaped'"
-                }
-            }
+        val actual = tokens.joinToString("\n") { it.format(includePosition) }
         assertEquals(expectedTokens.trimIndent(), actual)
         assertJavadocParserIssues(expectedIssues)
     }

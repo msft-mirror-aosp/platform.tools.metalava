@@ -88,7 +88,23 @@ internal data class Token(
     val charPositionInLine: Int,
     val startOffset: Int,
     val endOffset: Int,
-)
+) {
+    /**
+     * Formats this token as a human-readable string, escaping `\r`, `\n`, and `\t` in [text], and
+     * optionally appending the token's character offset range `([startOffset]..[endOffset])` when
+     * [includePosition] is `true`.
+     */
+    fun format(includePosition: Boolean = true): String {
+        val escaped = text.replace("\r", "\\r").replace("\n", "\\n").replace("\t", "\\t")
+        return if (includePosition) {
+            "$type '$escaped' ($startOffset..$endOffset)"
+        } else {
+            "$type '$escaped'"
+        }
+    }
+
+    override fun toString(): String = format()
+}
 
 /** Lexer modes for [JavadocLexer]. */
 private enum class LexerMode {
