@@ -16,7 +16,6 @@
 
 package com.android.tools.metalava.model.text
 
-import com.android.tools.metalava.model.ArrayTypeItem
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterScope
@@ -38,36 +37,12 @@ internal class TextTypeItemFactory(
         underlyingType: String,
         contextNullability: ContextNullability,
         isVarArg: Boolean
-    ): TypeItem {
-        var typeItem =
-            typeParser.obtainTypeFromString(
-                underlyingType,
-                typeParameterScope,
-                contextNullability,
-            )
-
-        // Check if the type is an array and its component nullability needs to be updated based on
-        // the context.
-        val forcedComponentNullability = contextNullability.forcedComponentNullability
-        if (
-            typeItem is ArrayTypeItem &&
-                forcedComponentNullability != null &&
-                forcedComponentNullability != typeItem.componentType.modifiers.nullability
-        ) {
-            typeItem =
-                typeItem.substitute(
-                    componentType = typeItem.componentType.substitute(forcedComponentNullability),
-                )
-        }
-
-        // Check if the type's nullability needs to be updated based on the context.
-        val typeNullability = typeItem.modifiers.nullability
-        val actualTypeNullability =
-            contextNullability.compute(typeNullability, typeItem.modifiers.annotations)
-        return if (actualTypeNullability != typeNullability) {
-            typeItem.substitute(actualTypeNullability)
-        } else typeItem
-    }
+    ): TypeItem =
+        typeParser.obtainTypeFromString(
+            underlyingType,
+            typeParameterScope,
+            contextNullability,
+        )
 
     override fun getExceptionType(underlyingType: String) =
         super.getExceptionType(underlyingType).also { exceptionTypeItem ->

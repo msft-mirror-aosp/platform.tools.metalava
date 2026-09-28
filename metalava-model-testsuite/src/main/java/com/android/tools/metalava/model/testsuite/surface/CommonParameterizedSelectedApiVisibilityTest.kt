@@ -24,7 +24,12 @@ import com.android.tools.metalava.model.testing.surfaces.TestableApiSurfaces.UNA
 import com.android.tools.metalava.model.testing.surfaces.TestableApiSurfaces.annotatedOnlyPublicSystemModuleRules
 import com.android.tools.metalava.model.testing.surfaces.TestableApiSurfaces.annotatedOnlyRules
 import com.android.tools.metalava.model.testing.surfaces.TestableApiSurfaces.publicSystemModuleRules
+import com.android.tools.metalava.testing.TestFileCache
+import com.android.tools.metalava.testing.TestFileCacheRule
+import com.android.tools.metalava.testing.cacheIn
+import com.android.tools.metalava.testing.jarFromSources
 import com.android.tools.metalava.testing.java
+import org.junit.ClassRule
 import org.junit.runners.Parameterized
 
 /**
@@ -47,6 +52,28 @@ import org.junit.runners.Parameterized
 class CommonParameterizedSelectedApiVisibilityTest : BaseCommonParameterizedSelectedApiTest() {
 
     companion object : BaseCompanion() {
+        /** Create a [TestFileCache] whose lifespan encompasses all the tests in this class. */
+        @ClassRule @JvmField val testFileCacheRule = TestFileCacheRule()
+
+        /**
+         * A jar containing a public class (`test.pkg.PublicClass`) to be placed on the classpath.
+         *
+         * Cached across tests using [testFileCacheRule] to test how classpath classes (which have
+         * `emit = false`) interact with API surface selection.
+         */
+        private val publicClasspathJar =
+            jarFromSources(
+                    "public-class.jar",
+                    java(
+                        """
+                            package test.pkg;
+                            public class PublicClass {
+                            }
+                        """
+                    ),
+                )
+                .cacheIn(testFileCacheRule)
+
         @JvmStatic
         @Parameterized.Parameters
         fun params() = buildList {
@@ -70,10 +97,8 @@ class CommonParameterizedSelectedApiVisibilityTest : BaseCommonParameterizedSele
                         """
                             package test.pkg
                                    self - ApiVariantSet[public(C)]
-                                content - ApiVariantSet[]
                               class test.pkg.Test
                                      self - ApiVariantSet[public(C)]
-                                  content - ApiVariantSet[]
                         """,
                 )
             }
@@ -99,10 +124,8 @@ class CommonParameterizedSelectedApiVisibilityTest : BaseCommonParameterizedSele
                         """
                             package test
                                    self - ApiVariantSet[]
-                                content - ApiVariantSet[]
                               class test.Hidden
                                      self - ApiVariantSet[]
-                                  content - ApiVariantSet[]
                         """,
                 )
             }
@@ -123,6 +146,10 @@ class CommonParameterizedSelectedApiVisibilityTest : BaseCommonParameterizedSele
                             """
                         ),
                     ),
+                expectedIssues =
+                    """
+                        MAIN_SRC/src/test/Hidden.java: error: Attempting to unhide method test.Hidden.method(), but surrounding class test.Hidden is hidden and should also be annotated with @test.api.PublicApi [ShowingMemberInHiddenClass]
+                    """,
             ) {
                 surfaceTest(
                     surface = "public",
@@ -131,13 +158,10 @@ class CommonParameterizedSelectedApiVisibilityTest : BaseCommonParameterizedSele
                         """
                             package test
                                    self - ApiVariantSet[]
-                                content - ApiVariantSet[]
                               class test.Hidden
                                      self - ApiVariantSet[]
-                                  content - ApiVariantSet[]
                                 method test.Hidden.method()
                                        self - ApiVariantSet[]
-                                    content - ApiVariantSet[]
                         """,
                 )
             }
@@ -189,28 +213,20 @@ class CommonParameterizedSelectedApiVisibilityTest : BaseCommonParameterizedSele
                         """
                             package test.pkg
                                    self - ApiVariantSet[public(C)]
-                                content - ApiVariantSet[]
                               class test.pkg.Test
                                      self - ApiVariantSet[public(C)]
-                                  content - ApiVariantSet[]
                                 constructor test.pkg.Test(int)
                                        self - ApiVariantSet[public(C)]
-                                    content - ApiVariantSet[]
                                 method test.pkg.Test.method()
                                        self - ApiVariantSet[public(C)]
-                                    content - ApiVariantSet[]
                               class test.pkg.ClassOnly
                                      self - ApiVariantSet[public(C)]
-                                  content - ApiVariantSet[]
                                 constructor test.pkg.ClassOnly()
                                        self - ApiVariantSet[]
-                                    content - ApiVariantSet[]
                                 method test.pkg.ClassOnly.notIncluded()
                                        self - ApiVariantSet[]
-                                    content - ApiVariantSet[]
                               class test.pkg.Unannotated
                                      self - ApiVariantSet[]
-                                  content - ApiVariantSet[]
                         """,
                 )
             }
@@ -239,22 +255,16 @@ class CommonParameterizedSelectedApiVisibilityTest : BaseCommonParameterizedSele
                         """
                             package test.pkg
                                    self - ApiVariantSet[]
-                                content - ApiVariantSet[]
                               class test.pkg.Outer
                                      self - ApiVariantSet[]
-                                  content - ApiVariantSet[]
                                 constructor test.pkg.Outer()
                                        self - ApiVariantSet[]
-                                    content - ApiVariantSet[]
                                 class test.pkg.Outer.Inner
                                        self - ApiVariantSet[]
-                                    content - ApiVariantSet[]
                                   constructor test.pkg.Outer.Inner()
                                          self - ApiVariantSet[]
-                                      content - ApiVariantSet[]
                                   method test.pkg.Outer.Inner.method()
                                          self - ApiVariantSet[]
-                                      content - ApiVariantSet[]
                         """,
                 )
             }
@@ -283,22 +293,16 @@ class CommonParameterizedSelectedApiVisibilityTest : BaseCommonParameterizedSele
                         """
                             package test.pkg
                                    self - ApiVariantSet[public(C)]
-                                content - ApiVariantSet[]
                               class test.pkg.Outer
                                      self - ApiVariantSet[public(C)]
-                                  content - ApiVariantSet[]
                                 constructor test.pkg.Outer()
                                        self - ApiVariantSet[public(C)]
-                                    content - ApiVariantSet[]
                                 class test.pkg.Outer.Inner
                                        self - ApiVariantSet[]
-                                    content - ApiVariantSet[]
                                   constructor test.pkg.Outer.Inner()
                                          self - ApiVariantSet[]
-                                      content - ApiVariantSet[]
                                   method test.pkg.Outer.Inner.method()
                                          self - ApiVariantSet[]
-                                      content - ApiVariantSet[]
                         """,
                 )
             }
@@ -316,6 +320,11 @@ class CommonParameterizedSelectedApiVisibilityTest : BaseCommonParameterizedSele
                             """
                         ),
                     ),
+                expectedIssues =
+                    """
+                        MAIN_SRC/src/test/pkg/MyRecord.java: error: Cannot hide canonical constructor test.pkg.MyRecord(int) as it is an indivisible part of a record class [HidingRecordComponent]
+                        MAIN_SRC/src/test/pkg/MyRecord.java: error: Cannot hide record component getter method test.pkg.MyRecord.x() as it is an indivisible part of a record class [HidingRecordComponent]
+                    """,
             ) {
                 surfaceTest(
                     surface = "public",
@@ -323,16 +332,12 @@ class CommonParameterizedSelectedApiVisibilityTest : BaseCommonParameterizedSele
                         """
                             package test.pkg
                                    self - ApiVariantSet[public(C)]
-                                content - ApiVariantSet[]
                               class test.pkg.MyRecord
                                      self - ApiVariantSet[public(C)]
-                                  content - ApiVariantSet[]
                                 constructor test.pkg.MyRecord(int)
                                        self - ApiVariantSet[public(C)]
-                                    content - ApiVariantSet[]
                                 method test.pkg.MyRecord.x()
                                        self - ApiVariantSet[public(C)]
-                                    content - ApiVariantSet[]
                         """,
                 )
             }
@@ -360,19 +365,14 @@ class CommonParameterizedSelectedApiVisibilityTest : BaseCommonParameterizedSele
                         """
                             package test.pkg
                                    self - ApiVariantSet[public(C),system(C)]
-                                content - ApiVariantSet[]
                               class test.pkg.Outer
                                      self - ApiVariantSet[public(C)]
-                                  content - ApiVariantSet[]
                                 constructor test.pkg.Outer()
                                        self - ApiVariantSet[public(C)]
-                                    content - ApiVariantSet[]
                                 class test.pkg.Outer.Inner
                                        self - ApiVariantSet[system(C)]
-                                    content - ApiVariantSet[]
                                   constructor test.pkg.Outer.Inner()
                                          self - ApiVariantSet[system(C)]
-                                      content - ApiVariantSet[]
                         """,
                 )
             }
@@ -399,16 +399,12 @@ class CommonParameterizedSelectedApiVisibilityTest : BaseCommonParameterizedSele
                         """
                             package test.pkg
                                    self - ApiVariantSet[]
-                                content - ApiVariantSet[]
                               class test.pkg.Test
                                      self - ApiVariantSet[]
-                                  content - ApiVariantSet[]
                                 constructor test.pkg.Test()
                                        self - ApiVariantSet[]
-                                    content - ApiVariantSet[]
                                 method test.pkg.Test.systemMethod()
                                        self - ApiVariantSet[]
-                                    content - ApiVariantSet[]
                         """,
                 )
             }
@@ -440,22 +436,52 @@ class CommonParameterizedSelectedApiVisibilityTest : BaseCommonParameterizedSele
                         """
                             package test.pkg
                                    self - ApiVariantSet[public(C),system(C)]
-                                content - ApiVariantSet[]
                               class test.pkg.Test
                                      self - ApiVariantSet[public(C)]
-                                  content - ApiVariantSet[]
                                 constructor test.pkg.Test()
                                        self - ApiVariantSet[public(C)]
-                                    content - ApiVariantSet[]
                                 class test.pkg.Test.Inner
                                        self - ApiVariantSet[public(C)]
                                     content - ApiVariantSet[system(C)]
                                   constructor test.pkg.Test.Inner()
                                          self - ApiVariantSet[public(C)]
-                                      content - ApiVariantSet[]
                                   method test.pkg.Test.Inner.systemMethod()
                                          self - ApiVariantSet[system(C)]
-                                      content - ApiVariantSet[]
+                        """,
+                )
+            }
+
+            buildTests(
+                name = "hidden source class and public class on classpath",
+                surfaceRules = publicSystemModuleRules,
+                sources =
+                    listOf(
+                        java(
+                            """
+                                package test.pkg;
+                                $HIDE
+                                public class Hidden extends PublicClass {
+                                }
+                            """
+                        ),
+                    ),
+                classpath = listOf(publicClasspathJar),
+            ) {
+                surfaceTest(
+                    surface = "public",
+                    expected =
+                        """
+                            package test.pkg
+                                   self - ApiVariantSet[]
+                              class test.pkg.Hidden
+                                     self - ApiVariantSet[]
+                                constructor test.pkg.Hidden()
+                                       self - ApiVariantSet[]
+                              class test.pkg.PublicClass
+                                     emit - false
+                                     self - ApiVariantSet[public(C)]
+                                constructor test.pkg.PublicClass()
+                                       self - ApiVariantSet[public(C)]
                         """,
                 )
             }

@@ -174,12 +174,12 @@ class ApiSurfaceSelectorTest {
                     AnnotationMatcher(
                         android.annotation.Hide -> {
                             Entry(
-                                result: HIDE
+                                result: SurfaceAnnotationData(surface=ApiSurface(main), effect=HIDE, recursive=true)
                             )
                         }
                         android.annotation.OtherApi -> {
                             Entry(
-                                result: SHOW
+                                result: SurfaceAnnotationData(surface=ApiSurface(main), effect=SHOW, recursive=true)
                             )
                         }
                     )
@@ -215,12 +215,12 @@ class ApiSurfaceSelectorTest {
                     AnnotationMatcher(
                         android.annotation.Hide -> {
                             Entry(
-                                result: HIDE
+                                result: SurfaceAnnotationData(surface=ApiSurface(base), effect=HIDE, recursive=true)
                             )
                         }
                         android.annotation.OtherApi -> {
                             Entry(
-                                result: SHOW
+                                result: SurfaceAnnotationData(surface=ApiSurface(main), effect=SHOW, recursive=true)
                             )
                         }
                     )
@@ -240,17 +240,17 @@ class ApiSurfaceSelectorTest {
                     AnnotationMatcher(
                         android.annotation.Hide -> {
                             Entry(
-                                result: HIDE
+                                result: SurfaceAnnotationData(surface=ApiSurface(base), effect=HIDE, recursive=true)
                             )
                         }
                         android.annotation.SystemApi -> {
                             Entry(
                                 client=android.annotation.SystemApi.Client.MODULE_LIBRARIES
-                                result: SHOW
+                                result: SurfaceAnnotationData(surface=ApiSurface(main), effect=SHOW, recursive=true)
                             )
                             Entry(
                                 client=android.annotation.SystemApi.Client.PRIVILEGED_APPS
-                                result: SHOW
+                                result: SurfaceAnnotationData(surface=ApiSurface(intermediate), effect=SHOW, recursive=true)
                             )
                         }
                     )
@@ -271,17 +271,17 @@ class ApiSurfaceSelectorTest {
                     AnnotationMatcher(
                         android.annotation.Hide -> {
                             Entry(
-                                result: HIDE
+                                result: SurfaceAnnotationData(surface=ApiSurface(base), effect=HIDE, recursive=true)
                             )
                         }
                         android.annotation.SystemApi -> {
                             Entry(
                                 client=android.annotation.SystemApi.Client.PRIVILEGED_APPS
-                                result: SHOW
+                                result: SurfaceAnnotationData(surface=ApiSurface(intermediate), effect=SHOW, recursive=true)
                             )
                             Entry(
                                 client=android.annotation.SystemApi.Client.MODULE_LIBRARIES
-                                result: HIDE
+                                result: SurfaceAnnotationData(surface=ApiSurface(base), effect=HIDE, recursive=true)
                             )
                         }
                     )

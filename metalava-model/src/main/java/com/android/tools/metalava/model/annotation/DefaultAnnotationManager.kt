@@ -49,19 +49,16 @@ import com.android.tools.metalava.model.JVM_NAME
 import com.android.tools.metalava.model.JVM_STATIC
 import com.android.tools.metalava.model.KOTLIN_DEPRECATED
 import com.android.tools.metalava.model.KOTLIN_METADATA
-import com.android.tools.metalava.model.MethodItem
+import com.android.tools.metalava.model.MatchAllPredicate
 import com.android.tools.metalava.model.ModifierList
 import com.android.tools.metalava.model.NO_ANNOTATION_TARGETS
 import com.android.tools.metalava.model.RECENTLY_NONNULL
 import com.android.tools.metalava.model.RECENTLY_NULLABLE
 import com.android.tools.metalava.model.SUPPRESS_COMPATIBILITY_ANNOTATION_QUALIFIED
 import com.android.tools.metalava.model.SelectableItem
-import com.android.tools.metalava.model.Showability
-import com.android.tools.metalava.model.Showability.Companion.REVERT_UNSTABLE_API
 import com.android.tools.metalava.model.TypedefMode
 import com.android.tools.metalava.model.annotation.DefaultAnnotationManager.Config
 import com.android.tools.metalava.model.api.ApiSurfaceSelector
-import com.android.tools.metalava.model.api.SelectedApiUpdater
 import com.android.tools.metalava.model.api.flags.ApiFlag
 import com.android.tools.metalava.model.api.flags.ApiFlags
 import com.android.tools.metalava.model.api.flags.optionalFlagName
@@ -93,7 +90,8 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
          * predicate, the annotation is excluded (yielding [NO_ANNOTATION_TARGETS]) unless it is a
          * typedef annotation and [typedefMode] is not [TypedefMode.NONE].
          */
-        val annotationClassPredicate: FilterPredicate = FilterPredicate { true },
+        val annotationClassPredicate: FilterPredicate = MatchAllPredicate,
+
         /**
          * Provider of an optional [Codebase] object that will be used when reverting flagged APIs.
          */
@@ -468,84 +466,11 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
         return ANNOTATION_EXTERNAL
     }
 
-    /** Check whether this has been configured in a way that could cause items to be reverted. */
-    private fun couldRevertItems(): Boolean = config.apiFlags != null
-
-    override fun hasHideAnnotations(modifiers: ModifierList): Boolean {
-        // If there are no hide annotations and items cannot be reverted then this can never return
-        // true. Reverted items can behave as if they are hidden it they are newly added.
-        if (!apiSurfaceSelector.hasAnyHideAnnotations && !couldRevertItems()) {
-            return false
-        }
-        return modifiers.hasAnnotation(AnnotationItem::isHideAnnotation)
-    }
-
     override fun hasSuppressCompatibilityMetaAnnotations(modifiers: ModifierList): Boolean {
         if (config.suppressCompatibilityMetaAnnotations.isEmpty()) {
             return false
         }
         return modifiers.hasAnnotation(AnnotationItem::isSuppressCompatibilityAnnotation)
-    }
-
-    override fun getShowabilityForItem(item: SelectableItem): Showability {
-        // Iterates over the annotations on the item and computes the showability for the item by
-        // combining the showability of each annotation. The basic rules are:
-        // * `show=true` beats `show=false`
-        // * `recurse=true` beats `recurse=false`
-
-        // The resulting showability of the item.
-        var itemShowability = Showability.NO_EFFECT
-
-        for (annotation in item.modifiers.annotations()) {
-            val showability = annotation.showability
-            if (showability == Showability.NO_EFFECT) {
-                // NO_EFFECT has no effect on the result so just ignore it.
-                continue
-            }
-            itemShowability = itemShowability.combineWith(showability)
-        }
-
-        if (item is MethodItem) {
-            // If any of a method's super methods are part of a unstable API that needs to be
-            // reverted then treat the method as if it is too.
-            val revertUnstableApi =
-                item.superMethods().any { methodItem -> methodItem.showability.revertUnstableApi() }
-            if (revertUnstableApi) {
-                itemShowability = itemShowability.combineWith(REVERT_UNSTABLE_API)
-            }
-        }
-
-        val containingClass = item.containingClass()
-        if (containingClass != null) {
-            if (containingClass.showability.revertUnstableApi()) {
-                itemShowability = itemShowability.combineWith(REVERT_UNSTABLE_API)
-            }
-        }
-
-        // If the item is to be reverted then find the [Item] to which it will be reverted, if any,
-        // and incorporate that into the [Showability].
-        if (itemShowability.revertUnstableApi()) {
-            val revertItem = findRevertItem(item)
-
-            // If the [revertItem] cannot be found then there is no need to modify the item
-            // showability as it is already in the correct state.
-            if (revertItem != null) {
-                // Update the item showability to revert to the [revertItem]. This intentionally
-                // does not modify it to use `SHOW` or `HIDE` but keeps it using
-                // `REVERT_UNSTABLE_API` so that it can be propagated down onto overriding methods
-                // and nested members if applicable.
-                itemShowability =
-                    itemShowability.copy(
-                        // Incorporate the item to be reverted into the [Showability].
-                        revertItem = revertItem,
-                    )
-
-                // The codebase contains items which are to be reverted.
-                item.codebase.markContainsRevertedItem()
-            }
-        }
-
-        return itemShowability
     }
 
     /**
@@ -554,14 +479,6 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
      */
     override val previouslyReleasedCodebase by
         lazy(LazyThreadSafetyMode.NONE) { config.previouslyReleasedCodebaseProvider() }
-
-    /**
-     * Find the item to which [item] will be reverted.
-     *
-     * Searches the previously released API (if available).
-     */
-    private fun findRevertItem(item: SelectableItem) =
-        SelectedApiUpdater.findRevertItem(config.reporter, previouslyReleasedCodebase, item)
 
     /** Finds the corresponding item in the previously released API, if available. */
     override fun findPreviouslyReleasedItem(item: SelectableItem): SelectableItem? {
@@ -691,15 +608,6 @@ private class LazyAnnotationInfo(
     override val surfaceData by
         lazy(LazyThreadSafetyMode.NONE) {
             config.apiSurfaceSelector.findSurfaceAnnotationData(annotationItem)
-        }
-
-    /** Compute lazily to avoid doing any more work than strictly necessary. */
-    override val showability by
-        lazy(LazyThreadSafetyMode.NONE) {
-            surfaceData?.showability
-                // Check flags before using default
-                ?: apiFlag?.showability
-                ?: Showability.NO_EFFECT
         }
 
     override val apiFlag by lazy(LazyThreadSafetyMode.NONE) { getFlagForAnnotation(annotationItem) }

@@ -3166,7 +3166,6 @@ class ApiFileTest : DriverTest() {
     @Test
     fun `Test include overridden @Deprecated even if annotated with @hide`() {
         check(
-            extraArguments = errorIssues(Issues.HIDING_API_METHOD_OVERRIDE),
             format = FileFormat.V2,
             sourceFiles =
                 arrayOf(
@@ -5965,9 +5964,6 @@ class ApiFileTest : DriverTest() {
                         """
                         package test.pkg
 
-                        /**
-                         * @hide
-                         */
                         @PublishedApi
                         internal fun internalYetPublished() {}
 
@@ -6040,6 +6036,28 @@ class ApiFileTest : DriverTest() {
                     restrictToSource,
                     visibleForTestingSource,
                 ),
+            compiledSourceJar =
+                base64gzip(
+                    "test.jar",
+                    // kotlinc version info: kotlinc-jvm 2.3.20 (JRE 21.0.9+10-b1163.91)
+                    "" +
+                        "H4sIAAAAAAAA/wvwZmYRYeDg4GBgYFBkQAYiDLwMvq4hjrqefm76vo5+nm6u" +
+                        "wSF6vm6hIawMjAzLzgn9O8XA8Nn3zGkfb129i7zeulrnzpzfHGRwxfjB0yI9" +
+                        "L18dT9+Lpau2BH3w0i3U8jpzRjvswzn9kyfPPH766CkTQ4A3O8d6Yc31lkCb" +
+                        "zIE4AKc7RBk4GUpSi0v0C7LT9UOADO8SveScxOJiuENS/U97MTsKrLnXW/kz" +
+                        "ytRO6OsjT/11XQ8cBV0Exeev6Jh0OcfoxYyza1LSmyu46rrqH1xtZumvm3JD" +
+                        "WJ7jnVNoqW/p5b//Pn7iShDd3JKoLPz4vum6v8Viv9XYlSq2L9L94/Ei+7/F" +
+                        "nqmmZbFOnpnK0VEu4ZfmLElcMkk6Un3HZ27xlo/NbjlKS//en77Weqvfifwr" +
+                        "N0LTJk/gvNzOzsTaMnH+l4Umi/R6Hiy5nLN7z9Tkg1sZzpnd2B++LSopNF7t" +
+                        "x91zDhtva1rN++z60+ve6zKtc0JvL96Z8HxDkf59ufJ78zaZJd4OO8F3+maw" +
+                        "uHSb+c2+15Py7QOi5JaeDdh2zlVio3HtrKzFs4wu5E7V2LZtS1+vgdY1zoUV" +
+                        "YsvXzroTahb1ry/uD3eSJJ/R3r/aGgsy+p0ka08Y+ReGHrvufn7vBN3NZx4s" +
+                        "O7X9nOHzn9tvbeP5l7vx87Jqi07JZ6Z8Xz//adS6w9DM2MbEczi5cyLDYonV" +
+                        "TUJTDOJc1RzjmzpZWI/5g+Iu7r+JRgEjAwMHE764kwbGHTwN5SZm5ull55fk" +
+                        "ZObF5+anlOakwmMwOSEhIQ2IkxouJBxQPXI0cFJUzKLwCXP1jogxpVRO1zDM" +
+                        "MGQAJ5kC2fu+qkCDdcBJhpFJhAFhMXJyAiVeVEAwKaMbh+xDUBpEgA4gxp8i" +
+                        "0c1CdrY0ilkuTAxEhVCANysbSD0zEL4F0ruZQDwAHw3PAL4DAAA="
+                ),
             extraArguments =
                 arrayOf(
                     ARG_SHOW_UNANNOTATED,
@@ -6071,7 +6089,7 @@ class ApiFileTest : DriverTest() {
                     method public static test.pkg.Path2 copy(test.pkg.Path2);
                   }
                   public final class TestKt {
-                    method @kotlin.PublishedApi internal static void internalYetPublished();
+                    method @BytecodeOnly @kotlin.PublishedApi internal static void internalYetPublished();
                   }
                   public final class Toast {
                     ctor public Toast();
@@ -6248,6 +6266,7 @@ class ApiFileTest : DriverTest() {
     @Test
     fun `Partial signature files include affected subclass definitions`() {
         check(
+            apiSurface = KnownApiSurface.SYSTEM,
             format = FileFormat.V2,
             sourceFiles =
                 arrayOf(
@@ -6265,7 +6284,6 @@ class ApiFileTest : DriverTest() {
 
                         import android.annotation.SystemApi;
 
-                        /** @hide */
                         @SystemApi
                         public class SystemSubClass extends SomePublicClass {
                         }
@@ -6279,7 +6297,6 @@ class ApiFileTest : DriverTest() {
                         }
                     """
                     ),
-                    systemApiSource,
                 ),
             expectedApiSignature =
                 """
@@ -6292,11 +6309,6 @@ class ApiFileTest : DriverTest() {
                   }
                 }
             """,
-            extraArguments =
-                arrayOf(
-                    ARG_SHOW_ANNOTATION,
-                    "android.annotation.SystemApi",
-                )
         )
     }
 
@@ -6485,7 +6497,6 @@ class ApiFileTest : DriverTest() {
                         import android.annotation.SystemApi;
 
                         /**
-                         * @hide
                          * @removed
                          */
                         @SystemApi

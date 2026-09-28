@@ -20,10 +20,11 @@ import com.android.tools.metalava.model.BaseItemVisitor
 import com.android.tools.metalava.model.BaseTypeVisitor
 import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.ClassOrigin
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.Codebase
-import com.android.tools.metalava.model.EMITTED_ONLY
+import com.android.tools.metalava.model.EmittedOnlyPredicate
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.SelectableItem
@@ -66,7 +67,7 @@ internal class ApiContents(
      */
     private val filter =
         // Only consider items that are emitted in the codebase as part of the API.
-        EMITTED_ONLY
+        EmittedOnlyPredicate
             // Don't consider references from elements that only exist in bytecode.
             .and { selectableItem ->
                 selectableItem.targetLanguages != TargetLanguageSet.BYTECODE_ONLY
@@ -123,6 +124,9 @@ internal class ApiContents(
         } else {
             checkClassReferences(cls, containingClass, "as nested class")
         }
+        if (cls.classKind == ClassKind.TYPEALIAS) {
+            checkTypeReferences(cls.aliasedType, cls, "aliased type")
+        }
     }
 
     /** Check [cl]'s references to other [ClassItem]s. */
@@ -138,11 +142,17 @@ internal class ApiContents(
 
         // Report issues before checking to see if this class has been visited before so that it
         // will report all references to the hidden class.
-        if (cl.isHiddenOrRemoved() || cl.isPackagePrivate && !cl.isApiCandidate()) {
+        if (cl.isHiddenOrRemoved()) {
+            // If the class is public or protected, it would normally be visible in the API,
+            // but has been excluded from this API surface (e.g., via `@hide`), so it is "hidden".
+            // Otherwise, it is excluded simply because of its language-level visibility.
+            val label =
+                if (cl.modifiers.isPublic() || cl.modifiers.isProtected()) "hidden"
+                else "not public"
             reporter.report(
                 Issues.REFERENCES_HIDDEN,
                 from,
-                "Class ${cl.qualifiedName()} is ${if (cl.isHiddenOrRemoved()) "hidden" else "not public"} but was referenced ($usage) from public ${from.describe()}"
+                "Class ${cl.qualifiedName()} is $label but was referenced ($usage) from public ${from.describe()}"
             )
         }
 
@@ -173,11 +183,32 @@ internal class ApiContents(
         }
 
         for (superItem in allSuperItems) {
-            // allInterfaces includes cl itself if cl is an interface
-            if (superItem.isHiddenOrRemoved() && superItem != cl) {
+            // allInterfaces includes cl itself if cl is an interface.
+            if (superItem == cl) {
+                continue
+            }
+            // java.lang.Object is the implicit superclass of all classes and is never unavailable.
+            if (superItem.isJavaLangObject()) {
+                continue
+            }
+
+            // Implicit super types of annotations and enums are never unavailable.
+            val implicitSuperType =
+                when (val classKind = cl.classKind) {
+                    ClassKind.ANNOTATION_TYPE -> classKind.implicitInterfaceType
+                    ClassKind.ENUM -> classKind.implicitSuperClassType
+                    else -> null
+                }
+            if (superItem.qualifiedName() == implicitSuperType?.qualifiedName) {
+                continue
+            }
+
+            if (
+                superItem.isHiddenOrRemoved() &&
+                    (superItem.modifiers.isPublic() || superItem.modifiers.isProtected())
+            ) {
                 // cl is a public class declared as extending a hidden superclass or implementing
-                // a hidden interface.
-                // this is not a desired practice, but it's happened, so we deal
+                // a hidden interface. This is not a desired practice, but it's happened, so we deal
                 // with it by finding the first super class which passes checkLevel for purposes of
                 // generating the doc & stub information, and proceeding normally.
                 if (

@@ -174,7 +174,7 @@ $separator
             args += listOf(ARG_NO_COLOR, "--version")
 
             expectedStderr = ""
-            expectedStdout = "metalava version: 1.0.0-alpha15"
+            expectedStdout = "metalava version: 1.0.0-alpha16"
         }
     }
 
@@ -225,6 +225,7 @@ Sub-commands:
                                              signatures.
   signature-to-jdiff                         Convert an API signature file into a file in the JDiff XML format.
   version                                    Show the version
+  multi-surface                              Command that sets up state to run operations for multiple API surfaces.
             """
                 .trimIndent(),
             stdout.toString().trim(),

@@ -283,17 +283,17 @@ class ApiSelectionOptionsTest :
                         AnnotationMatcher(
                             test.api.IntermediateApi -> {
                                 Entry(
-                                    result: SHOW
+                                    result: SurfaceAnnotationData(surface=ApiSurface(restricted), effect=SHOW, recursive=true)
                                 )
                             }
                             test.api.OtherApi -> {
                                 Entry(
-                                    result: HIDE
+                                    result: SurfaceAnnotationData(surface=ApiSurface(restricted), effect=HIDE, recursive=true)
                                 )
                             }
                             test.api.RestrictedApi -> {
                                 Entry(
-                                    result: SHOW
+                                    result: SurfaceAnnotationData(surface=ApiSurface(restricted), effect=SHOW, recursive=true)
                                 )
                             }
                         )
@@ -373,17 +373,17 @@ class ApiSelectionOptionsTest :
                         AnnotationMatcher(
                             test.api.IntermediateApi -> {
                                 Entry(
-                                    result: SHOW
+                                    result: SurfaceAnnotationData(surface=ApiSurface(intermediate), effect=SHOW, recursive=true)
                                 )
                             }
                             test.api.OtherApi -> {
                                 Entry(
-                                    result: SHOW
+                                    result: SurfaceAnnotationData(surface=ApiSurface(other), effect=SHOW, recursive=true)
                                 )
                             }
                             test.api.RestrictedApi -> {
                                 Entry(
-                                    result: HIDE
+                                    result: SurfaceAnnotationData(surface=ApiSurface(intermediate), effect=HIDE, recursive=true)
                                 )
                             }
                         )
@@ -434,7 +434,7 @@ class ApiSelectionOptionsTest :
                         AnnotationMatcher(
                             android.annotation.SystemApi -> {
                                 Entry(
-                                    result: HIDE
+                                    result: SurfaceAnnotationData(surface=ApiSurface(public), effect=HIDE, recursive=true)
                                 )
                             }
                         )

@@ -19,8 +19,9 @@ package com.android.tools.metalava.jar
 import androidx.tracing.Tracer
 import com.android.tools.metalava.api.ApiAnalyzer
 import com.android.tools.metalava.model.Codebase
-import com.android.tools.metalava.model.EMITTED_ONLY
+import com.android.tools.metalava.model.EmittedOnlyPredicate
 import com.android.tools.metalava.model.annotation.DefaultAnnotationManager
+import com.android.tools.metalava.model.api.ApiSurfaceSelector
 import com.android.tools.metalava.model.api.surface.ApiSurfacePredicate
 import com.android.tools.metalava.model.source.EnvironmentManager
 import com.android.tools.metalava.model.source.SourceModelProvider
@@ -82,7 +83,7 @@ sealed interface JarCodebaseLoader {
             val apiReference = ApiSurfacePredicate.wholeCoreApi(codebase.apiSurfaces.main)
 
             // Inherited stubs are only generated for classes marked for emission.
-            val apiEmit = EMITTED_ONLY.and(apiReference)
+            val apiEmit = EmittedOnlyPredicate.and(apiReference)
 
             tracer.trace("analyzer.inheritHiddenAspects") {
                 analyzer.inheritHiddenAspects(
@@ -133,14 +134,24 @@ private constructor(
             tracer: Tracer,
             reporter: Reporter,
             sourceModelProvider: SourceModelProvider = SourceModelProvider.getImplementation("psi"),
+            addAdditionalOverrides: Boolean = false,
         ): StandaloneJarCodebaseLoader {
 
             val environmentManager =
                 sourceModelProvider.createEnvironmentManager(
                     disableStderrDumping,
+                    // This environment manager is used to process different sets of jar sources, so
+                    // it can't reuse the same environment.
+                    reuseEnvironment = false,
                 )
 
-            val annotationManager = DefaultAnnotationManager()
+            val annotationManager =
+                DefaultAnnotationManager(
+                    DefaultAnnotationManager.Config(
+                        apiSurfaceSelector =
+                            ApiSurfaceSelector(addAdditionalOverrides = addAdditionalOverrides)
+                    )
+                )
             val codebaseConfig =
                 Codebase.Config(
                     annotationManager = annotationManager,

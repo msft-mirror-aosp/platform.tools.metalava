@@ -47,8 +47,6 @@ Usage: metalava main [options] [source-files]...
 Options:
   -h, -?, --help                             Show this message and exit
 
-$SOURCE_OPTIONS_HELP
-
 $NULLABILITY_VALIDATION_HELP
 
 $ISSUE_REPORTING_OPTIONS_HELP
@@ -56,8 +54,6 @@ $ISSUE_REPORTING_OPTIONS_HELP
 $COMMON_BASELINE_OPTIONS_HELP
 
 $GENERAL_REPORTING_OPTIONS_HELP
-
-$CONFIG_FILE_OPTIONS_HELP
 
 $API_SELECTION_OPTIONS_HELP
 
@@ -76,6 +72,10 @@ $STUB_GENERATION_OPTIONS_HELP
 $API_LEVELS_GENERATION_OPTIONS_HELP
 
 $MISCELLANEOUS_OPTIONS_HELP
+
+$CONFIG_FILE_OPTIONS_HELP
+
+$SOURCE_OPTIONS_HELP
 
 Arguments:
   source-files                               Additional source files to append to --source-files

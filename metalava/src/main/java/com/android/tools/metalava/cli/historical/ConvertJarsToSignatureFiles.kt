@@ -37,10 +37,12 @@ import com.android.tools.metalava.model.FilterPredicate
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.JAVA_LANG_DEPRECATED
 import com.android.tools.metalava.model.JavaConstants
+import com.android.tools.metalava.model.MatchAllPredicate
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.SUPPORT_TYPE_USE_ANNOTATIONS
 import com.android.tools.metalava.model.annotation.DefaultAnnotationManager
+import com.android.tools.metalava.model.api.ApiSurfaceSelector
 import com.android.tools.metalava.model.api.surface.ApiSurface
 import com.android.tools.metalava.model.api.surface.ApiSurfacePredicate
 import com.android.tools.metalava.model.api.surface.ApiSurfaces
@@ -117,7 +119,15 @@ class ConvertJarsToSignatureFiles(
         val jarFile = surfaceInfo.jarFile
         val signatureFile = surfaceInfo.signatureFile
 
-        val annotationManager = DefaultAnnotationManager()
+        val annotationManager =
+            DefaultAnnotationManager(
+                DefaultAnnotationManager.Config(
+                    apiSurfaceSelector =
+                        ApiSurfaceSelector(
+                            addAdditionalOverrides = fileFormat[ADD_ADDITIONAL_OVERRIDES],
+                        )
+                )
+            )
         val codebaseConfig =
             Codebase.Config(
                 annotationManager = annotationManager,
@@ -134,10 +144,7 @@ class ConvertJarsToSignatureFiles(
                 jarFile,
                 apiAnalyzerConfig =
                     ApiAnalyzer.Config(
-                        apiPredicateConfig =
-                            ApiSurfacePredicate.Config(
-                                apiSurface = apiSurface,
-                            )
+                        apiSurface = apiSurface,
                     ),
                 // Do not freeze codebases after loading as they may need to be modified.
                 freezeCodebase = false,
@@ -204,17 +211,12 @@ class ConvertJarsToSignatureFiles(
             throw IllegalStateException("Could not load existing signature file: ${e.message}", e)
         }
 
-        val apiPredicateConfig =
-            ApiSurfacePredicate.Config(
-                apiSurface = apiSurface,
-                addAdditionalOverrides = fileFormat[ADD_ADDITIONAL_OVERRIDES],
-            )
         val apiFilters =
             if (jarCodebase.preFiltered) {
                 // Pre-filtered so does not need any filters.
                 null
             } else {
-                ApiSurfacePredicate.apiFilters(ApiType.CORE, apiPredicateConfig)
+                ApiSurfacePredicate.apiFilters(ApiType.CORE, apiSurface)
             }
 
         val jarCodebaseFragment =
@@ -303,7 +305,7 @@ class ConvertJarsToSignatureFiles(
         }
 
         if ((classNode.access and Opcodes.ACC_DEPRECATED) != 0) {
-            val item = codebase.findClass(classNode, MATCH_ALL)
+            val item = codebase.findClass(classNode, MatchAllPredicate)
             item.deprecateIfRequired()
         }
 
@@ -313,7 +315,7 @@ class ConvertJarsToSignatureFiles(
             if ((methodNode.access and Opcodes.ACC_DEPRECATED) == 0) {
                 continue
             }
-            val item = codebase.findMethod(classNode, methodNode, MATCH_ALL)
+            val item = codebase.findMethod(classNode, methodNode, MatchAllPredicate)
             item.deprecateIfRequired()
         }
 
@@ -323,7 +325,7 @@ class ConvertJarsToSignatureFiles(
             if ((fieldNode.access and Opcodes.ACC_DEPRECATED) == 0) {
                 continue
             }
-            val item = codebase.findField(classNode, fieldNode, MATCH_ALL)
+            val item = codebase.findField(classNode, fieldNode, MatchAllPredicate)
             item.deprecateIfRequired()
         }
     }
@@ -339,10 +341,6 @@ class ConvertJarsToSignatureFiles(
                 addAnnotation(AnnotationItem.createMarkerAnnotation(codebase, JAVA_LANG_DEPRECATED))
             }
         }
-    }
-
-    companion object {
-        val MATCH_ALL: FilterPredicate = FilterPredicate { true }
     }
 }
 

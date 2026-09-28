@@ -19,19 +19,24 @@ package com.android.tools.metalava.model.testsuite.visitors
 import com.android.tools.lint.checks.infrastructure.TestFile
 import com.android.tools.metalava.model.Assertions
 import com.android.tools.metalava.model.Codebase
-import com.android.tools.metalava.model.EMITTED_ONLY
+import com.android.tools.metalava.model.EmittedOnlyPredicate
 import com.android.tools.metalava.model.FilterPredicate
 import com.android.tools.metalava.model.SelectableItem
+import com.android.tools.metalava.model.api.ApiSurfaceRules
+import com.android.tools.metalava.model.api.surface.ApiSurface
 import com.android.tools.metalava.model.api.surface.ApiSurfacePredicate
-import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.provider.InputFormat
 import com.android.tools.metalava.model.testing.SupportedInputFormats
+import com.android.tools.metalava.model.testing.surfaces.TestableApiSurfaces.HIDE
 import com.android.tools.metalava.model.testing.surfaces.TestableApiSurfaces.REMOVED_FROM_API
+import com.android.tools.metalava.model.testing.surfaces.TestableApiSurfaces.SYSTEM_API
 import com.android.tools.metalava.model.testing.surfaces.TestableApiSurfaces.publicSystemModuleRules
 import com.android.tools.metalava.model.testing.surfaces.initializeSelectedApiInstances
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.model.visitors.ApiFilters
+import com.android.tools.metalava.model.visitors.ApiFiltersVisitor
 import com.android.tools.metalava.model.visitors.ApiSurfaceVisitor
+import com.android.tools.metalava.model.visitors.ApiType
 import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.android.tools.metalava.testing.EntryPoint
 import com.android.tools.metalava.testing.EntryPointCallerRule
@@ -68,10 +73,12 @@ class CommonParameterizedApiSurfaceVisitorTest : BaseModelTest() {
         val input: List<TestFile>,
         val expectedNotNested: String,
         val expectedNested: String = expectedNotNested,
-        val apiFilters: (Codebase.() -> ApiFilters?)? = null,
-        val filterEmit: Codebase.() -> FilterPredicate?,
-        val requiresApiVariantSelectors: Boolean = false,
+        val apiVisitorFilters: (Codebase.() -> ApiFilters?)? = null,
+        val apiFiltersVisitorFilters: (Codebase.() -> ApiFilters?)? = null,
+        val filterEmit: (Codebase.() -> FilterPredicate?)? = null,
         val classpath: List<TestFile> = emptyList(),
+        val expectedIssues: String = "",
+        val apiSurfaceRules: ApiSurfaceRules = publicSystemModuleRules,
     ) {
         /**
          * Record the stack trace of the creation of this which can be used to provide a stack trace
@@ -109,7 +116,6 @@ class CommonParameterizedApiSurfaceVisitorTest : BaseModelTest() {
             input: List<TestFile>,
             expectedNotNested: String,
             expectedNested: String = expectedNotNested,
-            requiresApiVariantSelectors: Boolean = false,
             classpath: List<TestFile> = emptyList(),
         ) =
             TestCase(
@@ -118,7 +124,6 @@ class CommonParameterizedApiSurfaceVisitorTest : BaseModelTest() {
                 expectedNotNested = expectedNotNested,
                 expectedNested = expectedNested,
                 filterEmit = { ApiSurfacePredicate.wholeCoreEmittableApi(apiSurfaces.main) },
-                requiresApiVariantSelectors = requiresApiVariantSelectors,
                 classpath = classpath,
             )
 
@@ -132,7 +137,6 @@ class CommonParameterizedApiSurfaceVisitorTest : BaseModelTest() {
             input: List<TestFile>,
             expectedNotNested: String,
             expectedNested: String = expectedNotNested,
-            requiresApiVariantSelectors: Boolean = false,
             classpath: List<TestFile> = emptyList(),
         ) =
             TestCase(
@@ -140,12 +144,87 @@ class CommonParameterizedApiSurfaceVisitorTest : BaseModelTest() {
                 input = input,
                 expectedNotNested = expectedNotNested,
                 expectedNested = expectedNested,
-                apiFilters = null,
                 filterEmit = {
-                    EMITTED_ONLY.and(ApiSurfacePredicate.wholeCoreAndRemovedApi(apiSurfaces.main))
+                    EmittedOnlyPredicate.and(
+                        ApiSurfacePredicate.wholeCoreAndRemovedApi(apiSurfaces.main)
+                    )
                 },
-                requiresApiVariantSelectors = requiresApiVariantSelectors,
                 classpath = classpath,
+            )
+
+        /**
+         * Create a [TestCase] that compares [ApiVisitor] with
+         * [ApiSurfacePredicate.nonElidingApiFilters] and [ApiFiltersVisitor] with
+         * [ApiSurfacePredicate.forSurfaceFilters].
+         */
+        @EntryPoint
+        fun forSurfaceTestCase(
+            name: String,
+            input: List<TestFile>,
+            expectedNotNested: String,
+            expectedNested: String = expectedNotNested,
+            apiType: ApiType = ApiType.CORE,
+            apiSurface: Codebase.() -> ApiSurface = { apiSurfaces.byName["system"]!! },
+            classpath: List<TestFile> = emptyList(),
+        ) =
+            TestCase(
+                name = "for surface/$name",
+                input = input,
+                expectedNotNested = expectedNotNested,
+                expectedNested = expectedNested,
+                apiVisitorFilters = {
+                    ApiSurfacePredicate.nonElidingApiFilters(
+                        apiType,
+                        apiSurface(),
+                    )
+                },
+                apiFiltersVisitorFilters = {
+                    ApiSurfacePredicate.forSurfaceFilters(
+                        apiType,
+                        apiSurface(),
+                    )
+                },
+                filterEmit = null,
+                classpath = classpath,
+            )
+
+        /**
+         * Create a [TestCase] that tests [ApiVisitor] and [ApiFiltersVisitor] using
+         * [ApiSurfacePredicate.forStubs].
+         */
+        @EntryPoint
+        fun forStubsTestCase(
+            name: String,
+            input: List<TestFile>,
+            expectedNotNested: String,
+            expectedNested: String = expectedNotNested,
+            includeDocOnly: Boolean = false,
+            apiSurface: Codebase.() -> ApiSurface = { apiSurfaces.main },
+            classpath: List<TestFile> = emptyList(),
+            expectedIssues: String = "",
+            apiSurfaceRules: ApiSurfaceRules = publicSystemModuleRules,
+        ) =
+            TestCase(
+                name = "for stubs/$name",
+                input = input,
+                expectedNotNested = expectedNotNested,
+                expectedNested = expectedNested,
+                apiVisitorFilters = {
+                    ApiSurfacePredicate.forStubs(
+                        apiSurface(),
+                        includeDocOnly = includeDocOnly,
+                    )
+                },
+                apiFiltersVisitorFilters = {
+                    ApiSurfacePredicate.forStubs(
+                        apiSurface(),
+                        includeDocOnly = includeDocOnly,
+                    )
+                },
+                filterEmit = null,
+                classpath = classpath,
+                expectedIssues = expectedIssues,
+                apiSurfaceRules = apiSurfaceRules,
             )
 
         @JvmStatic
@@ -219,7 +298,6 @@ class CommonParameterizedApiSurfaceVisitorTest : BaseModelTest() {
                                   method test.pkg.Outer.Inner.innerMethod()
                                   field test.pkg.Outer.Inner.innerField
                         """,
-                    requiresApiVariantSelectors = true,
                 ),
                 wholeCoreTestCase(
                     name = "class without nested classes",
@@ -295,7 +373,6 @@ class CommonParameterizedApiSurfaceVisitorTest : BaseModelTest() {
                                 method test.pkg.Foo.method()
                                 field test.pkg.Foo.field
                         """,
-                    requiresApiVariantSelectors = true,
                 ),
                 wholeCoreTestCase(
                     name = "hidden class",
@@ -336,7 +413,6 @@ class CommonParameterizedApiSurfaceVisitorTest : BaseModelTest() {
                                 constructor test.pkg.Foo()
                                 method test.pkg.Foo.method()
                         """,
-                    requiresApiVariantSelectors = true,
                 ),
                 wholeCoreTestCase(
                     name = "removed method",
@@ -373,7 +449,6 @@ class CommonParameterizedApiSurfaceVisitorTest : BaseModelTest() {
                                 constructor test.pkg.Foo()
                                 method test.pkg.Foo.method()
                         """,
-                    requiresApiVariantSelectors = true,
                 ),
                 wholeCoreTestCase(
                     name = "hidden inner class",
@@ -418,7 +493,6 @@ class CommonParameterizedApiSurfaceVisitorTest : BaseModelTest() {
                                 method test.pkg.Outer.method()
                                 field test.pkg.Outer.field
                         """,
-                    requiresApiVariantSelectors = true,
                 ),
                 wholeCoreTestCase(
                     name = "package private and private members",
@@ -460,7 +534,6 @@ class CommonParameterizedApiSurfaceVisitorTest : BaseModelTest() {
                                 method test.pkg.Foo.publicMethod()
                                 field test.pkg.Foo.publicField
                         """,
-                    requiresApiVariantSelectors = true,
                 ),
                 wholeCoreTestCase(
                     name = "not emitted class",
@@ -564,7 +637,6 @@ class CommonParameterizedApiSurfaceVisitorTest : BaseModelTest() {
                                   method test.pkg.Outer.Inner.innerMethod()
                                   field test.pkg.Outer.Inner.innerField
                         """,
-                    requiresApiVariantSelectors = true,
                 ),
                 wholeCoreAndRemovedTestCase(
                     name = "class without nested classes",
@@ -637,24 +709,453 @@ class CommonParameterizedApiSurfaceVisitorTest : BaseModelTest() {
                                 method test.pkg.Foo.method()
                                 method test.pkg.Foo.removedMethod()
                         """,
-                    requiresApiVariantSelectors = true,
+                ),
+                forSurfaceTestCase(
+                    name = "public class with system method",
+                    input =
+                        listOf(
+                            java(
+                                """
+                                    package test.pkg;
+
+                                    public class Foo {
+                                        public Foo() {}
+                                        public void publicMethod() {}
+                                        $SYSTEM_API
+                                        public void systemMethod() {}
+                                    }
+                                """
+                            ),
+                        ),
+                    expectedNotNested =
+                        """
+                            package test.pkg
+                              class test.pkg.Foo
+                                method test.pkg.Foo.systemMethod()
+                        """,
+                ),
+                forSurfaceTestCase(
+                    name = "public class with system field and method",
+                    input =
+                        listOf(
+                            java(
+                                """
+                                    package test.pkg;
+
+                                    public class Foo {
+                                        public Foo() {}
+                                        public int publicField;
+                                        public void publicMethod() {}
+                                        $SYSTEM_API
+                                        public int systemField;
+                                        $SYSTEM_API
+                                        public void systemMethod() {}
+                                    }
+                                """
+                            ),
+                        ),
+                    expectedNotNested =
+                        """
+                            package test.pkg
+                              class test.pkg.Foo
+                                method test.pkg.Foo.systemMethod()
+                                field test.pkg.Foo.systemField
+                        """,
+                ),
+                forSurfaceTestCase(
+                    name = "system class extending public class",
+                    input =
+                        listOf(
+                            java(
+                                """
+                                    package test.pkg;
+
+                                    public class PublicBase {
+                                        public PublicBase() {}
+                                        public void baseMethod() {}
+                                    }
+
+                                    $SYSTEM_API
+                                    public class SystemSub extends PublicBase {
+                                        public SystemSub() {}
+                                        public void subMethod() {}
+                                    }
+                                """
+                            ),
+                        ),
+                    expectedNotNested =
+                        """
+                            package test.pkg
+                              class test.pkg.SystemSub
+                                constructor test.pkg.SystemSub()
+                                method test.pkg.SystemSub.subMethod()
+                        """,
+                ),
+                forSurfaceTestCase(
+                    name = "public class extending system class",
+                    input =
+                        listOf(
+                            java(
+                                """
+                                    package test.pkg;
+
+                                    $SYSTEM_API
+                                    public class SystemBase {
+                                        public SystemBase() {}
+                                        public void baseMethod() {}
+                                    }
+
+                                    public class PublicSub extends SystemBase {
+                                        public PublicSub() {}
+                                        public void subMethod() {}
+                                    }
+                                """
+                            ),
+                        ),
+                    expectedNotNested =
+                        """
+                            package test.pkg
+                              class test.pkg.SystemBase
+                                constructor test.pkg.SystemBase()
+                                method test.pkg.SystemBase.baseMethod()
+                              class test.pkg.PublicSub
+                        """,
+                ),
+                forSurfaceTestCase(
+                    name = "outer and inner class",
+                    input =
+                        listOf(
+                            java(
+                                """
+                                    package test.pkg;
+
+                                    $SYSTEM_API
+                                    public class Outer {
+                                        public int field;
+                                        public Outer() {}
+                                        public void method() {}
+
+                                        public static class Inner {
+                                            public int innerField;
+                                            public Inner() {}
+                                            public void innerMethod() {}
+                                        }
+                                    }
+                                """
+                            ),
+                        ),
+                    expectedNotNested =
+                        """
+                            package test.pkg
+                              class test.pkg.Outer
+                                constructor test.pkg.Outer()
+                                method test.pkg.Outer.method()
+                                field test.pkg.Outer.field
+                              class test.pkg.Outer.Inner
+                                constructor test.pkg.Outer.Inner()
+                                method test.pkg.Outer.Inner.innerMethod()
+                                field test.pkg.Outer.Inner.innerField
+                        """,
+                    expectedNested =
+                        """
+                            package test.pkg
+                              class test.pkg.Outer
+                                constructor test.pkg.Outer()
+                                method test.pkg.Outer.method()
+                                field test.pkg.Outer.field
+                                class test.pkg.Outer.Inner
+                                  constructor test.pkg.Outer.Inner()
+                                  method test.pkg.Outer.Inner.innerMethod()
+                                  field test.pkg.Outer.Inner.innerField
+                        """,
+                ),
+                forSurfaceTestCase(
+                    name = "removed system method",
+                    input =
+                        listOf(
+                            java(
+                                """
+                                    package test.pkg;
+
+                                    public class Foo {
+                                        public Foo() {}
+                                        public void method() {}
+                                        $SYSTEM_API
+                                        $REMOVED_FROM_API
+                                        public void removedSystemMethod() {}
+                                    }
+                                """
+                            ),
+                        ),
+                    expectedNotNested =
+                        """
+                            package test.pkg
+                              class test.pkg.Foo
+                                method test.pkg.Foo.removedSystemMethod()
+                        """,
+                    apiType = ApiType.REMOVED,
+                ),
+                forStubsTestCase(
+                    name = "hiding override of public method",
+                    input =
+                        listOf(
+                            java(
+                                """
+                                    package test.pkg;
+
+                                    public class Parent {
+                                        public Parent() {}
+                                        public void method() {}
+                                    }
+                                """
+                            ),
+                            java(
+                                """
+                                    package test.pkg;
+
+                                    public class Child extends Parent {
+                                        public Child() {}
+                                        $HIDE
+                                        @Override
+                                        public void method() {}
+                                    }
+                                """
+                            ),
+                        ),
+                    expectedNotNested =
+                        """
+                            package test.pkg
+                              class test.pkg.Parent
+                                constructor test.pkg.Parent()
+                                method test.pkg.Parent.method()
+                              class test.pkg.Child
+                                constructor test.pkg.Child()
+                                method test.pkg.Child.method()
+                        """,
+                    expectedIssues =
+                        """
+                            MAIN_SRC/src/test/pkg/Child.java: hidden: Attempting to hide method test.pkg.Child.method() which overrides method test.pkg.Parent.method() which is already part of the API [HidingApiMethodOverride]
+                        """,
+                ),
+                forStubsTestCase(
+                    name = "hiding override of protected method in final class",
+                    input =
+                        listOf(
+                            java(
+                                """
+                                    package test.pkg;
+
+                                    public class Parent {
+                                        public Parent() {}
+                                        protected void method() {}
+                                    }
+                                """
+                            ),
+                            java(
+                                """
+                                    package test.pkg;
+
+                                    public final class Child extends Parent {
+                                        public Child() {}
+                                        $HIDE
+                                        @Override
+                                        protected void method() {}
+                                    }
+                                """
+                            ),
+                        ),
+                    expectedNotNested =
+                        """
+                            package test.pkg
+                              class test.pkg.Parent
+                                constructor test.pkg.Parent()
+                                method test.pkg.Parent.method()
+                              class test.pkg.Child
+                                constructor test.pkg.Child()
+                                method test.pkg.Child.method()
+                        """,
+                ),
+                forStubsTestCase(
+                    name = "hiding override of system method in system API",
+                    input =
+                        listOf(
+                            java(
+                                """
+                                    package test.pkg;
+
+                                    $SYSTEM_API
+                                    public class Parent {
+                                        public Parent() {}
+                                        public void method() {}
+                                    }
+                                """
+                            ),
+                            java(
+                                """
+                                    package test.pkg;
+
+                                    public class Child extends Parent {
+                                        public Child() {}
+                                        $HIDE
+                                        @Override
+                                        public void method() {}
+                                    }
+                                """
+                            ),
+                        ),
+                    expectedNotNested =
+                        """
+                            package test.pkg
+                              class test.pkg.Parent
+                                constructor test.pkg.Parent()
+                                method test.pkg.Parent.method()
+                              class test.pkg.Child
+                                constructor test.pkg.Child()
+                                method test.pkg.Child.method()
+                        """,
+                    apiSurface = { apiSurfaces.byName["system"]!! },
+                    expectedIssues =
+                        """
+                            MAIN_SRC/src/test/pkg/Child.java: hidden: Attempting to hide method test.pkg.Child.method() which overrides method test.pkg.Parent.method() which is already part of the API [HidingApiMethodOverride]
+                        """,
+                ),
+                forStubsTestCase(
+                    name = "system override of public method in public API",
+                    input =
+                        listOf(
+                            java(
+                                """
+                                    package test.pkg;
+
+                                    public class Parent {
+                                        public Parent() {}
+                                        public void method() {}
+                                    }
+                                """
+                            ),
+                            java(
+                                """
+                                    package test.pkg;
+
+                                    public class Child extends Parent {
+                                        public Child() {}
+                                        $SYSTEM_API
+                                        @Override
+                                        public void method() {}
+                                    }
+                                """
+                            ),
+                        ),
+                    expectedNotNested =
+                        """
+                            package test.pkg
+                              class test.pkg.Parent
+                                constructor test.pkg.Parent()
+                                method test.pkg.Parent.method()
+                              class test.pkg.Child
+                                constructor test.pkg.Child()
+                                method test.pkg.Child.method()
+                        """,
+                    apiSurface = { apiSurfaces.byName["public"]!! },
+                    apiSurfaceRules = publicSystemModuleRules.retargetAt("public"),
+                    expectedIssues =
+                        """
+                            MAIN_SRC/src/test/pkg/Child.java: hidden: Attempting to hide method test.pkg.Child.method() which overrides method test.pkg.Parent.method() which is already part of the API [HidingApiMethodOverride]
+                        """,
+                ),
+                forStubsTestCase(
+                    name =
+                        "system class overriding system method from system superclass marked as @Hide",
+                    input =
+                        listOf(
+                            java(
+                                """
+                                    package test.pkg;
+
+                                    $SYSTEM_API
+                                    public class Parent {
+                                        public Parent() {}
+                                        public void method() {}
+                                    }
+                                """
+                            ),
+                            java(
+                                """
+                                    package test.pkg;
+
+                                    $SYSTEM_API
+                                    public class Child extends Parent {
+                                        public Child() {}
+                                        $HIDE
+                                        @Override
+                                        public void method() {}
+                                    }
+                                """
+                            ),
+                        ),
+                    expectedNotNested =
+                        """
+                            package test.pkg
+                              class test.pkg.Parent
+                                constructor test.pkg.Parent()
+                                method test.pkg.Parent.method()
+                              class test.pkg.Child
+                                constructor test.pkg.Child()
+                                method test.pkg.Child.method()
+                        """,
+                    apiSurface = { apiSurfaces.byName["system"]!! },
+                    expectedIssues =
+                        """
+                            MAIN_SRC/src/test/pkg/Child.java: hidden: Attempting to hide method test.pkg.Child.method() which overrides method test.pkg.Parent.method() which is already part of the API [HidingApiMethodOverride]
+                        """,
                 ),
             )
     }
 
     /**
-     * Traverses this [Codebase] using an [ApiVisitor] with [TestCase.apiFilters] and produces a
-     * textual representation of the visited [SelectableItem]s with indentation reflecting the visit
-     * hierarchy.
+     * Traverses this [Codebase] using an [ApiVisitor] with [TestCase.apiVisitorFilters] and
+     * produces a textual representation of the visited [SelectableItem]s with indentation
+     * reflecting the visit hierarchy.
      */
     private fun Codebase.dumpWithApiVisitor(
         preserveClassNesting: Boolean = false,
         visitParameterItems: Boolean = false,
     ): String {
         val dumper = SelectableItemDumper()
-        val apiFilters = testCase.apiFilters!!(this)
+        val apiFilters = testCase.apiVisitorFilters!!(this)
         accept(
-            object : ApiVisitor(preserveClassNesting, visitParameterItems, apiFilters) {
+            object :
+                ApiVisitor(
+                    preserveClassNesting = preserveClassNesting,
+                    visitParameterItems = visitParameterItems,
+                    apiFilters = apiFilters,
+                    orderClassesByName = false,
+                ) {
+                override fun visitSelectableItem(item: SelectableItem) {
+                    dumper.visitSelectableItem(item)
+                }
+
+                override fun afterVisitSelectableItem(item: SelectableItem) {
+                    dumper.afterVisitSelectableItem()
+                }
+            }
+        )
+        return dumper.toString()
+    }
+
+    /**
+     * Traverses this [Codebase] using an [ApiFiltersVisitor] with
+     * [TestCase.apiFiltersVisitorFilters] and produces a textual representation of the visited
+     * [SelectableItem]s with indentation reflecting the visit hierarchy.
+     */
+    private fun Codebase.dumpWithApiFiltersVisitor(
+        preserveClassNesting: Boolean = false,
+        visitParameterItems: Boolean = false,
+    ): String {
+        val dumper = SelectableItemDumper()
+        val apiFilters = testCase.apiFiltersVisitorFilters!!(this)
+        accept(
+            object : ApiFiltersVisitor(preserveClassNesting, visitParameterItems, apiFilters) {
                 override fun visitSelectableItem(item: SelectableItem) {
                     dumper.visitSelectableItem(item)
                 }
@@ -677,7 +1178,7 @@ class CommonParameterizedApiSurfaceVisitorTest : BaseModelTest() {
         visitParameterItems: Boolean = false,
     ): String {
         val dumper = SelectableItemDumper()
-        val filterEmit = testCase.filterEmit(this)
+        val filterEmit = testCase.filterEmit!!(this)
         accept(
             object : ApiSurfaceVisitor(preserveClassNesting, visitParameterItems, filterEmit) {
                 override fun visitSelectableItem(item: SelectableItem) {
@@ -701,45 +1202,77 @@ class CommonParameterizedApiSurfaceVisitorTest : BaseModelTest() {
         preserveClassNesting: Boolean,
         dump: Codebase.() -> String,
     ) {
-        if (testCase.requiresApiVariantSelectors) {
-            assumeTrue(
-                "Provider does not support API_VARIANT_SELECTORS",
-                codebaseCreatorHasCapability(Capability.API_VARIANT_SELECTORS),
-            )
-        }
         val expected =
             if (preserveClassNesting) testCase.expectedNested else testCase.expectedNotNested
+        val inputSets =
+            testCase.input
+                .groupBy { InputFormat.fromFilename(it.targetRelativePath) }
+                .values
+                .map { inputSet(it) }
+                .toTypedArray()
         runCodebaseTest(
-            *testCase.input.toTypedArray(),
+            *inputSets,
             testFixture =
                 TestFixture(
                     additionalClassPath = testCase.classpath.map { it.toFile() },
-                    apiSurfaceRules = publicSystemModuleRules,
+                    apiSurfaceRules = testCase.apiSurfaceRules,
                 ),
         ) {
             codebase.initializeSelectedApiInstances()
             val actual = codebase.dump()
             assertEquals(expected.trimIndent().trim(), actual.trim())
+            val actualIssues =
+                removeReportedIssues().let { issues ->
+                    if (!testCase.expectedIssues.contains(Regex("""\.[a-z]+:\d+:"""))) {
+                        issues.replace(Regex("""(\.[a-z]+):\d+:"""), "$1:")
+                    } else {
+                        issues
+                    }
+                }
+            assertEquals(testCase.expectedIssues.trimIndent(), actualIssues)
         }
     }
 
     /** Test [ApiVisitor] without preserving class nesting. */
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `test ApiVisitor without preserving class nesting`() {
-        assumeTrue(testCase.apiFilters != null)
+        assumeTrue(testCase.apiVisitorFilters != null)
         runTest(preserveClassNesting = false) { dumpWithApiVisitor(preserveClassNesting = false) }
     }
 
     /** Test [ApiVisitor] preserving class nesting. */
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `test ApiVisitor preserving class nesting`() {
-        assumeTrue(testCase.apiFilters != null)
+        assumeTrue(testCase.apiVisitorFilters != null)
         runTest(preserveClassNesting = true) { dumpWithApiVisitor(preserveClassNesting = true) }
+    }
+
+    /** Test [ApiFiltersVisitor] without preserving class nesting. */
+    @SupportedInputFormats(InputFormat.JAVA)
+    @Test
+    fun `test ApiFiltersVisitor without preserving class nesting`() {
+        assumeTrue(testCase.apiFiltersVisitorFilters != null)
+        runTest(preserveClassNesting = false) {
+            dumpWithApiFiltersVisitor(preserveClassNesting = false)
+        }
+    }
+
+    /** Test [ApiFiltersVisitor] preserving class nesting. */
+    @SupportedInputFormats(InputFormat.JAVA)
+    @Test
+    fun `test ApiFiltersVisitor preserving class nesting`() {
+        assumeTrue(testCase.apiFiltersVisitorFilters != null)
+        runTest(preserveClassNesting = true) {
+            dumpWithApiFiltersVisitor(preserveClassNesting = true)
+        }
     }
 
     /** Test [ApiSurfaceVisitor] without preserving class nesting. */
     @Test
     fun `test ApiSurfaceVisitor without preserving class nesting`() {
+        assumeTrue(testCase.filterEmit != null)
         runTest(preserveClassNesting = false) {
             dumpWithApiSurfaceVisitor(preserveClassNesting = false)
         }
@@ -748,6 +1281,7 @@ class CommonParameterizedApiSurfaceVisitorTest : BaseModelTest() {
     /** Test [ApiSurfaceVisitor] preserving class nesting. */
     @Test
     fun `test ApiSurfaceVisitor preserving class nesting`() {
+        assumeTrue(testCase.filterEmit != null)
         runTest(preserveClassNesting = true) {
             dumpWithApiSurfaceVisitor(preserveClassNesting = true)
         }

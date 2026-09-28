@@ -29,4 +29,16 @@ internal class DefaultPrimitiveTypeItem(
 
     override fun substitute(modifiers: TypeModifiers) =
         if (modifiers !== this.modifiers) DefaultPrimitiveTypeItem(modifiers, kind) else this
+
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is PrimitiveTypeItem) return false
+        return kind == other.kind && modifiers == other.modifiers
+    }
+
+    override fun hashCode(): Int {
+        var result = kind.hashCode()
+        result = 31 * result + modifiers.hashCode()
+        return result
+    }
 }

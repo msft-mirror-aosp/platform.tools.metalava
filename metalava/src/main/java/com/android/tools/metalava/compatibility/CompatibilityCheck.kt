@@ -32,6 +32,8 @@ import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.FilterPredicate
 import com.android.tools.metalava.model.Item
+import com.android.tools.metalava.model.JAVA_LANG_ERROR
+import com.android.tools.metalava.model.JAVA_LANG_RUNTIME_EXCEPTION
 import com.android.tools.metalava.model.MergedCodebase
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.MultipleTypeVisitor
@@ -45,6 +47,7 @@ import com.android.tools.metalava.model.SourceLanguage
 import com.android.tools.metalava.model.StripJavaLangPrefix
 import com.android.tools.metalava.model.TargetLanguage
 import com.android.tools.metalava.model.TargetLanguageSet
+import com.android.tools.metalava.model.TypeComparator
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.TypeStringConfiguration
@@ -55,7 +58,6 @@ import com.android.tools.metalava.model.findAnnotation
 import com.android.tools.metalava.model.multiplatform.MultiplatformCodebase
 import com.android.tools.metalava.model.value.Value
 import com.android.tools.metalava.model.visitors.ApiType
-import com.android.tools.metalava.model.visitors.MatchOverridingMethodPredicate
 import com.android.tools.metalava.reporter.FileLocation
 import com.android.tools.metalava.reporter.IssueConfiguration
 import com.android.tools.metalava.reporter.Issues
@@ -67,8 +69,19 @@ import com.android.tools.metalava.reporter.Severity
  * Compares the current API with a previous version and makes sure the changes are compatible. For
  * example, you can make a previously nullable parameter non null, but not vice versa.
  */
-class CompatibilityCheck(
-    private val filterReference: FilterPredicate,
+class CompatibilityCheck
+private constructor(
+    /**
+     * Filter that matches items in the specific API surface being checked (e.g. the delta surface
+     * excluding base surfaces).
+     */
+    private val surfaceFilter: FilterPredicate,
+
+    /**
+     * Filter that matches the reference API (e.g. the full surface hierarchy including base
+     * surfaces).
+     */
+    private val referenceFilter: FilterPredicate,
     private val reporter: Reporter,
     private val issueConfiguration: IssueConfiguration,
     private val apiCompatAnnotations: Set<String>,
@@ -352,12 +365,7 @@ class CompatibilityCheck(
             is MethodItem ->
                 newContainingClass
                     ?.filteredMethods(
-                        { candidate ->
-                            isCompatibleKotlinOverload(
-                                original = original,
-                                candidate = candidate as CallableItem,
-                            )
-                        },
+                        CompatibleKotlinOverloadPredicate(original),
                         includeSuperClassMethods = true
                     )
                     ?.firstOrNull()
@@ -367,6 +375,20 @@ class CompatibilityCheck(
                 }
             else -> error("Unknown callable $original")
         }
+    }
+
+    /**
+     * [FilterPredicate] that matches callable items that are compatible Kotlin overloads for
+     * [original].
+     */
+    private inner class CompatibleKotlinOverloadPredicate(
+        private val original: CallableItem,
+    ) : FilterPredicate() {
+        override fun test(t: SelectableItem): Boolean =
+            isCompatibleKotlinOverload(
+                original = original,
+                candidate = t as CallableItem,
+            )
     }
 
     /**
@@ -387,7 +409,13 @@ class CompatibilityCheck(
             return false
         // While it might be possible to switch to a method with a different return type in some
         // cases, in general this is not a safe source compatible change.
-        if (candidate.returnType() != original.returnType()) return false
+        if (
+            !TypeComparator.IGNORE_NULLABILITY.compare(
+                candidate.returnType(),
+                original.returnType()
+            )
+        )
+            return false
         // The nullability of the return type also can't change from non-null to nullable, because
         // usages of the return are currently expecting it to be non-null.
         if (
@@ -443,10 +471,11 @@ class CompatibilityCheck(
         original: TypeItem,
         candidate: TypeItem,
     ): Boolean {
-        // Parameter types must be the same. Note: TypeItem.equals() does not check nullability (or
-        // annotations). So, it is possible that two TypeItems that are equal are not compatible due
-        // to differences in nullability. That will be checked below.
-        if (original != candidate) return false
+        // Parameter types must be the same. Note: TypeComparator.IGNORE_NULLABILITY does not check
+        // nullability (or annotations). So, it is possible that two TypeItems that are equal are
+        // not
+        // compatible due to differences in nullability. That will be checked below.
+        if (!TypeComparator.IGNORE_NULLABILITY.compare(original, candidate)) return false
 
         // If the nullability is the same then the parameters are compatible.
         if (original.modifiers.nullability == candidate.modifiers.nullability) return true
@@ -639,7 +668,7 @@ class CompatibilityCheck(
         }
 
         val newCodebase = new.codebase
-        for (iface in new.filteredInterfaceTypes(filterReference)) {
+        for (iface in new.filteredInterfaceTypes(referenceFilter)) {
             val qualifiedName = iface.resolveClass(newCodebase)?.qualifiedName() ?: continue
             if (!old.implements(qualifiedName)) {
                 report(
@@ -884,7 +913,7 @@ class CompatibilityCheck(
 
         val oldType = old.type
         val newType = new.type
-        if (oldType != newType) {
+        if (!TypeComparator.IGNORE_NULLABILITY.compare(oldType, newType)) {
             report(
                 Issues.CHANGED_RECORD_COMPONENT,
                 new,
@@ -894,7 +923,7 @@ class CompatibilityCheck(
     }
 
     fun compareTypeAliasItems(old: ClassItem, new: ClassItem) {
-        if (old.aliasedType != new.aliasedType) {
+        if (!TypeComparator.IGNORE_NULLABILITY.compare(old.aliasedType, new.aliasedType)) {
             val typeStringConfiguration =
                 TypeStringConfiguration(
                     annotations = true,
@@ -953,7 +982,12 @@ class CompatibilityCheck(
                     is VariableTypeItem -> {
                         // If both return types are parameterized then the constraints must be
                         // exactly the same.
-                        return old.asTypeParameter.typeBounds() == new.asTypeParameter.typeBounds()
+                        val oldBounds = old.asTypeParameter.typeBounds()
+                        val newBounds = new.asTypeParameter.typeBounds()
+                        return oldBounds.size == newBounds.size &&
+                            oldBounds.zip(newBounds).all { (b1, b2) ->
+                                TypeComparator.IGNORE_NULLABILITY.compare(b1, b2)
+                            }
                     }
                     is ClassTypeItem -> {
                         // Resolve the old type to the class. If it cannot be resolved then assume
@@ -1002,13 +1036,13 @@ class CompatibilityCheck(
                             true
                         } else {
                             // Otherwise check that the type arguments are equal as well.
-                            old == new
+                            TypeComparator.IGNORE_NULLABILITY.compare(old, new)
                         }
                     }
                     else -> false
                 }
             }
-            else -> return old == new
+            else -> return TypeComparator.IGNORE_NULLABILITY.compare(old, new)
         }
     }
 
@@ -1043,21 +1077,30 @@ class CompatibilityCheck(
             // Get the throwable class, if none could be found then it is either because there is an
             // error in the codebase or the codebase is incomplete, either way reporting an error
             // would be unhelpful.
-            val throwableClass = throwType.asErasedClass(old.codebase) ?: continue
-            if (!new.throws(throwableClass.qualifiedName())) {
+            val oldThrowableClass = throwType.asErasedClass(old.codebase) ?: continue
+            if (!new.throws(oldThrowableClass.qualifiedName())) {
                 // exclude 'throws' changes to finalize() overrides with no arguments
                 if (old.name() != "finalize" || old.parameters().isNotEmpty()) {
-                    report(
-                        Issues.CHANGED_THROWS,
-                        new,
-                        "${new.describeCallableItem(capitalize = true)} no longer throws exception ${throwType.description()}",
-                        oldItem = old,
-                    )
+                    // Check whether the exception is unchecked in the new codebase, because if a
+                    // previously checked exception became unchecked, callers no longer need to
+                    // catch or declare it, so removing it from the throws list is not breaking.
+                    val newThrowableClass = throwType.asErasedClass(new.codebase)
+
+                    // Removing an unchecked exception from a throws list is not a breaking change
+                    // because callers are not required to catch or declare unchecked exceptions.
+                    if (newThrowableClass == null || !newThrowableClass.isUncheckedException()) {
+                        report(
+                            Issues.CHANGED_THROWS,
+                            new,
+                            "${new.describeCallableItem(capitalize = true)} no longer throws exception ${throwType.description()}",
+                            oldItem = old,
+                        )
+                    }
                 }
             }
         }
 
-        for (throwType in new.filteredThrowsTypes(filterReference)) {
+        for (throwType in new.filteredThrowsTypes(referenceFilter)) {
             // Get the throwable class, if none could be found then it is either because there is an
             // error in the codebase or the codebase is incomplete, either way reporting an error
             // would be unhelpful.
@@ -1072,6 +1115,12 @@ class CompatibilityCheck(
             }
         }
     }
+
+    /**
+     * Returns true if this class is an unchecked exception (subclass of RuntimeException or Error).
+     */
+    private fun ClassItem.isUncheckedException() =
+        extends(JAVA_LANG_RUNTIME_EXCEPTION) || extends(JAVA_LANG_ERROR)
 
     /** Describe the value for use in [compareMethodItems]. */
     private fun Value?.description() = this?.toValueString() ?: "nothing"
@@ -1260,7 +1309,7 @@ class CompatibilityCheck(
         if (!old.isEnumConstant()) {
             val oldType = old.type()
             val newType = new.type()
-            if (oldType != newType) {
+            if (!TypeComparator.IGNORE_NULLABILITY.compare(oldType, newType)) {
                 val message =
                     "${new.describe(capitalize = true)} has changed type from $oldType to $newType"
                 report(Issues.CHANGED_TYPE, new, message, oldItem = old)
@@ -1420,14 +1469,7 @@ class CompatibilityCheck(
     }
 
     private fun handleAdded(issue: Issue, item: SelectableItem) {
-        if (item.originallyHidden) {
-            // This is an element which is hidden but is referenced from
-            // some public API. This is an error, but some existing code
-            // is doing this. This is not an API addition.
-            return
-        }
-
-        if (!filterReference.test(item)) {
+        if (!surfaceFilter.test(item)) {
             // This item is something we weren't asked to verify
             return
         }
@@ -1446,10 +1488,8 @@ class CompatibilityCheck(
     }
 
     private fun handleRemoved(issue: Issue, item: SelectableItem) {
-        if (!item.emit) {
-            // It's a stub; this can happen when analyzing partial APIs
-            // such as a signature file for a library referencing types
-            // from the upstream library dependencies.
+        if (!surfaceFilter.test(item)) {
+            // This item is something we weren't asked to verify
             return
         }
 
@@ -1884,15 +1924,16 @@ class CompatibilityCheck(
             apiName: String?,
             apiSurface: ApiSurface,
         ) {
-            val filter = getFilter(checkType.apiType, apiSurface)
-
+            val surfaceFilter = getSurfaceFilter(checkType.apiType, apiSurface)
+            val referenceFilter = getReferenceFilter(checkType.apiType, apiSurface)
             val checker =
                 CompatibilityCheck(
-                    filter,
-                    reporter,
-                    issueConfiguration,
-                    apiCompatAnnotations,
-                    apiName,
+                    surfaceFilter = surfaceFilter,
+                    referenceFilter = referenceFilter,
+                    reporter = reporter,
+                    issueConfiguration = issueConfiguration,
+                    apiCompatAnnotations = apiCompatAnnotations,
+                    apiName = apiName,
                 )
 
             // When checking compatibility against a base public API that does not extend
@@ -1913,7 +1954,13 @@ class CompatibilityCheck(
                 }
             val newFullCodebase = MergedCodebase(listOf(newCodebase))
 
-            CodebaseComparator.compare(checker, oldFullCodebase, newFullCodebase, filter)
+            CodebaseComparator.compare(
+                checker,
+                oldFullCodebase,
+                newFullCodebase,
+                surfaceFilter,
+                referenceFilter,
+            )
 
             val message =
                 "Found compatibility problems checking " +
@@ -1934,17 +1981,25 @@ class CompatibilityCheck(
             apiCompatAnnotations: Set<String>,
             apiSurface: ApiSurface,
         ) {
-            val filter = getFilter(apiType, apiSurface)
+            val surfaceFilter = getSurfaceFilter(apiType, apiSurface)
+            val referenceFilter = getReferenceFilter(apiType, apiSurface)
             val checker =
                 CompatibilityCheck(
-                    filter,
-                    reporter,
-                    issueConfiguration,
-                    apiCompatAnnotations,
+                    surfaceFilter = surfaceFilter,
+                    referenceFilter = referenceFilter,
+                    reporter = reporter,
+                    issueConfiguration = issueConfiguration,
+                    apiCompatAnnotations = apiCompatAnnotations,
                     apiName = null,
                 )
 
-            CodebaseComparator.compareMultiplatform(checker, oldCodebase, newCodebase, filter)
+            CodebaseComparator.compareMultiplatform(
+                checker,
+                oldCodebase,
+                newCodebase,
+                surfaceFilter,
+                referenceFilter,
+            )
 
             if (checker.foundProblems) {
                 cliError("Found problems checking multiplatform codebase compatibility")
@@ -1952,11 +2007,25 @@ class CompatibilityCheck(
         }
 
         /**
-         * Returns a filter which wraps the [ApiSurfacePredicate.referenceFilter] for the [apiType]
-         * based on the [apiSurface] in a [MatchOverridingMethodPredicate]. This is used to filter
-         * which items are included in compatibility checks.
+         * Returns a filter based on the [apiType] and [apiSurface] which includes overriding
+         * methods. This is used to filter which items are included in compatibility checks.
          */
-        private fun getFilter(apiType: ApiType, apiSurface: ApiSurface) =
-            MatchOverridingMethodPredicate(ApiSurfacePredicate.referenceFilter(apiType, apiSurface))
+        private fun getSurfaceFilter(apiType: ApiType, apiSurface: ApiSurface) =
+            ApiSurfacePredicate.forDelta(
+                apiType,
+                apiSurface,
+                includeOverridingMethods = true,
+            )
+
+        /**
+         * Returns a reference filter based on the [apiType] and [apiSurface] which includes
+         * overriding methods. This is used to check referenced types (interfaces, throws).
+         */
+        private fun getReferenceFilter(apiType: ApiType, apiSurface: ApiSurface) =
+            ApiSurfacePredicate.referenceFilter(
+                apiType,
+                apiSurface,
+                includeOverridingMethods = true,
+            )
     }
 }

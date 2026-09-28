@@ -128,6 +128,8 @@ class FlaggedApiEdgeCasesTest : DriverTest() {
                             @$ANDROID_FLAGGED_API("flag.name")
                             public final class Test {
                                 private Test() {}
+                                public void method() {}
+                                public int field = 0;
                             }
                         """
                     ),
@@ -136,7 +138,6 @@ class FlaggedApiEdgeCasesTest : DriverTest() {
             expectedIssues =
                 """
                     src/test/pkg/Test.java:5: error: Cannot revert class test.pkg.Test (or any other API item) as no previously released API has been provided [NoPreviouslyReleasedApi]
-                    src/test/pkg/Test.java:6: error: Cannot revert constructor test.pkg.Test() (or any other API item) as no previously released API has been provided [NoPreviouslyReleasedApi]
                 """,
         )
     }
@@ -219,9 +220,6 @@ class FlaggedApiEdgeCasesTest : DriverTest() {
                     java(
                         """
                             package test.pkg;
-                            /**
-                            * @hide
-                            */
                             @$ANDROID_FLAGGED_API("flag.name")
                             @$ANDROID_SYSTEM_API
                             public class Test {
@@ -241,7 +239,6 @@ class FlaggedApiEdgeCasesTest : DriverTest() {
                     java(
                         """
                             package test.pkg;
-                            /** */
                             @SuppressWarnings({"unchecked", "deprecation", "all"})
                             public class Test {
                             Test() { throw new RuntimeException("Stub!"); }

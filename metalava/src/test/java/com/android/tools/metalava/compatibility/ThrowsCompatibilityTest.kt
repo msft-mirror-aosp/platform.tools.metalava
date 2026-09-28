@@ -16,11 +16,10 @@
 
 package com.android.tools.metalava.compatibility
 
-import com.android.tools.metalava.ARG_SHOW_ANNOTATION
 import com.android.tools.metalava.DriverTest
+import com.android.tools.metalava.KnownApiSurface
 import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.testing.RequiresCapabilities
-import com.android.tools.metalava.systemApiSource
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
 import org.junit.Test
@@ -35,7 +34,6 @@ class ThrowsCompatibilityTest : DriverTest() {
                     src/test/pkg/MyClass.java:8: error: Source breaking change: Method test.pkg.MyClass.method2 no longer throws exception java.io.IOException [ChangedThrows]
                     src/test/pkg/MyClass.java:9: error: Source breaking change: Method test.pkg.MyClass.method3 added thrown exception java.lang.UnsupportedOperationException [ChangedThrows]
                     src/test/pkg/MyClass.java:9: error: Source breaking change: Method test.pkg.MyClass.method3 no longer throws exception java.io.IOException [ChangedThrows]
-                    src/test/pkg/MyClass.java:9: error: Source breaking change: Method test.pkg.MyClass.method3 no longer throws exception java.lang.NumberFormatException [ChangedThrows]
                 """,
             checkCompatibilityApiReleased =
                 """
@@ -172,6 +170,7 @@ class ThrowsCompatibilityTest : DriverTest() {
     @Test
     fun `Partial text file where type previously did not exist`() {
         check(
+            apiSurface = KnownApiSurface.SYSTEM,
             sourceFiles =
                 arrayOf(
                     java(
@@ -179,9 +178,6 @@ class ThrowsCompatibilityTest : DriverTest() {
                             package test.pkg;
                             import android.annotation.SystemApi;
 
-                            /**
-                             * @hide
-                             */
                             @SystemApi
                             public class SampleException1 extends java.lang.Exception {
                             }
@@ -192,9 +188,6 @@ class ThrowsCompatibilityTest : DriverTest() {
                             package test.pkg;
                             import android.annotation.SystemApi;
 
-                            /**
-                             * @hide
-                             */
                             @SystemApi
                             public class SampleException2 extends java.lang.Throwable {
                             }
@@ -205,9 +198,6 @@ class ThrowsCompatibilityTest : DriverTest() {
                             package test.pkg;
                             import android.annotation.SystemApi;
 
-                            /**
-                             * @hide
-                             */
                             @SystemApi
                             public class Utils {
                                 public void method1() throws SampleException1 { }
@@ -215,12 +205,6 @@ class ThrowsCompatibilityTest : DriverTest() {
                             }
                         """
                     ),
-                    systemApiSource,
-                ),
-            extraArguments =
-                arrayOf(
-                    ARG_SHOW_ANNOTATION,
-                    "android.annotation.SystemApi",
                 ),
             checkCompatibilityApiReleased =
                 """
@@ -339,6 +323,90 @@ class ThrowsCompatibilityTest : DriverTest() {
                   }
                 }
             """
+        )
+    }
+
+    @Test
+    fun `Delete RuntimeException subclass thrown on class method - Compatible`() {
+        check(
+            signatureSource =
+                """
+                    package test.pkg {
+                      public class Foo {
+                        method public void bar(int);
+                      }
+                      public class MyRuntimeException extends java.lang.RuntimeException {
+                        ctor public MyRuntimeException();
+                      }
+                    }
+                """,
+            checkCompatibilityApiReleased =
+                """
+                    package test.pkg {
+                      public class Foo {
+                        method public void bar(int) throws test.pkg.MyRuntimeException;
+                      }
+                      public class MyRuntimeException extends java.lang.RuntimeException {
+                        ctor public MyRuntimeException();
+                      }
+                    }
+                """,
+        )
+    }
+
+    @Test
+    fun `Delete Error subclass thrown on class method - Compatible`() {
+        check(
+            signatureSource =
+                """
+                    package test.pkg {
+                      public class Foo {
+                        method public void bar(int);
+                      }
+                      public class MyError extends java.lang.Error {
+                        ctor public MyError();
+                      }
+                    }
+                """,
+            checkCompatibilityApiReleased =
+                """
+                    package test.pkg {
+                      public class Foo {
+                        method public void bar(int) throws test.pkg.MyError;
+                      }
+                      public class MyError extends java.lang.Error {
+                        ctor public MyError();
+                      }
+                    }
+                """,
+        )
+    }
+
+    @Test
+    fun `Delete checked exception that became RuntimeException subclass thrown on class method - Compatible`() {
+        check(
+            signatureSource =
+                """
+                    package test.pkg {
+                      public class Foo {
+                        method public void bar(int);
+                      }
+                      public class MyException extends java.lang.RuntimeException {
+                        ctor public MyException();
+                      }
+                    }
+                """,
+            checkCompatibilityApiReleased =
+                """
+                    package test.pkg {
+                      public class Foo {
+                        method public void bar(int) throws test.pkg.MyException;
+                      }
+                      public class MyException extends java.lang.Exception {
+                        ctor public MyException();
+                      }
+                    }
+                """,
         )
     }
 }

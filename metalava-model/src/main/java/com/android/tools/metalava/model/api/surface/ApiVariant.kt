@@ -160,8 +160,53 @@ value class ApiVariantSet(internal val bits: Int) {
         }
     }
 
+    /**
+     * Check whether this is hidden or removed, i.e. it is either empty (not present in any API
+     * variant, thus hidden) or only contains [ApiVariantType.REMOVED] variants.
+     */
+    fun isHiddenOrRemoved() =
+        // `allNotRemovedMask` has a 0 for the REMOVED bit of every surface and a 1 for every other
+        // bit. Masking with it clears all REMOVED bits, so the result is 0 if and only if this set
+        // contains no non-removed variants (i.e. it is either empty or contains only REMOVED
+        // variants).
+        bits and allNotRemovedMask == 0
+
     companion object {
         /** The empty [ApiVariantSet]. */
         val EMPTY = ApiVariantSet(0)
+
+        /**
+         * A mask that includes all possible variants that are not [ApiVariantType.REMOVED] that
+         * could fit in an [Int].
+         */
+        private val allNotRemovedMask = createAllVariantSet(ApiVariantType.REMOVED).inv()
+
+        /**
+         * Create an [ApiVariantSet.bits] value that contains all possible [ApiVariant]s of type
+         * [variantType] that could fit in an [Int].
+         *
+         * This avoids needing [ApiSurfaces] to construct an [ApiVariantSet].
+         */
+        private fun createAllVariantSet(
+            @Suppress("SameParameterValue") variantType: ApiVariantType,
+        ): Int {
+            // Each surface allocates its variants in the order of `ApiVariantType.entries`,
+            // so the relative bit offset for `variantType` within any surface is its ordinal.
+            val variantBit = 1 shl variantType.ordinal
+
+            // Each surface occupies a bit block equal to the number of variant types.
+            val surfaceBitWidth = ApiVariantType.entries.size
+
+            // Maximum number of full surfaces that can fit in an Int (32 bits).
+            val count = Int.SIZE_BITS / surfaceBitWidth
+
+            // Replicate the variant bit across all surface blocks.
+            var bits = 0
+            for (i in 1..count) {
+                bits = bits shl surfaceBitWidth
+                bits = bits or variantBit
+            }
+            return bits
+        }
     }
 }

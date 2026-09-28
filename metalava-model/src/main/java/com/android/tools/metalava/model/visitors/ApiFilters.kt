@@ -16,16 +16,18 @@
 
 package com.android.tools.metalava.model.visitors
 
-import com.android.tools.metalava.model.EMITTED_ONLY
+import com.android.tools.metalava.model.EmittedOnlyPredicate
 import com.android.tools.metalava.model.FilterPredicate
+import com.android.tools.metalava.model.Indenter
 import com.android.tools.metalava.model.Item
+import com.android.tools.metalava.model.MatchAllPredicate
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.TargetLanguage
 import com.android.tools.metalava.model.TargetLanguageSet
 import com.android.tools.metalava.model.inclusionFilter
 
 /** Encapsulates filters needed by [ApiVisitor]. */
-class ApiFilters(
+data class ApiFilters(
     /**
      * Returns `true` for [Item]s that can be referenced from the API, this is a super set of
      * [Item]s that can be emitted.
@@ -33,7 +35,15 @@ class ApiFilters(
     val reference: FilterPredicate,
 
     /** Returns `true` for [Item]s that should be defined in the API and emitted as part of it. */
-    val emit: FilterPredicate = EMITTED_ONLY.and(reference),
+    val emit: FilterPredicate = EmittedOnlyPredicate.and(reference),
+
+    /**
+     * Optional filter that determines whether an [Item] should be visited during traversal.
+     *
+     * If provided, [ApiFiltersVisitor] skips any [SelectableItem] for which this predicate returns
+     * `false`. Otherwise, [ApiFiltersVisitor] uses [emit] for that purpose.
+     */
+    val traversal: FilterPredicate? = null,
 ) {
     /**
      * Return an [ApiFilters] that will filter by [targetLanguages] in addition to this filter.
@@ -45,7 +55,21 @@ class ApiFilters(
         return ApiFilters(
             reference = reference.and(targetLanguagesInclusionFilter),
             emit = emit.and(targetLanguagesInclusionFilter),
+            traversal = traversal?.and(targetLanguagesInclusionFilter),
         )
+    }
+
+    override fun toString() = buildString {
+        val indenter = Indenter(this)
+        indenter.indented(prefix = "ApiFilters(", suffix = ")") {
+            if (traversal != null) {
+                indenter.indented(prefix = "traversal =", suffix = "\n") {
+                    traversal.format(indenter)
+                }
+            }
+            indenter.indented(prefix = "emit =", suffix = "\n") { emit.format(indenter) }
+            indenter.indented(prefix = "reference =", suffix = "\n") { reference.format(indenter) }
+        }
     }
 
     companion object {
@@ -55,8 +79,8 @@ class ApiFilters(
          */
         val ALL =
             ApiFilters(
-                reference = { true },
-                emit = EMITTED_ONLY,
+                reference = MatchAllPredicate,
+                emit = EmittedOnlyPredicate,
             )
     }
 }

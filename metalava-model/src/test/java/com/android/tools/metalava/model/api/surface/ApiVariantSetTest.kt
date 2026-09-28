@@ -148,6 +148,76 @@ class ApiVariantSetTest {
     }
 
     @Test
+    fun `Test isHiddenOrRemoved`() {
+        // An empty set represents an item not present in any API variant (i.e. hidden).
+        assertTrue(ApiVariantSet.EMPTY.isHiddenOrRemoved(), "empty set is hidden")
+
+        // Sets containing only REMOVED variants across one or more surfaces are hiddenOrRemoved.
+        val mainRemovedSet = apiSurfaces.createVariantSet(mainRemoved)
+        assertTrue(mainRemovedSet.isHiddenOrRemoved(), "main(R) is hidden or removed")
+
+        val baseRemovedSet = apiSurfaces.createVariantSet(baseRemoved)
+        assertTrue(baseRemovedSet.isHiddenOrRemoved(), "base(R) is hidden or removed")
+
+        val allRemovedSet = apiSurfaces.createVariantSet(mainRemoved, baseRemoved)
+        assertTrue(allRemovedSet.isHiddenOrRemoved(), "base(R),main(R) is hidden or removed")
+
+        // Sets containing CORE variants are not hidden or removed.
+        val mainCoreSet = apiSurfaces.createVariantSet(mainCore)
+        assertFalse(mainCoreSet.isHiddenOrRemoved(), "main(C) is not hidden or removed")
+
+        val baseCore = base.variantFor(ApiVariantType.CORE)
+        val baseCoreSet = apiSurfaces.createVariantSet(baseCore)
+        assertFalse(baseCoreSet.isHiddenOrRemoved(), "base(C) is not hidden or removed")
+
+        // Sets containing DOC_ONLY variants are not hidden or removed.
+        val baseDocOnlySet = apiSurfaces.createVariantSet(baseDocOnly)
+        assertFalse(baseDocOnlySet.isHiddenOrRemoved(), "base(D) is not hidden or removed")
+
+        val mainDocOnly = main.variantFor(ApiVariantType.DOC_ONLY)
+        val mainDocOnlySet = apiSurfaces.createVariantSet(mainDocOnly)
+        assertFalse(mainDocOnlySet.isHiddenOrRemoved(), "main(D) is not hidden or removed")
+
+        // Sets containing a mix of REMOVED and non-removed variants are not hidden or removed.
+        val mixedSet1 = apiSurfaces.createVariantSet(mainCore, mainRemoved)
+        assertFalse(mixedSet1.isHiddenOrRemoved(), "main(CR) is not hidden or removed")
+
+        val mixedSet2 = apiSurfaces.createVariantSet(baseRemoved, mainCore)
+        assertFalse(mixedSet2.isHiddenOrRemoved(), "base(R),main(C) is not hidden or removed")
+
+        val mixedSet3 = apiSurfaces.createVariantSet(baseRemoved, baseDocOnly)
+        assertFalse(mixedSet3.isHiddenOrRemoved(), "base(RD) is not hidden or removed")
+
+        // Test across 3 surfaces
+        val threeSurfaces =
+            ApiSurfaces.build {
+                createSurface("public")
+                createSurface("system", extends = "public")
+                createSurface("module", extends = "system", isMain = true)
+            }
+        val publicRemoved =
+            threeSurfaces.byName.getValue("public").variantFor(ApiVariantType.REMOVED)
+        val systemRemoved =
+            threeSurfaces.byName.getValue("system").variantFor(ApiVariantType.REMOVED)
+        val moduleRemoved =
+            threeSurfaces.byName.getValue("module").variantFor(ApiVariantType.REMOVED)
+        val moduleCore = threeSurfaces.byName.getValue("module").variantFor(ApiVariantType.CORE)
+
+        val threeRemoved =
+            threeSurfaces.createVariantSet(publicRemoved, systemRemoved, moduleRemoved)
+        assertTrue(
+            threeRemoved.isHiddenOrRemoved(),
+            "3 surfaces with only REMOVED are hidden or removed",
+        )
+
+        val threeMixed = threeSurfaces.createVariantSet(publicRemoved, systemRemoved, moduleCore)
+        assertFalse(
+            threeMixed.isHiddenOrRemoved(),
+            "3 surfaces with REMOVED and CORE is not hidden or removed",
+        )
+    }
+
+    @Test
     fun `Test narrowest and widest surfaces`() {
         val emptySet = ApiVariantSet.EMPTY
         assertEquals(null, emptySet.narrowestSurfaceFor(apiSurfaces), "empty narrowest")

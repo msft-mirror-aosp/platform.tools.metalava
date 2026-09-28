@@ -36,12 +36,13 @@ internal class TurbineSourceModelProvider :
             Capability.IMPORTS,
             Capability.PACKAGE_HTML_FILES,
             Capability.HIDDEN_ITEMS,
-            Capability.API_VARIANT_SELECTORS,
+            Capability.REVERTED_ITEMS,
         )
 
     override fun createEnvironmentManager(
         disableStderrDumping: Boolean,
         forTesting: Boolean,
+        reuseEnvironment: Boolean,
     ): com.android.tools.metalava.model.source.EnvironmentManager = TurbineEnvironmentManager()
 
     override fun toString() = providerName

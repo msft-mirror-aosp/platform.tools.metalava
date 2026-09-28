@@ -43,7 +43,7 @@ class DefaultReporter(
 
     /** Additional config properties. */
     private val config: Config = Config(),
-) : Reporter {
+) : BaseReporter() {
 
     /** A list of [Report] objects containing all the reported issues. */
     private val reports = mutableListOf<Report>()
@@ -152,29 +152,7 @@ class DefaultReporter(
             return true
         }
 
-        reportable ?: return false
-
-        // Suppress the issue if requested for the item.
-        return reportable.suppressedIssues().any { suppressMatches(it, id.name, message) }
-    }
-
-    private fun suppressMatches(value: String, id: String?, message: String?): Boolean {
-        id ?: return false
-
-        if (value == id) {
-            return true
-        }
-
-        if (
-            message != null &&
-                value.startsWith(id) &&
-                value.endsWith(message) &&
-                (value == "$id:$message" || value == "$id: $message")
-        ) {
-            return true
-        }
-
-        return false
+        return super.isSuppressed(id, reportable, message)
     }
 
     /**

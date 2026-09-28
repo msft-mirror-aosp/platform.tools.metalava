@@ -33,7 +33,7 @@ import org.junit.Test
 /** Test [CodebaseSnapshotTaker] use within the main metalava code. */
 class SnapshotTest : DriverTest() {
     private fun CheckerContext.takeSnapshotOfPublicApi(): Codebase {
-        val apiFilters = ApiSurfacePredicate.apiFilters(ApiType.CORE, ApiSurfacePredicate.Config())
+        val apiFilters = ApiSurfacePredicate.apiFilters(ApiType.CORE, codebase!!.apiSurfaces.main)
         val factory: (DelegatedVisitor) -> ItemVisitor = {
             FilteringApiVisitor(
                 delegate = it,

@@ -22,6 +22,9 @@ import com.android.tools.metalava.DriverTest
 import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.testing.RequiresCapabilities
 import com.android.tools.metalava.testing.KnownSourceFiles.restrictToSource
+import com.android.tools.metalava.testing.createCommonModuleDescription
+import com.android.tools.metalava.testing.createNativeModuleDescription
+import com.android.tools.metalava.testing.createProjectDescription
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
 import org.junit.Test
@@ -423,6 +426,93 @@ class ApiContentsTest : DriverTest() {
                     ADDITIONAL-SOURCE-PATH/test/pkg/Outer.java:4: error: Class test.pkg.Outer is hidden but was referenced (as containing class) from public class test.pkg.Outer.Hidden [ReferencesHidden]
                     src/test/pkg/Test.java:2: error: Class test.pkg.Outer is hidden but was referenced (as type parameter) from public class test.pkg.Test [ReferencesHidden]
                     src/test/pkg/Test.java:2: error: Class test.pkg.Outer.Hidden is hidden but was referenced (as type parameter) from public class test.pkg.Test [ReferencesHidden]
+                """,
+        )
+    }
+
+    @RequiresCapabilities(Capability.KOTLIN)
+    @Test
+    fun `Reference to hidden class from public typealias`() {
+        check(
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
+                        package test.pkg
+                        /** @hide */
+                        class Hidden
+                        typealias Public = Hidden
+                        """
+                    )
+                ),
+            expectedIssues =
+                """
+                src/test/pkg/Hidden.kt:4: warning: Typealias test.pkg.Public references hidden type test.pkg.Hidden. [HiddenTypeParameter]
+                src/test/pkg/Hidden.kt:4: error: Class test.pkg.Hidden is hidden but was referenced (aliased type) from public typealias test.pkg.Public [ReferencesHidden]
+                """
+        )
+    }
+
+    @RequiresCapabilities(Capability.KOTLIN)
+    @Test
+    fun `Reference to hidden class from public typealias for multiplatform codebase`() {
+        val commonSource =
+            kotlin(
+                "commonMain/src/test/pkg/Common.kt",
+                """
+                package test.pkg
+                annotation class Hide
+                @Hide class Hidden
+                expect class Public
+                """
+            )
+        val nativeSource =
+            kotlin(
+                "nativeMain/src/test/pkg/Native.kt",
+                """
+                package test.pkg
+                actual typealias Public = Hidden
+                """
+            )
+        check(
+            enableMultiplatform = true,
+            skipSourceArgs = true,
+            sourceFiles = arrayOf(commonSource, nativeSource),
+            projectDescription =
+                createProjectDescription(
+                    createCommonModuleDescription(arrayOf(commonSource)),
+                    createNativeModuleDescription(arrayOf(nativeSource)),
+                ),
+            hideAnnotations = arrayOf("test.pkg.Hide"),
+            expectedIssues =
+                """
+                nativeMain/src/test/pkg/Native.kt:2: warning: Typealias test.pkg.Public references hidden type test.pkg.Hidden. [HiddenTypeParameter]
+                """
+        )
+    }
+
+    @RequiresCapabilities(Capability.KOTLIN)
+    @Test
+    fun `Reference to internal class from public API`() {
+        check(
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
+                            package test.pkg
+
+                            internal interface InternalInterface
+
+                            class PublicClass {
+                                @Suppress("EXPOSED_TYPE_PARAMETER_BOUND_DEPRECATION_WARNING")
+                                fun <T : InternalInterface> method(t: T) {}
+                            }
+                        """
+                    ),
+                ),
+            expectedIssues =
+                """
+                    src/test/pkg/InternalInterface.kt:7: error: Class test.pkg.InternalInterface is not public but was referenced (as type parameter) from public method test.pkg.PublicClass.method(T) [ReferencesHidden]
                 """,
         )
     }

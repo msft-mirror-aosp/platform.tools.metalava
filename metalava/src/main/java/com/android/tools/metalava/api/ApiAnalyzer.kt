@@ -41,15 +41,17 @@ import com.android.tools.metalava.model.SUPPRESS_COMPATIBILITY_ANNOTATION_QUALIF
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.TargetLanguageSet
 import com.android.tools.metalava.model.TypeItem
+import com.android.tools.metalava.model.api.surface.ApiSurface
 import com.android.tools.metalava.model.api.surface.ApiSurfacePredicate
+import com.android.tools.metalava.model.api.surface.ApiSurfaces
 import com.android.tools.metalava.model.doc.DocContentPredicate
+import com.android.tools.metalava.model.hasAnnotation
 import com.android.tools.metalava.model.source.SourceParser
 import com.android.tools.metalava.model.source.doc.DocContentPredicates
 import com.android.tools.metalava.model.testOrTrue
 import com.android.tools.metalava.model.value.asString
 import com.android.tools.metalava.model.visitors.ApiFilters
 import com.android.tools.metalava.model.visitors.ApiFiltersVisitor
-import com.android.tools.metalava.model.visitors.ApiType
 import com.android.tools.metalava.permission.getRequiresPermissionProxy
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
@@ -98,14 +100,11 @@ class ApiAnalyzer(
         /** The API surface name. */
         val apiSurfaceName: String? = null,
 
-        /** Configuration for any [ApiPredicate] instances this needs to create. */
-        val apiPredicateConfig: ApiSurfacePredicate.Config = ApiSurfacePredicate.Config(),
+        /** The API surface. */
+        val apiSurface: ApiSurface = ApiSurfaces.DEFAULT.main,
 
         /** Configuration for [AnnotationsMerger] instances this needs to create. */
         val annotationsMergerConfig: AnnotationsMerger.Config = AnnotationsMerger.Config(),
-
-        /** Determines whether it is necessary to perform the [Issues.UNHIDDEN_SYSTEM_API] check. */
-        val needUnhiddenSystemApiCheck: Boolean = true,
     )
 
     /** All packages in the API */
@@ -118,9 +117,6 @@ class ApiAnalyzer(
         }
 
         skipEmitPackages()
-
-        // Suppress kotlin file facade classes with no public api
-        hideEmptyKotlinFileFacadeClasses()
 
         // Propagate visibility down into individual elements -- if a class is hidden,
         // then the methods and fields are hidden etc
@@ -242,24 +238,6 @@ class ApiAnalyzer(
         }
     }
 
-    /** If a file facade class has no public members, don't add it to the api */
-    private fun hideEmptyKotlinFileFacadeClasses() {
-        codebase.getPackages().allClasses().forEach { cls ->
-            if (
-                cls.isFileFacade &&
-                    // a facade class needs to be emitted if it has any top-level fun/prop to emit
-                    cls.members().none { member ->
-                        // a member needs to be emitted if
-                        //  1) it isn't hidden;
-                        //  2) it is either public or has a show annotation;
-                        !member.hidden && (member.isPublic || member.hasShowAnnotation())
-                    }
-            ) {
-                cls.emit = false
-            }
-        }
-    }
-
     /**
      * Merge in external qualifier annotations (i.e. ones intended to be included in the API written
      * from all configured sources).
@@ -301,14 +279,15 @@ class ApiAnalyzer(
                 override fun visitSelectableItem(item: SelectableItem) {
                     // Make sure that the SelectedApi has been initialized for all items.
                     item.selectedApi
-
-                    item.variantSelectors.inheritInto()
                 }
 
                 override fun visitRecordComponentItem(component: RecordComponentItem) {
                     val codebase = component.codebase
+
+                    // Check to see whether this has any hide annotations. This is necessary as
+                    // RecordComponentItem is not a SelectableItem.
                     val hasHideAnnotations =
-                        codebase.annotationManager.hasHideAnnotations(component.modifiers)
+                        component.modifiers.hasAnnotation(AnnotationItem::isHideAnnotation)
                     if (hasHideAnnotations) {
                         codebase.reporter.report(
                             Issues.HIDING_RECORD_COMPONENT,
@@ -405,10 +384,6 @@ class ApiAnalyzer(
                 config.apiSurfaceName == "system" &&
                 !config.manifest.isEmpty()
 
-        // Only check for hidden show annotations if it is needed and it is not suppressed.
-        val checkHiddenShowAnnotations =
-            config.needUnhiddenSystemApiCheck && !reporter.isSuppressed(Issues.UNHIDDEN_SYSTEM_API)
-
         val apiFilters =
             ApiFilters(
                     reference = ApiSurfacePredicate.wholeCoreApi(codebase.apiSurfaces.main),
@@ -418,14 +393,6 @@ class ApiAnalyzer(
 
         codebase.accept(
             object : ApiFiltersVisitor(apiFilters = apiFilters) {
-                /** A [FilterPredicate] that will match removed items. */
-                private val removedFilterPredicate =
-                    ApiSurfacePredicate.apiFilters(
-                            ApiType.REMOVED,
-                            config.apiPredicateConfig,
-                        )
-                        .emit
-
                 override fun visitParameter(parameter: ParameterItem) {
                     checkTypeReferencesHidden(parameter, parameter.type())
                 }
@@ -457,12 +424,6 @@ class ApiAnalyzer(
                         )
                         // TODO: Check opposite (doc tag but no annotation)
                     }
-
-                    if (checkHiddenShowAnnotations) {
-                        checkEnsureShowAnnotationsAreExplicitlyHidden(item)
-                    } else {
-                        checkEnsureShowAnnotationsAreNotExplicitlyHidden(item)
-                    }
                 }
 
                 override fun visitClass(cls: ClassItem) {
@@ -484,11 +445,8 @@ class ApiAnalyzer(
                         }
                     }
 
-                    // Check if any method in the class attempts to hide an overridden method that
-                    // is already part of the API. Call it here as it has to check methods which are
-                    // not part of the API surface.
-                    for (method in cls.methods()) {
-                        checkHidingApiMethodOverride(method)
+                    if (cls.classKind == ClassKind.TYPEALIAS) {
+                        checkTypeReferencesHidden(cls, cls.aliasedType)
                     }
                 }
 
@@ -506,89 +464,6 @@ class ApiAnalyzer(
                         method.returnType()
                     ) // returnType is nullable only for constructors
                 }
-
-                /**
-                 * Checks whether a method attempts to hide an override of a method that is already
-                 * part of the API.
-                 *
-                 * It is an error to attempt to hide a method in a class if the method overrides an
-                 * API method in a superclass or interface, unless hiding from a narrower API
-                 * surface (e.g. a public class hiding a system API override).
-                 */
-                private fun checkHidingApiMethodOverride(method: MethodItem) {
-                    if (reporter.isSuppressed(Issues.HIDING_API_METHOD_OVERRIDE)) return
-
-                    val cls = method.containingClass()
-                    // Check if the containing class is part of the API surface, but this method is
-                    // hidden from it
-                    if (
-                        filterEmit.testOrTrue(cls) &&
-                            method.variantSelectors.originallyHidden &&
-                            !method.variantSelectors.showability.show()
-                    ) {
-                        // Check to see if the method overrides an API method, if so report an
-                        // issue.
-                        if (!checkIfHiddenMethodIsOverridingApiMethod(method)) {
-                            // Check to see if the method overrides a method that was previously
-                            // part of the API but has since been removed.
-                            checkIfHiddenMethodIsOverridingRemovedMethod(method)
-                        }
-                    }
-                }
-
-                /**
-                 * Report an [Issues.HIDING_API_METHOD_OVERRIDE] issue if this method overrides a
-                 * method that matches [predicate].
-                 *
-                 * If the overridden method is from the class path then do not report an error as it
-                 * may not be possible to determine if a method in a jar matches a specific API
-                 * version.
-                 *
-                 * Do not report an error if a final class hides a protected method from its
-                 * superclass, as there is no way to call a method of a final class through a
-                 * protected method of the superclass.
-                 */
-                private inline fun MethodItem.reportIfOverridingApiMethod(
-                    predicate: FilterPredicate?,
-                    reportMessageProvider: (MethodItem, MethodItem) -> String,
-                ): Boolean =
-                    findPredicateSuperMethod(predicate)
-                        ?.takeIf { overriddenMethod ->
-                            overriddenMethod.origin != ClassOrigin.CLASS_PATH &&
-                                !(containingClass().modifiers.isFinal() &&
-                                    overriddenMethod.modifiers.isProtected())
-                        }
-                        ?.also { overriddenMethod ->
-                            reporter.report(
-                                Issues.HIDING_API_METHOD_OVERRIDE,
-                                this,
-                                reportMessageProvider(this, overriddenMethod),
-                            )
-                        } != null
-
-                /**
-                 * See if there are any super methods that are part of the API.
-                 *
-                 * If there are then report an [Issues.HIDING_API_METHOD_OVERRIDE] issue.
-                 */
-                private fun checkIfHiddenMethodIsOverridingApiMethod(method: MethodItem) =
-                    method.reportIfOverridingApiMethod(filterReference) { method, overriddenMethod
-                        ->
-                        "Attempting to hide ${method.describe()} which overrides ${overriddenMethod.describe()} which is already part of the API"
-                    }
-
-                /**
-                 * See if there are any super methods that were part of the API but have since been
-                 * removed.
-                 *
-                 * If there are then report an [Issues.HIDING_API_METHOD_OVERRIDE] issue.
-                 */
-                private fun checkIfHiddenMethodIsOverridingRemovedMethod(method: MethodItem) =
-                    method.reportIfOverridingApiMethod(removedFilterPredicate) {
-                        method,
-                        overriddenMethod ->
-                        "Attempting to hide ${method.describe()} which overrides ${overriddenMethod.describe()} which was part of the API but has now been removed"
-                    }
 
                 /** Check that the type doesn't refer to any hidden classes. */
                 private fun checkTypeReferencesHidden(item: Item, type: TypeItem) {
@@ -612,74 +487,6 @@ class ApiAnalyzer(
                 }
             }
         )
-    }
-
-    /**
-     * Check to make sure that [item] does not have show annotations without being explicitly
-     * hidden.
-     *
-     * This is not called when the API surfaces are defined in the configuration file as that
-     * provides enough information to automatically hide items from a related but untracked surface.
-     */
-    private fun checkEnsureShowAnnotationsAreExplicitlyHidden(item: SelectableItem) {
-        if (
-            item.hasShowAnnotation() &&
-                !item.originallyHidden &&
-                !item.showability.showNonRecursive()
-        ) {
-            item.modifiers
-                .annotations()
-                // Find the first show annotation. Just because item.hasShowAnnotation() is true
-                // does not mean that there must be one show annotation as a revert annotation could
-                // be treated as a show annotation on one item and a hide annotation on another but
-                // is neither a show nor hide annotation.
-                .firstOrNull(AnnotationItem::isShowAnnotation)
-                ?.let { annotation ->
-                    val annotationName = annotation.qualifiedName
-                    reporter.report(
-                        Issues.UNHIDDEN_SYSTEM_API,
-                        item,
-                        "@$annotationName APIs must also be marked @hide: ${item.describe()}"
-                    )
-                }
-        }
-    }
-
-    /**
-     * Check to make sure that [item] does not have show annotations without being explicitly
-     * hidden.
-     */
-    private fun checkEnsureShowAnnotationsAreNotExplicitlyHidden(item: SelectableItem) {
-        if (
-            item.hasShowAnnotation() &&
-                // Only check for @hide doc tag. Testing for annotations would complicate this
-                // because it would be necessary to differentiate between an annotation that hides
-                // items from all API surfaces and one that is hiding items that are part of a
-                // different API surface.
-                //
-                // We check the block tag physically (using `hasBlockTagOfType("hide")`) instead of
-                // calling `isHidden` because when API surfaces are configured in a config file,
-                // `isHidden` returns false for `@hide` Javadoc tags. However, we still want to
-                // flag this warning if the developer explicitly included a `@hide` tag.
-                item.documentation?.hasBlockTagOfType("hide") == true &&
-                !item.showability.showNonRecursive()
-        ) {
-            item.modifiers
-                .annotations()
-                // Find the first show annotation. Just because item.hasShowAnnotation() is true
-                // does not mean that there must be one show annotation as a revert annotation could
-                // be treated as a show annotation on one item and a hide annotation on another but
-                // is neither a show nor hide annotation.
-                .firstOrNull(AnnotationItem::isShowAnnotation)
-                ?.let { annotation ->
-                    val annotationName = annotation.qualifiedName
-                    reporter.report(
-                        Issues.HIDDEN_SHOW_ANNOTATION,
-                        item,
-                        "@$annotationName APIs must not be marked @hide: ${item.describe()}"
-                    )
-                }
-        }
     }
 
     fun handleStripping() {
@@ -718,13 +525,7 @@ class ApiAnalyzer(
                         }
                         continue
                     }
-                    if (m.isHiddenOrRemoved()) {
-                        reporter.report(
-                            Issues.UNAVAILABLE_SYMBOL,
-                            m,
-                            "Reference to unavailable method " + m.name()
-                        )
-                    } else if (m.originallyDeprecated) {
+                    if (m.originallyDeprecated) {
                         // don't bother reporting deprecated methods unless they are public and
                         // explicitly marked as deprecated.
                         reporter.report(
@@ -834,7 +635,13 @@ class ApiAnalyzer(
             object : BaseTypeVisitor() {
                 override fun visitClassType(classType: ClassTypeItem) {
                     val asClass = classType.resolveClass(codebase) ?: return
-                    if (asClass.isHiddenOrRemoved()) {
+                    // Only public and protected classes are considered "hidden" from an API
+                    // surface. Package-private and private classes are "not public" and are
+                    // handled separately by ReferencesHidden.
+                    if (
+                        asClass.isHiddenOrRemoved() &&
+                            (asClass.modifiers.isPublic() || asClass.modifiers.isProtected())
+                    ) {
                         hiddenClasses.add(asClass)
                     }
                 }

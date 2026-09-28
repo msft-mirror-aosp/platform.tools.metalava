@@ -76,12 +76,31 @@ open class ApiFiltersVisitor(
 
     /** The filters to use to determine if we should visit an item */
     apiFilters: ApiFilters?,
-) :
-    ApiSurfaceVisitor(
-        preserveClassNesting = preserveClassNesting,
-        visitParameterItems = visitParameterItems,
-        filterEmit = apiFilters?.emit,
-    ) {
+) : BaseItemVisitor(preserveClassNesting, visitParameterItems) {
+
+    /**
+     * The filter predicate used to determine which items are visited during traversal.
+     *
+     * Defaults to [ApiFilters.traversal] if specified, otherwise falls back to [ApiFilters.emit].
+     */
+    private val traversalPredicate = apiFilters?.traversal ?: apiFilters?.emit
+
+    /** Skip any item that does not match [traversalPredicate]. */
+    override fun skip(item: SelectableItem) = !traversalPredicate.testOrTrue(item)
+
+    /**
+     * Filter predicate that determines whether an [Item] should be defined and emitted as part of
+     * the API surface.
+     *
+     * Subclasses can use this to check whether a visited item is actually part of the emitted API,
+     * which may differ from [traversalPredicate] if a separate traversal filter was provided in
+     * [ApiFilters].
+     *
+     * Use [FilterPredicate.testOrTrue] when querying this property so that if no filter was
+     * provided, all items are treated as emittable.
+     */
+    protected val filterEmit: FilterPredicate? = apiFilters?.emit
+
     /**
      * Filter predicate that determines whether an [Item] can be referenced from the API surface.
      *

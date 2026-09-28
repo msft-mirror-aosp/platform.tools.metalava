@@ -23,24 +23,35 @@ import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.AnnotationTarget
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.NO_ANNOTATION_TARGETS
-import com.android.tools.metalava.model.Showability
 import com.android.tools.metalava.model.value.asString
 
-/** The action the api flag is accomplishing */
+/**
+ * The action the api flag is accomplishing.
+ *
+ * The constants are ordered by increasing lifecycle permanence in the API surface (`REVERT < KEEP <
+ * FINALIZE`):
+ * 1. [REVERT] — Associated [Item]s are reverted (or hidden if newly added) and excluded from the
+ *    API surface.
+ * 2. [KEEP] — Associated [Item]s are included in the API surface, but remain guarded by their
+ *    `@FlaggedApi` annotation as the flag is still mutable and may be disabled at runtime or
+ *    reverted in a future release.
+ * 3. [FINALIZE] — Associated [Item]s are permanently finalized in the API surface and their
+ *    `@FlaggedApi` annotation is stripped.
+ */
 enum class ApiFlagAction(
-    /**
-     * The [Showability] of any [Item]s annotated with an `@FlaggedApi` annotation that references
-     * this [ApiFlag].
-     */
-    val showability: Showability,
     val revert: Boolean,
 
     /** Controls whether `@FlaggedApi` annotations for this [ApiFlag] are kept or discarded. */
     val annotationTargets: Set<AnnotationTarget>,
 ) {
+    /** Revert any associated [Item]s. */
+    REVERT(
+        revert = true,
+        annotationTargets = NO_ANNOTATION_TARGETS,
+    ),
+
     /** Keep any associated [Item]s and their `@FlaggedApi` annotation. */
     KEEP(
-        showability = Showability.NO_EFFECT,
         revert = false,
         annotationTargets = ANNOTATION_IN_ALL_STUBS,
     ),
@@ -50,17 +61,9 @@ enum class ApiFlagAction(
      * has been) finalized.
      */
     FINALIZE(
-        showability = Showability.NO_EFFECT,
         revert = false,
         annotationTargets = NO_ANNOTATION_TARGETS,
     ),
-
-    /** Revert any associated [Item]s. */
-    REVERT(
-        showability = Showability.REVERT_UNSTABLE_API,
-        revert = true,
-        annotationTargets = NO_ANNOTATION_TARGETS,
-    )
 }
 
 /** The available set of configured [ApiFlag]s. */
@@ -105,13 +108,6 @@ data class ApiFlag(
     /** Whether the flag is known, i.e. was supplied in the configuration. */
     val isKnown: Boolean = true,
 ) {
-    /**
-     * The [Showability] of any [Item]s annotated with an `@FlaggedApi` annotation that references
-     * this [ApiFlag].
-     */
-    val showability
-        get() = action.showability
-
     val revert
         get() = action.revert
 
