@@ -205,7 +205,7 @@ class CommonPropertyItemTest : BaseModelTest() {
             val propertyItem = fooClass.properties().single()
             assertThat(propertyItem.name()).isEqualTo("delegatingList")
             val propertyType = propertyItem.type()
-            propertyType.assertClassTypeItem {
+            propertyType.assertLambdaTypeItem {
                 assertThat(testTypeString(kotlinStyleNulls = true))
                     .isEqualTo(
                         "kotlin.jvm.functions.Function2<java.lang.Integer,java.lang.String?,java.lang.Boolean>"
