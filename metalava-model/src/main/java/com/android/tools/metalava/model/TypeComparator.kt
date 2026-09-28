@@ -114,15 +114,15 @@ sealed interface TypeComparator {
                 is ArrayTypeItem -> {
                     type2 is ArrayTypeItem && compareArrays(type1, type2)
                 }
-                is LambdaTypeItem -> {
-                    compareStructure(type1.asJvmClassType(), type2)
-                }
                 is ClassTypeItem -> {
                     when (type2) {
-                        is LambdaTypeItem -> compareClasses(type1, type2.asJvmClassType())
                         is ClassTypeItem -> compareClasses(type1, type2)
+                        is LambdaTypeItem -> compareClasses(type1, type2.asJvmClassType())
                         else -> false
                     }
+                }
+                is LambdaTypeItem -> {
+                    compareStructure(type1.asJvmClassType(), type2)
                 }
                 is VariableTypeItem -> {
                     type2 is VariableTypeItem &&
@@ -142,8 +142,8 @@ sealed interface TypeComparator {
             return when (type) {
                 is PrimitiveTypeItem -> type.kind.hashCode()
                 is ArrayTypeItem -> hashArray(type)
-                is LambdaTypeItem -> hashClass(type.asJvmClassType())
                 is ClassTypeItem -> hashClass(type)
+                is LambdaTypeItem -> hashClass(type.asJvmClassType())
                 is VariableTypeItem -> hashTypeParameter(type.asTypeParameter)
                 is WildcardTypeItem -> {
                     var result = hash(type.extendsBound)

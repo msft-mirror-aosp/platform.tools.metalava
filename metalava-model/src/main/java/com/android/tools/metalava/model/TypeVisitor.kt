@@ -152,8 +152,8 @@ open class MultipleTypeVisitor {
      */
     private fun TypeItem.asClassType(): ClassTypeItem? =
         when (this) {
-            is LambdaTypeItem -> asJvmClassType()
             is ClassTypeItem -> this
+            is LambdaTypeItem -> asJvmClassType()
             else -> null
         }
 

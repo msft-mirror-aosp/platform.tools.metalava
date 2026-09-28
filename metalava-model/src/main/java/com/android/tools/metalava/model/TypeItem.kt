@@ -208,16 +208,16 @@ interface TypeItem {
          * The base [ClassTypeItem] is computed as follows:
          * * For [ArrayTypeItem] it is the base [ClassTypeItem] of its
          *   [ArrayTypeItem.componentType].
-         * * For [LambdaTypeItem] it is [LambdaTypeItem.asJvmClassType].
          * * For [ClassTypeItem] it is the [ClassTypeItem].
+         * * For [LambdaTypeItem] it is [LambdaTypeItem.asJvmClassType].
          * * For [VariableTypeItem] is the [VariableTypeItem.asErasedType].
          * * For all other types it is `null`.
          */
         private fun TypeItem.baseClassType(): ClassTypeItem? =
             when (this) {
                 is ArrayTypeItem -> innermostComponentType().baseClassType()
-                is LambdaTypeItem -> asJvmClassType()
                 is ClassTypeItem -> this
+                is LambdaTypeItem -> asJvmClassType()
                 is VariableTypeItem -> asErasedType()
                 else -> null
             }
@@ -448,9 +448,6 @@ internal abstract class DefaultTypeItem(
                         }
                     }
                 }
-                is LambdaTypeItem -> {
-                    appendTypeString(type.asJvmClassType(), configuration)
-                }
                 is ClassTypeItem -> {
                     if (type.outerClassType != null) {
                         // Legacy behavior for stripping java.lang. prefixes is to not strip them
@@ -515,6 +512,9 @@ internal abstract class DefaultTypeItem(
                     if (configuration.kotlinStyleNulls) {
                         append(type.modifiers.nullability.suffix)
                     }
+                }
+                is LambdaTypeItem -> {
+                    appendTypeString(type.asJvmClassType(), configuration)
                 }
                 is VariableTypeItem -> {
                     if (configuration.annotations) {
