@@ -562,11 +562,8 @@ class CommonParameterizedLambdaTypeItemTest : BaseModelTest() {
         @JvmStatic @Parameterized.Parameters(name = "{0}") fun data() = params
     }
 
-    /**
-     * Check that the [LambdaTypeItem] created from [TestParams.kotlinType] at [TestParams.useSite],
-     * after applying [transform], matches [TestParams.expectedClassTypeItem].
-     */
-    private fun checkLambdaType(transform: (LambdaTypeItem) -> ClassTypeItem) {
+    @Test
+    fun `Test lambda asJvmClassType`() {
         runCodebaseTest(
             kotlin(
                 """
@@ -582,7 +579,7 @@ class CommonParameterizedLambdaTypeItemTest : BaseModelTest() {
             val classTypeItem =
                 if (params.useSite.isLambdaTypeItem) {
                     typeItem.assertLambdaTypeItem()
-                    transform(typeItem as LambdaTypeItem)
+                    (typeItem as LambdaTypeItem).asJvmClassType()
                 } else {
                     typeItem.assertClassTypeItem()
                     typeItem as ClassTypeItem
@@ -593,15 +590,5 @@ class CommonParameterizedLambdaTypeItemTest : BaseModelTest() {
                 TypeComparator.STRICT,
             )
         }
-    }
-
-    @Test
-    fun `Test lambda as ClassTypeItem`() {
-        checkLambdaType { it }
-    }
-
-    @Test
-    fun `Test lambda asJvmClassType`() {
-        checkLambdaType { it.asJvmClassType() }
     }
 }

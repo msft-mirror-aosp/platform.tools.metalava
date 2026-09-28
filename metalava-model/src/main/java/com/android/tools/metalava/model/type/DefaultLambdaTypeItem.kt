@@ -19,7 +19,6 @@ package com.android.tools.metalava.model.type
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.DefaultStandaloneTypeItem
 import com.android.tools.metalava.model.LambdaTypeItem
-import com.android.tools.metalava.model.TypeArgumentTypeItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeModifiers
 
@@ -37,18 +36,6 @@ internal class DefaultLambdaTypeItem(
     LambdaTypeItem {
 
     override fun asJvmClassType(): ClassTypeItem = jvmClassType
-
-    override val qualifiedName: String
-        get() = jvmClassType.qualifiedName
-
-    override val arguments: List<TypeArgumentTypeItem>
-        get() = jvmClassType.arguments
-
-    override val outerClassType: ClassTypeItem?
-        get() = jvmClassType.outerClassType
-
-    override val className: String
-        get() = jvmClassType.className
 
     override fun substitute(
         modifiers: TypeModifiers,
@@ -75,16 +62,20 @@ internal class DefaultLambdaTypeItem(
     }
 
     override fun equalsImpl(other: DefaultStandaloneTypeItem): Boolean {
-        if (other !is ClassTypeItem) return false
-        return qualifiedName == other.qualifiedName &&
-            outerClassType == other.outerClassType &&
-            arguments == other.arguments
+        if (other !is LambdaTypeItem) return false
+        return isSuspend == other.isSuspend &&
+            receiverType == other.receiverType &&
+            parameterTypes == other.parameterTypes &&
+            returnType == other.returnType &&
+            jvmClassType == other.asJvmClassType()
     }
 
     override fun hashCodeImpl(): Int {
-        var result = qualifiedName.hashCode()
-        result = 31 * result + (outerClassType?.hashCode() ?: 0)
-        result = 31 * result + arguments.hashCode()
+        var result = isSuspend.hashCode()
+        result = 31 * result + (receiverType?.hashCode() ?: 0)
+        result = 31 * result + parameterTypes.hashCode()
+        result = 31 * result + returnType.hashCode()
+        result = 31 * result + jvmClassType.hashCode()
         return result
     }
 }

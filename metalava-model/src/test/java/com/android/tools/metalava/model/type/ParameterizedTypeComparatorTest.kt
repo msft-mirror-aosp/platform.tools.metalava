@@ -807,7 +807,8 @@ class ParameterizedTypeComparatorTest {
                 TestCase(
                     lambdaStringToInt,
                     function1StringToInt,
-                    expectedIdenticalResult = true,
+                    expectedIdenticalResult = false,
+                    expectedStrictResult = true,
                 )
             )
             add(

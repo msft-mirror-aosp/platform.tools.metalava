@@ -1228,14 +1228,8 @@ interface ClassTypeItem : TypeItem, BoundsTypeItem, ReferenceTypeItem, Exception
     }
 }
 
-/**
- * Represents a kotlin lambda type.
- *
- * This extends [ClassTypeItem] out of necessity because that is how lambdas have been represented
- * in Metalava up until this was created and so until such time as all the code that consumes this
- * has been updated to handle lambdas specifically it will need to remain a [ClassTypeItem].
- */
-interface LambdaTypeItem : ClassTypeItem {
+/** Represents a kotlin lambda type. */
+interface LambdaTypeItem : TypeItem, BoundsTypeItem, ReferenceTypeItem {
     /** True if the lambda is a suspend function, false otherwise. */
     val isSuspend: Boolean
 
@@ -1289,12 +1283,6 @@ interface LambdaTypeItem : ClassTypeItem {
         jvmClassType: ClassTypeItem = asJvmClassType().substitute(modifiers),
     ): LambdaTypeItem
 
-    override fun substitute(
-        modifiers: TypeModifiers,
-        outerClassType: ClassTypeItem?,
-        arguments: List<TypeArgumentTypeItem>,
-    ): ClassTypeItem = asJvmClassType().substitute(modifiers, outerClassType, arguments)
-
     override fun convertType(typeParameterBindings: TypeParameterBindings): LambdaTypeItem {
         return substitute(
             receiverType = receiverType?.convertType(typeParameterBindings),
@@ -1310,15 +1298,16 @@ interface LambdaTypeItem : ClassTypeItem {
     /**
      * Compares this [LambdaTypeItem] to [other] for equality.
      *
-     * As a [ClassTypeItem], returns `true` if [other] is a [ClassTypeItem] with the same
-     * [qualifiedName], [TypeModifiers.nullability], and [TypeModifiers.annotations], and equal
-     * [arguments] and [outerClassType] (compared using [equals]).
+     * Returns `true` if [other] is a [LambdaTypeItem] with the same [isSuspend],
+     * [TypeModifiers.nullability], and [TypeModifiers.annotations], and equal [receiverType],
+     * [parameterTypes], [returnType], and [asJvmClassType] (compared using [equals]).
      */
     override fun equals(other: Any?): Boolean
 
     /**
-     * Returns a hash code value for this [LambdaTypeItem] based on its [qualifiedName],
-     * [arguments], [outerClassType], [TypeModifiers.nullability], and [TypeModifiers.annotations].
+     * Returns a hash code value for this [LambdaTypeItem] based on its [isSuspend], [receiverType],
+     * [parameterTypes], [returnType], [asJvmClassType], [TypeModifiers.nullability], and
+     * [TypeModifiers.annotations].
      */
     override fun hashCode(): Int
 
@@ -1411,12 +1400,10 @@ interface VariableTypeItem : TypeItem, BoundsTypeItem, ReferenceTypeItem, Except
 
     override fun isSamCompatibleOrKotlinLambda(classResolver: ClassResolver): Boolean {
         // A variable type can be used with trailing lambda syntax if its bound is a Kotlin
-        // functional type, but not if the bound is a different SAM compatible type.
+        // functional type, but not if the bound is a different SAM compatible type. Erasing a
+        // LambdaTypeItem bound produces its Kotlin Function<N> ClassTypeItem.
         return asTypeParameter.asErasedType().let {
-            it is LambdaTypeItem ||
-                // Check if this is a lambda type that was not created as a LambdaTypeItem (e.g.
-                // from the text model b/437086600)
-                it.classNamePrefix == "kotlin.jvm.functions." && it.className.startsWith("Function")
+            it.classNamePrefix == "kotlin.jvm.functions." && it.className.startsWith("Function")
         }
     }
 }
