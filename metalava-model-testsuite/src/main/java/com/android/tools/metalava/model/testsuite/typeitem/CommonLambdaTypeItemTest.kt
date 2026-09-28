@@ -22,6 +22,7 @@ import com.android.tools.metalava.model.testing.testTypeString
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.testing.kotlin
 import com.google.common.truth.Truth.assertThat
+import org.junit.Assert.assertThrows
 import org.junit.Test
 
 @SupportedInputFormats(InputFormat.KOTLIN)
@@ -433,5 +434,30 @@ class CommonLambdaTypeItemTest : BaseModelTest() {
                     .isEqualTo("java.lang.Void")
             }
         }
+    }
+
+    @Test
+    fun `Test lambda with primitive parameter returns Nothing`() {
+        // TODO(b/566994677): Creating a LambdaTypeItem for a lambda with a primitive parameter
+        //  that returns Nothing fails with a ClassCastException because KotlinTypeInfo.asPsiType()
+        //  returns a PsiPrimitiveType which is not boxed by createTypeItem when mustBoxPrimitives
+        //  is true.
+        val exception =
+            assertThrows(ClassCastException::class.java) {
+                runCodebaseTest(
+                    kotlin(
+                        """
+                            package test.pkg
+                            class Foo {
+                                val field: (Int, Throwable) -> Nothing = { _, t -> throw t }
+                            }
+                        """
+                    ),
+                ) {}
+            }
+        assertThat(exception.message)
+            .contains(
+                "DefaultPrimitiveTypeItem cannot be cast to class com.android.tools.metalava.model.TypeArgumentTypeItem"
+            )
     }
 }
