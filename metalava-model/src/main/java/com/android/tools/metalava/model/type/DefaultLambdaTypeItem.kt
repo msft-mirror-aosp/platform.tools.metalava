@@ -17,6 +17,7 @@
 package com.android.tools.metalava.model.type
 
 import com.android.tools.metalava.model.ClassTypeItem
+import com.android.tools.metalava.model.DefaultValueClassTypeItem
 import com.android.tools.metalava.model.LambdaTypeItem
 import com.android.tools.metalava.model.TypeArgumentTypeItem
 import com.android.tools.metalava.model.TypeItem
@@ -29,34 +30,61 @@ internal class DefaultLambdaTypeItem(
     override val returnType: TypeItem,
     private val jvmClassType: ClassTypeItem,
 ) :
-    DefaultClassTypeItem(
+    DefaultValueClassTypeItem(
         modifiers = jvmClassType.modifiers,
-        qualifiedName = jvmClassType.qualifiedName,
-        arguments = jvmClassType.arguments,
-        outerClassType = jvmClassType.outerClassType,
         isValueClassType = jvmClassType.isValueClassType,
     ),
     LambdaTypeItem {
 
     override fun asJvmClassType(): ClassTypeItem = jvmClassType
 
+    override val qualifiedName: String
+        get() = jvmClassType.qualifiedName
+
+    override val arguments: List<TypeArgumentTypeItem>
+        get() = jvmClassType.arguments
+
+    override val outerClassType: ClassTypeItem?
+        get() = jvmClassType.outerClassType
+
+    override val className: String
+        get() = jvmClassType.className
+
     override fun substitute(
         modifiers: TypeModifiers,
-        outerClassType: ClassTypeItem?,
-        arguments: List<TypeArgumentTypeItem>,
-    ): LambdaTypeItem =
-        if (requiresNewInstance(modifiers, outerClassType, arguments))
+        receiverType: TypeItem?,
+        parameterTypes: List<TypeItem>,
+        returnType: TypeItem,
+        jvmClassType: ClassTypeItem,
+    ): LambdaTypeItem {
+        val newJvmClassType = jvmClassType.substitute(modifiers = modifiers)
+        return if (
+            receiverType !== this.receiverType ||
+                parameterTypes !== this.parameterTypes ||
+                returnType !== this.returnType ||
+                newJvmClassType !== this.jvmClassType
+        ) {
             DefaultLambdaTypeItem(
                 isSuspend = isSuspend,
                 receiverType = receiverType,
                 parameterTypes = parameterTypes,
                 returnType = returnType,
-                jvmClassType =
-                    jvmClassType.substitute(
-                        modifiers,
-                        outerClassType,
-                        arguments,
-                    ),
+                jvmClassType = newJvmClassType,
             )
-        else this
+        } else this
+    }
+
+    override fun equalsImpl(other: DefaultValueClassTypeItem): Boolean {
+        if (other !is ClassTypeItem) return false
+        return qualifiedName == other.qualifiedName &&
+            outerClassType == other.outerClassType &&
+            arguments == other.arguments
+    }
+
+    override fun hashCodeImpl(): Int {
+        var result = qualifiedName.hashCode()
+        result = 31 * result + (outerClassType?.hashCode() ?: 0)
+        result = 31 * result + arguments.hashCode()
+        return result
+    }
 }

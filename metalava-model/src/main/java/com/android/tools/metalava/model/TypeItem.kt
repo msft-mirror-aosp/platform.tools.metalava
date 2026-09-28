@@ -1243,14 +1243,45 @@ interface LambdaTypeItem : ClassTypeItem {
     fun asJvmClassType(): ClassTypeItem
 
     override fun substitute(modifiers: TypeModifiers): LambdaTypeItem =
-        substitute(modifiers, outerClassType, arguments)
+        substitute(
+            modifiers = modifiers,
+            receiverType = receiverType,
+            parameterTypes = parameterTypes,
+            returnType = returnType,
+        )
 
-    /** Override to specialize the return type. */
+    /**
+     * Return a [LambdaTypeItem] instance identical to this one except its [TypeItem.modifiers],
+     * [LambdaTypeItem.receiverType], [LambdaTypeItem.parameterTypes], [LambdaTypeItem.returnType]
+     * and [LambdaTypeItem.asJvmClassType] properties are the same as the [modifiers],
+     * [receiverType], [parameterTypes], [returnType] and [jvmClassType] parameters respectively.
+     *
+     * If the parameters are the same as this instance's properties then it will just return this
+     * instance, otherwise it will return a new instance.
+     */
+    fun substitute(
+        modifiers: TypeModifiers = this.modifiers,
+        receiverType: TypeItem? = this.receiverType,
+        parameterTypes: List<TypeItem> = this.parameterTypes,
+        returnType: TypeItem = this.returnType,
+        jvmClassType: ClassTypeItem = asJvmClassType().substitute(modifiers),
+    ): LambdaTypeItem
+
     override fun substitute(
         modifiers: TypeModifiers,
         outerClassType: ClassTypeItem?,
-        arguments: List<TypeArgumentTypeItem>
-    ): LambdaTypeItem
+        arguments: List<TypeArgumentTypeItem>,
+    ): ClassTypeItem = asJvmClassType().substitute(modifiers, outerClassType, arguments)
+
+    override fun convertType(typeParameterBindings: TypeParameterBindings): LambdaTypeItem {
+        return substitute(
+            receiverType = receiverType?.convertType(typeParameterBindings),
+            parameterTypes =
+                parameterTypes.mapIfNotSameNotNull { it.convertType(typeParameterBindings) },
+            returnType = returnType.convertType(typeParameterBindings),
+            jvmClassType = asJvmClassType().convertType(typeParameterBindings),
+        )
+    }
 
     override fun transform(transformer: TypeTransformer?) = transformer?.transform(this) ?: this
 

@@ -24,6 +24,7 @@ import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.JAVA_LANG_STRING
+import com.android.tools.metalava.model.LambdaTypeItem
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.PrimitiveTypeItem.Primitive
 import com.android.tools.metalava.model.ReferenceTypeItem
@@ -101,6 +102,51 @@ fun classTypeItem(
         outerClassType,
         isValueClassType,
     )
+
+/** Create a [LambdaTypeItem]. */
+fun lambdaTypeItem(
+    receiverType: TypeItem? = null,
+    parameterTypes: List<TypeItem> = emptyList(),
+    returnType: TypeItem = primitiveTypeForKind(Primitive.VOID),
+    isSuspend: Boolean = false,
+    arguments: List<TypeArgumentTypeItem>? = null,
+    isValueClassType: Boolean = false,
+): LambdaTypeItem {
+    val arity = (if (receiverType == null) 0 else 1) + parameterTypes.size
+    val (qualifiedName, typeArguments) =
+        if (arity > LambdaTypeItem.MAX_SPECIFIC_FUNCTION_ARITY) {
+            "kotlin.jvm.functions.FunctionN" to (arguments ?: listOf(returnType.asTypeArgument()))
+        } else {
+            "kotlin.jvm.functions.Function$arity" to
+                (arguments
+                    ?: buildList(arity + 1) {
+                        receiverType?.let { add(it.asTypeArgument()) }
+                        parameterTypes.mapTo(this) { it.asTypeArgument() }
+                        add(returnType.asTypeArgument())
+                    })
+        }
+    return TypeItem.createLambdaType(
+        modifiers = TypeModifiers.emptyNonNullModifiers,
+        qualifiedName = qualifiedName,
+        arguments = typeArguments,
+        outerClassType = null,
+        isSuspend = isSuspend,
+        receiverType = receiverType,
+        parameterTypes = parameterTypes,
+        returnType = returnType,
+        isValueClassType = isValueClassType,
+    )
+}
+
+private fun TypeItem.asTypeArgument(): TypeArgumentTypeItem =
+    when (this) {
+        is PrimitiveTypeItem ->
+            classTypeItem(
+                if (kind == Primitive.VOID) "kotlin.Unit" else kind.wrapperClass.canonicalName
+            )
+        is TypeArgumentTypeItem -> this
+        else -> error("Unexpected type $this ($javaClass)")
+    }
 
 /** Create a [ArrayTypeItem] for [componentType]. */
 fun arrayTypeItem(

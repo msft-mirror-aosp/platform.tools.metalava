@@ -25,6 +25,7 @@ import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.WildcardTypeItem
 import com.android.tools.metalava.model.testing.arrayTypeItem
 import com.android.tools.metalava.model.testing.classTypeItem
+import com.android.tools.metalava.model.testing.lambdaTypeItem
 import com.android.tools.metalava.model.testing.primitiveTypeForKind
 import com.android.tools.metalava.model.testing.stringType
 import com.android.tools.metalava.model.testing.testTypeString
@@ -770,12 +771,90 @@ class ParameterizedTypeComparatorTest {
                 )
             )
 
+            // Lambdas
+            val integerClassType = classTypeItem("java.lang.Integer")
+            val lambdaStringToInt =
+                lambdaTypeItem(
+                    parameterTypes = listOf(string),
+                    returnType = intType,
+                )
+            val lambdaStringToInt2 =
+                lambdaTypeItem(
+                    parameterTypes = listOf(string),
+                    returnType = intType,
+                )
+            val lambdaStringToIntWithWildcard =
+                lambdaTypeItem(
+                    parameterTypes = listOf(string),
+                    returnType = intType,
+                    arguments = listOf(wildcardSuperString, integerClassType),
+                )
+            val nullableLambdaStringToInt = lambdaStringToInt.substitute(TypeNullability.NULLABLE)
+            val function1StringToInt =
+                classTypeItem(
+                    "kotlin.jvm.functions.Function1",
+                    arguments = listOf(string, integerClassType),
+                )
+
+            add(
+                TestCase(
+                    lambdaStringToInt,
+                    lambdaStringToInt2,
+                    expectedIdenticalResult = true,
+                )
+            )
+            add(
+                TestCase(
+                    lambdaStringToInt,
+                    function1StringToInt,
+                    expectedIdenticalResult = true,
+                )
+            )
+            add(
+                TestCase(
+                    lambdaStringToIntWithWildcard,
+                    function1StringToInt,
+                    expectedIdenticalResult = false,
+                    expectedFlattenedWildcardsResult = true,
+                    expectedErasedResult = true,
+                )
+            )
+            add(
+                TestCase(
+                    nullableLambdaStringToInt,
+                    function1StringToInt,
+                    expectedIdenticalResult = false,
+                    expectedIgnoreNullabilityResult = true,
+                    expectedErasedResult = true,
+                )
+            )
+            add(
+                TestCase(
+                    lambdaStringToInt,
+                    string,
+                    expectedIdenticalResult = false,
+                )
+            )
+            add(
+                TestCase(
+                    lambdaStringToInt,
+                    intType,
+                    expectedIdenticalResult = false,
+                )
+            )
+
             // Value class types (isValueClassType = true vs false)
             val valueClassIntType =
                 primitiveTypeForKind(PrimitiveTypeItem.Primitive.INT, isValueClassType = true)
             val valueClassString = stringType(isValueClassType = true)
             val valueClassIntArray = arrayTypeItem(intType, isValueClassType = true)
             val valueClassTypeVarT = variableTypeItem(typeParameterT, isValueClassType = true)
+            val valueClassLambdaStringToInt =
+                lambdaTypeItem(
+                    parameterTypes = listOf(string),
+                    returnType = intType,
+                    isValueClassType = true,
+                )
 
             add(
                 TestCase(
@@ -805,6 +884,14 @@ class ParameterizedTypeComparatorTest {
                 TestCase(
                     typeVarT,
                     valueClassTypeVarT,
+                    expectedIdenticalResult = false,
+                    expectedStrictResult = true,
+                )
+            )
+            add(
+                TestCase(
+                    lambdaStringToInt,
+                    valueClassLambdaStringToInt,
                     expectedIdenticalResult = false,
                     expectedStrictResult = true,
                 )
