@@ -120,17 +120,42 @@ open class MultipleTypeVisitor {
         visitType(classType, other)
         visitClassType(classType, other)
 
-        classType.outerClassType?.accept(
-            this,
-            other.mapNotNull { (it as? ClassTypeItem)?.outerClassType }
-        )
+        visitClassComponents(classType, other)
+    }
+
+    fun visit(lambdaType: LambdaTypeItem, other: List<TypeItem>) {
+        // Call visitType and visitLambdaType with lambdaType directly (rather than delegating to
+        // visit(lambdaType.asJvmClassType(), other)) so that callers such as
+        // ApiLint.checkHasNullability that check `type === itemType` see the original
+        // LambdaTypeItem instance.
+        visitType(lambdaType, other)
+        visitLambdaType(lambdaType, other)
+
+        // Traverse the component types using asJvmClassType() so that a LambdaTypeItem (e.g.
+        // from Kotlin source) and a ClassTypeItem for kotlin.jvm.functions.Function* (e.g. from a
+        // signature file or Java/bytecode super method) have the same structure and are visited in
+        // lockstep.
+        visitClassComponents(lambdaType.asJvmClassType(), other)
+    }
+
+    private fun visitClassComponents(classType: ClassTypeItem, other: List<TypeItem>) {
+        val otherClassTypes = other.mapNotNull { it.asClassType() }
+        classType.outerClassType?.accept(this, otherClassTypes.mapNotNull { it.outerClassType })
         classType.arguments.forEachIndexed { index, arg ->
-            arg.accept(
-                this,
-                other.mapNotNull { (it as? ClassTypeItem)?.arguments?.getOrNull(index) }
-            )
+            arg.accept(this, otherClassTypes.mapNotNull { it.arguments.getOrNull(index) })
         }
     }
+
+    /**
+     * Converts a [ClassTypeItem] or [LambdaTypeItem] to a [ClassTypeItem] so that both can be
+     * traversed in lockstep.
+     */
+    private fun TypeItem.asClassType(): ClassTypeItem? =
+        when (this) {
+            is LambdaTypeItem -> asJvmClassType()
+            is ClassTypeItem -> this
+            else -> null
+        }
 
     fun visit(variableType: VariableTypeItem, other: List<TypeItem>) {
         visitType(variableType, other)
@@ -163,6 +188,8 @@ open class MultipleTypeVisitor {
     open fun visitArrayType(arrayType: ArrayTypeItem, other: List<TypeItem>) = Unit
 
     open fun visitClassType(classType: ClassTypeItem, other: List<TypeItem>) = Unit
+
+    open fun visitLambdaType(lambdaType: LambdaTypeItem, other: List<TypeItem>) = Unit
 
     open fun visitVariableType(variableType: VariableTypeItem, other: List<TypeItem>) = Unit
 

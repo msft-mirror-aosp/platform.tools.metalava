@@ -1250,6 +1250,10 @@ interface LambdaTypeItem : ClassTypeItem {
         visitor.visit(this)
     }
 
+    override fun accept(visitor: MultipleTypeVisitor, other: List<TypeItem>) {
+        visitor.visit(this, other)
+    }
+
     override fun substitute(modifiers: TypeModifiers): LambdaTypeItem =
         substitute(
             modifiers = modifiers,
