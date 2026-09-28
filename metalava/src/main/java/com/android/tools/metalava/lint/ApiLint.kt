@@ -70,6 +70,7 @@ import com.android.tools.metalava.model.JAVA_LANG_OBJECT
 import com.android.tools.metalava.model.JAVA_LANG_RECORD
 import com.android.tools.metalava.model.JAVA_LANG_STRING
 import com.android.tools.metalava.model.JAVA_LANG_THROWABLE
+import com.android.tools.metalava.model.LambdaTypeItem
 import com.android.tools.metalava.model.MemberItem
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.MultipleTypeVisitor
@@ -2010,6 +2011,12 @@ private constructor(
         when (this) {
             is ArrayTypeItem ->
                 componentType.usesAnyClassIn(qualifiedClassNames, checkVariableTypes)
+            is LambdaTypeItem ->
+                receiverType?.usesAnyClassIn(qualifiedClassNames, checkVariableTypes) == true ||
+                    parameterTypes.any {
+                        it.usesAnyClassIn(qualifiedClassNames, checkVariableTypes)
+                    } ||
+                    returnType.usesAnyClassIn(qualifiedClassNames, checkVariableTypes)
             is ClassTypeItem ->
                 qualifiedName in qualifiedClassNames ||
                     arguments.any { it.usesAnyClassIn(qualifiedClassNames, checkVariableTypes) }
