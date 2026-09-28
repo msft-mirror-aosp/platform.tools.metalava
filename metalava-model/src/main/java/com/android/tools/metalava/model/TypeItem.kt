@@ -1215,6 +1215,11 @@ interface LambdaTypeItem : ClassTypeItem {
     /** The return type. */
     val returnType: TypeItem
 
+    /**
+     * Construct a [ClassTypeItem] representing the Kotlin JVM `Function<N>` type for this lambda.
+     */
+    fun asJvmClassType(): ClassTypeItem
+
     override fun substitute(modifiers: TypeModifiers): LambdaTypeItem =
         substitute(modifiers, outerClassType, arguments)
 

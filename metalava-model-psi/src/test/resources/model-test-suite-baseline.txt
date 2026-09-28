@@ -7,6 +7,22 @@ com.android.tools.metalava.model.testsuite.annotationitem.CommonAnnotationItemTe
 com.android.tools.metalava.model.testsuite.parameteritem.CommonParameterKindTest
   Kind for parameters on function with all kinds of parameters[kotlin]
 
+com.android.tools.metalava.model.testsuite.typeitem.CommonParameterizedLambdaTypeItemTest
+  Test lambda asJvmClassType[kotlin,field - ((Boolean) -> Unit) -> Unit]
+  Test lambda asJvmClassType[kotlin,parameter - (() -> Unit) -> Unit]
+  Test lambda asJvmClassType[kotlin,parameter - () -> (() -> Unit)]
+  Test lambda asJvmClassType[kotlin,parameter - (String) -> Int?]
+  Test lambda asJvmClassType[kotlin,parameter - (String) -> Int]
+  Test lambda asJvmClassType[kotlin,parameter - (String) -> List<String>]
+  Test lambda asJvmClassType[kotlin,parameter - 23 parameters -> Number]
+  Test lambda asJvmClassType[kotlin,parameter - Number.(Array<String>) -> T]
+  Test lambda asJvmClassType[kotlin,parameter - suspend () -> Unit]
+  Test lambda asJvmClassType[kotlin,parameter - suspend (Int) -> Int]
+  Test lambda asJvmClassType[kotlin,parameter - suspend (Int, String) -> String?]
+  Test lambda asJvmClassType[kotlin,parameter - suspend Number.(Int) -> String?]
+  Test lambda asJvmClassType[kotlin,property - suspend (Int) -> String?]
+  Test lambda asJvmClassType[kotlin,return - @TypeUse ((@TypeUse T) -> @TypeUse Int)?]
+
 com.android.tools.metalava.model.testsuite.value.CommonParameterizedFieldValueTest
   testFieldValue[kotlin,source,null - intermediate non-constant expression]
   testFieldValue[kotlin,source,unsigned int - expression]

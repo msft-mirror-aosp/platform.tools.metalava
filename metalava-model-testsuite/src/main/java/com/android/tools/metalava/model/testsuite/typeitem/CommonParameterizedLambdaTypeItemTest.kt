@@ -588,4 +588,9 @@ class CommonParameterizedLambdaTypeItemTest : BaseModelTest() {
     fun `Test lambda as ClassTypeItem`() {
         checkLambdaType { it }
     }
+
+    @Test
+    fun `Test lambda asJvmClassType`() {
+        checkLambdaType { it.asJvmClassType() }
+    }
 }
