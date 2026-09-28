@@ -786,25 +786,9 @@ sealed interface ReferenceTypeItem : TypeItem, TypeArgumentTypeItem {
  *
  * Provided as this is convenient for some code to handle these together.
  */
-sealed interface ClassOrVariableTypeItem : TypeItem, ReferenceTypeItem {
-    /**
-     * Override to specialize the return type.
-     *
-     * Use [asErasedClass] instead of calling [ClassTypeItem.resolveClass] on the result of this as
-     * [asErasedClass] is more efficient.
-     */
-    override fun asErasedType(): ClassTypeItem
-
+sealed interface ClassOrVariableTypeItem : BoundsTypeItem {
     /** Override to specialize the return type. */
     override fun transform(transformer: TypeTransformer?): ExceptionTypeItem
-
-    /**
-     * Get the erased [ClassItem], if any.
-     *
-     * The erased [ClassItem] is the one which would be used by Java at runtime after the generic
-     * types have been erased.
-     */
-    fun asErasedClass(classResolver: ClassResolver): ClassItem?
 
     /**
      * The best guess of the full name, i.e. the qualified class name without the package but
@@ -845,11 +829,27 @@ sealed interface ClassOrVariableTypeItem : TypeItem, ReferenceTypeItem {
  * The "union" type of [TypeParameterItem]'s type bounds.
  *
  * See https://docs.oracle.com/javase/specs/jls/se8/html/jls-4.html#jls-TypeBound
- *
- * At the moment this is identical to [ClassOrVariableTypeItem] but it is kept as that may not
- * always be the case.
  */
-sealed interface BoundsTypeItem : ClassOrVariableTypeItem
+sealed interface BoundsTypeItem : TypeItem, ReferenceTypeItem {
+    /**
+     * Override to specialize the return type.
+     *
+     * Use [asErasedClass] instead of calling [ClassTypeItem.resolveClass] on the result of this as
+     * [asErasedClass] is more efficient.
+     */
+    override fun asErasedType(): ClassTypeItem
+
+    /** Override to specialize the return type. */
+    override fun transform(transformer: TypeTransformer?): BoundsTypeItem
+
+    /**
+     * Get the erased [ClassItem], if any.
+     *
+     * The erased [ClassItem] is the one which would be used by Java at runtime after the generic
+     * types have been erased.
+     */
+    fun asErasedClass(classResolver: ClassResolver): ClassItem?
+}
 
 /**
  * The "union" type of [MethodItem.throwsTypes]'s.
@@ -1260,6 +1260,9 @@ interface LambdaTypeItem : ClassTypeItem {
     }
 
     override fun asErasedType(): ClassTypeItem = asJvmClassType().asErasedType()
+
+    override fun asErasedClass(classResolver: ClassResolver): ClassItem? =
+        asJvmClassType().asErasedClass(classResolver)
 
     override fun substitute(modifiers: TypeModifiers): LambdaTypeItem =
         substitute(
