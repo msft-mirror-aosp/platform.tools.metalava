@@ -1246,6 +1246,10 @@ interface LambdaTypeItem : ClassTypeItem {
     /** Return a [ClassTypeItem] representing the Kotlin JVM `Function<N>` type for this lambda. */
     fun asJvmClassType(): ClassTypeItem
 
+    override fun accept(visitor: TypeVisitor) {
+        visitor.visit(this)
+    }
+
     override fun substitute(modifiers: TypeModifiers): LambdaTypeItem =
         substitute(
             modifiers = modifiers,

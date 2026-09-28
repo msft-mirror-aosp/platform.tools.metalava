@@ -23,6 +23,8 @@ interface TypeVisitor {
 
     fun visit(classType: ClassTypeItem) = Unit
 
+    fun visit(lambdaType: LambdaTypeItem) = Unit
+
     fun visit(variableType: VariableTypeItem) = Unit
 
     fun visit(wildcardType: WildcardTypeItem) = Unit
@@ -49,6 +51,19 @@ open class BaseTypeVisitor : TypeVisitor {
         classType.arguments.forEach { it.accept(this) }
     }
 
+    override fun visit(lambdaType: LambdaTypeItem) {
+        visitType(lambdaType)
+        visitLambdaType(lambdaType)
+
+        // Visit the component types of the lambda directly rather than converting to a
+        // ClassTypeItem via asJvmClassType(). Subclasses of BaseTypeVisitor inspect referenced
+        // ClassTypeItems and do not need to visit the synthetic kotlin.jvm.functions.Function*
+        // wrapper class or its wildcard bounds.
+        lambdaType.receiverType?.accept(this)
+        lambdaType.parameterTypes.forEach { it.accept(this) }
+        lambdaType.returnType.accept(this)
+    }
+
     override fun visit(variableType: VariableTypeItem) {
         visitType(variableType)
         visitVariableType(variableType)
@@ -69,6 +84,8 @@ open class BaseTypeVisitor : TypeVisitor {
     open fun visitArrayType(arrayType: ArrayTypeItem) = Unit
 
     open fun visitClassType(classType: ClassTypeItem) = Unit
+
+    open fun visitLambdaType(lambdaType: LambdaTypeItem) = Unit
 
     open fun visitVariableType(variableType: VariableTypeItem) = Unit
 
