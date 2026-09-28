@@ -468,4 +468,43 @@ class CommonLambdaTypeItemTest : BaseModelTest() {
             }
         }
     }
+
+    @Test
+    fun `Test lambda with type use annotations`() {
+        runCodebaseTest(
+            kotlin(
+                """
+                    package test.pkg
+                    @Target(AnnotationTarget.TYPE)
+                    annotation class TypeUse
+                    class Foo<T> {
+                        fun method(): @TypeUse ((@TypeUse T) -> @TypeUse Int)? = null
+                    }
+                """
+            ),
+        ) {
+            val fooClass = codebase.assertClass("test.pkg.Foo")
+            val lambdaType = fooClass.methods().single().returnType()
+
+            lambdaType.assertLambdaTypeItem {
+                assertThat(testTypeString(annotations = true, kotlinStyleNulls = true))
+                    .isEqualTo(
+                        "kotlin.jvm.functions.@test.pkg.TypeUse Function1<@test.pkg.TypeUse T,java.lang.@test.pkg.TypeUse Integer>?"
+                    )
+
+                assertThat(receiverType).isNull()
+                assertThat(
+                        parameterTypes.joinToString {
+                            it.testTypeString(annotations = true, kotlinStyleNulls = true)
+                        }
+                    )
+                    .isEqualTo("@test.pkg.TypeUse T")
+                // TODO(b/566994677): This is wrong; unboxTypeWherePossible() discards the
+                //  modifiers on the boxed Integer ClassTypeItem when unboxing to int, so this
+                //  should be "@test.pkg.TypeUse int".
+                assertThat(returnType.testTypeString(annotations = true, kotlinStyleNulls = true))
+                    .isEqualTo("int")
+            }
+        }
+    }
 }
