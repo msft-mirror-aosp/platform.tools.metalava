@@ -34,6 +34,7 @@ import com.android.tools.metalava.model.FilterPredicate
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.JAVA_LANG_ERROR
 import com.android.tools.metalava.model.JAVA_LANG_RUNTIME_EXCEPTION
+import com.android.tools.metalava.model.LambdaTypeItem
 import com.android.tools.metalava.model.MergedCodebase
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.MultipleTypeVisitor
@@ -967,6 +968,18 @@ private constructor(
         new: TypeItem,
         targetLanguages: Set<TargetLanguage>,
     ): Boolean {
+        // Convert any LambdaTypeItem to its underlying Kotlin Function* ClassTypeItem so that it
+        // can be compared against ClassTypeItem (e.g. from signature files) and VariableTypeItem
+        // bounds without relying on LambdaTypeItem extending ClassTypeItem.
+        if (old is LambdaTypeItem || new is LambdaTypeItem) {
+            return compatibleReturnTypes(
+                oldCodebase,
+                if (old is LambdaTypeItem) old.asJvmClassType() else old,
+                newCodebase,
+                if (new is LambdaTypeItem) new.asJvmClassType() else new,
+                targetLanguages,
+            )
+        }
         when (new) {
             is ArrayTypeItem ->
                 return old is ArrayTypeItem &&
