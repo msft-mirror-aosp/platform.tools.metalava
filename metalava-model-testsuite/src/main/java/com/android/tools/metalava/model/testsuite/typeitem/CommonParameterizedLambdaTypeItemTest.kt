@@ -86,11 +86,19 @@ class CommonParameterizedLambdaTypeItemTest : BaseModelTest() {
             override fun extractType(classItem: ClassItem) = classItem.properties().single().type()
         },
         SUPERTYPE {
+            override val isLambdaTypeItem: Boolean = false
+
             override fun declaration(kotlinType: String) = "interface Test<T> : $kotlinType"
 
             override fun extractType(classItem: ClassItem) = classItem.interfaceTypes().single()
         },
         ;
+
+        /**
+         * True if [extractType] is expected to return a [LambdaTypeItem], false if it is already
+         * converted to a [ClassTypeItem] (e.g. for supertypes via `getHierarchicalClassType()`).
+         */
+        open val isLambdaTypeItem: Boolean = true
 
         /** Create the Kotlin class/interface declaration containing [kotlinType]. */
         abstract fun declaration(kotlinType: String): String
@@ -571,13 +579,19 @@ class CommonParameterizedLambdaTypeItemTest : BaseModelTest() {
         ) {
             val testClass = codebase.assertClass("test.pkg.Test")
             val typeItem = params.useSite.extractType(testClass)
-            typeItem.assertLambdaTypeItem {
-                assertTypeComparison(
-                    params.expectedClassTypeItem,
-                    transform(this),
-                    TypeComparator.STRICT,
-                )
-            }
+            val classTypeItem =
+                if (params.useSite.isLambdaTypeItem) {
+                    typeItem.assertLambdaTypeItem()
+                    transform(typeItem as LambdaTypeItem)
+                } else {
+                    typeItem.assertClassTypeItem()
+                    typeItem as ClassTypeItem
+                }
+            assertTypeComparison(
+                params.expectedClassTypeItem,
+                classTypeItem,
+                TypeComparator.STRICT,
+            )
         }
     }
 

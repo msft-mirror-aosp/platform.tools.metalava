@@ -109,7 +109,9 @@ internal class KaTypeItemFactory(
 
     // Override to ensure primitives are boxed.
     override fun getHierarchicalClassType(underlyingType: KaType): ClassTypeItem {
-        return underlyingType.toTypeItem(mustBoxPrimitives = true) as ClassTypeItem
+        return underlyingType.toTypeItem(mustBoxPrimitives = true).let {
+            (it as? LambdaTypeItem)?.asJvmClassType() ?: it as ClassTypeItem
+        }
     }
 
     // Override to handle Unit returns

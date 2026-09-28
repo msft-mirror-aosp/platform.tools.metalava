@@ -22,6 +22,7 @@ import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.DefaultTypeParameterList
 import com.android.tools.metalava.model.ExceptionTypeItem
 import com.android.tools.metalava.model.Item
+import com.android.tools.metalava.model.LambdaTypeItem
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.SkeletonTypeParameterItem
 import com.android.tools.metalava.model.TypeItem
@@ -343,8 +344,9 @@ abstract class DefaultTypeItemFactory<in T, F : DefaultTypeItemFactory<T, F>>(
     override fun getGeneralType(underlyingType: T) = getType(underlyingType)
 
     override fun getHierarchicalClassType(underlyingType: T) =
-        getType(underlyingType, contextNullability = ContextNullability.forceNonNull)
-            as ClassTypeItem
+        getType(underlyingType, contextNullability = ContextNullability.forceNonNull).let {
+            (it as? LambdaTypeItem)?.asJvmClassType() ?: it as ClassTypeItem
+        }
 
     override fun getClassReferenceType(underlyingType: T): ClassTypeItem {
         return getType(underlyingType, contextNullability = ContextNullability.forceNonNull)
