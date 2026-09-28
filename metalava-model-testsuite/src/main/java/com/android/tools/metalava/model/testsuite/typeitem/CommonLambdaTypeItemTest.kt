@@ -504,4 +504,34 @@ class CommonLambdaTypeItemTest : BaseModelTest() {
             }
         }
     }
+
+    @Test
+    fun `Test high arity lambda`() {
+        val params = List(22) { "Int" }.joinToString()
+        runCodebaseTest(
+            kotlin(
+                """
+                    package test.pkg
+                    class Foo {
+                        fun method(lambda: String.($params) -> Number) {}
+                    }
+                """
+            ),
+        ) {
+            val fooClass = codebase.assertClass("test.pkg.Foo")
+            val lambdaType = fooClass.methods().single().parameters().single().type()
+
+            lambdaType.assertLambdaTypeItem {
+                assertThat(testTypeString(kotlinStyleNulls = true))
+                    .isEqualTo("kotlin.jvm.functions.FunctionN<? extends java.lang.Number>")
+
+                assertThat(receiverType?.testTypeString(kotlinStyleNulls = true))
+                    .isEqualTo("java.lang.String")
+                assertThat(parameterTypes.map { it.testTypeString(kotlinStyleNulls = true) })
+                    .isEqualTo(List(22) { "int" })
+                assertThat(returnType.testTypeString(kotlinStyleNulls = true))
+                    .isEqualTo("java.lang.Number")
+            }
+        }
+    }
 }

@@ -1273,6 +1273,15 @@ interface LambdaTypeItem : ClassTypeItem {
         // This is a Kotlin lambda type
         return true
     }
+
+    companion object {
+        /**
+         * Maximum arity (number of input parameters, including receiver and suspend continuation)
+         * represented by a numbered `kotlin.jvm.functions.Function<N>` interface (`Function0`
+         * through `Function22`). Higher arities use `kotlin.jvm.functions.FunctionN`.
+         */
+        const val MAX_SPECIFIC_FUNCTION_ARITY = 22
+    }
 }
 
 /** Represents a type variable type. */

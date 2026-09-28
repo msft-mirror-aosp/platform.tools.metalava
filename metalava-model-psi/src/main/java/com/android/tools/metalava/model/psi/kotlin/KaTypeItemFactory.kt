@@ -224,9 +224,14 @@ internal class KaTypeItemFactory(
 
         // Lambda types are still created as class types, so all arguments need to be compiled into
         // a list.
-        val arguments = listOfNotNull(receiverTypeItem) + parameterTypeItems + returnTypeItem
-        // The function arity doesn't include the return type.
-        val qualifiedName = "kotlin.jvm.functions.Function${arguments.size - 1}"
+        val arity = (if (receiverTypeItem == null) 0 else 1) + parameterTypeItems.size
+        val (qualifiedName, arguments) =
+            if (arity > LambdaTypeItem.MAX_SPECIFIC_FUNCTION_ARITY) {
+                "kotlin.jvm.functions.FunctionN" to listOf(returnTypeItem)
+            } else {
+                "kotlin.jvm.functions.Function$arity" to
+                    (listOfNotNull(receiverTypeItem) + parameterTypeItems + returnTypeItem)
+            }
 
         return TypeItem.createLambdaType(
             modifiers = modifiers,

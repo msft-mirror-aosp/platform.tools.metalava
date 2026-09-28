@@ -475,23 +475,27 @@ internal class PsiTypeItemFactory(
         psiType: PsiClassType,
         kotlinType: KotlinTypeInfo?,
     ): List<TypeArgumentTypeItem> {
+        val psiTypeParameters = psiType.parameters.toList()
         // Get the type arguments of PsiClassType as List<PsiType>.
         val psiTypeArguments =
-            psiType.parameters.toList().takeIf { it.isNotEmpty() }
-                ?: let {
-                    // Workaround for b/505052012: If a lambda type uses the type Nothing as a
+            if (kotlinType is KotlinTypeInfo.LambdaType) {
+                val overrideTypeArguments = kotlinType.overrideTypeArguments
+                val missingCount = overrideTypeArguments.size - psiTypeParameters.size
+                if (missingCount > 0) {
+                    // Workaround for b/505052012 (if a lambda type uses the type Nothing as a
                     // return type then hasNothingInNonContravariantPosition(...) in
-                    // FirJvmTypeMapper returns true. That causes it to get converted into a raw
-                    // PsiClassType without any tupe arguments.
-                    if (kotlinType is KotlinTypeInfo.LambdaType) {
-                        // Convert each individual type argument into a PsiType and use that
-                        // instead.
-                        kotlinType.overrideTypeArguments.map { it.asPsiType() }
-                    } else {
-                        // The type has no type arguments so just return an empty list.
-                        return emptyList()
-                    }
+                    // FirJvmTypeMapper returns true, causing it to get converted into a raw
+                    // PsiClassType without any type arguments) and high-arity lambdas using
+                    // FunctionN (which only has a single type argument for the return type):
+                    // convert each missing leading type argument into a PsiType and prepend them.
+                    overrideTypeArguments.take(missingCount).map { it.asPsiType() } +
+                        psiTypeParameters
+                } else {
+                    psiTypeParameters
                 }
+            } else {
+                psiTypeParameters
+            }
 
         return psiTypeArguments.mapIndexed { i, param ->
             val forTypeArgument = kotlinType?.forTypeArgument(i)
@@ -660,7 +664,8 @@ internal class PsiTypeItemFactory(
             }
 
         // The last type argument is always the return type.
-        val returnType = unwrapOutputType(typeArguments.last())
+        val returnTypeArgument = typeArguments.last()
+        val returnType = unwrapOutputType(returnTypeArgument)
         val lastParameterTypeIndex = typeArguments.size - 1
 
         // Get the parameter types, excluding the optional receiver and the return type.
@@ -678,10 +683,18 @@ internal class PsiTypeItemFactory(
             "internal error: Kotlin lambda implemented using unexpected class '$qualifiedName'."
         }
 
+        val classTypeArguments =
+            if (qualifiedName == KOTLIN_FUNCTION_N || qualifiedName == KOTLIN_REFLECT_FUNCTION) {
+                // FunctionN and KFunction only have a single type argument for the return type.
+                listOf(returnTypeArgument)
+            } else {
+                typeArguments
+            }
+
         return TypeItem.createLambdaType(
             modifiers = createTypeModifiers(psiType, actualKotlinType, contextNullability),
             qualifiedName = qualifiedName,
-            arguments = typeArguments,
+            arguments = classTypeArguments,
             // Lambdas are implemented using a number of top level classes so never have an outer
             // class.
             outerClassType = null,
@@ -775,6 +788,9 @@ internal fun PsiClassType.computeQualifiedName(): String {
 
 /** Prefix of Kotlin JVM function types, used for lambdas. */
 private const val KOTLIN_FUNCTION_PREFIX = "kotlin.jvm.functions.Function"
+
+/** High-arity Kotlin JVM function type, used for lambdas with more than 22 input parameters. */
+private const val KOTLIN_FUNCTION_N = "kotlin.jvm.functions.FunctionN"
 
 /** Prefix of Kotlin reflect function types, used for lambdas. */
 private const val KOTLIN_REFLECT_FUNCTION = "kotlin.reflect.KFunction"

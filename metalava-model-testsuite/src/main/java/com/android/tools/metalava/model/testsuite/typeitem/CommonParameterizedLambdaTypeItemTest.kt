@@ -533,12 +533,9 @@ class CommonParameterizedLambdaTypeItemTest : BaseModelTest() {
                     kotlinType = "(${List(23) { "Int" }.joinToString()}) -> Number",
                     useSite = UseSite.PROPERTY,
                     expectedClassTypeItem =
-                        // TODO(b/566994677): This is wrong; kotlin.jvm.functions.Function23 does
-                        //  not exist on the JVM. High-arity lambdas (> 22 parameters) should use
-                        //  kotlin.jvm.functions.FunctionN<Number> instead.
                         classTypeItem(
-                            "kotlin.jvm.functions.Function23",
-                            arguments = List(23) { integerType } + numberType,
+                            "kotlin.jvm.functions.FunctionN",
+                            arguments = listOf(numberType),
                         ),
                 ),
 
