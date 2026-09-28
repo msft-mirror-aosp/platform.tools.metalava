@@ -584,18 +584,18 @@ internal class PsiTypeItemFactory(
     }
 
     /** Support mapping from boxed types back to their primitive type. */
-    private val boxedToPsiPrimitiveType =
+    private val boxedToPrimitive =
         mapOf(
-            "java.lang.Byte" to PsiTypes.byteType(),
-            "java.lang.Double" to PsiTypes.doubleType(),
-            "java.lang.Float" to PsiTypes.floatType(),
-            "java.lang.Integer" to PsiTypes.intType(),
-            "java.lang.Long" to PsiTypes.longType(),
-            "java.lang.Short" to PsiTypes.shortType(),
-            "java.lang.Boolean" to PsiTypes.booleanType(),
+            "java.lang.Byte" to PrimitiveTypeItem.Primitive.BYTE,
+            "java.lang.Double" to PrimitiveTypeItem.Primitive.DOUBLE,
+            "java.lang.Float" to PrimitiveTypeItem.Primitive.FLOAT,
+            "java.lang.Integer" to PrimitiveTypeItem.Primitive.INT,
+            "java.lang.Long" to PrimitiveTypeItem.Primitive.LONG,
+            "java.lang.Short" to PrimitiveTypeItem.Primitive.SHORT,
+            "java.lang.Boolean" to PrimitiveTypeItem.Primitive.BOOLEAN,
             // This is not strictly speaking a boxed -> unboxed mapping, but it fits in nicely
             // with the others.
-            "kotlin.Unit" to PsiTypes.voidType(),
+            "kotlin.Unit" to PrimitiveTypeItem.Primitive.VOID,
         )
 
     /** If the type item is not nullable and is a boxed type then map it to the unboxed type. */
@@ -603,8 +603,12 @@ internal class PsiTypeItemFactory(
         if (
             typeItem is ClassTypeItem && typeItem.modifiers.nullability == TypeNullability.NONNULL
         ) {
-            boxedToPsiPrimitiveType[typeItem.qualifiedName]?.let { psiPrimitiveType ->
-                return createPrimitiveTypeItem(psiPrimitiveType, null)
+            boxedToPrimitive[typeItem.qualifiedName]?.let { kind ->
+                return TypeItem.createPrimitiveType(
+                    modifiers = typeItem.modifiers,
+                    kind = kind,
+                    isValueClassType = typeItem.isValueClassType,
+                )
             }
         }
         return typeItem

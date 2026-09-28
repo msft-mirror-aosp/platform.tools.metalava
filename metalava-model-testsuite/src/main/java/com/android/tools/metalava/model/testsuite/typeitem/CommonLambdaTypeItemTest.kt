@@ -499,11 +499,8 @@ class CommonLambdaTypeItemTest : BaseModelTest() {
                         }
                     )
                     .isEqualTo("@test.pkg.TypeUse T")
-                // TODO(b/566994677): This is wrong; unboxTypeWherePossible() discards the
-                //  modifiers on the boxed Integer ClassTypeItem when unboxing to int, so this
-                //  should be "@test.pkg.TypeUse int".
                 assertThat(returnType.testTypeString(annotations = true, kotlinStyleNulls = true))
-                    .isEqualTo("int")
+                    .isEqualTo("@test.pkg.TypeUse int")
             }
         }
     }
