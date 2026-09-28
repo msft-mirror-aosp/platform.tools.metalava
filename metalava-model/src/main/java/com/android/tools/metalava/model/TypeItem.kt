@@ -208,13 +208,15 @@ interface TypeItem {
          * The base [ClassTypeItem] is computed as follows:
          * * For [ArrayTypeItem] it is the base [ClassTypeItem] of its
          *   [ArrayTypeItem.componentType].
-         * * For [ClassTypeItem] (and [LambdaTypeItem]) it is the [ClassTypeItem].
+         * * For [LambdaTypeItem] it is [LambdaTypeItem.asJvmClassType].
+         * * For [ClassTypeItem] it is the [ClassTypeItem].
          * * For [VariableTypeItem] is the [VariableTypeItem.asErasedType].
          * * For all other types it is `null`.
          */
         private fun TypeItem.baseClassType(): ClassTypeItem? =
             when (this) {
                 is ArrayTypeItem -> innermostComponentType().baseClassType()
+                is LambdaTypeItem -> asJvmClassType()
                 is ClassTypeItem -> this
                 is VariableTypeItem -> asErasedType()
                 else -> null
@@ -445,6 +447,9 @@ abstract class DefaultTypeItem(
                             append(type.modifiers.nullability.suffix)
                         }
                     }
+                }
+                is LambdaTypeItem -> {
+                    appendTypeString(type.asJvmClassType(), configuration)
                 }
                 is ClassTypeItem -> {
                     if (type.outerClassType != null) {
@@ -1253,6 +1258,8 @@ interface LambdaTypeItem : ClassTypeItem {
     override fun accept(visitor: MultipleTypeVisitor, other: List<TypeItem>) {
         visitor.visit(this, other)
     }
+
+    override fun asErasedType(): ClassTypeItem = asJvmClassType().asErasedType()
 
     override fun substitute(modifiers: TypeModifiers): LambdaTypeItem =
         substitute(
