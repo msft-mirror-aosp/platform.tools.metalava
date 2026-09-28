@@ -18,6 +18,7 @@ package com.android.tools.metalava.model.testsuite.value
 
 import com.android.tools.metalava.model.AnnotationFormatter
 import com.android.tools.metalava.model.AnnotationItem
+import com.android.tools.metalava.model.AnnotationPurpose
 import com.android.tools.metalava.model.Assertions.Companion.assertField
 import com.android.tools.metalava.model.Assertions.Companion.assertMethod
 import com.android.tools.metalava.model.FieldItem
@@ -43,7 +44,7 @@ enum class LegacyValueUseSite(
     ATTRIBUTE_DEFAULT_VALUE(
         ValueUseSite.ANNOTATION,
         legacySourceGetter = {
-            val annotationMethod = testClassItem.assertMethod(ATTRIBUTE_NAME, "")
+            val annotationMethod = testClassItem.assertMethod(ATTRIBUTE_NAME, emptyList())
 
             annotationMethod.legacyDefaultValue()
         },
@@ -69,6 +70,7 @@ enum class LegacyValueUseSite(
             val wholeAnnotation =
                 annotationFormatter.formatAnnotation(
                     annotation,
+                    AnnotationPurpose.VALUE,
                     context = testClassItem,
                 )
 

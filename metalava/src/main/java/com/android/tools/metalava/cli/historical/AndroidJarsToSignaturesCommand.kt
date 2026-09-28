@@ -18,7 +18,6 @@ package com.android.tools.metalava.cli.historical
 
 import com.android.tools.metalava.ARG_CONFIG_FILE
 import com.android.tools.metalava.ConfigFileOptions
-import com.android.tools.metalava.OptionsDelegate
 import com.android.tools.metalava.apiSurfacesFromConfig
 import com.android.tools.metalava.apilevels.ApiVersion
 import com.android.tools.metalava.cli.common.MetalavaSubCommand
@@ -26,11 +25,12 @@ import com.android.tools.metalava.cli.common.cliError
 import com.android.tools.metalava.cli.common.executionEnvironment
 import com.android.tools.metalava.cli.common.existingDir
 import com.android.tools.metalava.cli.common.map
-import com.android.tools.metalava.cli.common.progressTracker
 import com.android.tools.metalava.cli.common.stderr
 import com.android.tools.metalava.cli.common.stdout
+import com.android.tools.metalava.cli.common.tracer
 import com.android.tools.metalava.cli.signature.SignatureFormatOptions
 import com.android.tools.metalava.jar.StandaloneJarCodebaseLoader
+import com.android.tools.metalava.model.text.CustomizableProperty.Companion.ADD_ADDITIONAL_OVERRIDES
 import com.android.tools.metalava.reporter.BasicReporter
 import com.github.ajalt.clikt.parameters.arguments.argument
 import com.github.ajalt.clikt.parameters.arguments.validate
@@ -105,10 +105,6 @@ class AndroidJarsToSignaturesCommand :
             .map { list -> list?.distinct() ?: listOf("public") }
 
     override fun run() {
-        // Make sure that none of the code called by this command accesses the global `options`
-        // property.
-        OptionsDelegate.disallowAccess()
-
         // Create a self-consistent set of ApiSurfaces that either need to be converted or
         // contribute to a surface that needs to be converted.
         val apiSurfaces =
@@ -140,15 +136,17 @@ class AndroidJarsToSignaturesCommand :
 
         StandaloneJarCodebaseLoader.create(
                 executionEnvironment.disableStderrDumping(),
-                progressTracker,
+                tracer,
                 BasicReporter(stderr),
+                addAdditionalOverrides =
+                    signatureFormat.compute().fileFormat[ADD_ADDITIONAL_OVERRIDES],
             )
             .use { jarCodebaseLoader ->
                 ConvertJarsToSignatureFiles(
                         stderr,
                         stdout,
-                        progressTracker,
-                        signatureFormat.fileFormat,
+                        tracer,
+                        signatureFormat.compute().fileFormat,
                         apiVersions,
                         apiSurfaces,
                         selectedApiSurfaces,

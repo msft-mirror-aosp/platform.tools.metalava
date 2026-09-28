@@ -17,6 +17,8 @@
 package com.android.tools.metalava.model.testsuite.classitem
 
 import com.android.tools.lint.checks.infrastructure.TestFiles.base64gzip
+import com.android.tools.metalava.model.provider.InputFormat
+import com.android.tools.metalava.model.testing.SupportedInputFormats
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.testing.kotlin
 import kotlin.test.assertEquals
@@ -26,6 +28,7 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import org.junit.Test
 
+@SupportedInputFormats(InputFormat.KOTLIN)
 class CommonValueClassTest : BaseModelTest() {
     @Test
     fun `Constructor visibility`() {
@@ -81,11 +84,11 @@ class CommonValueClassTest : BaseModelTest() {
             val valueClass = codebase.assertClass("test.pkg.ValueClass")
             assertEquals(valueClass.constructors().size, 2)
 
-            val primaryConstructor = valueClass.assertConstructor("int")
+            val primaryConstructor = valueClass.assertConstructor(listOf("int"))
             assertTrue(primaryConstructor.isPrimary)
             assertTrue(primaryConstructor.modifiers.isPublic())
 
-            val secondaryConstructor = valueClass.assertConstructor("int,int")
+            val secondaryConstructor = valueClass.assertConstructor(listOf("int", "int"))
             assertFalse(secondaryConstructor.isPrimary)
             assertTrue(secondaryConstructor.modifiers.isPublic())
         }
@@ -103,8 +106,6 @@ class CommonValueClassTest : BaseModelTest() {
         ) {
             val valueClass = codebase.assertClass("test.pkg.ValueClass")
             assertEquals(valueClass.constructors().size, 1, "Expected exactly one constructor")
-            assertNotNull(valueClass.primaryConstructor, "Expected a primary constructor")
-
             val primaryConstructor = valueClass.constructors().single()
             assertTrue(primaryConstructor.isPrimary, "Expected a primary constructor")
             val param = primaryConstructor.parameters().single()
@@ -228,19 +229,30 @@ class CommonValueClassTest : BaseModelTest() {
             // Abstract APIs on interface
             assertTrue(interfaceClass.assertProperty("abstractVal").modifiers.isAbstract())
             assertTrue(
-                interfaceClass.assertMethod("getAbstractVal-RVb1_dM", "").modifiers.isAbstract()
+                interfaceClass
+                    .assertMethod("getAbstractVal-RVb1_dM", emptyList())
+                    .modifiers
+                    .isAbstract()
             )
             assertTrue(
-                interfaceClass.assertMethod("abstractFun-RVb1_dM", "").modifiers.isAbstract()
+                interfaceClass
+                    .assertMethod("abstractFun-RVb1_dM", emptyList())
+                    .modifiers
+                    .isAbstract()
             )
             // Default APIs on interface
             assertTrue(interfaceClass.assertProperty("defaultVal").modifiers.isDefault())
             // TODO(b/428221305): these are abstract in bytecode even though there are default
             // implementations, find out why.
             assertFalse(
-                interfaceClass.assertMethod("getDefaultVal-RVb1_dM", "").modifiers.isDefault()
+                interfaceClass
+                    .assertMethod("getDefaultVal-RVb1_dM", emptyList())
+                    .modifiers
+                    .isDefault()
             )
-            assertFalse(interfaceClass.assertMethod("defaultFun-RVb1_dM", "").modifiers.isDefault())
+            assertFalse(
+                interfaceClass.assertMethod("defaultFun-RVb1_dM", emptyList()).modifiers.isDefault()
+            )
         }
     }
 
@@ -320,13 +332,87 @@ class CommonValueClassTest : BaseModelTest() {
             // Abstract APIs on abstract class
             assertTrue(abstractClass.assertProperty("abstractVal").modifiers.isAbstract())
             assertTrue(
-                abstractClass.assertMethod("getAbstractVal-RVb1_dM", "").modifiers.isAbstract()
+                abstractClass
+                    .assertMethod("getAbstractVal-RVb1_dM", emptyList())
+                    .modifiers
+                    .isAbstract()
             )
-            assertTrue(abstractClass.assertMethod("abstractFun-RVb1_dM", "").modifiers.isAbstract())
+            assertTrue(
+                abstractClass
+                    .assertMethod("abstractFun-RVb1_dM", emptyList())
+                    .modifiers
+                    .isAbstract()
+            )
             // Final APIs on abstract class
             assertTrue(abstractClass.assertProperty("finalVal").modifiers.isFinal())
-            assertTrue(abstractClass.assertMethod("getFinalVal-RVb1_dM", "").modifiers.isFinal())
-            assertTrue(abstractClass.assertMethod("finalFun-RVb1_dM", "").modifiers.isFinal())
+            assertTrue(
+                abstractClass.assertMethod("getFinalVal-RVb1_dM", emptyList()).modifiers.isFinal()
+            )
+            assertTrue(
+                abstractClass.assertMethod("finalFun-RVb1_dM", emptyList()).modifiers.isFinal()
+            )
+        }
+    }
+
+    @Test
+    fun `Usage of value class with type parameter`() {
+        runCodebaseTest(
+            kotlin(
+                """
+                package test.pkg
+                @JvmInline value class UnboundedValueClass<T>(val value: T)
+                @JvmInline value class BoundedValueClass<T : CharSequence>(val value: T)
+                class Foo {
+                    @get:JvmName("getUnboundedWithInt")
+                    @set:JvmName("setUnboundedWithInt")
+                    var unboundedWithInt: UnboundedValueClass<Int> = UnboundedValueClass(1)
+
+                    @get:JvmName("getBoundedWithString")
+                    @set:JvmName("setBoundedWithString")
+                    var boundedWithString: BoundedValueClass<String> = BoundedValueClass("")
+                }
+                """
+            )
+        ) {
+            val fooClass = codebase.assertClass("test.pkg.Foo")
+
+            val unboundedWithInt = fooClass.assertProperty("unboundedWithInt")
+            unboundedWithInt.type().assertClassTypeItem {
+                assertEquals(qualifiedName, "test.pkg.UnboundedValueClass")
+                arguments.single().assertClassTypeItem {
+                    assertEquals(qualifiedName, "java.lang.Integer")
+                }
+            }
+
+            // The accessors use the erased type of the inlined value. For the unbounded type
+            // parameter, this is object. When there is a bound to the variable, it is that bound.
+            val getUnboundedWithInt = fooClass.assertMethod("getUnboundedWithInt", emptyList())
+            assertTrue(getUnboundedWithInt.returnType().isJavaLangObject())
+            assertEquals(unboundedWithInt.getter, getUnboundedWithInt)
+            assertEquals(getUnboundedWithInt.property, unboundedWithInt)
+
+            val setUnboundedWithInt =
+                fooClass.assertMethod("setUnboundedWithInt", listOf("java.lang.Object"))
+            assertEquals(unboundedWithInt.setter, setUnboundedWithInt)
+            assertEquals(setUnboundedWithInt.property, unboundedWithInt)
+
+            val boundedWithString = fooClass.assertProperty("boundedWithString")
+            boundedWithString.type().assertClassTypeItem {
+                assertEquals(qualifiedName, "test.pkg.BoundedValueClass")
+                assertTrue(arguments.single().isString())
+            }
+
+            val getBoundedWithString = fooClass.assertMethod("getBoundedWithString", emptyList())
+            getBoundedWithString.returnType().assertClassTypeItem {
+                assertEquals(qualifiedName, "java.lang.CharSequence")
+            }
+            assertEquals(boundedWithString.getter, getBoundedWithString)
+            assertEquals(getBoundedWithString.property, boundedWithString)
+
+            val setBoundedWithString =
+                fooClass.assertMethod("setBoundedWithString", listOf("java.lang.CharSequence"))
+            assertEquals(boundedWithString.setter, setBoundedWithString)
+            assertEquals(setBoundedWithString.property, boundedWithString)
         }
     }
 }

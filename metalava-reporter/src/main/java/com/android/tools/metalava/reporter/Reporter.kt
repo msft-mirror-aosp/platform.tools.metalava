@@ -17,7 +17,6 @@
 package com.android.tools.metalava.reporter
 
 import java.io.File
-import java.io.OutputStream
 import java.io.PrintWriter
 import java.io.StringWriter
 import java.io.Writer
@@ -105,11 +104,43 @@ interface Reporter {
     ): Boolean
 }
 
+/** Base implementation of a [Reporter] that provides issue suppression logic. */
+abstract class BaseReporter : Reporter {
+    override fun isSuppressed(
+        id: Issues.Issue,
+        reportable: Reportable?,
+        message: String?
+    ): Boolean {
+        reportable ?: return false
+        return reportable.suppressedIssues().any { suppressMatches(it, id.name, message) }
+    }
+
+    protected fun suppressMatches(value: String, id: String?, message: String?): Boolean {
+        id ?: return false
+
+        if (value == id) {
+            return true
+        }
+
+        if (
+            message != null &&
+                value.startsWith(id) &&
+                value.endsWith(message) &&
+                (value == "$id:$message" || value == "$id: $message")
+        ) {
+            return true
+        }
+
+        return false
+    }
+}
+
 /**
  * Abstract implementation of a [Reporter] that performs no filtering and delegates the handling of
  * a report to [handleFormattedMessage].
  */
-abstract class AbstractBasicReporter : Reporter {
+abstract class AbstractBasicReporter(private val excludedIssues: Set<Issues.Issue> = emptySet()) :
+    BaseReporter() {
     override fun report(
         id: Issues.Issue,
         reportable: Reportable?,
@@ -117,12 +148,26 @@ abstract class AbstractBasicReporter : Reporter {
         location: FileLocation,
         maximumSeverity: Severity,
     ): Boolean {
+        if (excludedIssues.contains(id)) {
+            return false
+        }
+
+        if (isSuppressed(id, reportable, message)) {
+            return false
+        }
+
         val formattedMessage = buildString {
             val usableLocation = reportable?.fileLocation ?: location
             append(usableLocation.path)
-            if (usableLocation.line > 0) {
+            var line = usableLocation.line
+            if (line > 0) {
                 append(":")
-                append(usableLocation.line)
+                append(line)
+            }
+            var characterPosition = usableLocation.characterPosition
+            if (characterPosition > 0) {
+                append(":")
+                append(characterPosition)
             }
             append(": ")
             val severity = id.defaultLevel
@@ -138,12 +183,6 @@ abstract class AbstractBasicReporter : Reporter {
     }
 
     abstract fun handleFormattedMessage(formattedMessage: String): Boolean
-
-    override fun isSuppressed(
-        id: Issues.Issue,
-        reportable: Reportable?,
-        message: String?
-    ): Boolean = false
 }
 
 /**
@@ -153,23 +192,17 @@ abstract class AbstractBasicReporter : Reporter {
 class BasicReporter(private val stderr: PrintWriter) : AbstractBasicReporter() {
     constructor(writer: Writer) : this(stderr = PrintWriter(writer))
 
-    constructor(outputStream: OutputStream) : this(stderr = PrintWriter(outputStream))
-
     override fun handleFormattedMessage(formattedMessage: String): Boolean {
         stderr.println(formattedMessage)
         stderr.flush()
         return true
     }
-
-    override fun isSuppressed(
-        id: Issues.Issue,
-        reportable: Reportable?,
-        message: String?
-    ): Boolean = false
 }
 
 /** A [Reporter] which will record issues in an internal buffer, accessible through [issues]. */
-class RecordingReporter : AbstractBasicReporter() {
+class RecordingReporter(
+    excludedIssues: Set<Issues.Issue> = emptySet(),
+) : AbstractBasicReporter(excludedIssues) {
     private val stringWriter = StringWriter()
 
     override fun handleFormattedMessage(formattedMessage: String): Boolean {

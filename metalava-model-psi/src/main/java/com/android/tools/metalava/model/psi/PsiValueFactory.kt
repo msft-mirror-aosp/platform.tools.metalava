@@ -22,13 +22,11 @@ import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ArrayTypeItem
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.FieldItem
-import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PrimitiveTypeItem.Primitive
 import com.android.tools.metalava.model.TypeItem
+import com.android.tools.metalava.model.TypeModifiers
 import com.android.tools.metalava.model.VariableTypeItem
 import com.android.tools.metalava.model.type.ContextNullability
-import com.android.tools.metalava.model.type.DefaultPrimitiveTypeItem
-import com.android.tools.metalava.model.type.DefaultTypeModifiers
 import com.android.tools.metalava.model.value.AnnotationValue
 import com.android.tools.metalava.model.value.ArrayElementValue
 import com.android.tools.metalava.model.value.BaseCachingDeferredTypeValueProvider
@@ -42,7 +40,6 @@ import com.android.tools.metalava.model.value.LiteralValue
 import com.android.tools.metalava.model.value.Value
 import com.android.tools.metalava.model.value.ValueFactory
 import com.android.tools.metalava.model.value.ValueProvider
-import com.android.tools.metalava.model.value.ValueProviderException
 import com.android.tools.metalava.model.value.ValueUseSite
 import com.android.tools.metalava.reporter.FileLocation
 import com.intellij.psi.JavaPsiFacade
@@ -152,20 +149,22 @@ internal class PsiValueFactory(
         // If no value could be created, and it is for an annotation attribute then fail as an
         // annotation attribute MUST always have a value.
         if (value == null && valueUseSite == ValueUseSite.ANNOTATION) {
-            unknownExpression(optionalTypeItem, implementationValue)
+            return unknownExpression()
         }
 
         return value
     }
 
     /**
-     * An unknown [expression] of [optionalTypeItem] was found and it was not possible to return
-     * `null` so throw an exception.
+     * An unknown expression was found and it was not possible to return `null`, so return a fake
+     * value.
+     *
+     * This creates an error value instead of throwing an exception to avoid blocking developers
+     * when there is a bug in metalava (or a bug in lint/uast/psi, which are used for value
+     * calculations).
      */
-    private fun unknownExpression(optionalTypeItem: TypeItem?, expression: Any): Nothing {
-        throw ValueProviderException(
-            "Unknown value '$expression' of ${expression.javaClass} for type $optionalTypeItem"
-        )
+    private fun unknownExpression(): ArrayElementValue {
+        return createFieldReferenceValue(codebase, "error.UnknownValue", "ERROR")
     }
 
     /** Create a [Value] of [optionalTypeItem] from [uExpression]. */
@@ -181,8 +180,7 @@ internal class PsiValueFactory(
             val elementType = arrayTypeItem?.componentType
             val elements =
                 uExpression.valueArguments.map {
-                    uExpressionToArrayElementValue(elementType, it)
-                        ?: unknownExpression(elementType, it)
+                    uExpressionToArrayElementValue(elementType, it) ?: unknownExpression()
                 }
             return createArrayValue(elements)
         }
@@ -385,7 +383,7 @@ internal class PsiValueFactory(
      * `Class<Integer>`. So, use clues from the source [receiver] to choose the correct one.
      */
     private fun unboxTypeItemIfNeeded(
-        receiverTypeItem: PsiTypeItem,
+        receiverTypeItem: TypeItem,
         receiver: UClassLiteralExpression
     ): TypeItem {
         if (receiverTypeItem !is ClassTypeItem) return receiverTypeItem
@@ -463,8 +461,7 @@ internal class PsiValueFactory(
                 // (which needs to be converted to an AnnotationArrayAttributeValue) and other
                 // values.
                 val value =
-                    uExpressionToArrayElementValue(typeItem, uArgument)
-                        ?: unknownExpression(typeItem, uArgument)
+                    uExpressionToArrayElementValue(typeItem, uArgument) ?: unknownExpression()
                 AnnotationAttribute.createAttribute(name, value)
             }
 
@@ -508,7 +505,7 @@ internal class PsiValueFactory(
 
         if (uExpression is ULiteralExpression) {
             uExpression.value?.let { underlyingValue ->
-                // Get the original source value, undoing any int -> long conversions done by K2.
+                // Get the original source value, undoing any int -> long conversions.
                 val originalSourceValue =
                     when (underlyingValue) {
                         // Byte and short always use an integer literal as there are no byte or
@@ -540,7 +537,7 @@ internal class PsiValueFactory(
 
                 val actualTypeItem =
                     actualPrimitiveKind?.let { kind ->
-                        DefaultPrimitiveTypeItem(DefaultTypeModifiers.emptyNonNullModifiers, kind)
+                        TypeItem.createPrimitiveType(TypeModifiers.emptyNonNullModifiers, kind)
                     } ?: optionalTypeItem
 
                 return uLiteralValue(actualTypeItem, originalSourceValue)
@@ -549,8 +546,8 @@ internal class PsiValueFactory(
 
         // All others expressions are evaluated to a literal, if possible and returned.
         ConstantEvaluator.evaluate(null, uExpression)?.let { value ->
-            // Get the original source value, undoing any int -> long conversions done by K2. This
-            // is only done for unary minus expressions, i.e. of the form `-<expr>`.
+            // Get the original source value, undoing any int -> long conversions. This is only done
+            // for unary minus expressions, i.e. of the form `-<expr>`.
             val originalSourceValue =
                 if (
                     uExpression is UPrefixExpression &&
@@ -577,8 +574,6 @@ internal class PsiValueFactory(
      * That is needed to enable consistent processing with legacy value handling which often uses
      * the source type directly, e.g. when parsing `longValue = 1` it may write it as `longValue =
      * 1` instead of the more consistent `longValue = 1L`.
-     *
-     * This generally only affects K2 as K1 does not bother casting to the correct type.
      */
     private fun undoConversionOfSourceIntIfNeeded(
         underlyingValue: Long,
@@ -633,8 +628,7 @@ internal class PsiValueFactory(
                 val elementType = arrayTypeItem?.componentType
                 val elements =
                     psiValue.initializers.map {
-                        psiToArrayElementValue(elementType, it)
-                            ?: unknownExpression(elementType, it)
+                        psiToArrayElementValue(elementType, it) ?: unknownExpression()
                     }
                 createArrayValue(elements)
             }
@@ -811,16 +805,10 @@ internal class PsiValueFactory(
      *
      * This must have been resolved from a [UQualifiedReferenceExpression.receiver].
      */
-    private fun PsiClass.qualifiedNameIfCompanionClass(): String? =
-        if (isCompanion()) qualifiedName else null
-
-    /**
-     * Returns `true` if this is a companion class.
-     *
-     * This uses [PsiModifierItem.create] to avoid having to duplicate the code that deals with the
-     * Psi object model.
-     */
-    private fun PsiClass.isCompanion() = PsiModifierItem.create(codebase, this).isCompanion()
+    private fun PsiClass.qualifiedNameIfCompanionClass() =
+        qualifiedName?.takeIf { qualifiedName ->
+            codebase.resolveClass(qualifiedName)?.modifiers?.isCompanion() == true
+        }
 }
 
 /**

@@ -31,8 +31,16 @@ internal class TurbineFileLocation(
      * number.
      */
     private val sourceFile: TurbineSourceFile,
+
     /** The position within the [sourceFile]. */
-    private val position: Int
+    private val position: Int,
+
+    /**
+     * Whether to report [characterPosition] as part of this location.
+     *
+     * Defaults to `false`, only set to `true` for documentation location.
+     */
+    private val reportCharacterPosition: Boolean = false,
 ) : FileLocation() {
 
     override val path
@@ -40,6 +48,10 @@ internal class TurbineFileLocation(
 
     override val line
         get() = sourceFile.lineForPosition(position)
+
+    override val characterPosition: Int
+        get() =
+            if (reportCharacterPosition) sourceFile.characterPositionForPosition(position) else -1
 
     companion object {
         /** Get the [Path] for the [TurbineSourceFile]. */

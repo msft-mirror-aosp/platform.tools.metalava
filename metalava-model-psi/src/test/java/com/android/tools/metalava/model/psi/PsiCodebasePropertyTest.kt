@@ -16,6 +16,8 @@
 
 package com.android.tools.metalava.model.psi
 
+import com.android.tools.metalava.model.provider.InputFormat
+import com.android.tools.metalava.model.testing.SupportedInputFormats
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.testing.createAndroidModuleDescription
 import com.android.tools.metalava.testing.createCommonModuleDescription
@@ -27,9 +29,10 @@ import com.google.common.truth.Truth.assertThat
 import org.jetbrains.kotlin.analysis.api.projectStructure.KaSourceModule
 import org.junit.Test
 
+@SupportedInputFormats(InputFormat.KOTLIN)
 class PsiCodebasePropertyTest : BaseModelTest() {
     @Test
-    fun `Test isMultiplatform for non-KMP codebase without project description`() {
+    fun `Test inlineTypeAliasUsages for non-KMP codebase without project description`() {
         runCodebaseTest(
             kotlin(
                 "main/src/test/pkg/Foo.kt",
@@ -39,12 +42,12 @@ class PsiCodebasePropertyTest : BaseModelTest() {
                 """
             )
         ) {
-            assertThat((codebase as PsiBasedCodebase).isMultiplatform).isFalse()
+            assertThat((codebase as PsiBasedCodebase).inlineTypeAliasUsages).isFalse()
         }
     }
 
     @Test
-    fun `Test isMultiplatform for non-KMP codebase with project description`() {
+    fun `Test inlineTypeAliasUsages for non-KMP codebase with project description`() {
         val source =
             kotlin(
                 "main/src/test/pkg/Foo.kt",
@@ -66,12 +69,12 @@ class PsiCodebasePropertyTest : BaseModelTest() {
                     )
                 )
         ) {
-            assertThat((codebase as PsiBasedCodebase).isMultiplatform).isFalse()
+            assertThat((codebase as PsiBasedCodebase).inlineTypeAliasUsages).isFalse()
         }
     }
 
     @Test
-    fun `Test isMultiplatform for KMP codebase`() {
+    fun `Test inlineTypeAliasUsages for KMP codebase`() {
         val commonSource =
             kotlin(
                 "commonMain/src/test/pkg/Foo.kt",
@@ -96,7 +99,7 @@ class PsiCodebasePropertyTest : BaseModelTest() {
                     createAndroidModuleDescription(arrayOf(androidSource)),
                 )
         ) {
-            assertThat((codebase as PsiBasedCodebase).isMultiplatform).isTrue()
+            assertThat((codebase as PsiBasedCodebase).inlineTypeAliasUsages).isTrue()
         }
     }
 
