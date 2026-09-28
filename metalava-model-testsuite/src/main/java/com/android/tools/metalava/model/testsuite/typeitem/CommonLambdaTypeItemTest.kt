@@ -22,7 +22,6 @@ import com.android.tools.metalava.model.testing.testTypeString
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.testing.kotlin
 import com.google.common.truth.Truth.assertThat
-import org.junit.Assert.assertThrows
 import org.junit.Test
 
 @SupportedInputFormats(InputFormat.KOTLIN)
@@ -438,26 +437,35 @@ class CommonLambdaTypeItemTest : BaseModelTest() {
 
     @Test
     fun `Test lambda with primitive parameter returns Nothing`() {
-        // TODO(b/566994677): Creating a LambdaTypeItem for a lambda with a primitive parameter
-        //  that returns Nothing fails with a ClassCastException because KotlinTypeInfo.asPsiType()
-        //  returns a PsiPrimitiveType which is not boxed by createTypeItem when mustBoxPrimitives
-        //  is true.
-        val exception =
-            assertThrows(ClassCastException::class.java) {
-                runCodebaseTest(
-                    kotlin(
-                        """
-                            package test.pkg
-                            class Foo {
-                                val field: (Int, Throwable) -> Nothing = { _, t -> throw t }
-                            }
-                        """
-                    ),
-                ) {}
+        runCodebaseTest(
+            kotlin(
+                """
+                    package test.pkg
+                    class Foo {
+                        val field: (Int, Throwable) -> Nothing = { _, t -> throw t }
+                    }
+                """
+            ),
+        ) {
+            val fooClass = codebase.assertClass("test.pkg.Foo")
+            val lambdaType = fooClass.fields().single().type()
+
+            lambdaType.assertLambdaTypeItem {
+                // Verify that the default string representation of the lambda type is the same as
+                // the string representation of the extended class type.
+                assertThat(testTypeString(kotlinStyleNulls = true))
+                    .isEqualTo(
+                        "kotlin.jvm.functions.Function2<java.lang.Integer,java.lang.Throwable,java.lang.Void>"
+                    )
+
+                assertThat(receiverType).isNull()
+                assertThat(
+                        parameterTypes.joinToString { it.testTypeString(kotlinStyleNulls = true) }
+                    )
+                    .isEqualTo("int, java.lang.Throwable")
+                assertThat(returnType.testTypeString(kotlinStyleNulls = true))
+                    .isEqualTo("java.lang.Void")
             }
-        assertThat(exception.message)
-            .contains(
-                "DefaultPrimitiveTypeItem cannot be cast to class com.android.tools.metalava.model.TypeArgumentTypeItem"
-            )
+        }
     }
 }
