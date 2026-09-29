@@ -1103,7 +1103,7 @@ class CommonPropertyItemTest : BaseModelTest() {
                 .isTrue()
             assertThat(oneTypeParameterWithBoundsReceiverT.isReified()).isFalse()
             oneTypeParameterWithBoundsReceiver.receiver.assertVariableTypeItem {
-                assertEquals(asTypeParameter, oneTypeParameterReceiverT)
+                assertEquals(asTypeParameter, oneTypeParameterWithBoundsReceiverT)
             }
 
             // val <T1, T2> Map<T1, T2>.twoTypeParameterMapReceiver
