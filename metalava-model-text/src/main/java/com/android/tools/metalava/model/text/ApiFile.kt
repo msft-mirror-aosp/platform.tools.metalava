@@ -217,7 +217,7 @@ private constructor(
     /** [ClassPathResolver] to use for the created [Codebase]. */
     classPathResolver: ClassPathResolver?,
     private val formatForLegacyFiles: FileFormat?,
-    private val allowClassModifierChanges: Boolean,
+    allowClassModifierChanges: Boolean,
     /** The [TargetLanguageSet] to use if an item does not have one specified. */
     private val defaultTargetLanguageSet: Set<TargetLanguage> = TargetLanguageSet.ALL,
 ) {
@@ -302,13 +302,8 @@ private constructor(
      */
     private var appending: Boolean = false
 
-    /**
-     * A map from [SkeletonClassItem] to list of [ClassCharacteristics] for re-definition of the
-     * original class that needs to be checked for consistency against the [SkeletonClassItem] and
-     * then merge any extensions into it.
-     */
-    private var deferredMerges =
-        mutableMapOf<SkeletonClassItem, MutableList<ClassCharacteristics>>()
+    /** Merges class re-definitions across signature files. */
+    private val classMerger = ClassMerger(allowClassModifierChanges)
 
     /** Map from [ClassItem] to [TextTypeItemFactory]. */
     private val classToTypeItemFactory = IdentityHashMap<ClassItem, TextTypeItemFactory>()
@@ -547,7 +542,7 @@ private constructor(
             first = false
         }
 
-        performAnyDeferredMerges()
+        classMerger.performAnyDeferredMerges()
     }
 
     private fun parseApiSingleFile(
@@ -975,121 +970,9 @@ private constructor(
 
         // Perform any merge checks after loading all the files. That is needed because merging
         // may resolve classes and doing that during parsing can lead to issues.
-        deferMergingIntoExistingClass(existingClass, classCharacteristics)
+        classMerger.deferMergingIntoExistingClass(existingClass, classCharacteristics)
 
         return true
-    }
-
-    /**
-     * Defer merging [newClassCharacteristics] into [existingClass] until after all signature files
-     * have been resolved.
-     */
-    private fun deferMergingIntoExistingClass(
-        existingClass: SkeletonClassItem,
-        newClassCharacteristics: ClassCharacteristics
-    ) {
-        val merges = deferredMerges.computeIfAbsent(existingClass) { mutableListOf() }
-        merges.add(newClassCharacteristics)
-    }
-
-    /** Perform any deferred merges added by [deferMergingIntoExistingClass]. */
-    private fun performAnyDeferredMerges() {
-        for ((existingClass, newClasses) in deferredMerges) {
-            for (newClassCharacteristics in newClasses) {
-                tryMergingIntoExistingClass(existingClass, newClassCharacteristics)
-            }
-        }
-    }
-
-    /**
-     * Try merging the new class into an existing class that was previously loaded from a separate
-     * signature file.
-     *
-     * Will throw an exception if there is an existing class, but it is not compatible with the new
-     * class.
-     *
-     * @return `false` if there is no existing class, `true` if there is and the merge succeeded.
-     */
-    private fun tryMergingIntoExistingClass(
-        existingClass: SkeletonClassItem,
-        newClassCharacteristics: ClassCharacteristics,
-    ) {
-        // Make sure the new class characteristics are compatible with the old class
-        // characteristic.
-        val existingCharacteristics = ClassCharacteristics.of(existingClass)
-        if (
-            !existingCharacteristics.isCompatible(
-                newClassCharacteristics,
-                allowModifierChanges = allowClassModifierChanges
-            )
-        ) {
-            throw ApiParseException(
-                "Incompatible $existingClass definitions",
-                newClassCharacteristics.fileLocation
-            )
-        }
-
-        // Handle the transition to typealias (other class kind changes are not allowed)
-        if (
-            existingClass.classKind != ClassKind.TYPEALIAS &&
-                newClassCharacteristics.classKind == ClassKind.TYPEALIAS
-        ) {
-            existingClass.classKind = ClassKind.TYPEALIAS
-            existingClass.optionalAliasedType = newClassCharacteristics.optionalAliasedType
-        }
-
-        // Add new annotations to the existing class
-        val newClassAnnotations = newClassCharacteristics.modifiers.annotations().toSet()
-        val existingClassAnnotations = existingCharacteristics.modifiers.annotations().toSet()
-
-        // If class modifier changes are allowed, overwrite the old annotations with the new ones.
-        // Otherwise, add the new ones.
-        if (allowClassModifierChanges) {
-            if (existingClassAnnotations != newClassAnnotations) {
-                existingClass.mutateModifiers {
-                    mutateAnnotations {
-                        clear()
-                        addAll(newClassAnnotations)
-                    }
-                }
-            }
-        } else {
-            val extraAnnotations = newClassAnnotations.subtract(existingClassAnnotations)
-            if (extraAnnotations.isNotEmpty()) {
-                existingClass.mutateModifiers { mutateAnnotations { addAll(extraAnnotations) } }
-            }
-        }
-
-        // If the class modifiers are allowed to change and have, update them.
-        if (
-            allowClassModifierChanges &&
-                !newClassCharacteristics.modifiers.equivalentTo(
-                    existingClass,
-                    existingClass.modifiers
-                )
-        ) {
-            existingClass.mutateModifiers { makeEquivalentTo(newClassCharacteristics.modifiers) }
-        }
-
-        // Use the latest super class.
-        val newSuperClassType = newClassCharacteristics.superClassType
-        if (
-            newSuperClassType != null && existingCharacteristics.superClassType != newSuperClassType
-        ) {
-            // Duplicate class with conflicting superclass names are found. Since the class
-            // definition found later should be prioritized, overwrite the superclass type.
-            existingClass.setSuperClassType(newSuperClassType)
-        }
-
-        // If the interface types in the new definition are set, overwrite the original interface
-        // types since the later definition should be prioritized.
-        val newInterfaceTypes = newClassCharacteristics.interfaceTypes
-        if (
-            newInterfaceTypes.isNotEmpty() &&
-                newInterfaceTypes != existingCharacteristics.interfaceTypes
-        ) {
-            existingClass.setInterfaceTypes(newInterfaceTypes.toList())
-        }
     }
 
     /** Get the [TextTypeItemFactory] for a previously created [ClassItem]. */
