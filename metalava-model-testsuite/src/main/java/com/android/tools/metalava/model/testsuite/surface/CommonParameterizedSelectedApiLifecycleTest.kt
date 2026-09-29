@@ -238,7 +238,6 @@ class CommonParameterizedSelectedApiLifecycleTest : BaseCommonParameterizedSelec
                                        self - ApiVariantSet[public(C)]
                                 method test.pkg.Foo.method()
                                        self - ApiVariantSet[public(C)]
-                                superMethod - ApiVariantSet[public(C)]
                                    elidable - ApiVariantSet[public(C)]
                         """,
                 )

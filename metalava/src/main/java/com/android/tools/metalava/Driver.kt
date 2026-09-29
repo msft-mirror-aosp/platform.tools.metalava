@@ -351,7 +351,6 @@ class Driver(
                         EmittedOnlyPredicate.and(
                             ApiSurfacePredicate.wholeCoreApi(
                                 apiSurface,
-                                includeOverridingMethods = true,
                             )
                         )
 

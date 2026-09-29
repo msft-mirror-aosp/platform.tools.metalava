@@ -2171,6 +2171,12 @@ data class KnownApiSurface(
                                     <annotation-rule pattern="$TEST_MODULE_API_ANNOTATION"/>
                                 </selection-criteria>
                             </api-surface>
+                            <api-surface name="system-and-module-lib" extends="public">
+                                <selection-criteria>
+                                    <annotation-rule pattern="$TEST_SYSTEM_API_ANNOTATION"/>
+                                    <annotation-rule pattern="$TEST_MODULE_API_ANNOTATION"/>
+                                </selection-criteria>
+                            </api-surface>
                         </api-surfaces>
                     </config>
                 """
@@ -2200,6 +2206,13 @@ data class KnownApiSurface(
         val TEST_MODULE_API_SURFACE =
             KnownApiSurface(
                 "module-lib",
+                apiSurfacesConfig,
+                additionalTestSourceFiles,
+            )
+
+        val TEST_SYSTEM_AND_MODULE_API_SURFACE =
+            KnownApiSurface(
+                "system-and-module-lib",
                 apiSurfacesConfig,
                 additionalTestSourceFiles,
             )

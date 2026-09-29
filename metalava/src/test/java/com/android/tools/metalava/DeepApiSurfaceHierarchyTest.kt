@@ -16,10 +16,10 @@
 
 package com.android.tools.metalava
 
-import com.android.tools.metalava.KnownApiSurface.Companion.TEST_HIDE_ANNOTATION
-import com.android.tools.metalava.KnownApiSurface.Companion.TEST_MODULE_API_ANNOTATION
 import com.android.tools.metalava.KnownApiSurface.Companion.TEST_MODULE_API_SURFACE
-import com.android.tools.metalava.KnownApiSurface.Companion.TEST_SYSTEM_API_ANNOTATION
+import com.android.tools.metalava.KnownApiSurface.Companion.TEST_PUBLIC_API_SURFACE
+import com.android.tools.metalava.KnownApiSurface.Companion.TEST_SYSTEM_AND_MODULE_API_SURFACE
+import com.android.tools.metalava.KnownApiSurface.Companion.TEST_SYSTEM_API_SURFACE
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.testing.java
@@ -268,6 +268,10 @@ class DeepApiSurfaceHierarchyTest : DriverTest() {
 
                         public class PublicClass {
                             @test.annotation.Hide
+                            public PublicClass() {
+                            }
+
+                            @test.annotation.Hide
                             @test.annotation.SystemApi
                             public abstract void abstractMethodOverridden();
 
@@ -329,10 +333,9 @@ class DeepApiSurfaceHierarchyTest : DriverTest() {
     @Test
     fun `Hierarchy test - SystemApi + ModuleApi`() {
         check(
+            apiSurface = TEST_SYSTEM_AND_MODULE_API_SURFACE,
             extraArguments = EXTRA_ARGS,
             format = FileFormat.V2,
-            hideAnnotations = arrayOf(TEST_HIDE_ANNOTATION),
-            showAnnotations = arrayOf(TEST_MODULE_API_ANNOTATION, TEST_SYSTEM_API_ANNOTATION),
             sourceFiles = SOURCE_FILES_A,
             expectedApiSignature =
                 """
@@ -386,10 +389,9 @@ class DeepApiSurfaceHierarchyTest : DriverTest() {
     @Test
     fun `Hierarchy test - SystemApi only`() {
         check(
+            apiSurface = TEST_SYSTEM_API_SURFACE,
             extraArguments = EXTRA_ARGS,
             format = FileFormat.V2,
-            hideAnnotations = arrayOf(TEST_HIDE_ANNOTATION),
-            showAnnotations = arrayOf(TEST_SYSTEM_API_ANNOTATION),
             sourceFiles = SOURCE_FILES_A,
             expectedApiSignature =
                 """
@@ -542,10 +544,9 @@ class DeepApiSurfaceHierarchyTest : DriverTest() {
     @Test
     fun `Hierarchy test - Can't refer from system to module`() {
         check(
+            apiSurface = TEST_SYSTEM_API_SURFACE,
             extraArguments = EXTRA_ARGS,
             format = FileFormat.V2,
-            hideAnnotations = arrayOf(TEST_HIDE_ANNOTATION),
-            showAnnotations = arrayOf(TEST_SYSTEM_API_ANNOTATION),
             sourceFiles =
                 arrayOf(
                     java(
@@ -580,14 +581,46 @@ class DeepApiSurfaceHierarchyTest : DriverTest() {
         )
     }
 
-    @Test
-    fun `Complicated case - SystemApi + ModuleApi`() {
+    private fun checkComplicatedCaseSystemAndModuleApi(
+        apiSurface: KnownApiSurface,
+        expectedApiSignature: String,
+        expectedIssues: String = "",
+    ) {
         check(
+            apiSurface = apiSurface,
             extraArguments = EXTRA_ARGS,
             format = FileFormat.V2,
-            hideAnnotations = arrayOf(TEST_HIDE_ANNOTATION),
-            showAnnotations = arrayOf(TEST_SYSTEM_API_ANNOTATION, TEST_MODULE_API_ANNOTATION),
             sourceFiles = SOURCE_FILES_B,
+            expectedApiSignature = expectedApiSignature,
+            expectedIssues = expectedIssues,
+        )
+    }
+
+    @Test
+    fun `Complicated case - SystemApi + ModuleApi - public`() {
+        checkComplicatedCaseSystemAndModuleApi(
+            apiSurface = TEST_PUBLIC_API_SURFACE,
+            expectedApiSignature =
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public class PublicClass {
+                      }
+                      public class PublicSubClass extends test.pkg.PublicClass {
+                        ctor public PublicSubClass();
+                        method public void abstractMethodOverridden();
+                        method public abstract void abstractMethodOverriddenByAbstract();
+                        method public void systemMethodOverridden();
+                      }
+                    }
+                """,
+        )
+    }
+
+    @Test
+    fun `Complicated case - SystemApi + ModuleApi - system and module`() {
+        checkComplicatedCaseSystemAndModuleApi(
+            apiSurface = TEST_SYSTEM_AND_MODULE_API_SURFACE,
             expectedApiSignature =
                 """
                     // Signature format: 2.0
@@ -609,7 +642,6 @@ class DeepApiSurfaceHierarchyTest : DriverTest() {
                         method public void systemMethodOverridden();
                       }
                       public class PublicSubClass extends test.pkg.PublicClass {
-                        method public void abstractMethodOverridden();
                         method public void subMethod();
                       }
                     }
@@ -621,14 +653,46 @@ class DeepApiSurfaceHierarchyTest : DriverTest() {
         )
     }
 
-    @Test
-    fun `Complicated case - SystemApi only`() {
+    private fun checkComplicatedCaseSystemApiOnly(
+        apiSurface: KnownApiSurface,
+        expectedApiSignature: String,
+        expectedIssues: String = "",
+    ) {
         check(
+            apiSurface = apiSurface,
             extraArguments = EXTRA_ARGS,
             format = FileFormat.V2,
-            hideAnnotations = arrayOf(TEST_HIDE_ANNOTATION),
-            showAnnotations = arrayOf(TEST_SYSTEM_API_ANNOTATION),
             sourceFiles = SOURCE_FILES_B,
+            expectedApiSignature = expectedApiSignature,
+            expectedIssues = expectedIssues,
+        )
+    }
+
+    @Test
+    fun `Complicated case - SystemApi only - public`() {
+        checkComplicatedCaseSystemApiOnly(
+            apiSurface = TEST_PUBLIC_API_SURFACE,
+            expectedApiSignature =
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public class PublicClass {
+                      }
+                      public class PublicSubClass extends test.pkg.PublicClass {
+                        ctor public PublicSubClass();
+                        method public void abstractMethodOverridden();
+                        method public abstract void abstractMethodOverriddenByAbstract();
+                        method public void systemMethodOverridden();
+                      }
+                    }
+                """,
+        )
+    }
+
+    @Test
+    fun `Complicated case - SystemApi only - system`() {
+        checkComplicatedCaseSystemApiOnly(
+            apiSurface = TEST_SYSTEM_API_SURFACE,
             expectedApiSignature =
                 """
                     // Signature format: 2.0
@@ -642,7 +706,6 @@ class DeepApiSurfaceHierarchyTest : DriverTest() {
                         method public void systemMethodOverridden();
                       }
                       public class PublicSubClass extends test.pkg.PublicClass {
-                        method public void abstractMethodOverridden();
                         method public void subMethod();
                       }
                     }

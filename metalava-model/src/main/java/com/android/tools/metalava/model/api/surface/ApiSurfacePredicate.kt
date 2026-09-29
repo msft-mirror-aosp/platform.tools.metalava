@@ -35,8 +35,7 @@ object ApiSurfacePredicate {
      */
     fun wholeCoreApi(
         apiSurface: ApiSurface,
-        includeOverridingMethods: Boolean = false,
-    ) = wholeApiForVariants(apiSurface, ApiType.CORE.emitVariantTypes, includeOverridingMethods)
+    ) = wholeApiForVariants(apiSurface, ApiType.CORE.emitVariantTypes)
 
     /**
      * Return a [FilterPredicate] that matches any item that belongs to the core [ApiVariant] of
@@ -58,12 +57,10 @@ object ApiSurfacePredicate {
      */
     fun wholeCoreAndRemovedApi(
         apiSurface: ApiSurface,
-        includeOverridingMethods: Boolean = false,
     ) =
         wholeApiForVariants(
             apiSurface,
             ApiType.REMOVED.referenceVariantTypes,
-            includeOverridingMethods
         )
 
     /**
@@ -73,7 +70,6 @@ object ApiSurfacePredicate {
     private fun wholeApiForVariants(
         apiSurface: ApiSurface,
         variantTypes: List<ApiVariantType>,
-        includeOverridingMethods: Boolean = false,
     ): FilterPredicate {
         val apiSurfaces = apiSurface.surfaces
         val inclusionMask =
@@ -83,15 +79,7 @@ object ApiSurfacePredicate {
                 variantTypes,
             )
 
-        val itemPredicate = ItemApiVariantsPredicate(apiSurfaces, inclusionMask)
-        return if (includeOverridingMethods) {
-            orPredicates(
-                itemPredicate,
-                SuperMethodApiVariantsPredicate(apiSurfaces, inclusionMask),
-            )
-        } else {
-            itemPredicate
-        }
+        return ItemApiVariantsPredicate(apiSurfaces, inclusionMask)
     }
 
     /**
@@ -153,21 +141,6 @@ object ApiSurfacePredicate {
     }
 
     /**
-     * A [FilterPredicate] that matches an item if its overridden super methods belong to at least
-     * one [ApiVariant] matching [inclusionMask] via [SelectedApi.superMethodApiVariants].
-     *
-     * This ensures that methods overriding a method in an API surface are considered for emission
-     * or stub generation.
-     */
-    private class SuperMethodApiVariantsPredicate(
-        apiSurfaces: ApiSurfaces,
-        inclusionMask: Int,
-    ) : ApiVariantsPredicate(apiSurfaces, inclusionMask) {
-        override fun test(t: SelectableItem) =
-            t.selectedApi.superMethodApiVariants.bits and inclusionMask != 0
-    }
-
-    /**
      * Return [ApiFilters] for generating stubs for [apiSurface].
      *
      * Stubs must include the whole API surface (both base and extended surfaces, such as public API
@@ -175,8 +148,7 @@ object ApiSurfacePredicate {
      * inherited APIs.
      * - [ApiFilters.reference]: matches items across the whole API surface (including doc-only APIs
      *   if [includeDocOnly] is true).
-     * - [ApiFilters.emit]: matches items marked for emission across the whole API surface,
-     *   including overriding methods (via [SelectedApi.superMethodApiVariants]).
+     * - [ApiFilters.emit]: matches items marked for emission across the whole API surface.
      * - [ApiFilters.traversal]: uses the same predicate as [ApiFilters.emit]. Because stubs include
      *   the whole API surface rather than a delta, any package or class containing an emitted item
      *   is also part of the whole API surface and matches [ApiFilters.emit]. Setting this
@@ -235,7 +207,6 @@ object ApiSurfacePredicate {
     fun forDelta(
         apiType: ApiType,
         apiSurface: ApiSurface,
-        includeOverridingMethods: Boolean = false,
     ): FilterPredicate {
         val variantTypes = apiType.emitVariantTypes
         val apiSurfaces = apiSurface.surfaces
@@ -247,13 +218,8 @@ object ApiSurfacePredicate {
             )
 
         return orPredicates(
-            buildList {
-                add(ItemApiVariantsPredicate(apiSurfaces, inclusionMask))
-                add(SuperClassApiVariantsPredicate(apiSurfaces, inclusionMask))
-                if (includeOverridingMethods) {
-                    add(SuperMethodApiVariantsPredicate(apiSurfaces, inclusionMask))
-                }
-            }
+            ItemApiVariantsPredicate(apiSurfaces, inclusionMask),
+            SuperClassApiVariantsPredicate(apiSurfaces, inclusionMask),
         )
     }
 
@@ -274,11 +240,10 @@ object ApiSurfacePredicate {
     fun forSurfaceFilters(
         apiType: ApiType,
         apiSurface: ApiSurface,
-        includeOverridingMethods: Boolean = false,
     ): ApiFilters {
         // Items in this API surface can reference types or paired methods across the whole API
         // surface hierarchy (including base surfaces that this surface extends).
-        val reference = referenceFilter(apiType, apiSurface, includeOverridingMethods)
+        val reference = referenceFilter(apiType, apiSurface)
 
         // Create a mask matching the specific variant for this API surface delta.
         val variantTypes = apiType.emitVariantTypes
@@ -286,7 +251,7 @@ object ApiSurfacePredicate {
 
         // Emitted items must belong to this delta (or have a superclass in the delta) and be
         // marked for emission.
-        val emit = nonElidingFilter(apiType, apiSurface, includeOverridingMethods)
+        val emit = nonElidingFilter(apiType, apiSurface)
 
         // Traversal includes items in the delta as well as base classes whose contents belong to
         // the delta (via contentApiVariants) so that visitors can visit delta members within
@@ -294,14 +259,9 @@ object ApiSurfacePredicate {
         val apiSurfaces = apiSurface.surfaces
         val traversalPredicate =
             orPredicates(
-                buildList {
-                    add(ItemApiVariantsPredicate(apiSurfaces, emitMask))
-                    add(ContentApiVariantsPredicate(apiSurfaces, emitMask))
-                    add(SuperClassApiVariantsPredicate(apiSurfaces, emitMask))
-                    if (includeOverridingMethods) {
-                        add(SuperMethodApiVariantsPredicate(apiSurfaces, emitMask))
-                    }
-                }
+                ItemApiVariantsPredicate(apiSurfaces, emitMask),
+                ContentApiVariantsPredicate(apiSurfaces, emitMask),
+                SuperClassApiVariantsPredicate(apiSurfaces, emitMask),
             )
         val traversal =
             andPredicates(
@@ -353,7 +313,6 @@ object ApiSurfacePredicate {
     fun nonElidingFilter(
         apiType: ApiType,
         apiSurface: ApiSurface,
-        includeOverridingMethods: Boolean = false,
     ): FilterPredicate =
         // Only items marked for emission should appear in the signature file.
         andPredicates(
@@ -361,7 +320,6 @@ object ApiSurfacePredicate {
             forDelta(
                 apiType = apiType,
                 apiSurface = apiSurface,
-                includeOverridingMethods = includeOverridingMethods,
             ),
         )
 
@@ -379,7 +337,6 @@ object ApiSurfacePredicate {
             nonElidingFilter(
                 apiType,
                 apiSurface,
-                includeOverridingMethods = true,
             )
         return andPredicates(
             nonElidingFilter,
@@ -394,9 +351,7 @@ object ApiSurfacePredicate {
     fun referenceFilter(
         apiType: ApiType,
         apiSurface: ApiSurface,
-        includeOverridingMethods: Boolean = false,
-    ): FilterPredicate =
-        wholeApiForVariants(apiSurface, apiType.referenceVariantTypes, includeOverridingMethods)
+    ): FilterPredicate = wholeApiForVariants(apiSurface, apiType.referenceVariantTypes)
 
     /**
      * Return the [ApiFilters] for [apiType] using information from [apiSurface] to customize their
@@ -423,7 +378,6 @@ object ApiSurfacePredicate {
     fun nonElidingApiFilters(
         apiType: ApiType,
         apiSurface: ApiSurface,
-        includeOverridingMethods: Boolean = false,
     ) =
         ApiFilters(
             reference = referenceFilter(apiType, apiSurface),
@@ -431,7 +385,6 @@ object ApiSurfacePredicate {
                 nonElidingFilter(
                     apiType,
                     apiSurface,
-                    includeOverridingMethods = includeOverridingMethods,
                 ),
         )
 

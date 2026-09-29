@@ -147,11 +147,6 @@ interface Assertions {
                             "$indent superClass - ${selectedApi.superClassApiVariants.formatFor(apiSurfaces)}\n"
                         )
                     }
-                    if (selectedApi.superMethodApiVariants.isNotEmpty()) {
-                        append(
-                            "${indent}superMethod - ${selectedApi.superMethodApiVariants.formatFor(apiSurfaces)}\n"
-                        )
-                    }
                     if (selectedApi.elidableApiVariants.isNotEmpty()) {
                         append(
                             "$indent   elidable - ${selectedApi.elidableApiVariants.formatFor(apiSurfaces)}\n"
