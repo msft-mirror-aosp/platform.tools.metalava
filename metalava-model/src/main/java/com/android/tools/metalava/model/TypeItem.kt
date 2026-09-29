@@ -1314,15 +1314,14 @@ interface VariableTypeItem : TypeItem, BoundsTypeItem, ReferenceTypeItem, Except
     /**
      * Compares this [VariableTypeItem] to [other] for equality.
      *
-     * Returns `true` if [other] is a [VariableTypeItem] with the identical [asTypeParameter]
-     * (compared using `===`), [TypeModifiers.nullability], and [TypeModifiers.annotations].
+     * Returns `true` if [other] is a [VariableTypeItem] with the same [asTypeParameter] (compared
+     * using [equals]), [TypeModifiers.nullability], and [TypeModifiers.annotations].
      */
     override fun equals(other: Any?): Boolean
 
     /**
-     * Returns a hash code value for this [VariableTypeItem] based on the identity of
-     * [asTypeParameter] (using [System.identityHashCode]), [TypeModifiers.nullability], and
-     * [TypeModifiers.annotations].
+     * Returns a hash code value for this [VariableTypeItem] based on its [asTypeParameter],
+     * [TypeModifiers.nullability], and [TypeModifiers.annotations].
      */
     override fun hashCode(): Int
 

@@ -36,11 +36,11 @@ internal class DefaultVariableTypeItem(
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (other !is VariableTypeItem) return false
-        return asTypeParameter === other.asTypeParameter && modifiers == other.modifiers
+        return asTypeParameter == other.asTypeParameter && modifiers == other.modifiers
     }
 
     override fun hashCode(): Int {
-        var result = System.identityHashCode(asTypeParameter)
+        var result = asTypeParameter.hashCode()
         result = 31 * result + modifiers.hashCode()
         return result
     }

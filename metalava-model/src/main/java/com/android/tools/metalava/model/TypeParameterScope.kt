@@ -36,15 +36,8 @@ import java.lang.StringBuilder
  *     }
  * ```
  *
- * This does not implement [equals] and [hashCode] as the identity comparison is sufficient and
- * necessary.
- *
- * It is sufficient because [TypeParameterScope]s have a one-to-one correspondence with a type
- * parameter list owner.
- *
- * It is necessary because [TypeParameterItem.equals] is currently only based on the name. So,
- * unless great care is taken to use identity comparison for [MapWrapper.nameToTypeParameterItem]
- * contents it would break caching and have every type `T` reference the same type parameter.
+ * This does not implement [equals] and [hashCode] as the identity comparison is sufficient because
+ * [TypeParameterScope]s have a one-to-one correspondence with a type parameter list owner.
  */
 sealed class TypeParameterScope private constructor() {
 

@@ -86,23 +86,24 @@ sealed interface TypeComparator {
         /**
          * Compare [param1] and [param2].
          *
-         * The default compares type parameters by equality ([param1] == [param2]), matching most
-         * subclasses ([STRICT], [NULLABILITY_AWARE], [IGNORE_NULLABILITY], [ERASED], and
-         * [FLATTENED_WILDCARDS]). Only [IDENTICAL] overrides this to compare by identity.
+         * The default compares type parameters by name ([param1].name() == [param2].name()),
+         * matching most subclasses ([STRICT], [NULLABILITY_AWARE], [IGNORE_NULLABILITY], [ERASED],
+         * and [FLATTENED_WILDCARDS]). Only [IDENTICAL] compares by identity.
          */
         protected open fun compareTypeParameters(
             param1: TypeParameterItem,
             param2: TypeParameterItem,
-        ): Boolean = param1 == param2
+        ): Boolean = param1.name() == param2.name()
 
         /**
          * Hash [param].
          *
-         * The default hashes type parameters by equality ([param].hashCode()), matching most
+         * The default hashes type parameters by name ([param].name().hashCode()), matching most
          * subclasses ([STRICT], [NULLABILITY_AWARE], [IGNORE_NULLABILITY], [ERASED], and
-         * [FLATTENED_WILDCARDS]). Only [IDENTICAL] overrides this to hash by identity.
+         * [FLATTENED_WILDCARDS]). Only [IDENTICAL] hashes by identity.
          */
-        protected open fun hashTypeParameter(param: TypeParameterItem): Int = param.hashCode()
+        protected open fun hashTypeParameter(param: TypeParameterItem): Int =
+            param.name().hashCode()
 
         /** Compare the structural elements of [type1] and [type2]. */
         protected open fun compareStructure(type1: TypeItem, type2: TypeItem): Boolean {
@@ -188,13 +189,13 @@ sealed interface TypeComparator {
     }
 
     /**
-     * [TypeComparator] that compares structure (including type parameter equality), nullability,
-     * and type-use annotations.
+     * [TypeComparator] that compares structure (including type parameter name), nullability, and
+     * type-use annotations.
      */
     data object STRICT : Base()
 
     /**
-     * [TypeComparator] that compares structure (including type parameter equality) and nullability,
+     * [TypeComparator] that compares structure (including type parameter name) and nullability,
      * ignoring type-use annotations.
      */
     data object NULLABILITY_AWARE : Base() {
