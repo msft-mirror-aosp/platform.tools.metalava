@@ -83,7 +83,6 @@ import java.io.IOException
 import java.io.InputStream
 import java.io.StringReader
 import java.nio.file.Path
-import java.util.IdentityHashMap
 import kotlin.text.Charsets.UTF_8
 
 /** Encapsulates information needed to process a signature file. */
@@ -304,9 +303,6 @@ private constructor(
 
     /** Merges class re-definitions across signature files. */
     private val classMerger = ClassMerger(allowClassModifierChanges)
-
-    /** Map from [ClassItem] to [TextTypeItemFactory]. */
-    private val classToTypeItemFactory = IdentityHashMap<ClassItem, TextTypeItemFactory>()
 
     companion object {
         /**
@@ -938,12 +934,6 @@ private constructor(
             )
         cl.markSelectedApiVariant()
 
-        // Store the [TypeItemFactory] for this [ClassItem] so it can be retrieved later in
-        // [typeItemFactoryForClass].
-        if (!typeItemFactory.typeParameterScope.isEmpty()) {
-            classToTypeItemFactory[cl] = typeItemFactory
-        }
-
         // Parse the class body adding each member created to the class item being populated.
         parseClassBody(tokenizer, cl, typeItemFactory)
     }
@@ -977,7 +967,7 @@ private constructor(
 
     /** Get the [TextTypeItemFactory] for a previously created [ClassItem]. */
     private fun typeItemFactoryForClass(classItem: ClassItem?): TextTypeItemFactory =
-        classItem?.let { classToTypeItemFactory[classItem] } ?: globalTypeItemFactory
+        globalTypeItemFactory.from(classItem)
 
     /** Map from class member kind token to its parse function. */
     private val classMemberKindToParseFunction =
@@ -1108,9 +1098,7 @@ private constructor(
                 ) as SkeletonClassItem
             }
 
-        // Get the [TextTypeItemFactory] for the outer class, if any, from a previously stored one,
-        // otherwise use the [globalTypeItemFactory] as the [ClassItem] is a stub and so has no type
-        // parameters.
+        // Get the [TextTypeItemFactory] for the outer class, if any.
         val outerClassTypeItemFactory = typeItemFactoryForClass(outerClass)
 
         // Create type parameter list and factory from the string and optional outer class factory.

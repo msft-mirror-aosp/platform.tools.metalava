@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model.text
 
+import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterScope
@@ -27,6 +28,12 @@ internal class TextTypeItemFactory(
     private val typeParser: TextTypeParser,
     typeParameterScope: TypeParameterScope = TypeParameterScope.empty,
 ) : DefaultTypeItemFactory<String, TextTypeItemFactory>(typeParameterScope) {
+
+    /** Construct a [TextTypeItemFactory] suitable for creating types within [classItem]. */
+    fun from(classItem: ClassItem?): TextTypeItemFactory {
+        val scope = TypeParameterScope.from(classItem)
+        return if (scope.isEmpty()) this else createNestedFactory(scope)
+    }
 
     override fun self() = this
 
