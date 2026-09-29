@@ -523,13 +523,13 @@ private constructor(
                 valueParser = valueParser,
                 defaultTargetLanguageSet = defaultTargetLanguageSet,
                 classMerger = classMerger,
-                fileLocationTracker = tokenizer,
+                tokenizer = tokenizer,
                 appending = appending,
                 kotlinStyleNulls = kotlinStyleNulls,
                 kotlinNameTypeOrder = format[KOTLIN_NAME_TYPE_ORDER],
                 apiVariant = apiVariant,
             )
-        parser.parse(tokenizer)
+        parser.parse()
     }
 
     private val stats
@@ -568,8 +568,8 @@ internal class SingleSignatureFileParser(
     /** Merges class re-definitions across signature files. */
     private val classMerger: ClassMerger,
 
-    /** The [FileLocationTracker] for the file being parsed. */
-    private val fileLocationTracker: FileLocationTracker,
+    /** The [Tokenizer] for the file being parsed. */
+    private val tokenizer: Tokenizer,
 
     /**
      * True if this is appending information from one signature file to a [Codebase] created from
@@ -646,12 +646,12 @@ internal class SingleSignatureFileParser(
     /**
      * Report a recoverable issue encountered while parsing.
      *
-     * Retrieves the location of the error from [fileLocationTracker].
+     * Retrieves the location of the error from [tokenizer].
      *
      * Note: Non-recoverable issues result in an exception being thrown.
      */
     private fun reportIssue(issue: Issues.Issue, message: String) {
-        val location = fileLocationTracker.fileLocation()
+        val location = tokenizer.fileLocation()
         codebase.reporter.report(issue, null, message, location)
     }
 
@@ -667,12 +667,12 @@ internal class SingleSignatureFileParser(
     }
 
     /** Parse the signature file from [tokenizer], populating [codebase]. */
-    fun parse(tokenizer: Tokenizer) {
+    fun parse() {
         while (true) {
             val token = tokenizer.getToken() ?: break
             // TODO: Accept annotations on packages.
             if ("package" == token) {
-                parsePackage(tokenizer)
+                parsePackage()
             } else {
                 throw ApiParseException("expected package got $token", tokenizer)
             }
@@ -684,11 +684,7 @@ internal class SingleSignatureFileParser(
      *
      * If an existing package exists then this makes sure that its annotations match [annotations].
      */
-    private fun findOrCreatePackage(
-        tokenizer: Tokenizer,
-        name: String,
-        annotations: List<AnnotationItem>
-    ): PackageItem {
+    private fun findOrCreatePackage(name: String, annotations: List<AnnotationItem>): PackageItem {
         // Check to see if the package already exists, if it does then return it.
         codebase.findPackage(name)?.let { existing ->
             // If the same package showed up multiple times, make sure they have the same modifiers.
@@ -727,16 +723,16 @@ internal class SingleSignatureFileParser(
         return codebase.packageTracker.createPackage(name, packageInfo)
     }
 
-    private fun parsePackage(tokenizer: Tokenizer) {
+    private fun parsePackage() {
         tokenizer.requireToken()
 
         // Metalava: including annotations in file now
-        val annotations = getAnnotations(tokenizer)
+        val annotations = getAnnotations()
         var token = tokenizer.current
         tokenizer.assertIdent(token)
         val name: String = token
 
-        val pkg = findOrCreatePackage(tokenizer, name, annotations)
+        val pkg = findOrCreatePackage(name, annotations)
 
         // Note: pkg.markSelectedApiVariant() is not called here because packages do not belong to
         // an API surface in their own right; their API variants are populated via propagation from
@@ -751,7 +747,7 @@ internal class SingleSignatureFileParser(
             if ("}" == token) {
                 break
             } else {
-                parseClass(pkg, tokenizer)
+                parseClass(pkg)
             }
         }
     }
@@ -767,7 +763,6 @@ internal class SingleSignatureFileParser(
      */
     private fun parseTypeAlias(
         pkg: PackageItem,
-        tokenizer: Tokenizer,
         modifiers: MutableModifierList,
         location: FileLocation
     ) {
@@ -801,7 +796,7 @@ internal class SingleSignatureFileParser(
         }
 
         tokenizer.requireToken()
-        val typeString = scanForTypeString(tokenizer)
+        val typeString = scanForTypeString()
         token = tokenizer.current
         if (";" != token) {
             throw ApiParseException("expected ; found $token", tokenizer)
@@ -822,7 +817,7 @@ internal class SingleSignatureFileParser(
                 interfaceTypes = emptySet(),
                 optionalAliasedType = type,
             )
-        if (checkForExistingClass(classCharacteristics, tokenizer)) {
+        if (checkForExistingClass(classCharacteristics)) {
             return
         }
 
@@ -842,8 +837,8 @@ internal class SingleSignatureFileParser(
     }
 
     /** Parse a class starting with [Tokenizer.current]. */
-    private fun parseClass(pkg: PackageItem, tokenizer: Tokenizer) {
-        val (modifiers, targetLanguages) = parseModifiersAndTargetLanguages(tokenizer)
+    private fun parseClass(pkg: PackageItem) {
+        val (modifiers, targetLanguages) = parseModifiersAndTargetLanguages()
         // Remember this position as this seems like a good place to use to report issues with the
         // class item.
         val classPosition = tokenizer.fileLocation()
@@ -858,7 +853,7 @@ internal class SingleSignatureFileParser(
 
         if (classKind == ClassKind.TYPEALIAS) {
             // Type aliases aren't classes, but they are defined at the same level as classes
-            parseTypeAlias(pkg, tokenizer, modifiers, classPosition)
+            parseTypeAlias(pkg, modifiers, classPosition)
             // Don't continue creating a class item
             return
         }
@@ -887,7 +882,7 @@ internal class SingleSignatureFileParser(
 
         if ("extends" == token && classKind != ClassKind.INTERFACE) {
             tokenizer.requireToken()
-            val superClassTypeString = parseSuperTypeString(tokenizer)
+            val superClassTypeString = parseSuperTypeString()
             superClassType =
                 typeItemFactory.getSuperClassType(
                     superClassTypeString,
@@ -906,7 +901,7 @@ internal class SingleSignatureFileParser(
                 if (token == "{" || token == "permits") {
                     break
                 } else if ("," != token) {
-                    val interfaceTypeString = parseSuperTypeString(tokenizer)
+                    val interfaceTypeString = parseSuperTypeString()
                     val interfaceType = typeItemFactory.getInterfaceType(interfaceTypeString)
                     interfaceTypes.add(interfaceType)
                     token = tokenizer.current
@@ -924,7 +919,7 @@ internal class SingleSignatureFileParser(
                 if ("{" == token) {
                     break
                 } else {
-                    val typeString = parseSuperTypeString(tokenizer)
+                    val typeString = parseSuperTypeString()
                     val permitsType = typeItemFactory.getHierarchicalClassType(typeString)
                     permitTypes.add(permitsType)
                     token = tokenizer.current
@@ -957,7 +952,7 @@ internal class SingleSignatureFileParser(
                 interfaceTypes = interfaceTypes,
                 optionalAliasedType = null,
             )
-        if (checkForExistingClass(classCharacteristics, tokenizer)) {
+        if (checkForExistingClass(classCharacteristics)) {
             return
         }
 
@@ -974,7 +969,7 @@ internal class SingleSignatureFileParser(
         val textRecordComponents =
             if (classKind == ClassKind.RECORD) {
                 // Parse record components
-                parseRecordComponents(tokenizer)
+                parseRecordComponents()
             } else {
                 null
             }
@@ -1012,7 +1007,7 @@ internal class SingleSignatureFileParser(
         cl.markSelectedApiVariant()
 
         // Parse the class body adding each member created to the class item being populated.
-        parseClassBody(tokenizer, cl, typeItemFactory)
+        parseClassBody(cl, typeItemFactory)
     }
 
     /**
@@ -1024,7 +1019,6 @@ internal class SingleSignatureFileParser(
      */
     private fun checkForExistingClass(
         classCharacteristics: ClassCharacteristics,
-        tokenizer: Tokenizer,
     ): Boolean {
         val existingClass =
             codebase.findClassInCodebase(classCharacteristics.qualifiedName) ?: return false
@@ -1032,7 +1026,7 @@ internal class SingleSignatureFileParser(
         // Parse the class body adding each member created to the existing class (typealiases do not
         // have a class body).
         if (classCharacteristics.classKind != ClassKind.TYPEALIAS) {
-            parseClassBody(tokenizer, existingClass, typeItemFactoryForClass(existingClass))
+            parseClassBody(existingClass, typeItemFactoryForClass(existingClass))
         }
 
         // Perform any merge checks after loading all the files. That is needed because merging
@@ -1048,7 +1042,7 @@ internal class SingleSignatureFileParser(
 
     /** Map from class member kind token to its parse function. */
     private val classMemberKindToParseFunction =
-        mapOf<String, (Tokenizer, SkeletonClassItem, TextTypeItemFactory) -> Unit>(
+        mapOf<String, (SkeletonClassItem, TextTypeItemFactory) -> Unit>(
             "ctor" to ::parseConstructor,
             "enum_constant" to ::parseEnumConstant,
             "field" to ::parseField,
@@ -1063,7 +1057,6 @@ internal class SingleSignatureFileParser(
      * the last member.
      */
     private fun parseClassBody(
-        tokenizer: Tokenizer,
         containingClass: SkeletonClassItem,
         classTypeItemFactory: TextTypeItemFactory,
     ) {
@@ -1078,7 +1071,7 @@ internal class SingleSignatureFileParser(
                             "expected one of ${classMemberKindToParseFunction.keys.joinToString()}",
                             tokenizer
                         )
-                parseFunction(tokenizer, containingClass, classTypeItemFactory)
+                parseFunction(containingClass, classTypeItemFactory)
             }
             token = tokenizer.requireToken()
         }
@@ -1088,8 +1081,8 @@ internal class SingleSignatureFileParser(
      * Parse a super type string, i.e. a string representing a super class type or a super interface
      * type.
      */
-    private fun parseSuperTypeString(tokenizer: Tokenizer): String {
-        var token = getAnnotationCompleteToken(tokenizer)
+    private fun parseSuperTypeString(): String {
+        var token = getAnnotationCompleteToken()
 
         // Use the token directly if it is complete, otherwise construct the super class type
         // string from as many tokens as necessary.
@@ -1106,7 +1099,7 @@ internal class SingleSignatureFileParser(
                 // However, this type cannot be an array, so unlike [parseType] this does
                 // not need to check if the next token has annotations.
                 do {
-                    token = getAnnotationCompleteToken(tokenizer)
+                    token = getAnnotationCompleteToken()
                     append(" ")
                     append(token)
                 } while (isIncompleteTypeToken(token))
@@ -1231,10 +1224,9 @@ internal class SingleSignatureFileParser(
      * When the method returns, the [tokenizer] will point to the token after the end of the
      * returned string.
      *
-     * @param tokenizer the [Tokenizer] from which to read tokens.
      * @return the complete token string.
      */
-    private fun getAnnotationCompleteToken(tokenizer: Tokenizer): String {
+    private fun getAnnotationCompleteToken(): String {
         val startingToken = tokenizer.current
         val atIndex = startingToken.indexOf('@')
         return if (atIndex != -1) {
@@ -1242,7 +1234,7 @@ internal class SingleSignatureFileParser(
             // `prefix.@Nullable`).
             // Parse the complete annotation (including any arguments) from the tokenizer.
             val annotationStart = startingToken.substring(atIndex)
-            val annotation = getAnnotationSource(tokenizer, annotationStart)
+            val annotation = getAnnotationSource(annotationStart)
             buildString {
                 append(startingToken, 0, atIndex)
                 append(annotation)
@@ -1260,7 +1252,7 @@ internal class SingleSignatureFileParser(
      *
      * When the method returns, the [tokenizer] will point to the token after the annotation.
      */
-    private fun getAnnotationSource(tokenizer: Tokenizer, startingToken: String): String? {
+    private fun getAnnotationSource(startingToken: String): String? {
         var token = startingToken
         if (token.startsWith('@')) {
             return buildString {
@@ -1306,7 +1298,7 @@ internal class SingleSignatureFileParser(
      *
      * When the method returns, the [tokenizer] will point to the token after the annotation list.
      */
-    private fun getAnnotations(tokenizer: Tokenizer) = buildList {
+    private fun getAnnotations() = buildList {
         var token = tokenizer.current
         while (true) {
             // If the token does not start with '@' then it is not an annotation so break out.
@@ -1342,28 +1334,26 @@ internal class SingleSignatureFileParser(
 
     /** Parse a constructor member of [containingClass]. */
     private fun parseConstructor(
-        tokenizer: Tokenizer,
         containingClass: SkeletonClassItem,
         classTypeItemFactory: TextTypeItemFactory,
     ) {
         tokenizer.requireToken()
         val method: ConstructorItem
 
-        val (modifiers, targetLanguages) = parseModifiersAndTargetLanguages(tokenizer)
+        val (modifiers, targetLanguages) = parseModifiersAndTargetLanguages()
 
         // Get a TypeParameterList and accompanying TypeItemFactory
-        val (typeParameterList, typeItemFactory) =
-            parseTypeParameterList(tokenizer, classTypeItemFactory)
+        val (typeParameterList, typeItemFactory) = parseTypeParameterList(classTypeItemFactory)
         var token = tokenizer.current
 
         tokenizer.assertIdent(token)
         // For nested classes, strip outer classes from name
         val name: String = token.extractSimpleName()
-        val parameters = parseParameterList(tokenizer)
+        val parameters = parseParameterList()
         token = tokenizer.requireToken()
         var throwsList = emptyList<ExceptionTypeItem>()
         if ("throws" == token) {
-            throwsList = parseThrows(tokenizer, typeItemFactory)
+            throwsList = parseThrows(typeItemFactory)
             token = tokenizer.current
         }
         if (";" != token) {
@@ -1403,18 +1393,16 @@ internal class SingleSignatureFileParser(
 
     /** Parse a method member of [containingClass]. */
     private fun parseMethod(
-        tokenizer: Tokenizer,
         containingClass: SkeletonClassItem,
         classTypeItemFactory: TextTypeItemFactory,
     ) {
         tokenizer.requireToken()
         val method: MethodItem
 
-        val (modifiers, targetLanguages) = parseModifiersAndTargetLanguages(tokenizer)
+        val (modifiers, targetLanguages) = parseModifiersAndTargetLanguages()
 
         // Get a TypeParameterList and accompanying TypeParameterScope
-        val (typeParameterList, typeItemFactory) =
-            parseTypeParameterList(tokenizer, classTypeItemFactory)
+        val (typeParameterList, typeItemFactory) = parseTypeParameterList(classTypeItemFactory)
         var token = tokenizer.current
         tokenizer.assertIdent(token)
 
@@ -1424,7 +1412,7 @@ internal class SingleSignatureFileParser(
         if (kotlinNameTypeOrder) {
             // Kotlin style: parse the name, the parameter list, then the return type.
             name = token
-            parameters = parseParameterList(tokenizer)
+            parameters = parseParameterList()
             token = tokenizer.requireToken()
             if (token != ":") {
                 throw ApiParseException(
@@ -1434,15 +1422,15 @@ internal class SingleSignatureFileParser(
             }
             token = tokenizer.requireToken()
             tokenizer.assertIdent(token)
-            returnTypeString = scanForTypeString(tokenizer)
+            returnTypeString = scanForTypeString()
             token = tokenizer.current
         } else {
             // Java style: parse the return type, the name, and then the parameter list.
-            returnTypeString = scanForTypeString(tokenizer)
+            returnTypeString = scanForTypeString()
             token = tokenizer.current
             tokenizer.assertIdent(token)
             name = token
-            parameters = parseParameterList(tokenizer)
+            parameters = parseParameterList()
             token = tokenizer.requireToken()
         }
 
@@ -1464,11 +1452,11 @@ internal class SingleSignatureFileParser(
 
         when (token) {
             "throws" -> {
-                throwsList = parseThrows(tokenizer, typeItemFactory)
+                throwsList = parseThrows(typeItemFactory)
                 token = tokenizer.current
             }
             "default" -> {
-                defaultAnnotationMethodValue = parseDefault(tokenizer)
+                defaultAnnotationMethodValue = parseDefault()
                 token = tokenizer.current
             }
         }
@@ -1518,12 +1506,10 @@ internal class SingleSignatureFileParser(
 
     /** Parse a field member of [containingClass]. */
     private fun parseField(
-        tokenizer: Tokenizer,
         containingClass: SkeletonClassItem,
         classTypeItemFactory: TextTypeItemFactory,
     ) =
         parseFieldOrEnumConstant(
-            tokenizer,
             containingClass,
             classTypeItemFactory,
             isEnumConstant = false,
@@ -1531,12 +1517,10 @@ internal class SingleSignatureFileParser(
 
     /** Parse an enum constant member of [containingClass]. */
     private fun parseEnumConstant(
-        tokenizer: Tokenizer,
         containingClass: SkeletonClassItem,
         classTypeItemFactory: TextTypeItemFactory,
     ) =
         parseFieldOrEnumConstant(
-            tokenizer,
             containingClass,
             classTypeItemFactory,
             isEnumConstant = true,
@@ -1544,13 +1528,12 @@ internal class SingleSignatureFileParser(
 
     /** Parse a field or enum constant of [containingClass]. */
     private fun parseFieldOrEnumConstant(
-        tokenizer: Tokenizer,
         containingClass: SkeletonClassItem,
         classTypeItemFactory: TextTypeItemFactory,
         isEnumConstant: Boolean,
     ) {
         tokenizer.requireToken()
-        val (modifiers, targetLanguages) = parseModifiersAndTargetLanguages(tokenizer)
+        val (modifiers, targetLanguages) = parseModifiersAndTargetLanguages()
         var token = tokenizer.current
         tokenizer.assertIdent(token)
 
@@ -1558,14 +1541,14 @@ internal class SingleSignatureFileParser(
         val name: String
         if (kotlinNameTypeOrder) {
             // Kotlin style: parse the name, then the type.
-            name = parseNameWithColon(token, tokenizer)
+            name = parseNameWithColon(token)
             token = tokenizer.requireToken()
             tokenizer.assertIdent(token)
-            typeString = scanForTypeString(tokenizer)
+            typeString = scanForTypeString()
             token = tokenizer.current
         } else {
             // Java style: parse the name, then the type.
-            typeString = scanForTypeString(tokenizer)
+            typeString = scanForTypeString()
             token = tokenizer.current
             tokenizer.assertIdent(token)
             name = token
@@ -1638,9 +1621,7 @@ internal class SingleSignatureFileParser(
      * When the method returns, the current token of [tokenizer] will be the first token after the
      * modifiers.
      */
-    private fun parseModifiersAndTargetLanguages(
-        tokenizer: Tokenizer,
-    ): Pair<MutableModifierList, Set<TargetLanguage>> {
+    private fun parseModifiersAndTargetLanguages(): Pair<MutableModifierList, Set<TargetLanguage>> {
         val token = tokenizer.current
         // Check if there's a token describing the target languages of the item. If there is, get
         // the next token, if not, use the set of all languages.
@@ -1649,7 +1630,7 @@ internal class SingleSignatureFileParser(
                 tokenizer.requireToken()
             } ?: defaultTargetLanguageSet
 
-        val modifiers = parseModifiers(tokenizer)
+        val modifiers = parseModifiers()
         return modifiers to targetLanguages
     }
 
@@ -1661,9 +1642,9 @@ internal class SingleSignatureFileParser(
      * The method starts processing using [Tokenizer.current] from [tokenizer]. When the method
      * returns, the current token of [tokenizer] will be the first token after the modifiers.
      */
-    private fun parseModifiers(tokenizer: Tokenizer): MutableModifierList {
-        val modifiers = parseModifierAnnotations(VisibilityLevel.PACKAGE_PRIVATE, tokenizer)
-        parseKeywordModifiers(tokenizer, modifiers)
+    private fun parseModifiers(): MutableModifierList {
+        val modifiers = parseModifierAnnotations(VisibilityLevel.PACKAGE_PRIVATE)
+        parseKeywordModifiers(modifiers)
         return modifiers
     }
 
@@ -1673,7 +1654,7 @@ internal class SingleSignatureFileParser(
      * The method starts processing from the current token of [tokenizer]. When the method returns,
      * the current token of [tokenizer] will be the first token after the modifiers.
      */
-    private fun parseKeywordModifiers(tokenizer: Tokenizer, modifiers: MutableModifierList) {
+    private fun parseKeywordModifiers(modifiers: MutableModifierList) {
         var token = tokenizer.current
         while (true) {
             when (token) {
@@ -1781,9 +1762,8 @@ internal class SingleSignatureFileParser(
      */
     private fun parseModifierAnnotations(
         visibilityLevel: VisibilityLevel,
-        tokenizer: Tokenizer,
     ): MutableModifierList {
-        val annotations = getAnnotations(tokenizer)
+        val annotations = getAnnotations()
         val modifiers = createMutableModifiers(visibilityLevel, annotations)
         // @Deprecated is also treated as a "modifier"
         if (annotations.any { it.qualifiedName == JAVA_LANG_DEPRECATED }) {
@@ -1793,27 +1773,25 @@ internal class SingleSignatureFileParser(
     }
 
     private fun parseProperty(
-        tokenizer: Tokenizer,
         containingClass: SkeletonClassItem,
         classTypeItemFactory: TextTypeItemFactory,
     ) {
         tokenizer.requireToken()
-        val modifiers = parseModifiers(tokenizer)
+        val modifiers = parseModifiers()
 
         // Get a TypeParameterList and accompanying TypeParameterScope
-        val (typeParameterList, typeItemFactory) =
-            parseTypeParameterList(tokenizer, classTypeItemFactory)
+        val (typeParameterList, typeItemFactory) = parseTypeParameterList(classTypeItemFactory)
 
         val typeString: String
         val receiverNamePair: Pair<TypeItem?, String>
         if (kotlinNameTypeOrder) {
             // Kotlin style: parse the name, then the type.
-            receiverNamePair = parsePropertyReceiverAndName(tokenizer, typeItemFactory)
-            typeString = scanForTypeString(tokenizer)
+            receiverNamePair = parsePropertyReceiverAndName(typeItemFactory)
+            typeString = scanForTypeString()
         } else {
             // Java style: parse the type, then the name.
-            typeString = scanForTypeString(tokenizer)
-            receiverNamePair = parsePropertyReceiverAndName(tokenizer, typeItemFactory)
+            typeString = scanForTypeString()
+            receiverNamePair = parsePropertyReceiverAndName(typeItemFactory)
         }
         val type = typeItemFactory.getGeneralType(typeString)
         synchronizeNullability(type, modifiers)
@@ -1823,7 +1801,6 @@ internal class SingleSignatureFileParser(
             if (token == "(") {
                 val params =
                     parseParameterList(
-                        tokenizer = tokenizer,
                         // The current token is already the "("
                         startWithCurrentToken = true,
                         useUnderscoreAsDefaultName = true,
@@ -1875,13 +1852,12 @@ internal class SingleSignatureFileParser(
      * [tokenizer], which will be the token after
      */
     private fun parsePropertyReceiverAndName(
-        tokenizer: Tokenizer,
         typeItemFactory: TextTypeItemFactory
     ): Pair<TypeItem?, String> {
         // If there's no receiver, scanning for the type string should just return the name.
         // If there is a receiver, because of how the tokens are broken up, it should return
         // "receiver.name", which can then be split on the last "." to the receiver and name.
-        val receiverAndName = scanForTypeString(tokenizer)
+        val receiverAndName = scanForTypeString()
         val namePossiblyWithColon: String
         val receiverTypeString: String?
         if (receiverAndName.contains(".")) {
@@ -1894,7 +1870,7 @@ internal class SingleSignatureFileParser(
 
         val name =
             if (kotlinNameTypeOrder) {
-                parseNameWithColon(namePossiblyWithColon, tokenizer)
+                parseNameWithColon(namePossiblyWithColon)
             } else {
                 tokenizer.assertIdent(namePossiblyWithColon)
                 namePossiblyWithColon
@@ -1925,14 +1901,12 @@ internal class SingleSignatureFileParser(
      * Starts with [Tokenizer.current]. On return [Tokenizer.current] points to the next token after
      * the record component.
      */
-    private fun parseRecordComponents(
-        tokenizer: Tokenizer,
-    ) = buildList {
+    private fun parseRecordComponents() = buildList {
         var token = tokenizer.current
         while (true) {
             if (token != "record_component") break
 
-            val textRecordComponent = parseRecordComponent(tokenizer)
+            val textRecordComponent = parseRecordComponent()
             add(textRecordComponent)
             token = tokenizer.requireToken()
         }
@@ -1961,7 +1935,7 @@ internal class SingleSignatureFileParser(
         )
 
     /** Parse a record component class member into a [TextRecordComponent]. */
-    private fun parseRecordComponent(tokenizer: Tokenizer): TextRecordComponent {
+    private fun parseRecordComponent(): TextRecordComponent {
         val location = tokenizer.fileLocation()
 
         // Parse a record component index.
@@ -1976,15 +1950,15 @@ internal class SingleSignatureFileParser(
         // Parse the modifiers, which will really just be annotations. Record components are always
         // public.
         tokenizer.requireToken()
-        val modifiers = parseModifierAnnotations(VisibilityLevel.PUBLIC, tokenizer)
+        val modifiers = parseModifierAnnotations(VisibilityLevel.PUBLIC)
 
         // Parse the component name.
         token = tokenizer.current
-        val name = parseNameWithColon(token, tokenizer)
+        val name = parseNameWithColon(token)
 
         // Parse the type.
         tokenizer.requireToken()
-        val typeString = scanForTypeString(tokenizer)
+        val typeString = scanForTypeString()
 
         // Make sure that the whole record component was parsed.
         token = tokenizer.current
@@ -2012,7 +1986,6 @@ internal class SingleSignatureFileParser(
      * as the original current token, if there was no type parameter list.
      */
     private fun parseTypeParameterList(
-        tokenizer: Tokenizer,
         enclosingTypeItemFactory: TextTypeItemFactory,
     ): TypeParameterListAndFactory<TextTypeItemFactory> {
         var token: String = tokenizer.current
@@ -2139,7 +2112,6 @@ internal class SingleSignatureFileParser(
      * When the method returns, [tokenizer] will point to the closing `)` of the parameter list.
      */
     private fun parseParameterList(
-        tokenizer: Tokenizer,
         startWithCurrentToken: Boolean = false,
         useUnderscoreAsDefaultName: Boolean = false,
     ): List<ParameterInfo> {
@@ -2183,7 +2155,7 @@ internal class SingleSignatureFileParser(
                 tokenizer.requireToken()
             }
 
-            val modifiers = parseModifiers(tokenizer)
+            val modifiers = parseModifiers()
             token = tokenizer.current
 
             val typeString: String
@@ -2191,7 +2163,7 @@ internal class SingleSignatureFileParser(
             if (kotlinNameTypeOrder) {
                 // Kotlin style: parse the name (only considered a public name if it is not `_`,
                 // which is used as a placeholder for params without public names), then the type.
-                val nameOrPlaceholder = parseNameWithColon(token, tokenizer)
+                val nameOrPlaceholder = parseNameWithColon(token)
                 publicName =
                     if (nameOrPlaceholder == "_") {
                         null
@@ -2200,11 +2172,11 @@ internal class SingleSignatureFileParser(
                     }
                 tokenizer.requireToken()
                 // Token should now represent the type
-                typeString = scanForTypeString(tokenizer)
+                typeString = scanForTypeString()
                 token = tokenizer.current
             } else {
                 // Java style: parse the type, then the public name if it has one.
-                typeString = scanForTypeString(tokenizer)
+                typeString = scanForTypeString()
                 token = tokenizer.current
                 if (Tokenizer.isIdent(token)) {
                     publicName = token
@@ -2331,7 +2303,7 @@ internal class SingleSignatureFileParser(
         }
     }
 
-    private fun parseDefault(tokenizer: Tokenizer): String {
+    private fun parseDefault(): String {
         return buildString {
             while (true) {
                 val token = tokenizer.requireToken()
@@ -2345,7 +2317,6 @@ internal class SingleSignatureFileParser(
     }
 
     private fun parseThrows(
-        tokenizer: Tokenizer,
         typeItemFactory: TextTypeItemFactory,
     ): List<ExceptionTypeItem> {
         var token = tokenizer.requireToken()
@@ -2391,11 +2362,10 @@ internal class SingleSignatureFileParser(
      * To handle arrays with type-use annotations, this looks forward at the next token and includes
      * it if it contains an annotation. This is necessary to handle type strings like "Foo @A []".
      *
-     * @param tokenizer the [Tokenizer] from which to read tokens.
      * @return the complete type string.
      */
-    private fun scanForTypeString(tokenizer: Tokenizer): String {
-        val prev = getAnnotationCompleteToken(tokenizer)
+    private fun scanForTypeString(): String {
+        val prev = getAnnotationCompleteToken()
         var prevIsIncomplete = isIncompleteTypeToken(prev)
         var token = tokenizer.current
         var tokenIsIncomplete = isIncompleteTypeToken(token)
@@ -2415,7 +2385,7 @@ internal class SingleSignatureFileParser(
             // 2. If the next token has annotations, this is an array type like "Foo @A []",
             //    so the next token is part of the type.
             while (prevIsIncomplete || tokenIsIncomplete) {
-                token = getAnnotationCompleteToken(tokenizer)
+                token = getAnnotationCompleteToken()
                 append(' ').append(token)
 
                 // The token just consumed becomes `prev`. Its incompleteness was already evaluated
@@ -2491,9 +2461,9 @@ internal class SingleSignatureFileParser(
      * For Kotlin-style name/type ordering in signature files, the name is generally followed by a
      * colon (besides methods, where the colon comes after the parameter list). This method takes
      * the name [token] and removes the trailing colon, throwing an [ApiParseException] if one isn't
-     * present (the [tokenizer] is only used for context for the error, if needed).
+     * present.
      */
-    private fun parseNameWithColon(token: String, tokenizer: Tokenizer): String {
+    private fun parseNameWithColon(token: String): String {
         if (!token.endsWith(':')) {
             throw ApiParseException("Expecting name ending with \":\" but found $token.", tokenizer)
         }
