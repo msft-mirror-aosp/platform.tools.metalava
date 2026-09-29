@@ -454,18 +454,24 @@ private constructor(
      */
     private fun parseMultipleFiles(signatureFiles: List<SignatureFile>) {
         val apiSurfaces = codebase.config.apiSurfaces
-        var first = true
+        var appending = false
         for (signatureFile in signatureFiles) {
-            val file = signatureFile.file
+            // When we're appending, and the content is empty, there is nothing to do.
             val apiText = signatureFile.readContents()
+            if (appending && apiText.isBlank()) {
+                continue
+            }
+
+            val file = signatureFile.file
             val apiVariant = signatureFile.apiVariantFor(apiSurfaces)
+
             parseApiSingleFile(
-                appending = !first,
+                appending = appending,
                 path = file.toPath(),
                 apiText = apiText,
                 apiVariant = apiVariant,
             )
-            first = false
+            appending = true
         }
 
         classMerger.performAnyDeferredMerges()
@@ -477,13 +483,6 @@ private constructor(
         apiText: String,
         apiVariant: ApiVariant,
     ) {
-        if (appending) {
-            // When we're appending, and the content is empty, nothing to do.
-            if (apiText.isBlank()) {
-                return
-            }
-        }
-
         // Parse the header of the signature file to determine the format. If the signature file is
         // empty then `parseHeader` will return null, so it will default to `FileFormat.V2`.
         val format =
