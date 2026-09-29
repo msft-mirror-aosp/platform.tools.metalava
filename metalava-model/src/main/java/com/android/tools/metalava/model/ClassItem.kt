@@ -739,7 +739,7 @@ interface ClassItem :
 
             if (declaringClass.qualifiedName() == target.qualifiedName()) {
                 // The target has been found, return the map directly.
-                return mapTypeVariables(declaringClass, superClassType)
+                return mapTypeVariables(target, superClassType)
             } else {
                 // This superClassType isn't target, but maybe it has target as a superclass.
                 val nextLevelMap = declaringClass.mapTypeVariables(target)
