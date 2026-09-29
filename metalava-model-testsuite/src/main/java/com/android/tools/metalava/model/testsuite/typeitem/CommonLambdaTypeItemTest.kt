@@ -434,4 +434,38 @@ class CommonLambdaTypeItemTest : BaseModelTest() {
             }
         }
     }
+
+    @Test
+    fun `Test lambda with primitive parameter returns Nothing`() {
+        runCodebaseTest(
+            kotlin(
+                """
+                    package test.pkg
+                    class Foo {
+                        val field: (Int, Throwable) -> Nothing = { _, t -> throw t }
+                    }
+                """
+            ),
+        ) {
+            val fooClass = codebase.assertClass("test.pkg.Foo")
+            val lambdaType = fooClass.fields().single().type()
+
+            lambdaType.assertLambdaTypeItem {
+                // Verify that the default string representation of the lambda type is the same as
+                // the string representation of the extended class type.
+                assertThat(testTypeString(kotlinStyleNulls = true))
+                    .isEqualTo(
+                        "kotlin.jvm.functions.Function2<java.lang.Integer,java.lang.Throwable,java.lang.Void>"
+                    )
+
+                assertThat(receiverType).isNull()
+                assertThat(
+                        parameterTypes.joinToString { it.testTypeString(kotlinStyleNulls = true) }
+                    )
+                    .isEqualTo("int, java.lang.Throwable")
+                assertThat(returnType.testTypeString(kotlinStyleNulls = true))
+                    .isEqualTo("java.lang.Void")
+            }
+        }
+    }
 }

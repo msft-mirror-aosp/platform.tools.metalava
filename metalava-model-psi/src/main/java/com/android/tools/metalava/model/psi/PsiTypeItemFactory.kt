@@ -212,8 +212,8 @@ internal class PsiTypeItemFactory(
      * Create a [TypeItem].
      *
      * If a [PrimitiveTypeItem] is not valid for the caller then it must set [mustBoxPrimitives] to
-     * `true`. In that case if the type is an alias for a primitive type it will be replaced with
-     * its boxed type.
+     * `true`. In that case if the type is a primitive type (or an alias for a primitive type) it
+     * will be replaced with its boxed type.
      */
     private fun createTypeItem(
         psiType: PsiType,
@@ -224,9 +224,10 @@ internal class PsiTypeItemFactory(
         return when (psiType) {
             is PsiPrimitiveType ->
                 createPrimitiveTypeItem(
-                    psiType = psiType,
-                    kotlinType = kotlinType,
-                )
+                        psiType = psiType,
+                        kotlinType = kotlinType,
+                    )
+                    .let { if (mustBoxPrimitives) boxType(it) else it }
             is PsiArrayType ->
                 createArrayTypeItem(
                     psiType = psiType,
