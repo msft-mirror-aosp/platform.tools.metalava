@@ -4432,12 +4432,6 @@ class CompatibilityCheckTest : DriverTest() {
     @Test
     fun `Test that newly inherited parent method with type parameter matches child method`() {
         check(
-            // TODO(b/567002267): Should not report RemovedMethod because Child now extends
-            //  Parent<Integer> and inherits foo(Integer), but CallableItem.matches maps type
-            //  variables using old Child (which did not extend Parent<Integer>) instead of new
-            //  Child.
-            expectedIssues =
-                "released-api.txt:4: error: Binary breaking change: Removed method test.pkg.Child.foo(Integer) [RemovedMethod]",
             checkCompatibilityApiReleased =
                 """
                     // Signature format: 5.0

@@ -264,8 +264,17 @@ interface CallableItem : MemberItem, TypeParameterListOwner, PossiblyRecordCompo
                 }
             }
 
-            val convertedType =
-                parameter1Type.convertType(other.containingClass(), containingClass())
+            // Substitute any type variables in this callable's parameter type using the type
+            // arguments provided by `other`'s containing class. If `other` is from a different
+            // codebase (e.g. when searching this codebase for an inherited method matching a
+            // method from another codebase), resolve `other`'s containing class in this codebase
+            // first so that type variable mapping uses the class hierarchy in this codebase.
+            val otherContainingClass =
+                other.containingClass().let { cls ->
+                    if (cls.codebase === codebase) cls
+                    else cls.findCorrespondingItemIn(codebase) ?: return false
+                }
+            val convertedType = parameter1Type.convertType(otherContainingClass, containingClass())
             if (!equalParameterTypes(convertedType, parameter2Type)) return false
         }
         return true
