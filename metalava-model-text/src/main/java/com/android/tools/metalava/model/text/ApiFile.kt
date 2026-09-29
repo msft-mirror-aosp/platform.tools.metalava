@@ -265,9 +265,6 @@ private constructor(
     private val globalTypeItemFactory by
         lazy(LazyThreadSafetyMode.NONE) { TextTypeItemFactory(assembler, typeParser) }
 
-    /** Creates [Item] instances for [codebase]. */
-    private val itemFactory = assembler.itemFactory
-
     /** The [ValueParser] to use for creating [Value]s from a signature file. */
     private val valueParser =
         ValueParser(
@@ -291,25 +288,6 @@ private constructor(
      */
     private val kotlinStyleNulls: Boolean
         get() = deferredKotlinStyleNulls!!
-
-    /** See [KOTLIN_NAME_TYPE_ORDER]. */
-    private var kotlinNameTypeOrder: Boolean = false
-
-    /** The file format of the file being parsed. */
-    lateinit var format: FileFormat
-
-    /**
-     * The [ApiVariant] which is defined within the current signature file being parsed.
-     *
-     * Set in [parseApiSingleFile].
-     */
-    private lateinit var apiVariant: ApiVariant
-
-    /**
-     * True if this is appending information from one signature file to a [Codebase] created from
-     * another signature file.
-     */
-    private var appending: Boolean = false
 
     /** Merges class re-definitions across signature files. */
     private val classMerger = ClassMerger(allowClassModifierChanges)
@@ -456,7 +434,168 @@ private constructor(
             val signatureFile = SignatureFile.fromStream(filename, inputStream)
             return parseApi(listOf(signatureFile))
         }
+    }
 
+    /**
+     * Report a recoverable issue encountered while parsing.
+     *
+     * Retrieves the location of the error from [fileLocationTracker].
+     *
+     * Note: Non-recoverable issues result in an exception being thrown.
+     */
+    private fun reportIssue(issue: Issues.Issue, message: String) {
+        val location = fileLocationTracker.fileLocation()
+        codebase.reporter.report(issue, null, message, location)
+    }
+
+    /**
+     * Parses all the [signatureFiles], treating the first file as the base API and all other files
+     * as extensions.
+     */
+    private fun parseMultipleFiles(signatureFiles: List<SignatureFile>) {
+        val apiSurfaces = codebase.config.apiSurfaces
+        var first = true
+        for (signatureFile in signatureFiles) {
+            val file = signatureFile.file
+            val apiText = signatureFile.readContents()
+            val apiVariant = signatureFile.apiVariantFor(apiSurfaces)
+            parseApiSingleFile(
+                appending = !first,
+                path = file.toPath(),
+                apiText = apiText,
+                apiVariant = apiVariant,
+            )
+            first = false
+        }
+
+        classMerger.performAnyDeferredMerges()
+    }
+
+    private fun parseApiSingleFile(
+        appending: Boolean,
+        path: Path,
+        apiText: String,
+        apiVariant: ApiVariant,
+    ) {
+        if (appending) {
+            // When we're appending, and the content is empty, nothing to do.
+            if (apiText.isBlank()) {
+                return
+            }
+        }
+
+        // Parse the header of the signature file to determine the format. If the signature file is
+        // empty then `parseHeader` will return null, so it will default to `FileFormat.V2`.
+        val format =
+            FileFormat.parseHeader(path, StringReader(apiText), formatForLegacyFiles)
+                ?: FileFormat.V2
+
+        val tokenizer = Tokenizer(path, apiText.toCharArray(), ::ApiParseException)
+
+        // Get the preceding tracker, if any.
+        val precedingTracker =
+            if (::fileLocationTracker.isInitialized) {
+                fileLocationTracker
+            } else {
+                null
+            }
+
+        // Set the file location tracker to provide location information about the current file.
+        fileLocationTracker = tokenizer
+
+        // Disallow a mixture of kotlinStyleNulls settings.
+        val kotlinStyleNullsForThisFile = format[KOTLIN_STYLE_NULLS]
+        if (
+            deferredKotlinStyleNulls != null &&
+                deferredKotlinStyleNulls != kotlinStyleNullsForThisFile
+        ) {
+            val precedingFile = precedingTracker!!.fileLocation().path
+            reportIssue(
+                Issues.SIGNATURE_FILE_ERROR,
+                "Preceding file $precedingFile has different setting of kotlin-style-nulls which may cause issues"
+            )
+        }
+        deferredKotlinStyleNulls = kotlinStyleNullsForThisFile
+
+        val parser =
+            SingleSignatureFileParser(
+                assembler = assembler,
+                globalTypeItemFactory = globalTypeItemFactory,
+                valueParser = valueParser,
+                defaultTargetLanguageSet = defaultTargetLanguageSet,
+                classMerger = classMerger,
+                fileLocationTracker = tokenizer,
+                appending = appending,
+                kotlinStyleNulls = kotlinStyleNulls,
+                kotlinNameTypeOrder = format[KOTLIN_NAME_TYPE_ORDER],
+                apiVariant = apiVariant,
+            )
+        parser.parse(tokenizer)
+    }
+
+    private val stats
+        get() =
+            Stats(
+                codebase.getPackages().allClasses().count(),
+                typeParser.requests,
+                typeParser.cacheSkip,
+                typeParser.cacheHit,
+                typeParser.cacheSize,
+            )
+
+    data class Stats(
+        val totalClasses: Int,
+        val typeCacheRequests: Int,
+        val typeCacheSkip: Int,
+        val typeCacheHit: Int,
+        val typeCacheSize: Int,
+    )
+}
+
+/** Parser for a single signature file. */
+internal class SingleSignatureFileParser(
+    /** Populates the [Codebase] from the parsed signature file. */
+    private val assembler: TextCodebaseAssembler,
+
+    /** Provides support for creating [TypeItem]s for specific uses. */
+    private val globalTypeItemFactory: TextTypeItemFactory,
+
+    /** The [ValueParser] to use for creating [Value]s from a signature file. */
+    private val valueParser: ValueParser,
+
+    /** The [TargetLanguageSet] to use if an item does not have one specified. */
+    private val defaultTargetLanguageSet: Set<TargetLanguage>,
+
+    /** Merges class re-definitions across signature files. */
+    private val classMerger: ClassMerger,
+
+    /** The [FileLocationTracker] for the file being parsed. */
+    private val fileLocationTracker: FileLocationTracker,
+
+    /**
+     * True if this is appending information from one signature file to a [Codebase] created from
+     * another signature file.
+     */
+    private val appending: Boolean,
+
+    /**
+     * Whether types should be interpreted to be in Kotlin format (e.g. `?` suffix means nullable,
+     * `!` suffix means unknown, and absence of a suffix means not nullable).
+     */
+    private val kotlinStyleNulls: Boolean,
+
+    /** See [KOTLIN_NAME_TYPE_ORDER]. */
+    private val kotlinNameTypeOrder: Boolean,
+
+    /** The [ApiVariant] which is defined within the current signature file being parsed. */
+    private val apiVariant: ApiVariant,
+) {
+    private val codebase = assembler.codebase
+
+    /** Creates [Item] instances for [codebase]. */
+    private val itemFactory = assembler.itemFactory
+
+    companion object {
         /**
          * Extracts the bounds string list from the [typeParameterString].
          *
@@ -528,82 +667,8 @@ private constructor(
         selectedApi.addItemApiVariant(apiVariant)
     }
 
-    /**
-     * Parses all the [signatureFiles], treating the first file as the base API and all other files
-     * as extensions.
-     */
-    private fun parseMultipleFiles(signatureFiles: List<SignatureFile>) {
-        val apiSurfaces = codebase.config.apiSurfaces
-        var first = true
-        for (signatureFile in signatureFiles) {
-            val file = signatureFile.file
-            val apiText = signatureFile.readContents()
-            val apiVariant = signatureFile.apiVariantFor(apiSurfaces)
-            parseApiSingleFile(
-                appending = !first,
-                path = file.toPath(),
-                apiText = apiText,
-                apiVariant = apiVariant,
-            )
-            first = false
-        }
-
-        classMerger.performAnyDeferredMerges()
-    }
-
-    private fun parseApiSingleFile(
-        appending: Boolean,
-        path: Path,
-        apiText: String,
-        apiVariant: ApiVariant,
-    ) {
-        if (appending) {
-            // When we're appending, and the content is empty, nothing to do.
-            if (apiText.isBlank()) {
-                return
-            }
-        }
-
-        // The behavior is slightly different when appending to an existing Codebase.
-        this.appending = appending
-
-        // Parse the header of the signature file to determine the format. If the signature file is
-        // empty then `parseHeader` will return null, so it will default to `FileFormat.V2`.
-        format =
-            FileFormat.parseHeader(path, StringReader(apiText), formatForLegacyFiles)
-                ?: FileFormat.V2
-
-        // Remember the API variant of the file being parsed.
-        this.apiVariant = apiVariant
-
-        val tokenizer = Tokenizer(path, apiText.toCharArray(), ::ApiParseException)
-
-        // Get the preceding tracker, if any.
-        val precedingTracker =
-            if (::fileLocationTracker.isInitialized) {
-                fileLocationTracker
-            } else {
-                null
-            }
-
-        // Set the file location tracker to provide location information about the current file.
-        fileLocationTracker = tokenizer
-
-        // Disallow a mixture of kotlinStyleNulls settings.
-        val kotlinStyleNullsForThisFile = format[KOTLIN_STYLE_NULLS]
-        if (
-            deferredKotlinStyleNulls != null &&
-                deferredKotlinStyleNulls != kotlinStyleNullsForThisFile
-        ) {
-            val precedingFile = precedingTracker!!.fileLocation().path
-            reportIssue(
-                Issues.SIGNATURE_FILE_ERROR,
-                "Preceding file $precedingFile has different setting of kotlin-style-nulls which may cause issues"
-            )
-        }
-        deferredKotlinStyleNulls = kotlinStyleNullsForThisFile
-        kotlinNameTypeOrder = format[KOTLIN_NAME_TYPE_ORDER]
-
+    /** Parse the signature file from [tokenizer], populating [codebase]. */
+    fun parse(tokenizer: Tokenizer) {
         while (true) {
             val token = tokenizer.getToken() ?: break
             // TODO: Accept annotations on packages.
@@ -2439,22 +2504,4 @@ private constructor(
     private fun qualifiedName(pkg: String, className: String): String {
         return "$pkg.$className"
     }
-
-    private val stats
-        get() =
-            Stats(
-                codebase.getPackages().allClasses().count(),
-                typeParser.requests,
-                typeParser.cacheSkip,
-                typeParser.cacheHit,
-                typeParser.cacheSize,
-            )
-
-    data class Stats(
-        val totalClasses: Int,
-        val typeCacheRequests: Int,
-        val typeCacheSkip: Int,
-        val typeCacheHit: Int,
-        val typeCacheSize: Int,
-    )
 }

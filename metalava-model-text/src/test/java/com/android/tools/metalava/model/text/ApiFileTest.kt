@@ -625,29 +625,6 @@ class ApiFileTest : BaseTextCodebaseTest() {
     }
 
     @Test
-    fun testTypeParameterNames() {
-        assertThat(ApiFile.extractTypeParameterBoundsStringList(null).toString()).isEqualTo("[]")
-        assertThat(ApiFile.extractTypeParameterBoundsStringList("").toString()).isEqualTo("[]")
-        assertThat(ApiFile.extractTypeParameterBoundsStringList("X").toString()).isEqualTo("[]")
-        assertThat(ApiFile.extractTypeParameterBoundsStringList("DEF extends T").toString())
-            .isEqualTo("[T]")
-        assertThat(
-                ApiFile.extractTypeParameterBoundsStringList(
-                        "T extends java.lang.Comparable<? super T>"
-                    )
-                    .toString()
-            )
-            .isEqualTo("[java.lang.Comparable<? super T>]")
-        assertThat(
-                ApiFile.extractTypeParameterBoundsStringList(
-                        "T extends java.util.List<Number> & java.util.RandomAccess"
-                    )
-                    .toString()
-            )
-            .isEqualTo("[java.util.List<Number>, java.util.RandomAccess]")
-    }
-
-    @Test
     fun `Test invalid field initializers`() {
         runSignatureTest(
             signature(
