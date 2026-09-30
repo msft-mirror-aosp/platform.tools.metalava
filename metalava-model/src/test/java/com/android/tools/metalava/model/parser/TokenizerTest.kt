@@ -221,9 +221,7 @@ class TokenizerTest(private val params: Params) {
                                 .trimIndent(),
                             "after",
                         ),
-                    // Bug: Tokenizer does not increment line for newlines inside `<...>`, so this
-                    // reports line 2 instead of the last line (4).
-                    expectedLine = 2,
+                    expectedLine = 4,
                 ),
                 Params(
                     input = """<A extends Other, B>""",

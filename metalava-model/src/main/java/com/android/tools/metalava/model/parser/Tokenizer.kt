@@ -230,7 +230,7 @@ class Tokenizer(
         openChar: Char? = null,
         endOfTokenPredicate: (Char) -> Boolean
     ) {
-        val line = line
+        val startLine = line
         while (position < buffer.size) {
             // Get the next character and assume that it is part of the token by incrementing the
             // position.
@@ -253,12 +253,14 @@ class Tokenizer(
                     position--
                 }
                 return
+            } else if (c == '\n') {
+                line++
             }
         }
 
         // If reached the end of the buffer but the token is incomplete then throw an error.
         if (openChar != null) {
-            throwException("Unexpected end of file for $openChar starting at $line")
+            throwException("Unexpected end of file for $openChar starting at $startLine")
         }
     }
 
