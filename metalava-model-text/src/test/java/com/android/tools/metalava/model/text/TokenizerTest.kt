@@ -14,8 +14,9 @@
  * limitations under the License.
  */
 
-package com.android.tools.metalava.model.parser
+package com.android.tools.metalava.model.text
 
+import com.android.tools.metalava.model.parser.ParseException
 import java.nio.file.Path
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertThrows

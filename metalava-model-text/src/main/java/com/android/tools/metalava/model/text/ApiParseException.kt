@@ -16,7 +16,6 @@
 package com.android.tools.metalava.model.text
 
 import com.android.tools.metalava.model.MetalavaApi
-import com.android.tools.metalava.model.parser.FileLocationTracker
 import com.android.tools.metalava.model.parser.ParseException
 import com.android.tools.metalava.reporter.FileLocation
 

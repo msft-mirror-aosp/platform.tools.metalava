@@ -14,9 +14,11 @@
  * limitations under the License.
  */
 
-package com.android.tools.metalava.model.parser
+package com.android.tools.metalava.model.text
 
 import com.android.tools.metalava.model.TypeItem
+import com.android.tools.metalava.model.parser.LineMap
+import com.android.tools.metalava.model.parser.ParseException
 import com.android.tools.metalava.model.value.Value
 import com.android.tools.metalava.reporter.FileLocation
 import java.nio.file.Path
