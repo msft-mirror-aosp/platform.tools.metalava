@@ -461,21 +461,7 @@ internal class KaTypeItemFactory(
                 if (inlineType is PrimitiveTypeItem && inlineType.modifiers.isNullable) {
                     type
                 } else {
-                    val recursivelyInlinedType = inlineTypeIfNeeded(inlineKaType, inlineType)
-                    if (
-                        recursivelyInlinedType is PrimitiveTypeItem &&
-                            !recursivelyInlinedType.isValueClassType
-                    ) {
-                        // Make sure this is still listed as a value class type. This is only needed
-                        // temporarily until the original value class type is used for property
-                        // types instead of the inlined type.
-                        object : PrimitiveTypeItem by recursivelyInlinedType {
-                            override val isValueClassType
-                                get() = true
-                        }
-                    } else {
-                        recursivelyInlinedType
-                    }
+                    inlineTypeIfNeeded(inlineKaType, inlineType)
                 }
             } else {
                 type
