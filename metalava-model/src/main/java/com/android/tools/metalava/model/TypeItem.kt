@@ -329,7 +329,7 @@ typealias TypeItemConverter = (TypeItem) -> TypeItem
  */
 typealias TypeParameterBindings = Map<TypeParameterItem, TypeArgumentTypeItem>
 
-abstract class DefaultTypeItem(
+internal abstract class DefaultTypeItem(
     final override val modifiers: TypeModifiers,
 ) : TypeItem {
 
@@ -675,7 +675,7 @@ abstract class DefaultTypeItem(
  * Base class of data [TypeItem]s, i.e. any [TypeItem] that can be used standalone, i.e. every
  * [TypeItem] except [WildcardTypeItem] which can only be used as an argument to a generic class.
  */
-abstract class DefaultStandaloneTypeItem(
+internal abstract class DefaultStandaloneTypeItem(
     modifiers: TypeModifiers,
     final override val isValueClassType: Boolean,
 ) : DefaultTypeItem(modifiers) {
