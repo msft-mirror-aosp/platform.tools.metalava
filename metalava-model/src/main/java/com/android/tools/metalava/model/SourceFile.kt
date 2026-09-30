@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model
 
+import com.android.tools.metalava.model.parser.LineMap
 import com.android.tools.metalava.model.scope.ReferencableNameScope
 import com.android.tools.metalava.model.snapshot.SourceFileSnapshot
 import com.android.tools.metalava.reporter.FileLocation
@@ -28,6 +29,9 @@ interface SourceFile : ReferencableNameScope {
      * If this is not [FileLocation.UNKNOWN] then it will not have a line number.
      */
     val fileLocation: FileLocation
+
+    /** The [LineMap] for this [SourceFile]. */
+    val lineMap: LineMap
 
     /** The [Codebase] to which this [SourceFile] belongs. */
     val codebase: Codebase

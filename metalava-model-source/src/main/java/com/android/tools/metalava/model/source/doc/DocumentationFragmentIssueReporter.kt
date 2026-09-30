@@ -35,6 +35,9 @@ internal abstract class DocumentationFragmentIssueReporter(
      */
     protected abstract val firstLineCharacterOffset: Int
 
+    /** Get the 0-based character offset of the fragment within the content of the [container]. */
+    protected abstract val charOffsetFromContainer: Int
+
     /**
      * Reports an issue in the fragment so that it appears in the correct position in the
      * [container].
@@ -56,5 +59,9 @@ internal abstract class DocumentationFragmentIssueReporter(
             lineOffset + lineOffsetCorrection,
             charOffset + charOffsetCorrection
         )
+    }
+
+    override fun report(issue: Issues.Issue, message: String, charOffset: Int) {
+        container.report(issue, message, charOffset + charOffsetFromContainer)
     }
 }

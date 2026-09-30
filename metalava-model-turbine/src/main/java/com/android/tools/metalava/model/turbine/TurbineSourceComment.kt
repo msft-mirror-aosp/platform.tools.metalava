@@ -38,6 +38,8 @@ internal class TurbineSourceComment(
         )
     }
 
+    override fun obtainStartOffset(): Int = turbineJavadoc.startPosition()
+
     override fun obtainText(): String {
         // Reconstruct the original comment.
         val javadoc = turbineJavadoc.value()

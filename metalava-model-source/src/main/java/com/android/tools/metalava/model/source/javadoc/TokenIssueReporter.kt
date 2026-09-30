@@ -39,6 +39,12 @@ internal class TokenIssueReporter(reporter: DocumentationIssueReporter) :
             // The token's `charPositionInLine` is already 0-based like this.
             token!!.charPositionInLine
 
+    /**
+     * The character offset of [token] from the beginning of the content parsed by [JavadocParser].
+     */
+    override val charOffsetFromContainer: Int
+        get() = token!!.startOffset
+
     /** Treat any issues reported by [body] as if they were reported on [token]. */
     inline fun <R> reportAtToken(token: Token, body: () -> R): R {
         val oldToken = token

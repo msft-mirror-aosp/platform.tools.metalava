@@ -52,8 +52,8 @@ import com.android.tools.metalava.reporter.Issues
  *       the condition expression is parsed using [ExprBuilder] and evaluated against [context]. The
  *       active branch is then parsed and emitted into the content, while the inactive branch is
  *       skipped using [skipBraceExpression].
- *     - **Issue Reporting**: Syntax and validation errors are reported through [tokenIssueReporter]
- *       and [reporter], using the line numbers and character offsets tracked in each [Token].
+ *     - **Issue Reporting**: Syntax and validation errors are reported through
+ *       [tokenIssueReporter], using the character offsets tracked in each [Token].
  *
  * @param tokens the list of [Token]s to parse.
  * @param context context that applies to the Javadoc comment (such as resolving references).
@@ -63,7 +63,7 @@ internal class JavadocParser
 private constructor(
     private val tokens: List<Token>,
     private val context: DocCommentContext,
-    private val reporter: DocumentationIssueReporter,
+    reporter: DocumentationIssueReporter,
 ) {
     /** A [TokenIssueReporter] that can be used to report issues with a [Token]. */
     private val tokenIssueReporter = TokenIssueReporter(reporter)
@@ -196,11 +196,10 @@ private constructor(
 
         // Otherwise, report an issue at the current token's location and return null.
         val token = peek()
-        reporter.report(
+        tokenIssueReporter.report(
+            token,
             Issues.INVALID_JAVADOC,
             errorMessage,
-            token.line - 1,
-            token.charPositionInLine
         )
         return null
     }
@@ -454,11 +453,10 @@ private constructor(
             // present.
             tokenIssueReporter.report(ifStartToken, Issues.INVALID_IF_TAG, "missing <expr>")
             val token = peek()
-            reporter.report(
+            tokenIssueReporter.report(
+                token,
                 Issues.INVALID_JAVADOC,
                 "expected '(', found '${token.text}'",
-                token.line - 1,
-                token.charPositionInLine
             )
 
             // Error recovery: skip true branch if present.
@@ -484,11 +482,10 @@ private constructor(
         } else {
             // Missing ')': report error at current token.
             val token = peek()
-            reporter.report(
+            tokenIssueReporter.report(
+                token,
                 Issues.INVALID_JAVADOC,
                 "expected ')', found '${token.text}'",
-                token.line - 1,
-                token.charPositionInLine
             )
         }
 
@@ -499,11 +496,10 @@ private constructor(
         if (peekType() != TokenType.BRACE_OPEN) {
             // Missing '{': report error and exit.
             val token = peek()
-            reporter.report(
+            tokenIssueReporter.report(
+                token,
                 Issues.INVALID_JAVADOC,
                 "expected '{', found '${token.text}'",
-                token.line - 1,
-                token.charPositionInLine
             )
             if (peekType() == TokenType.BRACE_CLOSE) {
                 consume()
@@ -531,11 +527,10 @@ private constructor(
             if (peekType() != TokenType.BRACE_OPEN) {
                 // Missing '{' after 'else': report error.
                 val token = peek()
-                reporter.report(
+                tokenIssueReporter.report(
+                    token,
                     Issues.INVALID_JAVADOC,
                     "expected '{' after 'else', found '${token.text}'",
-                    token.line - 1,
-                    token.charPositionInLine
                 )
                 if (peekType() == TokenType.BRACE_CLOSE) {
                     consume()
@@ -608,11 +603,10 @@ private constructor(
         } else {
             // Missing initial identifier: report invalid Javadoc.
             val token = peek()
-            reporter.report(
+            tokenIssueReporter.report(
+                token,
                 Issues.INVALID_JAVADOC,
                 "expected field reference, found '${token.text}'",
-                token.line - 1,
-                token.charPositionInLine
             )
         }
 

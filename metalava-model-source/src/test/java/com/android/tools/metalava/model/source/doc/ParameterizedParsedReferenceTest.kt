@@ -18,6 +18,7 @@ package com.android.tools.metalava.model.source.doc
 
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.TypeParameterScope
+import com.android.tools.metalava.model.parser.LineMap
 import com.android.tools.metalava.model.source.doc.CallableSourceReference.SourceParameter
 import com.android.tools.metalava.model.testing.arrayTypeItem
 import com.android.tools.metalava.model.testing.classTypeItem
@@ -504,7 +505,8 @@ class ParameterizedParsedReferenceTest : BaseDocCommentTest() {
     }
 
     private fun createDocTypeParser(): DocTypeParser {
-        val reporter = TestDocumentationIssueReporter(reporter)
+        val lineMap = LineMap.create(params.reference)
+        val reporter = TestDocumentationIssueReporter(reporter, lineMap)
         return DocTypeParser.create(reporter, typeParameterScope)
     }
 

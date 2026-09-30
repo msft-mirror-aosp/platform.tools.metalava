@@ -57,6 +57,13 @@ internal class PsiSourceComment(private val psiElement: PsiElement) : LazySource
         return PsiFileLocation.fromPsiElement(psiComment)
     }
 
+    override fun obtainStartOffset(): Int {
+        // Make sure that the psiComment is initialized by making sure that the text backing field
+        // has been initialized as they are initialized together in [obtainText].
+        text
+        return psiComment?.textRange?.startOffset ?: -1
+    }
+
     override fun obtainText(): String {
         when (psiElement) {
             is PsiCompiledElement -> {

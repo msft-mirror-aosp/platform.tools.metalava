@@ -20,6 +20,7 @@ import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.ReferencableItem
 import com.android.tools.metalava.model.TypeParameterScope
+import com.android.tools.metalava.model.parser.LineMap
 import com.android.tools.metalava.model.scope.NameClassification
 import com.android.tools.metalava.model.source.javadoc.ExprContext
 import com.android.tools.metalava.model.source.javadoc.TestTagTypes
@@ -56,10 +57,11 @@ abstract class BaseDocCommentTest {
      * from flag name to enabled status.
      */
     internal fun createDocContext(
+        text: String,
         flagToEnabledStatus: Map<String, Boolean> = emptyMap(),
     ): TestDocCommentContext =
         TestDocCommentContext(
-            TestDocumentationIssueReporter(reporter),
+            TestDocumentationIssueReporter(reporter, LineMap.create(text)),
             flagToEnabledStatus,
         )
 
@@ -71,11 +73,12 @@ abstract class BaseDocCommentTest {
         expectedIssues: String = "",
         flagToEnabledStatus: Map<String, Boolean> = emptyMap(),
     ): Pair<DocComment, TestDocCommentContext> {
-        val context = createDocContext(flagToEnabledStatus)
+        val text = input.trimIndent()
+        val context = createDocContext(text, flagToEnabledStatus)
         val docComment =
             DocCommentParser.parseText(
                 context,
-                input.trimIndent(),
+                text,
                 context.reporter,
             )
 
@@ -108,11 +111,21 @@ abstract class BaseDocCommentTest {
 }
 
 /** A [DocumentationIssueReporter] that delegates any issues reported to [reporter]. */
-internal class TestDocumentationIssueReporter(private val reporter: Reporter) :
-    DocumentationIssueReporter {
+internal class TestDocumentationIssueReporter(
+    private val reporter: Reporter,
+    private val lineMap: LineMap,
+) : DocumentationIssueReporter {
     override fun report(issue: Issue, message: String, lineOffset: Int, charOffset: Int) {
         val reportable: Reportable? = null
         val fileLocation = FileLocation.createLocation(Path.of(""), lineOffset + 1, charOffset + 1)
+        reporter.report(issue, reportable, message, fileLocation)
+    }
+
+    override fun report(issue: Issue, message: String, charOffset: Int) {
+        val lineNumber = lineMap.lineNumber(charOffset)
+        val charPosition = lineMap.characterPosition(charOffset)
+        val reportable: Reportable? = null
+        val fileLocation = FileLocation.createLocation(Path.of(""), lineNumber, charPosition)
         reporter.report(issue, reportable, message, fileLocation)
     }
 }
