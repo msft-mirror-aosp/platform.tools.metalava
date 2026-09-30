@@ -445,7 +445,7 @@ private constructor(
                 parserContext
                     ?: createParserContext(kotlinStyleNullsForThisFile).also { parserContext = it }
 
-            val tokenizer = Tokenizer(path, apiText, ::ApiParseException)
+            val tokenizer = Tokenizer(path, apiText)
 
             // Set the file location tracker to provide location information about the current file.
             fileLocationTracker = tokenizer

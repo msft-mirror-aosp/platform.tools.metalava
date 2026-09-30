@@ -18,7 +18,6 @@ package com.android.tools.metalava.model.text
 
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.parser.LineMap
-import com.android.tools.metalava.model.parser.ParseException
 import com.android.tools.metalava.model.value.Value
 import com.android.tools.metalava.reporter.FileLocation
 import java.nio.file.Path
@@ -33,13 +32,11 @@ import java.nio.file.Path
  *
  * @param path the [Path] to the source being read.
  * @param buffer the [String] from which this will read tokens.
- * @param exceptionCreator factory method for creating exceptions that will be thrown.
  * @param lineMap the [LineMap] for mapping character offsets in [buffer] to line numbers.
  */
 class Tokenizer(
     private val path: Path,
     private val buffer: String,
-    private val exceptionCreator: (String, FileLocation) -> ParseException = ::ParseException,
     private val lineMap: LineMap = LineMap.create(buffer),
 ) : FileLocationTracker {
 
@@ -51,7 +48,7 @@ class Tokenizer(
     }
 
     private fun throwException(message: String): Nothing {
-        throw exceptionCreator(message, fileLocation())
+        throw ApiParseException(message, this)
     }
 
     /** Get the remainder. */

@@ -16,7 +16,6 @@
 
 package com.android.tools.metalava.model.text
 
-import com.android.tools.metalava.model.parser.ParseException
 import java.nio.file.Path
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertThrows
@@ -272,7 +271,7 @@ class TokenizerTest(private val params: Params) {
         }
 
         params.expectedError?.let { expectedError ->
-            val exception = assertThrows(ParseException::class.java) { requireToken() }
+            val exception = assertThrows(ApiParseException::class.java) { requireToken() }
             assertEquals(expectedError, exception.message)
         }
 
