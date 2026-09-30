@@ -59,42 +59,55 @@ fun TypeItem.testTypeString(
     )
 
 /** Create a [PrimitiveTypeItem] for [kind]. */
-fun primitiveTypeForKind(kind: Primitive): PrimitiveTypeItem =
-    TypeItem.createPrimitiveType(TypeModifiers.emptyNonNullModifiers, kind)
+fun primitiveTypeForKind(kind: Primitive, isValueClassType: Boolean = false): PrimitiveTypeItem =
+    TypeItem.createPrimitiveType(TypeModifiers.emptyNonNullModifiers, kind, isValueClassType)
 
 /** Create a [ClassTypeItem] for [JAVA_LANG_STRING]. */
-fun stringType(): ClassTypeItem = classTypeItem(JAVA_LANG_STRING)
+fun stringType(isValueClassType: Boolean = false): ClassTypeItem =
+    classTypeItem(JAVA_LANG_STRING, isValueClassType = isValueClassType)
 
 /** Create a [ClassTypeItem] for [qualifiedName] with [arguments] inside [outerClassType]. */
 fun classTypeItem(
     qualifiedName: String,
     arguments: List<TypeArgumentTypeItem> = emptyList(),
     outerClassType: ClassTypeItem? = null,
+    isValueClassType: Boolean = false,
 ): ClassTypeItem =
     TypeItem.createClassType(
         TypeModifiers.emptyNonNullModifiers,
         qualifiedName,
         arguments,
         outerClassType,
+        isValueClassType,
     )
 
 /** Create a [ArrayTypeItem] for [componentType]. */
-fun arrayTypeItem(componentType: TypeItem, isVarargs: Boolean = false): ArrayTypeItem =
+fun arrayTypeItem(
+    componentType: TypeItem,
+    isVarargs: Boolean = false,
+    isValueClassType: Boolean = false,
+): ArrayTypeItem =
     TypeItem.createArrayType(
         TypeModifiers.emptyNonNullModifiers,
         componentType,
         isVarargs,
+        isValueClassType,
     )
 
 /** Create a [VariableTypeItem] for [typeParameterItem]. */
-fun variableTypeItem(typeParameterItem: TypeParameterItem): VariableTypeItem =
+fun variableTypeItem(
+    typeParameterItem: TypeParameterItem,
+    isValueClassType: Boolean = false,
+): VariableTypeItem =
     TypeItem.createVariableType(
         TypeModifiers.emptyNonNullModifiers,
         typeParameterItem,
+        isValueClassType,
     )
 
 /** Create a [VariableTypeItem] for a [TypeParameterItem] called [name]. */
-fun variableTypeItem(name: String): VariableTypeItem = variableTypeItem(typeParameterItem(name))
+fun variableTypeItem(name: String, isValueClassType: Boolean = false): VariableTypeItem =
+    variableTypeItem(typeParameterItem(name), isValueClassType)
 
 /** Create a [WildcardTypeItem] for [extendsBound] of [superBound] . */
 fun wildcardTypeItem(

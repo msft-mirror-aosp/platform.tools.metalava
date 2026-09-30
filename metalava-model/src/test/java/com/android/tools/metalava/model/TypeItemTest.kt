@@ -16,7 +16,10 @@
 
 package com.android.tools.metalava.model
 
+import com.android.tools.metalava.model.testing.arrayTypeItem
 import com.android.tools.metalava.model.testing.primitiveTypeForKind
+import com.android.tools.metalava.model.testing.stringType
+import com.android.tools.metalava.model.testing.variableTypeItem
 import com.google.common.truth.Truth.assertThat
 import kotlin.test.assertEquals
 import kotlin.test.assertNotSame
@@ -77,5 +80,42 @@ class TypeItemTest {
             assertNotSame(original, substitute)
             assertEquals(!originalVarargs, substitute.isVarargs)
         }
+    }
+
+    @Test
+    fun `Test substitute preserves isValueClassType`() {
+        val newModifiers = TypeModifiers.emptyPlatformModifiers
+
+        val primitiveType =
+            primitiveTypeForKind(PrimitiveTypeItem.Primitive.INT, isValueClassType = true)
+        // TODO(b/567002267): Should be true as substitute should preserve isValueClassType.
+        assertEquals(false, primitiveType.substitute(modifiers = newModifiers).isValueClassType)
+
+        val arrayType = arrayTypeItem(primitiveType, isValueClassType = true)
+        // TODO(b/567002267): Should be true as substitute should preserve isValueClassType.
+        assertEquals(false, arrayType.substitute(modifiers = newModifiers).isValueClassType)
+
+        val classType = stringType(isValueClassType = true)
+        // TODO(b/567002267): Should be true as substitute should preserve isValueClassType.
+        assertEquals(false, classType.substitute(modifiers = newModifiers).isValueClassType)
+
+        val lambdaType =
+            TypeItem.createLambdaType(
+                modifiers = TypeModifiers.emptyNonNullModifiers,
+                qualifiedName = "kotlin.jvm.functions.Function0",
+                arguments = emptyList(),
+                outerClassType = null,
+                isSuspend = false,
+                receiverType = null,
+                parameterTypes = emptyList(),
+                returnType = primitiveTypeForKind(PrimitiveTypeItem.Primitive.VOID),
+                isValueClassType = true,
+            )
+        // TODO(b/567002267): Should be true as substitute should preserve isValueClassType.
+        assertEquals(false, lambdaType.substitute(modifiers = newModifiers).isValueClassType)
+
+        val variableType = variableTypeItem("T", isValueClassType = true)
+        // TODO(b/567002267): Should be true as substitute should preserve isValueClassType.
+        assertEquals(false, variableType.substitute(modifiers = newModifiers).isValueClassType)
     }
 }
