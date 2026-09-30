@@ -30,12 +30,12 @@ import java.nio.file.Path
  * `purpose=TokenPurpose.VALUE`).
  *
  * @param path the [Path] to the source being read.
- * @param buffer the [CharArray] from which this will read tokens.
+ * @param buffer the [String] from which this will read tokens.
  * @param exceptionCreator factory method for creating exceptions that will be thrown.
  */
 class Tokenizer(
     private val path: Path,
-    private val buffer: CharArray,
+    private val buffer: String,
     private val exceptionCreator: (String, FileLocation) -> ParseException = ::ParseException,
 ) : FileLocationTracker {
 
@@ -54,7 +54,7 @@ class Tokenizer(
     }
 
     /** Get the remainder. */
-    fun remainder(): String = String(buffer, position, buffer.size - position)
+    fun remainder(): String = buffer.substring(position)
 
     /**
      * Eat whitespace, including newline characters.
@@ -66,7 +66,7 @@ class Tokenizer(
      */
     private fun eatWhitespace(): Boolean {
         var ate = false
-        while (position < buffer.size && isSpace(buffer[position])) {
+        while (position < buffer.length && isSpace(buffer[position])) {
             if (buffer[position] == '\n') {
                 line++
             }
@@ -86,10 +86,10 @@ class Tokenizer(
      * @return `true` if a line comment was found, `false` otherwise.
      */
     private fun eatComment(): Boolean {
-        if (position + 1 < buffer.size) {
+        if (position + 1 < buffer.length) {
             if (buffer[position] == '/' && buffer[position + 1] == '/') {
                 position += 2
-                while (position < buffer.size && !isNewline(buffer[position])) {
+                while (position < buffer.length && !isNewline(buffer[position])) {
                     position++
                 }
                 return true
@@ -130,7 +130,7 @@ class Tokenizer(
      * @param offset an offset previously returned by [offset].
      */
     fun getStringFromOffset(offset: Int): String {
-        return String(buffer, offset, position - offset)
+        return buffer.substring(offset, position)
     }
 
     /**
@@ -139,7 +139,7 @@ class Tokenizer(
      * @param offset an offset previously returned by [offset].
      */
     fun appendStringFromOffsetTo(builder: StringBuilder, offset: Int) {
-        builder.append(buffer, offset, position - offset)
+        builder.append(buffer, offset, position)
     }
 
     /** The current token. */
@@ -155,7 +155,7 @@ class Tokenizer(
         // Eat any white space or comments that come before the token.
         eatWhitespaceAndComments()
 
-        if (position >= buffer.size) {
+        if (position >= buffer.length) {
             return null
         }
         val start = position
@@ -166,7 +166,7 @@ class Tokenizer(
         } else {
             scanForEndOfToken(purpose)
         }
-        current = String(buffer, start, position - start)
+        current = buffer.substring(start, position)
         return current
     }
 
@@ -231,7 +231,7 @@ class Tokenizer(
         endOfTokenPredicate: (Char) -> Boolean
     ) {
         val startLine = line
-        while (position < buffer.size) {
+        while (position < buffer.length) {
             // Get the next character and assume that it is part of the token by incrementing the
             // position.
             val c = buffer[position]
@@ -269,7 +269,7 @@ class Tokenizer(
      * matching closing quotes.
      */
     private fun scanForClosingQuotes() {
-        while (position < buffer.size) {
+        while (position < buffer.length) {
             val k = buffer[position]
             position++
             if (k == '\n' || k == '\r') {

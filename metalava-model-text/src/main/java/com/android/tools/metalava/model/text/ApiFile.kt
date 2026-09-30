@@ -489,7 +489,7 @@ private constructor(
             FileFormat.parseHeader(path, StringReader(apiText), formatForLegacyFiles)
                 ?: FileFormat.V2
 
-        val tokenizer = Tokenizer(path, apiText.toCharArray(), ::ApiParseException)
+        val tokenizer = Tokenizer(path, apiText, ::ApiParseException)
 
         // Get the preceding tracker, if any.
         val precedingTracker =

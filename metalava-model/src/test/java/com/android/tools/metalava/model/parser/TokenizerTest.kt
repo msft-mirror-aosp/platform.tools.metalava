@@ -264,7 +264,7 @@ class TokenizerTest(private val params: Params) {
 
     @Test
     fun `check token`() {
-        val tokenizer = Tokenizer(Path.of("api.txt"), params.input.toCharArray())
+        val tokenizer = Tokenizer(Path.of("api.txt"), params.input)
 
         fun requireToken(): String {
             return tokenizer.requireToken(purpose = params.purpose)

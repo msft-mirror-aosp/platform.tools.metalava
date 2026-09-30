@@ -117,7 +117,7 @@ class ValueParser(
         }
 
     /** Create a [Tokenizer] of [text]. */
-    private fun tokenizerOf(text: String) = Tokenizer(Path.of("unknown"), text.toCharArray())
+    private fun tokenizerOf(text: String) = Tokenizer(Path.of("unknown"), text)
 
     /** Parse a [Value] of the [optionalTypeItem] from [tokenizer]. */
     private fun parseWithTokenizer(optionalTypeItem: TypeItem?, tokenizer: Tokenizer) =
