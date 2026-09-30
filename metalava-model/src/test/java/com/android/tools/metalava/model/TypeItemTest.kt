@@ -88,16 +88,13 @@ class TypeItemTest {
 
         val primitiveType =
             primitiveTypeForKind(PrimitiveTypeItem.Primitive.INT, isValueClassType = true)
-        // TODO(b/567002267): Should be true as substitute should preserve isValueClassType.
-        assertEquals(false, primitiveType.substitute(modifiers = newModifiers).isValueClassType)
+        assertEquals(true, primitiveType.substitute(modifiers = newModifiers).isValueClassType)
 
         val arrayType = arrayTypeItem(primitiveType, isValueClassType = true)
-        // TODO(b/567002267): Should be true as substitute should preserve isValueClassType.
-        assertEquals(false, arrayType.substitute(modifiers = newModifiers).isValueClassType)
+        assertEquals(true, arrayType.substitute(modifiers = newModifiers).isValueClassType)
 
         val classType = stringType(isValueClassType = true)
-        // TODO(b/567002267): Should be true as substitute should preserve isValueClassType.
-        assertEquals(false, classType.substitute(modifiers = newModifiers).isValueClassType)
+        assertEquals(true, classType.substitute(modifiers = newModifiers).isValueClassType)
 
         val lambdaType =
             TypeItem.createLambdaType(
@@ -111,11 +108,9 @@ class TypeItemTest {
                 returnType = primitiveTypeForKind(PrimitiveTypeItem.Primitive.VOID),
                 isValueClassType = true,
             )
-        // TODO(b/567002267): Should be true as substitute should preserve isValueClassType.
-        assertEquals(false, lambdaType.substitute(modifiers = newModifiers).isValueClassType)
+        assertEquals(true, lambdaType.substitute(modifiers = newModifiers).isValueClassType)
 
         val variableType = variableTypeItem("T", isValueClassType = true)
-        // TODO(b/567002267): Should be true as substitute should preserve isValueClassType.
-        assertEquals(false, variableType.substitute(modifiers = newModifiers).isValueClassType)
+        assertEquals(true, variableType.substitute(modifiers = newModifiers).isValueClassType)
     }
 }

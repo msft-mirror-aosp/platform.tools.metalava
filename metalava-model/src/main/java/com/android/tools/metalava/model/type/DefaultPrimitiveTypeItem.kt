@@ -28,7 +28,9 @@ internal class DefaultPrimitiveTypeItem(
 ) : PrimitiveTypeItem, DefaultTypeItem(modifiers, isValueClassType) {
 
     override fun substitute(modifiers: TypeModifiers) =
-        if (modifiers !== this.modifiers) DefaultPrimitiveTypeItem(modifiers, kind) else this
+        if (modifiers !== this.modifiers)
+            DefaultPrimitiveTypeItem(modifiers, kind, isValueClassType)
+        else this
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true

@@ -124,6 +124,7 @@ internal class DefaultLambdaTypeItem(
                 receiverType,
                 parameterTypes,
                 returnType,
+                isValueClassType,
             )
         else this
 }

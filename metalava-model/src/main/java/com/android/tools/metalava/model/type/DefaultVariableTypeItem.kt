@@ -30,7 +30,8 @@ internal class DefaultVariableTypeItem(
     override val name: String = asTypeParameter.name()
 
     override fun substitute(modifiers: TypeModifiers) =
-        if (modifiers !== this.modifiers) DefaultVariableTypeItem(modifiers, asTypeParameter)
+        if (modifiers !== this.modifiers)
+            DefaultVariableTypeItem(modifiers, asTypeParameter, isValueClassType)
         else this
 
     override fun equals(other: Any?): Boolean {

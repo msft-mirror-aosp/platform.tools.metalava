@@ -68,6 +68,7 @@ internal open class DefaultClassTypeItem(
                 qualifiedName,
                 arguments,
                 outerClassType,
+                isValueClassType,
             )
         } else this
 

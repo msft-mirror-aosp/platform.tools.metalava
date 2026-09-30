@@ -42,6 +42,7 @@ internal class DefaultArrayTypeItem(
                 modifiers,
                 componentType,
                 isVarargs,
+                isValueClassType,
             )
         else this
 
