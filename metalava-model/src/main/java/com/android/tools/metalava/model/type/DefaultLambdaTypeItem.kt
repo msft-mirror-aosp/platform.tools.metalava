@@ -64,7 +64,7 @@ internal class DefaultLambdaTypeItem(
                 returnType !== this.returnType ||
                 newJvmClassType !== this.jvmClassType
         ) {
-            DefaultLambdaTypeItem(
+            TypeItem.createLambdaType(
                 isSuspend = isSuspend,
                 receiverType = receiverType,
                 parameterTypes = parameterTypes,

@@ -86,7 +86,7 @@ interface InternalTypeItemFactory {
         returnType: TypeItem,
         isValueClassType: Boolean = false,
     ): LambdaTypeItem =
-        DefaultLambdaTypeItem(
+        createLambdaType(
             isSuspend = isSuspend,
             receiverType = receiverType,
             parameterTypes = parameterTypes,
@@ -99,6 +99,22 @@ interface InternalTypeItemFactory {
                     outerClassType,
                     isValueClassType,
                 ),
+        )
+
+    /** Create a [LambdaTypeItem]. */
+    fun createLambdaType(
+        isSuspend: Boolean,
+        receiverType: TypeItem?,
+        parameterTypes: List<TypeItem>,
+        returnType: TypeItem,
+        jvmClassType: ClassTypeItem,
+    ): LambdaTypeItem =
+        DefaultLambdaTypeItem(
+            isSuspend = isSuspend,
+            receiverType = receiverType,
+            parameterTypes = parameterTypes,
+            returnType = returnType,
+            jvmClassType = jvmClassType,
         )
 
     /** Create a [PrimitiveTypeItem]. */
