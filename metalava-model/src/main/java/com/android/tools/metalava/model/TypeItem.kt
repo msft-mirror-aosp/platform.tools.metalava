@@ -674,6 +674,7 @@ abstract class DefaultValueClassTypeItem(
     final override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (other !is DefaultValueClassTypeItem) return false
+        if (isValueClassType != other.isValueClassType) return false
         if (modifiers != other.modifiers) return false
         return equalsImpl(other)
     }
@@ -682,6 +683,7 @@ abstract class DefaultValueClassTypeItem(
 
     final override fun hashCode(): Int {
         var result = modifiers.hashCode()
+        result = 31 * result + isValueClassType.hashCode()
         result = 31 * result + hashCodeImpl()
         return result
     }

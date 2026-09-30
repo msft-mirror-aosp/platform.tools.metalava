@@ -781,8 +781,7 @@ class ParameterizedTypeComparatorTest {
                 TestCase(
                     intType,
                     valueClassIntType,
-                    // TODO(b/567002267): Should be false as isValueClassType differs.
-                    expectedIdenticalResult = true,
+                    expectedIdenticalResult = false,
                     expectedStrictResult = true,
                 )
             )
@@ -790,8 +789,7 @@ class ParameterizedTypeComparatorTest {
                 TestCase(
                     string,
                     valueClassString,
-                    // TODO(b/567002267): Should be false as isValueClassType differs.
-                    expectedIdenticalResult = true,
+                    expectedIdenticalResult = false,
                     expectedStrictResult = true,
                 )
             )
@@ -799,8 +797,7 @@ class ParameterizedTypeComparatorTest {
                 TestCase(
                     intArray,
                     valueClassIntArray,
-                    // TODO(b/567002267): Should be false as isValueClassType differs.
-                    expectedIdenticalResult = true,
+                    expectedIdenticalResult = false,
                     expectedStrictResult = true,
                 )
             )
@@ -808,8 +805,7 @@ class ParameterizedTypeComparatorTest {
                 TestCase(
                     typeVarT,
                     valueClassTypeVarT,
-                    // TODO(b/567002267): Should be false as isValueClassType differs.
-                    expectedIdenticalResult = true,
+                    expectedIdenticalResult = false,
                     expectedStrictResult = true,
                 )
             )
