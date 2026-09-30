@@ -458,14 +458,18 @@ internal class KaTypeItemFactory(
                         )
                         .factory
                 // Create a TypeItem from the inlined ka type
-                val inlineType =
-                    valueClassTypeFactory
-                        .getGeneralType(inlineKaType)
-                        .substitute(type.modifiers.nullability)
-                // Recursively inline the type, if needed
-                if (inlineType is PrimitiveTypeItem && inlineType.modifiers.isNullable) {
+                val rawInlineType = valueClassTypeFactory.getGeneralType(inlineKaType)
+                // If the inlined type is a primitive and the value class type is nullable, it
+                // cannot be inlined to a primitive in bytecode because primitives cannot be null;
+                // the boxed value class type must be used instead. This must be checked before
+                // substituting nullability onto rawInlineType because PrimitiveTypeItem forces its
+                // nullability to NONNULL.
+                if (rawInlineType is PrimitiveTypeItem && type.modifiers.isNullable) {
                     type
                 } else {
+                    // Propagate the outer value class type's nullability to the inlined type and
+                    // recursively inline if it is also a value class.
+                    val inlineType = rawInlineType.substitute(type.modifiers.nullability)
                     inlineTypeIfNeeded(inlineKaType, inlineType)
                 }
             } else {
