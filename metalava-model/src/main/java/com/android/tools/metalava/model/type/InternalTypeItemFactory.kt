@@ -82,15 +82,18 @@ interface InternalTypeItemFactory {
         isValueClassType: Boolean = false,
     ): LambdaTypeItem =
         DefaultLambdaTypeItem(
-            modifiers,
-            qualifiedName,
-            arguments,
-            outerClassType,
-            isSuspend,
-            receiverType,
-            parameterTypes,
-            returnType,
-            isValueClassType,
+            isSuspend = isSuspend,
+            receiverType = receiverType,
+            parameterTypes = parameterTypes,
+            returnType = returnType,
+            jvmClassType =
+                createClassType(
+                    modifiers,
+                    qualifiedName,
+                    arguments,
+                    outerClassType,
+                    isValueClassType,
+                ),
         )
 
     /** Create a [PrimitiveTypeItem]. */

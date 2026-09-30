@@ -40,22 +40,6 @@ com.android.tools.metalava.model.testsuite.typeitem.CommonParameterizedInvalidTy
   Test invalid source reference[turbine,otherNested - other and nested undefined but with another class in the same package]
   Test invalid source reference[turbine,otherNested - other defined but nested undefined]
 
-com.android.tools.metalava.model.testsuite.typeitem.CommonParameterizedLambdaTypeItemTest
-  Test lambda asJvmClassType[psi,kotlin,field - ((Boolean) -> Unit) -> Unit]
-  Test lambda asJvmClassType[psi,kotlin,parameter - (() -> Unit) -> Unit]
-  Test lambda asJvmClassType[psi,kotlin,parameter - () -> (() -> Unit)]
-  Test lambda asJvmClassType[psi,kotlin,parameter - (String) -> Int?]
-  Test lambda asJvmClassType[psi,kotlin,parameter - (String) -> Int]
-  Test lambda asJvmClassType[psi,kotlin,parameter - (String) -> List<String>]
-  Test lambda asJvmClassType[psi,kotlin,parameter - 23 parameters -> Number]
-  Test lambda asJvmClassType[psi,kotlin,parameter - Number.(Array<String>) -> T]
-  Test lambda asJvmClassType[psi,kotlin,parameter - suspend () -> Unit]
-  Test lambda asJvmClassType[psi,kotlin,parameter - suspend (Int) -> Int]
-  Test lambda asJvmClassType[psi,kotlin,parameter - suspend (Int, String) -> String?]
-  Test lambda asJvmClassType[psi,kotlin,parameter - suspend Number.(Int) -> String?]
-  Test lambda asJvmClassType[psi,kotlin,property - suspend (Int) -> String?]
-  Test lambda asJvmClassType[psi,kotlin,return - @TypeUse ((@TypeUse T) -> @TypeUse Int)?]
-
 com.android.tools.metalava.model.testsuite.typeitem.CommonParameterizedTypeVariableNullabilityTest
   Test type variable as type argument of inner class type[text,KOTLIN_STYLE_NULLS,non-nullable variable]
   Test type variable as type argument of outer class type[text,KOTLIN_STYLE_NULLS,non-nullable variable]
