@@ -666,20 +666,24 @@ abstract class DefaultTypeItem(
     }
 }
 
-abstract class DefaultValueClassTypeItem(
+/**
+ * Base class of data [TypeItem]s, i.e. any [TypeItem] that can be used standalone, i.e. every
+ * [TypeItem] except [WildcardTypeItem] which can only be used as an argument to a generic class.
+ */
+abstract class DefaultStandaloneTypeItem(
     modifiers: TypeModifiers,
     final override val isValueClassType: Boolean,
 ) : DefaultTypeItem(modifiers) {
 
     final override fun equals(other: Any?): Boolean {
         if (this === other) return true
-        if (other !is DefaultValueClassTypeItem) return false
+        if (other !is DefaultStandaloneTypeItem) return false
         if (isValueClassType != other.isValueClassType) return false
         if (modifiers != other.modifiers) return false
         return equalsImpl(other)
     }
 
-    protected abstract fun equalsImpl(other: DefaultValueClassTypeItem): Boolean
+    protected abstract fun equalsImpl(other: DefaultStandaloneTypeItem): Boolean
 
     final override fun hashCode(): Int {
         var result = modifiers.hashCode()

@@ -16,7 +16,7 @@
 
 package com.android.tools.metalava.model.type
 
-import com.android.tools.metalava.model.DefaultValueClassTypeItem
+import com.android.tools.metalava.model.DefaultStandaloneTypeItem
 import com.android.tools.metalava.model.TypeModifiers
 import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.VariableTypeItem
@@ -25,7 +25,7 @@ internal class DefaultVariableTypeItem(
     modifiers: TypeModifiers,
     override val asTypeParameter: TypeParameterItem,
     isValueClassType: Boolean = false,
-) : VariableTypeItem, DefaultValueClassTypeItem(modifiers, isValueClassType) {
+) : VariableTypeItem, DefaultStandaloneTypeItem(modifiers, isValueClassType) {
 
     override val name: String = asTypeParameter.name()
 
@@ -34,7 +34,7 @@ internal class DefaultVariableTypeItem(
             DefaultVariableTypeItem(modifiers, asTypeParameter, isValueClassType)
         else this
 
-    override fun equalsImpl(other: DefaultValueClassTypeItem): Boolean {
+    override fun equalsImpl(other: DefaultStandaloneTypeItem): Boolean {
         if (other !is VariableTypeItem) return false
         return asTypeParameter == other.asTypeParameter
     }

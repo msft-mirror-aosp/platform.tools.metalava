@@ -17,7 +17,7 @@
 package com.android.tools.metalava.model.type
 
 import com.android.tools.metalava.model.ClassTypeItem
-import com.android.tools.metalava.model.DefaultValueClassTypeItem
+import com.android.tools.metalava.model.DefaultStandaloneTypeItem
 import com.android.tools.metalava.model.TypeArgumentTypeItem
 import com.android.tools.metalava.model.TypeModifiers
 
@@ -27,7 +27,7 @@ internal open class DefaultClassTypeItem(
     final override val arguments: List<TypeArgumentTypeItem>,
     final override val outerClassType: ClassTypeItem?,
     isValueClassType: Boolean = false,
-) : ClassTypeItem, DefaultValueClassTypeItem(modifiers, isValueClassType) {
+) : ClassTypeItem, DefaultStandaloneTypeItem(modifiers, isValueClassType) {
 
     init {
         // Make sure that if an outer class type is provided that its qualified name is the outer
@@ -72,7 +72,7 @@ internal open class DefaultClassTypeItem(
             )
         } else this
 
-    override fun equalsImpl(other: DefaultValueClassTypeItem): Boolean {
+    override fun equalsImpl(other: DefaultStandaloneTypeItem): Boolean {
         if (other !is ClassTypeItem) return false
         return qualifiedName == other.qualifiedName &&
             outerClassType == other.outerClassType &&

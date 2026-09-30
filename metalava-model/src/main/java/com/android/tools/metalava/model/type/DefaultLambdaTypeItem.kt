@@ -17,7 +17,7 @@
 package com.android.tools.metalava.model.type
 
 import com.android.tools.metalava.model.ClassTypeItem
-import com.android.tools.metalava.model.DefaultValueClassTypeItem
+import com.android.tools.metalava.model.DefaultStandaloneTypeItem
 import com.android.tools.metalava.model.LambdaTypeItem
 import com.android.tools.metalava.model.TypeArgumentTypeItem
 import com.android.tools.metalava.model.TypeItem
@@ -30,7 +30,7 @@ internal class DefaultLambdaTypeItem(
     override val returnType: TypeItem,
     private val jvmClassType: ClassTypeItem,
 ) :
-    DefaultValueClassTypeItem(
+    DefaultStandaloneTypeItem(
         modifiers = jvmClassType.modifiers,
         isValueClassType = jvmClassType.isValueClassType,
     ),
@@ -74,7 +74,7 @@ internal class DefaultLambdaTypeItem(
         } else this
     }
 
-    override fun equalsImpl(other: DefaultValueClassTypeItem): Boolean {
+    override fun equalsImpl(other: DefaultStandaloneTypeItem): Boolean {
         if (other !is ClassTypeItem) return false
         return qualifiedName == other.qualifiedName &&
             outerClassType == other.outerClassType &&
