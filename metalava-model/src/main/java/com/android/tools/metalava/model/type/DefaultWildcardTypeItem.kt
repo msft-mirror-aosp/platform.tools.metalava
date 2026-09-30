@@ -18,6 +18,7 @@ package com.android.tools.metalava.model.type
 
 import com.android.tools.metalava.model.DefaultTypeItem
 import com.android.tools.metalava.model.ReferenceTypeItem
+import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeModifiers
 import com.android.tools.metalava.model.WildcardTypeItem
 
@@ -37,7 +38,7 @@ internal class DefaultWildcardTypeItem(
                 extendsBound !== this.extendsBound ||
                 superBound !== this.superBound
         )
-            DefaultWildcardTypeItem(
+            TypeItem.createWildcardType(
                 modifiers,
                 extendsBound,
                 superBound,

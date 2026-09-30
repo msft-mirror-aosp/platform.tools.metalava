@@ -19,6 +19,7 @@ package com.android.tools.metalava.model.type
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.DefaultStandaloneTypeItem
 import com.android.tools.metalava.model.TypeArgumentTypeItem
+import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeModifiers
 
 internal class DefaultClassTypeItem(
@@ -63,7 +64,7 @@ internal class DefaultClassTypeItem(
         arguments: List<TypeArgumentTypeItem>,
     ): ClassTypeItem =
         if (requiresNewInstance(modifiers, outerClassType, arguments)) {
-            DefaultClassTypeItem(
+            TypeItem.createClassType(
                 modifiers,
                 qualifiedName,
                 arguments,

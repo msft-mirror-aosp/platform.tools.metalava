@@ -19,6 +19,7 @@ package com.android.tools.metalava.model.type
 import com.android.tools.metalava.model.DefaultStandaloneTypeItem
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.PrimitiveTypeItem.Primitive
+import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeModifiers
 
 internal class DefaultPrimitiveTypeItem(
@@ -29,7 +30,7 @@ internal class DefaultPrimitiveTypeItem(
 
     override fun substitute(modifiers: TypeModifiers) =
         if (modifiers !== this.modifiers)
-            DefaultPrimitiveTypeItem(modifiers, kind, isValueClassType)
+            TypeItem.createPrimitiveType(modifiers, kind, isValueClassType)
         else this
 
     override fun equalsImpl(other: DefaultStandaloneTypeItem): Boolean {

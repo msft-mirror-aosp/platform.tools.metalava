@@ -38,7 +38,7 @@ internal class DefaultArrayTypeItem(
                 componentType !== this.componentType ||
                 isVarargs != this.isVarargs
         )
-            DefaultArrayTypeItem(
+            TypeItem.createArrayType(
                 modifiers,
                 componentType,
                 isVarargs,
