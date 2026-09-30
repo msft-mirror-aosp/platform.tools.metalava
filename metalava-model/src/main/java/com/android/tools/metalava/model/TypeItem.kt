@@ -669,7 +669,25 @@ abstract class DefaultTypeItem(
 abstract class DefaultValueClassTypeItem(
     modifiers: TypeModifiers,
     final override val isValueClassType: Boolean,
-) : DefaultTypeItem(modifiers)
+) : DefaultTypeItem(modifiers) {
+
+    final override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is DefaultValueClassTypeItem) return false
+        if (modifiers != other.modifiers) return false
+        return equalsImpl(other)
+    }
+
+    protected abstract fun equalsImpl(other: DefaultValueClassTypeItem): Boolean
+
+    final override fun hashCode(): Int {
+        var result = modifiers.hashCode()
+        result = 31 * result + hashCodeImpl()
+        return result
+    }
+
+    protected abstract fun hashCodeImpl(): Int
+}
 
 /**
  * Configuration options for how to represent a type as a string.

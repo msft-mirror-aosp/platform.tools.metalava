@@ -32,15 +32,12 @@ internal class DefaultPrimitiveTypeItem(
             DefaultPrimitiveTypeItem(modifiers, kind, isValueClassType)
         else this
 
-    override fun equals(other: Any?): Boolean {
-        if (this === other) return true
+    override fun equalsImpl(other: DefaultValueClassTypeItem): Boolean {
         if (other !is PrimitiveTypeItem) return false
-        return kind == other.kind && modifiers == other.modifiers
+        return kind == other.kind
     }
 
-    override fun hashCode(): Int {
-        var result = kind.hashCode()
-        result = 31 * result + modifiers.hashCode()
-        return result
+    override fun hashCodeImpl(): Int {
+        return kind.hashCode()
     }
 }

@@ -34,15 +34,12 @@ internal class DefaultVariableTypeItem(
             DefaultVariableTypeItem(modifiers, asTypeParameter, isValueClassType)
         else this
 
-    override fun equals(other: Any?): Boolean {
-        if (this === other) return true
+    override fun equalsImpl(other: DefaultValueClassTypeItem): Boolean {
         if (other !is VariableTypeItem) return false
-        return asTypeParameter == other.asTypeParameter && modifiers == other.modifiers
+        return asTypeParameter == other.asTypeParameter
     }
 
-    override fun hashCode(): Int {
-        var result = asTypeParameter.hashCode()
-        result = 31 * result + modifiers.hashCode()
-        return result
+    override fun hashCodeImpl(): Int {
+        return asTypeParameter.hashCode()
     }
 }

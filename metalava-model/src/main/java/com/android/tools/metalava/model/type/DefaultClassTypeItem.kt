@@ -72,20 +72,17 @@ internal open class DefaultClassTypeItem(
             )
         } else this
 
-    override fun equals(other: Any?): Boolean {
-        if (this === other) return true
+    override fun equalsImpl(other: DefaultValueClassTypeItem): Boolean {
         if (other !is ClassTypeItem) return false
         return qualifiedName == other.qualifiedName &&
             outerClassType == other.outerClassType &&
-            arguments == other.arguments &&
-            modifiers == other.modifiers
+            arguments == other.arguments
     }
 
-    override fun hashCode(): Int {
+    override fun hashCodeImpl(): Int {
         var result = qualifiedName.hashCode()
         result = 31 * result + (outerClassType?.hashCode() ?: 0)
         result = 31 * result + arguments.hashCode()
-        result = 31 * result + modifiers.hashCode()
         return result
     }
 }

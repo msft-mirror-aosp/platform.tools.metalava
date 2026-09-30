@@ -46,18 +46,14 @@ internal class DefaultArrayTypeItem(
             )
         else this
 
-    override fun equals(other: Any?): Boolean {
-        if (this === other) return true
+    override fun equalsImpl(other: DefaultValueClassTypeItem): Boolean {
         if (other !is ArrayTypeItem) return false
-        return isVarargs == other.isVarargs &&
-            componentType == other.componentType &&
-            modifiers == other.modifiers
+        return isVarargs == other.isVarargs && componentType == other.componentType
     }
 
-    override fun hashCode(): Int {
+    override fun hashCodeImpl(): Int {
         var result = isVarargs.hashCode()
         result = 31 * result + componentType.hashCode()
-        result = 31 * result + modifiers.hashCode()
         return result
     }
 }
