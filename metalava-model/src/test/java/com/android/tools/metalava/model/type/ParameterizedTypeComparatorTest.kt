@@ -22,6 +22,7 @@ import com.android.tools.metalava.model.TypeComparator
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeModifiers
 import com.android.tools.metalava.model.TypeNullability
+import com.android.tools.metalava.model.WildcardTypeItem
 import com.android.tools.metalava.model.testing.arrayTypeItem
 import com.android.tools.metalava.model.testing.classTypeItem
 import com.android.tools.metalava.model.testing.primitiveTypeForKind
@@ -116,7 +117,12 @@ class ParameterizedTypeComparatorTest {
          * and Kotlin-style nullability markers, or `"null"` if [type] is null.
          */
         private fun typeString(type: TypeItem?): String =
-            type?.testTypeString(annotations = true, kotlinStyleNulls = true) ?: "null"
+            if (type == null) "null"
+            else
+                buildString {
+                    append(type.testTypeString(annotations = true, kotlinStyleNulls = true))
+                    if (type !is WildcardTypeItem && type.isValueClassType) append(" (value-class)")
+                }
 
         private val testCases = buildList {
             // Primitives
@@ -761,6 +767,50 @@ class ParameterizedTypeComparatorTest {
                     typeVarTWithBounds,
                     objectType,
                     expectedIdenticalResult = false,
+                )
+            )
+
+            // Value class types (isValueClassType = true vs false)
+            val valueClassIntType =
+                primitiveTypeForKind(PrimitiveTypeItem.Primitive.INT, isValueClassType = true)
+            val valueClassString = stringType(isValueClassType = true)
+            val valueClassIntArray = arrayTypeItem(intType, isValueClassType = true)
+            val valueClassTypeVarT = variableTypeItem(typeParameterT, isValueClassType = true)
+
+            add(
+                TestCase(
+                    intType,
+                    valueClassIntType,
+                    // TODO(b/567002267): Should be false as isValueClassType differs.
+                    expectedIdenticalResult = true,
+                    expectedStrictResult = true,
+                )
+            )
+            add(
+                TestCase(
+                    string,
+                    valueClassString,
+                    // TODO(b/567002267): Should be false as isValueClassType differs.
+                    expectedIdenticalResult = true,
+                    expectedStrictResult = true,
+                )
+            )
+            add(
+                TestCase(
+                    intArray,
+                    valueClassIntArray,
+                    // TODO(b/567002267): Should be false as isValueClassType differs.
+                    expectedIdenticalResult = true,
+                    expectedStrictResult = true,
+                )
+            )
+            add(
+                TestCase(
+                    typeVarT,
+                    valueClassTypeVarT,
+                    // TODO(b/567002267): Should be false as isValueClassType differs.
+                    expectedIdenticalResult = true,
+                    expectedStrictResult = true,
                 )
             )
         }
