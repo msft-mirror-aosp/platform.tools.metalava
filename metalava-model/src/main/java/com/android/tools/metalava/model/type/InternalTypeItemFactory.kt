@@ -66,7 +66,12 @@ interface InternalTypeItemFactory {
     fun createClassTypeForClassItem(classItem: ClassItem): ClassTypeItem {
         val arguments = classItem.typeParameterList.map { it.type() }
         val modifiers = TypeModifiers.emptyNonNullModifiers
-        return DefaultResolvedClassTypeItem(modifiers, classItem, arguments)
+        return createClassType(
+            modifiers,
+            classItem.qualifiedName(),
+            arguments,
+            classItem.outerClassType,
+        )
     }
 
     /** Create a [LambdaTypeItem]. */
@@ -148,3 +153,23 @@ interface InternalTypeItemFactory {
         }
     }
 }
+
+/**
+ * Get the [ClassTypeItem] for this [ClassItem] to use as the [ClassTypeItem.outerClassType] for a
+ * nested [ClassItem] of this.
+ */
+private val ClassItem.outerClassType
+    get() =
+        // Get the containing class type (if available) and adjust it based on the inner/static
+        // nesting state of [classItem].
+        containingClass()?.type()?.let { containingType ->
+            if (modifiers.isStatic()) {
+                // The type for a static nested class must not include any type arguments from its
+                // containing outer class so remove any that it may have.
+                containingType.substitute(arguments = emptyList())
+            } else {
+                // The type for an inner nested class must include type arguments from its
+                // containing outer class, so keep its type as is.
+                containingType
+            }
+        }

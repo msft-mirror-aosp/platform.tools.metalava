@@ -21,11 +21,11 @@ import com.android.tools.metalava.model.DefaultStandaloneTypeItem
 import com.android.tools.metalava.model.TypeArgumentTypeItem
 import com.android.tools.metalava.model.TypeModifiers
 
-internal open class DefaultClassTypeItem(
+internal class DefaultClassTypeItem(
     modifiers: TypeModifiers,
-    final override val qualifiedName: String,
-    final override val arguments: List<TypeArgumentTypeItem>,
-    final override val outerClassType: ClassTypeItem?,
+    override val qualifiedName: String,
+    override val arguments: List<TypeArgumentTypeItem>,
+    override val outerClassType: ClassTypeItem?,
     isValueClassType: Boolean = false,
 ) : ClassTypeItem, DefaultStandaloneTypeItem(modifiers, isValueClassType) {
 
@@ -48,7 +48,7 @@ internal open class DefaultClassTypeItem(
      *
      * Used by [ClassTypeItem.substitute] to determine whether it needs to create a new instance.
      */
-    protected fun requiresNewInstance(
+    private fun requiresNewInstance(
         modifiers: TypeModifiers,
         outerClassType: ClassTypeItem?,
         arguments: List<TypeArgumentTypeItem>,
