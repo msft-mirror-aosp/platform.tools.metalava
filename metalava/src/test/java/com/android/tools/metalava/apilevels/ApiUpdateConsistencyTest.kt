@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.apilevels
 
+import androidx.tracing.Tracer
 import com.android.tools.lint.checks.infrastructure.TestFile
 import com.android.tools.metalava.DriverTest
 import com.android.tools.metalava.cli.common.DefaultSignatureFileLoader
@@ -30,7 +31,6 @@ import com.android.tools.metalava.testing.TestFileCache
 import com.android.tools.metalava.testing.TestFileCacheRule
 import com.android.tools.metalava.testing.cacheIn
 import com.android.tools.metalava.testing.getAndroidJar
-import com.android.tools.metalava.testing.getNoopTracer
 import com.android.tools.metalava.testing.jarFromSources
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.signature
@@ -121,7 +121,7 @@ class ApiUpdateConsistencyTest : DriverTest() {
     private fun versionedSourceApi(vararg sourceFiles: TestFile): VersionedApiFactory {
         return { version ->
             val parser =
-                environmentManager.createSourceParser(Codebase.Config.NOOP, getNoopTracer())
+                environmentManager.createSourceParser(Codebase.Config.NOOP, Tracer.getStubTracer())
             val sourceSet =
                 SourceSet.createFromSourcePath(
                     ThrowingReporter.INSTANCE,
