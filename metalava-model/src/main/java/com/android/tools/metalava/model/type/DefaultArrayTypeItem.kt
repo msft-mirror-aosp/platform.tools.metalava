@@ -17,7 +17,7 @@
 package com.android.tools.metalava.model.type
 
 import com.android.tools.metalava.model.ArrayTypeItem
-import com.android.tools.metalava.model.DefaultTypeItem
+import com.android.tools.metalava.model.DefaultValueClassTypeItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeModifiers
 
@@ -26,7 +26,7 @@ internal class DefaultArrayTypeItem(
     override val componentType: TypeItem,
     override val isVarargs: Boolean,
     isValueClassType: Boolean = false,
-) : ArrayTypeItem, DefaultTypeItem(modifiers, isValueClassType) {
+) : ArrayTypeItem, DefaultValueClassTypeItem(modifiers, isValueClassType) {
 
     override fun substitute(
         modifiers: TypeModifiers,

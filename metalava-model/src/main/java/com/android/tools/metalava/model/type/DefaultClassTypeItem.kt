@@ -17,7 +17,7 @@
 package com.android.tools.metalava.model.type
 
 import com.android.tools.metalava.model.ClassTypeItem
-import com.android.tools.metalava.model.DefaultTypeItem
+import com.android.tools.metalava.model.DefaultValueClassTypeItem
 import com.android.tools.metalava.model.TypeArgumentTypeItem
 import com.android.tools.metalava.model.TypeModifiers
 
@@ -27,7 +27,7 @@ internal open class DefaultClassTypeItem(
     final override val arguments: List<TypeArgumentTypeItem>,
     final override val outerClassType: ClassTypeItem?,
     isValueClassType: Boolean = false,
-) : ClassTypeItem, DefaultTypeItem(modifiers, isValueClassType) {
+) : ClassTypeItem, DefaultValueClassTypeItem(modifiers, isValueClassType) {
 
     init {
         // Make sure that if an outer class type is provided that its qualified name is the outer
