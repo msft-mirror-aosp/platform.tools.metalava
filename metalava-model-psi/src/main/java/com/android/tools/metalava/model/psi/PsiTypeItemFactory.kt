@@ -732,7 +732,6 @@ internal class PsiTypeItemFactory(
                     // only pass it through if this has an explicit `super` bound.
                     kotlinType.takeIf { psiType.isSuper },
                 ),
-            isValueClassType = kotlinType.isValueClassTypeIfAvailable,
         )
 
     /**

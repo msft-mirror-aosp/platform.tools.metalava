@@ -20,8 +20,10 @@ import com.android.tools.metalava.model.testing.arrayTypeItem
 import com.android.tools.metalava.model.testing.primitiveTypeForKind
 import com.android.tools.metalava.model.testing.stringType
 import com.android.tools.metalava.model.testing.variableTypeItem
+import com.android.tools.metalava.model.testing.wildcardTypeItem
 import com.google.common.truth.Truth.assertThat
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertNotSame
 import kotlin.test.assertSame
 import org.junit.Test
@@ -112,5 +114,12 @@ class TypeItemTest {
 
         val variableType = variableTypeItem("T", isValueClassType = true)
         assertEquals(true, variableType.substitute(modifiers = newModifiers).isValueClassType)
+    }
+
+    @Test
+    fun `Test WildcardTypeItem isValueClassType throws`() {
+        val wildcard = wildcardTypeItem()
+        val exception = assertFailsWith<IllegalStateException> { wildcard.isValueClassType }
+        assertEquals("? cannot be a value class type", exception.message)
     }
 }

@@ -25,8 +25,10 @@ internal class DefaultWildcardTypeItem(
     modifiers: TypeModifiers,
     override val extendsBound: ReferenceTypeItem?,
     override val superBound: ReferenceTypeItem?,
-    isValueClassType: Boolean = false,
-) : WildcardTypeItem, DefaultTypeItem(modifiers, isValueClassType) {
+) : WildcardTypeItem, DefaultTypeItem(modifiers, isValueClassType = false) {
+
+    override val isValueClassType: Boolean
+        get() = super<WildcardTypeItem>.isValueClassType
 
     override fun substitute(
         modifiers: TypeModifiers,

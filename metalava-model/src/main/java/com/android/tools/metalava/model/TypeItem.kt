@@ -1366,6 +1366,9 @@ interface WildcardTypeItem : TypeItem, TypeArgumentTypeItem {
      */
     override fun asErasedType() = error("Erasing $this makes little sense")
 
+    override val isValueClassType: Boolean
+        get() = error("$this cannot be a value class type")
+
     override fun substitute(modifiers: TypeModifiers): WildcardTypeItem =
         substitute(modifiers, extendsBound, superBound)
 

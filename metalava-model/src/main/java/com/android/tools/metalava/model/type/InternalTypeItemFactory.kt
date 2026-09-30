@@ -128,13 +128,11 @@ interface InternalTypeItemFactory {
         modifiers: TypeModifiers,
         extendsBound: ReferenceTypeItem?,
         superBound: ReferenceTypeItem?,
-        isValueClassType: Boolean = false,
     ): WildcardTypeItem =
         DefaultWildcardTypeItem(
             modifiers,
             extendsBound,
             superBound,
-            isValueClassType,
         )
 
     companion object {
