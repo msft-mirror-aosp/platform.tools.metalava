@@ -90,13 +90,18 @@ class Tokenizer(
         return position
     }
 
+    /** Get the contents of [buffer] from [start] to [end]. */
+    fun substring(start: Int, end: Int): String {
+        return buffer.substring(start, end)
+    }
+
     /**
      * Get the contents of [buffer] from [offset] to [position].
      *
      * @param offset an offset previously returned by [offset].
      */
     private fun getStringFromOffset(offset: Int): String {
-        return buffer.substring(offset, position)
+        return substring(offset, position)
     }
 
     /**
