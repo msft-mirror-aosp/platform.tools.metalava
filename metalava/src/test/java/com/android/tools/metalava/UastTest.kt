@@ -3268,4 +3268,33 @@ class UastTest : DriverTest() {
                 """
         )
     }
+
+    @Test
+    fun `Unmapped kotlin collection superclass`() {
+        check(
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
+                        package test.pkg
+                        class StringList: AbstractList<String>() {
+                            override fun get(index: Int): String = ""
+                            override val size: Int = 0
+                        }
+                        """
+                    )
+                ),
+            expectedApiSignature =
+                """
+                package test.pkg {
+                  public final class StringList extends kotlin.collections.AbstractList<java.lang.String> {
+                    ctor public StringList();
+                    method public String get(int index);
+                    method @InaccessibleFromKotlin public int getSize();
+                    property public int size;
+                  }
+                }
+                """,
+        )
+    }
 }
