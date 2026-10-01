@@ -381,9 +381,6 @@ class ParameterizedParsedReferenceTest : BaseDocCommentTest() {
                     name = "complex",
                     reference =
                         "Class#foo(   Collection<? extends Bar> [  ]   param   ,   Map< Integer  , List <String > >   )",
-                    // TODO(b/447588621): This should not be reported.
-                    expectedIssues =
-                        "1:1: Could not parse type `Collection<? extends Bar> [  ]`. Found unexpected string after type parameters:  [  ] [TypeParseError]",
                     expectedParsed =
                         QualifyingClassSourceReference(
                             className = "Class",
@@ -391,10 +388,12 @@ class ParameterizedParsedReferenceTest : BaseDocCommentTest() {
                                 methodSourceReference(
                                     name = "foo",
                                     SourceParameter(
-                                        classTypeItem(
-                                            "Collection",
-                                            arguments =
-                                                listOf(wildcardTypeItem(classTypeItem("Bar"))),
+                                        arrayTypeItem(
+                                            classTypeItem(
+                                                "Collection",
+                                                arguments =
+                                                    listOf(wildcardTypeItem(classTypeItem("Bar"))),
+                                            ),
                                         ),
                                         "param"
                                     ),
@@ -405,9 +404,7 @@ class ParameterizedParsedReferenceTest : BaseDocCommentTest() {
                                                 listOf(
                                                     classTypeItem("Integer"),
                                                     classTypeItem(
-                                                        // TODO(b/447588621): This should not have
-                                                        //  a trailing whitespace.
-                                                        "List ",
+                                                        "List",
                                                         arguments =
                                                             listOf(
                                                                 classTypeItem("String"),
@@ -419,8 +416,7 @@ class ParameterizedParsedReferenceTest : BaseDocCommentTest() {
                                 ),
                         ),
                     expectedNormalized =
-                        // TODO(b/447588621): The [] is missing.
-                        "Class#foo(Collection<? extends Bar>,Map<Integer,List <String>>)",
+                        "Class#foo(Collection<? extends Bar>[],Map<Integer,List<String>>)",
                 ),
                 TestParams(
                     name = "qualified type with spaces",
@@ -431,10 +427,10 @@ class ParameterizedParsedReferenceTest : BaseDocCommentTest() {
                             member =
                                 methodSourceReference(
                                     name = "foo",
-                                    SourceParameter(classTypeItem("java . lang . String")),
+                                    SourceParameter(classTypeItem("java.lang.String")),
                                 ),
                         ),
-                    expectedNormalized = "Class#foo(java . lang . String)",
+                    expectedNormalized = "Class#foo(java.lang.String)",
                 ),
 
                 // Fragment reference

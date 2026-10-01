@@ -53,27 +53,16 @@ interface TypeItemParser {
      */
     fun typeParameterStrings(typeString: String?): List<String>
 
-    /**
-     * Companion object providing factory and utility functions that currently delegate to
-     * [LegacyTypeItemParser].
-     *
-     * The intention is that [LegacyTypeItemParser] will eventually be replaced, so providing these
-     * methods on [TypeItemParser] minimizes churn at call sites.
-     */
+    /** Companion object providing factory functions that delegate to [DefaultTypeItemParser]. */
     companion object {
-        /**
-         * Creates and returns a [LegacyTypeItemParser] as a [TypeItemParser].
-         *
-         * The intention is that [LegacyTypeItemParser] will eventually be replaced, so this factory
-         * method reduces churn at call sites.
-         */
+        /** Creates and returns a [DefaultTypeItemParser] as a [TypeItemParser]. */
         operator fun invoke(
             annotationContext: AnnotationContext,
             unqualifiedClassHandler: UnqualifiedClassHandler,
             kotlinStyleNulls: Boolean = false,
             errorReporter: TypeItemParserErrorReporter = TypeItemParserErrorReporter.THROWING,
         ): TypeItemParser =
-            LegacyTypeItemParser(
+            DefaultTypeItemParser(
                 annotationContext,
                 unqualifiedClassHandler,
                 kotlinStyleNulls,
@@ -89,7 +78,20 @@ interface TypeItemParser {
         fun forValueParser(
             classResolver: ClassResolver,
             errorReporter: TypeItemParserErrorReporter = TypeItemParserErrorReporter.THROWING,
-        ): TypeItemParser = LegacyTypeItemParser.forValueParser(classResolver, errorReporter)
+        ): TypeItemParser {
+            val annotationContext =
+                object : AnnotationContext, ClassResolver by classResolver {
+                    override val annotationManager
+                        get() = error("Annotations not supported")
+                }
+
+            return invoke(
+                annotationContext,
+                UnqualifiedClassHandler.PREFIX_WITH_JAVA_LANG,
+                kotlinStyleNulls = false,
+                errorReporter,
+            )
+        }
     }
 }
 
@@ -862,30 +864,6 @@ open class LegacyTypeItemParser(
                     return
                 }
             }
-        }
-
-        /**
-         * Returns a [TypeItemParser] suitable for use by the [ValueParser].
-         *
-         * It does not support kotlin style nulls, or annotations and treats unqualified types as if
-         * they were qualified.
-         */
-        fun forValueParser(
-            classResolver: ClassResolver,
-            errorReporter: TypeItemParserErrorReporter = TypeItemParserErrorReporter.THROWING,
-        ): TypeItemParser {
-            val annotationContext =
-                object : AnnotationContext, ClassResolver by classResolver {
-                    override val annotationManager
-                        get() = error("Annotations not supported")
-                }
-
-            return LegacyTypeItemParser(
-                annotationContext,
-                UnqualifiedClassHandler.PREFIX_WITH_JAVA_LANG,
-                kotlinStyleNulls = false,
-                errorReporter
-            )
         }
     }
 }
