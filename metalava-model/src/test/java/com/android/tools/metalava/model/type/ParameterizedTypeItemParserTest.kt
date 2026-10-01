@@ -471,7 +471,11 @@ class ParameterizedTypeItemParserTest {
                             errorReporter
                         )
                     },
-                    primitiveTypeCases + variableTypeCases + classTypeCases + wildcardTypeCases,
+                    primitiveTypeCases +
+                        variableTypeCases +
+                        classTypeCases +
+                        wildcardTypeCases +
+                        arrayTypeCases,
                 ),
             )
 

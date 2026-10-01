@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model.type
 
+import com.android.tools.metalava.model.ArrayTypeItem
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.ReferenceTypeItem
@@ -114,18 +115,38 @@ open class DefaultTypeItemParser(
     /**
      * Post-processes a parsed [typeItem] to apply any forced or inferred nullability from
      * [contextNullability].
+     *
+     * For [ArrayTypeItem]s, if [ContextNullability.forcedComponentNullability] is specified (for
+     * example, annotation attributes that return arrays cannot have nullable components), the
+     * component type's nullability is updated first before computing the outer type's nullability.
      */
     private fun applyContextNullability(
         typeItem: TypeItem,
         contextNullability: ContextNullability,
     ): TypeItem {
+        var result = typeItem
+
+        // Check if the type is an array and its component nullability needs to be updated based on
+        // the context.
+        val forcedComponentNullability = contextNullability.forcedComponentNullability
+        if (
+            result is ArrayTypeItem &&
+                forcedComponentNullability != null &&
+                forcedComponentNullability != result.componentType.modifiers.nullability
+        ) {
+            result =
+                result.substitute(
+                    componentType = result.componentType.substitute(forcedComponentNullability),
+                )
+        }
+
         // Check if the type's nullability needs to be updated based on the context.
-        val typeNullability = typeItem.modifiers.nullability
+        val typeNullability = result.modifiers.nullability
         val actualTypeNullability =
-            contextNullability.compute(typeNullability, typeItem.modifiers.annotations)
+            contextNullability.compute(typeNullability, result.modifiers.annotations)
         return if (actualTypeNullability != typeNullability) {
-            typeItem.substitute(actualTypeNullability)
-        } else typeItem
+            result.substitute(actualTypeNullability)
+        } else result
     }
 
     /**
@@ -204,6 +225,20 @@ open class DefaultTypeItemParser(
         val typeArgStrings: List<String>,
     )
 
+    /**
+     * Represents a single array dimension `('[' ']' | '...') NullabilitySuffix?`.
+     *
+     * @property isVarargs `true` if this dimension was written with `...`, `false` if `[]`.
+     * @property nullToken optional Kotlin-style nullability suffix token (`?` or `!`) after `[]` or
+     *   `...`.
+     * @property endOffset exclusive end character offset of this array dimension in `sourceText`.
+     */
+    private class ArrayDimension(
+        val isVarargs: Boolean,
+        val nullToken: Token?,
+        val endOffset: Int,
+    )
+
     /** Parses a [TypeItem] from [tokens], dispatching to [parseWildcard] or [parseNonWildcard]. */
     private fun parseTypeFromStream(
         tokens: TokenStream,
@@ -212,7 +247,8 @@ open class DefaultTypeItemParser(
         forceClassToBeNonNull: Boolean,
         expectEndOfStream: Boolean,
     ): TypeItem {
-        // A leading `?` always starts a wildcard type (`?`, `? extends T`, or `? super T`).
+        // A leading `?` always starts a wildcard type (`?`, `? extends T`, or `? super T`), even if
+        // the bound itself is an array type (e.g. `? extends String[]`).
         if (tokens.peekType() == SharedTokenType.QUESTION) {
             return parseWildcard(
                 tokens,
@@ -310,7 +346,8 @@ open class DefaultTypeItemParser(
     }
 
     /**
-     * Parses a non-wildcard type: a [VariableTypeItem], [PrimitiveTypeItem], or [ClassTypeItem].
+     * Parses a non-wildcard type: a [VariableTypeItem], [PrimitiveTypeItem], [ClassTypeItem], or
+     * [ArrayTypeItem].
      */
     private fun parseNonWildcard(
         tokens: TokenStream,
@@ -324,13 +361,28 @@ open class DefaultTypeItemParser(
         var baseEndOffset = firstToken.endOffset
 
         // Fast path: single-identifier base type (not followed by '.' or '<').
-        // Handles primitives (`int`), type variables (`T`), and unqualified classes (`String`).
+        // Handles primitives (`int`), type variables (`T`), unqualified classes (`String`), and
+        // arrays thereof (`int[]`, `String[]`).
         if (
             tokens.peekType() != SharedTokenType.DOT &&
                 tokens.peekType() != SharedTokenType.ANGLE_OPEN
         ) {
             val baseNullToken = matchNullabilityToken(tokens)
             val baseSliceEnd = baseNullToken?.endOffset ?: baseEndOffset
+
+            // If followed by array dimensions (`[]` or `...`), slice the base type and delegate to
+            // parseArrayType.
+            if (isArrayDimensionStart(tokens)) {
+                val baseType = sourceText.substring(baseStartOffset, baseSliceEnd)
+                return parseArrayType(
+                    tokens,
+                    sourceText,
+                    baseType,
+                    typeParameterScope,
+                    baseStartOffset,
+                )
+            }
+
             val nullability =
                 resolveNullability(
                     sourceText,
@@ -473,6 +525,19 @@ open class DefaultTypeItemParser(
 
         val baseNullToken = matchNullabilityToken(tokens)
         val baseSliceEnd = baseNullToken?.endOffset ?: baseEndOffset
+
+        // If followed by array dimensions, slice the base type and delegate to parseArrayType.
+        if (isArrayDimensionStart(tokens)) {
+            val baseType = sourceText.substring(baseStartOffset, baseSliceEnd)
+            return parseArrayType(
+                tokens,
+                sourceText,
+                baseType,
+                typeParameterScope,
+                baseStartOffset,
+            )
+        }
+
         val nullability =
             resolveNullability(
                 sourceText,
@@ -590,6 +655,78 @@ open class DefaultTypeItemParser(
     }
 
     /**
+     * Parses one or more array dimensions (`('[' ']' | '...') NullabilitySuffix?`) following
+     * [baseType] and wraps the parsed component type in [ArrayTypeItem]s.
+     */
+    private fun parseArrayType(
+        tokens: TokenStream,
+        sourceText: String,
+        baseType: String,
+        typeParameterScope: TypeParameterScope,
+        baseStartOffset: Int,
+    ): ArrayTypeItem {
+        // Consume all consecutive array dimensions (`[]?` or `...?`).
+        val dimensions = mutableListOf<ArrayDimension>()
+        while (isArrayDimensionStart(tokens)) {
+            var dimEndOffset: Int
+            val isVarargs: Boolean
+            if (tokens.peekType() == SharedTokenType.ELLIPSIS) {
+                dimEndOffset = tokens.consume().endOffset
+                isVarargs = true
+            } else {
+                dimEndOffset = tokens.consume().endOffset // consume '['
+                if (tokens.peekType() == SharedTokenType.BRACKET_CLOSE) {
+                    dimEndOffset = tokens.consume().endOffset // consume ']'
+                }
+                isVarargs = false
+            }
+            val dimNullToken = matchNullabilityToken(tokens)
+            if (dimNullToken != null) {
+                dimEndOffset = dimNullToken.endOffset
+            }
+            dimensions.add(
+                ArrayDimension(
+                    isVarargs,
+                    dimNullToken,
+                    dimEndOffset,
+                )
+            )
+        }
+
+        val lastIndex = dimensions.lastIndex
+        val dimensionNullabilities = arrayOfNulls<TypeNullability>(dimensions.size)
+        // Resolve the outermost array dimension's nullability first (matching TypeItemParser error
+        // reporting order), then resolve inner dimensions from right to left.
+        for (i in lastIndex downTo 0) {
+            dimensionNullabilities[i] =
+                resolveNullability(
+                    sourceText,
+                    dimensions[i].nullToken,
+                    baseStartOffset,
+                    dimensions[i].endOffset,
+                )
+        }
+
+        // Parse the deepest non-array component type.
+        val deepComponentType =
+            parseTypeWithContextNullability(
+                baseType,
+                typeParameterScope,
+            )
+
+        // Build nested ArrayTypeItems from the innermost 1D array outward to the N-D array.
+        var currentType: TypeItem = deepComponentType
+        val size = dimensions.size
+        for (i in 0 until size) {
+            val dimNullability = dimensionNullabilities[i]
+            val isVarargs = dimensions[i].isVarargs
+            val modifiers = createModifiers(dimNullability)
+            currentType = TypeItem.createArrayType(modifiers, currentType, isVarargs)
+        }
+        return currentType as ArrayTypeItem
+    }
+
+    /**
      * Consumes and returns the next token if it is a nullability suffix (`?` or `!`), or returns
      * `null` otherwise.
      */
@@ -632,6 +769,12 @@ open class DefaultTypeItemParser(
         }
     }
 
+    /** Returns `true` if the next token in [tokens] starts an array dimension (`[` or `...`). */
+    private fun isArrayDimensionStart(tokens: TokenStream): Boolean {
+        val type = tokens.peekType()
+        return type == SharedTokenType.BRACKET_OPEN || type == SharedTokenType.ELLIPSIS
+    }
+
     /**
      * Returns `true` if [type] can validly follow a parameterized class type.
      *
@@ -642,6 +785,8 @@ open class DefaultTypeItemParser(
         type == SharedTokenType.EOF ||
             type == SharedTokenType.QUESTION ||
             type == SharedTokenType.EXCLAMATION ||
+            type == SharedTokenType.BRACKET_OPEN ||
+            type == SharedTokenType.ELLIPSIS ||
             type == SharedTokenType.COMMA ||
             type == SharedTokenType.ANGLE_CLOSE ||
             (!expectEndOfStream && !type.canBeIdentifier)
