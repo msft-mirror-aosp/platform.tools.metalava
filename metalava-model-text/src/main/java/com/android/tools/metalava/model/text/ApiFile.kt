@@ -1269,22 +1269,7 @@ internal class SingleSignatureFileParser(
                 token = tokenizer.requireToken()
                 if (token == "(") {
                     // Annotation arguments; potentially nested
-                    var balance = 0
-                    val start = tokenizer.offset() - 1
-                    while (true) {
-                        if (token == "(") {
-                            balance++
-                        } else if (token == ")") {
-                            balance--
-                            if (balance == 0) {
-                                break
-                            }
-                        }
-                        token = tokenizer.requireToken()
-                    }
-
-                    // Append the tokenizer arguments.
-                    tokenizer.appendStringFromOffsetTo(this, start)
+                    append(tokenizer.scanBalancedTokens("(", ")"))
 
                     // Move the tokenizer so that when the method returns it points to the token
                     // after the end of the annotation.
@@ -1992,23 +1977,13 @@ internal class SingleSignatureFileParser(
     private fun parseTypeParameterList(
         enclosingTypeItemFactory: TextTypeItemFactory,
     ): TypeParameterListAndFactory<TextTypeItemFactory> {
-        var token: String = tokenizer.current
+        val token: String = tokenizer.current
         // No type parameters to parse. The current token is unchanged
         if ("<" != token) {
             return TypeParameterListAndFactory(TypeParameterList.NONE, enclosingTypeItemFactory)
         }
 
-        val start = tokenizer.offset() - 1
-        var balance = 1
-        while (balance > 0) {
-            token = tokenizer.requireToken()
-            if (token == "<") {
-                balance++
-            } else if (token == ">") {
-                balance--
-            }
-        }
-        val typeParameterListString = tokenizer.getStringFromOffset(start)
+        val typeParameterListString = tokenizer.scanBalancedTokens("<", ">")
         // Set the tokenizer to the next token, so that the caller should continue processing at
         // tokenizer.current (in alignment with the no type parameter case).
         tokenizer.requireToken()

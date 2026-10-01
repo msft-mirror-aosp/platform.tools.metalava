@@ -116,7 +116,7 @@ class Tokenizer(
      * The current [position], used to record the start of a block of text that will be retrieved
      * later by [getStringFromOffset].
      */
-    fun offset(): Int {
+    private fun offset(): Int {
         return position
     }
 
@@ -125,17 +125,31 @@ class Tokenizer(
      *
      * @param offset an offset previously returned by [offset].
      */
-    fun getStringFromOffset(offset: Int): String {
+    private fun getStringFromOffset(offset: Int): String {
         return buffer.substring(offset, position)
     }
 
     /**
-     * Append the contents of [buffer] from [offset] to [position] to [builder].
+     * Scans balanced [openToken] and [closeToken] tokens starting from [current] (which must be
+     * [openToken]) and returns the substring from the start of the opening [openToken] to the end
+     * of the matching [closeToken].
      *
-     * @param offset an offset previously returned by [offset].
+     * Does not advance past the matching [closeToken]; on return, [current] is the matching
+     * [closeToken].
      */
-    fun appendStringFromOffsetTo(builder: StringBuilder, offset: Int) {
-        builder.append(buffer, offset, position)
+    fun scanBalancedTokens(openToken: String, closeToken: String): String {
+        require(current == openToken) { "Expected '$openToken' but found '$current'" }
+        val start = offset() - openToken.length
+        var balance = 1
+        while (balance > 0) {
+            val token = requireToken()
+            if (token == openToken) {
+                balance++
+            } else if (token == closeToken) {
+                balance--
+            }
+        }
+        return getStringFromOffset(start)
     }
 
     /** The current token. */
