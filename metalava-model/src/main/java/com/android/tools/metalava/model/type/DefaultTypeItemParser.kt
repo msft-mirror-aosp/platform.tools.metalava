@@ -16,6 +16,8 @@
 
 package com.android.tools.metalava.model.type
 
+import com.android.tools.metalava.model.AnnotationContext
+import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ArrayTypeItem
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.PrimitiveTypeItem
@@ -34,21 +36,34 @@ import com.android.tools.metalava.model.parser.SharedTokenType
 import com.android.tools.metalava.model.parser.Token
 import com.android.tools.metalava.model.parser.TokenStream
 import com.android.tools.metalava.model.parser.TokenType
+import com.android.tools.metalava.model.value.ValueParser
+import com.android.tools.metalava.reporter.FileLocation
 
 /**
  * Recursive-descent parser for [TypeItem]s that consumes [Token]s from a [TokenStream] produced by
  * [SharedLexer] (or `SignatureFileLexer`).
  *
+ * @param annotationContext context for resolving annotations and classes.
  * @param unqualifiedClassHandler responsible for determining how to handle unqualified types.
  * @param kotlinStyleNulls whether Kotlin-style nulls (`?` for nullable, `!` for platform, and no
  *   suffix for non-null) are supported.
  * @param errorReporter channel for reporting recoverable errors found while parsing.
  */
 open class DefaultTypeItemParser(
+    val annotationContext: AnnotationContext,
     private val unqualifiedClassHandler: UnqualifiedClassHandler,
     val kotlinStyleNulls: Boolean = false,
     private val errorReporter: TypeItemParserErrorReporter = TypeItemParserErrorReporter.THROWING,
 ) : TypeItemParser {
+    /** Parser for parameterized type-use annotations (e.g. `@IntRange(from = 5, to = 10)`). */
+    private val valueParser by
+        lazy(LazyThreadSafetyMode.NONE) {
+            ValueParser(
+                annotationContext,
+                this,
+            )
+        }
+
     /** A [TypeItem] representing `java.lang.Object`, suitable for general use. */
     private val objectType =
         if (kotlinStyleNulls) JAVA_LANG_OBJECT_NON_NULL_TYPE else JAVA_LANG_OBJECT_PLATFORM_TYPE
@@ -92,12 +107,15 @@ open class DefaultTypeItemParser(
      *   offsets).
      * @param typeParameterScope the in-scope type parameters for resolving [VariableTypeItem]s.
      * @param contextNullability contextual nullability constraints to apply after parsing.
+     * @param unshortenAnnotations whether short annotation names (e.g. `@NonNull`) should be
+     *   expanded to their fully qualified names.
      */
     fun obtainTypeFromStream(
         tokens: TokenStream,
         sourceText: String,
         typeParameterScope: TypeParameterScope = TypeParameterScope.empty,
         contextNullability: ContextNullability = ContextNullability.none,
+        unshortenAnnotations: Boolean = false,
     ): TypeItem {
         val forceClassToBeNonNull =
             contextNullability.forcedNullability == TypeNullability.NONNULL || kotlinStyleNulls
@@ -106,7 +124,9 @@ open class DefaultTypeItemParser(
                 tokens,
                 sourceText = sourceText,
                 typeParameterScope = typeParameterScope,
+                leadingAnnotations = emptyList(),
                 forceClassToBeNonNull = forceClassToBeNonNull,
+                unshortenAnnotations = unshortenAnnotations,
                 expectEndOfStream = false,
             )
         return applyContextNullability(typeItem, contextNullability)
@@ -153,13 +173,19 @@ open class DefaultTypeItemParser(
      * Parse [type] and return a [TypeItem], in the context of type parameters from
      * [typeParameterScope], if applicable.
      *
+     * Used internally, as it has an extra [annotations] parameter that allows the annotations on
+     * array components to be correctly associated with the correct component. They are optional
+     * leading type-use annotations that have already been removed from the array's type string.
+     *
      * This will also map [contextNullability] to a [Boolean] that controls whether a
      * [ClassTypeItem] is forced to be non-null, taking into account [kotlinStyleNulls].
      */
     private fun parseTypeWithContextNullability(
         type: String,
         typeParameterScope: TypeParameterScope,
+        annotations: List<AnnotationItem> = emptyList(),
         contextNullability: ContextNullability = ContextNullability.none,
+        unshortenAnnotations: Boolean = false,
     ): TypeItem {
         // Class types used as super types, i.e. in an extends or implements list are forced to be
         // [TypeNullability.NONNULL], just as they would be if kotlinStyleNulls was true. Use the
@@ -167,7 +193,19 @@ open class DefaultTypeItemParser(
         val forceClassToBeNonNull =
             contextNullability.forcedNullability == TypeNullability.NONNULL || kotlinStyleNulls
 
-        return parseType(type, typeParameterScope, forceClassToBeNonNull)
+        return if (unshortenAnnotations) {
+            parseTypeFromStream(
+                tokens = SharedLexer(type).tokenize(),
+                sourceText = type,
+                typeParameterScope = typeParameterScope,
+                leadingAnnotations = annotations,
+                forceClassToBeNonNull = forceClassToBeNonNull,
+                unshortenAnnotations = true,
+                expectEndOfStream = true,
+            )
+        } else {
+            parseType(type, typeParameterScope, annotations, forceClassToBeNonNull)
+        }
     }
 
     /**
@@ -175,78 +213,119 @@ open class DefaultTypeItemParser(
      *
      * @param type the type string to parse.
      * @param typeParameterScope the in-scope type parameters.
+     * @param annotations leading type-use annotations already detached from an enclosing array.
      * @param forceClassToBeNonNull if `true`, forces an outermost [ClassTypeItem] without a
-     *   nullability suffix to have [TypeNullability.NONNULL].
+     *   nullability suffix or nullness annotation to have [TypeNullability.NONNULL].
      */
     protected open fun parseType(
         type: String,
         typeParameterScope: TypeParameterScope,
+        annotations: List<AnnotationItem> = emptyList(),
         forceClassToBeNonNull: Boolean = false,
     ): TypeItem =
         parseTypeFromStream(
             tokens = SharedLexer(type).tokenize(),
             sourceText = type,
             typeParameterScope = typeParameterScope,
+            leadingAnnotations = annotations,
             forceClassToBeNonNull = forceClassToBeNonNull,
+            unshortenAnnotations = false,
             expectEndOfStream = true,
         )
 
     /**
-     * Creates a [TypeModifiers] from nullability information.
+     * Creates a [TypeModifiers] from [annotations] and nullability information.
      *
-     * If [knownNullability] is `null`, falls back to [defaultNullability], or to
-     * [TypeNullability.NONNULL] when [kotlinStyleNulls] is `true` and [TypeNullability.PLATFORM]
-     * otherwise.
+     * If [knownNullability] is `null` then this will compute a non-null [TypeNullability] as
+     * follows:
+     *
+     * If [kotlinStyleNulls] is `true` then this will use the first non-null [TypeNullability] found
+     * in the following steps:
+     * 1. [defaultNullability]
+     * 2. [TypeNullability.NONNULL].
+     *
+     * Otherwise, it will use the first non-null [TypeNullability] found in the following steps:
+     * 1. The [TypeNullability] of a [AnnotationItem.isNullnessAnnotation] annotation in
+     *    [annotations].
+     * 2. [defaultNullability]
+     * 3. [TypeNullability.PLATFORM].
      */
     private fun createModifiers(
+        annotations: List<AnnotationItem>,
         knownNullability: TypeNullability?,
         defaultNullability: TypeNullability? = null,
     ): TypeModifiers {
+        // Use the known nullability if provided; otherwise infer from nullness annotations or fall
+        // back to the default nullability for the current format.
         val nullability =
             knownNullability
-                ?: defaultNullability
                 ?: if (kotlinStyleNulls) {
-                    TypeNullability.NONNULL
+                    defaultNullability ?: TypeNullability.NONNULL
                 } else {
-                    TypeNullability.PLATFORM
+                    annotations
+                        .firstOrNull { it.isNullnessAnnotation() }
+                        ?.let { TypeNullability.ofAnnotation(it) }
+                        ?: defaultNullability
+                        ?: TypeNullability.PLATFORM
                 }
 
-        return TypeModifiers.create(emptyList(), nullability)
+        return TypeModifiers.create(annotations, nullability)
     }
 
     /**
-     * Represents a nested `.Inner<T>` class segment in a qualified class type.
+     * Represents a nested `. @Anno Inner<T>` class segment in a qualified class type.
      *
+     * @property annotations type-use annotations placed immediately after `.` before [name].
      * @property name the simple name of the nested class.
      * @property typeArgStrings type argument strings `<...>` applied to this nested class segment.
      */
     private class ClassSegment(
+        val annotations: List<AnnotationItem>,
         val name: String,
         val typeArgStrings: List<String>,
     )
 
     /**
-     * Represents a single array dimension `('[' ']' | '...') NullabilitySuffix?`.
+     * Represents a single array dimension `Annotation* ('[' ']' | '...') NullabilitySuffix?`.
      *
+     * @property annotations type-use annotations preceding `[` or `...` for this dimension.
      * @property isVarargs `true` if this dimension was written with `...`, `false` if `[]`.
      * @property nullToken optional Kotlin-style nullability suffix token (`?` or `!`) after `[]` or
      *   `...`.
      * @property endOffset exclusive end character offset of this array dimension in `sourceText`.
      */
     private class ArrayDimension(
+        val annotations: List<AnnotationItem>,
         val isVarargs: Boolean,
         val nullToken: Token?,
         val endOffset: Int,
     )
 
-    /** Parses a [TypeItem] from [tokens], dispatching to [parseWildcard] or [parseNonWildcard]. */
+    /**
+     * Parses a [TypeItem] from [tokens], collecting any leading type-use annotations and
+     * dispatching to [parseWildcard] or [parseNonWildcard].
+     */
     private fun parseTypeFromStream(
         tokens: TokenStream,
         sourceText: String,
         typeParameterScope: TypeParameterScope,
+        leadingAnnotations: List<AnnotationItem>,
         forceClassToBeNonNull: Boolean,
+        unshortenAnnotations: Boolean,
         expectEndOfStream: Boolean,
     ): TypeItem {
+        // Consume any leading `@Anno` tokens and combine them with annotations passed down from an
+        // enclosing array type.
+        val annotationsFromStream = parseAnnotations(tokens, sourceText, unshortenAnnotations)
+        val allLeadingAnnotations =
+            if (leadingAnnotations.isEmpty()) {
+                annotationsFromStream
+            } else if (annotationsFromStream.isEmpty()) {
+                leadingAnnotations
+            } else {
+                leadingAnnotations + annotationsFromStream
+            }
+
         // A leading `?` always starts a wildcard type (`?`, `? extends T`, or `? super T`), even if
         // the bound itself is an array type (e.g. `? extends String[]`).
         if (tokens.peekType() == SharedTokenType.QUESTION) {
@@ -254,6 +333,8 @@ open class DefaultTypeItemParser(
                 tokens,
                 sourceText,
                 typeParameterScope,
+                allLeadingAnnotations,
+                unshortenAnnotations,
             )
         }
 
@@ -261,7 +342,9 @@ open class DefaultTypeItemParser(
             tokens,
             sourceText,
             typeParameterScope,
+            allLeadingAnnotations,
             forceClassToBeNonNull,
+            unshortenAnnotations,
             expectEndOfStream,
         )
     }
@@ -277,10 +360,12 @@ open class DefaultTypeItemParser(
         tokens: TokenStream,
         sourceText: String,
         typeParameterScope: TypeParameterScope,
+        annotations: List<AnnotationItem>,
+        unshortenAnnotations: Boolean,
     ): WildcardTypeItem {
         val questionToken = tokens.consume()
         // Wildcard types always have UNDEFINED nullability.
-        val typeModifiers = createModifiers(TypeNullability.UNDEFINED)
+        val typeModifiers = createModifiers(annotations, TypeNullability.UNDEFINED)
 
         return when (tokens.peekType()) {
             // Unbounded wildcard `?` at the end of a type or type argument list: uses an implicit
@@ -298,6 +383,7 @@ open class DefaultTypeItemParser(
                         tokens,
                         sourceText,
                         typeParameterScope,
+                        unshortenAnnotations,
                     )
                 TypeItem.createWildcardType(typeModifiers, extendsBound, null)
             }
@@ -310,6 +396,7 @@ open class DefaultTypeItemParser(
                         tokens,
                         sourceText,
                         typeParameterScope,
+                        unshortenAnnotations,
                     )
                 TypeItem.createWildcardType(typeModifiers, objectType, superBound)
             }
@@ -334,6 +421,7 @@ open class DefaultTypeItemParser(
         tokens: TokenStream,
         sourceText: String,
         typeParameterScope: TypeParameterScope,
+        unshortenAnnotations: Boolean,
     ): ReferenceTypeItem {
         val startOffset = tokens.peek().startOffset
         val lastToken = consumeUntilTypeBoundary(tokens)
@@ -341,6 +429,7 @@ open class DefaultTypeItemParser(
         return parseTypeWithContextNullability(
             boundType,
             typeParameterScope,
+            unshortenAnnotations = unshortenAnnotations,
         )
             as ReferenceTypeItem
     }
@@ -353,7 +442,9 @@ open class DefaultTypeItemParser(
         tokens: TokenStream,
         sourceText: String,
         typeParameterScope: TypeParameterScope,
+        leadingAnnotations: List<AnnotationItem>,
         forceClassToBeNonNull: Boolean,
+        unshortenAnnotations: Boolean,
         expectEndOfStream: Boolean,
     ): TypeItem {
         val baseStartOffset = tokens.peek().startOffset
@@ -370,8 +461,8 @@ open class DefaultTypeItemParser(
             val baseNullToken = matchNullabilityToken(tokens)
             val baseSliceEnd = baseNullToken?.endOffset ?: baseEndOffset
 
-            // If followed by array dimensions (`[]` or `...`), slice the base type and delegate to
-            // parseArrayType.
+            // If followed by array dimensions (`@Anno []`, `[]`, or `...`), slice the base type and
+            // delegate to parseArrayType.
             if (isArrayDimensionStart(tokens)) {
                 val baseType = sourceText.substring(baseStartOffset, baseSliceEnd)
                 return parseArrayType(
@@ -379,6 +470,8 @@ open class DefaultTypeItemParser(
                     sourceText,
                     baseType,
                     typeParameterScope,
+                    leadingAnnotations,
+                    unshortenAnnotations,
                     baseStartOffset,
                 )
             }
@@ -398,6 +491,7 @@ open class DefaultTypeItemParser(
             typeParameterScope.findTypeParameter(simpleName)?.let { param ->
                 val modifiers =
                     createModifiers(
+                        leadingAnnotations,
                         nullability,
                         defaultNullability = TypeNullability.UNDEFINED,
                     )
@@ -408,6 +502,7 @@ open class DefaultTypeItemParser(
             asPrimitive(
                     sourceText,
                     simpleName,
+                    leadingAnnotations,
                     nullability,
                     baseStartOffset,
                     baseSliceEnd,
@@ -426,7 +521,8 @@ open class DefaultTypeItemParser(
                     unqualifiedClassHandler.handleUnqualifiedType(errorReporter, simpleName)
                 }
             val defaultNullability = if (forceClassToBeNonNull) TypeNullability.NONNULL else null
-            val classModifiers = createModifiers(nullability, defaultNullability)
+            val classModifiers =
+                createModifiers(leadingAnnotations, nullability, defaultNullability)
             return TypeItem.createClassType(
                 classModifiers,
                 qualifiedName,
@@ -437,16 +533,20 @@ open class DefaultTypeItemParser(
 
         // Qualified and/or parameterized class type.
         var outerRawName = firstToken.text
+        var outerAnnotations: List<AnnotationItem> = emptyList()
 
         // If the first identifier is lowercase (a package segment), consume `.pkg` segments until
-        // we reach the first class name (which contains an uppercase character).
+        // we reach the first class name (which contains an uppercase character or is preceded by a
+        // type-use annotation such as `java.lang.@NonNull String`).
         if (!firstToken.text.any { it.isUpperCase() } && tokens.peekType() == SharedTokenType.DOT) {
             var nameBuilder: StringBuilder? = null
             while (tokens.peekType() == SharedTokenType.DOT) {
                 val dotToken = tokens.consume() // consume '.'
+                val annos = parseAnnotations(tokens, sourceText, unshortenAnnotations)
                 val nextIdent = tokens.consume()
                 if (
                     nameBuilder != null ||
+                        annos.isNotEmpty() ||
                         dotToken.startOffset != baseEndOffset ||
                         nextIdent.startOffset != dotToken.endOffset
                 ) {
@@ -461,8 +561,11 @@ open class DefaultTypeItemParser(
                     }
                     nameBuilder.append('.').append(nextIdent.text)
                 }
+                if (annos.isNotEmpty()) {
+                    outerAnnotations = annos
+                }
                 baseEndOffset = nextIdent.endOffset
-                if (nextIdent.text.any { it.isUpperCase() }) {
+                if (annos.isNotEmpty() || nextIdent.text.any { it.isUpperCase() }) {
                     break
                 }
             }
@@ -480,12 +583,13 @@ open class DefaultTypeItemParser(
             lastSegmentHadTypeArgs = true
         }
 
-        // Parse any nested class segments (`.Inner` or `.Inner<P2>`).
+        // Parse any nested class segments (`.Inner`, `. @Anno Inner<P2>`, etc.).
         var nestedSegments: MutableList<ClassSegment>? = null
         var lastSegmentStartOffset = baseStartOffset
         while (tokens.peekType() == SharedTokenType.DOT) {
             tokens.consume() // consume '.'
             lastSegmentStartOffset = tokens.peek().startOffset
+            val innerAnnotations = parseAnnotations(tokens, sourceText, unshortenAnnotations)
             val innerIdent = tokens.consume()
             baseEndOffset = innerIdent.endOffset
             var innerTypeArgStrings: List<String> = emptyList()
@@ -501,6 +605,7 @@ open class DefaultTypeItemParser(
             }
             nestedSegments.add(
                 ClassSegment(
+                    innerAnnotations,
                     innerIdent.text,
                     innerTypeArgStrings,
                 )
@@ -534,6 +639,8 @@ open class DefaultTypeItemParser(
                 sourceText,
                 baseType,
                 typeParameterScope,
+                leadingAnnotations,
+                unshortenAnnotations,
                 baseStartOffset,
             )
         }
@@ -558,19 +665,24 @@ open class DefaultTypeItemParser(
                 parseTypeWithContextNullability(
                     argType,
                     typeParameterScope,
+                    unshortenAnnotations = unshortenAnnotations,
                 )
                     as TypeArgumentTypeItem
             }
 
         // If there are nested class segments (e.g. `Outer.Inner`), the outer class is always
-        // non-null.
+        // non-null and leading annotations apply to the innermost nested class instead.
         val hasNested = !nestedSegments.isNullOrEmpty()
         val defaultNullability = if (forceClassToBeNonNull) TypeNullability.NONNULL else null
         val outerModifiers =
             if (hasNested) {
-                createModifiers(TypeNullability.NONNULL)
+                createModifiers(outerAnnotations, TypeNullability.NONNULL)
             } else {
-                createModifiers(nullability, defaultNullability)
+                createModifiers(
+                    leadingAnnotations + outerAnnotations,
+                    nullability,
+                    defaultNullability,
+                )
             }
 
         var currentClassType =
@@ -589,18 +701,23 @@ open class DefaultTypeItemParser(
                 val segment = nestedSegments[i]
                 val isLast = i == lastIndex
                 // Enclosing nested classes are non-null; the innermost nested class receives
-                // `nullability`.
+                // `leadingAnnotations` and `nullability`.
                 val segmentModifiers =
                     if (!isLast) {
-                        createModifiers(TypeNullability.NONNULL)
+                        createModifiers(segment.annotations, TypeNullability.NONNULL)
                     } else {
-                        createModifiers(nullability, defaultNullability)
+                        createModifiers(
+                            leadingAnnotations + segment.annotations,
+                            nullability,
+                            defaultNullability,
+                        )
                     }
                 val segmentTypeArgs =
                     segment.typeArgStrings.map { argType ->
                         parseTypeWithContextNullability(
                             argType,
                             typeParameterScope,
+                            unshortenAnnotations = unshortenAnnotations,
                         )
                             as TypeArgumentTypeItem
                     }
@@ -628,6 +745,7 @@ open class DefaultTypeItemParser(
     private fun asPrimitive(
         sourceText: String,
         name: String,
+        annotations: List<AnnotationItem>,
         nullability: TypeNullability?,
         startOffset: Int,
         endOffset: Int,
@@ -650,24 +768,34 @@ open class DefaultTypeItemParser(
             errorReporter.report("Invalid nullability suffix on primitive: $original")
         }
         // Primitives are always non-null.
-        val typeModifiers = createModifiers(TypeNullability.NONNULL)
+        val typeModifiers = createModifiers(annotations, TypeNullability.NONNULL)
         return TypeItem.createPrimitiveType(typeModifiers, kind)
     }
 
     /**
-     * Parses one or more array dimensions (`('[' ']' | '...') NullabilitySuffix?`) following
-     * [baseType] and wraps the parsed component type in [ArrayTypeItem]s.
+     * Parses one or more array dimensions (`Annotation* ('[' ']' | '...') NullabilitySuffix?`)
+     * following [baseType] and wraps the parsed component type in [ArrayTypeItem]s.
+     *
+     * Note on ordering:
+     * - **Annotations**: In Java/Metalava syntax (e.g. `@A String @B [] @C []`), `@A` applies to
+     *   `String`, `@B` applies to the outer 2D array `String[][]`, and `@C` applies to the inner 1D
+     *   array `String[]` (`dimensions[size - 1 - i].annotations`).
+     * - **Kotlin-style nullability suffixes**: In Metalava signature syntax (e.g. `String! []!
+     *   []?`), nullability suffixes appear from innermost to outermost (`dimensions[i]`).
      */
     private fun parseArrayType(
         tokens: TokenStream,
         sourceText: String,
         baseType: String,
         typeParameterScope: TypeParameterScope,
+        leadingAnnotations: List<AnnotationItem>,
+        unshortenAnnotations: Boolean,
         baseStartOffset: Int,
     ): ArrayTypeItem {
-        // Consume all consecutive array dimensions (`[]?` or `...?`).
+        // Consume all consecutive array dimensions (`@Anno []?` or `@Anno ...?`).
         val dimensions = mutableListOf<ArrayDimension>()
         while (isArrayDimensionStart(tokens)) {
+            val dimAnnotations = parseAnnotations(tokens, sourceText, unshortenAnnotations)
             var dimEndOffset: Int
             val isVarargs: Boolean
             if (tokens.peekType() == SharedTokenType.ELLIPSIS) {
@@ -686,6 +814,7 @@ open class DefaultTypeItemParser(
             }
             dimensions.add(
                 ArrayDimension(
+                    dimAnnotations,
                     isVarargs,
                     dimNullToken,
                     dimEndOffset,
@@ -707,32 +836,118 @@ open class DefaultTypeItemParser(
                 )
         }
 
-        // Parse the deepest non-array component type.
+        // Parse the deepest non-array component type, passing `leadingAnnotations` (which precede
+        // the component type in Java syntax, e.g. `@A String[]`) so they attach to the component.
         val deepComponentType =
             parseTypeWithContextNullability(
                 baseType,
                 typeParameterScope,
+                leadingAnnotations,
+                unshortenAnnotations = unshortenAnnotations,
             )
 
         // Build nested ArrayTypeItems from the innermost 1D array outward to the N-D array.
         var currentType: TypeItem = deepComponentType
         val size = dimensions.size
         for (i in 0 until size) {
+            // Dimension annotations are ordered outer-to-inner in Java syntax (`@Outer [] @Inner
+            // []`), whereas nullability suffixes are ordered inner-to-outer (`[]! []?`).
+            val dimAnnotations = dimensions[size - 1 - i].annotations
             val dimNullability = dimensionNullabilities[i]
             val isVarargs = dimensions[i].isVarargs
-            val modifiers = createModifiers(dimNullability)
+            val modifiers = createModifiers(dimAnnotations, dimNullability)
             currentType = TypeItem.createArrayType(modifiers, currentType, isVarargs)
         }
         return currentType as ArrayTypeItem
+    }
+
+    /** Consumes and parses any consecutive `@Annotation`s at the current position in [tokens]. */
+    private fun parseAnnotations(
+        tokens: TokenStream,
+        sourceText: String,
+        unshortenAnnotations: Boolean,
+    ): List<AnnotationItem> {
+        if (tokens.peekType() != SharedTokenType.AT) return emptyList()
+        val list = mutableListOf<AnnotationItem>()
+        while (tokens.peekType() == SharedTokenType.AT) {
+            parseAnnotation(tokens, sourceText, unshortenAnnotations)?.let { list.add(it) }
+        }
+        return list
+    }
+
+    /**
+     * Parses a single `@QualifiedName` or `@QualifiedName(...)` annotation from [tokens].
+     *
+     * Marker annotations without parentheses are constructed directly via
+     * [AnnotationItem.createWithAttributes]; annotations with attribute lists `(...)` are sliced
+     * from [sourceText] and delegated to [ValueParser.parseAnnotationItem].
+     */
+    private fun parseAnnotation(
+        tokens: TokenStream,
+        sourceText: String,
+        unshortenAnnotations: Boolean,
+    ): AnnotationItem? {
+        val atToken = tokens.consume() // consume '@'
+        var endOffset = atToken.endOffset
+
+        // Parse the simple or dot-qualified annotation name.
+        val firstIdent = tokens.consume()
+        endOffset = firstIdent.endOffset
+        val rawName =
+            if (tokens.peekType() == SharedTokenType.DOT) {
+                buildString {
+                    append(firstIdent.text)
+                    while (tokens.peekType() == SharedTokenType.DOT) {
+                        tokens.consume() // consume '.'
+                        append('.')
+                        val nextIdent = tokens.consume()
+                        append(nextIdent.text)
+                        endOffset = nextIdent.endOffset
+                    }
+                }
+            } else {
+                firstIdent.text
+            }
+
+        // If followed by `(`, consume balanced parentheses and delegate attribute parsing to
+        // ValueParser.
+        if (tokens.peekType() == SharedTokenType.PAREN_OPEN) {
+            val openParen = tokens.consume()
+            endOffset = openParen.endOffset
+            var parenDepth = 1
+            while (parenDepth > 0 && tokens.peekType() != SharedTokenType.EOF) {
+                val token = tokens.consume()
+                endOffset = token.endOffset
+                if (token.type == SharedTokenType.PAREN_OPEN) {
+                    parenDepth++
+                } else if (token.type == SharedTokenType.PAREN_CLOSE) {
+                    parenDepth--
+                }
+            }
+            val annotationSource = sourceText.substring(atToken.startOffset, endOffset)
+            return valueParser.parseAnnotationItem(
+                annotationSource,
+                unshorten = unshortenAnnotations,
+            )
+        }
+
+        // Fast path for marker annotations without attributes: construct directly without invoking
+        // ValueParser.
+        val qualifiedName =
+            if (unshortenAnnotations) AnnotationItem.unshortenAnnotation(rawName) else rawName
+        return AnnotationItem.createWithAttributes(
+            annotationContext,
+            FileLocation.UNKNOWN,
+            qualifiedName,
+            emptyList(),
+        )
     }
 
     /**
      * Consumes and returns the next token if it is a nullability suffix (`?` or `!`), or returns
      * `null` otherwise.
      */
-    private fun matchNullabilityToken(
-        tokens: TokenStream,
-    ): Token? {
+    private fun matchNullabilityToken(tokens: TokenStream): Token? {
         val type = tokens.peekType()
         return if (type == SharedTokenType.QUESTION || type == SharedTokenType.EXCLAMATION) {
             tokens.consume()
@@ -769,10 +984,14 @@ open class DefaultTypeItemParser(
         }
     }
 
-    /** Returns `true` if the next token in [tokens] starts an array dimension (`[` or `...`). */
+    /**
+     * Returns `true` if the next token in [tokens] starts an array dimension (`@`, `[`, or `...`).
+     */
     private fun isArrayDimensionStart(tokens: TokenStream): Boolean {
         val type = tokens.peekType()
-        return type == SharedTokenType.BRACKET_OPEN || type == SharedTokenType.ELLIPSIS
+        return type == SharedTokenType.AT ||
+            type == SharedTokenType.BRACKET_OPEN ||
+            type == SharedTokenType.ELLIPSIS
     }
 
     /**
@@ -785,6 +1004,7 @@ open class DefaultTypeItemParser(
         type == SharedTokenType.EOF ||
             type == SharedTokenType.QUESTION ||
             type == SharedTokenType.EXCLAMATION ||
+            type == SharedTokenType.AT ||
             type == SharedTokenType.BRACKET_OPEN ||
             type == SharedTokenType.ELLIPSIS ||
             type == SharedTokenType.COMMA ||
@@ -798,10 +1018,12 @@ open class DefaultTypeItemParser(
     private fun consumeUntilTypeBoundary(tokens: TokenStream): Token {
         var lastToken = tokens.peek()
         var angleDepth = 0
+        var parenDepth = 0
         while (tokens.peekType() != SharedTokenType.EOF) {
             val nextType = tokens.peekType()
             if (
                 angleDepth == 0 &&
+                    parenDepth == 0 &&
                     (nextType == SharedTokenType.COMMA ||
                         nextType == SharedTokenType.ANGLE_CLOSE ||
                         nextType == SharedTokenType.PAREN_CLOSE)
@@ -813,6 +1035,8 @@ open class DefaultTypeItemParser(
             when (token.type) {
                 SharedTokenType.ANGLE_OPEN -> angleDepth++
                 SharedTokenType.ANGLE_CLOSE -> if (angleDepth > 0) angleDepth--
+                SharedTokenType.PAREN_OPEN -> parenDepth++
+                SharedTokenType.PAREN_CLOSE -> if (parenDepth > 0) parenDepth--
             }
         }
         return lastToken
@@ -862,6 +1086,7 @@ open class DefaultTypeItemParser(
             var endOffset = openAngle.endOffset
             val args = mutableListOf<String>()
             var angleDepth = 1
+            var parenDepth = 0
             var argStartOffset = -1
             var argEndOffset = -1
 
@@ -869,6 +1094,18 @@ open class DefaultTypeItemParser(
                 val token = tokens.consume()
                 endOffset = token.endOffset
                 when (token.type) {
+                    // Track parentheses depth so commas inside `@Anno(a = 1, b = 2)` do not split
+                    // type arguments.
+                    SharedTokenType.PAREN_OPEN -> {
+                        if (argStartOffset == -1) argStartOffset = token.startOffset
+                        argEndOffset = token.endOffset
+                        parenDepth++
+                    }
+                    SharedTokenType.PAREN_CLOSE -> {
+                        if (parenDepth > 0) parenDepth--
+                        if (argStartOffset == -1) argStartOffset = token.startOffset
+                        argEndOffset = token.endOffset
+                    }
                     // Track nested angle bracket depth for nested generic types (`List<Map<A,
                     // B>>`).
                     SharedTokenType.ANGLE_OPEN -> {
@@ -890,7 +1127,7 @@ open class DefaultTypeItemParser(
                         }
                     }
                     SharedTokenType.COMMA -> {
-                        if (angleDepth == 1) {
+                        if (angleDepth == 1 && parenDepth == 0) {
                             // Top-level comma separating type arguments.
                             if (argStartOffset != -1) {
                                 args.add(sourceText.substring(argStartOffset, argEndOffset))
