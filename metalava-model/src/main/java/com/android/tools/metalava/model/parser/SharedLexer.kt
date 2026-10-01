@@ -44,6 +44,8 @@ object SharedTokenType {
     val BRACE_OPEN = TokenType("BRACE_OPEN")
     val BRACE_CLOSE = TokenType("BRACE_CLOSE")
     val AT = TokenType("AT")
+    val QUESTION = TokenType("QUESTION")
+    val EXCLAMATION = TokenType("EXCLAMATION")
     val EQUALS = TokenType("EQUALS")
     val PLUS = TokenType("PLUS")
     val MINUS = TokenType("MINUS")
@@ -159,6 +161,14 @@ open class SharedLexer(
             '@' -> {
                 index = start + 1
                 createToken(SharedTokenType.AT, "@", start, index)
+            }
+            '?' -> {
+                index = start + 1
+                createToken(SharedTokenType.QUESTION, "?", start, index)
+            }
+            '!' -> {
+                index = start + 1
+                createToken(SharedTokenType.EXCLAMATION, "!", start, index)
             }
             '=' -> {
                 index = start + 1

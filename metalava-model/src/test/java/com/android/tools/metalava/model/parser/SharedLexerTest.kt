@@ -245,6 +245,21 @@ class SharedLexerTest {
     }
 
     @Test
+    fun `Test nullability suffix tokens`() {
+        checkTokenize(
+            "int? String!",
+            expectedTokens =
+                """
+                    IDENTIFIER 'int'
+                    QUESTION '?'
+                    IDENTIFIER 'String'
+                    EXCLAMATION '!'
+                    EOF ''
+                """,
+        )
+    }
+
+    @Test
     fun `Test EOF token is cached on subsequent nextToken calls`() {
         val lexer = SharedLexer("int")
         assertEquals(SharedTokenType.IDENTIFIER, lexer.nextToken().type)
