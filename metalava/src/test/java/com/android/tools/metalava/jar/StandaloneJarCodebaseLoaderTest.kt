@@ -16,11 +16,11 @@
 
 package com.android.tools.metalava.jar
 
+import androidx.tracing.Tracer
 import com.android.tools.metalava.DriverTest
 import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.testing.RequiresCapabilities
 import com.android.tools.metalava.reporter.ThrowingReporter
-import com.android.tools.metalava.testing.getNoopTracer
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.toTestFile
 import java.io.File
@@ -36,7 +36,7 @@ class StandaloneJarCodebaseLoaderTest : DriverTest() {
     private val jarCodebaseLoader by lazy {
         StandaloneJarCodebaseLoader.create(
             disableStderrDumping = false,
-            getNoopTracer(),
+            Tracer.getStubTracer(),
             ThrowingReporter.INSTANCE,
             sourceModelProvider = codebaseCreatorConfig.creator,
         )

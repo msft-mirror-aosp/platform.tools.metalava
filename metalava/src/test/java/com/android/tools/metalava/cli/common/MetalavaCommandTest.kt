@@ -16,8 +16,8 @@
 
 package com.android.tools.metalava.cli.common
 
+import androidx.tracing.Tracer
 import com.android.tools.metalava.Driver
-import com.android.tools.metalava.testing.getNoopTracer
 import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.core.subcommands
 import org.junit.Assert.assertEquals
@@ -29,7 +29,7 @@ class MetalavaCommandTest :
     BaseCommandTest<MetalavaCommand>({ executionEnvironment ->
         MetalavaCommand(
             executionEnvironment = executionEnvironment,
-            tracer = getNoopTracer(),
+            tracer = Tracer.getStubTracer(),
         )
     }) {
 
@@ -48,7 +48,7 @@ class MetalavaCommandTest :
         val command =
             MetalavaCommand(
                 executionEnvironment = executionEnvironment,
-                tracer = getNoopTracer(),
+                tracer = Tracer.getStubTracer(),
             )
         try {
             command.processThrowCliException(args.toTypedArray())
@@ -98,7 +98,7 @@ class MetalavaCommandTest :
             MetalavaCommand(
                 executionEnvironment = executionEnvironment,
                 defaultCommandName = subCommand.commandName,
-                tracer = getNoopTracer(),
+                tracer = Tracer.getStubTracer(),
             )
         command.subcommands(subCommand)
 
@@ -129,7 +129,7 @@ class MetalavaCommandTest :
         val command =
             MetalavaCommand(
                 executionEnvironment = executionEnvironment,
-                tracer = getNoopTracer(),
+                tracer = Tracer.getStubTracer(),
             )
         command.subcommands(FailCommand())
         command.process(args.toTypedArray())

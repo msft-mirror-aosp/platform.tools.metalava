@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model.source
 
+import androidx.tracing.Tracer
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.multiplatform.MultiplatformCodebase
 import com.android.tools.metalava.model.provider.Capability
@@ -28,7 +29,6 @@ import com.android.tools.metalava.model.testsuite.ModelSuiteRunner.SourceDir
 import com.android.tools.metalava.model.testsuite.ModelSuiteRunner.TestConfiguration
 import com.android.tools.metalava.testing.getAndroidJar
 import com.android.tools.metalava.testing.getKotlinStdlibPaths
-import com.android.tools.metalava.testing.getNoopTracer
 import java.io.File
 
 /** A [ModelSuiteRunner] that is implemented using a [SourceModelProvider]. */
@@ -95,7 +95,7 @@ class SourceModelSuiteRunner(private val sourceModelProvider: SourceModelProvide
                         codebaseConfig = testFixture.codebaseConfig,
                         javaLanguageLevel = testFixture.javaLanguageLevel,
                         modelOptions = inputs.modelOptions,
-                        tracer = getNoopTracer()
+                        tracer = Tracer.getStubTracer()
                     )
 
                 val codebase = sourceParser.createMultiplatformCodebase(projectDescription)
@@ -115,7 +115,7 @@ class SourceModelSuiteRunner(private val sourceModelProvider: SourceModelProvide
                 codebaseConfig = testFixture.codebaseConfig,
                 javaLanguageLevel = testFixture.javaLanguageLevel,
                 modelOptions = inputs.modelOptions,
-                tracer = getNoopTracer()
+                tracer = Tracer.getStubTracer()
             )
 
         val inputs =
@@ -163,7 +163,7 @@ class SourceModelSuiteRunner(private val sourceModelProvider: SourceModelProvide
             val sourceParser =
                 environmentManager.createSourceParser(
                     codebaseConfig = Codebase.Config(),
-                    tracer = getNoopTracer()
+                    tracer = Tracer.getStubTracer()
                 )
 
             val jarSupport = SourceParserJarSupport(sourceParser)
