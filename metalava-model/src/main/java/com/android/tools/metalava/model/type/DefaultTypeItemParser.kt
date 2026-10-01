@@ -18,12 +18,16 @@ package com.android.tools.metalava.model.type
 
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.PrimitiveTypeItem
+import com.android.tools.metalava.model.ReferenceTypeItem
 import com.android.tools.metalava.model.TypeArgumentTypeItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeModifiers
 import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.TypeParameterScope
 import com.android.tools.metalava.model.VariableTypeItem
+import com.android.tools.metalava.model.WellKnownTypes.JAVA_LANG_OBJECT_NON_NULL_TYPE
+import com.android.tools.metalava.model.WellKnownTypes.JAVA_LANG_OBJECT_PLATFORM_TYPE
+import com.android.tools.metalava.model.WildcardTypeItem
 import com.android.tools.metalava.model.parser.SharedLexer
 import com.android.tools.metalava.model.parser.SharedTokenType
 import com.android.tools.metalava.model.parser.Token
@@ -44,6 +48,10 @@ open class DefaultTypeItemParser(
     val kotlinStyleNulls: Boolean = false,
     private val errorReporter: TypeItemParserErrorReporter = TypeItemParserErrorReporter.THROWING,
 ) : TypeItemParser {
+    /** A [TypeItem] representing `java.lang.Object`, suitable for general use. */
+    private val objectType =
+        if (kotlinStyleNulls) JAVA_LANG_OBJECT_NON_NULL_TYPE else JAVA_LANG_OBJECT_PLATFORM_TYPE
+
     /**
      * Parses [type] into a [TypeItem] in the context of the type parameters from
      * [typeParameterScope], if applicable.
@@ -196,21 +204,110 @@ open class DefaultTypeItemParser(
         val typeArgStrings: List<String>,
     )
 
-    /** Parses a [TypeItem] from [tokens]. */
+    /** Parses a [TypeItem] from [tokens], dispatching to [parseWildcard] or [parseNonWildcard]. */
     private fun parseTypeFromStream(
         tokens: TokenStream,
         sourceText: String,
         typeParameterScope: TypeParameterScope,
         forceClassToBeNonNull: Boolean,
         expectEndOfStream: Boolean,
-    ): TypeItem =
-        parseNonWildcard(
+    ): TypeItem {
+        // A leading `?` always starts a wildcard type (`?`, `? extends T`, or `? super T`).
+        if (tokens.peekType() == SharedTokenType.QUESTION) {
+            return parseWildcard(
+                tokens,
+                sourceText,
+                typeParameterScope,
+            )
+        }
+
+        return parseNonWildcard(
             tokens,
             sourceText,
             typeParameterScope,
             forceClassToBeNonNull,
             expectEndOfStream,
         )
+    }
+
+    /**
+     * Parses a wildcard type starting with `?` (`?`, `? extends Bound`, or `? super Bound`).
+     *
+     * If `?` is followed by unexpected tokens (e.g. `? blah`), reports an error to [errorReporter],
+     * consumes the unexpected tokens up to the next type boundary, and falls back to an unbounded
+     * wildcard.
+     */
+    private fun parseWildcard(
+        tokens: TokenStream,
+        sourceText: String,
+        typeParameterScope: TypeParameterScope,
+    ): WildcardTypeItem {
+        val questionToken = tokens.consume()
+        // Wildcard types always have UNDEFINED nullability.
+        val typeModifiers = createModifiers(TypeNullability.UNDEFINED)
+
+        return when (tokens.peekType()) {
+            // Unbounded wildcard `?` at the end of a type or type argument list: uses an implicit
+            // java.lang.Object extends bound.
+            SharedTokenType.EOF,
+            SharedTokenType.COMMA,
+            SharedTokenType.ANGLE_CLOSE -> {
+                TypeItem.createWildcardType(typeModifiers, objectType, null)
+            }
+            // Upper-bounded wildcard `? extends Bound`.
+            SharedTokenType.EXTENDS -> {
+                tokens.consume()
+                val extendsBound =
+                    parseWildcardBound(
+                        tokens,
+                        sourceText,
+                        typeParameterScope,
+                    )
+                TypeItem.createWildcardType(typeModifiers, extendsBound, null)
+            }
+            // Lower-bounded wildcard `? super Bound`: also carries an implicit java.lang.Object
+            // extends bound.
+            SharedTokenType.SUPER -> {
+                tokens.consume()
+                val superBound =
+                    parseWildcardBound(
+                        tokens,
+                        sourceText,
+                        typeParameterScope,
+                    )
+                TypeItem.createWildcardType(typeModifiers, objectType, superBound)
+            }
+            // Malformed wildcard: report an error and recover as an unbounded wildcard.
+            else -> {
+                val lastToken = consumeUntilTypeBoundary(tokens)
+                val wildcardText =
+                    sourceText.substring(questionToken.startOffset, lastToken.endOffset)
+                errorReporter.report(
+                    "Type starts with \"?\" but doesn't appear to be wildcard: $wildcardText"
+                )
+                TypeItem.createWildcardType(typeModifiers, objectType, null)
+            }
+        }
+    }
+
+    /**
+     * Scans the tokens of a wildcard bound up to the enclosing `,`, `>`, `)`, or `EOF` and parses
+     * them as a [ReferenceTypeItem].
+     */
+    private fun parseWildcardBound(
+        tokens: TokenStream,
+        sourceText: String,
+        typeParameterScope: TypeParameterScope,
+    ): ReferenceTypeItem {
+        val startOffset = tokens.peek().startOffset
+        val lastToken = consumeUntilTypeBoundary(tokens)
+        val boundType = sourceText.substring(startOffset, lastToken.endOffset)
+        return parseTypeWithContextNullability(
+            boundType,
+            typeParameterScope,
+        )
+            as ReferenceTypeItem
+    }
 
     /**
      * Parses a non-wildcard type: a [VariableTypeItem], [PrimitiveTypeItem], or [ClassTypeItem].
