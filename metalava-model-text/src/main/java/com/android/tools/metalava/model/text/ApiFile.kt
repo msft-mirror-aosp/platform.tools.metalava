@@ -789,13 +789,8 @@ internal class SingleSignatureFileParser(
         if ("{" != token) {
             throw ApiParseException("expected '{' got $token", tokenizer)
         }
-        while (true) {
-            token = tokenizer.requireToken()
-            if ("}" == token) {
-                break
-            } else {
-                parseClass(pkg)
-            }
+        while (!match(SharedTokenType.BRACE_CLOSE)) {
+            parseClass(pkg)
         }
     }
 
@@ -886,8 +881,9 @@ internal class SingleSignatureFileParser(
         typeAlias.markSelectedApiVariant()
     }
 
-    /** Parse a class starting with [Tokenizer.current]. */
+    /** Parse a class in [pkg]. */
     private fun parseClass(pkg: PackageItem) {
+        tokenizer.requireToken()
         val (modifiers, targetLanguages) = parseModifiersAndTargetLanguages()
         // Remember this position as this seems like a good place to use to report issues with the
         // class item.
