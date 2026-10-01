@@ -203,6 +203,24 @@ class SharedLexerTest {
     }
 
     @Test
+    fun `Test array delimiter tokens`() {
+        checkTokenize(
+            "{1, 2, 3}",
+            expectedTokens =
+                """
+                    BRACE_OPEN '{'
+                    NUMBER_LITERAL '1'
+                    COMMA ','
+                    NUMBER_LITERAL '2'
+                    COMMA ','
+                    NUMBER_LITERAL '3'
+                    BRACE_CLOSE '}'
+                    EOF ''
+                """,
+        )
+    }
+
+    @Test
     fun `Test EOF token is cached on subsequent nextToken calls`() {
         val lexer = SharedLexer("int")
         assertEquals(SharedTokenType.IDENTIFIER, lexer.nextToken().type)

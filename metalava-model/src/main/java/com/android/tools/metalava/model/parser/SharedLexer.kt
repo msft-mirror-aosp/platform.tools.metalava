@@ -33,6 +33,7 @@ object SharedTokenType {
 
     // Delimiters / Punctuation
     val DOT = TokenType("DOT")
+    val COMMA = TokenType("COMMA")
     val DOUBLE_COLON = TokenType("DOUBLE_COLON")
     val ANGLE_OPEN = TokenType("ANGLE_OPEN")
     val ANGLE_CLOSE = TokenType("ANGLE_CLOSE")
@@ -40,6 +41,8 @@ object SharedTokenType {
     val BRACKET_CLOSE = TokenType("BRACKET_CLOSE")
     val PAREN_OPEN = TokenType("PAREN_OPEN")
     val PAREN_CLOSE = TokenType("PAREN_CLOSE")
+    val BRACE_OPEN = TokenType("BRACE_OPEN")
+    val BRACE_CLOSE = TokenType("BRACE_CLOSE")
     val PLUS = TokenType("PLUS")
     val MINUS = TokenType("MINUS")
     val SLASH = TokenType("SLASH")
@@ -101,6 +104,10 @@ open class SharedLexer(
                 index = start + 1
                 createToken(SharedTokenType.DOT, ".", start, index)
             }
+            ',' -> {
+                index = start + 1
+                createToken(SharedTokenType.COMMA, ",", start, index)
+            }
             ':' -> {
                 if (start + 1 < endExclusive && text[start + 1] == ':') {
                     index = start + 2
@@ -138,6 +145,14 @@ open class SharedLexer(
             ')' -> {
                 index = start + 1
                 createToken(SharedTokenType.PAREN_CLOSE, ")", start, index)
+            }
+            '{' -> {
+                index = start + 1
+                createToken(SharedTokenType.BRACE_OPEN, "{", start, index)
+            }
+            '}' -> {
+                index = start + 1
+                createToken(SharedTokenType.BRACE_CLOSE, "}", start, index)
             }
             '+' -> {
                 index = start + 1
