@@ -63,11 +63,8 @@ interface ValueParser {
     fun parseAnnotationItem(text: String, unshorten: Boolean = false): AnnotationItem?
 
     /**
-     * Companion object providing factory and utility functions that currently delegate to
-     * [LegacyValueParser].
-     *
-     * The intention is that [LegacyValueParser] will eventually be replaced, so providing these
-     * methods on [ValueParser] minimizes churn at call sites.
+     * Companion object providing factory and utility functions that delegate to
+     * [DefaultValueParser].
      */
     companion object {
         /** The default instance of [ValueParser]. */
@@ -81,16 +78,11 @@ interface ValueParser {
             )
         }
 
-        /**
-         * Creates and returns a [LegacyValueParser] as a [ValueParser].
-         *
-         * The intention is that [LegacyValueParser] will eventually be replaced, so this factory
-         * method reduces churn at call sites.
-         */
+        /** Creates and returns a [DefaultValueParser] as a [ValueParser]. */
         operator fun invoke(
             annotationContext: AnnotationContext,
             typeItemParser: TypeItemParser,
-        ): ValueParser = LegacyValueParser(annotationContext, typeItemParser)
+        ): ValueParser = DefaultValueParser(annotationContext, typeItemParser)
     }
 }
 
