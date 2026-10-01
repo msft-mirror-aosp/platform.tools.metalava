@@ -17,6 +17,7 @@
 package com.android.tools.metalava.model.source.javadoc
 
 import com.android.tools.metalava.model.parser.AbstractLexer
+import com.android.tools.metalava.model.parser.SharedTokenType
 import com.android.tools.metalava.model.parser.Token
 import com.android.tools.metalava.model.parser.TokenType
 import com.android.tools.metalava.model.source.doc.DocumentationIssueReporter
@@ -44,10 +45,10 @@ internal object JavadocTokenType {
     val INLINE_TAG_NAME = TokenType("INLINE_TAG_NAME")
 
     /** An opening curly brace `{`. */
-    val BRACE_OPEN = TokenType("BRACE_OPEN")
+    val BRACE_OPEN = SharedTokenType.BRACE_OPEN
 
     /** A closing curly brace `}`. */
-    val BRACE_CLOSE = TokenType("BRACE_CLOSE")
+    val BRACE_CLOSE = SharedTokenType.BRACE_CLOSE
 
     /** The `{@if` prefix introducing a conditional Javadoc tag. */
     val INLINE_IF_TAG_START = TokenType("INLINE_IF_TAG_START")
@@ -56,19 +57,19 @@ internal object JavadocTokenType {
     val IF_TAG_ELSE = TokenType("IF_TAG_ELSE")
 
     /** An opening parenthesis `(`. */
-    val PAREN_OPEN = TokenType("PAREN_OPEN")
+    val PAREN_OPEN = SharedTokenType.PAREN_OPEN
 
     /** A closing parenthesis `)`. */
-    val PAREN_CLOSE = TokenType("PAREN_CLOSE")
+    val PAREN_CLOSE = SharedTokenType.PAREN_CLOSE
 
     /** An identifier in an expression (e.g. function or flag name). */
-    val IDENTIFIER = TokenType("IDENTIFIER")
+    val IDENTIFIER = SharedTokenType.IDENTIFIER
 
     /** A dot `.` separator in a qualified identifier. */
-    val DOT = TokenType("DOT")
+    val DOT = SharedTokenType.DOT
 
     /** End of file / input marker. */
-    val EOF = TokenType("EOF")
+    val EOF = SharedTokenType.EOF
 }
 
 /** Lexer modes for [JavadocLexer]. */
