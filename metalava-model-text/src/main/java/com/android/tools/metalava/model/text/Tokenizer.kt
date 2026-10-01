@@ -18,6 +18,12 @@ package com.android.tools.metalava.model.text
 
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.parser.LineMap
+import com.android.tools.metalava.model.parser.SharedTokenType
+import com.android.tools.metalava.model.parser.Token
+import com.android.tools.metalava.model.parser.TokenStream
+import com.android.tools.metalava.model.parser.TokenType
+import com.android.tools.metalava.model.text.parser.SignatureFileLexer
+import com.android.tools.metalava.model.text.parser.SignatureTokenType
 import com.android.tools.metalava.model.value.Value
 import com.android.tools.metalava.reporter.FileLocation
 import java.nio.file.Path
@@ -43,6 +49,8 @@ class Tokenizer(
     /** The position of the next character to read in [buffer]. */
     private var position = 0
 
+    private val tokenStream: TokenStream = SignatureFileLexer(buffer).tokenize()
+
     override fun fileLocation(): FileLocation {
         return lineMap.fileLocation(path, position)
     }
@@ -53,52 +61,6 @@ class Tokenizer(
 
     /** Get the remainder. */
     fun remainder(): String = buffer.substring(position)
-
-    /**
-     * Eat whitespace, including newline characters.
-     *
-     * Scans through the [buffer] from the current [position], stopping at the first non-whitespace
-     * character, updating [position] as needed.
-     *
-     * @return `true` if any whitespace characters were eaten, `false` otherwise.
-     */
-    private fun eatWhitespace(): Boolean {
-        var ate = false
-        while (position < buffer.length && isSpace(buffer[position])) {
-            position++
-            ate = true
-        }
-        return ate
-    }
-
-    /**
-     * Eat a line comment, if any, starting at the current [position] and ending at the end of the
-     * line but not moving onto the next line.
-     *
-     * If [position] does not point to a `/` immediately followed by another `/` then this does
-     * nothing.
-     *
-     * @return `true` if a line comment was found, `false` otherwise.
-     */
-    private fun eatComment(): Boolean {
-        if (position + 1 < buffer.length) {
-            if (buffer[position] == '/' && buffer[position + 1] == '/') {
-                position += 2
-                while (position < buffer.length && !isNewline(buffer[position])) {
-                    position++
-                }
-                return true
-            }
-        }
-        return false
-    }
-
-    /** Eat whitespace and line comments until a non-whitespace, non-line comment is found. */
-    private fun eatWhitespaceAndComments() {
-        while (eatWhitespace() || eatComment()) {
-            // intentionally consume whitespace and comments
-        }
-    }
 
     /**
      * Get the next token, failing if the end of the file is reached.
@@ -161,118 +123,117 @@ class Tokenizer(
      * @return the token String found, or null.
      */
     fun getToken(purpose: TokenPurpose = TokenPurpose.GENERAL): String? {
-        // Eat any white space or comments that come before the token.
-        eatWhitespaceAndComments()
-
-        if (position >= buffer.length) {
+        val firstToken = peek()
+        if (firstToken.type == SharedTokenType.EOF) {
             return null
         }
-        val start = position
-        val firstChar = buffer[position]
-        position++
-        // If the first character is a separator then that is the token.
-        if (isSeparator(firstChar, purpose)) {
+        consume()
+        val start = firstToken.startOffset
+        // If the first token is a separator then that is the token.
+        if (isSeparator(firstToken.type, purpose)) {
             // Nothing else to do, the separator is the token.
         } else {
-            scanForEndOfToken(firstChar, purpose)
+            scanForEndOfToken(firstToken, purpose)
         }
         current = buffer.substring(start, position)
         return current
     }
 
     /**
-     * Scan from [firstChar] (which has already been consumed) to the end of the token and return.
+     * Scan from [firstToken] (which has already been consumed) to the end of the token and return.
      *
      * When this returns [position] will point to the character after the end of the token.
      */
-    private fun scanForEndOfToken(firstChar: Char, purpose: TokenPurpose) {
-        handleCharInFragment(firstChar, purpose)
-        while (position < buffer.length) {
-            val c = buffer[position]
-            if (isSpace(c) || (c != '<' && isSeparator(c, purpose))) {
+    private fun scanForEndOfToken(firstToken: Token, purpose: TokenPurpose) {
+        handleTokenInFragment(firstToken, purpose)
+        while (true) {
+            val next = peek()
+            if (next.type == SharedTokenType.EOF || next.startOffset != position) {
                 break
             }
-            position++
-            handleCharInFragment(c, purpose)
+            if (next.type != SharedTokenType.ANGLE_OPEN && isSeparator(next.type, purpose)) {
+                break
+            }
+            consume()
+            handleTokenInFragment(next, purpose)
         }
     }
 
     /**
-     * Scan from [position] (which is the start of the token fragment) to the end of the token
-     * fragment and return.
+     * Scan from after [openToken] (which is the start of the token fragment) to the end of the
+     * token fragment and return.
      *
      * A token fragment is a whole token or part of a token. e.g. while "1" is a whole token, given
      * a token of "Generic<AnotherGeneric<A>, B>" then "<AnotherGeneric<A>, B>" is a token fragment
      * of the whole token and "<A>" is a token fragment of that.
      *
-     * A token fragment starts with [openChar] and ends with [closeChar]. It is an error if the end
-     * of the buffer is reached before matching the corresponding [closeChar] character.
+     * A token fragment starts with [openChar] and ends with [closeType]. It is an error if the end
+     * of the buffer is reached before matching the corresponding [closeType] token.
      */
-    private fun scanForEndOfTokenFragment(openChar: Char, closeChar: Char) {
-        // `position` has already been incremented past `openChar`, so `position - 1` is the index
-        // of `openChar`.
-        val startLine = lineMap.lineNumber(position - 1)
+    private fun scanForEndOfTokenFragment(
+        openChar: Char,
+        closeType: TokenType,
+        openToken: Token,
+    ) {
+        val startLine = lineMap.lineNumber(openToken.startOffset)
         while (true) {
-            if (position >= buffer.length) {
+            val token = peek()
+            if (token.type == SharedTokenType.EOF) {
                 throwException("Unexpected end of file for $openChar starting at $startLine")
             }
-            val c = buffer[position]
-            position++
-            if (c == closeChar) {
+            consume()
+            if (token.type == closeType) {
                 return
             }
-            handleCharInFragment(c, TokenPurpose.VALUE)
+            handleTokenInFragment(token, TokenPurpose.VALUE)
         }
     }
 
     /**
-     * Handle a consumed character [c] within a token or token fragment by scanning string literals
-     * and balanced `<...>`, `(...)`, or `{...}` fragments when required by [purpose].
+     * Handle a consumed [token] within a token or token fragment by validating string literals and
+     * scanning balanced `<...>`, `(...)`, or `{...}` fragments when required by [purpose].
      */
-    private fun handleCharInFragment(c: Char, purpose: TokenPurpose) {
-        when (c) {
-            '"' -> scanForClosingQuotes()
-            '<' -> scanForEndOfTokenFragment('<', '>')
-            '(' -> {
+    private fun handleTokenInFragment(token: Token, purpose: TokenPurpose) {
+        when (token.type) {
+            SharedTokenType.STRING_LITERAL -> scanForClosingQuotes(token)
+            SharedTokenType.ANGLE_OPEN ->
+                scanForEndOfTokenFragment('<', SharedTokenType.ANGLE_CLOSE, token)
+            SharedTokenType.PAREN_OPEN -> {
                 if (purpose == TokenPurpose.VALUE) {
-                    scanForEndOfTokenFragment('(', ')')
+                    scanForEndOfTokenFragment('(', SharedTokenType.PAREN_CLOSE, token)
                 }
             }
-            '{' -> {
+            SharedTokenType.BRACE_OPEN -> {
                 if (purpose == TokenPurpose.VALUE) {
-                    scanForEndOfTokenFragment('{', '}')
+                    scanForEndOfTokenFragment('{', SharedTokenType.BRACE_CLOSE, token)
                 }
             }
         }
     }
 
-    /**
-     * Scan from [position] (which should be immediately after the opening quotes) until after the
-     * matching closing quotes.
-     */
-    private fun scanForClosingQuotes() {
-        // `position` has already been incremented past the opening quote, so `position - 1` is the
-        // index of the opening quote.
-        val startPosition = position - 1
-        while (position < buffer.length) {
-            val k = buffer[position]
-            // Check for a newline before incrementing `position` so that `fileLocation()` in
+    /** Scan from after the opening quotes of [token] until after the matching closing quotes. */
+    private fun scanForClosingQuotes(token: Token) {
+        val startLine = lineMap.lineNumber(token.startOffset)
+        var pos = token.startOffset + 1
+        val end = token.endOffset
+        while (pos < end) {
+            val k = buffer[pos]
+            // Check for a newline before incrementing `pos` so that `fileLocation()` in
             // `throwException()` reports the line containing the newline rather than the next line.
             if (k == '\n' || k == '\r') {
-                val startLine = lineMap.lineNumber(startPosition)
+                position = pos
                 throwException("Unexpected newline for \" starting at $startLine")
             }
-            position++
+            pos++
 
             if (k == '"') {
                 return
-            } else if (k == '\\' && position < buffer.length) {
+            } else if (k == '\\') {
                 // Skip the escaped character. This only really matters if the character is a quote
                 // as without skipping it would be treated as the closing quote.
-                position++
+                pos++
             }
         }
-        val startLine = lineMap.lineNumber(startPosition)
         throwException("Unexpected end of file for \" starting at $startLine")
     }
 
@@ -282,16 +243,26 @@ class Tokenizer(
         }
     }
 
+    /** Returns the next token to be consumed without consuming it. */
+    fun peek(): Token = tokenStream.peek()
+
+    /** Consumes and returns the next token from the stream. */
+    fun consume(): Token =
+        tokenStream.consume().also { token ->
+            if (token.type != SharedTokenType.EOF) {
+                position = token.endOffset
+            }
+        }
+
     companion object {
-        private fun isSpace(c: Char): Boolean {
-            return c == ' ' || c == '\t' || c == '\n' || c == '\r'
-        }
-
-        private fun isNewline(c: Char): Boolean {
-            return c == '\n' || c == '\r'
-        }
-
-        private fun isSeparator(c: Char, purpose: TokenPurpose): Boolean {
+        /**
+         * Returns `true` if a token of [type] is a separator for the given [purpose].
+         *
+         * A separator token forms its own token when encountered at the start of [getToken] and
+         * terminates a preceding token in [scanForEndOfToken] (except for
+         * [SharedTokenType.ANGLE_OPEN], which starts a balanced `<...>` type argument fragment).
+         */
+        private fun isSeparator(type: TokenType, purpose: TokenPurpose): Boolean {
             if (purpose == TokenPurpose.GENERAL) {
                 // This only affects whether an open parenthesis is treated as a separator. A close
                 // parenthesis is always treated as a separator because:
@@ -303,6 +274,26 @@ class Tokenizer(
                 //    separator so it is not included in the preceding token, e.g. the above should
                 //    tokenize as `attr`, `=`, `1`, `)`  and NOT `attr`, `=`, `1)`.
                 // Ditto for open and close braces.
+                if (type == SharedTokenType.PAREN_OPEN || type == SharedTokenType.BRACE_OPEN) {
+                    return true
+                }
+            }
+            return type == SharedTokenType.PAREN_CLOSE ||
+                type == SharedTokenType.BRACE_CLOSE ||
+                type == SharedTokenType.COMMA ||
+                type == SignatureTokenType.SEMICOLON ||
+                type == SharedTokenType.ANGLE_OPEN ||
+                type == SharedTokenType.ANGLE_CLOSE ||
+                type == SharedTokenType.EQUALS
+        }
+
+        /**
+         * Returns `true` if character [c] is a separator character for the given [purpose].
+         *
+         * Used by [isIdent] to check whether the first character of a token string is a separator.
+         */
+        private fun isSeparator(c: Char, purpose: TokenPurpose): Boolean {
+            if (purpose == TokenPurpose.GENERAL) {
                 if (c == '(' || c == '{') {
                     return true
                 }
