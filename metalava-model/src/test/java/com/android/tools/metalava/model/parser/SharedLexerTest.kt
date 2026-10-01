@@ -279,6 +279,23 @@ class SharedLexerTest {
     }
 
     @Test
+    fun `Test varargs ellipsis token`() {
+        checkTokenize(
+            "String... int[]...",
+            expectedTokens =
+                """
+                    IDENTIFIER 'String'
+                    ELLIPSIS '...'
+                    IDENTIFIER 'int'
+                    BRACKET_OPEN '['
+                    BRACKET_CLOSE ']'
+                    ELLIPSIS '...'
+                    EOF ''
+                """,
+        )
+    }
+
+    @Test
     fun `Test EOF token is cached on subsequent nextToken calls`() {
         val lexer = SharedLexer("int")
         assertEquals(SharedTokenType.IDENTIFIER, lexer.nextToken().type)

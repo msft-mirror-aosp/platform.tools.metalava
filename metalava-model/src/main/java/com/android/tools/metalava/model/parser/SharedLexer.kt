@@ -41,6 +41,7 @@ object SharedTokenType {
     val ANGLE_CLOSE = TokenType("ANGLE_CLOSE")
     val BRACKET_OPEN = TokenType("BRACKET_OPEN")
     val BRACKET_CLOSE = TokenType("BRACKET_CLOSE")
+    val ELLIPSIS = TokenType("ELLIPSIS")
     val PAREN_OPEN = TokenType("PAREN_OPEN")
     val PAREN_CLOSE = TokenType("PAREN_CLOSE")
     val BRACE_OPEN = TokenType("BRACE_OPEN")
@@ -107,8 +108,13 @@ open class SharedLexer(
         val start = index
         return when (val c = text[start]) {
             '.' -> {
-                index = start + 1
-                createToken(SharedTokenType.DOT, ".", start, index)
+                if (start + 2 < endExclusive && text[start + 1] == '.' && text[start + 2] == '.') {
+                    index = start + 3
+                    createToken(SharedTokenType.ELLIPSIS, "...", start, index)
+                } else {
+                    index = start + 1
+                    createToken(SharedTokenType.DOT, ".", start, index)
+                }
             }
             ',' -> {
                 index = start + 1
