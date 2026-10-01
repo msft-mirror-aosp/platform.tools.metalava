@@ -20,8 +20,13 @@ package com.android.tools.metalava.model.parser
  * Represents the kind of a [Token] produced by a lexer.
  *
  * @property name the name of the token type, used for debugging and formatting.
+ * @property canBeIdentifier `true` if this token is an identifier or a keyword that can appear in
+ *   an identifier position (such as a package, class, method, field, property, or parameter name).
  */
-class TokenType(val name: String) {
+class TokenType(
+    val name: String,
+    val canBeIdentifier: Boolean = false,
+) {
     override fun toString(): String = name
 }
 
