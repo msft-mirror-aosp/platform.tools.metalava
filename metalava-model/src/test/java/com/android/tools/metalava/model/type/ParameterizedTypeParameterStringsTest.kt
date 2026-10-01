@@ -113,6 +113,17 @@ class ParameterizedTypeParameterStringsTest {
                     ::LegacyTypeItemParser,
                     allTestCases,
                 ),
+                TypeItemParserProvider(
+                    "Default",
+                    { _, unqualifiedClassHandler, kotlinStyleNulls, errorReporter ->
+                        DefaultTypeItemParser(
+                            unqualifiedClassHandler,
+                            kotlinStyleNulls,
+                            errorReporter
+                        )
+                    },
+                    basicCases,
+                ),
             )
 
         @JvmStatic

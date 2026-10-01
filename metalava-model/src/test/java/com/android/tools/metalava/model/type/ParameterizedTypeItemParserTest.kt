@@ -464,10 +464,14 @@ class ParameterizedTypeItemParserTest {
                 ),
                 TypeItemParserProvider(
                     "Default",
-                    { _, _, kotlinStyleNulls, errorReporter ->
-                        DefaultTypeItemParser(kotlinStyleNulls, errorReporter)
+                    { _, unqualifiedClassHandler, kotlinStyleNulls, errorReporter ->
+                        DefaultTypeItemParser(
+                            unqualifiedClassHandler,
+                            kotlinStyleNulls,
+                            errorReporter
+                        )
                     },
-                    primitiveTypeCases + variableTypeCases,
+                    primitiveTypeCases + variableTypeCases + classTypeCases,
                 ),
             )
 
