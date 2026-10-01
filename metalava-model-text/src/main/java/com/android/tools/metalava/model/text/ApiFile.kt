@@ -882,11 +882,10 @@ internal class SingleSignatureFileParser(
     /** Parse a class in [pkg]. */
     private fun parseClass(pkg: PackageItem) {
         val (modifiers, targetLanguages) = parseModifiersAndTargetLanguages()
+        var token = tokenizer.requireToken()
         // Remember this position as this seems like a good place to use to report issues with the
         // class item.
         val classPosition = tokenizer.fileLocation()
-
-        var token = tokenizer.current
 
         val classKind =
             ClassKind.bySignatureKeyword(token)
@@ -1409,6 +1408,7 @@ internal class SingleSignatureFileParser(
         val method: ConstructorItem
 
         val (modifiers, targetLanguages) = parseModifiersAndTargetLanguages()
+        tokenizer.requireToken()
 
         // Get a TypeParameterList and accompanying TypeItemFactory
         val (typeParameterList, typeItemFactory) = parseTypeParameterList(classTypeItemFactory)
@@ -1467,6 +1467,7 @@ internal class SingleSignatureFileParser(
         val method: MethodItem
 
         val (modifiers, targetLanguages) = parseModifiersAndTargetLanguages()
+        tokenizer.requireToken()
 
         // Get a TypeParameterList and accompanying TypeParameterScope
         val (typeParameterList, typeItemFactory) = parseTypeParameterList(classTypeItemFactory)
@@ -1600,7 +1601,7 @@ internal class SingleSignatureFileParser(
         isEnumConstant: Boolean,
     ) {
         val (modifiers, targetLanguages) = parseModifiersAndTargetLanguages()
-        var token = tokenizer.current
+        var token = tokenizer.requireToken()
         tokenizer.assertIdent(token)
 
         val typeString: TypeString
@@ -1683,7 +1684,7 @@ internal class SingleSignatureFileParser(
     /**
      * Parses and creates an optional target language set and modifiers (see [parseModifiers]).
      *
-     * When the method returns, the current token of [tokenizer] will be the first token after the
+     * When the method returns, the next token in [tokenizer] will be the first token after the
      * modifiers.
      */
     private fun parseModifiersAndTargetLanguages(): Pair<MutableModifierList, Set<TargetLanguage>> {
@@ -1707,7 +1708,7 @@ internal class SingleSignatureFileParser(
      *
      * If there is no visibility modifier, [VisibilityLevel.PACKAGE_PRIVATE] is used.
      *
-     * When the method returns, the current token of [tokenizer] will be the first token after the
+     * When the method returns, the next token in [tokenizer] will be the first token after the
      * modifiers.
      */
     private fun parseModifiers(): MutableModifierList {
@@ -1719,44 +1720,44 @@ internal class SingleSignatureFileParser(
     /**
      * Updates the [modifiers] to reflect all modifier keywords parsed from [tokenizer].
      *
-     * When the method returns, the current token of [tokenizer] will be the first token after the
+     * When the method returns, the next token in [tokenizer] will be the first token after the
      * modifiers.
      */
     private fun parseKeywordModifiers(modifiers: MutableModifierList) {
-        var token = tokenizer.requireToken()
+        // Peek at each subsequent token and update `modifiers` while modifier keywords are seen.
         while (true) {
-            when (token) {
-                "public" -> {
+            when (peekType()) {
+                SignatureTokenType.PUBLIC -> {
                     modifiers.setVisibilityLevel(VisibilityLevel.PUBLIC)
                 }
-                "protected" -> {
+                SignatureTokenType.PROTECTED -> {
                     modifiers.setVisibilityLevel(VisibilityLevel.PROTECTED)
                 }
-                "private" -> {
+                SignatureTokenType.PRIVATE -> {
                     modifiers.setVisibilityLevel(VisibilityLevel.PRIVATE)
                 }
-                "internal" -> {
+                SignatureTokenType.INTERNAL -> {
                     modifiers.setVisibilityLevel(VisibilityLevel.INTERNAL)
                 }
-                "static" -> {
+                SignatureTokenType.STATIC -> {
                     modifiers.setStatic(true)
                 }
-                "final" -> {
+                SignatureTokenType.FINAL -> {
                     modifiers.setFinal(true)
                 }
-                "deprecated" -> {
+                SignatureTokenType.DEPRECATED -> {
                     modifiers.setDeprecated(true)
                 }
-                "abstract" -> {
+                SignatureTokenType.ABSTRACT -> {
                     modifiers.setAbstract(true)
                 }
-                "transient" -> {
+                SignatureTokenType.TRANSIENT -> {
                     modifiers.setTransient(true)
                 }
-                "volatile" -> {
+                SignatureTokenType.VOLATILE -> {
                     modifiers.setVolatile(true)
                 }
-                "sealed" -> {
+                SignatureTokenType.SEALED -> {
                     modifiers.setSealed(true)
                     // When reading in a sealed class, for backwards compatibility we want
                     // to label it as non-exhaustive (for more details on what this means,
@@ -1769,56 +1770,57 @@ internal class SingleSignatureFileParser(
                     // statements.
                     modifiers.setExhaustive(false)
                 }
-                "non-sealed" -> {
+                SignatureTokenType.NON_SEALED -> {
                     modifiers.setNonSealed(true)
                 }
-                "exhaustive" -> {
+                SignatureTokenType.EXHAUSTIVE -> {
                     modifiers.setExhaustive(true)
                 }
-                "non-exhaustive",
-                "nonexhaustive" -> {
+                SignatureTokenType.NON_EXHAUSTIVE -> {
                     modifiers.setExhaustive(false)
                 }
-                "default" -> {
+                SignatureTokenType.DEFAULT -> {
                     modifiers.setDefault(true)
                 }
-                "synchronized" -> {
+                SignatureTokenType.SYNCHRONIZED -> {
                     modifiers.setSynchronized(true)
                 }
-                "native" -> {
+                SignatureTokenType.NATIVE -> {
                     modifiers.setNative(true)
                 }
-                "strictfp" -> {
+                SignatureTokenType.STRICTFP -> {
                     modifiers.setStrictFp(true)
                 }
-                "infix" -> {
+                SignatureTokenType.INFIX -> {
                     modifiers.setInfix(true)
                 }
-                "operator" -> {
+                SignatureTokenType.OPERATOR -> {
                     modifiers.setOperator(true)
                 }
-                "inline" -> {
+                SignatureTokenType.INLINE -> {
                     modifiers.setInline(true)
                 }
-                "value" -> {
+                SignatureTokenType.VALUE -> {
                     modifiers.setValue(true)
                 }
-                "suspend" -> {
+                SignatureTokenType.SUSPEND -> {
                     modifiers.setSuspend(true)
                 }
-                "vararg" -> {
+                SignatureTokenType.VARARG -> {
                     modifiers.setVarArg(true)
                 }
-                "fun" -> {
+                SignatureTokenType.FUN -> {
                     modifiers.setFunctional(true)
                 }
-                "data" -> {
+                SignatureTokenType.DATA -> {
                     modifiers.setData(true)
                 }
+                // Stop without consuming once a non-modifier token is reached.
                 else -> break
             }
 
-            token = tokenizer.requireToken()
+            // Consume the matched modifier keyword token and continue to the next token.
+            consume()
         }
     }
 
@@ -1845,6 +1847,7 @@ internal class SingleSignatureFileParser(
         classTypeItemFactory: TextTypeItemFactory,
     ) {
         val modifiers = parseModifiers()
+        tokenizer.requireToken()
 
         // Get a TypeParameterList and accompanying TypeParameterScope
         val (typeParameterList, typeItemFactory) = parseTypeParameterList(classTypeItemFactory)
@@ -2221,7 +2224,7 @@ internal class SingleSignatureFileParser(
                 }
 
             val modifiers = parseModifiers()
-            token = tokenizer.current
+            token = tokenizer.requireToken()
 
             val typeString: TypeString
             val publicName: String?
