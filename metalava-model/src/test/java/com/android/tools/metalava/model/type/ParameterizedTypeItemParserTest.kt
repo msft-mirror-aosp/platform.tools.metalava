@@ -462,6 +462,13 @@ class ParameterizedTypeItemParserTest {
                     ::LegacyTypeItemParser,
                     allTestCases,
                 ),
+                TypeItemParserProvider(
+                    "Default",
+                    { _, _, kotlinStyleNulls, errorReporter ->
+                        DefaultTypeItemParser(kotlinStyleNulls, errorReporter)
+                    },
+                    primitiveTypeCases,
+                ),
             )
 
         @JvmStatic
