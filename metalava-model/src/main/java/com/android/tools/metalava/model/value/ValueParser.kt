@@ -40,11 +40,7 @@ import java.nio.file.Path
  * Parser for the string representation of [Value]s that is used in a signature file or an
  * annotation created from a string.
  */
-class ValueParser(
-    private val annotationContext: AnnotationContext,
-    private val typeItemParser: TypeItemParser,
-) : ValueFactory, ImplementationValueToModelFactory<String> {
-
+interface ValueParser {
     /**
      * Get a [CombinedValueProvider] that will create (and cache) a [Value] of [typeItem] from
      * [text].
@@ -55,6 +51,59 @@ class ValueParser(
      * @param valueUseSite the [ValueUseSite] for which this will provide a [Value].
      */
     fun providerFor(
+        typeItem: TypeItem,
+        text: String,
+        valueUseSite: ValueUseSite,
+    ): CombinedValueProvider
+
+    /** Parse the [text] to provide a [Value] of the [optionalTypeItem]. */
+    fun parse(optionalTypeItem: TypeItem?, text: String): Value?
+
+    /** Parse [text] to produce an [AnnotationItem], if possible. */
+    fun parseAnnotationItem(text: String, unshorten: Boolean = false): AnnotationItem?
+
+    /**
+     * Companion object providing factory and utility functions that currently delegate to
+     * [LegacyValueParser].
+     *
+     * The intention is that [LegacyValueParser] will eventually be replaced, so providing these
+     * methods on [ValueParser] minimizes churn at call sites.
+     */
+    companion object {
+        /** The default instance of [ValueParser]. */
+        val DEFAULT: ValueParser by lazy {
+            invoke(
+                // Any attempts to resolve an annotation's class in order to determine the type of
+                // its attributes will return null which will prevent any conversion of values to
+                // the correct type but still allow annotations to be parsed correctly.
+                AnnotationContext.DEFAULT_RESOLVE_NULL,
+                TypeItemParser.forValueParser(ClassResolver.THROWING),
+            )
+        }
+
+        /**
+         * Creates and returns a [LegacyValueParser] as a [ValueParser].
+         *
+         * The intention is that [LegacyValueParser] will eventually be replaced, so this factory
+         * method reduces churn at call sites.
+         */
+        operator fun invoke(
+            annotationContext: AnnotationContext,
+            typeItemParser: TypeItemParser,
+        ): ValueParser = LegacyValueParser(annotationContext, typeItemParser)
+    }
+}
+
+/**
+ * Parser for the string representation of [Value]s that is used in a signature file or an
+ * annotation created from a string.
+ */
+class LegacyValueParser(
+    private val annotationContext: AnnotationContext,
+    private val typeItemParser: TypeItemParser,
+) : ValueParser, ValueFactory, ImplementationValueToModelFactory<String> {
+
+    override fun providerFor(
         typeItem: TypeItem,
         text: String,
         valueUseSite: ValueUseSite,
@@ -94,8 +143,7 @@ class ValueParser(
             }
         }
 
-    /** Parse the [text] to provide a [Value] of the [optionalTypeItem]. */
-    fun parse(optionalTypeItem: TypeItem?, text: String): Value? =
+    override fun parse(optionalTypeItem: TypeItem?, text: String): Value? =
         when {
             text.isEmpty() -> null
             text[0] == '{' -> {
@@ -375,8 +423,7 @@ class ValueParser(
         return createAnnotationValue(annotationItem)
     }
 
-    /** Parse [text] to produce an [AnnotationItem], if possible. */
-    fun parseAnnotationItem(text: String, unshorten: Boolean = false): AnnotationItem? {
+    override fun parseAnnotationItem(text: String, unshorten: Boolean): AnnotationItem? {
         val tokenizer = tokenizerOf(text)
 
         // Parse the annotation item from the tokenizer.
@@ -403,7 +450,7 @@ class ValueParser(
      * On entry [startingToken] must be the annotation's class name, optionally prefixed with an
      * `@`. On exit, the next token will be the one after the annotation, if any..
      */
-    fun parseAnnotationItem(
+    private fun parseAnnotationItem(
         tokenizer: Tokenizer,
         startingToken: String,
         unshorten: Boolean,
@@ -549,16 +596,6 @@ class ValueParser(
     }
 
     companion object {
-        /** The default instance of this. */
-        val DEFAULT =
-            ValueParser(
-                // Any attempts to resolve an annotation's class in order to determine the type of
-                // its attributes will return null which will prevent any conversion of values to
-                // the correct type but still allow annotations to be parsed correctly.
-                AnnotationContext.DEFAULT_RESOLVE_NULL,
-                TypeItemParser.forValueParser(ClassResolver.THROWING),
-            )
-
         /**
          * Map of all the different string representations of various special floating point
          * numbers.
