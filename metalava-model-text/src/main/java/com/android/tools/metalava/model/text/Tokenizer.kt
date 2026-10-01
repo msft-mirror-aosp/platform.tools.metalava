@@ -168,26 +168,33 @@ class Tokenizer(
             return null
         }
         val start = position
+        val firstChar = buffer[position]
+        position++
         // If the first character is a separator then that is the token.
-        if (isSeparator(buffer[position], purpose)) {
+        if (isSeparator(firstChar, purpose)) {
             // Nothing else to do, the separator is the token.
-            position++
         } else {
-            scanForEndOfToken(purpose)
+            scanForEndOfToken(firstChar, purpose)
         }
         current = buffer.substring(start, position)
         return current
     }
 
     /**
-     * Scan from [position] (which is the start of the token) to the end of the token and return.
+     * Scan from [firstChar] (which has already been consumed) to the end of the token and return.
      *
      * When this returns [position] will point to the character after the end of the token.
-     *
-     * @see inlinedScanForEndOfTokenFragment
      */
-    private fun scanForEndOfToken(purpose: TokenPurpose) {
-        inlinedScanForEndOfTokenFragment(purpose) { c -> isSpace(c) || isSeparator(c, purpose) }
+    private fun scanForEndOfToken(firstChar: Char, purpose: TokenPurpose) {
+        handleCharInFragment(firstChar, purpose)
+        while (position < buffer.length) {
+            val c = buffer[position]
+            if (isSpace(c) || (c != '<' && isSeparator(c, purpose))) {
+                break
+            }
+            position++
+            handleCharInFragment(c, purpose)
+        }
     }
 
     /**
@@ -200,77 +207,42 @@ class Tokenizer(
      *
      * A token fragment starts with [openChar] and ends with [closeChar]. It is an error if the end
      * of the buffer is reached before matching the corresponding [closeChar] character.
-     *
-     * @see inlinedScanForEndOfTokenFragment
      */
     private fun scanForEndOfTokenFragment(openChar: Char, closeChar: Char) {
-        inlinedScanForEndOfTokenFragment(purpose = TokenPurpose.VALUE, openChar) { c ->
-            c == closeChar
+        // `position` has already been incremented past `openChar`, so `position - 1` is the index
+        // of `openChar`.
+        val startLine = lineMap.lineNumber(position - 1)
+        while (true) {
+            if (position >= buffer.length) {
+                throwException("Unexpected end of file for $openChar starting at $startLine")
+            }
+            val c = buffer[position]
+            position++
+            if (c == closeChar) {
+                return
+            }
+            handleCharInFragment(c, TokenPurpose.VALUE)
         }
     }
 
     /**
-     * An inline function that avoids duplicating almost identical code in [scanForEndOfToken] and
-     * [scanForEndOfTokenFragment] while avoiding the performance cost of passing lambdas as
-     * parameters.
-     *
-     * Scan from [position] (which is the start of the token, or token fragment) to the end of the
-     * token, or token fragment, and return.
-     *
-     * When [openChar] is `null` this is scanning for the end of a token and will stop when it
-     * either reaches a character matched by [endOfTokenPredicate] or the end of the buffer. On
-     * return [position] will point to the matched character or just past the end of the buffer
-     * respectively.
-     *
-     * When [openChar] is not-null then this is scanning for the end of a token fragment and will
-     * stop when it reaches a character matched by [endOfTokenPredicate]. It is an error if it hits
-     * the end of the buffer before it matches a character. On return [position] will point to just
-     * after the matched character.
-     *
-     * If this finds a `<` character it will call [scanForEndOfTokenFragment] to find the matching
-     * `>` character, failing if it reaches the end of the buffer first.
-     *
-     * If [purpose] is [TokenPurpose.VALUE] and this finds a `(` character, it will call
-     * [scanForEndOfTokenFragment] to find the matching `)` character, failing if it reaches the end
-     * of the buffer first.
+     * Handle a consumed character [c] within a token or token fragment by scanning string literals
+     * and balanced `<...>`, `(...)`, or `{...}` fragments when required by [purpose].
      */
-    private inline fun inlinedScanForEndOfTokenFragment(
-        purpose: TokenPurpose,
-        openChar: Char? = null,
-        endOfTokenPredicate: (Char) -> Boolean
-    ) {
-        // `startPosition` is only used when `openChar != null`, in which case `position` has
-        // already been incremented past `openChar`, so `position - 1` is the index of `openChar`.
-        val startPosition = position - 1
-        while (position < buffer.length) {
-            // Get the next character and assume that it is part of the token by incrementing the
-            // position.
-            val c = buffer[position]
-            position++
-
-            if (c == '"') {
-                scanForClosingQuotes()
-            } else if (c == '<') {
-                // Open a type parameter/argument list. Make sure to continue to the next `>`.
-                scanForEndOfTokenFragment('<', '>')
-            } else if (purpose == TokenPurpose.VALUE && c == '(') {
-                // Open a parenthesized fragment. Make sure to continue to the next `)`.
-                scanForEndOfTokenFragment('(', ')')
-            } else if (purpose == TokenPurpose.VALUE && c == '{') {
-                // Open a braced fragment. Make sure to continue to the next `}`.
-                scanForEndOfTokenFragment('{', '}')
-            } else if (endOfTokenPredicate(c)) {
-                if (openChar == null) {
-                    position--
+    private fun handleCharInFragment(c: Char, purpose: TokenPurpose) {
+        when (c) {
+            '"' -> scanForClosingQuotes()
+            '<' -> scanForEndOfTokenFragment('<', '>')
+            '(' -> {
+                if (purpose == TokenPurpose.VALUE) {
+                    scanForEndOfTokenFragment('(', ')')
                 }
-                return
             }
-        }
-
-        // If reached the end of the buffer but the token is incomplete then throw an error.
-        if (openChar != null) {
-            val startLine = lineMap.lineNumber(startPosition)
-            throwException("Unexpected end of file for $openChar starting at $startLine")
+            '{' -> {
+                if (purpose == TokenPurpose.VALUE) {
+                    scanForEndOfTokenFragment('{', '}')
+                }
+            }
         }
     }
 
