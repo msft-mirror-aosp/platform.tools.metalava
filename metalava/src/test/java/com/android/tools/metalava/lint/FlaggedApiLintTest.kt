@@ -64,10 +64,9 @@ class FlaggedApiLintTest : DriverTest() {
             // Access android.annotation.FlaggedApi
             classpath = arrayOf(KnownJarFiles.stubAnnotationsTestFile),
             extraArguments =
-                extraArguments +
-                    warningIssues(
-                        Issues.UNFLAGGED_API,
-                    ),
+                warningIssues(
+                    Issues.UNFLAGGED_API,
+                ) + extraArguments,
             expectedIssues = expectedIssues,
             expectedApiSignature = expectedApiSignature,
             checkCompatibilityApiReleased = checkCompatibilityApiReleased,
@@ -545,11 +544,13 @@ class FlaggedApiLintTest : DriverTest() {
     @Test
     fun `Require @FlaggedApi on APIs whose modifiers have changed`() {
         checkFlaggedApiLint(
+            // TODO(b/339166506): Should be reported as an error when UnflaggedApi has error
+            //  severity, not capped at WARNING_ERROR_WHEN_NEW.
             expectedIssues =
                 """
-                    src/test/pkg/Foo.java:3: warning: Changes to modifiers, from 'public abstract' to 'public' must be flagged with @FlaggedApi: class test.pkg.Foo [UnflaggedApi]
-                    src/test/pkg/Foo.java:4: warning: Changes to modifiers, from 'protected' to 'public' must be flagged with @FlaggedApi: constructor test.pkg.Foo() [UnflaggedApi]
-                    src/test/pkg/Foo.java:5: warning: Changes to modifiers, from 'public final' to 'public' must be flagged with @FlaggedApi: method test.pkg.Foo.method() [UnflaggedApi]
+                    src/test/pkg/Foo.java:3: warning: Changes to modifiers, from 'public abstract' to 'public' must be flagged with @FlaggedApi: class test.pkg.Foo (ErrorWhenNew) [UnflaggedApi]
+                    src/test/pkg/Foo.java:4: warning: Changes to modifiers, from 'protected' to 'public' must be flagged with @FlaggedApi: constructor test.pkg.Foo() (ErrorWhenNew) [UnflaggedApi]
+                    src/test/pkg/Foo.java:5: warning: Changes to modifiers, from 'public final' to 'public' must be flagged with @FlaggedApi: method test.pkg.Foo.method() (ErrorWhenNew) [UnflaggedApi]
                 """,
             apiLint =
                 """
@@ -575,6 +576,7 @@ class FlaggedApiLintTest : DriverTest() {
                     ),
                     flagsFile,
                 ),
+            extraArguments = errorIssues(Issues.UNFLAGGED_API),
         )
     }
 
@@ -622,9 +624,11 @@ class FlaggedApiLintTest : DriverTest() {
     @Test
     fun `Require @FlaggedApi on APIs whose deprecated status has changed to deprecated`() {
         checkFlaggedApiLint(
+            // TODO(b/339166506): Should be reported as an error when UnflaggedApi has error
+            //  severity, not capped at WARNING_ERROR_WHEN_NEW.
             expectedIssues =
                 """
-                    src/test/pkg/Foo.java:6: warning: Changes from not deprecated to deprecated must be flagged with @FlaggedApi: class test.pkg.Foo [UnflaggedApi]
+                    src/test/pkg/Foo.java:6: warning: Changes from not deprecated to deprecated must be flagged with @FlaggedApi: class test.pkg.Foo (ErrorWhenNew) [UnflaggedApi]
                 """,
             apiLint =
                 """
@@ -651,15 +655,18 @@ class FlaggedApiLintTest : DriverTest() {
                     ),
                     flagsFile,
                 ),
+            extraArguments = errorIssues(Issues.UNFLAGGED_API),
         )
     }
 
     @Test
     fun `Require @FlaggedApi on APIs whose deprecated status has changed to not deprecated`() {
         checkFlaggedApiLint(
+            // TODO(b/339166506): Should be reported as an error when UnflaggedApi has error
+            //  severity, not capped at WARNING_ERROR_WHEN_NEW.
             expectedIssues =
                 """
-                    src/test/pkg/Foo.java:3: warning: Changes from deprecated to not deprecated must be flagged with @FlaggedApi: class test.pkg.Foo [UnflaggedApi]
+                    src/test/pkg/Foo.java:3: warning: Changes from deprecated to not deprecated must be flagged with @FlaggedApi: class test.pkg.Foo (ErrorWhenNew) [UnflaggedApi]
                 """,
             apiLint =
                 """
@@ -682,6 +689,7 @@ class FlaggedApiLintTest : DriverTest() {
                     ),
                     flagsFile,
                 ),
+            extraArguments = errorIssues(Issues.UNFLAGGED_API),
         )
     }
 
