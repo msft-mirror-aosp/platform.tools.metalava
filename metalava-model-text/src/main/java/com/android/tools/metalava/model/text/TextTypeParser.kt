@@ -29,7 +29,7 @@ import com.android.tools.metalava.model.TypeVisitor
 import com.android.tools.metalava.model.VariableTypeItem
 import com.android.tools.metalava.model.text.TextTypeParser.CacheEntry
 import com.android.tools.metalava.model.type.ContextNullability
-import com.android.tools.metalava.model.type.LegacyTypeItemParser
+import com.android.tools.metalava.model.type.DefaultTypeItemParser
 import com.android.tools.metalava.model.type.TypeItemParserErrorReporter
 import com.android.tools.metalava.model.type.UnqualifiedClassHandler
 import com.android.tools.metalava.reporter.Issues
@@ -41,7 +41,7 @@ private constructor(
     kotlinStyleNulls: Boolean,
     private val countingErrorReporter: CountingErrorReporter,
 ) :
-    LegacyTypeItemParser(
+    DefaultTypeItemParser(
         annotationContext,
         UnqualifiedClassHandler.PREFIX_WITH_JAVA_LANG_OR_REPORT_ERROR,
         kotlinStyleNulls,
