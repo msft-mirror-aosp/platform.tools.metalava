@@ -221,6 +221,30 @@ class SharedLexerTest {
     }
 
     @Test
+    fun `Test annotation tokens`() {
+        checkTokenize(
+            """@pkg.MyAnno(a = 1, b = "hi")""",
+            expectedTokens =
+                """
+                    AT '@'
+                    IDENTIFIER 'pkg'
+                    DOT '.'
+                    IDENTIFIER 'MyAnno'
+                    PAREN_OPEN '('
+                    IDENTIFIER 'a'
+                    EQUALS '='
+                    NUMBER_LITERAL '1'
+                    COMMA ','
+                    IDENTIFIER 'b'
+                    EQUALS '='
+                    STRING_LITERAL '"hi"'
+                    PAREN_CLOSE ')'
+                    EOF ''
+                """,
+        )
+    }
+
+    @Test
     fun `Test EOF token is cached on subsequent nextToken calls`() {
         val lexer = SharedLexer("int")
         assertEquals(SharedTokenType.IDENTIFIER, lexer.nextToken().type)

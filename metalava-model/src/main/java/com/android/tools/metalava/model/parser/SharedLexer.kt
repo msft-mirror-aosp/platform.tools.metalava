@@ -43,6 +43,8 @@ object SharedTokenType {
     val PAREN_CLOSE = TokenType("PAREN_CLOSE")
     val BRACE_OPEN = TokenType("BRACE_OPEN")
     val BRACE_CLOSE = TokenType("BRACE_CLOSE")
+    val AT = TokenType("AT")
+    val EQUALS = TokenType("EQUALS")
     val PLUS = TokenType("PLUS")
     val MINUS = TokenType("MINUS")
     val SLASH = TokenType("SLASH")
@@ -153,6 +155,14 @@ open class SharedLexer(
             '}' -> {
                 index = start + 1
                 createToken(SharedTokenType.BRACE_CLOSE, "}", start, index)
+            }
+            '@' -> {
+                index = start + 1
+                createToken(SharedTokenType.AT, "@", start, index)
+            }
+            '=' -> {
+                index = start + 1
+                createToken(SharedTokenType.EQUALS, "=", start, index)
             }
             '+' -> {
                 index = start + 1
