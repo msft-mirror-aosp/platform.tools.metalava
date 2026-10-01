@@ -21,6 +21,7 @@ import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeModifiers
 import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.TypeParameterScope
+import com.android.tools.metalava.model.VariableTypeItem
 import com.android.tools.metalava.model.parser.SharedLexer
 import com.android.tools.metalava.model.parser.SharedTokenType
 import com.android.tools.metalava.model.parser.Token
@@ -39,40 +40,53 @@ open class DefaultTypeItemParser(
     private val errorReporter: TypeItemParserErrorReporter = TypeItemParserErrorReporter.THROWING,
 ) : TypeItemParser {
     /**
-     * Parses [type] into a [TypeItem].
+     * Parses [type] into a [TypeItem] in the context of the type parameters from
+     * [typeParameterScope], if applicable.
      *
      * @param type the raw type string to tokenize and parse.
+     * @param typeParameterScope the in-scope type parameters for resolving [VariableTypeItem]s.
      */
     override fun obtainTypeFromString(
         type: String,
         typeParameterScope: TypeParameterScope,
         contextNullability: ContextNullability,
-    ): TypeItem = parseType(type)
+    ): TypeItem = parseType(type, typeParameterScope)
 
     override fun typeParameterStrings(typeString: String?): List<String> = error("Unsupported")
 
     /**
-     * Converts [type] to a [TypeItem].
+     * Converts [type] to a [TypeItem] in the context of [typeParameterScope].
      *
      * @param type the type string to parse.
+     * @param typeParameterScope the in-scope type parameters.
      */
     protected open fun parseType(
         type: String,
+        typeParameterScope: TypeParameterScope,
     ): TypeItem =
         parseNonWildcard(
             tokens = SharedLexer(type).tokenize(),
             sourceText = type,
+            typeParameterScope = typeParameterScope,
         )
 
-    /** Creates a [TypeModifiers] with [nullability]. */
+    /**
+     * Creates a [TypeModifiers] from [knownNullability], falling back to [defaultNullability] if
+     * [knownNullability] is `null`.
+     */
     private fun createModifiers(
-        nullability: TypeNullability,
-    ): TypeModifiers = TypeModifiers.create(emptyList(), nullability)
+        knownNullability: TypeNullability?,
+        defaultNullability: TypeNullability = TypeNullability.NONNULL,
+    ): TypeModifiers {
+        val nullability = knownNullability ?: defaultNullability
+        return TypeModifiers.create(emptyList(), nullability)
+    }
 
-    /** Parses a non-wildcard type: a [PrimitiveTypeItem]. */
+    /** Parses a non-wildcard type: a [VariableTypeItem] or [PrimitiveTypeItem]. */
     private fun parseNonWildcard(
         tokens: TokenStream,
         sourceText: String,
+        typeParameterScope: TypeParameterScope,
     ): TypeItem {
         val baseStartOffset = tokens.peek().startOffset
         val firstToken = tokens.consume()
@@ -89,7 +103,19 @@ open class DefaultTypeItemParser(
             )
         val simpleName = firstToken.text
 
-        // Check if it is a primitive type.
+        // 1. Check if it is a type variable in scope first. If a type parameter in Kotlin
+        // shadows a primitive or class name (e.g. `<int>` or `<String>`), it must be resolved
+        // as a type variable rather than a primitive or class.
+        typeParameterScope.findTypeParameter(simpleName)?.let { param ->
+            val modifiers =
+                createModifiers(
+                    nullability,
+                    defaultNullability = TypeNullability.UNDEFINED,
+                )
+            return TypeItem.createVariableType(modifiers, param)
+        }
+
+        // 2. Check if it is a primitive type.
         asPrimitive(
                 sourceText,
                 simpleName,
