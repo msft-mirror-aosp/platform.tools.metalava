@@ -1489,8 +1489,8 @@ internal class SingleSignatureFileParser(
                 token = tokenizer.requireToken()
             }
             "default" -> {
-                defaultAnnotationMethodValue = parseDefault()
-                token = tokenizer.current
+                defaultAnnotationMethodValue = scanValueUntilSemicolon()
+                token = tokenizer.requireToken()
             }
         }
         if (";" != token) {
@@ -1591,8 +1591,7 @@ internal class SingleSignatureFileParser(
         // Get the optional value.
         val valueString =
             if ("=" == token) {
-                token = tokenizer.requireToken(purpose = TokenPurpose.VALUE)
-                token.also { token = tokenizer.requireToken() }
+                scanValueUntilSemicolon().also { token = tokenizer.requireToken() }
             } else null
 
         // Parse the type string and then synchronize the field's nullability with the type.
@@ -2335,17 +2334,48 @@ internal class SingleSignatureFileParser(
         }
     }
 
-    private fun parseDefault(): String {
-        return buildString {
-            while (true) {
-                val token = tokenizer.requireToken()
-                if (";" == token) {
-                    break
-                } else {
-                    append(token)
-                }
+    /**
+     * Scans a field or annotation method default value expression from [tokenizer] up to (but not
+     * consuming) the terminating `;`.
+     */
+    private fun scanValueUntilSemicolon(): String {
+        // Consume the first token of the value expression.
+        val firstToken = requireNonEofToken()
+        val startOffset = firstToken.startOffset
+        var endOffset = firstToken.endOffset
+
+        // Track nesting depth of parentheses, braces, and angle brackets so that tokens inside
+        // nested expressions (such as array initializers or annotation arguments) are included.
+        var parenDepth = 0
+        var braceDepth = 0
+        var angleDepth = 0
+        var current = firstToken
+        while (true) {
+            when (current.type) {
+                SharedTokenType.PAREN_OPEN -> parenDepth++
+                SharedTokenType.PAREN_CLOSE -> if (parenDepth > 0) parenDepth--
+                SharedTokenType.BRACE_OPEN -> braceDepth++
+                SharedTokenType.BRACE_CLOSE -> if (braceDepth > 0) braceDepth--
+                SharedTokenType.ANGLE_OPEN -> angleDepth++
+                SharedTokenType.ANGLE_CLOSE -> if (angleDepth > 0) angleDepth--
+                else -> {}
             }
+            val nextType = peekType()
+            // Stop before consuming ';' when all delimiters are balanced (or at EOF).
+            if (
+                nextType == SharedTokenType.EOF ||
+                    (nextType == SignatureTokenType.SEMICOLON &&
+                        parenDepth == 0 &&
+                        braceDepth == 0 &&
+                        angleDepth == 0)
+            ) {
+                break
+            }
+            current = requireNonEofToken()
+            endOffset = current.endOffset
         }
+
+        return fileSubstring(startOffset, endOffset)
     }
 
     /**
