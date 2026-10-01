@@ -234,22 +234,7 @@ class ParameterizedValueParserTest : BaseModelTest() {
                 ValueParserProvider(
                     "Default",
                     ::DefaultValueParser,
-                    testCases.filter {
-                        val name = it.valueExample.name
-                        name.startsWith("boolean") ||
-                            name.startsWith("char") ||
-                            name.startsWith("byte") ||
-                            name.startsWith("short") ||
-                            name.startsWith("int") ||
-                            name.startsWith("long") ||
-                            name.startsWith("float") ||
-                            name.startsWith("double") ||
-                            name.startsWith("String") ||
-                            name.startsWith("enum") ||
-                            name.startsWith("field") ||
-                            name.startsWith("class literal") ||
-                            name.startsWith("array")
-                    },
+                    testCases,
                 ),
             )
 

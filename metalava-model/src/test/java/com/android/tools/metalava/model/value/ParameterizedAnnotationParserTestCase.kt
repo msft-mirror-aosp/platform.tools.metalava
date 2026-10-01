@@ -223,6 +223,11 @@ class ParameterizedAnnotationParserTestCase {
                     ::LegacyValueParser,
                     testCases,
                 ),
+                ValueParserProvider(
+                    "Default",
+                    ::DefaultValueParser,
+                    testCases,
+                ),
             )
 
         /** Supply the list of test cases as the parameters for this test class. */

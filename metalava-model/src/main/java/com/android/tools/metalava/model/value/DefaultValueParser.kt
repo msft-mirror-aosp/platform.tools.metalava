@@ -16,6 +16,8 @@
 
 package com.android.tools.metalava.model.value
 
+import com.android.tools.metalava.model.ANNOTATION_ATTR_VALUE
+import com.android.tools.metalava.model.AnnotationAttribute
 import com.android.tools.metalava.model.AnnotationContext
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ArrayTypeItem
@@ -31,6 +33,7 @@ import com.android.tools.metalava.model.parser.Token
 import com.android.tools.metalava.model.parser.TokenStream
 import com.android.tools.metalava.model.type.ContextNullability
 import com.android.tools.metalava.model.type.TypeItemParser
+import com.android.tools.metalava.reporter.FileLocation
 
 /**
  * Recursive-descent parser for [Value]s and [AnnotationItem]s that consumes [Token]s from a
@@ -46,6 +49,23 @@ class DefaultValueParser(
         text: String,
         valueUseSite: ValueUseSite,
     ): CombinedValueProvider = CachingValueProvider(this, typeItem, text, valueUseSite)
+
+    /**
+     * Get a [CombinedValueProvider] that will create (and cache) a [Value] for attribute
+     * [attributeName] of [annotationClassName] from [text].
+     *
+     * @param annotationClassName the containing [AnnotationItem]'s qualified class name.
+     * @param attributeName the name of the attribute whose value it will provide.
+     * @param text the String value to be parsed.
+     */
+    private fun providerForAnnotationValue(
+        annotationClassName: String,
+        attributeName: String,
+        text: String,
+    ) =
+        CachingAnnotationValueProvider(this, attributeName, text) {
+            annotationContext.resolveClass(annotationClassName)
+        }
 
     override fun implementationValueToModelValue(
         optionalTypeItem: TypeItem?,
@@ -205,6 +225,15 @@ class DefaultValueParser(
                 }
                 constant
             }
+            peekType == SharedTokenType.AT -> {
+                val annotationItem =
+                    parseAnnotationItem(tokens, sourceText, unshorten = false)
+                        ?: unknownToken(optionalTypeItem, sourceText)
+                if (expectEndOfStream) {
+                    ensureEndOfStreamForAnnotation(tokens, sourceText)
+                }
+                createAnnotationValue(annotationItem)
+            }
             peekType.canBeIdentifier -> {
                 parseIdentifierLedElementValue(
                     optionalTypeItem,
@@ -222,6 +251,7 @@ class DefaultValueParser(
      * - Boolean literals (`true`, `false`)
      * - Named special float constants (`Double.NaN`, `java.lang.Double.NaN`, etc.)
      * - Class literals (`<type>.class`, `<type>::class`, `<type>::class.java`)
+     * - Kotlin-style annotation constructor calls (`QualifiedName(...)`)
      * - Field references (`(QualifiedClassName.)?FieldName(.toXxx())?`)
      */
     private fun parseIdentifierLedElementValue(
@@ -349,7 +379,8 @@ class DefaultValueParser(
             return createClassLiteralValue(typeString, fullText)
         }
 
-        // 3. Followed by `(`: a Kotlin numeric conversion call `.toXxx()` on a field reference.
+        // 3. Followed by `(`: either a Kotlin numeric conversion call `.toXxx()` on a field
+        // reference, or a Kotlin-style annotation constructor call `QualifiedName(...)`.
         if (nextType == SharedTokenType.PAREN_OPEN) {
             val conversionKind =
                 if (penultEndOffset != -1) {
@@ -381,7 +412,20 @@ class DefaultValueParser(
                 )
             }
 
-            unknownToken(optionalTypeItem, sourceText)
+            // Kotlin-style annotation constructor call `QualifiedName(...)`.
+            val annotationClassName = sourceText.substring(startOffset, endOffset)
+            val attributes = parseAnnotationAttributes(annotationClassName, tokens, sourceText)
+            if (expectEndOfStream) {
+                ensureEndOfStreamForAnnotation(tokens, sourceText)
+            }
+            val annotationItem =
+                AnnotationItem.createWithAttributes(
+                    annotationContext,
+                    FileLocation.UNKNOWN,
+                    annotationClassName,
+                    attributes,
+                ) ?: unknownToken(optionalTypeItem, sourceText)
+            return createAnnotationValue(annotationItem)
         }
 
         // 4. Plain simple or dot-qualified identifier: check boolean/special float constants first,
@@ -746,8 +790,220 @@ class DefaultValueParser(
         throw ValueProviderException("Unsupported numeric value <$text> of $optionalTypeItem")
     }
 
-    override fun parseAnnotationItem(text: String, unshorten: Boolean): AnnotationItem? =
-        TODO("Annotation parsing from String is not yet supported by DefaultValueParser")
+    override fun parseAnnotationItem(text: String, unshorten: Boolean): AnnotationItem? {
+        val tokens = SharedLexer(text).tokenize()
+        val annotationItem = parseAnnotationItem(tokens, text, unshorten)
+        ensureEndOfStreamForAnnotation(tokens, text)
+        return annotationItem
+    }
+
+    /**
+     * Verifies that all tokens in [tokens] have been consumed after parsing an annotation from
+     * [sourceText].
+     */
+    private fun ensureEndOfStreamForAnnotation(tokens: TokenStream, sourceText: String) {
+        if (tokens.peekType() != SharedTokenType.EOF) {
+            val token = tokens.peek()
+            val remainder = sourceText.substring(token.endOffset)
+            error(
+                "Expected to consume all the contents of `$sourceText` but did not, next token is '${token.text}', remainder is '$remainder'"
+            )
+        }
+    }
+
+    /**
+     * Parses a single `@QualifiedName` or `@QualifiedName(...)` (or without `@`) annotation from
+     * [tokens] (backed by [sourceText]) to create an [AnnotationItem], if possible.
+     *
+     * On exit, [tokens] is positioned at the token immediately following the annotation.
+     */
+    fun parseAnnotationItem(
+        tokens: TokenStream,
+        sourceText: String,
+        unshorten: Boolean = false,
+    ): AnnotationItem? {
+        // Consume optional leading '@'.
+        tokens.match(SharedTokenType.AT)
+
+        if (!tokens.peekType().canBeIdentifier) {
+            return null
+        }
+
+        // Parse simple or dot-qualified annotation class name.
+        val firstIdent = tokens.consume()
+        val startOffset = firstIdent.startOffset
+        var endOffset = firstIdent.endOffset
+        var nameBuilder: StringBuilder? = null
+        var hasDots = false
+
+        while (tokens.peekType() == SharedTokenType.DOT) {
+            val dotToken = tokens.consume() // consume '.'
+            val nextIdent = tokens.consume()
+            hasDots = true
+            if (
+                nameBuilder != null ||
+                    dotToken.startOffset != endOffset ||
+                    nextIdent.startOffset != dotToken.endOffset
+            ) {
+                if (nameBuilder == null) {
+                    nameBuilder = StringBuilder().append(sourceText, startOffset, endOffset)
+                }
+                nameBuilder.append('.').append(nextIdent.text)
+            }
+            endOffset = nextIdent.endOffset
+        }
+
+        val possiblyShortenedAnnotationClassName =
+            nameBuilder?.toString()
+                ?: if (hasDots) {
+                    sourceText.substring(startOffset, endOffset)
+                } else {
+                    firstIdent.text
+                }
+
+        // Unshorten, if necessary.
+        val annotationClassName =
+            if (unshorten) {
+                AnnotationItem.unshortenAnnotation(possiblyShortenedAnnotationClassName)
+            } else {
+                possiblyShortenedAnnotationClassName
+            }
+
+        val attributes =
+            if (tokens.peekType() == SharedTokenType.PAREN_OPEN) {
+                parseAnnotationAttributes(annotationClassName, tokens, sourceText)
+            } else {
+                emptyList()
+            }
+
+        return AnnotationItem.createWithAttributes(
+            annotationContext,
+            FileLocation.UNKNOWN,
+            annotationClassName,
+            attributes,
+        )
+    }
+
+    /**
+     * Parses a `(...)` attribute list from [tokens] (backed by [sourceText]) to create a list of
+     * [AnnotationAttribute]s for [annotationClassName].
+     *
+     * On entry, `tokens.peekType()` must be [SharedTokenType.PAREN_OPEN]. On exit, the matching
+     * closing [SharedTokenType.PAREN_CLOSE] has been consumed.
+     */
+    private fun parseAnnotationAttributes(
+        annotationClassName: String,
+        tokens: TokenStream,
+        sourceText: String,
+    ): List<AnnotationAttribute> {
+        val openToken = tokens.consume()
+        require(openToken.type == SharedTokenType.PAREN_OPEN) {
+            "Expected '(' but found ${openToken.text}"
+        }
+
+        // Empty attribute list `()`.
+        if (tokens.match(SharedTokenType.PAREN_CLOSE)) {
+            return emptyList()
+        }
+
+        return buildList {
+            while (!tokens.match(SharedTokenType.PAREN_CLOSE)) {
+                if (tokens.peekType() == SharedTokenType.EOF) {
+                    throw ParseException("Unexpected end of file")
+                }
+
+                // An attribute is either `<attribute-name> = <value>` or `<value>` (implicit
+                // `value` attribute).
+                val firstToken = tokens.consume()
+                val attributeName: String
+                val firstValueToken: Token
+                if (
+                    firstToken.type.canBeIdentifier && tokens.peekType() == SharedTokenType.EQUALS
+                ) {
+                    tokens.consume() // consume '='
+                    attributeName = firstToken.text
+                    if (tokens.peekType() == SharedTokenType.EOF) {
+                        throw ParseException("Unexpected end of file")
+                    }
+                    firstValueToken = tokens.consume()
+                } else {
+                    attributeName = ANNOTATION_ATTR_VALUE
+                    firstValueToken = firstToken
+                }
+
+                // Scan the value tokens up to the next top-level `,` or `)` at nesting depth 0.
+                val valueStartOffset = firstValueToken.startOffset
+                var valueEndOffset = firstValueToken.endOffset
+                var parenDepth = if (firstValueToken.type == SharedTokenType.PAREN_OPEN) 1 else 0
+                var braceDepth = if (firstValueToken.type == SharedTokenType.BRACE_OPEN) 1 else 0
+                var angleDepth = if (firstValueToken.type == SharedTokenType.ANGLE_OPEN) 1 else 0
+                var bracketDepth =
+                    if (firstValueToken.type == SharedTokenType.BRACKET_OPEN) 1 else 0
+
+                while (tokens.peekType() != SharedTokenType.EOF) {
+                    val nextType = tokens.peekType()
+                    if (
+                        parenDepth == 0 &&
+                            braceDepth == 0 &&
+                            angleDepth == 0 &&
+                            bracketDepth == 0 &&
+                            (nextType == SharedTokenType.COMMA ||
+                                nextType == SharedTokenType.PAREN_CLOSE)
+                    ) {
+                        break
+                    }
+                    val token = tokens.consume()
+                    valueEndOffset = token.endOffset
+                    when (token.type) {
+                        SharedTokenType.PAREN_OPEN -> parenDepth++
+                        SharedTokenType.PAREN_CLOSE -> if (parenDepth > 0) parenDepth--
+                        SharedTokenType.BRACE_OPEN -> braceDepth++
+                        SharedTokenType.BRACE_CLOSE -> if (braceDepth > 0) braceDepth--
+                        SharedTokenType.ANGLE_OPEN -> angleDepth++
+                        SharedTokenType.ANGLE_CLOSE -> if (angleDepth > 0) angleDepth--
+                        SharedTokenType.BRACKET_OPEN -> bracketDepth++
+                        SharedTokenType.BRACKET_CLOSE -> if (bracketDepth > 0) bracketDepth--
+                    }
+                }
+
+                if (parenDepth > 0 || braceDepth > 0 || angleDepth > 0 || bracketDepth > 0) {
+                    throw ParseException("Unexpected end of file")
+                }
+
+                val valueText = sourceText.substring(valueStartOffset, valueEndOffset)
+
+                // Consume separator `,` or require closing `)` on next iteration.
+                when (tokens.peekType()) {
+                    SharedTokenType.COMMA -> {
+                        tokens.consume()
+                    }
+                    SharedTokenType.PAREN_CLOSE -> {
+                        // Will be consumed by the while loop condition on the next iteration.
+                    }
+                    else -> {
+                        val separator = tokens.peek().text
+                        throw ValueProviderException(
+                            "Unknown token <$separator>, expected one of `,` or `)`"
+                        )
+                    }
+                }
+
+                val valueProvider =
+                    providerForAnnotationValue(
+                        annotationClassName,
+                        attributeName,
+                        valueText,
+                    )
+
+                add(
+                    AnnotationAttribute.createLazyAttribute(
+                        attributeName,
+                        valueProvider,
+                    )
+                )
+            }
+        }
+    }
 
     companion object {
         /**
