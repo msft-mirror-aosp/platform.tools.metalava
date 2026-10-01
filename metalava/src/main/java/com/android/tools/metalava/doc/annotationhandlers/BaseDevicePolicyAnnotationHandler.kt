@@ -38,7 +38,7 @@ abstract class BaseDevicePolicyAnnotationHandler(protected val context: DevicePo
 /** Renders a list of table entries into an HTML table format. */
 fun renderTable(tableEntries: List<Pair<String, String>>): String {
     return buildString {
-        append(" <table>\n")
+        append("\n <table>\n")
         append("  <tr>\n")
         append("    <th colspan=\"2\">Policy details</th>\n")
         append("  </tr>\n")
@@ -68,28 +68,14 @@ fun renderTable(tableEntries: List<Pair<String, String>>): String {
 }
 
 /** Renders the "Policy value" cell content, merging validations. */
-fun renderPolicyValue(type: String, policyValueValidations: List<Pair<String, String>>): String {
+fun renderPolicyValue(type: String, policyValueValidations: List<String>): String {
     if (policyValueValidations.isEmpty()) {
         return "<code>$type</code>"
     }
     return buildString {
         append("<code>$type</code> with the following restrictions:")
         append("\n<ul>\n")
-        policyValueValidations.forEach { (name, value) ->
-            if (value.contains('\n')) {
-                append("  <li>$name:\n")
-                value.trimEnd('\n').split('\n').forEach { line ->
-                    if (line.isNotEmpty()) {
-                        append("    $line\n")
-                    } else {
-                        append("\n")
-                    }
-                }
-                append("  </li>\n")
-            } else {
-                append("  <li>$name: $value</li>\n")
-            }
-        }
+        policyValueValidations.forEach { validation -> append("  <li>$validation</li>\n") }
         append("</ul>")
     }
 }
@@ -116,9 +102,9 @@ data class ListResolutionMechanismProxy(
     // TODO(b/492421367): Enrich the doc for resolution mechanism.
     fun generateDocs(item: Item): String {
         if (custom) {
-            return "custom"
+            return ""
         } else if (union) {
-            return "union"
+            return "If this policy is set by multiple admins, the union of all provided values takes effect."
         } else {
             item.codebase.reporter.report(
                 Issues.INVALID_DEVICE_POLICY_ANNOTATION,

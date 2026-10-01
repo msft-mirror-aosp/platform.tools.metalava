@@ -64,30 +64,34 @@ data class EnumPolicyDefinitionProxy(
         val tableEntries = buildList {
             addAll(base.getTableEntries())
             val resolutionMechanismDoc = resolutionMechanism.generateDocs(enumValueToCodeReference)
-            add(Pair("Resolution Mechanism", resolutionMechanismDoc))
-            val policyValueValidations = buildList {
-                if (enumValueToCodeReference.isNotEmpty()) {
-                    val valuesDoc = buildString {
-                        append("<ul>\n")
-                        enumValueToCodeReference.entries.forEach { entry ->
-                            if (entry.key == defaultValue) {
-                                append("  <li>${entry.value} (default)</li>\n")
-                            } else {
-                                append("  <li>${entry.value}</li>\n")
-                            }
-                        }
-                        append("</ul>")
-                    }
-                    add(Pair("Enum policy values", valuesDoc))
-                }
+            if (resolutionMechanismDoc.isNotEmpty()) {
+                add(Pair("Conflict resolution mechanism", resolutionMechanismDoc))
             }
-            add(Pair("Policy value", renderPolicyValue("Enum", policyValueValidations)))
+            if (enumValueToCodeReference.isNotEmpty()) {
+                val valuesDoc = buildString {
+                    append("<code>Integer</code>, value is one of the following:\n")
+                    append("<ul>\n")
+                    enumValueToCodeReference.entries.forEach { entry ->
+                        if (entry.key == defaultValue) {
+                            append("  <li>${entry.value} (default)</li>\n")
+                        } else {
+                            append("  <li>${entry.value}</li>\n")
+                        }
+                    }
+                    append("</ul>")
+                }
+                add(Pair("Policy value", valuesDoc))
+            } else {
+                reporter.report(
+                    Issues.INVALID_DEVICE_POLICY_ANNOTATION,
+                    item,
+                    "No enum values found for @EnumPolicyDefinition"
+                )
+                add(Pair("Policy value", "<code>Integer</code>"))
+            }
         }
 
-        return buildString {
-            append("\n<p>Policy Type: Enum</p>\n")
-            append(renderTable(tableEntries))
-        }
+        return buildString { append(renderTable(tableEntries)) }
     }
 
     /**
@@ -174,13 +178,17 @@ data class EnumResolutionMechanismProxy(
 ) {
     fun generateDocs(enumValueToCodeReference: Map<Int, String>) =
         if (custom) {
-            "custom"
+            ""
         } else if (notCoexistable) {
-            "not coexistable"
+            "This policy can not be set by multiple admins at the same time. When multiple values are set, the resulting behavior is undefined and is monitored to avoid widespread usage."
         } else if (mostRestrictive.isNotEmpty()) {
             val mostRestrictiveDocs =
                 mostRestrictive.map { enumValueToCodeReference[it] ?: it.toString() }
-            "most restrictive: [${mostRestrictiveDocs.joinToString(", ")}]"
+            if (mostRestrictiveDocs.size == 2) {
+                "If this policy is set by multiple admins, ${mostRestrictiveDocs[0]} takes effect if it is set by any admin."
+            } else {
+                "If this policy is set by multiple admins, the most restrictive value applies. The most restrictive value is ${mostRestrictiveDocs[0]}, followed by ${mostRestrictiveDocs.drop(1).joinToString(", ")}, in that order."
+            }
         } else {
             item.codebase.reporter.reportOnMissingFields("resolutionMechanism", item)
             ""

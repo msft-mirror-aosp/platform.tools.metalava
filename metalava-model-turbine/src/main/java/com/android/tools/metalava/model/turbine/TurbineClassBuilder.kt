@@ -24,7 +24,6 @@ import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.ClassOrVariableTypeItem
 import com.android.tools.metalava.model.ClassOrigin
 import com.android.tools.metalava.model.ConstructorItem
-import com.android.tools.metalava.model.ItemDocumentationFactory
 import com.android.tools.metalava.model.ItemKind
 import com.android.tools.metalava.model.ModifierContext
 import com.android.tools.metalava.model.ModifierFlags
@@ -193,7 +192,7 @@ internal class TurbineClassBuilder(
             itemFactory.createClassItem(
                 fileLocation = fileLocation,
                 modifiers = modifiers,
-                documentationFactory = itemDocumentationFactoryForDecl(sourceFile, decl),
+                documentationFactory = itemDocumentationFactoryForDecl(decl),
                 source = sourceFile,
                 classKind = classKind,
                 containingClass = containingClassItem,
@@ -481,7 +480,7 @@ internal class TurbineClassBuilder(
                 itemFactory.createFieldItem(
                     fileLocation = TurbineFileLocation.forTree(classItem, decl),
                     modifiers = fieldmodifiers,
-                    documentationFactory = itemDocumentationFactoryForDecl(classItem, decl),
+                    documentationFactory = itemDocumentationFactoryForDecl(decl),
                     name = field.name(),
                     containingClass = classItem,
                     type = type,
@@ -567,7 +566,7 @@ internal class TurbineClassBuilder(
                 itemFactory.createMethodItem(
                     fileLocation = TurbineFileLocation.forTree(classItem, decl),
                     modifiers = methodmodifiers,
-                    documentationFactory = itemDocumentationFactoryForDecl(classItem, decl),
+                    documentationFactory = itemDocumentationFactoryForDecl(decl),
                     name = name,
                     containingClass = classItem,
                     typeParameterList = typeParams,
@@ -655,6 +654,22 @@ internal class TurbineClassBuilder(
         }
     }
 
+    /**
+     * Return true if constructors for [classItem] will have an implicit first parameter that needs
+     * removing.
+     *
+     * Constructors of inner classes that are loaded from the class path will have an implicit
+     * parameter that is used to supply the reference to the instance of the containing class to
+     * which the inner class instance belongs.
+     */
+    private fun willConstructorFirstParameterBeImplicit(classItem: SkeletonClassItem): Boolean {
+        // Check to see whether the class is an inner class, i.e. is a non-static class nested
+        // inside another.
+        val isInnerClass = classItem.containingClass() != null && !classItem.modifiers.isStatic()
+
+        return isInnerClass && classItem.origin == ClassOrigin.CLASS_PATH
+    }
+
     private fun createConstructors(
         classItem: SkeletonClassItem,
         methods: List<MethodInfo>,
@@ -665,11 +680,27 @@ internal class TurbineClassBuilder(
         val treatConstructorsAsPrivate =
             classItem.modifiers.let { modifiers -> modifiers.isSealed() && modifiers.isAbstract() }
 
+        // Check to see if the first parameter of the constructors is implicit and need removing.
+        val firstParameterIsImplicit = willConstructorFirstParameterBeImplicit(classItem)
+
         for (constructor in methods) {
             // Skip real methods.
             if (constructor.sym().name() != "<init>") continue
 
+            // Get the source declaration for the constructor. Will be null for constructors loaded
+            // from the class path.
             val decl: MethDecl? = constructor.decl()
+
+            // Get the constructor parameters, removing an implicit first parameter if necessary.
+            val constructorParameters =
+                constructor.parameters().let { parameters ->
+                    if (firstParameterIsImplicit) {
+                        parameters.subList(1, parameters.size)
+                    } else {
+                        parameters
+                    }
+                }
+
             val modifiers =
                 createModifiers(
                     ModifierContext.forItemKind(ItemKind.CONSTRUCTOR),
@@ -688,11 +719,12 @@ internal class TurbineClassBuilder(
             val isImplicitDefaultConstructor =
                 (constructor.access() and TurbineFlag.ACC_SYNTH_CTOR) != 0
             val name = classItem.simpleName()
+
             val constructorItem =
                 itemFactory.createConstructorItem(
                     fileLocation = TurbineFileLocation.forTree(classItem, decl),
                     modifiers = modifiers,
-                    documentationFactory = itemDocumentationFactoryForDecl(classItem, decl),
+                    documentationFactory = itemDocumentationFactoryForDecl(decl),
                     // Turbine's Binder gives return type of constructors as void but the
                     // model expects it to the type of object being created. So, use the
                     // containing [ClassItem]'s type as the constructor return type.
@@ -704,7 +736,7 @@ internal class TurbineClassBuilder(
                         createParameters(
                             constructorItem,
                             decl?.params(),
-                            constructor.parameters(),
+                            constructorParameters,
                             constructorTypeItemFactory,
                         )
                     },
@@ -759,10 +791,6 @@ internal class TurbineClassBuilder(
                 recordComponentIndex = index,
             )
         }
-
-    /** Get an [ItemDocumentationFactory] for [decl] in [classItem]. */
-    private fun itemDocumentationFactoryForDecl(classItem: ClassItem, decl: Tree?) =
-        itemDocumentationFactoryForDecl(classItem.sourceFile() as? TurbineSourceFile, decl)
 
     /**
      * Check to see whether the initial value for [field] is non-null.

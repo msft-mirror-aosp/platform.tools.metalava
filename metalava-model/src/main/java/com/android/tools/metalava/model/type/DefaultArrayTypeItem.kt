@@ -17,7 +17,7 @@
 package com.android.tools.metalava.model.type
 
 import com.android.tools.metalava.model.ArrayTypeItem
-import com.android.tools.metalava.model.DefaultTypeItem
+import com.android.tools.metalava.model.DefaultStandaloneTypeItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeModifiers
 
@@ -26,7 +26,7 @@ internal class DefaultArrayTypeItem(
     override val componentType: TypeItem,
     override val isVarargs: Boolean,
     isValueClassType: Boolean = false,
-) : ArrayTypeItem, DefaultTypeItem(modifiers, isValueClassType) {
+) : ArrayTypeItem, DefaultStandaloneTypeItem(modifiers, isValueClassType) {
 
     override fun substitute(
         modifiers: TypeModifiers,
@@ -42,6 +42,18 @@ internal class DefaultArrayTypeItem(
                 modifiers,
                 componentType,
                 isVarargs,
+                isValueClassType,
             )
         else this
+
+    override fun equalsImpl(other: DefaultStandaloneTypeItem): Boolean {
+        if (other !is ArrayTypeItem) return false
+        return isVarargs == other.isVarargs && componentType == other.componentType
+    }
+
+    override fun hashCodeImpl(): Int {
+        var result = isVarargs.hashCode()
+        result = 31 * result + componentType.hashCode()
+        return result
+    }
 }

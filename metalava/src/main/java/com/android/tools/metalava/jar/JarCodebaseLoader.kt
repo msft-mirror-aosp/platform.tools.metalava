@@ -17,15 +17,17 @@
 package com.android.tools.metalava.jar
 
 import androidx.tracing.Tracer
-import com.android.tools.metalava.ProgressTracker
 import com.android.tools.metalava.api.ApiAnalyzer
 import com.android.tools.metalava.model.Codebase
+import com.android.tools.metalava.model.EmittedOnlyPredicate
 import com.android.tools.metalava.model.annotation.DefaultAnnotationManager
+import com.android.tools.metalava.model.api.ApiSurfaceSelector
+import com.android.tools.metalava.model.api.surface.ApiSurfacePredicate
 import com.android.tools.metalava.model.source.EnvironmentManager
 import com.android.tools.metalava.model.source.SourceModelProvider
 import com.android.tools.metalava.model.source.SourceParser
-import com.android.tools.metalava.model.visitors.ApiPredicate
 import com.android.tools.metalava.reporter.Reporter
+import com.android.tools.metalava.trace
 import java.io.Closeable
 import java.io.File
 
@@ -43,17 +45,17 @@ sealed interface JarCodebaseLoader {
     companion object {
         /** Create an instance fo [JarCodebaseLoader] from an existing [SourceParser]. */
         fun createForSourceParser(
-            progressTracker: ProgressTracker,
+            tracer: Tracer,
             reporter: Reporter,
             sourceParser: SourceParser,
         ): JarCodebaseLoader {
-            return FromSourceParser(progressTracker, reporter, sourceParser)
+            return FromSourceParser(tracer, reporter, sourceParser)
         }
     }
 
     /** A [JarCodebaseLoader] created from an existing [SourceParser]. */
     private class FromSourceParser(
-        private val progressTracker: ProgressTracker,
+        private val tracer: Tracer,
         private val reporter: Reporter,
         private val sourceParser: SourceParser,
     ) : JarCodebaseLoader {
@@ -63,28 +65,36 @@ sealed interface JarCodebaseLoader {
             freezeCodebase: Boolean,
             classPath: List<File>,
         ): Codebase {
-            progressTracker.progress("Processing jar file: ")
-
-            val apiPredicateConfig = apiAnalyzerConfig.apiPredicateConfig
-            val apiEmit =
-                ApiPredicate(
-                    config = apiPredicateConfig.copy(ignoreShown = true),
-                )
-            val apiReference = apiEmit
-
-            val codebase = sourceParser.loadFromJar(apiJar, classPath)
+            val codebase =
+                tracer.trace("sourceParser.loadFromJar") {
+                    sourceParser.loadFromJar(apiJar, classPath)
+                }
             val analyzer = ApiAnalyzer(sourceParser, codebase, reporter, apiAnalyzerConfig)
-            analyzer.mergeExternalInclusionAnnotations()
-            analyzer.computeApi()
-            analyzer.mergeExternalQualifierAnnotations()
-            analyzer.inheritHiddenAspects(
-                apiEmit,
-                apiReference,
-            )
+            tracer.trace("analyzer.mergeExternalInclusionAnnotations") {
+                analyzer.mergeExternalInclusionAnnotations()
+            }
+            tracer.trace("analyzer.computeApi") { analyzer.computeApi() }
+            tracer.trace("analyzer.mergeExternalQualifierAnnotations") {
+                analyzer.mergeExternalQualifierAnnotations()
+            }
+
+            // Ancestor classes and methods can be inherited from non-emitted items in
+            // the hierarchy.
+            val apiReference = ApiSurfacePredicate.wholeCoreApi(codebase.apiSurfaces.main)
+
+            // Inherited stubs are only generated for classes marked for emission.
+            val apiEmit = EmittedOnlyPredicate.and(apiReference)
+
+            tracer.trace("analyzer.inheritHiddenAspects") {
+                analyzer.inheritHiddenAspects(
+                    apiEmit,
+                    apiReference,
+                )
+            }
 
             if (freezeCodebase) {
                 // Prevent the codebase from being mutated.
-                codebase.freezeClasses()
+                tracer.trace("codebase.freezeClasses") { codebase.freezeClasses() }
             }
 
             return codebase
@@ -121,18 +131,27 @@ private constructor(
          */
         fun create(
             disableStderrDumping: Boolean,
-            progressTracker: ProgressTracker,
             tracer: Tracer,
             reporter: Reporter,
             sourceModelProvider: SourceModelProvider = SourceModelProvider.getImplementation("psi"),
+            addAdditionalOverrides: Boolean = false,
         ): StandaloneJarCodebaseLoader {
 
             val environmentManager =
                 sourceModelProvider.createEnvironmentManager(
                     disableStderrDumping,
+                    // This environment manager is used to process different sets of jar sources, so
+                    // it can't reuse the same environment.
+                    reuseEnvironment = false,
                 )
 
-            val annotationManager = DefaultAnnotationManager()
+            val annotationManager =
+                DefaultAnnotationManager(
+                    DefaultAnnotationManager.Config(
+                        apiSurfaceSelector =
+                            ApiSurfaceSelector(addAdditionalOverrides = addAdditionalOverrides)
+                    )
+                )
             val codebaseConfig =
                 Codebase.Config(
                     annotationManager = annotationManager,
@@ -143,7 +162,7 @@ private constructor(
 
             val jarLoader =
                 JarCodebaseLoader.createForSourceParser(
-                    progressTracker,
+                    tracer,
                     reporter,
                     sourceParser,
                 )

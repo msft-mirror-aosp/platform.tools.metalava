@@ -28,6 +28,7 @@ import com.android.tools.metalava.model.ANDROID_REQUIRES_FLAG
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.testing.KnownJarFiles
+import com.android.tools.metalava.testing.KnownSourceFiles
 import com.android.tools.metalava.testing.java
 import java.io.File
 import java.util.Locale
@@ -35,7 +36,11 @@ import kotlin.test.assertEquals
 import org.junit.Test
 import org.junit.runners.Parameterized
 
-private val annotationsList = listOf(nonNullSource)
+private val annotationsList =
+    listOf(
+        nonNullSource,
+        KnownSourceFiles.removedFromApiAnnotation,
+    )
 
 /**
  * A parameterized test for the `android.annotation.FlaggedApi` annotation.
@@ -47,8 +52,6 @@ private val annotationsList = listOf(nonNullSource)
  *    `showUnannotated`.
  * 2. An API surface that extends another, e.g. `system` which extends `public`; controlled through
  *    `showUnannotated`, and `showAnnotations`.
- * 2. An API surface that extends another, e.g. `system` which extends `public`; controlled through
- *    `showUnannotated`, `showAnnotations`, and `showForStubPurposesAnnotations`.
  */
 class ParameterizedFlaggedApiTest(private val config: Configuration) : DriverTest() {
 
@@ -289,8 +292,7 @@ class ParameterizedFlaggedApiTest(private val config: Configuration) : DriverTes
 
         val args =
             arrayOf(
-                "--warning",
-                "UnflaggedApi",
+                *warningIssues(Issues.UNFLAGGED_API),
                 *apiVersionsArgs,
                 *config.extraArguments(temporaryFolder.root).toTypedArray(),
                 *extraArguments,
@@ -830,7 +832,9 @@ class ParameterizedFlaggedApiTest(private val config: Configuration) : DriverTes
                                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                                     @$ANDROID_REQUIRES_FLAG("test.pkg.flags.foo_bar")
                                     public final class Foo {
+                                    @$ANDROID_REQUIRES_FLAG("test.pkg.flags.foo_bar")
                                     public Foo() { throw new RuntimeException("Stub!"); }
+                                    @$ANDROID_REQUIRES_FLAG("test.pkg.flags.foo_bar")
                                     public void method() { throw new RuntimeException("Stub!"); }
                                     }
                                 """
@@ -870,11 +874,12 @@ class ParameterizedFlaggedApiTest(private val config: Configuration) : DriverTes
                     """
                     package test.pkg;
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
-                    @$ANDROID_REQUIRES_FLAG("test.pkg.flags.foo_bar")
                     public final class Foo {
+                    @$ANDROID_REQUIRES_FLAG("test.pkg.flags.foo_bar")
                     public Foo() { throw new RuntimeException("Stub!"); }
+                    @$ANDROID_REQUIRES_FLAG("test.pkg.flags.foo_bar")
                     public void method() { throw new RuntimeException("Stub!"); }
-                    public final int field;
+                    @$ANDROID_REQUIRES_FLAG("test.pkg.flags.foo_bar") public final int field;
                     { field = 0; }
                     }
                 """
@@ -905,7 +910,7 @@ class ParameterizedFlaggedApiTest(private val config: Configuration) : DriverTes
                     public final class Foo {
                         public Foo() {}
                         public void method() {}
-                        /** @removed */
+                        @android.annotation.RemovedFromApi
                         public void removedMethod() {}
                         public final int field = 2;
                     }
@@ -1063,11 +1068,12 @@ class ParameterizedFlaggedApiTest(private val config: Configuration) : DriverTes
                     """
                     package test.pkg;
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
-                    @$ANDROID_REQUIRES_FLAG("test.pkg.flags.foo_bar")
                     public final class Foo {
+                    @$ANDROID_REQUIRES_FLAG("test.pkg.flags.foo_bar")
                     public Foo() { throw new RuntimeException("Stub!"); }
+                    @$ANDROID_REQUIRES_FLAG("test.pkg.flags.foo_bar")
                     public void method() { throw new RuntimeException("Stub!"); }
-                    public final int field;
+                    @$ANDROID_REQUIRES_FLAG("test.pkg.flags.foo_bar") public final int field;
                     { field = 0; }
                     }
                 """
@@ -1100,7 +1106,7 @@ class ParameterizedFlaggedApiTest(private val config: Configuration) : DriverTes
                     public final class Foo {
                         public Foo() {}
                         public void method() {}
-                        /** @removed */
+                        @android.annotation.RemovedFromApi
                         public void removedMethod() {}
                         public final int field = 2;
                     }
@@ -1335,7 +1341,6 @@ class ParameterizedFlaggedApiTest(private val config: Configuration) : DriverTes
                     """
                         package test.pkg;
                         @SuppressWarnings({"unchecked", "deprecation", "all"})
-                        @$ANDROID_REQUIRES_FLAG("test.pkg.flags.foo_bar")
                         public class Foo {
                         public Foo() { throw new RuntimeException("Stub!"); }
                         public void abstractMethod() { throw new RuntimeException("Stub!"); }
@@ -1524,7 +1529,6 @@ class ParameterizedFlaggedApiTest(private val config: Configuration) : DriverTes
                          */
                         @SuppressWarnings({"unchecked", "deprecation", "all"})
                         @Deprecated
-                        @$ANDROID_REQUIRES_FLAG("test.pkg.flags.foo_bar")
                         public class Bar {
                         /**
                          * A Bar constructor.
@@ -1550,7 +1554,6 @@ class ParameterizedFlaggedApiTest(private val config: Configuration) : DriverTes
                     """
                         package test.pkg;
                         @SuppressWarnings({"unchecked", "deprecation", "all"})
-                        @$ANDROID_REQUIRES_FLAG("test.pkg.flags.foo_bar")
                         public class Foo {
                         Foo() { throw new RuntimeException("Stub!"); }
                         public void method(@android.annotation.Nullable java.lang.String p) { throw new RuntimeException("Stub!"); }

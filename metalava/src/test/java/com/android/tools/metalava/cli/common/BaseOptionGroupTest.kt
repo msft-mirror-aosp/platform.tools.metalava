@@ -16,7 +16,6 @@
 
 package com.android.tools.metalava.cli.common
 
-import com.android.tools.metalava.ProgressTracker
 import com.android.tools.metalava.testing.BaseTemporaryFolderOwner
 import com.android.tools.metalava.testing.getNoopTracer
 import com.github.ajalt.clikt.core.CliktCommand
@@ -60,8 +59,7 @@ abstract class BaseOptionGroupTest<O : OptionGroup>(
         val testFactory = { optionGroup ?: createOptions() }
         val command = MockCommand(testFactory, includeDependentGroups)
         val (executionEnvironment, stdout, stderr) = ExecutionEnvironment.forTest()
-        val rootCommand =
-            MetalavaCommand(executionEnvironment, null, ProgressTracker(), getNoopTracer())
+        val rootCommand = MetalavaCommand(executionEnvironment, null, getNoopTracer())
         rootCommand.subcommands(command)
         rootCommand.process(arrayOf("mock") + args)
         val result =

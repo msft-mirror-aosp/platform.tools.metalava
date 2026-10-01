@@ -553,49 +553,6 @@ class CommonLegacyValueFormatterTest : BaseModelTest() {
         }
     }
 
-    // Does not work with signature files as they do not contain inaccessible fields.
-    @SupportedInputFormats(InputFormat.JAVA)
-    // Temporarily disable the test as it fails in snapshot because snapshot does not track
-    // removed and/or hidden status.
-    @Ignore
-    @Test
-    fun `Test field - resolvable and inaccessible with value - WHEN_HIDDEN_OR_REMOVED`() {
-        checkFormatting {
-            val javaSettings = Settings(inlineFields = InlineFieldValue.WHEN_HIDDEN_OR_REMOVED)
-            val formatter = LegacyValueFormatter(javaSettings = javaSettings)
-
-            val hiddenExpected =
-                when (producerKind) {
-                    // @hide javadoc is not available in jars so they are not treated as hidden.
-                    ProducerKind.JAR -> "test.pkg.Hidden.FIELD"
-                    // Hidden fields with a value should just use that value.
-                    ProducerKind.SOURCE -> "2"
-                }
-            formatter.assertFormattedValue(
-                hiddenExpected,
-                lazyFieldReferenceValue(codebase, "test.pkg.Hidden", "FIELD")
-            )
-
-            val removedExpected =
-                when (producerKind) {
-                    // @removed javadoc is not available in jars so they are not treated as removed.
-                    ProducerKind.JAR -> "test.pkg.Removed.FIELD"
-                    // Removed fields with a value should just use that value.
-                    ProducerKind.SOURCE -> "3"
-                }
-            formatter.assertFormattedValue(
-                removedExpected,
-                lazyFieldReferenceValue(codebase, "test.pkg.Removed", "FIELD")
-            )
-
-            // Non-`public` fields that are not hidden or removed should be kept.
-            formatter.assertFormattedValue(
-                "test.pkg.NotPublic.FIELD",
-                lazyFieldReferenceValue(codebase, "test.pkg.NotPublic", "FIELD")
-            )
-        }
-    }
-
     @Test
     fun `Test field - always inline with no value`() {
         checkFormatting {

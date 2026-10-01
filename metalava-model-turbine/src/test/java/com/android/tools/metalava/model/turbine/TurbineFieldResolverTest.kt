@@ -20,6 +20,7 @@ import com.android.tools.lint.checks.infrastructure.TestFile
 import com.android.tools.metalava.testing.BaseTemporaryFolderOwner
 import com.android.tools.metalava.testing.java
 import com.google.common.collect.ImmutableList
+import com.google.common.util.concurrent.MoreExecutors
 import com.google.turbine.binder.Binder
 import com.google.turbine.binder.ClassPathBinder
 import com.google.turbine.binder.JimageClassBinder
@@ -53,8 +54,13 @@ class TurbineFieldResolverTest : BaseTemporaryFolderOwner() {
         val classPath = ClassPathBinder.bindClasspath(listOf())
         val bootClassPath = JimageClassBinder.bindDefault()
         val result =
-            Binder.bind(units, classPath, bootClassPath, /* moduleVersion= */ Optional.empty())
-                ?: error("Binding failed")
+            Binder.bind(
+                MoreExecutors.newDirectExecutorService(),
+                units,
+                classPath,
+                bootClassPath,
+                /* moduleVersion= */ Optional.empty(),
+            ) ?: error("Binding failed")
 
         // Get mapping from ClassSymbol to TypeBoundClass from the class path.
         val classPathEnv: CompoundEnv<ClassSymbol, TypeBoundClass> =

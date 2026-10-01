@@ -16,16 +16,17 @@
 
 package com.android.tools.metalava
 
+import com.android.tools.metalava.api.ApiAnalyzer
 import com.android.tools.metalava.cli.common.MetalavaSubCommand
 import com.android.tools.metalava.cli.common.executionEnvironment
 import com.android.tools.metalava.cli.common.existingFile
 import com.android.tools.metalava.cli.common.newFile
-import com.android.tools.metalava.cli.common.progressTracker
 import com.android.tools.metalava.cli.common.stderr
 import com.android.tools.metalava.cli.common.tracer
 import com.android.tools.metalava.jar.StandaloneJarCodebaseLoader
 import com.android.tools.metalava.model.CodebaseFragment
-import com.android.tools.metalava.model.visitors.ApiPredicate
+import com.android.tools.metalava.model.api.surface.ApiSurfacePredicate
+import com.android.tools.metalava.model.api.surface.ApiSurfaces
 import com.android.tools.metalava.model.visitors.ApiType
 import com.android.tools.metalava.reporter.BasicReporter
 import com.github.ajalt.clikt.parameters.arguments.argument
@@ -69,14 +70,20 @@ class JarToJDiffCommand :
     override fun run() {
         StandaloneJarCodebaseLoader.create(
                 executionEnvironment.disableStderrDumping(),
-                progressTracker,
                 tracer,
                 BasicReporter(stderr)
             )
             .use { jarCodebaseLoader ->
-                val codebase = jarCodebaseLoader.loadFromJarFile(jarFile)
+                val apiSurface = ApiSurfaces.DEFAULT.main
+                val codebase =
+                    jarCodebaseLoader.loadFromJarFile(
+                        jarFile,
+                        ApiAnalyzer.Config(
+                            apiSurface = apiSurface,
+                        ),
+                    )
 
-                val apiFilters = ApiType.PUBLIC_API.getApiFilters(ApiPredicate.Config())
+                val apiFilters = ApiSurfacePredicate.apiFilters(ApiType.CORE, apiSurface)
 
                 val codebaseFragment =
                     CodebaseFragment.create(codebase) { delegate ->
@@ -86,15 +93,15 @@ class JarToJDiffCommand :
                         )
                     }
 
-                createOutputFileFromCodebaseFragment(
-                    progressTracker,
-                    codebaseFragment,
-                    xmlFile,
-                    "JDiff File"
-                ) { printWriter ->
-                    JDiffXmlWriter(
-                        writer = printWriter,
-                    )
+                tracer.trace("createOutputFileFromCodebaseFragment JDiff") {
+                    createOutputFileFromCodebaseFragment(
+                        codebaseFragment,
+                        xmlFile,
+                    ) { printWriter ->
+                        JDiffXmlWriter(
+                            writer = printWriter,
+                        )
+                    }
                 }
             }
     }

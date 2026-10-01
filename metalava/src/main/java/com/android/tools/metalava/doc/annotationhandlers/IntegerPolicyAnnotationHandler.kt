@@ -29,8 +29,15 @@ class IntegerPolicyAnnotationHandler(
      * Processes the [IntegerPolicyDefinitionProxy] and returns the documentation for the policy.
      */
     override fun processPolicyAnnotation(annotation: AnnotationItem, item: Item): String {
-        val proxy = annotation.bindTo<IntegerPolicyDefinitionProxy>(item)
-        return proxy?.generateDocs() ?: ""
+        val hasValidation =
+            annotation.findAttribute("validation") != null ||
+                annotation.resolve()?.methods()?.any { it.name() == "validation" } == true
+        if (hasValidation) {
+            val proxy = annotation.bindTo<IntegerPolicyDefinitionProxy>(item)
+            return proxy?.generateDocs() ?: ""
+        }
+        val legacyProxy = annotation.bindTo<LegacyIntegerPolicyDefinitionProxy>(item)
+        return legacyProxy?.generateDocs() ?: ""
     }
 }
 
@@ -42,6 +49,34 @@ class IntegerPolicyAnnotationHandler(
  */
 data class IntegerPolicyDefinitionProxy(
     val base: PolicyDefinitionProxy,
+    val validation: IntegerValidationProxy,
+    val resolutionMechanism: IntegerResolutionMechanismProxy,
+) {
+    fun generateDocs() = buildString {
+        val tableEntries = buildList {
+            addAll(base.getTableEntries())
+            val resolutionMechanismDoc = resolutionMechanism.generateDocs()
+            if (resolutionMechanismDoc.isNotEmpty()) {
+                add(Pair("Conflict resolution mechanism", resolutionMechanismDoc))
+            }
+            val policyValueValidations = validation.getPolicyValueValidations()
+            add(Pair("Policy value", renderPolicyValue("Integer", policyValueValidations)))
+        }
+
+        append(renderTable(tableEntries))
+    }
+}
+
+// TODO(b/550199902): Remove when validators are extracted from policy definitions
+/**
+ * Proxy class bound to an instance of the legacy
+ * `android.processor.devicepolicy.IntegerPolicyDefinition` annotation class where validation
+ * properties were inline.
+ *
+ * @see bindTo
+ */
+data class LegacyIntegerPolicyDefinitionProxy(
+    val base: PolicyDefinitionProxy,
     val minValue: Int,
     val maxValue: Int,
     val resolutionMechanism: IntegerResolutionMechanismProxy,
@@ -50,26 +85,35 @@ data class IntegerPolicyDefinitionProxy(
         val tableEntries = buildList {
             addAll(base.getTableEntries())
             val resolutionMechanismDoc = resolutionMechanism.generateDocs()
-            add(Pair("Resolution Mechanism", resolutionMechanismDoc))
-            val policyValueValidations = buildList {
-                add(
-                    Pair(
-                        "Min Value",
-                        if (minValue == Integer.MIN_VALUE) "No limit" else minValue.toString()
-                    )
-                )
-                add(
-                    Pair(
-                        "Max Value",
-                        if (maxValue == Integer.MAX_VALUE) "No limit" else maxValue.toString()
-                    )
-                )
+            if (resolutionMechanismDoc.isNotEmpty()) {
+                add(Pair("Conflict resolution mechanism", resolutionMechanismDoc))
             }
+            val policyValueValidations =
+                IntegerValidationProxy(
+                        minValue = minValue,
+                        maxValue = maxValue,
+                    )
+                    .getPolicyValueValidations()
             add(Pair("Policy value", renderPolicyValue("Integer", policyValueValidations)))
         }
 
-        append("\n<p>Policy Type: Integer</p>\n")
         append(renderTable(tableEntries))
+    }
+}
+
+/**
+ * Proxy class bound to an instance of the `android.processor.devicepolicy.IntegerValidation`
+ * annotation class.
+ *
+ * @see bindTo
+ */
+data class IntegerValidationProxy(
+    val minValue: Int,
+    val maxValue: Int,
+) {
+    fun getPolicyValueValidations(): List<String> = buildList {
+        if (minValue != Integer.MIN_VALUE) add("Minimum value $minValue")
+        if (maxValue != Integer.MAX_VALUE) add("Maximum value $maxValue")
     }
 }
 
@@ -86,9 +130,9 @@ data class IntegerResolutionMechanismProxy(
 ) {
     fun generateDocs() =
         if (custom) {
-            "custom"
+            ""
         } else if (notCoexistable) {
-            "notCoexistable"
+            "This policy can not be set by multiple admins at the same time. When multiple values are set, the resulting behavior is undefined and is monitored to avoid widespread usage."
         } else {
             item.codebase.reporter.report(
                 Issues.INVALID_DEVICE_POLICY_ANNOTATION,

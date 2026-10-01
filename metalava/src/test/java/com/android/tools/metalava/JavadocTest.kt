@@ -635,8 +635,8 @@ class JavadocTest : DriverTest() {
                          * Called if the task was canceled before it was completed.  Gives the class a chance
                          * to clean up post-cancellation and to properly dispose of the result.
                          *
-                         * @param data The value that was returned by {@link #loadInBackground}, or null
-                         * if the task threw {@link OperationCanceledException}.
+                         * @param data the value that was returned by {@link #loadInBackground}, or null
+                         * if the task threw {@link OperationCanceledException}
                          */
                         public void onCanceled(D data) {
                         }
@@ -655,7 +655,7 @@ class JavadocTest : DriverTest() {
                          * call {@link #onCanceled} to perform post-cancellation cleanup and to dispose of the
                          * result object, if any.
                          *
-                         * @return The result of the load operation.
+                         * @return the result of the load operation
                          *
                          * @throws OperationCanceledException if the load is canceled during execution.
                          *
@@ -724,7 +724,7 @@ class JavadocTest : DriverTest() {
                  * call {@link #onCanceled} to perform post-cancellation cleanup and to dispose of the
                  * result object, if any.
                  *
-                 * @return The result of the load operation.
+                 * @return the result of the load operation
                  * @throws android.os.OperationCanceledException if the load is canceled during execution.
                  * @see #onCanceled
                  */
@@ -733,8 +733,8 @@ class JavadocTest : DriverTest() {
                  * Called if the task was canceled before it was completed.  Gives the class a chance
                  * to clean up post-cancellation and to properly dispose of the result.
                  *
-                 * @param data The value that was returned by {@link #loadInBackground}, or null
-                 * if the task threw {@link android.os.OperationCanceledException OperationCanceledException}.
+                 * @param data the value that was returned by {@link #loadInBackground}, or null
+                 * if the task threw {@link android.os.OperationCanceledException OperationCanceledException}
                  */
                 public void onCanceled(D data) { throw new RuntimeException("Stub!"); }
                 }
@@ -1050,11 +1050,11 @@ class JavadocTest : DriverTest() {
                          * Returns a copy of this WindowInsets with selected system window insets replaced
                          * with new values.
                          *
-                         * @param left New left inset in pixels
-                         * @param top New top inset in pixels
-                         * @param right New right inset in pixels
-                         * @param bottom New bottom inset in pixels
-                         * @return A modified copy of this WindowInsets
+                         * @param left new left inset in pixels
+                         * @param top new top inset in pixels
+                         * @param right new right inset in pixels
+                         * @param bottom new bottom inset in pixels
+                         * @return a modified copy of this WindowInsets
                          * @deprecated use {@link Builder#Builder(WindowInsets)} with
                          *             {@link Builder#setSystemWindowInsets(Insets)} instead.
                          */
@@ -1098,11 +1098,11 @@ class JavadocTest : DriverTest() {
                      * Returns a copy of this WindowInsets with selected system window insets replaced
                      * with new values.
                      *
-                     * @param left New left inset in pixels
-                     * @param top New top inset in pixels
-                     * @param right New right inset in pixels
-                     * @param bottom New bottom inset in pixels
-                     * @return A modified copy of this WindowInsets
+                     * @param left new left inset in pixels
+                     * @param top new top inset in pixels
+                     * @param right new right inset in pixels
+                     * @param bottom new bottom inset in pixels
+                     * @return a modified copy of this WindowInsets
                      * @deprecated use {@link android.view.WindowInsets.Builder#Builder(android.view.WindowInsets) Builder.Builder(WindowInsets)} with
                      *             {@link android.view.WindowInsets.Builder#setSystemWindowInsets(android.graphics.Insets) Builder.setSystemWindowInsets(Insets)} instead.
                      */

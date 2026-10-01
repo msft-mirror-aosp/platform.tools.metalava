@@ -47,22 +47,16 @@ data class ListOfPackagePolicyDefinitionProxy(
 
             val resMechDocs = resolutionMechanism.generateDocs(base.item)
             if (resMechDocs.isNotEmpty()) {
-                add(Pair("Resolution Mechanism", resMechDocs))
+                add(Pair("Conflict resolution mechanism", resMechDocs))
             }
 
             val policyValueValidations = buildList {
-                add(Pair("Empty list", if (emptyListAllowed) "Allowed" else "Not allowed"))
-                add(
-                    Pair(
-                        "Max list length",
-                        if (maxListLength == Int.MAX_VALUE) "No limit" else maxListLength.toString()
-                    )
-                )
+                if (maxListLength != Int.MAX_VALUE) add("Length max $maxListLength items")
+                if (!emptyListAllowed) add("No empty list allowed")
             }
-            add(Pair("Policy value", renderPolicyValue("List of Package", policyValueValidations)))
+            add(Pair("Policy value", renderPolicyValue("List<Package>", policyValueValidations)))
         }
 
-        append("\n<p>Policy Type: List of Package</p>\n")
         append(renderTable(tableEntries))
     }
 }

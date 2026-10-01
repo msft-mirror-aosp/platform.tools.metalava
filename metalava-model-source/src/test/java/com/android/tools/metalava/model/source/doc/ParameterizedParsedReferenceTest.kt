@@ -18,6 +18,7 @@ package com.android.tools.metalava.model.source.doc
 
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.TypeParameterScope
+import com.android.tools.metalava.model.parser.LineMap
 import com.android.tools.metalava.model.source.doc.CallableSourceReference.SourceParameter
 import com.android.tools.metalava.model.testing.arrayTypeItem
 import com.android.tools.metalava.model.testing.classTypeItem
@@ -36,7 +37,7 @@ import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 
 @RunWith(Parameterized::class)
-class ParameterizedParsedReferenceTest {
+class ParameterizedParsedReferenceTest : BaseDocCommentTest() {
 
     @Parameterized.Parameter(0) internal lateinit var params: TestParams
 
@@ -503,19 +504,23 @@ class ParameterizedParsedReferenceTest {
             )
     }
 
-    internal val reporter = CollatingDocumentationIssueReporter()
-
-    val docTypeParser = DocTypeParser.create(reporter, typeParameterScope)
+    private fun createDocTypeParser(): DocTypeParser {
+        val lineMap = LineMap.create(params.reference)
+        val reporter = TestDocumentationIssueReporter(reporter, lineMap)
+        return DocTypeParser.create(reporter, typeParameterScope)
+    }
 
     @Test
     fun `Test parsing`() {
+        val docTypeParser = createDocTypeParser()
         val parsed = LabeledRefTagType.parseReference(params.reference, docTypeParser)
-        reporter.assertJavadocParserIssues(params.expectedIssues)
+        assertJavadocParserIssues(params.expectedIssues)
         assertEquals(params.expectedParsed, parsed)
     }
 
     @Test
     fun `Test normalized form`() {
+        val docTypeParser = createDocTypeParser()
         assumeNotNull(params.expectedParsed)
 
         val parsed = LabeledRefTagType.parseReference(params.reference, docTypeParser)

@@ -30,8 +30,6 @@ import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.PropertyItem
-import com.android.tools.metalava.model.TargetLanguage
-import com.android.tools.metalava.model.TargetLanguageSet
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeTransformer
 import com.android.tools.metalava.model.typeUseAnnotationFilter
@@ -46,7 +44,8 @@ import com.android.tools.metalava.model.typeUseAnnotationFilter
  * writers which will allow access to unfiltered `Item`s.
  *
  * Preserves class nesting as required by the [delegate]'s [DelegatedVisitor.requiresClassNesting]
- * property.
+ * property and sorts classes as required by the [delegate]'s
+ * [DelegatedVisitor.requiresSortedClasses] property.
  */
 class FilteringApiVisitor(
     val delegate: DelegatedVisitor,
@@ -74,18 +73,14 @@ class FilteringApiVisitor(
      */
     private val interfaceListComparator: Comparator<TypeItem>? = null,
     apiFilters: ApiFilters?,
-    showUnannotated: Boolean = true,
-    private val ignoreEmit: Boolean = false,
-    targetLanguages: Set<TargetLanguage> = TargetLanguageSet.ALL,
 ) :
     ApiVisitor(
         preserveClassNesting = delegate.requiresClassNesting,
         // Only `SelectableItem`s can be filtered separately, i.e. `ParameterItem`s will be included
         // if and only if their containing method is included.
         visitParameterItems = false,
+        orderClassesByName = delegate.requiresSortedClasses,
         apiFilters = apiFilters ?: ApiFilters.ALL,
-        showUnannotated = showUnannotated,
-        targetLanguages = targetLanguages,
     ),
     ItemVisitor {
 
@@ -120,10 +115,6 @@ class FilteringApiVisitor(
 
     /** The current [ClassItem] being visited, */
     private var currentClassItem: FilteringClassItem? = null
-
-    override fun include(cls: ClassItem): Boolean {
-        return ignoreEmit || cls.emit
-    }
 
     override fun visitClass(cls: ClassItem) {
         // Switch the current class, if any, to be a containing class.

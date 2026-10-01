@@ -47,7 +47,6 @@ data class PackagePolicyDefinitionProxy(
             addAll(base.getTableEntries())
             add(Pair("Policy value", renderPolicyValue("Package", emptyList())))
         }
-        append("\n<p>Policy Type: Package</p>\n")
         append(renderTable(tableEntries))
     }
 }

@@ -25,8 +25,7 @@ internal class DefaultWildcardTypeItem(
     modifiers: TypeModifiers,
     override val extendsBound: ReferenceTypeItem?,
     override val superBound: ReferenceTypeItem?,
-    isValueClassType: Boolean = false,
-) : WildcardTypeItem, DefaultTypeItem(modifiers, isValueClassType) {
+) : WildcardTypeItem, DefaultTypeItem(modifiers) {
 
     override fun substitute(
         modifiers: TypeModifiers,
@@ -44,4 +43,19 @@ internal class DefaultWildcardTypeItem(
                 superBound,
             )
         else this
+
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is WildcardTypeItem) return false
+        return extendsBound == other.extendsBound &&
+            superBound == other.superBound &&
+            modifiers == other.modifiers
+    }
+
+    override fun hashCode(): Int {
+        var result = extendsBound?.hashCode() ?: 0
+        result = 31 * result + (superBound?.hashCode() ?: 0)
+        result = 31 * result + modifiers.hashCode()
+        return result
+    }
 }

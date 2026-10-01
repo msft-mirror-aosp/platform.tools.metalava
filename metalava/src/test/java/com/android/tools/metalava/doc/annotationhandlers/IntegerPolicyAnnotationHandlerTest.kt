@@ -18,6 +18,7 @@ package com.android.tools.metalava.doc.annotationhandlers
 
 import com.android.tools.metalava.DriverTest
 import com.android.tools.metalava.doc.annotationhandlers.PolicyDefinitionAnnotationTestFiles.ANDROID_MANIFEST_SOURCE
+import com.android.tools.metalava.doc.annotationhandlers.PolicyDefinitionAnnotationTestFiles.LEGACY_POLICY_DEFINITION_SOURCE
 import com.android.tools.metalava.doc.annotationhandlers.PolicyDefinitionAnnotationTestFiles.POLICY_DEFINITION_SOURCE
 import com.android.tools.metalava.testing.java
 import org.junit.Test
@@ -36,6 +37,7 @@ class IntegerPolicyAnnotationHandlerTest : DriverTest() {
                         package test.pkg;
                         import android.processor.devicepolicy.IntegerPolicyDefinition;
                         import android.processor.devicepolicy.IntegerResolutionMechanism;
+                        import android.processor.devicepolicy.IntegerValidation;
                         import android.processor.devicepolicy.PolicyDefinition;
                         import android.processor.devicepolicy.AllowedDpcTypes;
                         import android.processor.devicepolicy.AllowedRoles;
@@ -50,6 +52,248 @@ class IntegerPolicyAnnotationHandlerTest : DriverTest() {
                             private static final int RESOURCE_DEVICE_WIDE = 1;
                           /**
                            * A test policy for integer policy definition with multiple scopes.
+                           */
+                            @IntegerPolicyDefinition(
+                                base = @PolicyDefinition(
+                                    allowedScopes = {SCOPE_USER, SCOPE_DEVICE},
+                                    affectedResource = RESOURCE_DEVICE_WIDE,
+                                    requiredPermission = TEST,
+                                    requiredCrossUserPermission = MANAGE_DEVICE_POLICY_ACROSS_USERS,
+                                    allowedDpcTypes = @AllowedDpcTypes(
+                                        deviceOwner = ALLOWED,
+                                        managedProfileOwnerOfOrganizationOwnedDevice = ALLOWED,
+                                        managedProfileOwnerOfPersonalOwnedDevice = ALLOWED,
+                                        profileOwnerOnUser0 = ALLOWED,
+                                        fullUserProfileOwner = ALLOWED
+                                    ),
+                                    allowedRoles = @AllowedRoles(
+                                        deviceController = AllowedRoles.ALLOWED
+                                    )
+                                ),
+                                validation = @IntegerValidation(
+                                    minValue = 10,
+                                    maxValue = 100
+                                ),
+                                resolutionMechanism = @IntegerResolutionMechanism(custom = true)
+                            )
+                            public static final int POLICY_FIELD = 1;
+                        }
+                        """
+                    )
+                ),
+            checkCompilation = true,
+            docStubs = true,
+            expectedStubFiles =
+                arrayOf(
+                    java(
+                        """
+                        package test.pkg;
+                        @SuppressWarnings({"unchecked", "deprecation", "all"})
+                        public class TestPolicy {
+                        public TestPolicy() { throw new RuntimeException("Stub!"); }
+                        /**
+                         * A test policy for integer policy definition with multiple scopes.
+                         * <br>
+                         * <table>
+                         *  <tr>
+                         *    <th colspan="2">Policy details</th>
+                         *  </tr>
+                         *  <tr>
+                         *    <td>Settable by</td>
+                         *    <td>
+                         *      <p>This policy can be set with scope <code>User</code> by anyone holding {@link android.Manifest.permission#TEST android.permission.TEST}, or the following DPC types:
+                         *      <ul>
+                         *          <li>Device Owner</li>
+                         *          <li>Managed Profile Owner (Of Organization Owned Device)</li>
+                         *          <li>Managed Profile Owner (Of Personally Owned Device)</li>
+                         *          <li>Unaffiliated Full User Profile Owner</li>
+                         *          <li>Profile Owner on User 0</li>
+                         *          <li>Affiliated Full User Profile Owner</li>
+                         *      </ul>
+                         *      </p>
+                         *      <p>In addition, this policy can be set with scope <code>Device</code> by anyone holding {@link android.Manifest.permission#TEST android.permission.TEST} and {@link android.Manifest.permission#MANAGE_DEVICE_POLICY_ACROSS_USERS android.permission.MANAGE_DEVICE_POLICY_ACROSS_USERS}, or the following DPC types:
+                         *      <ul>
+                         *          <li>Device Owner</li>
+                         *          <li>Managed Profile Owner (Of Organization Owned Device)</li>
+                         *      </ul>
+                         *      </p>
+                         *    </td>
+                         *  </tr>
+                         *  <tr>
+                         *    <td>Resources affected</td>
+                         *    <td>This policy takes effect device-wide, so it affects all users.</td>
+                         *  </tr>
+                         *  <tr>
+                         *    <td>Policy value</td>
+                         *    <td>
+                         *      <code>Integer</code> with the following restrictions:
+                         *      <ul>
+                         *        <li>Minimum value 10</li>
+                         *        <li>Maximum value 100</li>
+                         *      </ul>
+                         *    </td>
+                         *  </tr>
+                         * </table>
+                         * See also: {@link android.app.admin.DevicePolicyManager#setPolicy DevicePolicyManager.setPolicy}, {@link android.app.admin.DevicePolicyManager#getPolicy DevicePolicyManager.getPolicy}
+                         */
+                        public static final int POLICY_FIELD = 1;
+                        }
+                        """
+                    )
+                )
+        )
+    }
+
+    @Test
+    fun `Test IntegerPolicyDefinition applyOnFullUsersOnly generates docs`() {
+        check(
+            sourceFiles =
+                arrayOf(
+                    POLICY_DEFINITION_SOURCE,
+                    ANDROID_MANIFEST_SOURCE,
+                    java(
+                        """
+                        package test.pkg;
+                        import android.processor.devicepolicy.IntegerPolicyDefinition;
+                        import android.processor.devicepolicy.IntegerResolutionMechanism;
+                        import android.processor.devicepolicy.IntegerValidation;
+                        import android.processor.devicepolicy.PolicyDefinition;
+                        import android.processor.devicepolicy.AllowedDpcTypes;
+                        import android.processor.devicepolicy.AllowedRoles;
+                        import static android.processor.devicepolicy.AllowedDpcTypes.ALLOWED;
+                        import static android.Manifest.permission.TEST;
+                        import static android.Manifest.permission.MANAGE_DEVICE_POLICY_ACROSS_USERS;
+
+                        @Retention(RetentionPolicy.SOURCE)
+                        public class TestPolicy {
+                            private static final int SCOPE_USER = 1;
+                            private static final int SCOPE_DEVICE = 2;
+                            private static final int RESOURCE_DEVICE_WIDE = 1;
+                          /**
+                           * A test policy for integer policy definition with multiple scopes.
+                           */
+                            @IntegerPolicyDefinition(
+                                base = @PolicyDefinition(
+                                    allowedScopes = {SCOPE_USER, SCOPE_DEVICE},
+                                    affectedResource = RESOURCE_DEVICE_WIDE,
+                                    requiredPermission = TEST,
+                                    requiredCrossUserPermission = MANAGE_DEVICE_POLICY_ACROSS_USERS,
+                                    applyOnFullUsersOnly = true,
+                                    allowedDpcTypes = @AllowedDpcTypes(
+                                        deviceOwner = ALLOWED,
+                                        managedProfileOwnerOfOrganizationOwnedDevice = ALLOWED,
+                                        managedProfileOwnerOfPersonalOwnedDevice = ALLOWED,
+                                        profileOwnerOnUser0 = ALLOWED,
+                                        fullUserProfileOwner = ALLOWED
+                                    ),
+                                    allowedRoles = @AllowedRoles(
+                                        deviceController = AllowedRoles.ALLOWED
+                                    )
+                                ),
+                                validation = @IntegerValidation(
+                                    minValue = 10,
+                                    maxValue = 100
+                                ),
+                                resolutionMechanism = @IntegerResolutionMechanism(custom = true)
+                            )
+                            public static final int POLICY_FIELD = 1;
+                        }
+                        """
+                    )
+                ),
+            checkCompilation = true,
+            docStubs = true,
+            expectedStubFiles =
+                arrayOf(
+                    java(
+                        """
+                        package test.pkg;
+                        @SuppressWarnings({"unchecked", "deprecation", "all"})
+                        public class TestPolicy {
+                        public TestPolicy() { throw new RuntimeException("Stub!"); }
+                        /**
+                         * A test policy for integer policy definition with multiple scopes.
+                         * <br>
+                         * <table>
+                         *  <tr>
+                         *    <th colspan="2">Policy details</th>
+                         *  </tr>
+                         *  <tr>
+                         *    <td>Supported users</td>
+                         *    <td>Full users only (does not support profiles including work profiles).</td>
+                         *  </tr>
+                         *  <tr>
+                         *    <td>Settable by</td>
+                         *    <td>
+                         *      <p>This policy can be set with scope <code>User</code> by anyone holding {@link android.Manifest.permission#TEST android.permission.TEST}, or the following DPC types:
+                         *      <ul>
+                         *          <li>Device Owner</li>
+                         *          <li>Managed Profile Owner (Of Organization Owned Device)</li>
+                         *          <li>Managed Profile Owner (Of Personally Owned Device)</li>
+                         *          <li>Unaffiliated Full User Profile Owner</li>
+                         *          <li>Profile Owner on User 0</li>
+                         *          <li>Affiliated Full User Profile Owner</li>
+                         *      </ul>
+                         *      </p>
+                         *      <p>In addition, this policy can be set with scope <code>Device</code> by anyone holding {@link android.Manifest.permission#TEST android.permission.TEST} and {@link android.Manifest.permission#MANAGE_DEVICE_POLICY_ACROSS_USERS android.permission.MANAGE_DEVICE_POLICY_ACROSS_USERS}, or the following DPC types:
+                         *      <ul>
+                         *          <li>Device Owner</li>
+                         *          <li>Managed Profile Owner (Of Organization Owned Device)</li>
+                         *      </ul>
+                         *      </p>
+                         *    </td>
+                         *  </tr>
+                         *  <tr>
+                         *    <td>Resources affected</td>
+                         *    <td>This policy takes effect device-wide, so it affects all users.</td>
+                         *  </tr>
+                         *  <tr>
+                         *    <td>Policy value</td>
+                         *    <td>
+                         *      <code>Integer</code> with the following restrictions:
+                         *      <ul>
+                         *        <li>Minimum value 10</li>
+                         *        <li>Maximum value 100</li>
+                         *      </ul>
+                         *    </td>
+                         *  </tr>
+                         * </table>
+                         * See also: {@link android.app.admin.DevicePolicyManager#setPolicy DevicePolicyManager.setPolicy}, {@link android.app.admin.DevicePolicyManager#getPolicy DevicePolicyManager.getPolicy}
+                         */
+                        public static final int POLICY_FIELD = 1;
+                        }
+                        """
+                    )
+                )
+        )
+    }
+
+    @Test
+    fun `Test legacy IntegerPolicyDefinition with inline validation attributes generates docs`() {
+        check(
+            sourceFiles =
+                arrayOf(
+                    ANDROID_MANIFEST_SOURCE,
+                    LEGACY_POLICY_DEFINITION_SOURCE,
+                    java(
+                        """
+                        package test.pkg;
+                        import android.processor.devicepolicy.IntegerPolicyDefinition;
+                        import android.processor.devicepolicy.IntegerResolutionMechanism;
+                        import android.processor.devicepolicy.PolicyDefinition;
+                        import android.processor.devicepolicy.AllowedDpcTypes;
+                        import android.processor.devicepolicy.AllowedRoles;
+                        import static android.processor.devicepolicy.AllowedDpcTypes.ALLOWED;
+                        import static android.Manifest.permission.TEST;
+                        import static android.Manifest.permission.MANAGE_DEVICE_POLICY_ACROSS_USERS;
+
+                        @Retention(RetentionPolicy.SOURCE)
+                        public class TestPolicy {
+                            private static final int SCOPE_USER = 1;
+                            private static final int SCOPE_DEVICE = 2;
+                            private static final int RESOURCE_DEVICE_WIDE = 1;
+                          /**
+                           * A test policy for integer policy definition with legacy inline validation attributes.
                            */
                             @IntegerPolicyDefinition(
                                 base = @PolicyDefinition(
@@ -88,74 +332,141 @@ class IntegerPolicyAnnotationHandlerTest : DriverTest() {
                         public class TestPolicy {
                         public TestPolicy() { throw new RuntimeException("Stub!"); }
                         /**
-                         * A test policy for integer policy definition with multiple scopes.
+                         * A test policy for integer policy definition with legacy inline validation attributes.
                          * <br>
-                         * <p>Policy Type: Integer</p>
                          * <table>
                          *  <tr>
                          *    <th colspan="2">Policy details</th>
                          *  </tr>
                          *  <tr>
-                         *    <td>Allowed Scopes</td>
+                         *    <td>Settable by</td>
                          *    <td>
+                         *      <p>This policy can be set with scope <code>User</code> by anyone holding {@link android.Manifest.permission#TEST android.permission.TEST}, or the following DPC types:
                          *      <ul>
-                         *        <li>User. Settable by:
-                         *          <ul>
-                         *            <li>Device Owner</li>
-                         *            <li>Managed Profile Owner (Of Organization Owned Device)</li>
-                         *            <li>Managed Profile Owner (Of Personally Owned Device)</li>
-                         *            <li>Unaffiliated Full User Profile Owner</li>
-                         *            <li>Profile Owner on User 0</li>
-                         *            <li>Affiliated Full User Profile Owner</li>
-                         *          </ul>
-                         *        </li>
-                         *        <li>Device. Settable by:
-                         *          <ul>
-                         *            <li>Device Owner</li>
-                         *            <li>Managed Profile Owner (Of Organization Owned Device)</li>
-                         *          </ul>
-                         *        </li>
+                         *          <li>Device Owner</li>
+                         *          <li>Managed Profile Owner (Of Organization Owned Device)</li>
+                         *          <li>Managed Profile Owner (Of Personally Owned Device)</li>
+                         *          <li>Unaffiliated Full User Profile Owner</li>
+                         *          <li>Profile Owner on User 0</li>
+                         *          <li>Affiliated Full User Profile Owner</li>
                          *      </ul>
+                         *      </p>
+                         *      <p>In addition, this policy can be set with scope <code>Device</code> by anyone holding {@link android.Manifest.permission#TEST android.permission.TEST} and {@link android.Manifest.permission#MANAGE_DEVICE_POLICY_ACROSS_USERS android.permission.MANAGE_DEVICE_POLICY_ACROSS_USERS}, or the following DPC types:
+                         *      <ul>
+                         *          <li>Device Owner</li>
+                         *          <li>Managed Profile Owner (Of Organization Owned Device)</li>
+                         *      </ul>
+                         *      </p>
                          *    </td>
                          *  </tr>
                          *  <tr>
-                         *    <td>Affected Resource</td>
-                         *    <td>Device Wide</td>
-                         *  </tr>
-                         *  <tr>
-                         *    <td>Required Permission</td>
-                         *    <td>{@link android.Manifest.permission#TEST android.permission.TEST}</td>
-                         *  </tr>
-                         *  <tr>
-                         *    <td>Required Cross User Permission</td>
-                         *    <td>{@link android.Manifest.permission#MANAGE_DEVICE_POLICY_ACROSS_USERS android.permission.MANAGE_DEVICE_POLICY_ACROSS_USERS}</td>
-                         *  </tr>
-                         *  <tr>
-                         *    <td>Allowed DPC Types</td>
-                         *    <td>
-                         *      <ul>
-                         *        <li>Device Owner</li>
-                         *        <li>Managed Profile Owner (Of Organization Owned Device)</li>
-                         *        <li>Managed Profile Owner (Of Personally Owned Device)</li>
-                         *        <li>Unaffiliated Full User Profile Owner</li>
-                         *        <li>Profile Owner on User 0</li>
-                         *        <li>Affiliated Full User Profile Owner</li>
-                         *      </ul>
-                         *    </td>
-                         *  </tr>
-                         *  <tr>
-                         *    <td>Resolution Mechanism</td>
-                         *    <td>custom</td>
+                         *    <td>Resources affected</td>
+                         *    <td>This policy takes effect device-wide, so it affects all users.</td>
                          *  </tr>
                          *  <tr>
                          *    <td>Policy value</td>
                          *    <td>
                          *      <code>Integer</code> with the following restrictions:
                          *      <ul>
-                         *        <li>Min Value: 10</li>
-                         *        <li>Max Value: 100</li>
+                         *        <li>Minimum value 10</li>
+                         *        <li>Maximum value 100</li>
                          *      </ul>
                          *    </td>
+                         *  </tr>
+                         * </table>
+                         * See also: {@link android.app.admin.DevicePolicyManager#setPolicy DevicePolicyManager.setPolicy}, {@link android.app.admin.DevicePolicyManager#getPolicy DevicePolicyManager.getPolicy}
+                         */
+                        public static final int POLICY_FIELD = 1;
+                        }
+                        """
+                    )
+                )
+        )
+    }
+
+    @Test
+    fun `Test IntegerPolicyDefinition with default IntegerValidation generates docs`() {
+        check(
+            sourceFiles =
+                arrayOf(
+                    POLICY_DEFINITION_SOURCE,
+                    ANDROID_MANIFEST_SOURCE,
+                    java(
+                        """
+                        package test.pkg;
+                        import android.processor.devicepolicy.IntegerPolicyDefinition;
+                        import android.processor.devicepolicy.IntegerResolutionMechanism;
+                        import android.processor.devicepolicy.PolicyDefinition;
+                        import android.processor.devicepolicy.AllowedDpcTypes;
+                        import static android.processor.devicepolicy.AllowedDpcTypes.ALLOWED;
+                        import static android.Manifest.permission.TEST;
+
+                        @Retention(RetentionPolicy.SOURCE)
+                        public class TestPolicy {
+                            private static final int SCOPE_USER = 1;
+                            private static final int RESOURCE_DEVICE_WIDE = 1;
+                          /**
+                           * A test policy with default integer validation.
+                           */
+                            @IntegerPolicyDefinition(
+                                base = @PolicyDefinition(
+                                    allowedScopes = {SCOPE_USER},
+                                    affectedResource = RESOURCE_DEVICE_WIDE,
+                                    requiredPermission = TEST,
+                                    allowedDpcTypes = @AllowedDpcTypes(
+                                        deviceOwner = ALLOWED,
+                                        managedProfileOwnerOfOrganizationOwnedDevice = ALLOWED,
+                                        managedProfileOwnerOfPersonalOwnedDevice = ALLOWED,
+                                        profileOwnerOnUser0 = ALLOWED,
+                                        fullUserProfileOwner = ALLOWED
+                                    )
+                                ),
+                                resolutionMechanism = @IntegerResolutionMechanism(custom = true)
+                            )
+                            public static final int POLICY_FIELD = 1;
+                        }
+                        """
+                    )
+                ),
+            checkCompilation = true,
+            docStubs = true,
+            expectedStubFiles =
+                arrayOf(
+                    java(
+                        """
+                        package test.pkg;
+                        @SuppressWarnings({"unchecked", "deprecation", "all"})
+                        public class TestPolicy {
+                        public TestPolicy() { throw new RuntimeException("Stub!"); }
+                        /**
+                         * A test policy with default integer validation.
+                         * <br>
+                         * <table>
+                         *  <tr>
+                         *    <th colspan="2">Policy details</th>
+                         *  </tr>
+                         *  <tr>
+                         *    <td>Settable by</td>
+                         *    <td>
+                         *      <p>This policy can be set with scope <code>User</code> by anyone holding {@link android.Manifest.permission#TEST android.permission.TEST}, or the following DPC types:
+                         *      <ul>
+                         *          <li>Device Owner</li>
+                         *          <li>Managed Profile Owner (Of Organization Owned Device)</li>
+                         *          <li>Managed Profile Owner (Of Personally Owned Device)</li>
+                         *          <li>Unaffiliated Full User Profile Owner</li>
+                         *          <li>Profile Owner on User 0</li>
+                         *          <li>Affiliated Full User Profile Owner</li>
+                         *      </ul>
+                         *      </p>
+                         *    </td>
+                         *  </tr>
+                         *  <tr>
+                         *    <td>Resources affected</td>
+                         *    <td>This policy takes effect device-wide, so it affects all users.</td>
+                         *  </tr>
+                         *  <tr>
+                         *    <td>Policy value</td>
+                         *    <td><code>Integer</code></td>
                          *  </tr>
                          * </table>
                          * See also: {@link android.app.admin.DevicePolicyManager#setPolicy DevicePolicyManager.setPolicy}, {@link android.app.admin.DevicePolicyManager#getPolicy DevicePolicyManager.getPolicy}

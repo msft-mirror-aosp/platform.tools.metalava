@@ -117,7 +117,7 @@ class ValueParser(
         }
 
     /** Create a [Tokenizer] of [text]. */
-    private fun tokenizerOf(text: String) = Tokenizer(Path.of("unknown"), text.toCharArray())
+    private fun tokenizerOf(text: String) = Tokenizer(Path.of("unknown"), text)
 
     /** Parse a [Value] of the [optionalTypeItem] from [tokenizer]. */
     private fun parseWithTokenizer(optionalTypeItem: TypeItem?, tokenizer: Tokenizer) =
@@ -170,7 +170,11 @@ class ValueParser(
             // Get the type string. The pattern requires it so it is safe to assume it is available.
             val typeString = matchResult.groups[TYPE_GROUP_INDEX]!!.value
             val classLiteralTypeItem =
-                typeItemParser.obtainTypeFromString(typeString, TypeParameterScope.empty)
+                typeItemParser.obtainTypeFromString(
+                    typeString,
+                    TypeParameterScope.empty,
+                    ContextNullability.forceNonNull,
+                )
             return createClassObjectValue(classLiteralTypeItem, text)
         }
 

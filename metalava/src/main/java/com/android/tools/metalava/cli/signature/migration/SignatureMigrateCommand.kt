@@ -22,6 +22,7 @@ import com.android.tools.metalava.cli.common.commonOptions
 import com.android.tools.metalava.cli.common.stdout
 import com.android.tools.metalava.cli.common.stringToExistingFile
 import com.android.tools.metalava.cli.signature.ARG_USE_SAME_FORMAT_AS
+import com.android.tools.metalava.cli.signature.ComputedSignatureFormatOptions
 import com.android.tools.metalava.cli.signature.SignatureFormatOptions
 import com.android.tools.metalava.cli.signature.writeSignatureFile
 import com.android.tools.metalava.model.Codebase
@@ -177,12 +178,14 @@ class SignatureMigrateCommand(
 
     override fun run() {
         // Get the target format for the signature files.
-        val targetFormat = formatOptions.fileFormat
+        val computedFormatOptions = formatOptions.compute()
 
         // Iterate over the file groups, creating migration info for the files in each one, if
         // needed.
         val filesToMigrate =
-            fileGroups.flatMap { group -> createFileToMigrateForGroup(group, targetFormat) }
+            fileGroups.flatMap { group ->
+                createFileToMigrateForGroup(group, computedFormatOptions)
+            }
         if (filesToMigrate.isEmpty()) {
             stdout.println("No files need migrating")
             return
@@ -209,7 +212,7 @@ class SignatureMigrateCommand(
             add(
                 createInitialMigrationStep(
                     filesToMigrate,
-                    targetFormat,
+                    computedFormatOptions.fileFormat,
                     propertyChangeToAffectedFiles.size
                 )
             )
@@ -246,12 +249,12 @@ class SignatureMigrateCommand(
     /** Create a list of [FileToMigrate] instances for migrating [fileGroup] to [targetFormat]. */
     private fun createFileToMigrateForGroup(
         fileGroup: List<File>,
-        targetFormat: FileFormat
+        computedFormatOptions: ComputedSignatureFormatOptions,
     ): List<FileToMigrate> {
         // Create a FileToMigrate instance for each file in the group. If the resulting list is
         // empty, or only contains one instance, then return the list immediately as there are no
         // files to keep in sync.
-        val filesToMigrate = fileGroup.mapNotNull { createFileToMigrate(it, targetFormat) }
+        val filesToMigrate = fileGroup.mapNotNull { createFileToMigrate(it, computedFormatOptions) }
         if (filesToMigrate.size <= 1) return filesToMigrate
 
         // Compute the super-set of PropertyChanges that apply to all files in the group.
@@ -260,7 +263,7 @@ class SignatureMigrateCommand(
         // Compute the common initial output format by resetting all the properties that affect any
         // of the files in the group back to their original value.
         val initialOutputFormat =
-            targetFormat.buildCopy {
+            computedFormatOptions.fileFormat.buildCopy {
                 for (change in propertyChanges) {
                     change.setOldValueIn(this)
                 }
@@ -278,7 +281,11 @@ class SignatureMigrateCommand(
     }
 
     /** Create [FileToMigrate] for migrating [file] to [targetFormat]. */
-    private fun createFileToMigrate(file: File, targetFormat: FileFormat): FileToMigrate? {
+    private fun createFileToMigrate(
+        file: File,
+        computedFormatOptions: ComputedSignatureFormatOptions
+    ): FileToMigrate? {
+        val targetFormat = computedFormatOptions.fileFormat
         // Read the current format from the file header, if none could be found then the file is
         // empty and intentionally has no file format header so leave it unchanged.
         val fileFormat =
@@ -287,7 +294,7 @@ class SignatureMigrateCommand(
 
         // Make sure to apply any defaults provided to the file format to ensure it is the same
         // format as was used to create the signature file.
-        val currentFormat = formatOptions.applyDefaultsTo(fileFormat)
+        val currentFormat = computedFormatOptions.applyDefaultsTo(fileFormat)
 
         //  If the format is the same as the target format then there is nothing to do either.
         if (currentFormat == targetFormat) return null

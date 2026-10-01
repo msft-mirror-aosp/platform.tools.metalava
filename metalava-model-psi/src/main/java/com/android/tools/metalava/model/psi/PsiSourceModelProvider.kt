@@ -40,14 +40,16 @@ internal class PsiSourceModelProvider : SourceModelProvider {
             Capability.IMPORTS,
             Capability.PACKAGE_HTML_FILES,
             Capability.HIDDEN_ITEMS,
-            Capability.API_VARIANT_SELECTORS,
+            Capability.REVERTED_ITEMS,
             Capability.MULTIPLATFORM,
         )
 
     override fun createEnvironmentManager(
         disableStderrDumping: Boolean,
         forTesting: Boolean,
-    ): EnvironmentManager = PsiEnvironmentManager(disableStderrDumping, forTesting)
+        reuseEnvironment: Boolean,
+    ): EnvironmentManager =
+        PsiEnvironmentManager(disableStderrDumping, forTesting, reuseEnvironment)
 
     override fun toString() = providerName
 }

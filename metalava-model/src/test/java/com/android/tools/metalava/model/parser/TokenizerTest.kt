@@ -32,6 +32,7 @@ class TokenizerTest(private val params: Params) {
         val purpose: TokenPurpose = TokenPurpose.GENERAL,
         val expectedTokens: List<String>? = null,
         val expectedError: String? = null,
+        val expectedLine: Int? = null,
     ) {
         init {
             if (expectedTokens == null && expectedError == null) {
@@ -201,6 +202,28 @@ class TokenizerTest(private val params: Params) {
                         listOf("test.pkg.Generic<String, Integer, test.pkg.Nested<A, B>>"),
                 ),
                 Params(
+                    label = "generic across multiple lines",
+                    input =
+                        """
+                            test.pkg.Generic<
+                                String,
+                                Integer>
+                            after
+                        """
+                            .trimIndent(),
+                    expectedTokens =
+                        listOf(
+                            """
+                                test.pkg.Generic<
+                                    String,
+                                    Integer>
+                            """
+                                .trimIndent(),
+                            "after",
+                        ),
+                    expectedLine = 4,
+                ),
+                Params(
                     input = """<A extends Other, B>""",
                     expectedTokens = listOf("<", "A", "extends", "Other", ",", "B", ">"),
                 ),
@@ -241,7 +264,7 @@ class TokenizerTest(private val params: Params) {
 
     @Test
     fun `check token`() {
-        val tokenizer = Tokenizer(Path.of("api.txt"), params.input.toCharArray())
+        val tokenizer = Tokenizer(Path.of("api.txt"), params.input)
 
         fun requireToken(): String {
             return tokenizer.requireToken(purpose = params.purpose)
@@ -260,6 +283,9 @@ class TokenizerTest(private val params: Params) {
                 } while (true)
             }
             assertEquals(expectedTokens, tokens)
+            params.expectedLine?.let { expectedLine ->
+                assertEquals(expectedLine, tokenizer.fileLocation().line)
+            }
         }
     }
 }

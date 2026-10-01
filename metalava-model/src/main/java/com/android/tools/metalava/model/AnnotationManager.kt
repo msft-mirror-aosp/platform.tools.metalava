@@ -27,6 +27,9 @@ interface AnnotationManager {
      */
     val apiSurfaceSelector: ApiSurfaceSelector
 
+    /** The optional previously released [Codebase] to check against when reverting flagged APIs. */
+    val previouslyReleasedCodebase: Codebase?
+
     /** Get the [AnnotationInfo] for the specified [annotation]. */
     fun getAnnotationInfo(annotation: AnnotationItem): AnnotationInfo
 
@@ -37,6 +40,9 @@ interface AnnotationManager {
      */
     fun normalizeInputName(qualifiedName: String): String?
 
+    /** Finds the corresponding item in the previously released API, if available. */
+    fun findPreviouslyReleasedItem(item: SelectableItem): SelectableItem? = null
+
     /**
      * Maps an annotation name to the name to be used in signatures/stubs/external annotation files.
      */
@@ -44,30 +50,6 @@ interface AnnotationManager {
         qualifiedName: String,
         target: AnnotationTarget = AnnotationTarget.SIGNATURE_FILE
     ): String
-
-    /**
-     * Checks to see if this has any show for stubs purposes annotations.
-     *
-     * Returns true if it has, false otherwise.
-     */
-    fun hasAnyStubPurposesAnnotations(): Boolean = false
-
-    /**
-     * Get the [Showability] for the supplied [SelectableItem].
-     *
-     * This combines the [Showability] of all the annotations of this item and returns the result.
-     *
-     * If the annotations on the item conflict then this could throw an exception or report an error
-     * as appropriate.
-     */
-    fun getShowabilityForItem(item: SelectableItem): Showability = Showability.NO_EFFECT
-
-    /**
-     * Checks to see if the modifiers contain any hide annotations.
-     *
-     * See [AnnotationItem.isHideAnnotation]
-     */
-    fun hasHideAnnotations(modifiers: ModifierList): Boolean = false
 
     /**
      * Checks to see if the modifiers contain any suppress compatibility annotations.
@@ -146,6 +128,9 @@ internal class NoOpAnnotationManager : BaseAnnotationManager() {
 
     override val apiSurfaceSelector: ApiSurfaceSelector = ApiSurfaceSelector.DEFAULT
 
+    override val previouslyReleasedCodebase: Codebase?
+        get() = null
+
     override fun getKeyForAnnotationItem(annotationItem: AnnotationItem): String {
         // Just use the qualified name as the key as [computeAnnotationInfo] does not use anything
         // else.
@@ -186,9 +171,6 @@ internal class NoOpAnnotationInfo(
 
     override val surfaceData
         get() = null
-
-    override val showability
-        get() = Showability.NO_EFFECT
 
     override val apiFlag
         get() = null

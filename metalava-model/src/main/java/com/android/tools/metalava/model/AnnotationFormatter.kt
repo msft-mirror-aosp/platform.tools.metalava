@@ -41,11 +41,15 @@ sealed interface AnnotationFormatter {
     )
 
     companion object {
-        /** An [AnnotationFormatter] that supports the legacy behavior. */
-        fun legacyAnnotationFormatter(
-            target: AnnotationTarget = AnnotationTarget.SIGNATURE_FILE
-        ): AnnotationFormatter =
-            LegacyAnnotationFormatter(LegacyValueFormatter.ANNOTATION_SOURCE_FORMATTER, target)
+        /** The legacy [AnnotationFormatter] used for formatting annotations in signature files. */
+        private val LEGACY_ANNOTATION_FORMATTER: AnnotationFormatter =
+            LegacyAnnotationFormatter(LegacyValueFormatter.ANNOTATION_SOURCE_FORMATTER)
+
+        /**
+         * An [AnnotationFormatter] that supports the legacy behavior, used for formatting
+         * annotations in signature files.
+         */
+        fun legacyAnnotationFormatter() = LEGACY_ANNOTATION_FORMATTER
 
         /** An [AnnotationFormatter] for use when writing stubs for [target]. */
         fun stubFormatter(target: AnnotationTarget): AnnotationFormatter = StubFormatter(target)
@@ -55,9 +59,6 @@ sealed interface AnnotationFormatter {
          */
         fun normalizingFormatter(): AnnotationFormatter = NormalizingFormatter()
 
-        /** True if this [FieldItem] is not-null, is not hidden or removed and is public. */
-        private fun FieldItem?.isAccessible() = this != null && !isHiddenOrRemoved() && isPublic
-
         /** Inline [value] if it references an inaccessible field. */
         private fun inlineInaccessibleFieldReference(value: FieldReferenceValue) =
             !value.resolve().isAccessible()
@@ -66,7 +67,6 @@ sealed interface AnnotationFormatter {
     /** An [AnnotationFormatter] that wraps a [LegacyValueFormatter]. */
     private class LegacyAnnotationFormatter(
         private val legacyValueFormatter: LegacyValueFormatter,
-        private val target: AnnotationTarget,
     ) : AnnotationFormatter {
         override fun appendFormatAnnotation(
             builder: StringBuilder,
@@ -78,8 +78,7 @@ sealed interface AnnotationFormatter {
                 builder,
                 annotationItem,
                 purpose,
-                target,
-                context
+                context,
             )
         }
     }
@@ -161,3 +160,6 @@ sealed interface AnnotationFormatter {
         }
     }
 }
+
+/** True if this [FieldItem] is not-null, is not hidden or removed and is public. */
+internal fun FieldItem?.isAccessible(): Boolean = this != null && !isHiddenOrRemoved() && isPublic

@@ -27,8 +27,15 @@ class LongPolicyAnnotationHandler(
 ) : BaseDevicePolicyAnnotationHandler(context) {
     /** Processes the [LongPolicyDefinitionProxy] and returns the documentation for the policy. */
     override fun processPolicyAnnotation(annotation: AnnotationItem, item: Item): String {
-        val proxy = annotation.bindTo<LongPolicyDefinitionProxy>(item)
-        return proxy?.generateDocs() ?: ""
+        val hasValidation =
+            annotation.findAttribute("validation") != null ||
+                annotation.resolve()?.methods()?.any { it.name() == "validation" } == true
+        if (hasValidation) {
+            val proxy = annotation.bindTo<LongPolicyDefinitionProxy>(item)
+            return proxy?.generateDocs() ?: ""
+        }
+        val legacyProxy = annotation.bindTo<LegacyLongPolicyDefinitionProxy>(item)
+        return legacyProxy?.generateDocs() ?: ""
     }
 }
 
@@ -40,6 +47,34 @@ class LongPolicyAnnotationHandler(
  */
 data class LongPolicyDefinitionProxy(
     val base: PolicyDefinitionProxy,
+    val validation: LongValidationProxy,
+    val resolutionMechanism: LongResolutionMechanismProxy,
+) {
+    fun generateDocs() = buildString {
+        val tableEntries = buildList {
+            addAll(base.getTableEntries())
+            val resolutionMechanismDoc = resolutionMechanism.generateDocs()
+            if (resolutionMechanismDoc.isNotEmpty()) {
+                add(Pair("Conflict resolution mechanism", resolutionMechanismDoc))
+            }
+            val policyValueValidations = validation.getPolicyValueValidations()
+            add(Pair("Policy value", renderPolicyValue("Long", policyValueValidations)))
+        }
+
+        append(renderTable(tableEntries))
+    }
+}
+
+// TODO(b/550199902): Remove when validators are extracted from policy definitions
+/**
+ * Proxy class bound to an instance of the legacy
+ * `android.processor.devicepolicy.LongPolicyDefinition` annotation class where validation
+ * properties were inline.
+ *
+ * @see bindTo
+ */
+data class LegacyLongPolicyDefinitionProxy(
+    val base: PolicyDefinitionProxy,
     val minValue: Long,
     val maxValue: Long,
     val resolutionMechanism: LongResolutionMechanismProxy,
@@ -48,26 +83,35 @@ data class LongPolicyDefinitionProxy(
         val tableEntries = buildList {
             addAll(base.getTableEntries())
             val resolutionMechanismDoc = resolutionMechanism.generateDocs()
-            add(Pair("Resolution Mechanism", resolutionMechanismDoc))
-            val policyValueValidations = buildList {
-                add(
-                    Pair(
-                        "Min Value",
-                        if (minValue == Long.MIN_VALUE) "No limit" else minValue.toString()
-                    )
-                )
-                add(
-                    Pair(
-                        "Max Value",
-                        if (maxValue == Long.MAX_VALUE) "No limit" else maxValue.toString()
-                    )
-                )
+            if (resolutionMechanismDoc.isNotEmpty()) {
+                add(Pair("Conflict resolution mechanism", resolutionMechanismDoc))
             }
+            val policyValueValidations =
+                LongValidationProxy(
+                        minValue = minValue,
+                        maxValue = maxValue,
+                    )
+                    .getPolicyValueValidations()
             add(Pair("Policy value", renderPolicyValue("Long", policyValueValidations)))
         }
 
-        append("\n<p>Policy Type: Long</p>\n")
         append(renderTable(tableEntries))
+    }
+}
+
+/**
+ * Proxy class bound to an instance of the `android.processor.devicepolicy.LongValidation`
+ * annotation class.
+ *
+ * @see bindTo
+ */
+data class LongValidationProxy(
+    val minValue: Long,
+    val maxValue: Long,
+) {
+    fun getPolicyValueValidations(): List<String> = buildList {
+        if (minValue != Long.MIN_VALUE) add("Minimum value $minValue")
+        if (maxValue != Long.MAX_VALUE) add("Maximum value $maxValue")
     }
 }
 
@@ -84,9 +128,9 @@ data class LongResolutionMechanismProxy(
 ) {
     fun generateDocs() =
         if (custom) {
-            "custom"
+            ""
         } else if (notCoexistable) {
-            "notCoexistable"
+            "This policy can not be set by multiple admins at the same time. When multiple values are set, the resulting behavior is undefined and is monitored to avoid widespread usage."
         } else {
             item.codebase.reporter.report(
                 Issues.INVALID_DEVICE_POLICY_ANNOTATION,

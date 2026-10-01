@@ -115,6 +115,58 @@ class ApiSurfacesTest : DriverTest() {
             apiSurfaces.assertBaseWasCreated()
         }
     }
+
+    @Test
+    fun `Test that @hide doc tag hides the class when API surfaces are NOT configured`() {
+        check(
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            /**
+                             * @hide
+                             */
+                            public class Foo {
+                                public void bar() {}
+                            }
+                        """
+                    ),
+                ),
+            expectedApiSignature = ""
+        )
+    }
+
+    @Test
+    fun `Test that @hide doc tag is ignored when API surfaces are configured`() {
+        check(
+            apiSurface = KnownApiSurface.PUBLIC,
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            /**
+                             * @hide
+                             */
+                            public class Foo {
+                                public void bar() {}
+                            }
+                        """
+                    ),
+                ),
+            expectedApiSignature =
+                """
+                    // Signature format: 5.0
+                    package test.pkg {
+                      public class Foo {
+                        ctor public Foo();
+                        method public void bar();
+                      }
+                    }
+                """
+        )
+    }
 }
 
 fun ApiSurfaces.assertBaseWasNotCreated() {

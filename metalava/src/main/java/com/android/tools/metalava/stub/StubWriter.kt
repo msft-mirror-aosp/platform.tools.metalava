@@ -71,6 +71,13 @@ internal class StubWriter(
     override val requiresClassNesting: Boolean
         get() = true
 
+    /**
+     * Stubs require nested classes to be visited in deterministic sorted order so that the contents
+     * of the generated source files are reproducible.
+     */
+    override val requiresSortedClasses: Boolean
+        get() = true
+
     override fun visitPackage(pkg: PackageItem) {
         getPackageDir(pkg, create = true)
 
@@ -299,12 +306,10 @@ internal class StubWriter(
 fun createFilteringVisitorForStubs(
     delegate: DelegatedVisitor,
     apiFilters: ApiFilters?,
-    ignoreEmit: Boolean = false,
 ): ItemVisitor {
     return FilteringApiVisitor(
         delegate = delegate,
         apiFilters = apiFilters,
-        ignoreEmit = ignoreEmit,
     )
 }
 

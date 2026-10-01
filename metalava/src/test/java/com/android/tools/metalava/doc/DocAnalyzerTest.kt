@@ -22,12 +22,14 @@ import com.android.tools.metalava.ARG_API_VERSION_LABEL
 import com.android.tools.metalava.ARG_ENHANCE_DOCUMENTATION
 import com.android.tools.metalava.DriverTest
 import com.android.tools.metalava.KnownApiSurface
+import com.android.tools.metalava.KnownConfigFiles
 import com.android.tools.metalava.columnSource
 import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.testing.RequiresCapabilities
 import com.android.tools.metalava.nonNullSource
 import com.android.tools.metalava.nullableSource
 import com.android.tools.metalava.requiresPermissionSource
+import com.android.tools.metalava.testing.KnownSourceFiles.flaggedApiSource
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
 import com.android.tools.metalava.uiThreadSource
@@ -974,6 +976,131 @@ class DocAnalyzerTest : DriverTest() {
                         """
                     )
                 )
+        )
+    }
+
+    @Test
+    fun `Originally hidden elements get deprecatedSince`() {
+        check(
+            configFiles = arrayOf(KnownConfigFiles.configEmptyApiFlags),
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            import android.annotation.FlaggedApi;
+                            public class Test {
+                                @FlaggedApi("flag.name")
+                                public static final String FLAGGED_FIELD = "flagged.field";
+                            }
+                        """
+                    ),
+                    flaggedApiSource,
+                ),
+            applyApiLevelsXml =
+                """
+                    <?xml version="1.0" encoding="utf-8"?>
+                    <api version="2">
+                        <class name="test/pkg/Test" since="1">
+                            <field name="FLAGGED_FIELD" since="20" deprecated="30"/>
+                        </class>
+                    </api>
+                """,
+            checkCompilation = true,
+            docStubs = true,
+            expectedStubFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            /** @apiSince 1 */
+                            @SuppressWarnings({"unchecked", "deprecation", "all"})
+                            public class Test {
+                            public Test() { throw new RuntimeException("Stub!"); }
+                            /**
+                             * @apiSince 20
+                             * @deprecatedSince 30
+                             */
+                            public static final java.lang.String FLAGGED_FIELD = "flagged.field";
+                            }
+                        """
+                    )
+                ),
+            checkCompatibilityApiReleased =
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public class Test {
+                        ctor public Test();
+                        field public static final String FLAGGED_FIELD = "flagged.field";
+                      }
+                    }
+                """,
+        )
+    }
+
+    @Test
+    fun `ForbiddenTag reported for deprecatedSince on originally hidden elements`() {
+        check(
+            configFiles = arrayOf(KnownConfigFiles.configEmptyApiFlags),
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            import android.annotation.FlaggedApi;
+                            public class Test {
+                                /**
+                                 * @deprecatedSince 30
+                                 */
+                                @FlaggedApi("flag.name")
+                                public static final String FLAGGED_FIELD = "flagged.field";
+                            }
+                        """
+                    ),
+                    flaggedApiSource,
+                ),
+            applyApiLevelsXml =
+                """
+                    <?xml version="1.0" encoding="utf-8"?>
+                    <api version="2">
+                        <class name="test/pkg/Test" since="1">
+                            <field name="FLAGGED_FIELD" since="20" deprecated="30"/>
+                        </class>
+                    </api>
+                """,
+            checkCompilation = true,
+            docStubs = true,
+            expectedIssues =
+                "src/test/pkg/Test.java:8: error: Documentation should not specify @deprecatedSince manually; it's computed and injected at build time by metalava [ForbiddenTag]",
+            expectedStubFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            /** @apiSince 1 */
+                            @SuppressWarnings({"unchecked", "deprecation", "all"})
+                            public class Test {
+                            public Test() { throw new RuntimeException("Stub!"); }
+                            /**
+                             * @apiSince 20
+                             * @deprecatedSince 30
+                             */
+                            public static final java.lang.String FLAGGED_FIELD = "flagged.field";
+                            }
+                        """
+                    )
+                ),
+            checkCompatibilityApiReleased =
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public class Test {
+                        ctor public Test();
+                        field public static final String FLAGGED_FIELD = "flagged.field";
+                      }
+                    }
+                """,
         )
     }
 

@@ -19,6 +19,7 @@ package com.android.tools.metalava.model.source.doc
 import com.android.tools.metalava.model.InvalidReferencableItem
 import com.android.tools.metalava.model.source.javadoc.JavadocContent
 import com.android.tools.metalava.reporter.Issues
+import com.android.tools.metalava.reporter.Issues.Issue
 import com.android.tools.metalava.reporter.LocationSpecificReporter
 
 /**
@@ -60,9 +61,6 @@ enum class TagTypeForm(
     /** Can be used as a block tag. */
     BLOCK(supportsBlockTag = true),
 
-    /** An API surface related block tag. */
-    SURFACE(supportsBlockTag = true),
-
     /** Can be used as a block tag or an inline tag. */
     BOTH(supportsBlockTag = true, supportsInlineTag = true),
 }
@@ -77,6 +75,15 @@ internal abstract class TagType<D : TagData>(
 
     /** The form that this tag type takes. */
     val form: TagTypeForm,
+
+    /**
+     * Optional [TagTypeErrorProvider] that is called when this tag is found in the documentation.
+     *
+     * Must only be specified for tags that are not allowed in the documentation.
+     *
+     * Returns a [TagTypeError] that is reported at the location of the doc tag.
+     */
+    val errorProvider: TagTypeErrorProvider? = null,
 ) {
     /**
      * The ordinal of this tag type, defining its order within all tag types.
@@ -153,6 +160,24 @@ internal abstract class TagType<D : TagData>(
     }
 }
 
+/**
+ * Provider of a [TagTypeError].
+ *
+ * See [TagType.errorProvider].
+ */
+internal typealias TagTypeErrorProvider = (tagTypeName: String) -> TagTypeError
+
+/**
+ * Encapsulate an error that will be reported on a doc tag.
+ *
+ * @param issue the [Issue] to report.
+ * @param message the message to report.
+ */
+internal data class TagTypeError(
+    val issue: Issue,
+    val message: String,
+)
+
 /** Result of a call to [TagType.extractData]. */
 internal data class ExtractDataResult<D : TagData>(
     /** The [TagData] extracted. */
@@ -168,7 +193,11 @@ internal data class ExtractDataResult<D : TagData>(
 )
 
 /** The default [TagType] used for all tags that do not have special behavior. */
-internal class DefaultTagType(name: String, form: TagTypeForm) : TagType<TagData>(name, form) {
+internal class DefaultTagType(
+    name: String,
+    form: TagTypeForm,
+    errorReporter: TagTypeErrorProvider?
+) : TagType<TagData>(name, form, errorReporter) {
     override fun extractData(
         context: DocCommentContext,
         reporter: LocationSpecificReporter,
@@ -207,8 +236,11 @@ internal object TagTypes {
     }
 
     /** Register a [DefaultTagType] called [name]. */
-    fun registerDefaultTagType(name: String, form: TagTypeForm) =
-        register(DefaultTagType(name, form))
+    fun registerDefaultTagType(
+        name: String,
+        form: TagTypeForm,
+        errorReporter: TagTypeErrorProvider? = null
+    ) = register(DefaultTagType(name, form, errorReporter))
 
     /**
      * Get a [TagType] for [name].
@@ -220,7 +252,8 @@ internal object TagTypes {
             DefaultTagType(
                 name,
                 // Default to supporting both forms.
-                TagTypeForm.BOTH
+                TagTypeForm.BOTH,
+                errorReporter = null,
             )
         }
 
@@ -252,7 +285,26 @@ internal object TagTypes {
         register(LabeledRefTagType("linkplain", TagTypeForm.INLINE))
 
         // Special surface doc tags.
-        registerDefaultTagType("hide", TagTypeForm.SURFACE)
+        registerDefaultTagType("hide", TagTypeForm.BLOCK) { tagTypeName ->
+            TagTypeError(
+                Issues.DEPRECATED_SURFACE_DOC_TAG,
+                "Use of '@$tagTypeName' to affect the API surface is deprecated",
+            )
+        }
+
+        registerDefaultTagType("removed", TagTypeForm.BLOCK) { tagTypeName ->
+            TagTypeError(
+                Issues.DEPRECATED_SURFACE_DOC_TAG,
+                "Use of '@$tagTypeName' to affect the API surface is deprecated",
+            )
+        }
+
+        registerDefaultTagType("doconly", TagTypeForm.BLOCK) { tagTypeName ->
+            TagTypeError(
+                Issues.UNSUPPORTED_DOC_TAG,
+                "Use of '@$tagTypeName' is no longer supported, use an <api-surfaces>/<doc-only> configured annotation",
+            )
+        }
     }
 }
 

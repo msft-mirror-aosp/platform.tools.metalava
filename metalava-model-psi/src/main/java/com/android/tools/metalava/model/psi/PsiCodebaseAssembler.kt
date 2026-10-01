@@ -20,7 +20,6 @@ import androidx.tracing.Tracer
 import com.android.tools.lint.UastEnvironment
 import com.android.tools.lint.annotations.Extractor
 import com.android.tools.metalava.model.AnnotationItem
-import com.android.tools.metalava.model.ApiVariantSelectors
 import com.android.tools.metalava.model.ArrayTypeItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassOrigin
@@ -78,9 +77,6 @@ internal class PsiCodebaseAssembler(
             codebase = codebase,
             // Psi can process Java and Kotlin so use unknown as the default.
             defaultSourceLanguage = SourceLanguage.UNKNOWN,
-            // Source files need to track which parts belong to which API surface variants, so they
-            // need to create an ApiVariantSelectors instance that can be used to track that.
-            defaultVariantSelectorsFactory = ApiVariantSelectors.MUTABLE_FACTORY,
         )
 
     override val globalTypeItemFactory = PsiTypeItemFactory(this, TypeParameterScope.empty)

@@ -17,7 +17,6 @@
 package com.android.tools.metalava.jar
 
 import com.android.tools.metalava.DriverTest
-import com.android.tools.metalava.ProgressTracker
 import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.testing.RequiresCapabilities
 import com.android.tools.metalava.reporter.ThrowingReporter
@@ -37,7 +36,6 @@ class StandaloneJarCodebaseLoaderTest : DriverTest() {
     private val jarCodebaseLoader by lazy {
         StandaloneJarCodebaseLoader.create(
             disableStderrDumping = false,
-            ProgressTracker(),
             getNoopTracer(),
             ThrowingReporter.INSTANCE,
             sourceModelProvider = codebaseCreatorConfig.creator,

@@ -16,10 +16,10 @@
 
 package com.android.tools.metalava.model.source.javadoc
 
+import com.android.tools.metalava.model.parser.Token
 import com.android.tools.metalava.model.source.doc.DocumentationFragmentIssueReporter
 import com.android.tools.metalava.model.source.doc.DocumentationIssueReporter
 import com.android.tools.metalava.reporter.Issues.Issue
-import org.antlr.v4.runtime.Token
 
 /** A [DocumentationIssueReporter] that reports issues for a [Token]. */
 internal class TokenIssueReporter(reporter: DocumentationIssueReporter) :
@@ -27,18 +27,11 @@ internal class TokenIssueReporter(reporter: DocumentationIssueReporter) :
     /** The [Token] on which the issues will be reported. */
     internal var token: Token? = null
 
-    /** The line offset of [token] from the beginning of the content parsed by [JavadocParser]. */
-    override val lineOffsetFromContainer: Int
-        get() =
-            // The token's `line` property is 1-based but this is 0-based so convert the former
-            // to the latter.
-            token!!.line - 1
-
-    /** The character offset of [token] from the beginning of the line containing it. */
-    override val firstLineCharacterOffset: Int
-        get() =
-            // The token's `charPositionInLine` is already 0-based like this.
-            token!!.charPositionInLine
+    /**
+     * The character offset of [token] from the beginning of the content parsed by [JavadocParser].
+     */
+    override val charOffsetFromContainer: Int
+        get() = token!!.startOffset
 
     /** Treat any issues reported by [body] as if they were reported on [token]. */
     inline fun <R> reportAtToken(token: Token, body: () -> R): R {

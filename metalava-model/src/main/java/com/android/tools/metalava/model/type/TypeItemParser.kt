@@ -34,6 +34,65 @@ import com.android.tools.metalava.model.WellKnownTypes.JAVA_LANG_OBJECT_PLATFORM
 import com.android.tools.metalava.model.WildcardTypeItem
 import com.android.tools.metalava.model.value.ValueParser
 
+/** Parses and caches types within an [AnnotationContext]. */
+interface TypeItemParser {
+    /**
+     * Creates or retrieves from the cache a [TypeItem] representing [type], in the context of the
+     * type parameters from [typeParameterScope], if applicable.
+     */
+    fun obtainTypeFromString(
+        type: String,
+        typeParameterScope: TypeParameterScope = TypeParameterScope.empty,
+        contextNullability: ContextNullability = ContextNullability.none,
+    ): TypeItem
+
+    /**
+     * Breaks a string representing type parameters into a list of the type parameter strings.
+     *
+     * E.g. `"<A, B, C>"` -> `["A", "B", "C"]` and `"<List<A>, B>"` -> `["List<A>", "B"]`.
+     */
+    fun typeParameterStrings(typeString: String?): List<String>
+
+    /**
+     * Companion object providing factory and utility functions that currently delegate to
+     * [LegacyTypeItemParser].
+     *
+     * The intention is that [LegacyTypeItemParser] will eventually be replaced, so providing these
+     * methods on [TypeItemParser] minimizes churn at call sites.
+     */
+    companion object {
+        /**
+         * Creates and returns a [LegacyTypeItemParser] as a [TypeItemParser].
+         *
+         * The intention is that [LegacyTypeItemParser] will eventually be replaced, so this factory
+         * method reduces churn at call sites.
+         */
+        operator fun invoke(
+            annotationContext: AnnotationContext,
+            unqualifiedClassHandler: UnqualifiedClassHandler,
+            kotlinStyleNulls: Boolean = false,
+            errorReporter: TypeItemParserErrorReporter = TypeItemParserErrorReporter.THROWING,
+        ): TypeItemParser =
+            LegacyTypeItemParser(
+                annotationContext,
+                unqualifiedClassHandler,
+                kotlinStyleNulls,
+                errorReporter,
+            )
+
+        /**
+         * Returns a [TypeItemParser] suitable for use by the [ValueParser].
+         *
+         * It does not support kotlin style nulls, or annotations and treats unqualified types as if
+         * they were qualified.
+         */
+        fun forValueParser(
+            classResolver: ClassResolver,
+            errorReporter: TypeItemParserErrorReporter = TypeItemParserErrorReporter.THROWING,
+        ): TypeItemParser = LegacyTypeItemParser.forValueParser(classResolver, errorReporter)
+    }
+}
+
 /**
  * Parses and caches types within an [annotationContext].
  *
@@ -42,12 +101,12 @@ import com.android.tools.metalava.model.value.ValueParser
  *   for nullable, and `!` for platform are supported or not.
  * @param errorReporter channel for reporting recoverable errors found while parsing.
  */
-open class TypeItemParser(
-    val annotationContext: AnnotationContext,
+open class LegacyTypeItemParser(
+    private val annotationContext: AnnotationContext,
     private val unqualifiedClassHandler: UnqualifiedClassHandler,
-    val kotlinStyleNulls: Boolean = false,
+    private val kotlinStyleNulls: Boolean = false,
     private val errorReporter: TypeItemParserErrorReporter = TypeItemParserErrorReporter.THROWING,
-) {
+) : TypeItemParser {
     /** [ValueParser] used for parsing type use annotations. */
     private val valueParser = ValueParser(annotationContext, this)
 
@@ -55,16 +114,41 @@ open class TypeItemParser(
     private val objectType =
         if (kotlinStyleNulls) JAVA_LANG_OBJECT_NON_NULL_TYPE else JAVA_LANG_OBJECT_PLATFORM_TYPE
 
-    /**
-     * Creates or retrieves from the cache a [TypeItem] representing [type], in the context of the
-     * type parameters from [typeParameterScope], if applicable.
-     */
-    fun obtainTypeFromString(
+    override fun obtainTypeFromString(
         type: String,
         typeParameterScope: TypeParameterScope,
-        contextNullability: ContextNullability = ContextNullability.none,
-    ): TypeItem =
-        parseTypeWithContextNullability(type, typeParameterScope, emptyList(), contextNullability)
+        contextNullability: ContextNullability,
+    ): TypeItem {
+        var typeItem =
+            parseTypeWithContextNullability(
+                type,
+                typeParameterScope,
+                emptyList(),
+                contextNullability,
+            )
+
+        // Check if the type is an array and its component nullability needs to be updated based on
+        // the context.
+        val forcedComponentNullability = contextNullability.forcedComponentNullability
+        if (
+            typeItem is ArrayTypeItem &&
+                forcedComponentNullability != null &&
+                forcedComponentNullability != typeItem.componentType.modifiers.nullability
+        ) {
+            typeItem =
+                typeItem.substitute(
+                    componentType = typeItem.componentType.substitute(forcedComponentNullability),
+                )
+        }
+
+        // Check if the type's nullability needs to be updated based on the context.
+        val typeNullability = typeItem.modifiers.nullability
+        val actualTypeNullability =
+            contextNullability.compute(typeNullability, typeItem.modifiers.annotations)
+        return if (actualTypeNullability != typeNullability) {
+            typeItem.substitute(actualTypeNullability)
+        } else typeItem
+    }
 
     /**
      * Parse [type] and return a [TypeItem], in the context of type parameters from
@@ -488,10 +572,16 @@ open class TypeItemParser(
     /**
      * Removes all annotations at the beginning of the type, returning the trimmed type and list of
      * annotations.
+     *
+     * @param type the type string from which to trim leading annotations.
+     * @return a pair of the trimmed type string and the list of trimmed [AnnotationItem]s.
      */
     fun trimLeadingAnnotations(type: String): Pair<String, List<AnnotationItem>> {
-        val annotations = mutableListOf<AnnotationItem>()
         var trimmed = type.trim()
+        if (!trimmed.startsWith('@')) {
+            return Pair(trimmed, emptyList())
+        }
+        val annotations = mutableListOf<AnnotationItem>()
         while (trimmed.startsWith('@')) {
             val end = findAnnotationEnd(trimmed, 1)
             val annotationSource = trimmed.substring(0, end).trim()
@@ -559,10 +649,14 @@ open class TypeItemParser(
      *
      * For `test.pkg.@test.pkg.A Outer<P1>.@test.pkg.B Inner<P2>`, returns the triple
      * ("test.pkg.Outer", "<P1>.@test.pkg.B Inner<P2>", listOf("@test.pkg.A")).
+     *
+     * @param type the type string representing a class to split.
+     * @return a triple of the qualified class name, optional remainder of the type string, and
+     *   type-use annotations.
      */
     fun splitClassType(type: String): Triple<String, String?, List<AnnotationItem>> {
         // The constructed qualified type name
-        var name = ""
+        val name = StringBuilder()
         // The part of the type which still needs to be parsed
         var remaining = type.trim()
         // The annotations of the type, may be set later
@@ -579,30 +673,29 @@ open class TypeItemParser(
                 // '.' is first, the next part is part of the qualified class name.
                 dotIndex -> {
                     val nextNameChunk = remaining.substring(0, dotIndex)
-                    name += nextNameChunk
+                    name.append(nextNameChunk)
                     remaining = remaining.substring(dotIndex)
                     // Assumes that package names are all lower case and class names will have
                     // an upper class character (the [START_WITH_UPPER] API lint check should
                     // make this a safe assumption). If the name is a class name, we've found
                     // the complete class name, return.
                     if (nextNameChunk.any { it.isUpperCase() }) {
-                        return Triple(name, remaining, annotations)
+                        return Triple(name.toString(), remaining, annotations)
                     }
                 }
                 // '<' is first, the end of the class name has been reached.
                 paramIndex -> {
-                    name += remaining.substring(0, paramIndex)
+                    name.append(remaining, 0, paramIndex)
                     remaining = remaining.substring(paramIndex)
-                    return Triple(name, remaining, annotations)
+                    return Triple(name.toString(), remaining, annotations)
                 }
                 // '@' is first, trim all annotations.
                 annotationIndex -> {
-                    name += remaining.substring(0, annotationIndex)
-                    trimLeadingAnnotations(remaining.substring(annotationIndex)).let {
-                        (first, second) ->
-                        remaining = first
-                        annotations = second
-                    }
+                    name.append(remaining, 0, annotationIndex)
+                    val (first, second) =
+                        trimLeadingAnnotations(remaining.substring(annotationIndex))
+                    remaining = first
+                    annotations = second
                 }
             }
             // Reset indices -- the string may now start with '.' for the next chunk of the name
@@ -613,8 +706,12 @@ open class TypeItemParser(
             minIndex = minIndex(dotIndex, paramIndex, annotationIndex)
         }
         // End of the name reached with no leftover string.
-        name += remaining
-        return Triple(name, null, annotations)
+        name.append(remaining)
+        return Triple(name.toString(), null, annotations)
+    }
+
+    override fun typeParameterStrings(typeString: String?): List<String> {
+        return typeParameterStringsWithRemainder(typeString).first
     }
 
     companion object {
@@ -647,10 +744,32 @@ open class TypeItemParser(
         }
 
         /**
-         * Returns the minimum valid list index from the input, or null if there isn't one. -1 is
-         * not a valid index.
+         * Maps an invalid index (-1) to [Int.MAX_VALUE].
+         *
+         * This is safe because -1 indicates an index not found (e.g. from [String.indexOf]), and
+         * [Int.MAX_VALUE] acts as the identity element for finding the minimum index via [minOf]. A
+         * valid index in a type string will never reach [Int.MAX_VALUE].
          */
-        private fun minIndex(vararg index: Int): Int? = index.filter { it != -1 }.minOrNull()
+        private fun Int.mapInvalidIndexToMaxValue(): Int = if (this == -1) Int.MAX_VALUE else this
+
+        /**
+         * Returns the minimum valid list index from [a], [b], and [c], or null if all are -1. -1 is
+         * not a valid index.
+         *
+         * @param a first index to compare.
+         * @param b second index to compare.
+         * @param c third index to compare.
+         * @return the smallest non-negative index, or null if all indices are -1.
+         */
+        private fun minIndex(a: Int, b: Int, c: Int): Int? {
+            val min =
+                minOf(
+                    a.mapInvalidIndexToMaxValue(),
+                    b.mapInvalidIndexToMaxValue(),
+                    c.mapInvalidIndexToMaxValue(),
+                )
+            return if (min != Int.MAX_VALUE) min else null
+        }
 
         /**
          * Given a string and the index in that string which is the start of an annotation (the
@@ -675,15 +794,6 @@ open class TypeItemParser(
                 index++
             }
             return index
-        }
-
-        /**
-         * Breaks a string representing type parameters into a list of the type parameter strings.
-         *
-         * E.g. `"<A, B, C>"` -> `["A", "B", "C"]` and `"<List<A>, B>"` -> `["List<A>", "B"]`.
-         */
-        fun typeParameterStrings(typeString: String?): List<String> {
-            return typeParameterStringsWithRemainder(typeString).first
         }
 
         /**
@@ -770,7 +880,7 @@ open class TypeItemParser(
                         get() = error("Annotations not supported")
                 }
 
-            return TypeItemParser(
+            return LegacyTypeItemParser(
                 annotationContext,
                 UnqualifiedClassHandler.PREFIX_WITH_JAVA_LANG,
                 kotlinStyleNulls = false,

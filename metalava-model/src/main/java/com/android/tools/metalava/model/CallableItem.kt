@@ -254,16 +254,27 @@ interface CallableItem : MemberItem, TypeParameterListOwner, PossiblyRecordCompo
             // is a Kotlin-only callable, don't accept any equivalent-erased types as equal, but
             // allow for the case that one version has wildcards that the other doesn't (common
             // when comparing types generated from PSI vs the Kotlin analysis API).
-            if (parameter1Type.toErasedTypeString() == parameter2Type.toErasedTypeString()) {
+            if (TypeComparator.ERASED.compare(parameter1Type, parameter2Type)) {
                 if (TargetLanguage.BYTECODE in targetLanguages) {
                     continue
-                } else if (equalWithFlattenedWildcards(parameter1Type, parameter2Type)) {
+                } else if (
+                    TypeComparator.FLATTENED_WILDCARDS.compare(parameter1Type, parameter2Type)
+                ) {
                     continue
                 }
             }
 
-            val convertedType =
-                parameter1Type.convertType(other.containingClass(), containingClass())
+            // Substitute any type variables in this callable's parameter type using the type
+            // arguments provided by `other`'s containing class. If `other` is from a different
+            // codebase (e.g. when searching this codebase for an inherited method matching a
+            // method from another codebase), resolve `other`'s containing class in this codebase
+            // first so that type variable mapping uses the class hierarchy in this codebase.
+            val otherContainingClass =
+                other.containingClass().let { cls ->
+                    if (cls.codebase === codebase) cls
+                    else cls.findCorrespondingItemIn(codebase) ?: return false
+                }
+            val convertedType = parameter1Type.convertType(otherContainingClass, containingClass())
             if (!equalParameterTypes(convertedType, parameter2Type)) return false
         }
         return true
@@ -277,8 +288,8 @@ interface CallableItem : MemberItem, TypeParameterListOwner, PossiblyRecordCompo
     private fun equalParameterTypes(parameterType1: TypeItem, parameterType2: TypeItem): Boolean {
         return when (targetLanguages) {
             TargetLanguageSet.KOTLIN_ONLY ->
-                parameterType1.equalToType(parameterType2, includeNullability = true)
-            else -> parameterType1 == parameterType2
+                TypeComparator.NULLABILITY_AWARE.compare(parameterType1, parameterType2)
+            else -> TypeComparator.IGNORE_NULLABILITY.compare(parameterType1, parameterType2)
         }
     }
 

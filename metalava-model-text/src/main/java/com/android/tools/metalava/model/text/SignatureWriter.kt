@@ -69,6 +69,12 @@ class SignatureWriter(
     private val fileFormat: FileFormat,
     private val writeTargetLanguages: Boolean = true,
 ) : DelegatedVisitor {
+    /**
+     * Signature files require classes to be visited in deterministic, alphabetical order by
+     * qualified name (with typealiases last) for stable signature generation and diffing.
+     */
+    override val requiresSortedClasses: Boolean
+        get() = true
 
     init {
         // If a header must always be written out (even if the file is empty) then write it here.
@@ -512,8 +518,7 @@ class SignatureWriter(
         private val SIGNATURE_FILE_MODIFIER_LIST_WRITER_CONFIG =
             ModifierListWriter.Config(
                 target = AnnotationTarget.SIGNATURE_FILE,
-                annotationFormatter =
-                    AnnotationFormatter.legacyAnnotationFormatter(AnnotationTarget.SIGNATURE_FILE),
+                annotationFormatter = AnnotationFormatter.legacyAnnotationFormatter(),
                 runtimeAnnotationsOnly = false,
                 skipNullnessAnnotations = false,
             )
@@ -575,7 +580,6 @@ fun createCodebaseFragmentForSignatureFile(
     codebase: Codebase,
     fileFormat: FileFormat,
     apiFilters: ApiFilters?,
-    showUnannotated: Boolean,
 ) =
     CodebaseFragment.create(
         codebase,
@@ -585,7 +589,6 @@ fun createCodebaseFragmentForSignatureFile(
             delegate,
             fileFormat,
             apiFilters,
-            showUnannotated,
         )
     }
 
@@ -598,7 +601,6 @@ private fun createFilteringVisitorForSignatures(
     delegate: DelegatedVisitor,
     fileFormat: FileFormat,
     apiFilters: ApiFilters?,
-    showUnannotated: Boolean,
 ): ApiVisitor {
     val (interfaceListSorter, interfaceListComparator) =
         if (fileFormat[SORT_WHOLE_EXTENDS_LIST]) Pair(null, TypeItem.totalComparator)
@@ -608,6 +610,5 @@ private fun createFilteringVisitorForSignatures(
         interfaceListSorter = interfaceListSorter,
         interfaceListComparator = interfaceListComparator,
         apiFilters = apiFilters,
-        showUnannotated = showUnannotated,
     )
 }

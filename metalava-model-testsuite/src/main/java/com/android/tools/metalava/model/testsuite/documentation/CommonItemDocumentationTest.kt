@@ -95,6 +95,8 @@ class CommonItemDocumentationTest : BaseModelTest() {
                     package test.pkg;
 
                     /// Inline comment
+                    // Line comment
+                    /* Block comment */
                     /**
                      * Doc
                      */
@@ -117,6 +119,8 @@ class CommonItemDocumentationTest : BaseModelTest() {
                     package test.pkg
 
                     /// Inline comment
+                    // Line comment
+                    /* Block comment */
                     /**
                      * Doc
                      */
@@ -146,8 +150,9 @@ class CommonItemDocumentationTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
-    fun `Test accessing documentation comment before inline comment - bug 391104222`() {
+    fun `Test accessing documentation comment before inline comment - bug 391104222 - java`() {
         runCodebaseTest(
             java(
                 """
@@ -156,6 +161,8 @@ class CommonItemDocumentationTest : BaseModelTest() {
                     /**
                      * Doc
                      */
+                    // Line comment
+                    /* Block comment */
                     /// Inline comment
                     public class Test {
                         /**
@@ -171,6 +178,19 @@ class CommonItemDocumentationTest : BaseModelTest() {
                     }
                 """
             ),
+        ) {
+            val testClass = codebase.assertClass("test.pkg.Test")
+            testClass.assertPrintedDocumentation(expectedOutput = "", message = "class")
+
+            val testMethod = testClass.methods().last()
+            testMethod.assertPrintedDocumentation(expectedOutput = "", message = "method")
+        }
+    }
+
+    @SupportedInputFormats(InputFormat.KOTLIN)
+    @Test
+    fun `Test accessing documentation comment before inline comment - bug 391104222 - kotlin`() {
+        runCodebaseTest(
             kotlin(
                 """
                     package test.pkg
@@ -178,6 +198,8 @@ class CommonItemDocumentationTest : BaseModelTest() {
                     /**
                      * Doc
                      */
+                    // Line comment
+                    /* Block comment */
                     /// Inline comment
                     class Test {
                         /**

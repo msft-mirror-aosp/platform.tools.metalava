@@ -22,7 +22,6 @@ import com.android.tools.metalava.ARG_SHOW_UNANNOTATED
 import com.android.tools.metalava.DriverTest
 import com.android.tools.metalava.KnownApiSurface
 import com.android.tools.metalava.cli.common.ARG_ERROR_CATEGORY
-import com.android.tools.metalava.model.ANDROID_SYSTEM_API
 import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.testing.RequiresCapabilities
 import com.android.tools.metalava.model.text.FileFormat
@@ -38,6 +37,39 @@ import com.android.tools.metalava.testing.kotlin
 import org.junit.Test
 
 class CompatibilityCheckTest : DriverTest() {
+
+    @Test
+    fun `Added public items are not reported as added to system API`() {
+        check(
+            apiSurface = KnownApiSurface.SYSTEM,
+            extraArguments = arrayOf(ARG_ERROR_CATEGORY, "Compatibility"),
+            checkCompatibilityApiReleasedList =
+                listOf(
+                    """
+                        // Signature format: 2.0
+                        package test.pkg {
+                          public class Bar {
+                          }
+                        }
+                    """,
+                    // An empty delta for the system API, indicating no system-specific APIs were
+                    // released.
+                    "",
+                ),
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+
+                            public class Bar {
+                            }
+                        """
+                    ),
+                ),
+            expectedIssues = "",
+        )
+    }
 
     @Test
     fun `Should not raise issue when experimental package is added`() {
@@ -465,7 +497,7 @@ class CompatibilityCheckTest : DriverTest() {
         // Adding final on a class is incompatible.
         check(
             // Make AddedFinalInstantiable an error, so it is reported as an issue.
-            extraArguments = arrayOf("--error", Issues.ADDED_FINAL_UNINSTANTIABLE.name),
+            extraArguments = errorIssues(Issues.ADDED_FINAL_UNINSTANTIABLE),
             expectedIssues =
                 """
                 src/test/pkg/Java.java:2: error: Binary breaking change: Class test.pkg.Java added 'final' qualifier [AddedFinal]
@@ -517,7 +549,7 @@ class CompatibilityCheckTest : DriverTest() {
         // Adding final on a class is incompatible unless the class could not be extended.
         check(
             // Make AddedFinalInstantiable an error, so it is reported as an issue.
-            extraArguments = arrayOf("--error", Issues.ADDED_FINAL_UNINSTANTIABLE.name),
+            extraArguments = errorIssues(Issues.ADDED_FINAL_UNINSTANTIABLE),
             expectedIssues =
                 """
                 src/test/pkg/Java.java:2: error: Class test.pkg.Java added 'final' qualifier but was previously uninstantiable and therefore could not be subclassed [AddedFinalUninstantiable]
@@ -568,7 +600,7 @@ class CompatibilityCheckTest : DriverTest() {
         // Adding final on a method is incompatible.
         check(
             // Make AddedFinalInstantiable an error, so it is reported as an issue.
-            extraArguments = arrayOf("--error", Issues.ADDED_FINAL_UNINSTANTIABLE.name),
+            extraArguments = errorIssues(Issues.ADDED_FINAL_UNINSTANTIABLE),
             expectedIssues =
                 """
                 src/test/pkg/Java.java:4: error: Binary breaking change: Method test.pkg.Java.method has added 'final' qualifier [AddedFinal]
@@ -619,7 +651,7 @@ class CompatibilityCheckTest : DriverTest() {
         // extended.
         check(
             // Make AddedFinalInstantiable an error, so it is reported as an issue.
-            extraArguments = arrayOf("--error", Issues.ADDED_FINAL_UNINSTANTIABLE.name),
+            extraArguments = errorIssues(Issues.ADDED_FINAL_UNINSTANTIABLE),
             expectedIssues =
                 """
                 src/test/pkg/Java.java:4: error: Method test.pkg.Java.method added 'final' qualifier but containing class test.pkg.Java was previously uninstantiable and therefore could not be subclassed [AddedFinalUninstantiable]
@@ -2315,6 +2347,7 @@ class CompatibilityCheckTest : DriverTest() {
     @Test
     fun `Empty prev api with @hide and --show-annotation`() {
         check(
+            apiSurface = KnownApiSurface.SYSTEM,
             checkCompatibilityApiReleased =
                 """
                 """,
@@ -2339,21 +2372,12 @@ class CompatibilityCheckTest : DriverTest() {
                     package android.media;
                     import android.annotation.SystemApi;
 
-                    /**
-                     * @hide
-                     */
                     @SystemApi
                     @SuppressWarnings("HiddenSuperclass")
                     public class MediaPlayer implements SubtitleController.Listener {
                     }
                     """
                     ),
-                    systemApiSource,
-                ),
-            extraArguments =
-                arrayOf(
-                    ARG_SHOW_ANNOTATION,
-                    "android.annotation.SystemApi",
                 ),
             expectedIssues = ""
         )
@@ -2362,6 +2386,7 @@ class CompatibilityCheckTest : DriverTest() {
     @Test
     fun `Inherited systemApi method in an inner class`() {
         check(
+            apiSurface = KnownApiSurface.SYSTEM,
             checkCompatibilityApiReleased =
                 """
                 package android.telephony {
@@ -2376,9 +2401,6 @@ class CompatibilityCheckTest : DriverTest() {
                         """
                     package android.telephony;
 
-                    /**
-                     * @hide
-                     */
                     @android.annotation.SystemApi
                     public class MmTelFeature {
                         public static class Capabilities extends Parent.ParentCapabilities {
@@ -2392,9 +2414,6 @@ class CompatibilityCheckTest : DriverTest() {
                         """
                     package android.telephony;
 
-                    /**
-                     * @hide
-                     */
                     @android.annotation.SystemApi
                     public class Parent {
                         public static class ParentCapabilities {
@@ -2403,12 +2422,6 @@ class CompatibilityCheckTest : DriverTest() {
                     }
                     """
                     ),
-                    systemApiSource,
-                ),
-            extraArguments =
-                arrayOf(
-                    ARG_SHOW_ANNOTATION,
-                    "android.annotation.SystemApi",
                 ),
             expectedIssues = ""
         )
@@ -2456,7 +2469,10 @@ class CompatibilityCheckTest : DriverTest() {
                     """
                     )
                 ),
-            expectedIssues = ""
+            expectedIssues =
+                """
+                    src/android/content/ContextWrapper.java:10: error: Attempting to hide method android.content.ContextWrapper.createContextForSplit() which overrides method android.content.Parent.createContextForSplit() which is already part of the API [HidingApiMethodOverride]
+                """
         )
     }
 
@@ -2608,13 +2624,15 @@ class CompatibilityCheckTest : DriverTest() {
                 ),
             expectedIssues =
                 """
-                """
+                    src/android/icu/util/SpecificCalendar.java:11: error: Attempting to hide method android.icu.util.SpecificCalendar.validateField() which overrides method android.icu.util.Calendar.validateField() which is already part of the API [HidingApiMethodOverride]
+                """,
         )
     }
 
     @Test
     fun `Move class from SystemApi to public and then remove a method`() {
         check(
+            apiSurface = KnownApiSurface.SYSTEM,
             checkCompatibilityApiReleased =
                 """
                 package android.hardware.lights {
@@ -2649,20 +2667,11 @@ class CompatibilityCheckTest : DriverTest() {
 
                     import android.annotation.SystemApi;
 
-                    /**
-                     * @hide
-                     */
                     @SystemApi
                     public class LightsManager {
                     }
                     """
                     ),
-                    systemApiSource,
-                ),
-            extraArguments =
-                arrayOf(
-                    ARG_SHOW_ANNOTATION,
-                    "android.annotation.SystemApi",
                 ),
             expectedIssues =
                 """
@@ -2674,6 +2683,7 @@ class CompatibilityCheckTest : DriverTest() {
     @Test
     fun `Change item in nested SystemApi`() {
         check(
+            apiSurface = KnownApiSurface.SYSTEM,
             checkCompatibilityApiReleased =
                 """
                 package android.foobar {
@@ -2692,7 +2702,6 @@ class CompatibilityCheckTest : DriverTest() {
                     import android.annotation.SystemApi;
 
                     public class Foo {
-                        /** @hide */
                         @SystemApi
                         public static final class Nested {
                             public final int existing();
@@ -2700,14 +2709,12 @@ class CompatibilityCheckTest : DriverTest() {
                     }
                     """
                     ),
-                    systemApiSource
                 ),
-            showAnnotations = arrayOf(ANDROID_SYSTEM_API),
             expectedIssues =
                 """
-                src/android/foobar/Foo.java:8: error: Binary breaking change: Class android.foobar.Foo.Nested added 'final' qualifier [AddedFinal]
-                src/android/foobar/Foo.java:9: error: Binary breaking change: Method android.foobar.Foo.Nested.existing has added 'final' qualifier [AddedFinal]
-                src/android/foobar/Foo.java:9: error: Binary breaking change: Method android.foobar.Foo.Nested.existing has changed return type from void to int [ChangedType]
+                src/android/foobar/Foo.java:7: error: Binary breaking change: Class android.foobar.Foo.Nested added 'final' qualifier [AddedFinal]
+                src/android/foobar/Foo.java:8: error: Binary breaking change: Method android.foobar.Foo.Nested.existing has added 'final' qualifier [AddedFinal]
+                src/android/foobar/Foo.java:8: error: Binary breaking change: Method android.foobar.Foo.Nested.existing has changed return type from void to int [ChangedType]
                 """
         )
     }
@@ -2715,6 +2722,7 @@ class CompatibilityCheckTest : DriverTest() {
     @Test
     fun `Moving a field from SystemApi to public`() {
         check(
+            apiSurface = KnownApiSurface.SYSTEM,
             checkCompatibilityApiReleased =
                 """
                 package android.content {
@@ -2736,20 +2744,11 @@ class CompatibilityCheckTest : DriverTest() {
                     public class Context {
                         public static final String BUGREPORT_SERVICE = "bugreport";
 
-                        /**
-                         * @hide
-                         */
                         @SystemApi
                         public File getPreloadsFileCache() { return null; }
                     }
                     """
                     ),
-                    systemApiSource,
-                ),
-            extraArguments =
-                arrayOf(
-                    ARG_SHOW_ANNOTATION,
-                    "android.annotation.SystemApi",
                 ),
             expectedIssues =
                 """
@@ -2958,7 +2957,10 @@ class CompatibilityCheckTest : DriverTest() {
                     ),
                     systemApiSource
                 ),
-            expectedIssues = ""
+            expectedIssues =
+                """
+                    src/test/pkg/MeasureFormat.java:6: error: Attempting to hide method test.pkg.MeasureFormat.parse() which overrides method test.pkg.UFormat.parse() which is already part of the API [HidingApiMethodOverride]
+                """
         )
     }
 
@@ -4406,6 +4408,35 @@ class CompatibilityCheckTest : DriverTest() {
                     // Signature format: 5.0
                     package test.pkg {
                       public final class Child extends test.pkg.Parent<java.lang.Integer> {
+                        method public void foo(Integer t);
+                      }
+                      public class Parent<T> {
+                        method public void foo(T! t);
+                      }
+                    }
+                """,
+            signatureSource =
+                """
+                    // Signature format: 5.0
+                    package test.pkg {
+                      public final class Child extends test.pkg.Parent<java.lang.Integer> {
+                      }
+                      public class Parent<T> {
+                        method public void foo(T! t);
+                      }
+                    }
+                """
+        )
+    }
+
+    @Test
+    fun `Test that newly inherited parent method with type parameter matches child method`() {
+        check(
+            checkCompatibilityApiReleased =
+                """
+                    // Signature format: 5.0
+                    package test.pkg {
+                      public final class Child {
                         method public void foo(Integer t);
                       }
                       public class Parent<T> {

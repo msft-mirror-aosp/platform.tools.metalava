@@ -17,6 +17,7 @@
 package com.android.tools.metalava.cli.help
 
 import com.android.tools.metalava.cli.common.BaseCommandTest
+import com.android.tools.metalava.reporter.Issues
 import org.junit.Test
 
 class IssuesCommandTest : BaseCommandTest<HelpCommand>({ HelpCommand() }) {
@@ -69,6 +70,7 @@ Available Issues                             |  Category                        
   CallbackMethodName                         |  api_lint                             |   error
   CallbackName                               |  api_lint                             |   warning
   ChangedAbstract                            |  binary_and_source_compatibility      |   error
+  ChangedAbstractToConcrete                  |  other_compatibility                  |   hidden
   ChangedAnnotationRetention                 |  other_compatibility                  |   error
   ChangedClass                               |  binary_and_source_compatibility      |   error
   ChangedDefault                             |  binary_and_source_compatibility      |   error
@@ -78,7 +80,7 @@ Available Issues                             |  Category                        
   ChangedScope                               |  binary_and_source_compatibility      |   error
   ChangedStatic                              |  binary_and_source_compatibility      |   error
   ChangedSuperclass                          |  binary_and_source_compatibility      |   error
-  ChangedThrows                              |  binary_and_source_compatibility      |   error
+  ChangedThrows                              |  source_compatibility_only            |   error
   ChangedType                                |  binary_and_source_compatibility      |   error
   ChangedValue                               |  binary_compatibility_only            |   error
   ChangedVolatile                            |  other_compatibility                  |   error
@@ -95,6 +97,7 @@ Available Issues                             |  Category                        
   DeprecatedSurfaceDocTag                    |  unknown                              |   hidden
   DeprecationMismatch                        |  documentation                        |   error
   DuplicateSourceClass                       |  unknown                              |   warning
+  EmptyBuilder                               |  api_lint                             |   warning
   EndsWithImpl                               |  api_lint                             |   error
   Enum                                       |  api_lint                             |   error
   EqualsAndHashCode                          |  api_lint                             |   error
@@ -116,10 +119,12 @@ Available Issues                             |  Category                        
   GetterSetterNullability                    |  api_lint                             |   warning_error_when_new
   HeavyBitSet                                |  api_lint                             |   error
   HiddenAbstractMethod                       |  api_lint                             |   error
+  HiddenAbstractMethodInInterface            |  api_lint                             |   hidden
   HiddenShowAnnotation                       |  api_lint                             |   warning_error_when_new
   HiddenSuperclass                           |  documentation                        |   warning
   HiddenTypeParameter                        |  documentation                        |   warning
   HiddenTypedefConstant                      |  unknown                              |   error
+  HidingApiMethodOverride                    |  api_lint                             |   hidden
   HidingRecordComponent                      |  api_lint                             |   error
   IgnoringSymlink                            |  unknown                              |   info
   InconsistentMergeAnnotation                |  api_lint                             |   warning_error_when_new
@@ -137,6 +142,7 @@ Available Issues                             |  Category                        
   InvalidDevicePolicyAnnotation              |  documentation                        |   error
   InvalidDocThrowsType                       |  documentation                        |   error
   InvalidFeatureEnforcement                  |  documentation                        |   error
+  InvalidFlagNesting                         |  api_lint                             |   error
   InvalidIfTag                               |  documentation                        |   error
   InvalidJavadoc                             |  documentation                        |   warning_error_when_new
   InvalidJavadocExpr                         |  documentation                        |   error
@@ -145,6 +151,8 @@ Available Issues                             |  Category                        
   InvalidNullabilityAnnotationWarning        |  unknown                              |   warning
   InvalidNullabilityOverride                 |  api_lint                             |   error
   InvalidPackage                             |  unknown                              |   error
+  InvalidParamOrReturn                       |  unknown                              |   hidden
+  InvalidSources                             |  unknown                              |   error
   InvalidSyntax                              |  unknown                              |   error
   InvalidTagForm                             |  documentation                        |   warning_error_when_new
   IoError                                    |  unknown                              |   error
@@ -152,7 +160,6 @@ Available Issues                             |  Category                        
   KmpExperimentalMismatch                    |  api_lint                             |   error
   KmpHideShowAnnotationMismatch              |  api_lint                             |   error
   KmpModifierMismatch                        |  api_lint                             |   error
-  KmpOriginMismatch                          |  api_lint                             |   error
   KmpReifiedMismatch                         |  api_lint                             |   error
   KmpSignatureClash                          |  api_lint                             |   error
   KmpVisibilityMismatch                      |  api_lint                             |   error
@@ -266,6 +273,7 @@ Available Issues                             |  Category                        
   UnqualifiedTypeError                       |  unknown                              |   hidden
   UnresolvedImport                           |  unknown                              |   info
   UnresolvedLink                             |  documentation                        |   warning_error_when_new
+  UnsupportedDocTag                          |  documentation                        |   error
   UseIcu                                     |  api_lint                             |   warning
   UseParcelFileDescriptor                    |  api_lint                             |   error
   UserHandle                                 |  api_lint                             |   warning
@@ -284,7 +292,7 @@ Available Issues                             |  Category                        
     @Test
     fun `Test issue help`() {
         commandTest {
-            args += arrayOf("help", "issues", "AddedFinal")
+            args += arrayOf("help", "issues", Issues.ADDED_FINAL.name)
 
             expectedStdout = "Under construction. No additional help available at the moment."
         }

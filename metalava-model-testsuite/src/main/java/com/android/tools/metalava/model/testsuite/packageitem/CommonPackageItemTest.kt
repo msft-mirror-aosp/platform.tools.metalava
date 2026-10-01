@@ -94,7 +94,7 @@ class CommonPackageItemTest : BaseModelTest() {
             ),
         ) {
             val packageItem = codebase.assertPackage("test.pkg")
-            assertEquals(true, packageItem.originallyHidden)
+            packageItem.assertItemApiVariants("ApiVariantSet[]")
         }
     }
 
@@ -122,7 +122,7 @@ class CommonPackageItemTest : BaseModelTest() {
             ),
         ) {
             val packageItem = codebase.assertPackage("test.pkg")
-            assertEquals(true, packageItem.originallyHidden)
+            packageItem.assertItemApiVariants("ApiVariantSet[]")
         }
     }
 
@@ -150,7 +150,7 @@ class CommonPackageItemTest : BaseModelTest() {
             ),
         ) {
             val packageItem = codebase.assertPackage("test.pkg")
-            assertEquals(true, packageItem.originallyHidden)
+            packageItem.assertItemApiVariants("ApiVariantSet[]")
         }
     }
 
@@ -661,6 +661,38 @@ class CommonPackageItemTest : BaseModelTest() {
             val packageItem = codebase.assertPackage("other")
 
             packageItem.assertPrintedDocumentation(expectedOutput = "/** Some text */")
+        }
+    }
+
+    @SupportedInputFormats(InputFormat.JAVA)
+    @Test
+    fun `Test INVALID_SOURCES is reported for package html outside source roots`() {
+        runSourceCodebaseTest(
+            inputSet(
+                java(
+                    """
+                        package test.pkg;
+                        public class Test {}
+                    """
+                ),
+                html(
+                    "outside/package.html",
+                    """
+                        <HTML>
+                        <BODY>
+                        Summary.
+                        </BODY>
+                        </HTML>
+                    """
+                ),
+            ),
+        ) {
+            assertAndRemoveReportedIssues(
+                expectedIssues =
+                    """
+                        MAIN_SRC/outside/package.html: error: Could not find source root for MAIN_SRC/outside/package.html [InvalidSources]
+                    """,
+            )
         }
     }
 }

@@ -1013,37 +1013,4 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
             assertEquals(false, nonEnumClassField.isEnumConstant())
         }
     }
-
-    @Test
-    fun `260 - test doconly members`() {
-        runSourceCodebaseTest(
-            java(
-                """
-                    package test.pkg;
-
-                    public class Test {
-                        /** @doconly */
-                        public class Inner {
-                            public int InnerField;
-                        }
-
-                        /** @doconly Some docs here */
-                        public int Field;
-                    }
-                """
-            ),
-        ) {
-            val classItem = codebase.assertClass("test.pkg.Test")
-            val classSelectors = classItem.variantSelectors
-            val innerClassItem = codebase.assertClass("test.pkg.Test.Inner")
-            val innerClassSelectors = innerClassItem.variantSelectors
-            val fieldSelectors = classItem.assertField("Field").variantSelectors
-            val innerFieldSelectors = innerClassItem.assertField("InnerField").variantSelectors
-
-            assertEquals(false, classSelectors.docOnly, message = "classSelectors.docOnly")
-            assertEquals(true, innerClassSelectors.docOnly, message = "innerClassSelectors.docOnly")
-            assertEquals(true, innerFieldSelectors.docOnly, message = "innerFieldSelectors.docOnly")
-            assertEquals(true, fieldSelectors.docOnly, message = "fieldSelectors.docOnly")
-        }
-    }
 }

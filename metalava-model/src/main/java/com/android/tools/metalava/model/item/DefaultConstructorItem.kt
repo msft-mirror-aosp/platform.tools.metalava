@@ -16,7 +16,6 @@
 
 package com.android.tools.metalava.model.item
 
-import com.android.tools.metalava.model.ApiVariantSelectorsFactory
 import com.android.tools.metalava.model.BaseModifierList
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassKind
@@ -29,6 +28,7 @@ import com.android.tools.metalava.model.ItemDocumentationFactory
 import com.android.tools.metalava.model.SourceLanguage
 import com.android.tools.metalava.model.TargetLanguage
 import com.android.tools.metalava.model.TargetLanguageSet
+import com.android.tools.metalava.model.TypeComparator
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.VisibilityLevel
@@ -42,7 +42,6 @@ internal class DefaultConstructorItem(
     targetLanguages: Set<TargetLanguage>,
     modifiers: BaseModifierList,
     documentationFactory: ItemDocumentationFactory,
-    variantSelectorsFactory: ApiVariantSelectorsFactory,
     name: String,
     containingClass: ClassItem,
     typeParameterList: TypeParameterList,
@@ -59,7 +58,6 @@ internal class DefaultConstructorItem(
         targetLanguages = targetLanguages,
         modifiers = modifiers,
         documentationFactory = documentationFactory,
-        variantSelectorsFactory = variantSelectorsFactory,
         name = name,
         containingClass = containingClass,
         typeParameterList = typeParameterList,
@@ -86,7 +84,6 @@ internal class DefaultConstructorItem(
         fun createImplicitDefaultConstructor(
             codebase: Codebase,
             sourceLanguage: SourceLanguage,
-            variantSelectorsFactory: ApiVariantSelectorsFactory,
             containingClass: ClassItem,
             visibility: VisibilityLevel,
         ): ConstructorItem {
@@ -102,7 +99,6 @@ internal class DefaultConstructorItem(
                     targetLanguages = TargetLanguageSet.ALL,
                     modifiers = modifiers,
                     documentationFactory = ItemDocumentation.NONE_FACTORY,
-                    variantSelectorsFactory = variantSelectorsFactory,
                     name = name,
                     containingClass = containingClass,
                     typeParameterList = TypeParameterList.NONE,
@@ -136,7 +132,7 @@ internal class DefaultConstructorItem(
             for (index in 0..<count) {
                 val component = components[index]
                 val parameter = parameters[index]
-                if (component.type != parameter.type()) {
+                if (!TypeComparator.IGNORE_NULLABILITY.compare(component.type, parameter.type())) {
                     return false
                 }
             }

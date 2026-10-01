@@ -22,7 +22,6 @@ import com.android.tools.metalava.reporter.ERROR_WHEN_NEW_SUFFIX
 import com.android.tools.metalava.reporter.IssueConfiguration
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Severity
-import com.github.ajalt.clikt.parameters.groups.OptionGroup
 import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.flag
 import com.github.ajalt.clikt.parameters.options.multiple
@@ -31,6 +30,7 @@ import com.github.ajalt.clikt.parameters.options.validate
 import com.github.ajalt.clikt.parameters.types.choice
 import com.github.ajalt.clikt.parameters.types.int
 import com.github.ajalt.clikt.parameters.types.restrictTo
+import java.io.File
 
 const val ARG_ERROR = "--error"
 const val ARG_ERROR_WHEN_NEW = "--error-when-new"
@@ -49,11 +49,8 @@ const val ARG_REPORT_EVEN_IF_SUPPRESSED = "--report-even-if-suppressed"
 /** The name of the group, can be used in help text to refer to the options in this group. */
 const val REPORTING_OPTIONS_GROUP = "Issue Reporting"
 
-class IssueReportingOptions(
-    commonOptions: CommonOptions = CommonOptions(),
-    issuesConfigProvider: () -> IssuesConfig? = { null },
-) :
-    OptionGroup(
+class IssueReportingOptions() :
+    MetalavaOptionGroup(
         name = REPORTING_OPTIONS_GROUP,
         help =
             """
@@ -66,48 +63,12 @@ class IssueReportingOptions(
                 .trimIndent()
     ) {
 
-    /** The internal [IssueConfiguration] that is configured by these options. */
-    private val internalIssueConfiguration = IssueConfiguration()
-
-    /** The optional [IssuesConfig]. */
-    private val issuesConfig by
-        lazy(LazyThreadSafetyMode.NONE) {
-            try {
-                issuesConfigProvider()
-            } catch (_: Exception) {
-                // Ignore exceptions thrown when reading the configuration. That is because this may
-                // be accessed during exception handling in the command and throwing another
-                // exception
-                // then just causes confusion.
-                null
-            }
-        }
-
     /**
-     * The [IssueConfiguration] that was configured by these options and incorporates configuration
-     * from [issuesConfigProvider].
+     * The internal [IssueConfiguration] that is configured by these options. This is updated as
+     * each option is processed. When [compute] is called, its state is reset to process a new set
+     * of options.
      */
-    val issueConfiguration by
-        lazy(LazyThreadSafetyMode.NONE) {
-            // Apply configuration, if available.
-            issuesConfig?.let { issuesConfig ->
-                for (issueConfig in issuesConfig.issues) {
-                    val issue =
-                        Issues.findIssueById(issueConfig.name)
-                            // Ignore unknown issues.
-                            ?: continue
-
-                    val severity = issueConfig.severity.issueSeverity
-
-                    // Only apply the configuration severity if it has not already been overridden
-                    // on the command line as the command line takes precedence over configuration.
-                    internalIssueConfiguration.setSeverityIfNotAlreadyOverridden(issue, severity)
-                }
-            }
-
-            // Return the internal configuration.
-            internalIssueConfiguration
-        }
+    private var internalIssueConfiguration = IssueConfiguration()
 
     init {
         // Create a Clikt option for handling the issue options and updating them as a side effect.
@@ -219,12 +180,62 @@ class IssueReportingOptions(
             .restrictTo(min = 0)
             .default(0)
 
-    internal val reporterConfig by
+    /**
+     * Returns a [ComputedIssueReportingOptions] instance based on the current state of the options.
+     */
+    fun compute(
+        commonOptions: CommonOptions = CommonOptions(),
+        issuesConfig: IssuesConfig? = null,
+    ): ComputedIssueReportingOptions {
+        // Use the current state of the [internalIssueConfiguration] for these computed options, and
+        // reset the [internalIssueConfiguration] for the next set of options.
+        val currentIssueConfiguration = internalIssueConfiguration
+        internalIssueConfiguration = IssueConfiguration()
+        return ComputedIssueReportingOptions(
+            issuesConfig,
+            currentIssueConfiguration,
+            { reportEvenIfSuppressedFile },
+            commonOptions.terminal
+        )
+    }
+}
+
+/** Options related issue reporting and additional values computed based on those options. */
+class ComputedIssueReportingOptions
+internal constructor(
+    /** The optional [IssuesConfig]. */
+    issuesConfig: IssuesConfig?,
+    /**
+     * The [IssueConfiguration] that was configured by these options and incorporates configuration
+     * from [issuesConfig].
+     */
+    val issueConfiguration: IssueConfiguration,
+    reportEvenIfSuppressedFile: () -> File?,
+    terminal: Terminal,
+) {
+    init {
+        issuesConfig?.let { issuesConfig ->
+            for (issueConfig in issuesConfig.issues) {
+                val issue =
+                    Issues.findIssueById(issueConfig.name)
+                        // Ignore unknown issues.
+                        ?: continue
+
+                val severity = issueConfig.severity.issueSeverity
+
+                // Only apply the configuration severity if it has not already been overridden
+                // on the command line as the command line takes precedence over configuration.
+                issueConfiguration.setSeverityIfNotAlreadyOverridden(issue, severity)
+            }
+        }
+    }
+
+    val reporterConfig by
         lazy(LazyThreadSafetyMode.NONE) {
-            val reportEvenIfSuppressedWriter = reportEvenIfSuppressedFile?.printWriter()
+            val reportEvenIfSuppressedWriter = reportEvenIfSuppressedFile()?.printWriter()
 
             DefaultReporter.Config(
-                outputReportFormatter = TerminalReportFormatter.forTerminal(commonOptions.terminal),
+                outputReportFormatter = TerminalReportFormatter.forTerminal(terminal),
                 reportEvenIfSuppressedWriter = reportEvenIfSuppressedWriter,
             )
         }
