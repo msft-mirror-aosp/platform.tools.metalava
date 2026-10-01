@@ -1288,19 +1288,14 @@ internal class SingleSignatureFileParser(
      * When the method returns, the [tokenizer] will point to the token after the annotation list.
      */
     private fun getAnnotations() = buildList {
-        var token = tokenizer.current
         while (true) {
-            // If the token does not start with '@' then it is not an annotation so break out.
-            if (!token.startsWith('@')) break
+            val annotationSource = getAnnotationSource(tokenizer.current) ?: break
 
-            // Parse the annotation from the tokenizer. If it was not `null`
-            valueParser.parseAnnotationItem(tokenizer, token, unshorten = true)?.let {
+            // Parse the annotation from the source. If it was not `null`
+            valueParser.parseAnnotationItem(annotationSource, unshorten = false)?.let {
                 annotationItem ->
                 add(annotationItem)
             }
-
-            // Get the token after the annotation.
-            token = tokenizer.current
         }
     }
 
