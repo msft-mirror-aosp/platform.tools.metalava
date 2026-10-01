@@ -24,8 +24,17 @@ package com.android.tools.metalava.model.parser
 object SharedTokenType {
     // Identifiers & Literals
     val IDENTIFIER = TokenType("IDENTIFIER", canBeIdentifier = true)
+    val NUMBER_LITERAL = TokenType("NUMBER_LITERAL")
     val STRING_LITERAL = TokenType("STRING_LITERAL")
     val CHAR_LITERAL = TokenType("CHAR_LITERAL")
+
+    // Delimiters / Punctuation
+    val DOT = TokenType("DOT")
+    val PAREN_OPEN = TokenType("PAREN_OPEN")
+    val PAREN_CLOSE = TokenType("PAREN_CLOSE")
+    val PLUS = TokenType("PLUS")
+    val MINUS = TokenType("MINUS")
+    val SLASH = TokenType("SLASH")
 
     // Fallback for unrecognized characters
     val UNKNOWN = TokenType("UNKNOWN")
@@ -80,8 +89,33 @@ open class SharedLexer(
 
         val start = index
         return when (val c = text[start]) {
+            '.' -> {
+                index = start + 1
+                createToken(SharedTokenType.DOT, ".", start, index)
+            }
+            '(' -> {
+                index = start + 1
+                createToken(SharedTokenType.PAREN_OPEN, "(", start, index)
+            }
+            ')' -> {
+                index = start + 1
+                createToken(SharedTokenType.PAREN_CLOSE, ")", start, index)
+            }
+            '+' -> {
+                index = start + 1
+                createToken(SharedTokenType.PLUS, "+", start, index)
+            }
+            '-' -> {
+                index = start + 1
+                createToken(SharedTokenType.MINUS, "-", start, index)
+            }
+            '/' -> {
+                index = start + 1
+                createToken(SharedTokenType.SLASH, "/", start, index)
+            }
             '"' -> scanStringLiteral(start)
             '\'' -> scanCharLiteral(start)
+            in '0'..'9' -> scanNumberLiteral(start)
             else -> {
                 if (Character.isJavaIdentifierStart(c)) {
                     scanIdentifierOrKeyword(start)
@@ -163,6 +197,40 @@ open class SharedLexer(
         }
         return createToken(
             SharedTokenType.CHAR_LITERAL,
+            text.substring(start, index),
+            start,
+            index,
+        )
+    }
+
+    /** Scans a numeric literal (decimal, hex, integer, or floating-point) starting at [start]. */
+    private fun scanNumberLiteral(start: Int): Token {
+        index = start + 1
+        val isHex =
+            index < endExclusive && text[start] == '0' && (text[index] == 'x' || text[index] == 'X')
+        while (index < endExclusive) {
+            val c = text[index]
+            if (c in '0'..'9' || c in 'a'..'z' || c in 'A'..'Z' || c == '_') {
+                index++
+                val isExponent = if (isHex) (c == 'p' || c == 'P') else (c == 'e' || c == 'E')
+                if (
+                    isExponent && index < endExclusive && (text[index] == '+' || text[index] == '-')
+                ) {
+                    index++
+                }
+            } else if (
+                c == '.' &&
+                    index + 1 < endExclusive &&
+                    (text[index + 1] in '0'..'9' ||
+                        (isHex && (text[index + 1] in 'a'..'f' || text[index + 1] in 'A'..'F')))
+            ) {
+                index += 2
+            } else {
+                break
+            }
+        }
+        return createToken(
+            SharedTokenType.NUMBER_LITERAL,
             text.substring(start, index),
             start,
             index,

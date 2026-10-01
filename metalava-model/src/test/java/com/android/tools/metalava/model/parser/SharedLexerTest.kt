@@ -61,6 +61,22 @@ class SharedLexerTest {
     }
 
     @Test
+    fun `Test simple and qualified class names`() {
+        checkTokenize(
+            "java.lang.String",
+            expectedTokens =
+                """
+                    IDENTIFIER 'java'
+                    DOT '.'
+                    IDENTIFIER 'lang'
+                    DOT '.'
+                    IDENTIFIER 'String'
+                    EOF ''
+                """,
+        )
+    }
+
+    @Test
     fun `Test string and char literals`() {
         checkTokenize(
             """"hi\"@" 'x' '\''""",
@@ -69,6 +85,59 @@ class SharedLexerTest {
                     STRING_LITERAL '"hi\"@"'
                     CHAR_LITERAL ''x''
                     CHAR_LITERAL ''\'''
+                    EOF ''
+                """,
+        )
+    }
+
+    @Test
+    fun `Test numeric and special float tokens`() {
+        checkTokenize(
+            "(0.0 / 0.0) +1 -2 3.5f 0x10",
+            expectedTokens =
+                """
+                    PAREN_OPEN '('
+                    NUMBER_LITERAL '0.0'
+                    SLASH '/'
+                    NUMBER_LITERAL '0.0'
+                    PAREN_CLOSE ')'
+                    PLUS '+'
+                    NUMBER_LITERAL '1'
+                    MINUS '-'
+                    NUMBER_LITERAL '2'
+                    NUMBER_LITERAL '3.5f'
+                    NUMBER_LITERAL '0x10'
+                    EOF ''
+                """,
+        )
+    }
+
+    @Test
+    fun `Test decimal and hex number exponents`() {
+        // In decimal numbers, 'e'/'E' introduces a signed exponent, whereas 'p'/'P' does not.
+        // In hexadecimal numbers, 'p'/'P' introduces a signed binary exponent, whereas 'e'/'E' is a
+        // hex digit so a following '-' or '+' is a separate token.
+        checkTokenize(
+            "1e-5 1E-5 1p-5 1P-5 0x1p-5 0x1P-5 0x1.8p-5 0x1e-1 0x1E-1",
+            expectedTokens =
+                """
+                    NUMBER_LITERAL '1e-5'
+                    NUMBER_LITERAL '1E-5'
+                    NUMBER_LITERAL '1p'
+                    MINUS '-'
+                    NUMBER_LITERAL '5'
+                    NUMBER_LITERAL '1P'
+                    MINUS '-'
+                    NUMBER_LITERAL '5'
+                    NUMBER_LITERAL '0x1p-5'
+                    NUMBER_LITERAL '0x1P-5'
+                    NUMBER_LITERAL '0x1.8p-5'
+                    NUMBER_LITERAL '0x1e'
+                    MINUS '-'
+                    NUMBER_LITERAL '1'
+                    NUMBER_LITERAL '0x1E'
+                    MINUS '-'
+                    NUMBER_LITERAL '1'
                     EOF ''
                 """,
         )
