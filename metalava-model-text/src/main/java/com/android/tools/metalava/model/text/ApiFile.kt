@@ -62,10 +62,12 @@ import com.android.tools.metalava.model.item.DefaultCodebase
 import com.android.tools.metalava.model.item.PackageInfo
 import com.android.tools.metalava.model.item.SealedClassImplicitPermitTypesUpdater
 import com.android.tools.metalava.model.multiplatform.MultiplatformCodebase
+import com.android.tools.metalava.model.parser.SharedTokenType
 import com.android.tools.metalava.model.parser.Token
 import com.android.tools.metalava.model.parser.TokenType
 import com.android.tools.metalava.model.text.CustomizableProperty.Companion.KOTLIN_NAME_TYPE_ORDER
 import com.android.tools.metalava.model.text.CustomizableProperty.Companion.KOTLIN_STYLE_NULLS
+import com.android.tools.metalava.model.text.parser.SignatureTokenType
 import com.android.tools.metalava.model.type.MethodFingerprint
 import com.android.tools.metalava.model.type.TypeItemParser
 import com.android.tools.metalava.model.type.TypeItemParserErrorReporter
@@ -574,6 +576,9 @@ internal class SingleSignatureFileParser(
     /** Get the contents of the file being parsed from [start] to [end]. */
     private fun fileSubstring(start: Int, end: Int): String = tokenizer.substring(start, end)
 
+    /** Extract the text of [token] from [tokenizer]. */
+    private fun text(token: Token): String = fileSubstring(token.startOffset, token.endOffset)
+
     /** Returns the next [Token] in [tokenizer] without consuming it. */
     private fun peek(): Token = tokenizer.peek()
 
@@ -582,6 +587,56 @@ internal class SingleSignatureFileParser(
 
     /** Consumes and returns the next [Token] from [tokenizer]. */
     private fun consume(): Token = tokenizer.consume()
+
+    /**
+     * Consumes and returns the next [Token] from [tokenizer], throwing an [ApiParseException] if
+     * the end of the file has been reached.
+     */
+    private fun requireNonEofToken(): Token {
+        val token = peek()
+        if (token.type == SharedTokenType.EOF) {
+            throw parseException("Unexpected end of file", token)
+        }
+        return consume()
+    }
+
+    /**
+     * Checks that [token] can be used as an identifier, throwing an [ApiParseException] at the
+     * location of [token] if it cannot.
+     */
+    private fun assertIdent(token: Token) {
+        if (!token.type.canBeIdentifier) {
+            throw parseException("Expected identifier: ${text(token)}", token)
+        }
+    }
+
+    /** Creates an [ApiParseException] with [message] at the location of [token]. */
+    private fun parseException(message: String, token: Token): ApiParseException =
+        ApiParseException(
+            message,
+            fileLocation(token),
+        )
+
+    /**
+     * Parses a dot-separated identifier (such as a package, class, or constructor name) from
+     * [tokenizer] and returns the complete qualified name.
+     */
+    private fun parseQualifiedName(): String {
+        // Consume the first identifier segment.
+        val firstToken = requireNonEofToken()
+        assertIdent(firstToken)
+        var endOffset = firstToken.endOffset
+
+        // Consume any subsequent '.<identifier>' segments.
+        while (peekType() == SharedTokenType.DOT) {
+            consume()
+            val nextToken = requireNonEofToken()
+            assertIdent(nextToken)
+            endOffset = nextToken.endOffset
+        }
+
+        return fileSubstring(firstToken.startOffset, endOffset)
+    }
 
     companion object {
         /**
@@ -1332,7 +1387,7 @@ internal class SingleSignatureFileParser(
         var throwsList = emptyList<ExceptionTypeItem>()
         if ("throws" == token) {
             throwsList = parseThrows(typeItemFactory)
-            token = tokenizer.current
+            token = tokenizer.requireToken()
         }
         if (";" != token) {
             throw ApiParseException("expected ; found $token", tokenizer)
@@ -1431,7 +1486,7 @@ internal class SingleSignatureFileParser(
         when (token) {
             "throws" -> {
                 throwsList = parseThrows(typeItemFactory)
-                token = tokenizer.current
+                token = tokenizer.requireToken()
             }
             "default" -> {
                 defaultAnnotationMethodValue = parseDefault()
@@ -2293,40 +2348,50 @@ internal class SingleSignatureFileParser(
         }
     }
 
+    /**
+     * Parses a comma-separated list of exception types in a `throws` clause up to (but not
+     * consuming) the terminating `;`.
+     */
     private fun parseThrows(
         typeItemFactory: TextTypeItemFactory,
     ): List<ExceptionTypeItem> {
-        var token = tokenizer.requireToken()
-        val throwsList = buildList {
+        return buildList {
+            // Tracks whether an exception type is expected next (true at the start of the list and
+            // immediately after a comma).
             var comma = true
             while (true) {
-                when (token) {
-                    ";" -> {
+                when (peekType()) {
+                    SignatureTokenType.SEMICOLON -> {
+                        // Leave the terminating ';' in the stream for the caller to consume.
                         break
                     }
-                    "," -> {
+                    SharedTokenType.COMMA -> {
+                        val commaToken = consume()
                         if (comma) {
-                            throw ApiParseException("Expected exception, got ','", tokenizer)
+                            throw parseException("Expected exception, got ','", commaToken)
                         }
                         comma = true
                     }
                     else -> {
                         if (!comma) {
-                            throw ApiParseException("Expected ',' or ';' got $token", tokenizer)
+                            val unexpected = requireNonEofToken()
+                            throw parseException(
+                                "Expected ',' or ';' got ${text(unexpected)}",
+                                unexpected,
+                            )
                         }
                         comma = false
+                        // Parse the qualified name of the thrown exception and resolve its type.
+                        val startOffset = peek().startOffset
                         val exceptionType =
                             typeItemFactory.getExceptionType(
-                                TypeString(token, tokenizer.offset() - token.length)
+                                TypeString(parseQualifiedName(), startOffset)
                             )
                         add(exceptionType)
                     }
                 }
-                token = tokenizer.requireToken()
             }
         }
-
-        return throwsList
     }
 
     /**
