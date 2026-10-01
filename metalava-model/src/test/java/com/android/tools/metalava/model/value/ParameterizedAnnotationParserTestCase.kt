@@ -219,11 +219,6 @@ class ParameterizedAnnotationParserTestCase {
         private val parserProviders =
             listOf(
                 ValueParserProvider(
-                    "Legacy",
-                    ::LegacyValueParser,
-                    testCases,
-                ),
-                ValueParserProvider(
                     "Default",
                     ::DefaultValueParser,
                     testCases,

@@ -44,5 +44,3 @@ com.android.tools.metalava.model.testsuite.value.CommonParameterizedFieldWriteWi
 com.android.tools.metalava.model.testsuite.value.ParameterizedValueParserTest
   Test parse[Default,byte - cast,signatureExpression,jar]
   Test parse[Default,short - cast,signatureExpression,jar]
-  Test parse[Legacy,byte - cast,signatureExpression,jar]
-  Test parse[Legacy,short - cast,signatureExpression,jar]

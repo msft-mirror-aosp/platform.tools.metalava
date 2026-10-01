@@ -24,7 +24,6 @@ import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.model.testsuite.ModelSuiteRunner
 import com.android.tools.metalava.model.testsuite.value.ValueExample.Companion.valueExamples
 import com.android.tools.metalava.model.value.DefaultValueParser
-import com.android.tools.metalava.model.value.LegacyValueParser
 import com.android.tools.metalava.model.value.Value
 import com.android.tools.metalava.model.value.ValueParser
 import com.android.tools.metalava.model.value.ValueParserProvider
@@ -226,11 +225,6 @@ class ParameterizedValueParserTest : BaseModelTest() {
 
         private val parserProviders =
             listOf(
-                ValueParserProvider(
-                    "Legacy",
-                    ::LegacyValueParser,
-                    testCases,
-                ),
                 ValueParserProvider(
                     "Default",
                     ::DefaultValueParser,
