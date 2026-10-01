@@ -16,8 +16,14 @@
 
 package com.android.tools.metalava.model.parser
 
-/** Base interface for token types produced by a lexer. */
-interface TokenType
+/**
+ * Represents the kind of a [Token] produced by a lexer.
+ *
+ * @property name the name of the token type, used for debugging and formatting.
+ */
+class TokenType(val name: String) {
+    override fun toString(): String = name
+}
 
 /**
  * A lexical token produced by a lexer.

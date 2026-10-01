@@ -25,51 +25,51 @@ import com.android.tools.metalava.reporter.Issues
 import java.util.ArrayDeque
 
 /** Token types produced by [JavadocLexer]. */
-internal enum class JavadocTokenType : TokenType {
+internal object JavadocTokenType {
     /** Plain text content outside of tags or within tag bodies. */
-    TEXT_CONTENT,
+    val TEXT_CONTENT = TokenType("TEXT_CONTENT")
 
     /** One or more horizontal whitespace characters (spaces or tabs). */
-    SPACE,
+    val SPACE = TokenType("SPACE")
 
     /**
      * A line break (`\n`, `\r\n`, or `\r`), optionally followed by horizontal whitespace and one or
      * more asterisks on the next line.
      */
-    NEWLINE,
+    val NEWLINE = TokenType("NEWLINE")
 
     /** The `{@` prefix introducing an inline tag. */
-    INLINE_TAG_START,
+    val INLINE_TAG_START = TokenType("INLINE_TAG_START")
 
     /** The name of an inline tag (e.g. `link`, `code`, etc.) following `{@`. */
-    INLINE_TAG_NAME,
+    val INLINE_TAG_NAME = TokenType("INLINE_TAG_NAME")
 
     /** An opening curly brace `{`. */
-    BRACE_OPEN,
+    val BRACE_OPEN = TokenType("BRACE_OPEN")
 
     /** A closing curly brace `}`. */
-    BRACE_CLOSE,
+    val BRACE_CLOSE = TokenType("BRACE_CLOSE")
 
     /** The `{@if` prefix introducing a conditional Javadoc tag. */
-    INLINE_IF_TAG_START,
+    val INLINE_IF_TAG_START = TokenType("INLINE_IF_TAG_START")
 
     /** The `else` keyword in an `{@if}` tag. */
-    IF_TAG_ELSE,
+    val IF_TAG_ELSE = TokenType("IF_TAG_ELSE")
 
     /** An opening parenthesis `(`. */
-    PAREN_OPEN,
+    val PAREN_OPEN = TokenType("PAREN_OPEN")
 
     /** A closing parenthesis `)`. */
-    PAREN_CLOSE,
+    val PAREN_CLOSE = TokenType("PAREN_CLOSE")
 
     /** An identifier in an expression (e.g. function or flag name). */
-    IDENTIFIER,
+    val IDENTIFIER = TokenType("IDENTIFIER")
 
     /** A dot `.` separator in a qualified identifier. */
-    DOT,
+    val DOT = TokenType("DOT")
 
     /** End of file / input marker. */
-    EOF,
+    val EOF = TokenType("EOF")
 }
 
 /** Lexer modes for [JavadocLexer]. */

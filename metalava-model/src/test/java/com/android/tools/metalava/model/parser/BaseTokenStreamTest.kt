@@ -23,10 +23,10 @@ import org.junit.Assert.assertThrows
 import org.junit.Test
 
 abstract class BaseTokenStreamTest {
-    protected enum class TestTokenType : TokenType {
-        WORD,
-        PUNCT,
-        EOF,
+    protected object TestTokenType {
+        val WORD = TokenType("WORD")
+        val PUNCT = TokenType("PUNCT")
+        val EOF = TokenType("EOF")
     }
 
     protected val sampleTokens =
