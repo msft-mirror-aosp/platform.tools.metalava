@@ -82,5 +82,7 @@ com.android.tools.metalava.model.testsuite.value.CommonValueTest
   Test use field reference in a type annotation[turbine]
 
 com.android.tools.metalava.model.testsuite.value.ParameterizedValueParserTest
+  Test parse[text,Default,byte - cast,signatureExpression,jar]
+  Test parse[text,Default,short - cast,signatureExpression,jar]
   Test parse[text,Legacy,byte - cast,signatureExpression,jar]
   Test parse[text,Legacy,short - cast,signatureExpression,jar]

@@ -18,6 +18,7 @@ package com.android.tools.metalava.model.value
 
 import com.android.tools.metalava.model.AnnotationContext
 import com.android.tools.metalava.model.AnnotationItem
+import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.javaUnescapeString
 import com.android.tools.metalava.model.parser.SharedLexer
@@ -119,6 +120,18 @@ class DefaultValueParser(
                 }
                 parseCharLiteral(optionalTypeItem, token.text)
             }
+            peekType == SharedTokenType.PAREN_OPEN ||
+                peekType == SharedTokenType.PLUS ||
+                peekType == SharedTokenType.MINUS ||
+                peekType == SharedTokenType.NUMBER_LITERAL -> {
+                val constant =
+                    parseNumberOrSpecialFloatDivision(optionalTypeItem, tokens, sourceText)
+                        ?: unknownToken(optionalTypeItem, sourceText)
+                if (expectEndOfStream && tokens.peekType() != SharedTokenType.EOF) {
+                    unknownToken(optionalTypeItem, sourceText)
+                }
+                constant
+            }
             peekType.canBeIdentifier -> {
                 parseIdentifierLedElementValue(
                     optionalTypeItem,
@@ -134,6 +147,7 @@ class DefaultValueParser(
     /**
      * Parses an identifier-led [ArrayElementValue] from [tokens]:
      * - Boolean literals (`true`, `false`)
+     * - Named special float constants (`Double.NaN`, `java.lang.Double.NaN`, etc.)
      */
     private fun parseIdentifierLedElementValue(
         optionalTypeItem: TypeItem?,
@@ -142,11 +156,31 @@ class DefaultValueParser(
         expectEndOfStream: Boolean,
     ): ArrayElementValue {
         val firstIdent = tokens.consume()
+        val startOffset = firstIdent.startOffset
+        var endOffset = firstIdent.endOffset
+        var hasDots = false
+
+        while (tokens.peekType() == SharedTokenType.DOT) {
+            tokens.consume() // consume '.'
+            if (!tokens.peekType().canBeIdentifier) {
+                unknownToken(optionalTypeItem, sourceText)
+            }
+            endOffset = tokens.consume().endOffset
+            hasDots = true
+        }
+
         if (expectEndOfStream && tokens.peekType() != SharedTokenType.EOF) {
             unknownToken(optionalTypeItem, sourceText)
         }
 
-        knownNamedConstantValues[firstIdent.text]?.let { constantValue ->
+        val fullName =
+            if (hasDots) {
+                sourceText.substring(startOffset, endOffset)
+            } else {
+                firstIdent.text
+            }
+
+        knownNamedConstantValues[fullName]?.let { constantValue ->
             return constantValue.convertToType(optionalTypeItem)
         }
 
@@ -167,7 +201,7 @@ class DefaultValueParser(
     private fun parseConstantFromStream(
         optionalTypeItem: TypeItem?,
         tokens: TokenStream,
-        @Suppress("unused") sourceText: String,
+        sourceText: String,
     ): ConstantValue? {
         val peekType = tokens.peekType()
         val constant =
@@ -180,12 +214,35 @@ class DefaultValueParser(
                     val token = tokens.consume()
                     parseCharLiteral(optionalTypeItem, token.text)
                 }
+                peekType == SharedTokenType.PAREN_OPEN ||
+                    peekType == SharedTokenType.PLUS ||
+                    peekType == SharedTokenType.MINUS ||
+                    peekType == SharedTokenType.NUMBER_LITERAL -> {
+                    parseNumberOrSpecialFloatDivision(optionalTypeItem, tokens, sourceText)
+                }
                 peekType.canBeIdentifier -> {
                     val firstIdent = tokens.consume()
+                    val startOffset = firstIdent.startOffset
+                    var endOffset = firstIdent.endOffset
+                    var hasDots = false
+                    while (tokens.peekType() == SharedTokenType.DOT) {
+                        tokens.consume()
+                        if (!tokens.peekType().canBeIdentifier) {
+                            return null
+                        }
+                        endOffset = tokens.consume().endOffset
+                        hasDots = true
+                    }
                     if (tokens.peekType() != SharedTokenType.EOF) {
                         return null
                     }
-                    knownNamedConstantValues[firstIdent.text]?.convertToType(optionalTypeItem)
+                    val fullName =
+                        if (hasDots) {
+                            sourceText.substring(startOffset, endOffset)
+                        } else {
+                            firstIdent.text
+                        }
+                    knownNamedConstantValues[fullName]?.convertToType(optionalTypeItem)
                 }
                 else -> null
             } ?: return null
@@ -217,19 +274,265 @@ class DefaultValueParser(
         return createLiteralValue(optionalTypeItem, char)
     }
 
+    /**
+     * Parses either a numeric literal (with optional leading `+`/`-` and optional `- 1` suffix) or
+     * a special floating-point division-by-zero expression (`(0.0/0.0)`, `-1.0f / 0.0`, etc.).
+     */
+    private fun parseNumberOrSpecialFloatDivision(
+        optionalTypeItem: TypeItem?,
+        tokens: TokenStream,
+        sourceText: String,
+    ): ConstantValue? {
+        if (tokens.peekType() == SharedTokenType.PAREN_OPEN) {
+            tokens.consume() // consume '('
+            val isNegative = tokens.match(SharedTokenType.MINUS)
+            if (tokens.peekType() != SharedTokenType.NUMBER_LITERAL) return null
+            val numerator = tokens.consume().text
+            if (!tokens.match(SharedTokenType.SLASH)) return null
+            if (tokens.peekType() != SharedTokenType.NUMBER_LITERAL) return null
+            val denominator = tokens.consume().text
+            if (!tokens.match(SharedTokenType.PAREN_CLOSE)) return null
+
+            val specialFloat =
+                when {
+                    !isNegative && numerator == "0.0" && denominator == "0.0" -> DoubleValue.NaN
+                    isNegative && numerator == "1.0" && denominator == "0.0" ->
+                        DoubleValue.NEGATIVE_INFINITY
+                    !isNegative && numerator == "1.0" && denominator == "0.0" ->
+                        DoubleValue.POSITIVE_INFINITY
+                    !isNegative && numerator == "0.0f" && denominator == "0.0f" -> FloatValue.NaN
+                    isNegative && numerator == "1.0f" && denominator == "0.0f" ->
+                        FloatValue.NEGATIVE_INFINITY
+                    !isNegative && numerator == "1.0f" && denominator == "0.0f" ->
+                        FloatValue.POSITIVE_INFINITY
+                    else -> return null
+                }
+            return specialFloat.convertToType(optionalTypeItem)
+        }
+
+        val signToken =
+            if (
+                tokens.peekType() == SharedTokenType.PLUS ||
+                    tokens.peekType() == SharedTokenType.MINUS
+            ) {
+                tokens.consume()
+            } else {
+                null
+            }
+
+        if (tokens.peekType() != SharedTokenType.NUMBER_LITERAL) return null
+        val numToken = tokens.consume()
+
+        // Check for unparenthesized special float division: `0.0 / 0.0`, `-1.0f / 0.0`, etc.
+        if (tokens.peekType() == SharedTokenType.SLASH) {
+            tokens.consume() // consume '/'
+            if (tokens.peekType() != SharedTokenType.NUMBER_LITERAL) return null
+            val denominator = tokens.consume().text
+            if (denominator != "0.0") return null
+
+            val isNegative = signToken?.type == SharedTokenType.MINUS
+            val hasPlus = signToken?.type == SharedTokenType.PLUS
+            if (hasPlus) return null
+
+            val numerator = numToken.text
+            val specialFloat =
+                when {
+                    !isNegative && numerator == "0.0" -> DoubleValue.NaN
+                    isNegative && numerator == "1.0" -> DoubleValue.NEGATIVE_INFINITY
+                    !isNegative && numerator == "1.0" -> DoubleValue.POSITIVE_INFINITY
+                    !isNegative && numerator == "0.0f" -> FloatValue.NaN
+                    isNegative && (numerator == "1.0f" || numerator == "1.0F") ->
+                        FloatValue.NEGATIVE_INFINITY
+                    !isNegative && numerator == "1.0f" -> FloatValue.POSITIVE_INFINITY
+                    else -> return null
+                }
+            return specialFloat.convertToType(optionalTypeItem)
+        }
+
+        val numberText =
+            if (signToken == null) {
+                numToken.text
+            } else if (signToken.endOffset == numToken.startOffset) {
+                sourceText.substring(signToken.startOffset, numToken.endOffset)
+            } else {
+                signToken.text + numToken.text
+            }
+
+        // TODO(b/354633349): Temporary workaround that is needed because some historical files from
+        //  `prebuilts/sdk` have expressions like `0x40000000 - 1`. Those files have been fixed
+        //  downstream but the `prebuilts/sdk` repository is not modifiable in aosp/metalava-main.
+        if (tokens.peekType() == SharedTokenType.MINUS) {
+            tokens.consume() // consume '-'
+            val subtrahend = tokens.consume()
+            require(subtrahend.text == "1") {
+                """Expected "... - 1" but found "... - ${subtrahend.text}""""
+            }
+            val patchedInt = Integer.decode(numberText) - 1
+            return createLiteralValue(optionalTypeItem, patchedInt, nonLiteralInSource = false)
+        }
+
+        return parseNumber(optionalTypeItem, numberText)
+    }
+
     /** Throw an exception when [text] cannot be parsed. */
     private fun unknownToken(optionalTypeItem: TypeItem?, text: String): Nothing =
         throw ValueProviderException("Unknown token <$text> of $optionalTypeItem")
+
+    /**
+     * Parse a number from [text].
+     *
+     * @param optionalTypeItem the optional [TypeItem], if present then the parsed value will be
+     *   converted to be appropriate for this [TypeItem].
+     * @param text the text to parse.
+     */
+    private fun parseNumber(
+        optionalTypeItem: TypeItem?,
+        text: String,
+    ): ConstantValue {
+        // Handle hexadecimal numbers first as they could end with a 'f' which would be treated as
+        // a float below.
+        if (text.startsWith("0x")) {
+            // Check for a binary exponent as that means it is a hex floating point number.
+            if (text.any { it == 'p' || it == 'P' }) {
+                // Floating point hex value.
+                val last = text.last()
+                val number =
+                    if (last == 'f') {
+                        text.substring(0, text.length - 1).toFloat()
+                    } else {
+                        text.toDouble()
+                    }
+                return createLiteralValue(
+                    optionalTypeItem,
+                    number,
+                    // Hexadecimal floating point numbers can only be present in the signature file
+                    // if they were present in the source.
+                    nonLiteralInSource = false,
+                )
+            }
+
+            // Remove the leading "0x"
+            val withoutLeading0x = text.substring(2)
+
+            // Parse as long as a number like 0xFFFFFFFF is parsed as a positive number and will
+            // fail because the largest positive int is 0x80000000. So, parse as long and then cast
+            // down to an int. That is done explicitly here rather than rely on the casting done by
+            // createLiteralValue(...) as it will fail because this cast will be lossy for numbers
+            // larger than the largest positive int. They will become negative numbers. However,
+            // that is what the original number was so it is ok.
+            val int = withoutLeading0x.toLong(16).toInt()
+            return createLiteralValue(
+                optionalTypeItem,
+                int,
+                // AnnotationItem.toSource() will use format ints obtained from literals as decimals
+                // and ints obtained from complex expressions as decimals so treat hexadecimals as
+                // if they are not literals. That should allow signature files to be read and then
+                // written out again without changing the formatting.
+                nonLiteralInSource = true,
+            )
+        }
+
+        // Check the last character to see if it indicated the type of the number.
+        when (val suffix = text.last()) {
+            'L',
+            'l' -> {
+                val long = text.substring(0, text.length - 1).toLong()
+                return createLiteralValue(optionalTypeItem, long)
+            }
+            'F',
+            'f' -> {
+                val float = text.substring(0, text.length - 1).toFloat()
+                // AnnotationItem.toSource() uses 'F' as the suffix for floats obtained from
+                // expressions and 'f' for those obtained from literals.
+                val nonLiteralInSource = suffix == 'F'
+                return createLiteralValue(optionalTypeItem, float, nonLiteralInSource)
+            }
+        }
+
+        // Try parsing as a long first. This will cover bytes, ints, longs, and shorts.
+        text.toLongOrNull()?.let { long ->
+            // Cast down to an int if allowed as an integer number without a trailing L or l is
+            // treated as an integer in source.
+            if (long in Int.MIN_VALUE..Int.MAX_VALUE) {
+                return createLiteralValue(optionalTypeItem, long.toInt())
+            } else {
+                // Otherwise, rely on createLiteralValue(...) to do appropriate non-lossy casting to
+                // match the optional type item.
+                return createLiteralValue(optionalTypeItem, long)
+            }
+        }
+
+        // Try parsing as a double. This will cover floats too.
+        text.toDoubleOrNull()?.let { double ->
+            if (
+                optionalTypeItem is PrimitiveTypeItem &&
+                    optionalTypeItem.kind == PrimitiveTypeItem.Primitive.FLOAT
+            ) {
+                return createLiteralValue(optionalTypeItem, double.toFloat())
+            } else {
+                return createLiteralValue(optionalTypeItem, double)
+            }
+        }
+
+        throw ValueProviderException("Unsupported numeric value <$text> of $optionalTypeItem")
+    }
 
     override fun parseAnnotationItem(text: String, unshorten: Boolean): AnnotationItem? =
         TODO("Annotation parsing from String is not yet supported by DefaultValueParser")
 
     companion object {
-        /** Map of all known named constant values (booleans). */
+        /**
+         * Map of named special floating-point constants (excluding division expressions, which are
+         * parsed directly from tokens in [parseNumberOrSpecialFloatDivision]).
+         */
+        private val namedSpecialFloats =
+            mapOf(
+                DoubleValue.NaN to
+                    listOf(
+                        "Double.NaN",
+                        "java.lang.Double.NaN",
+                        "kotlin.jvm.internal.DoubleCompanionObject.NaN",
+                    ),
+                DoubleValue.NEGATIVE_INFINITY to
+                    listOf(
+                        "Double.NEGATIVE_INFINITY",
+                        "java.lang.Double.NEGATIVE_INFINITY",
+                        "kotlin.jvm.internal.DoubleCompanionObject.NEGATIVE_INFINITY",
+                    ),
+                DoubleValue.POSITIVE_INFINITY to
+                    listOf(
+                        "Double.POSITIVE_INFINITY",
+                        "java.lang.Double.POSITIVE_INFINITY",
+                        "kotlin.jvm.internal.DoubleCompanionObject.POSITIVE_INFINITY",
+                    ),
+                FloatValue.NaN to
+                    listOf(
+                        "Float.NaN",
+                        "java.lang.Float.NaN",
+                        "kotlin.jvm.internal.FloatCompanionObject.NaN",
+                    ),
+                FloatValue.NEGATIVE_INFINITY to
+                    listOf(
+                        "Float.NEGATIVE_INFINITY",
+                        "java.lang.Float.NEGATIVE_INFINITY",
+                        "kotlin.jvm.internal.FloatCompanionObject.NEGATIVE_INFINITY",
+                    ),
+                FloatValue.POSITIVE_INFINITY to
+                    listOf(
+                        "Float.POSITIVE_INFINITY",
+                        "java.lang.Float.POSITIVE_INFINITY",
+                        "kotlin.jvm.internal.FloatCompanionObject.POSITIVE_INFINITY",
+                    ),
+            )
+
+        /** Map of all known named constant values (booleans and named special floats). */
         private val knownNamedConstantValues: Map<String, LiteralValue<*>> =
             mapOf(
                 "false" to BooleanValue.FALSE,
                 "true" to BooleanValue.TRUE,
-            )
+            ) +
+                namedSpecialFloats.flatMap { (value, alternatives) ->
+                    alternatives.map { it to value }
+                }
     }
 }
