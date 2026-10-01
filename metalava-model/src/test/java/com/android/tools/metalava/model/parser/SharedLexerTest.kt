@@ -180,6 +180,29 @@ class SharedLexerTest {
     }
 
     @Test
+    fun `Test class literal tokens`() {
+        checkTokenize(
+            "List<String>[].class String::class",
+            expectedTokens =
+                """
+                    IDENTIFIER 'List'
+                    ANGLE_OPEN '<'
+                    IDENTIFIER 'String'
+                    ANGLE_CLOSE '>'
+                    BRACKET_OPEN '['
+                    BRACKET_CLOSE ']'
+                    DOT '.'
+                    CLASS 'class'
+                    IDENTIFIER 'String'
+                    DOUBLE_COLON '::'
+                    CLASS 'class'
+                    EOF ''
+                """,
+        )
+        assertTrue(SharedTokenType.CLASS.canBeIdentifier)
+    }
+
+    @Test
     fun `Test EOF token is cached on subsequent nextToken calls`() {
         val lexer = SharedLexer("int")
         assertEquals(SharedTokenType.IDENTIFIER, lexer.nextToken().type)

@@ -28,8 +28,16 @@ object SharedTokenType {
     val STRING_LITERAL = TokenType("STRING_LITERAL")
     val CHAR_LITERAL = TokenType("CHAR_LITERAL")
 
+    // Keywords
+    val CLASS = TokenType("CLASS", canBeIdentifier = true)
+
     // Delimiters / Punctuation
     val DOT = TokenType("DOT")
+    val DOUBLE_COLON = TokenType("DOUBLE_COLON")
+    val ANGLE_OPEN = TokenType("ANGLE_OPEN")
+    val ANGLE_CLOSE = TokenType("ANGLE_CLOSE")
+    val BRACKET_OPEN = TokenType("BRACKET_OPEN")
+    val BRACKET_CLOSE = TokenType("BRACKET_CLOSE")
     val PAREN_OPEN = TokenType("PAREN_OPEN")
     val PAREN_CLOSE = TokenType("PAREN_CLOSE")
     val PLUS = TokenType("PLUS")
@@ -92,6 +100,36 @@ open class SharedLexer(
             '.' -> {
                 index = start + 1
                 createToken(SharedTokenType.DOT, ".", start, index)
+            }
+            ':' -> {
+                if (start + 1 < endExclusive && text[start + 1] == ':') {
+                    index = start + 2
+                    createToken(SharedTokenType.DOUBLE_COLON, "::", start, index)
+                } else {
+                    index = start + 1
+                    createToken(
+                        SharedTokenType.UNKNOWN,
+                        text.substring(start, index),
+                        start,
+                        index,
+                    )
+                }
+            }
+            '<' -> {
+                index = start + 1
+                createToken(SharedTokenType.ANGLE_OPEN, "<", start, index)
+            }
+            '>' -> {
+                index = start + 1
+                createToken(SharedTokenType.ANGLE_CLOSE, ">", start, index)
+            }
+            '[' -> {
+                index = start + 1
+                createToken(SharedTokenType.BRACKET_OPEN, "[", start, index)
+            }
+            ']' -> {
+                index = start + 1
+                createToken(SharedTokenType.BRACKET_CLOSE, "]", start, index)
             }
             '(' -> {
                 index = start + 1
@@ -163,7 +201,10 @@ open class SharedLexer(
      * Subclasses may override this to recognize additional keywords.
      */
     protected open fun resolveKeywordOrIdentifier(tokenText: String): TokenType =
-        SharedTokenType.IDENTIFIER
+        when (tokenText) {
+            "class" -> SharedTokenType.CLASS
+            else -> SharedTokenType.IDENTIFIER
+        }
 
     /** Scans a double-quoted string literal starting at [start]. */
     private fun scanStringLiteral(start: Int): Token {
