@@ -32,21 +32,20 @@ import java.nio.file.Path
  * @param path the [Path] to the source being read.
  * @param buffer the [String] from which this will read tokens.
  * @param exceptionCreator factory method for creating exceptions that will be thrown.
+ * @param lineMap the [LineMap] for mapping character offsets in [buffer] to line numbers.
  */
 class Tokenizer(
     private val path: Path,
     private val buffer: String,
     private val exceptionCreator: (String, FileLocation) -> ParseException = ::ParseException,
+    private val lineMap: LineMap = LineMap.create(buffer),
 ) : FileLocationTracker {
 
     /** The position of the next character to read in [buffer]. */
     private var position = 0
 
-    /** The current line being read. */
-    private var line = 1
-
     override fun fileLocation(): FileLocation {
-        return FileLocation.createLocation(path, line)
+        return lineMap.fileLocation(path, position)
     }
 
     private fun throwException(message: String): Nothing {
@@ -60,16 +59,13 @@ class Tokenizer(
      * Eat whitespace, including newline characters.
      *
      * Scans through the [buffer] from the current [position], stopping at the first non-whitespace
-     * character, updating [position] and [line] as needed.
+     * character, updating [position] as needed.
      *
      * @return `true` if any whitespace characters were eaten, `false` otherwise.
      */
     private fun eatWhitespace(): Boolean {
         var ate = false
         while (position < buffer.length && isSpace(buffer[position])) {
-            if (buffer[position] == '\n') {
-                line++
-            }
             position++
             ate = true
         }
@@ -230,7 +226,9 @@ class Tokenizer(
         openChar: Char? = null,
         endOfTokenPredicate: (Char) -> Boolean
     ) {
-        val startLine = line
+        // `startPosition` is only used when `openChar != null`, in which case `position` has
+        // already been incremented past `openChar`, so `position - 1` is the index of `openChar`.
+        val startPosition = position - 1
         while (position < buffer.length) {
             // Get the next character and assume that it is part of the token by incrementing the
             // position.
@@ -253,13 +251,12 @@ class Tokenizer(
                     position--
                 }
                 return
-            } else if (c == '\n') {
-                line++
             }
         }
 
         // If reached the end of the buffer but the token is incomplete then throw an error.
         if (openChar != null) {
+            val startLine = lineMap.lineNumber(startPosition)
             throwException("Unexpected end of file for $openChar starting at $startLine")
         }
     }
@@ -269,22 +266,29 @@ class Tokenizer(
      * matching closing quotes.
      */
     private fun scanForClosingQuotes() {
+        // `position` has already been incremented past the opening quote, so `position - 1` is the
+        // index of the opening quote.
+        val startPosition = position - 1
         while (position < buffer.length) {
             val k = buffer[position]
-            position++
+            // Check for a newline before incrementing `position` so that `fileLocation()` in
+            // `throwException()` reports the line containing the newline rather than the next line.
             if (k == '\n' || k == '\r') {
-                throwException("Unexpected newline for \" starting at $line")
+                val startLine = lineMap.lineNumber(startPosition)
+                throwException("Unexpected newline for \" starting at $startLine")
             }
+            position++
 
             if (k == '"') {
                 return
-            } else if (k == '\\') {
+            } else if (k == '\\' && position < buffer.length) {
                 // Skip the escaped character. This only really matters if the character is a quote
                 // as without skipping it would be treated as the closing quote.
                 position++
             }
         }
-        throwException("Unexpected end of file for \" starting at $line")
+        val startLine = lineMap.lineNumber(startPosition)
+        throwException("Unexpected end of file for \" starting at $startLine")
     }
 
     fun assertIdent(token: String) {
