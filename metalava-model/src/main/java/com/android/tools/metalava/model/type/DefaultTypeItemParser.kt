@@ -48,12 +48,15 @@ import com.android.tools.metalava.reporter.FileLocation
  * @param kotlinStyleNulls whether Kotlin-style nulls (`?` for nullable, `!` for platform, and no
  *   suffix for non-null) are supported.
  * @param errorReporter channel for reporting recoverable errors found while parsing.
+ * @param unshortenAnnotations whether short annotation names (e.g. `@NonNull`) should be expanded
+ *   to their fully qualified names when parsing types.
  */
 open class DefaultTypeItemParser(
     val annotationContext: AnnotationContext,
     private val unqualifiedClassHandler: UnqualifiedClassHandler,
     val kotlinStyleNulls: Boolean = false,
     private val errorReporter: TypeItemParserErrorReporter = TypeItemParserErrorReporter.THROWING,
+    private val unshortenAnnotations: Boolean = false,
 ) : TypeItemParser {
     /** Parser for parameterized type-use annotations (e.g. `@IntRange(from = 5, to = 10)`). */
     private val valueParser by
@@ -115,7 +118,7 @@ open class DefaultTypeItemParser(
         sourceText: String,
         typeParameterScope: TypeParameterScope = TypeParameterScope.empty,
         contextNullability: ContextNullability = ContextNullability.none,
-        unshortenAnnotations: Boolean = false,
+        unshortenAnnotations: Boolean = this.unshortenAnnotations,
     ): TypeItem {
         val forceClassToBeNonNull =
             contextNullability.forcedNullability == TypeNullability.NONNULL || kotlinStyleNulls
@@ -185,7 +188,7 @@ open class DefaultTypeItemParser(
         typeParameterScope: TypeParameterScope,
         annotations: List<AnnotationItem> = emptyList(),
         contextNullability: ContextNullability = ContextNullability.none,
-        unshortenAnnotations: Boolean = false,
+        unshortenAnnotations: Boolean = this.unshortenAnnotations,
     ): TypeItem {
         // Class types used as super types, i.e. in an extends or implements list are forced to be
         // [TypeNullability.NONNULL], just as they would be if kotlinStyleNulls was true. Use the
@@ -193,14 +196,14 @@ open class DefaultTypeItemParser(
         val forceClassToBeNonNull =
             contextNullability.forcedNullability == TypeNullability.NONNULL || kotlinStyleNulls
 
-        return if (unshortenAnnotations) {
+        return if (unshortenAnnotations != this.unshortenAnnotations) {
             parseTypeFromStream(
                 tokens = SharedLexer(type).tokenize(),
                 sourceText = type,
                 typeParameterScope = typeParameterScope,
                 leadingAnnotations = annotations,
                 forceClassToBeNonNull = forceClassToBeNonNull,
-                unshortenAnnotations = true,
+                unshortenAnnotations = unshortenAnnotations,
                 expectEndOfStream = true,
             )
         } else {
@@ -229,7 +232,7 @@ open class DefaultTypeItemParser(
             typeParameterScope = typeParameterScope,
             leadingAnnotations = annotations,
             forceClassToBeNonNull = forceClassToBeNonNull,
-            unshortenAnnotations = false,
+            unshortenAnnotations = unshortenAnnotations,
             expectEndOfStream = true,
         )
 

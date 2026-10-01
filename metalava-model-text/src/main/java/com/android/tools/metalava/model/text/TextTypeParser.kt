@@ -40,12 +40,14 @@ private constructor(
     annotationContext: AnnotationContext,
     kotlinStyleNulls: Boolean,
     private val countingErrorReporter: CountingErrorReporter,
+    unshortenAnnotations: Boolean,
 ) :
     DefaultTypeItemParser(
         annotationContext,
         UnqualifiedClassHandler.PREFIX_WITH_JAVA_LANG_OR_REPORT_ERROR,
         kotlinStyleNulls,
         countingErrorReporter,
+        unshortenAnnotations = unshortenAnnotations,
     ) {
 
     /**
@@ -56,7 +58,13 @@ private constructor(
         annotationContext: AnnotationContext,
         kotlinStyleNulls: Boolean = false,
         errorReporter: TypeItemParserErrorReporter = TypeItemParserErrorReporter.THROWING,
-    ) : this(annotationContext, kotlinStyleNulls, CountingErrorReporter(errorReporter))
+        unshortenAnnotations: Boolean = true,
+    ) : this(
+        annotationContext,
+        kotlinStyleNulls,
+        CountingErrorReporter(errorReporter),
+        unshortenAnnotations,
+    )
 
     /**
      * The cache key, incorporates some information from [ContextNullability] and [kotlinStyleNulls]
