@@ -18,13 +18,16 @@ package com.android.tools.metalava.model.value
 
 import com.android.tools.metalava.model.AnnotationContext
 import com.android.tools.metalava.model.AnnotationItem
+import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.TypeItem
+import com.android.tools.metalava.model.TypeParameterScope
 import com.android.tools.metalava.model.javaUnescapeString
 import com.android.tools.metalava.model.parser.SharedLexer
 import com.android.tools.metalava.model.parser.SharedTokenType
 import com.android.tools.metalava.model.parser.Token
 import com.android.tools.metalava.model.parser.TokenStream
+import com.android.tools.metalava.model.type.ContextNullability
 import com.android.tools.metalava.model.type.TypeItemParser
 
 /**
@@ -32,8 +35,8 @@ import com.android.tools.metalava.model.type.TypeItemParser
  * [TokenStream] produced by [SharedLexer] (or `SignatureFileLexer`).
  */
 class DefaultValueParser(
-    @Suppress("unused") private val annotationContext: AnnotationContext,
-    @Suppress("unused") private val typeItemParser: TypeItemParser,
+    private val annotationContext: AnnotationContext,
+    private val typeItemParser: TypeItemParser,
 ) : ValueParser, ValueFactory, ImplementationValueToModelFactory<String> {
 
     override fun providerFor(
@@ -148,6 +151,8 @@ class DefaultValueParser(
      * Parses an identifier-led [ArrayElementValue] from [tokens]:
      * - Boolean literals (`true`, `false`)
      * - Named special float constants (`Double.NaN`, `java.lang.Double.NaN`, etc.)
+     * - Class literals (`<type>.class`, `<type>::class`, `<type>::class.java`)
+     * - Field references (`(QualifiedClassName.)?FieldName(.toXxx())?`)
      */
     private fun parseIdentifierLedElementValue(
         optionalTypeItem: TypeItem?,
@@ -158,33 +163,227 @@ class DefaultValueParser(
         val firstIdent = tokens.consume()
         val startOffset = firstIdent.startOffset
         var endOffset = firstIdent.endOffset
-        var hasDots = false
+        var secondPenultEndOffset = -1
+        var penultEndOffset = -1
+        var penultLastIdent = ""
+        var lastIdent = firstIdent.text
 
+        // Consume dot-separated identifier segments (`pkg.Outer.Inner.FIELD` or `pkg.Foo.class`).
         while (tokens.peekType() == SharedTokenType.DOT) {
             tokens.consume() // consume '.'
             if (!tokens.peekType().canBeIdentifier) {
                 unknownToken(optionalTypeItem, sourceText)
             }
-            endOffset = tokens.consume().endOffset
-            hasDots = true
+            val nextIdent = tokens.consume()
+            secondPenultEndOffset = penultEndOffset
+            penultEndOffset = endOffset
+            penultLastIdent = lastIdent
+            lastIdent = nextIdent.text
+            endOffset = nextIdent.endOffset
         }
 
-        if (expectEndOfStream && tokens.peekType() != SharedTokenType.EOF) {
+        val nextType = tokens.peekType()
+
+        // 1. Simple or qualified Java class literal `<type>.class` without generics or brackets.
+        if (
+            penultEndOffset != -1 &&
+                lastIdent == "class" &&
+                nextType != SharedTokenType.ANGLE_OPEN &&
+                nextType != SharedTokenType.BRACKET_OPEN &&
+                nextType != SharedTokenType.PAREN_OPEN &&
+                nextType != SharedTokenType.DOUBLE_COLON
+        ) {
+            if (expectEndOfStream && nextType != SharedTokenType.EOF) {
+                unknownToken(optionalTypeItem, sourceText)
+            }
+            val typeString = sourceText.substring(startOffset, penultEndOffset)
+            val fullText = sourceText.substring(startOffset, endOffset)
+            return createClassLiteralValue(typeString, fullText)
+        }
+
+        // 2. Class literal with generics `<...>`, array brackets `[]`, or Kotlin `::class(.java)?`.
+        if (
+            nextType == SharedTokenType.ANGLE_OPEN ||
+                nextType == SharedTokenType.BRACKET_OPEN ||
+                nextType == SharedTokenType.DOUBLE_COLON
+        ) {
+            var typeEndOffset = endOffset
+            var matchedDotClass = false
+
+            while (true) {
+                when (tokens.peekType()) {
+                    SharedTokenType.ANGLE_OPEN -> {
+                        tokens.consume()
+                        var angleDepth = 1
+                        while (angleDepth > 0 && tokens.peekType() != SharedTokenType.EOF) {
+                            val token = tokens.consume()
+                            if (token.type == SharedTokenType.ANGLE_OPEN) {
+                                angleDepth++
+                            } else if (token.type == SharedTokenType.ANGLE_CLOSE) {
+                                angleDepth--
+                            }
+                            typeEndOffset = token.endOffset
+                        }
+                        if (angleDepth != 0) {
+                            unknownToken(optionalTypeItem, sourceText)
+                        }
+                    }
+                    SharedTokenType.BRACKET_OPEN -> {
+                        tokens.consume()
+                        if (tokens.peekType() != SharedTokenType.BRACKET_CLOSE) {
+                            unknownToken(optionalTypeItem, sourceText)
+                        }
+                        typeEndOffset = tokens.consume().endOffset
+                    }
+                    SharedTokenType.DOT -> {
+                        tokens.consume()
+                        if (tokens.peekType() == SharedTokenType.CLASS) {
+                            endOffset = tokens.consume().endOffset
+                            matchedDotClass = true
+                            break
+                        } else if (tokens.peekType().canBeIdentifier) {
+                            typeEndOffset = tokens.consume().endOffset
+                        } else {
+                            unknownToken(optionalTypeItem, sourceText)
+                        }
+                    }
+                    else -> break
+                }
+            }
+
+            if (!matchedDotClass) {
+                if (
+                    !tokens.match(SharedTokenType.DOUBLE_COLON) ||
+                        tokens.peekType() != SharedTokenType.CLASS
+                ) {
+                    unknownToken(optionalTypeItem, sourceText)
+                }
+                endOffset = tokens.consume().endOffset // consume 'class'
+
+                // Optional `.java` suffix on Kotlin class literals (`<type>::class.java`).
+                if (tokens.peekType() == SharedTokenType.DOT) {
+                    tokens.consume() // consume '.'
+                    if (tokens.peek().text != "java") {
+                        unknownToken(optionalTypeItem, sourceText)
+                    }
+                    endOffset = tokens.consume().endOffset // consume 'java'
+                }
+            }
+
+            if (expectEndOfStream && tokens.peekType() != SharedTokenType.EOF) {
+                unknownToken(optionalTypeItem, sourceText)
+            }
+
+            val typeString = sourceText.substring(startOffset, typeEndOffset)
+            val fullText = sourceText.substring(startOffset, endOffset)
+            return createClassLiteralValue(typeString, fullText)
+        }
+
+        // 3. Followed by `(`: a Kotlin numeric conversion call `.toXxx()` on a field reference.
+        if (nextType == SharedTokenType.PAREN_OPEN) {
+            val conversionKind =
+                if (penultEndOffset != -1) {
+                    PrimitiveTypeItem.Primitive.forKotlinNumericConversionFunctionName(lastIdent)
+                } else {
+                    null
+                }
+
+            if (conversionKind != null) {
+                tokens.consume() // consume '('
+                if (!tokens.match(SharedTokenType.PAREN_CLOSE)) {
+                    unknownToken(optionalTypeItem, sourceText)
+                }
+                if (expectEndOfStream && tokens.peekType() != SharedTokenType.EOF) {
+                    unknownToken(optionalTypeItem, sourceText)
+                }
+                val fieldName = penultLastIdent
+                val className =
+                    if (secondPenultEndOffset != -1) {
+                        sourceText.substring(startOffset, secondPenultEndOffset)
+                    } else {
+                        ""
+                    }
+                return createFieldReference(
+                    className = className,
+                    fieldName = fieldName,
+                    optionalTypeItem = optionalTypeItem,
+                    explicitConversionTo = conversionKind,
+                )
+            }
+
+            unknownToken(optionalTypeItem, sourceText)
+        }
+
+        // 4. Plain simple or dot-qualified identifier: check boolean/special float constants first,
+        // otherwise treat as a field reference.
+        if (expectEndOfStream && nextType != SharedTokenType.EOF) {
             unknownToken(optionalTypeItem, sourceText)
         }
 
         val fullName =
-            if (hasDots) {
-                sourceText.substring(startOffset, endOffset)
+            if (penultEndOffset == -1) {
+                lastIdent
             } else {
-                firstIdent.text
+                sourceText.substring(startOffset, endOffset)
             }
 
         knownNamedConstantValues[fullName]?.let { constantValue ->
             return constantValue.convertToType(optionalTypeItem)
         }
 
-        unknownToken(optionalTypeItem, sourceText)
+        val fieldName = lastIdent
+        val className =
+            if (penultEndOffset != -1) {
+                sourceText.substring(startOffset, penultEndOffset)
+            } else {
+                ""
+            }
+        return createFieldReference(
+            className = className,
+            fieldName = fieldName,
+            optionalTypeItem = optionalTypeItem,
+            explicitConversionTo = null,
+        )
+    }
+
+    /** Creates a [ClassObjectValue] by parsing [typeString] via [typeItemParser]. */
+    private fun createClassLiteralValue(
+        typeString: String,
+        fullText: String,
+    ): ClassObjectValue {
+        val classLiteralTypeItem =
+            typeItemParser.obtainTypeFromString(
+                typeString,
+                TypeParameterScope.empty,
+                ContextNullability.forceNonNull,
+            )
+        return createClassObjectValue(classLiteralTypeItem, fullText)
+    }
+
+    /**
+     * Creates a [FieldReferenceValue] (or normalized constant value) for [className].[fieldName].
+     */
+    private fun createFieldReference(
+        className: String,
+        fieldName: String,
+        optionalTypeItem: TypeItem?,
+        explicitConversionTo: PrimitiveTypeItem.Primitive?,
+    ): ArrayElementValue {
+        val classTypeItem =
+            typeItemParser.obtainTypeFromString(
+                className,
+                TypeParameterScope.empty,
+                ContextNullability.forceNonNull,
+            ) as ClassTypeItem
+
+        val qualifiedClassName = classTypeItem.qualifiedName
+        return createFieldReferenceValueWithDeferredConstantValue(
+            annotationContext,
+            qualifiedClassName,
+            fieldName,
+            optionalTypeItem,
+            explicitConversionTo = explicitConversionTo,
+        )
     }
 
     /** Parse the [text] to provide a [ConstantValue] of the [optionalTypeItem]. */

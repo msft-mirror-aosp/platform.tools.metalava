@@ -245,7 +245,11 @@ class ParameterizedValueParserTest : BaseModelTest() {
                             name.startsWith("float") ||
                             name.startsWith("double") ||
                             name == "String" ||
-                            name == "String escaped"
+                            name == "String escaped" ||
+                            name == "String using constant" ||
+                            name.startsWith("enum") ||
+                            name.startsWith("field") ||
+                            name.startsWith("class literal")
                     },
                 ),
             )
