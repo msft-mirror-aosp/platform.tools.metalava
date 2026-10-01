@@ -18,11 +18,13 @@ package com.android.tools.metalava.model.value
 
 import com.android.tools.metalava.model.AnnotationContext
 import com.android.tools.metalava.model.AnnotationItem
+import com.android.tools.metalava.model.ArrayTypeItem
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterScope
 import com.android.tools.metalava.model.javaUnescapeString
+import com.android.tools.metalava.model.parser.ParseException
 import com.android.tools.metalava.model.parser.SharedLexer
 import com.android.tools.metalava.model.parser.SharedTokenType
 import com.android.tools.metalava.model.parser.Token
@@ -90,6 +92,22 @@ class DefaultValueParser(
     ): Value? =
         when {
             tokens.peekType() == SharedTokenType.EOF -> null
+            tokens.peekType() == SharedTokenType.BRACE_OPEN -> {
+                parseArrayValue(optionalTypeItem, tokens, sourceText, expectEndOfStream)
+            }
+            optionalTypeItem is ArrayTypeItem -> {
+                // The type is an array so this is an example of not having to add curly braces
+                // around a single value in an annotation attribute. Create a value for the
+                // component type and then wrap it in an ArrayValue.
+                val singleValue =
+                    parseArrayElementValue(
+                        optionalTypeItem.componentType,
+                        tokens,
+                        sourceText,
+                        expectEndOfStream = expectEndOfStream,
+                    )
+                createArrayValue(listOf(singleValue), wasUnwrappedInSource = true)
+            }
             else -> {
                 parseArrayElementValue(
                     optionalTypeItem,
@@ -99,6 +117,58 @@ class DefaultValueParser(
                 )
             }
         }
+
+    /** Parse a `{ ... }` [ArrayValue] of the [optionalTypeItem] from [tokens]. */
+    private fun parseArrayValue(
+        optionalTypeItem: TypeItem?,
+        tokens: TokenStream,
+        sourceText: String,
+        expectEndOfStream: Boolean,
+    ): ArrayValue {
+        val openToken = tokens.consume()
+        if (openToken.type != SharedTokenType.BRACE_OPEN) {
+            throw ParseException("Expected '{' but found '${openToken.text}'")
+        }
+
+        val componentType = (optionalTypeItem as? ArrayTypeItem)?.componentType
+        val elements =
+            if (tokens.match(SharedTokenType.BRACE_CLOSE)) {
+                emptyList()
+            } else {
+                buildList {
+                    while (!tokens.match(SharedTokenType.BRACE_CLOSE)) {
+                        val element =
+                            parseArrayElementValue(
+                                componentType,
+                                tokens,
+                                sourceText,
+                                expectEndOfStream = false,
+                            )
+                        add(element)
+
+                        when (tokens.peekType()) {
+                            SharedTokenType.COMMA -> {
+                                tokens.consume()
+                            }
+                            SharedTokenType.BRACE_CLOSE -> {
+                                tokens.consume()
+                                break
+                            }
+                            else -> {
+                                val separator = tokens.peek().text
+                                throw ParseException("Expected ',' or '}' but found '$separator'")
+                            }
+                        }
+                    }
+                }
+            }
+
+        if (expectEndOfStream && tokens.peekType() != SharedTokenType.EOF) {
+            unknownToken(optionalTypeItem, sourceText)
+        }
+
+        return createArrayValue(elements)
+    }
 
     /** Parse an [ArrayElementValue] of the [optionalTypeItem] from [tokens]. */
     private fun parseArrayElementValue(
