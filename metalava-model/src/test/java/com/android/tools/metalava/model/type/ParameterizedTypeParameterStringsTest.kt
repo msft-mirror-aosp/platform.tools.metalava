@@ -109,11 +109,6 @@ class ParameterizedTypeParameterStringsTest {
         private val parserProviders =
             listOf(
                 TypeItemParserProvider(
-                    "Legacy",
-                    ::LegacyTypeItemParser,
-                    allTestCases,
-                ),
-                TypeItemParserProvider(
                     "Default",
                     ::DefaultTypeItemParser,
                     allTestCases,
