@@ -27,7 +27,7 @@ fun interface TokenProducer {
 }
 
 /** A forward-moving stream of [Token]s. */
-sealed interface TokenStream {
+interface TokenStream {
     /** Returns the next token to be consumed without consuming it. */
     fun peek(): Token
 

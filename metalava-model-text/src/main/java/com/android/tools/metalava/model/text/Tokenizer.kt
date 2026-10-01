@@ -44,7 +44,7 @@ class Tokenizer(
     private val path: Path,
     private val buffer: String,
     private val lineMap: LineMap = LineMap.create(buffer),
-) : FileLocationTracker {
+) : FileLocationTracker, TokenStream {
 
     /** The position of the next character to read in [buffer]. */
     private var position = 0
@@ -244,10 +244,10 @@ class Tokenizer(
     }
 
     /** Returns the next token to be consumed without consuming it. */
-    fun peek(): Token = tokenStream.peek()
+    override fun peek(): Token = tokenStream.peek()
 
     /** Consumes and returns the next token from the stream. */
-    fun consume(): Token =
+    override fun consume(): Token =
         tokenStream.consume().also { token ->
             if (token.type != SharedTokenType.EOF) {
                 position = token.endOffset
