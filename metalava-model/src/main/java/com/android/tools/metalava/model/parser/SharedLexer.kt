@@ -30,6 +30,8 @@ object SharedTokenType {
 
     // Keywords
     val CLASS = TokenType("CLASS", canBeIdentifier = true)
+    val EXTENDS = TokenType("EXTENDS", canBeIdentifier = true)
+    val SUPER = TokenType("SUPER", canBeIdentifier = true)
 
     // Delimiters / Punctuation
     val DOT = TokenType("DOT")
@@ -238,6 +240,8 @@ open class SharedLexer(
     protected open fun resolveKeywordOrIdentifier(tokenText: String): TokenType =
         when (tokenText) {
             "class" -> SharedTokenType.CLASS
+            "extends" -> SharedTokenType.EXTENDS
+            "super" -> SharedTokenType.SUPER
             else -> SharedTokenType.IDENTIFIER
         }
 

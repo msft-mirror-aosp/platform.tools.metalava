@@ -260,6 +260,25 @@ class SharedLexerTest {
     }
 
     @Test
+    fun `Test wildcard bound keywords`() {
+        checkTokenize(
+            "? extends Number ? super T",
+            expectedTokens =
+                """
+                    QUESTION '?'
+                    EXTENDS 'extends'
+                    IDENTIFIER 'Number'
+                    QUESTION '?'
+                    SUPER 'super'
+                    IDENTIFIER 'T'
+                    EOF ''
+                """,
+        )
+        assertTrue(SharedTokenType.EXTENDS.canBeIdentifier)
+        assertTrue(SharedTokenType.SUPER.canBeIdentifier)
+    }
+
+    @Test
     fun `Test EOF token is cached on subsequent nextToken calls`() {
         val lexer = SharedLexer("int")
         assertEquals(SharedTokenType.IDENTIFIER, lexer.nextToken().type)
