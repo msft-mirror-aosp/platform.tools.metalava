@@ -30,7 +30,10 @@ import com.android.tools.metalava.reporter.FileLocation
 internal class SourceItemDocumentation(
     item: SelectableItem,
     private val sourceComment: SourceComment,
-) : AbstractItemDocumentation(item) {
+) : AbstractItemDocumentation(item), DocCommentSupplier {
+    override val docCommentSupplier: DocCommentSupplier
+        get() = this
+
     override val fileLocation: FileLocation
         get() = sourceComment.fileLocation
 
@@ -46,24 +49,26 @@ internal class SourceItemDocumentation(
         )
     }
 
-    /** Lazily initialized backing property for [docComment]. */
-    private lateinit var _docComment: DocComment
+    /**
+     * Lazily initialized initial [DocComment] parsed from [sourceComment].
+     *
+     * Cached separately from [docComment] so that if this or a duplicate/snapshot is mutated, other
+     * duplicates/snapshots created before the mutation can still obtain the unmutated initial
+     * [DocComment] without re-parsing [sourceComment].
+     */
+    private lateinit var initialDocComment: DocComment
 
-    override var docComment: DocComment
-        get() {
-            if (!::_docComment.isInitialized) {
-                _docComment =
-                    DocComment.createDocComment(
-                        context = this,
-                        sourceComment.text,
-                        reporter = this,
-                    )
-            }
-            return _docComment
+    override fun obtainInitialDocComment(): DocComment {
+        if (!::initialDocComment.isInitialized) {
+            initialDocComment =
+                DocComment.createDocComment(
+                    context = this,
+                    sourceComment.text,
+                    reporter = this,
+                )
         }
-        set(value) {
-            _docComment = value
-        }
+        return initialDocComment
+    }
 }
 
 /** Create an [ItemDocumentation] instance for [item] from [sourceComment]. */

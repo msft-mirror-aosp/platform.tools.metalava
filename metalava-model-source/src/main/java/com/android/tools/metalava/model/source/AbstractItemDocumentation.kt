@@ -29,6 +29,8 @@ import com.android.tools.metalava.model.doc.DocContentOwner
 import com.android.tools.metalava.model.doc.DocContentPredicate
 import com.android.tools.metalava.model.scope.NameClassification
 import com.android.tools.metalava.model.source.doc.BlockTagSection
+import com.android.tools.metalava.model.source.doc.ContentSupplier
+import com.android.tools.metalava.model.source.doc.DefaultDocComment
 import com.android.tools.metalava.model.source.doc.DocComment
 import com.android.tools.metalava.model.source.doc.DocCommentContext
 import com.android.tools.metalava.model.source.doc.DocCommentPredicate
@@ -43,15 +45,59 @@ import com.android.tools.metalava.reporter.FileLocation
 import com.android.tools.metalava.reporter.Issues
 import java.io.PrintWriter
 
+/** Supplies the initial [DocComment] and [FileLocation] for an [ItemDocumentation]. */
+internal interface DocCommentSupplier {
+    /** The location of the start of the documentation comment. */
+    val fileLocation: FileLocation
+
+    /** Obtain the initial [DocComment]. */
+    fun obtainInitialDocComment(): DocComment
+}
+
 /**
  * Abstract [ItemDocumentation] into which functionality that is common to all models will be added.
  */
 internal abstract class AbstractItemDocumentation(
     protected val item: SelectableItem,
+    private var _docComment: DocComment? = null,
 ) : ItemDocumentation, DocumentationIssueReporter, DocCommentContext {
 
+    /**
+     * The [DocCommentSupplier] that supplies the initial [DocComment] and [fileLocation] for this
+     * and any duplicates/snapshots, or `null` if there is no source comment.
+     */
+    protected abstract val docCommentSupplier: DocCommentSupplier?
+
+    override val fileLocation: FileLocation
+        get() = docCommentSupplier?.fileLocation ?: FileLocation.UNKNOWN
+
+    /**
+     * Obtain the initial [DocComment] for this documentation when [docComment] is first accessed
+     * and [_docComment] was not provided.
+     */
+    private fun getOrCreateInitialDocComment(): DocComment =
+        docCommentSupplier?.obtainInitialDocComment()
+            ?: DefaultDocComment(
+                this,
+                ContentSupplier.NULL,
+                emptyList(),
+                noComment = true,
+            )
+
     /** The [DocComment] that contains the documentation content. */
-    protected abstract var docComment: DocComment
+    private var docComment: DocComment
+        get() {
+            val current = _docComment
+            if (current != null) {
+                return current
+            }
+            val initial = getOrCreateInitialDocComment()
+            _docComment = initial
+            return initial
+        }
+        set(value) {
+            _docComment = value
+        }
 
     override fun resolveItemReference(
         sourceReference: String,
@@ -277,7 +323,7 @@ internal abstract class AbstractItemDocumentation(
     protected open fun fileLocation(charOffset: Int): FileLocation = fileLocation
 
     override fun duplicate(item: SelectableItem): ItemDocumentation =
-        DefaultItemDocumentation(item, docComment, fileLocation)
+        DefaultItemDocumentation(item, docCommentSupplier, _docComment)
 
     final override fun snapshot(item: SelectableItem): ItemDocumentation =
         // Return this to avoid parsing the text again and duplicating errors. This is not strictly
