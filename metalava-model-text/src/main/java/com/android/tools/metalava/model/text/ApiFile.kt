@@ -1818,29 +1818,24 @@ internal class SingleSignatureFileParser(
         val type = typeItemFactory.getGeneralType(typeString)
         synchronizeNullability(type, modifiers)
 
-        var token = tokenizer.requireToken()
+        // If an opening `(` follows the property declaration, parse its context parameter list.
         val contextParameters =
-            if (token == "(") {
-                val params =
-                    parseParameterList(
-                        // The current token is already the "("
-                        startWithCurrentToken = true,
-                        useUnderscoreAsDefaultName = true,
-                    )
-                // `parseParameterList` ends with the tokenizer on the closing ")", skip to the next
-                // token to continue parsing
-                token = tokenizer.requireToken()
-                params
+            if (peekType() == SharedTokenType.PAREN_OPEN) {
+                parseParameterList(
+                    useUnderscoreAsDefaultName = true,
+                )
             } else {
                 emptyList()
             }
 
-        if (";" != token) {
-            throw ApiParseException("expected ; found $token", tokenizer)
+        // Consume the terminating `;` of the property declaration.
+        val token = requireNonEofToken()
+        if (token.type != SignatureTokenType.SEMICOLON) {
+            throw parseException("expected ; found ${text(token)}", token)
         }
         val property =
             itemFactory.createPropertyItem(
-                fileLocation = tokenizer.fileLocation(),
+                fileLocation = fileLocation(token),
                 modifiers = modifiers,
                 name = receiverNamePair.second,
                 containingClass = containingClass,
@@ -1980,9 +1975,9 @@ internal class SingleSignatureFileParser(
         val typeString = scanForTypeString()
 
         // Make sure that the whole record component was parsed.
-        val token = tokenizer.requireToken()
-        if (";" != token) {
-            throw ApiParseException("expected ; found $token", tokenizer)
+        val semicolon = requireNonEofToken()
+        if (semicolon.type != SignatureTokenType.SEMICOLON) {
+            throw parseException("expected ; found ${text(semicolon)}", semicolon)
         }
 
         return TextRecordComponent(
@@ -2138,10 +2133,7 @@ internal class SingleSignatureFileParser(
     /**
      * Parses a list of parameters.
      *
-     * If [startWithCurrentToken] is true, before calling [tokenizer] should point to the opening
-     * `(` of the parameter list. If [startWithCurrentToken] is false, [tokenizer] should point to
-     * the token *before* the opening `(` (and the method will start by calling
-     * [Tokenizer.requireToken]).
+     * Before calling, [tokenizer] should point to the opening `(` of the parameter list.
      *
      * If [useUnderscoreAsDefaultName] is true, parameters without a public name will have "_" as
      * their name. If it is false, they will have "arg<index>" as their name.
@@ -2150,18 +2142,13 @@ internal class SingleSignatureFileParser(
      * list.
      */
     private fun parseParameterList(
-        startWithCurrentToken: Boolean = false,
         useUnderscoreAsDefaultName: Boolean = false,
     ): List<ParameterInfo> {
         val parameters = mutableListOf<ParameterInfo>()
-        var token: String =
-            if (startWithCurrentToken) {
-                tokenizer.current
-            } else {
-                tokenizer.requireToken()
-            }
-        if ("(" != token) {
-            throw ApiParseException("expected (, was $token", tokenizer)
+        // Consume the opening `(` of the parameter list.
+        val openParen = requireNonEofToken()
+        if (openParen.type != SharedTokenType.PAREN_OPEN) {
+            throw parseException("expected (, was ${text(openParen)}", openParen)
         }
         var index = 0
         while (true) {
@@ -2208,28 +2195,31 @@ internal class SingleSignatureFileParser(
                     }
                 // Token should now represent the type
                 typeString = scanForTypeString()
-                token = tokenizer.requireToken()
             } else {
-                // Java style: parse the type, then the public name if it has one.
+                // Java style: parse the type, then the public name if an identifier follows before
+                // the `,` or `)` delimiter.
                 typeString = scanForTypeString()
-                token = tokenizer.requireToken()
-                if (Tokenizer.isIdent(token)) {
-                    publicName = token
-                    token = tokenizer.requireToken()
+                if (peekType().canBeIdentifier) {
+                    publicName = text(consume())
                 } else {
                     publicName = null
                 }
             }
 
-            when (token) {
-                "," -> {}
-                ")" -> {
-                    // closing parenthesis
+            // Consume the parameter delimiter (`,` if more parameters follow, or `)` at the end of
+            // the parameter list).
+            val delimiter = requireNonEofToken()
+            val isDone =
+                when (delimiter.type) {
+                    SharedTokenType.COMMA -> false
+                    SharedTokenType.PAREN_CLOSE -> true
+                    else -> {
+                        throw parseException(
+                            "expected , or ), found ${text(delimiter)}",
+                            delimiter,
+                        )
+                    }
                 }
-                else -> {
-                    throw ApiParseException("expected , or ), found $token", tokenizer)
-                }
-            }
 
             val name = publicName ?: (if (useUnderscoreAsDefaultName) "_" else "arg${index + 1}")
             parameters.add(
@@ -2240,13 +2230,13 @@ internal class SingleSignatureFileParser(
                     hasDefaultValue = hasOptionalKeyword,
                     typeString,
                     modifiers,
-                    tokenizer.fileLocation(),
+                    fileLocation(delimiter),
                     index,
                     optionalKind,
                 )
             )
             index++
-            if (")" == token) {
+            if (isDone) {
                 return parameters
             }
         }
