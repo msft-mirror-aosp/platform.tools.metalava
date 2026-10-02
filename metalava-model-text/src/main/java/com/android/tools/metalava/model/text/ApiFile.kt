@@ -245,50 +245,6 @@ private constructor(
             }
         }
 
-    /**
-     * Provides support for parsing and caching [TypeItem]s.
-     *
-     * Defer creation until after the first file has been read and [deferredKotlinStyleNulls] has
-     * been set to a non-null value to ensure that it picks up the correct setting of
-     * [kotlinStyleNulls].
-     */
-    private val typeParser by
-        lazy(LazyThreadSafetyMode.NONE) {
-            TextTypeParser(codebase, kotlinStyleNulls, typeItemParserErrorReporter)
-        }
-
-    /**
-     * Provides support for creating [TypeItem]s for specific uses.
-     *
-     * Defer creation as it depends on [typeParser].
-     */
-    private val globalTypeItemFactory by
-        lazy(LazyThreadSafetyMode.NONE) { TextTypeItemFactory(assembler, typeParser) }
-
-    /** The [ValueParser] to use for creating [Value]s from a signature file. */
-    private val valueParser =
-        ValueParser(
-            codebase,
-            TypeItemParser.forValueParser(codebase, typeItemParserErrorReporter),
-        )
-
-    /**
-     * Backing property for [kotlinStyleNulls]; should not be read directly outside
-     * [parseMultipleFiles] where it is initialized. All other code should read [kotlinStyleNulls]
-     * instead.
-     */
-    private var deferredKotlinStyleNulls: Boolean? = null
-
-    /**
-     * Whether types should be interpreted to be in Kotlin format (e.g. `?` suffix means nullable,
-     * `!` suffix means unknown, and absence of a suffix means not nullable).
-     *
-     * Initialized from the header of the signature file being parsed in [parseMultipleFiles], so it
-     * is only safe to read after the header of the first signature file has been parsed.
-     */
-    private val kotlinStyleNulls: Boolean
-        get() = deferredKotlinStyleNulls!!
-
     companion object {
         /**
          * Parse API signature files.
@@ -487,9 +443,10 @@ private constructor(
             }
             previousPath = path
             previousKotlinStyleNulls = kotlinStyleNullsForThisFile
-            deferredKotlinStyleNulls = kotlinStyleNullsForThisFile
 
-            val context = parserContext ?: createParserContext().also { parserContext = it }
+            val context =
+                parserContext
+                    ?: createParserContext(kotlinStyleNullsForThisFile).also { parserContext = it }
 
             val tokenizer = Tokenizer(path, apiText, ::ApiParseException)
 
@@ -501,7 +458,7 @@ private constructor(
                     context = context,
                     tokenizer = tokenizer,
                     appending = appending,
-                    kotlinStyleNulls = kotlinStyleNulls,
+                    kotlinStyleNulls = kotlinStyleNullsForThisFile,
                     kotlinNameTypeOrder = format[KOTLIN_NAME_TYPE_ORDER],
                     apiVariant = apiVariant,
                 )
@@ -523,9 +480,23 @@ private constructor(
 
     /**
      * Creates the [ParserContext] shared across all signature files parsed by [parseMultipleFiles].
+     *
+     * Called once the header of the first signature file has been parsed so that the
+     * [TextTypeParser] is configured with the [kotlinStyleNulls] setting from the first file.
+     *
+     * @param kotlinStyleNulls whether types should be interpreted to be in Kotlin format (e.g. `?`
+     *   suffix means nullable, `!` suffix means unknown, and absence of a suffix means not
+     *   nullable).
      */
-    private fun createParserContext(): ParserContext =
-        ParserContext(
+    private fun createParserContext(kotlinStyleNulls: Boolean): ParserContext {
+        val typeParser = TextTypeParser(codebase, kotlinStyleNulls, typeItemParserErrorReporter)
+        val globalTypeItemFactory = TextTypeItemFactory(assembler, typeParser)
+        val valueParser =
+            ValueParser(
+                codebase,
+                TypeItemParser.forValueParser(codebase, typeItemParserErrorReporter),
+            )
+        return ParserContext(
             assembler = assembler,
             typeParser = typeParser,
             globalTypeItemFactory = globalTypeItemFactory,
@@ -533,6 +504,7 @@ private constructor(
             defaultTargetLanguageSet = defaultTargetLanguageSet,
             classMerger = ClassMerger(allowClassModifierChanges),
         )
+    }
 }
 
 /**
