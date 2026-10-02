@@ -274,8 +274,8 @@ private constructor(
 
     /**
      * Backing property for [kotlinStyleNulls]; should not be read directly outside
-     * [parseApiSingleFile] where it is initialized and checked for consistency across files. All
-     * other code should read [kotlinStyleNulls] instead.
+     * [parseMultipleFiles] where it is initialized. All other code should read [kotlinStyleNulls]
+     * instead.
      */
     private var deferredKotlinStyleNulls: Boolean? = null
 
@@ -283,7 +283,7 @@ private constructor(
      * Whether types should be interpreted to be in Kotlin format (e.g. `?` suffix means nullable,
      * `!` suffix means unknown, and absence of a suffix means not nullable).
      *
-     * Initialized from the header of the signature file being parsed in [parseApiSingleFile], so it
+     * Initialized from the header of the signature file being parsed in [parseMultipleFiles], so it
      * is only safe to read after the header of the first signature file has been parsed.
      */
     private val kotlinStyleNulls: Boolean
@@ -455,6 +455,8 @@ private constructor(
     private fun parseMultipleFiles(signatureFiles: List<SignatureFile>) {
         val apiSurfaces = codebase.config.apiSurfaces
         var appending = false
+        var previousPath: Path? = null
+        var previousKotlinStyleNulls: Boolean? = null
         for (signatureFile in signatureFiles) {
             // When we're appending, and the content is empty, there is nothing to do.
             val apiText = signatureFile.readContents()
@@ -462,13 +464,37 @@ private constructor(
                 continue
             }
 
-            val file = signatureFile.file
+            val path = signatureFile.file.toPath()
             val apiVariant = signatureFile.apiVariantFor(apiSurfaces)
+
+            // Parse the header of the signature file to determine the format. If the signature file
+            // is empty then `parseHeader` will return null, so it will default to `FileFormat.V2`.
+            val format =
+                FileFormat.parseHeader(path, StringReader(apiText), formatForLegacyFiles)
+                    ?: FileFormat.V2
+
+            // Disallow a mixture of kotlinStyleNulls settings.
+            val kotlinStyleNullsForThisFile = format[KOTLIN_STYLE_NULLS]
+            if (
+                previousKotlinStyleNulls != null &&
+                    previousKotlinStyleNulls != kotlinStyleNullsForThisFile
+            ) {
+                codebase.reporter.report(
+                    Issues.SIGNATURE_FILE_ERROR,
+                    null,
+                    "Preceding file $previousPath has different setting of kotlin-style-nulls which may cause issues",
+                    FileLocation.createLocation(path, 1),
+                )
+            }
+            previousPath = path
+            previousKotlinStyleNulls = kotlinStyleNullsForThisFile
+            deferredKotlinStyleNulls = kotlinStyleNullsForThisFile
 
             parseApiSingleFile(
                 appending = appending,
-                path = file.toPath(),
+                path = path,
                 apiText = apiText,
+                format = format,
                 apiVariant = apiVariant,
             )
             appending = true
@@ -481,40 +507,13 @@ private constructor(
         appending: Boolean,
         path: Path,
         apiText: String,
+        format: FileFormat,
         apiVariant: ApiVariant,
     ) {
-        // Parse the header of the signature file to determine the format. If the signature file is
-        // empty then `parseHeader` will return null, so it will default to `FileFormat.V2`.
-        val format =
-            FileFormat.parseHeader(path, StringReader(apiText), formatForLegacyFiles)
-                ?: FileFormat.V2
-
         val tokenizer = Tokenizer(path, apiText, ::ApiParseException)
-
-        // Get the preceding tracker, if any.
-        val precedingTracker =
-            if (::fileLocationTracker.isInitialized) {
-                fileLocationTracker
-            } else {
-                null
-            }
 
         // Set the file location tracker to provide location information about the current file.
         fileLocationTracker = tokenizer
-
-        // Disallow a mixture of kotlinStyleNulls settings.
-        val kotlinStyleNullsForThisFile = format[KOTLIN_STYLE_NULLS]
-        if (
-            deferredKotlinStyleNulls != null &&
-                deferredKotlinStyleNulls != kotlinStyleNullsForThisFile
-        ) {
-            val precedingFile = precedingTracker!!.fileLocation().path
-            reportIssue(
-                Issues.SIGNATURE_FILE_ERROR,
-                "Preceding file $precedingFile has different setting of kotlin-style-nulls which may cause issues"
-            )
-        }
-        deferredKotlinStyleNulls = kotlinStyleNullsForThisFile
 
         val parser =
             SingleSignatureFileParser(
