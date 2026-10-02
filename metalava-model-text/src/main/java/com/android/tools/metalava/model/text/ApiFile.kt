@@ -345,14 +345,13 @@ private constructor(
                     formatForLegacyFiles = formatForLegacyFiles,
                     allowClassModifierChanges = allowClassModifierChanges
                 )
-            parser.parseMultipleFiles(signatureFiles)
+            parser.parseMultipleFiles(signatureFiles, apiStatsConsumer)
 
             val codebase = parser.codebase
 
             // Update implicit permit types in any sealed class that does not have one provided.
             SealedClassImplicitPermitTypesUpdater.updateImplicitPermitTypes(codebase)
 
-            apiStatsConsumer(parser.typeParser.stats())
             return codebase
         }
 
@@ -452,7 +451,10 @@ private constructor(
      * Parses all the [signatureFiles], treating the first file as the base API and all other files
      * as extensions.
      */
-    private fun parseMultipleFiles(signatureFiles: List<SignatureFile>) {
+    private fun parseMultipleFiles(
+        signatureFiles: List<SignatureFile>,
+        apiStatsConsumer: (TextTypeParser.Stats) -> Unit = {},
+    ) {
         val apiSurfaces = codebase.config.apiSurfaces
         var appending = false
         var previousPath: Path? = null
@@ -517,6 +519,8 @@ private constructor(
         parserContext!!
 
         classMerger.performAnyDeferredMerges()
+
+        apiStatsConsumer(parserContext.typeParser.stats())
     }
 
     /**
