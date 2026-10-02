@@ -189,12 +189,38 @@ internal abstract class AbstractItemDocumentation(
         get() = docComment.description
 
     override val mainDescriptionOwner: DocContentOwner
-        get() = docComment
+        get() =
+            object : DocContentOwner {
+                override val docContent: DocContent?
+                    get() = mainDescription
+
+                override fun append(other: DocContent) {
+                    docComment.append(other)
+                }
+
+                override fun append(text: String) {
+                    docComment.append(text)
+                }
+            }
 
     override fun blockTagDescription(tagTypeName: String): DocContent? =
-        findBlockTagSection(tagTypeName)?.docContent
+        findBlockTagSection(tagTypeName)?.description
 
-    override fun blockTagDescriptionOwner(tagTypeName: String): DocContentOwner {
+    override fun blockTagDescriptionOwner(tagTypeName: String): DocContentOwner =
+        object : DocContentOwner {
+            override val docContent: DocContent?
+                get() = blockTagDescription(tagTypeName)
+
+            override fun append(other: DocContent) {
+                existingOrPendingBlockTagSection(tagTypeName).append(other)
+            }
+
+            override fun append(text: String) {
+                existingOrPendingBlockTagSection(tagTypeName).append(text)
+            }
+        }
+
+    private fun existingOrPendingBlockTagSection(tagTypeName: String): DocContentOwner {
         return findBlockTagSection(tagTypeName)
             ?: docComment.pendingBlockTagSection(
                 tagTypeName,
@@ -206,9 +232,23 @@ internal abstract class AbstractItemDocumentation(
         docComment.blockTagSections.find { it.tagType.name == tagTypeName }
 
     override fun paramTagDescription(name: String): DocContent? =
-        findParamTagSection(name)?.docContent
+        findParamTagSection(name)?.description
 
-    override fun paramTagDescriptionOwner(name: String): DocContentOwner {
+    override fun paramTagDescriptionOwner(name: String): DocContentOwner =
+        object : DocContentOwner {
+            override val docContent: DocContent?
+                get() = paramTagDescription(name)
+
+            override fun append(other: DocContent) {
+                existingOrPendingParamTagSection(name).append(other)
+            }
+
+            override fun append(text: String) {
+                existingOrPendingParamTagSection(name).append(text)
+            }
+        }
+
+    private fun existingOrPendingParamTagSection(name: String): DocContentOwner {
         return findParamTagSection(name)
             ?: docComment.pendingBlockTagSection(
                 "param",
