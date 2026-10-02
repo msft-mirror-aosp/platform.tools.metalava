@@ -29,6 +29,7 @@ import com.android.tools.metalava.model.parser.TokenType
 internal object SignatureTokenType {
     // Punctuation exclusive to signature file structure
     val SEMICOLON = TokenType("SEMICOLON")
+    val HASH = TokenType("HASH")
 
     // Target language markers (e.g. @KotlinOnly, @BytecodeOnly, etc.)
     val TARGET_LANGUAGE = TokenType("TARGET_LANGUAGE")
@@ -38,6 +39,9 @@ internal object SignatureTokenType {
 
     // Class Hierarchy & Member Clause Keywords
     val DEFAULT = TokenType("DEFAULT", canBeIdentifier = true)
+
+    // Class Member Kind Keywords
+    val RECORD_COMPONENT = TokenType("RECORD_COMPONENT", canBeIdentifier = true)
 
     // Visibility & Modifier Keywords
     val PUBLIC = TokenType("PUBLIC", canBeIdentifier = true)
@@ -87,9 +91,9 @@ internal class SignatureFileLexer(
 ) : SharedLexer(text, startInclusive, endExclusive) {
 
     /**
-     * Matches signature-specific punctuation (`;`), `@interface`, target language prefixes (e.g.
-     * `@KotlinOnly`), and identifiers starting with `-` before [SharedLexer] attempts its standard
-     * token matching.
+     * Matches signature-specific punctuation (`;`, `#`), `@interface`, target language prefixes
+     * (e.g. `@KotlinOnly`), and identifiers starting with `-` before [SharedLexer] attempts its
+     * standard token matching.
      */
     override fun tryMatchAdditionalToken(): Token {
         val start = index
@@ -97,6 +101,10 @@ internal class SignatureFileLexer(
             ';' -> {
                 index = start + 1
                 createToken(SignatureTokenType.SEMICOLON, start, index)
+            }
+            '#' -> {
+                index = start + 1
+                createToken(SignatureTokenType.HASH, start, index)
             }
             '@' -> {
                 // If '@' is followed by an identifier start character, scan the full
@@ -257,8 +265,12 @@ internal class SignatureFileLexer(
                     else -> SharedTokenType.IDENTIFIER
                 }
             'r' ->
-                if (matchSlice(start, length, "receiver")) SignatureTokenType.RECEIVER
-                else super.resolveKeywordOrIdentifier(start, end)
+                when {
+                    matchSlice(start, length, "record_component") ->
+                        SignatureTokenType.RECORD_COMPONENT
+                    matchSlice(start, length, "receiver") -> SignatureTokenType.RECEIVER
+                    else -> super.resolveKeywordOrIdentifier(start, end)
+                }
             's' ->
                 when {
                     matchSlice(start, length, "static") -> SignatureTokenType.STATIC

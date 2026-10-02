@@ -53,7 +53,7 @@ class SignatureFileLexerTest {
     @Test
     fun `Tokenize signature punctuation and target languages`() {
         assertTokenTypes(
-            "@KotlinOnly @OtherAnno public @interface Foo { a: int; }",
+            "@KotlinOnly @OtherAnno public @interface Foo { record_component #0 a: int; }",
             SignatureTokenType.TARGET_LANGUAGE to "@KotlinOnly",
             SharedTokenType.AT to "@",
             SharedTokenType.IDENTIFIER to "OtherAnno",
@@ -61,6 +61,9 @@ class SignatureFileLexerTest {
             SignatureTokenType.ANNOTATION_INTERFACE to "@interface",
             SharedTokenType.IDENTIFIER to "Foo",
             SharedTokenType.BRACE_OPEN to "{",
+            SignatureTokenType.RECORD_COMPONENT to "record_component",
+            SignatureTokenType.HASH to "#",
+            SharedTokenType.NUMBER_LITERAL to "0",
             SharedTokenType.IDENTIFIER to "a",
             SharedTokenType.COLON to ":",
             SharedTokenType.IDENTIFIER to "int",
