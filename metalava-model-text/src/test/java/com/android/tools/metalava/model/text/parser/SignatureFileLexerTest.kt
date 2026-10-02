@@ -72,13 +72,13 @@ class SignatureFileLexerTest {
     @Test
     fun `Tokenize hyphenated modifiers and mangled method names`() {
         assertTokenTypes(
-            "public sealed non-exhaustive non-sealed class Foo { method box-impl(int); }",
+            "public sealed non-exhaustive non-sealed class -Foo { method box-impl(int); }",
             SignatureTokenType.PUBLIC to "public",
             SignatureTokenType.SEALED to "sealed",
             SignatureTokenType.NON_EXHAUSTIVE to "non-exhaustive",
             SignatureTokenType.NON_SEALED to "non-sealed",
             SharedTokenType.CLASS to "class",
-            SharedTokenType.IDENTIFIER to "Foo",
+            SharedTokenType.IDENTIFIER to "-Foo",
             SharedTokenType.BRACE_OPEN to "{",
             SharedTokenType.IDENTIFIER to "method",
             SharedTokenType.IDENTIFIER to "box-impl",

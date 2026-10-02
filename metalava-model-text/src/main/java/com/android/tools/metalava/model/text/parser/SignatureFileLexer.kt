@@ -87,8 +87,9 @@ internal class SignatureFileLexer(
 ) : SharedLexer(text, startInclusive, endExclusive) {
 
     /**
-     * Matches signature-specific punctuation (`;`), `@interface`, and target language prefixes
-     * (e.g. `@KotlinOnly`) at [index] before [SharedLexer] attempts its standard token matching.
+     * Matches signature-specific punctuation (`;`), `@interface`, target language prefixes (e.g.
+     * `@KotlinOnly`), and identifiers starting with `-` before [SharedLexer] attempts its standard
+     * token matching.
      */
     override fun tryMatchAdditionalToken(): Token {
         val start = index
@@ -134,6 +135,17 @@ internal class SignatureFileLexer(
                     }
                 }
                 Token.NONE
+            }
+            '-' -> {
+                // In signature files, some synthetic or mangled identifiers start with a hyphen
+                // (e.g. '-Foo'). When '-' is immediately followed by an identifier start
+                // character, scan it as an identifier; otherwise return Token.NONE so SharedLexer
+                // emits MINUS ('-').
+                if (start + 1 < endExclusive && Character.isJavaIdentifierStart(text[start + 1])) {
+                    scanIdentifierOrKeyword(start)
+                } else {
+                    Token.NONE
+                }
             }
             else -> Token.NONE
         }
