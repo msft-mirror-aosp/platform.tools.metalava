@@ -19,6 +19,8 @@ package com.android.tools.metalava.model.testsuite.documentation
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.doc.DocContent
 import com.android.tools.metalava.model.provider.InputFormat
+import com.android.tools.metalava.model.snapshot.CodebaseSnapshotTaker
+import com.android.tools.metalava.model.snapshot.NonFilteringDelegatingVisitor
 import com.android.tools.metalava.model.testing.SupportedInputFormats
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.testing.java
@@ -1799,6 +1801,135 @@ class CommonItemDocumentationTest : BaseModelTest() {
                 """
                     .trimIndent(),
                 writer.toString().trim()
+            )
+        }
+    }
+
+    @SupportedInputFormats(InputFormat.JAVA)
+    @Test
+    fun `Test mutating duplicated ItemDocumentation`() {
+        runSourceCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+
+                    public class Base {
+                        /** Summary line. */
+                        public void method() {}
+                    }
+
+                    public class Sub extends Base {}
+                """
+            ),
+        ) {
+            val baseClass = codebase.assertClass("test.pkg.Base")
+            val baseMethod = baseClass.assertMethod("method", emptyList())
+            val subClass = codebase.assertClass("test.pkg.Sub")
+
+            val duplicatedMethod = baseMethod.duplicate(subClass)
+
+            duplicatedMethod.requiredDocumentation.mainDescriptionOwner.append(
+                "Appended to duplicate."
+            )
+            duplicatedMethod.requiredDocumentation.addUniqueBlockTagSectionWithSimpleText(
+                "unique",
+                "1"
+            )
+
+            duplicatedMethod.assertPrintedDocumentation(
+                expectedOutput =
+                    """
+                        /**
+                         * Summary line.
+                         * <br>
+                         * Appended to duplicate.
+                         * @unique 1
+                         */
+                    """,
+                message = "duplicated method",
+            )
+
+            // TODO: AbstractItemDocumentation.duplicate shares the mutable DocComment instance
+            //  with the original item, so mutating the duplicated item's documentation also
+            //  mutates the original item's documentation.
+            baseMethod.assertPrintedDocumentation(
+                expectedOutput =
+                    """
+                        /**
+                         * Summary line.
+                         * <br>
+                         * Appended to duplicate.
+                         * @unique 1
+                         */
+                    """,
+                message = "base method",
+            )
+        }
+    }
+
+    @SupportedInputFormats(InputFormat.JAVA)
+    @Test
+    fun `Test mutating snapshotted ItemDocumentation`() {
+        runSourceCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+
+                    public class Test {
+                        /** Summary line. */
+                        public void method() {}
+                    }
+                """
+            ),
+        ) {
+            val originalMethod =
+                codebase.assertClass("test.pkg.Test").assertMethod("method", emptyList())
+
+            val snapshotCodebase =
+                CodebaseSnapshotTaker.takeSnapshot(
+                    codebase,
+                    definitionVisitorFactory = ::NonFilteringDelegatingVisitor,
+                    referenceVisitorFactory = ::NonFilteringDelegatingVisitor,
+                    includeDocumentation = true,
+                )
+            val snapshotMethod =
+                snapshotCodebase.assertClass("test.pkg.Test").assertMethod("method", emptyList())
+
+            snapshotMethod.requiredDocumentation.mainDescriptionOwner.append(
+                "Appended to snapshot."
+            )
+            snapshotMethod.requiredDocumentation.addUniqueBlockTagSectionWithSimpleText(
+                "unique",
+                "1"
+            )
+
+            snapshotMethod.assertPrintedDocumentation(
+                expectedOutput =
+                    """
+                        /**
+                         * Summary line.
+                         * <br>
+                         * Appended to snapshot.
+                         * @unique 1
+                         */
+                    """,
+                message = "snapshot method",
+            )
+
+            // TODO: AbstractItemDocumentation.snapshot returns `this`, sharing the mutable
+            //  DocComment instance with the original item, so mutating the snapshot item's
+            //  documentation also mutates the original item's documentation.
+            originalMethod.assertPrintedDocumentation(
+                expectedOutput =
+                    """
+                        /**
+                         * Summary line.
+                         * <br>
+                         * Appended to snapshot.
+                         * @unique 1
+                         */
+                    """,
+                message = "original method",
             )
         }
     }
