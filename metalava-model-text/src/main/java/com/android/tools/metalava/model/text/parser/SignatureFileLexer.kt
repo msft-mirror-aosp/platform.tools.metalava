@@ -38,6 +38,8 @@ internal object SignatureTokenType {
     val ANNOTATION_INTERFACE = TokenType("ANNOTATION_INTERFACE")
 
     // Class Hierarchy & Member Clause Keywords
+    val IMPLEMENTS = TokenType("IMPLEMENTS", canBeIdentifier = true)
+    val PERMITS = TokenType("PERMITS", canBeIdentifier = true)
     val DEFAULT = TokenType("DEFAULT", canBeIdentifier = true)
 
     // Class Member Kind Keywords
@@ -237,6 +239,7 @@ internal class SignatureFileLexer(
                 }
             'i' ->
                 when {
+                    matchSlice(start, length, "implements") -> SignatureTokenType.IMPLEMENTS
                     matchSlice(start, length, "internal") -> SignatureTokenType.INTERNAL
                     matchSlice(start, length, "infix") -> SignatureTokenType.INFIX
                     matchSlice(start, length, "inline") -> SignatureTokenType.INLINE
@@ -262,6 +265,7 @@ internal class SignatureFileLexer(
                     matchSlice(start, length, "public") -> SignatureTokenType.PUBLIC
                     matchSlice(start, length, "protected") -> SignatureTokenType.PROTECTED
                     matchSlice(start, length, "private") -> SignatureTokenType.PRIVATE
+                    matchSlice(start, length, "permits") -> SignatureTokenType.PERMITS
                     else -> SharedTokenType.IDENTIFIER
                 }
             'r' ->
