@@ -67,15 +67,18 @@ internal class CollatingErrorReporter : TypeItemParserErrorReporter {
     private data class Report(
         val issue: Issue,
         val message: String,
+        val charOffset: Int,
     )
 
-    override fun report(issue: Issue, message: String) {
-        list.add(Report(issue, message))
+    override fun report(issue: Issue, message: String, charOffset: Int) {
+        list.add(Report(issue, message, charOffset))
     }
 
     override fun toString(): String {
         list.sortWith(reportComparator)
-        return list.joinToString("\n") { report -> "${report.message} [${report.issue.name}]" }
+        return list.joinToString("\n") { report ->
+            "${report.charOffset}: ${report.message} [${report.issue.name}]"
+        }
     }
 
     companion object {
@@ -83,6 +86,7 @@ internal class CollatingErrorReporter : TypeItemParserErrorReporter {
             compareBy<Report>(
                 { it.issue.name },
                 { it.message },
+                { it.charOffset },
             )
     }
 }

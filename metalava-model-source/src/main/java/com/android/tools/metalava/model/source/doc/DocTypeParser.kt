@@ -55,7 +55,8 @@ private constructor(
             object : UnqualifiedClassHandler {
                 override fun handleUnqualifiedType(
                     errorReporter: TypeItemParserErrorReporter,
-                    unqualifiedName: String
+                    unqualifiedName: String,
+                    charOffset: Int,
                 ) = unqualifiedName
             }
 
@@ -70,7 +71,7 @@ private constructor(
         return parser.obtainTypeFromString(sourceType, typeParameterScope)
     }
 
-    override fun report(issue: Issues.Issue, message: String) {
+    override fun report(issue: Issues.Issue, message: String, charOffset: Int) {
         reporter.report(issue, message)
     }
 

@@ -312,8 +312,9 @@ private class CountingErrorReporter(
     override fun report(
         issue: Issues.Issue,
         message: String,
+        charOffset: Int,
     ) {
-        delegateErrorReporter.report(issue, message)
+        delegateErrorReporter.report(issue, message, charOffset)
         errorCount += 1
     }
 }

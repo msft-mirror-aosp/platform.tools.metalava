@@ -240,7 +240,7 @@ private constructor(
     /** Report recoverable errors encountered while parsing types. */
     private val typeItemParserErrorReporter =
         object : TypeItemParserErrorReporter {
-            override fun report(issue: Issues.Issue, message: String) {
+            override fun report(issue: Issues.Issue, message: String, charOffset: Int) {
                 reportIssue(issue, message)
             }
         }

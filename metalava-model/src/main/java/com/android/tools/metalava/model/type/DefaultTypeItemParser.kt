@@ -406,7 +406,8 @@ open class DefaultTypeItemParser(
                 val wildcardText =
                     sourceText.substring(questionToken.startOffset, lastToken.endOffset)
                 errorReporter.report(
-                    "Type starts with \"?\" but doesn't appear to be wildcard: $wildcardText"
+                    "Type starts with \"?\" but doesn't appear to be wildcard: $wildcardText",
+                    questionToken.startOffset,
                 )
                 TypeItem.createWildcardType(typeModifiers, objectType, null)
             }
@@ -518,7 +519,11 @@ open class DefaultTypeItemParser(
                     // (b/495459207).
                     simpleName
                 } else {
-                    unqualifiedClassHandler.handleUnqualifiedType(errorReporter, simpleName)
+                    unqualifiedClassHandler.handleUnqualifiedType(
+                        errorReporter,
+                        simpleName,
+                        baseStartOffset,
+                    )
                 }
             val defaultNullability = if (forceClassToBeNonNull) TypeNullability.NONNULL else null
             val classModifiers =
@@ -624,7 +629,8 @@ open class DefaultTypeItemParser(
             val fullText = sourceText.substring(lastSegmentStartOffset, lastUnexpected.endOffset)
             val remainderText = sourceText.substring(remainderStart, lastUnexpected.endOffset)
             errorReporter.report(
-                "Could not parse type `$fullText`. Found unexpected string after type parameters: $remainderText"
+                "Could not parse type `$fullText`. Found unexpected string after type parameters: $remainderText",
+                remainderStart,
             )
         }
 
@@ -658,7 +664,11 @@ open class DefaultTypeItemParser(
             if (outerRawName.contains('.')) {
                 outerRawName
             } else {
-                unqualifiedClassHandler.handleUnqualifiedType(errorReporter, outerRawName)
+                unqualifiedClassHandler.handleUnqualifiedType(
+                    errorReporter,
+                    outerRawName,
+                    baseStartOffset,
+                )
             }
         val outerTypeArgs =
             outerTypeArgStrings.map { argType ->
@@ -765,7 +775,10 @@ open class DefaultTypeItemParser(
             }
         if (nullability != null && nullability != TypeNullability.NONNULL) {
             val original = sourceText.substring(startOffset, endOffset)
-            errorReporter.report("Invalid nullability suffix on primitive: $original")
+            errorReporter.report(
+                "Invalid nullability suffix on primitive: $original",
+                startOffset,
+            )
         }
         // Primitives are always non-null.
         val typeModifiers = createModifiers(annotations, TypeNullability.NONNULL)
@@ -978,7 +991,8 @@ open class DefaultTypeItemParser(
         } else {
             val typeSlice = sourceText.substring(startOffset, endOffset)
             errorReporter.report(
-                "Format does not support Kotlin-style null type syntax: $typeSlice"
+                "Format does not support Kotlin-style null type syntax: $typeSlice",
+                nullToken.startOffset,
             )
             TypeNullability.PLATFORM
         }

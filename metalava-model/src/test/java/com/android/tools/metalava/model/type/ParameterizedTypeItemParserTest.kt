@@ -112,8 +112,8 @@ class ParameterizedTypeItemParserTest {
                         typeString = "int?",
                         expectedType = primitiveTypeForKind(Primitive.INT),
                         expectedIssues =
-                            "Format does not support Kotlin-style null type syntax: int? [TypeParseError]\n" +
-                                "Invalid nullability suffix on primitive: int? [TypeParseError]",
+                            "3: Format does not support Kotlin-style null type syntax: int? [TypeParseError]\n" +
+                                "0: Invalid nullability suffix on primitive: int? [TypeParseError]",
                     ),
                 )
 
@@ -210,7 +210,7 @@ class ParameterizedTypeItemParserTest {
                             arguments = listOf(classTypeItem("test.pkg.Foo")),
                         ),
                     expectedIssues =
-                        "Could not parse type `Comparable<test.pkg.Foo>blah2`. Found unexpected string after type parameters: blah2 [TypeParseError]",
+                        "24: Could not parse type `Comparable<test.pkg.Foo>blah2`. Found unexpected string after type parameters: blah2 [TypeParseError]",
                 ),
             )
 
@@ -241,7 +241,7 @@ class ParameterizedTypeItemParserTest {
                             nullability = TypeNullability.PLATFORM,
                         ),
                     expectedIssues =
-                        "Type starts with \"?\" but doesn't appear to be wildcard: ? blah1 [TypeParseError]",
+                        "0: Type starts with \"?\" but doesn't appear to be wildcard: ? blah1 [TypeParseError]",
                 ),
             )
 
