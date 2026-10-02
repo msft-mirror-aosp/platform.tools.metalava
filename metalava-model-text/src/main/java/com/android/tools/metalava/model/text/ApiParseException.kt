@@ -23,10 +23,4 @@ import com.android.tools.metalava.reporter.FileLocation
 class ApiParseException(
     message: String,
     location: FileLocation? = null,
-) : ParseException(message, location) {
-
-    internal constructor(
-        message: String,
-        fileLocationTracker: FileLocationTracker,
-    ) : this(message, fileLocationTracker.fileLocation())
-}
+) : ParseException(message, location)

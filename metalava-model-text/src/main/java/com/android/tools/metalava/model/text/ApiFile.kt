@@ -235,11 +235,11 @@ private constructor(
     private val codebase = assembler.codebase
 
     /**
-     * The [FileLocationTracker] for the current file being parsed.
+     * The [SingleSignatureFileParser] for the current file being parsed.
      *
      * Set by [parseMultipleFiles].
      */
-    private lateinit var fileLocationTracker: FileLocationTracker
+    private lateinit var currentParser: SingleSignatureFileParser
 
     /** Report recoverable errors encountered while parsing types. */
     private val typeItemParserErrorReporter =
@@ -394,12 +394,12 @@ private constructor(
     /**
      * Report a recoverable issue encountered while parsing.
      *
-     * Retrieves the location of the error at [charOffset] from [fileLocationTracker].
+     * Retrieves the location of the error at [charOffset] from [currentParser].
      *
      * Note: Non-recoverable issues result in an exception being thrown.
      */
     private fun reportIssue(issue: Issues.Issue, message: String, charOffset: Int) {
-        val location = fileLocationTracker.fileLocation(charOffset)
+        val location = currentParser.fileLocation(charOffset)
         codebase.reporter.report(issue, null, message, location)
     }
 
@@ -463,8 +463,8 @@ private constructor(
                     apiVariant = apiVariant,
                 )
 
-            // Set the file location tracker to provide location information about the current file.
-            fileLocationTracker = parser
+            // Set the current parser to provide location information about the current file.
+            currentParser = parser
 
             parser.parse()
 
@@ -562,7 +562,7 @@ internal class SingleSignatureFileParser(
 
     /** The [ApiVariant] which is defined within the current signature file being parsed. */
     private val apiVariant: ApiVariant,
-) : FileLocationTracker {
+) {
     private val assembler = context.assembler
     private val codebase = assembler.codebase
 
@@ -581,10 +581,8 @@ internal class SingleSignatureFileParser(
     /** The [TokenStream] of tokens from [apiText]. */
     private val tokenStream: TokenStream = SignatureFileLexer(apiText).tokenize()
 
-    override fun fileLocation(): FileLocation = error("unused")
-
-    override fun fileLocation(charOffset: Int): FileLocation =
-        lineMap.fileLocation(path, charOffset)
+    /** Get the [FileLocation] at the 0-based [charOffset]. */
+    fun fileLocation(charOffset: Int): FileLocation = lineMap.fileLocation(path, charOffset)
 
     /** Get the [FileLocation] of the start of [token]. */
     private fun fileLocation(token: Token): FileLocation = fileLocation(token.startOffset)
