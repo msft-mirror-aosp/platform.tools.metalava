@@ -122,8 +122,14 @@ internal class DefaultPackageItem(
                 isFirstSimpleName = true,
             )
         } else {
-            // Otherwise, just look for a class in this package, if allowed.
+            // Otherwise, look for a class in this package, or if the name is unqualified in
+            // java.lang, if allowed.
             findClassIfAllowed(simpleName, nameClassification)
+                ?: if (isFirstSimpleName) {
+                    nameClassification.findClass { codebase.resolveClass("java.lang.$simpleName") }
+                } else {
+                    null
+                }
         }
 
     // N.A. a package cannot be contained in a class

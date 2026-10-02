@@ -268,30 +268,20 @@ class CommonDocReferenceTest : BaseModelTest() {
             ),
         ) {
             val testPackage = codebase.assertPackage("test.pkg")
-            // TODO(b/568477816): `String` references in `package.html` are not resolved to
-            //  `java.lang.String` because `DefaultPackageItem.resolveNameInThisPackage` does not
-            //  check `java.lang` when `sourceFile == null`.
             testPackage.assertPrintedDocumentation(
                 expectedOutput =
                     """
                         /**
-                         * {@link String}
-                         * {@link String#length()}
+                         * {@link java.lang.String String}
+                         * {@link java.lang.String#length() String.length()}
                          * {@link test.pkg.Test Test}
                          * {@link test.pkg.Test#field Test.field}
-                         * {@link test.pkg.Test#method(test.pkg.Test,String) Test.method(Test,String)}
+                         * {@link test.pkg.Test#method(test.pkg.Test,java.lang.String) Test.method(Test,String)}
                          */
                     """,
             )
 
-            assertAndRemoveReportedIssues(
-                // TODO(b/568477816): Should not report UnresolvedLink for `String` in
-                //  `package.html`.
-                """
-                    warning: Could not resolve a class called 'String' in 'package test.pkg' (ErrorWhenNew) [UnresolvedLink]
-                    warning: Could not resolve a class called 'String' in 'package test.pkg' (ErrorWhenNew) [UnresolvedLink]
-                """
-            )
+            assertAndRemoveReportedIssues("")
         }
     }
 }
