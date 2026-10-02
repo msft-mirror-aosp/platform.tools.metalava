@@ -17,7 +17,6 @@
 package com.android.tools.metalava.model.source.doc
 
 import com.android.tools.metalava.model.doc.DocContent
-import com.android.tools.metalava.model.doc.DocContentOwner
 import com.android.tools.metalava.model.source.javadoc.JavadocContent
 import com.android.tools.metalava.model.source.javadoc.JavadocContentRewriter
 import com.android.tools.metalava.model.source.javadoc.JavadocText
@@ -31,7 +30,7 @@ import kotlin.collections.plus
  *
  * Implementations of these are mutable.
  */
-internal interface DocComment : DocContentOwner {
+internal interface DocComment {
     /** The main description, i.e. the part before any block tags. */
     val description: JavadocContent?
 
@@ -44,6 +43,12 @@ internal interface DocComment : DocContentOwner {
 
     /** Check to see whether there are any block tags of type [tagTypeName]. */
     fun hasBlockTagOfType(tagTypeName: String): Boolean
+
+    /** Append [other] to the main [description]. */
+    fun append(other: DocContent)
+
+    /** Append [text] to the main [description]. */
+    fun append(text: String)
 
     /** Add a [BlockTagSection] of [tagTypeName] with [description] to the list. */
     fun addBlockTagSection(tagTypeName: String, description: JavadocContent?)

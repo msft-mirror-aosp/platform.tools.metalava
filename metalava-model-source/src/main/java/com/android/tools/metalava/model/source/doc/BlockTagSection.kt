@@ -16,7 +16,7 @@
 
 package com.android.tools.metalava.model.source.doc
 
-import com.android.tools.metalava.model.doc.DocContentOwner
+import com.android.tools.metalava.model.doc.DocContent
 import com.android.tools.metalava.model.source.javadoc.DocTag
 import com.android.tools.metalava.model.source.javadoc.ExtractorResult
 import com.android.tools.metalava.model.source.javadoc.JavadocContent
@@ -30,7 +30,7 @@ import com.android.tools.metalava.model.source.javadoc.extractTagDataForTagType
  *     * @<tag-type> <description>
  * ```
  */
-internal interface BlockTagSection : DocContentOwner, DocTag {
+internal interface BlockTagSection : DocTag {
     /** The type of the block tag. */
     override val tagType: TagType<*>
 
@@ -51,6 +51,12 @@ internal interface BlockTagSection : DocContentOwner, DocTag {
      * from [TagType.extractData].
      */
     fun <D : TagData> typeSafeTagData(tagType: TagType<D>): D?
+
+    /** Append [other] to [description]. */
+    fun append(other: DocContent)
+
+    /** Append [text] to [description]. */
+    fun append(text: String)
 
     companion object {
         /** Sort [TagData] so that `null` comes after non-`null`. */

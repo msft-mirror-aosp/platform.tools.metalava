@@ -17,7 +17,6 @@
 package com.android.tools.metalava.model.source.doc
 
 import com.android.tools.metalava.model.doc.DocContent
-import com.android.tools.metalava.model.doc.DocContentOwner
 import com.android.tools.metalava.model.source.javadoc.JavadocContent
 import com.android.tools.metalava.model.source.javadoc.JavadocInlineTag
 import com.android.tools.metalava.model.source.javadoc.JavadocText
@@ -38,7 +37,7 @@ internal open class DescriptionOwner(
     val context: DocCommentContext,
     protected val descriptionSupplier: ContentSupplier,
     protected val noComment: Boolean,
-) : DocContentOwner {
+) {
     /**
      * A mutable and optional [JavadocContent] that is initialized lazily from [descriptionSupplier]
      * in [initializeDescription].
@@ -80,9 +79,6 @@ internal open class DescriptionOwner(
         _description = Optional.ofNullable(suppliedDescription)
     }
 
-    override val docContent: DocContent?
-        get() = description
-
     /**
      * Update [description] to [new].
      *
@@ -95,11 +91,11 @@ internal open class DescriptionOwner(
         }
     }
 
-    override fun append(other: DocContent) {
+    fun append(other: DocContent) {
         append(other as JavadocContent)
     }
 
-    override fun append(text: String) {
+    fun append(text: String) {
         val supplier = LazyContentSupplier(context, DocumentationIssueReporter.THROWING, text)
         val content = supplier.content ?: return
         append(content)
