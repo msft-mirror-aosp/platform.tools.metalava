@@ -955,8 +955,6 @@ internal class SingleSignatureFileParser(
         if ("{" != token) {
             throw ApiParseException("expected {, was $token", tokenizer)
         }
-        // Move to the next token.
-        tokenizer.requireToken()
 
         // Above we marked all enums as static but for a top level class it's implicit
         if (classKind == ClassKind.ENUM && !fullName.contains(".")) {
@@ -1077,14 +1075,13 @@ internal class SingleSignatureFileParser(
     /**
      * Parse the class body, adding members to [containingClass].
      *
-     * Starts with [Tokenizer.current]. On return [Tokenizer.current] points to the next token after
-     * the last member.
+     * On return [Tokenizer.current] points to the closing `}` of the class body.
      */
     private fun parseClassBody(
         containingClass: SkeletonClassItem,
         classTypeItemFactory: TextTypeItemFactory,
     ) {
-        var token = tokenizer.current
+        var token = tokenizer.requireToken()
         while (true) {
             if ("}" == token) {
                 break
@@ -1920,35 +1917,37 @@ internal class SingleSignatureFileParser(
         return receiverType to name
     }
 
-    /** Parse [token] which is expected to be of the format `#<record-component-index>`. */
-    private fun parseRecordComponentIndex(token: String): Int? {
-        if (!token.startsWith('#')) return null
-        val index =
-            try {
-                token.substring(1).toInt()
-            } catch (_: NumberFormatException) {
-                return null
+    /** Parse `#<record-component-index>` from [tokenizer]. */
+    private fun parseRecordComponentIndex(): Int {
+        // `#<index>` is tokenized as a `#` token immediately adjacent to a non-negative integer
+        // literal token.
+        val firstToken = requireNonEofToken()
+        if (
+            firstToken.type == SignatureTokenType.HASH &&
+                peekType() == SharedTokenType.NUMBER_LITERAL &&
+                peek().startOffset == firstToken.endOffset
+        ) {
+            val numberToken = requireNonEofToken()
+            val index = text(numberToken).toIntOrNull()
+            if (index != null && index >= 0) {
+                return index
             }
-
-        if (index < 0) return null
-
-        return index
+        }
+        throw parseException(
+            "Expected record component index #<index> but found '${text(firstToken)}'",
+            firstToken,
+        )
     }
 
     /**
      * Parse record components, returning them as a list of [TextRecordComponent].
      *
-     * Starts with [Tokenizer.current]. On return [Tokenizer.current] points to the next token after
-     * the record component.
+     * Consumes all consecutive `record_component` declarations from [tokenizer].
      */
     private fun parseRecordComponents() = buildList {
-        var token = tokenizer.current
-        while (true) {
-            if (token != "record_component") break
-
+        while (peekType() == SignatureTokenType.RECORD_COMPONENT) {
             val textRecordComponent = parseRecordComponent()
             add(textRecordComponent)
-            token = tokenizer.requireToken()
         }
     }
 
@@ -1976,31 +1975,34 @@ internal class SingleSignatureFileParser(
 
     /** Parse a record component class member into a [TextRecordComponent]. */
     private fun parseRecordComponent(): TextRecordComponent {
-        val location = tokenizer.fileLocation()
+        // Consume the `record_component` keyword and record its location.
+        val recordComponentToken = requireNonEofToken()
+        val location = fileLocation(recordComponentToken)
 
         // Parse a record component index.
-        var token = tokenizer.requireToken()
-        val recordComponentIndex =
-            parseRecordComponentIndex(token)
-                ?: throw ApiParseException(
-                    "Expected record component index #<index> but found '$token'",
-                    tokenizer
-                )
+        val recordComponentIndex = parseRecordComponentIndex()
 
         // Parse the modifiers, which will really just be annotations. Record components are always
         // public.
         val modifiers = parseModifierAnnotations(VisibilityLevel.PUBLIC)
 
-        // Parse the component name.
-        token = tokenizer.requireToken()
-        val name = parseNameWithColon(token)
+        // Parse the component name and trailing `:`.
+        val nameToken = requireNonEofToken()
+        assertIdent(nameToken)
+        if (!match(SharedTokenType.COLON)) {
+            throw parseException(
+                "Expecting name ending with \":\" but found ${text(nameToken)}.",
+                nameToken,
+            )
+        }
+        val name = text(nameToken)
 
         // Parse the type.
         tokenizer.requireToken()
         val typeString = scanForTypeString()
 
         // Make sure that the whole record component was parsed.
-        token = tokenizer.current
+        val token = tokenizer.current
         if (";" != token) {
             throw ApiParseException("expected ; found $token", tokenizer)
         }
