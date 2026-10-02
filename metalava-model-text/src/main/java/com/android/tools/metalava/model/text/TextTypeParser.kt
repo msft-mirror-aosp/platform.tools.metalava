@@ -119,6 +119,7 @@ private constructor(
         typeParameterScope: TypeParameterScope,
         annotations: List<AnnotationItem>,
         forceClassToBeNonNull: Boolean,
+        offset: Int,
     ): TypeItem {
         requests++
         // Don't use the cache when there are type-use annotations not contained in the string.
@@ -130,10 +131,10 @@ private constructor(
                 typeCache.computeIfAbsent(key) { CacheEntry(it.type, it.forceClassToBeNonNull) }
 
             // Get the appropriate [TypeItem], creating one if necessary.
-            result.getTypeItem(typeParameterScope)
+            result.getTypeItem(typeParameterScope, offset)
         } else {
             cacheSkip++
-            unCachedParseType(type, typeParameterScope, annotations, forceClassToBeNonNull)
+            unCachedParseType(type, typeParameterScope, annotations, forceClassToBeNonNull, offset)
         }
     }
 
@@ -143,7 +144,8 @@ private constructor(
         typeParameterScope: TypeParameterScope,
         annotations: List<AnnotationItem>,
         forceClassToBeNonNull: Boolean,
-    ) = super.parseType(type, typeParameterScope, annotations, forceClassToBeNonNull)
+        offset: Int,
+    ) = super.parseType(type, typeParameterScope, annotations, forceClassToBeNonNull, offset)
 
     /**
      * The cache entry, that contains the [TypeItem] that has been produced from the [type] and
@@ -185,7 +187,7 @@ private constructor(
         private lateinit var unqualifiedNamesInType: Set<String>
 
         /** Get the [TypeItem] for this type depending on the setting of [forceClassToBeNonNull]. */
-        fun getTypeItem(typeParameterScope: TypeParameterScope): TypeItem {
+        fun getTypeItem(typeParameterScope: TypeParameterScope, offset: Int): TypeItem {
             // If this is not the first time through then check to see if anything suitable has been
             // cached.
             val scopeForCachingOrNull =
@@ -210,7 +212,7 @@ private constructor(
             val startErrorCount = countingErrorReporter.errorCount
 
             // Parse the [type] to produce a [TypeItem]. This may report errors.
-            val typeItem = createTypeItem(typeParameterScope)
+            val typeItem = createTypeItem(typeParameterScope, offset)
 
             // If the error count is different then do not cache this.
             if (countingErrorReporter.errorCount != startErrorCount) {
@@ -243,8 +245,14 @@ private constructor(
          * Create a new [TypeItem] for [type] with the given [forceClassToBeNonNull] setting and for
          * the requested [typeParameterScope].
          */
-        private fun createTypeItem(typeParameterScope: TypeParameterScope): TypeItem {
-            return unCachedParseType(type, typeParameterScope, emptyList(), forceClassToBeNonNull)
+        private fun createTypeItem(typeParameterScope: TypeParameterScope, offset: Int): TypeItem {
+            return unCachedParseType(
+                type,
+                typeParameterScope,
+                emptyList(),
+                forceClassToBeNonNull,
+                offset,
+            )
         }
     }
 

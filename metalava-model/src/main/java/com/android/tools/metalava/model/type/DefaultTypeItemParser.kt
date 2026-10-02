@@ -79,17 +79,20 @@ open class DefaultTypeItemParser(
      * @param typeParameterScope the in-scope type parameters for resolving [VariableTypeItem]s.
      * @param contextNullability contextual nullability constraints (such as forced non-null for
      *   supertype clauses) to apply after parsing.
+     * @param offset the 0-based character offset of [type] within the original source.
      */
     override fun obtainTypeFromString(
         type: String,
         typeParameterScope: TypeParameterScope,
         contextNullability: ContextNullability,
+        offset: Int,
     ): TypeItem {
         val typeItem =
             parseTypeWithContextNullability(
                 type = type,
                 typeParameterScope = typeParameterScope,
                 contextNullability = contextNullability,
+                offset = offset,
             )
         return applyContextNullability(typeItem, contextNullability)
     }
@@ -131,6 +134,7 @@ open class DefaultTypeItemParser(
                 forceClassToBeNonNull = forceClassToBeNonNull,
                 unshortenAnnotations = unshortenAnnotations,
                 expectEndOfStream = false,
+                offset = 0,
             )
         return applyContextNullability(typeItem, contextNullability)
     }
@@ -189,6 +193,7 @@ open class DefaultTypeItemParser(
         annotations: List<AnnotationItem> = emptyList(),
         contextNullability: ContextNullability = ContextNullability.none,
         unshortenAnnotations: Boolean = this.unshortenAnnotations,
+        offset: Int = 0,
     ): TypeItem {
         // Class types used as super types, i.e. in an extends or implements list are forced to be
         // [TypeNullability.NONNULL], just as they would be if kotlinStyleNulls was true. Use the
@@ -205,9 +210,10 @@ open class DefaultTypeItemParser(
                 forceClassToBeNonNull = forceClassToBeNonNull,
                 unshortenAnnotations = unshortenAnnotations,
                 expectEndOfStream = true,
+                offset = offset,
             )
         } else {
-            parseType(type, typeParameterScope, annotations, forceClassToBeNonNull)
+            parseType(type, typeParameterScope, annotations, forceClassToBeNonNull, offset)
         }
     }
 
@@ -219,12 +225,14 @@ open class DefaultTypeItemParser(
      * @param annotations leading type-use annotations already detached from an enclosing array.
      * @param forceClassToBeNonNull if `true`, forces an outermost [ClassTypeItem] without a
      *   nullability suffix or nullness annotation to have [TypeNullability.NONNULL].
+     * @param offset the 0-based character offset of [type] within the original source.
      */
     protected open fun parseType(
         type: String,
         typeParameterScope: TypeParameterScope,
         annotations: List<AnnotationItem> = emptyList(),
         forceClassToBeNonNull: Boolean = false,
+        offset: Int = 0,
     ): TypeItem =
         parseTypeFromStream(
             tokens = SharedLexer(type).tokenize(),
@@ -234,6 +242,7 @@ open class DefaultTypeItemParser(
             forceClassToBeNonNull = forceClassToBeNonNull,
             unshortenAnnotations = unshortenAnnotations,
             expectEndOfStream = true,
+            offset = offset,
         )
 
     /**
@@ -280,12 +289,12 @@ open class DefaultTypeItemParser(
      *
      * @property annotations type-use annotations placed immediately after `.` before [name].
      * @property name the simple name of the nested class.
-     * @property typeArgStrings type argument strings `<...>` applied to this nested class segment.
+     * @property typeArgSlices type argument slices `<...>` applied to this nested class segment.
      */
     private class ClassSegment(
         val annotations: List<AnnotationItem>,
         val name: String,
-        val typeArgStrings: List<String>,
+        val typeArgSlices: List<TypeString>,
     )
 
     /**
@@ -316,6 +325,7 @@ open class DefaultTypeItemParser(
         forceClassToBeNonNull: Boolean,
         unshortenAnnotations: Boolean,
         expectEndOfStream: Boolean,
+        offset: Int,
     ): TypeItem {
         // Consume any leading `@Anno` tokens and combine them with annotations passed down from an
         // enclosing array type.
@@ -338,6 +348,7 @@ open class DefaultTypeItemParser(
                 typeParameterScope,
                 allLeadingAnnotations,
                 unshortenAnnotations,
+                offset,
             )
         }
 
@@ -349,6 +360,7 @@ open class DefaultTypeItemParser(
             forceClassToBeNonNull,
             unshortenAnnotations,
             expectEndOfStream,
+            offset,
         )
     }
 
@@ -365,6 +377,7 @@ open class DefaultTypeItemParser(
         typeParameterScope: TypeParameterScope,
         annotations: List<AnnotationItem>,
         unshortenAnnotations: Boolean,
+        offset: Int,
     ): WildcardTypeItem {
         val questionToken = tokens.consume()
         // Wildcard types always have UNDEFINED nullability.
@@ -387,6 +400,7 @@ open class DefaultTypeItemParser(
                         sourceText,
                         typeParameterScope,
                         unshortenAnnotations,
+                        offset,
                     )
                 TypeItem.createWildcardType(typeModifiers, extendsBound, null)
             }
@@ -400,6 +414,7 @@ open class DefaultTypeItemParser(
                         sourceText,
                         typeParameterScope,
                         unshortenAnnotations,
+                        offset,
                     )
                 TypeItem.createWildcardType(typeModifiers, objectType, superBound)
             }
@@ -410,7 +425,7 @@ open class DefaultTypeItemParser(
                     sourceText.substring(questionToken.startOffset, lastToken.endOffset)
                 errorReporter.report(
                     "Type starts with \"?\" but doesn't appear to be wildcard: $wildcardText",
-                    questionToken.startOffset,
+                    offset + questionToken.startOffset,
                 )
                 TypeItem.createWildcardType(typeModifiers, objectType, null)
             }
@@ -426,6 +441,7 @@ open class DefaultTypeItemParser(
         sourceText: String,
         typeParameterScope: TypeParameterScope,
         unshortenAnnotations: Boolean,
+        offset: Int,
     ): ReferenceTypeItem {
         val startOffset = tokens.peek().startOffset
         val lastToken = consumeUntilTypeBoundary(tokens)
@@ -434,6 +450,7 @@ open class DefaultTypeItemParser(
             boundType,
             typeParameterScope,
             unshortenAnnotations = unshortenAnnotations,
+            offset = offset + startOffset,
         )
             as ReferenceTypeItem
     }
@@ -450,6 +467,7 @@ open class DefaultTypeItemParser(
         forceClassToBeNonNull: Boolean,
         unshortenAnnotations: Boolean,
         expectEndOfStream: Boolean,
+        offset: Int,
     ): TypeItem {
         val baseStartOffset = tokens.peek().startOffset
         val firstToken = tokens.consume()
@@ -477,6 +495,7 @@ open class DefaultTypeItemParser(
                     leadingAnnotations,
                     unshortenAnnotations,
                     baseStartOffset,
+                    offset,
                 )
             }
 
@@ -486,6 +505,7 @@ open class DefaultTypeItemParser(
                     baseNullToken,
                     baseStartOffset,
                     baseSliceEnd,
+                    offset,
                 )
             val simpleName = firstToken.text
 
@@ -510,6 +530,7 @@ open class DefaultTypeItemParser(
                     nullability,
                     baseStartOffset,
                     baseSliceEnd,
+                    offset,
                 )
                 ?.let {
                     return it
@@ -525,7 +546,7 @@ open class DefaultTypeItemParser(
                     unqualifiedClassHandler.handleUnqualifiedType(
                         errorReporter,
                         simpleName,
-                        baseStartOffset,
+                        offset + baseStartOffset,
                     )
                 }
             val defaultNullability = if (forceClassToBeNonNull) TypeNullability.NONNULL else null
@@ -581,12 +602,12 @@ open class DefaultTypeItemParser(
                 nameBuilder?.toString() ?: sourceText.substring(baseStartOffset, baseEndOffset)
         }
 
-        // If the outer class is parameterized (`Outer<P1>`), scan its type argument strings.
-        var outerTypeArgStrings: List<String> = emptyList()
+        // If the outer class is parameterized (`Outer<P1>`), scan its type argument slices.
+        var outerTypeArgSlices: List<TypeString> = emptyList()
         var lastSegmentHadTypeArgs = false
         if (tokens.peekType() == SharedTokenType.ANGLE_OPEN) {
-            val (argStrings, angleEndOffset) = scanTypeArguments(tokens, sourceText)
-            outerTypeArgStrings = argStrings
+            val (argSlices, angleEndOffset) = scanTypeArguments(tokens, sourceText)
+            outerTypeArgSlices = argSlices
             baseEndOffset = angleEndOffset
             lastSegmentHadTypeArgs = true
         }
@@ -600,11 +621,11 @@ open class DefaultTypeItemParser(
             val innerAnnotations = parseAnnotations(tokens, sourceText, unshortenAnnotations)
             val innerIdent = tokens.consume()
             baseEndOffset = innerIdent.endOffset
-            var innerTypeArgStrings: List<String> = emptyList()
+            var innerTypeArgSlices: List<TypeString> = emptyList()
             lastSegmentHadTypeArgs = false
             if (tokens.peekType() == SharedTokenType.ANGLE_OPEN) {
-                val (argStrings, angleEndOffset) = scanTypeArguments(tokens, sourceText)
-                innerTypeArgStrings = argStrings
+                val (argSlices, angleEndOffset) = scanTypeArguments(tokens, sourceText)
+                innerTypeArgSlices = argSlices
                 baseEndOffset = angleEndOffset
                 lastSegmentHadTypeArgs = true
             }
@@ -615,7 +636,7 @@ open class DefaultTypeItemParser(
                 ClassSegment(
                     innerAnnotations,
                     innerIdent.text,
-                    innerTypeArgStrings,
+                    innerTypeArgSlices,
                 )
             )
         }
@@ -631,7 +652,7 @@ open class DefaultTypeItemParser(
             val remainderText = sourceText.substring(remainderStart, lastUnexpected.endOffset)
             errorReporter.report(
                 "Could not parse type `$fullText`. Found unexpected string after type parameters: $remainderText",
-                remainderStart,
+                offset + remainderStart,
             )
         }
 
@@ -649,6 +670,7 @@ open class DefaultTypeItemParser(
                 leadingAnnotations,
                 unshortenAnnotations,
                 baseStartOffset,
+                offset,
             )
         }
 
@@ -658,6 +680,7 @@ open class DefaultTypeItemParser(
                 baseNullToken,
                 baseStartOffset,
                 baseSliceEnd,
+                offset,
             )
 
         // Resolve the outer class's qualified name and parse its type arguments.
@@ -668,15 +691,16 @@ open class DefaultTypeItemParser(
                 unqualifiedClassHandler.handleUnqualifiedType(
                     errorReporter,
                     outerRawName,
-                    baseStartOffset,
+                    offset + baseStartOffset,
                 )
             }
         val outerTypeArgs =
-            outerTypeArgStrings.map { argType ->
+            outerTypeArgSlices.map { arg ->
                 parseTypeWithContextNullability(
-                    argType,
+                    arg.type,
                     typeParameterScope,
                     unshortenAnnotations = unshortenAnnotations,
+                    offset = offset + arg.offset,
                 )
                     as TypeArgumentTypeItem
             }
@@ -724,11 +748,12 @@ open class DefaultTypeItemParser(
                         )
                     }
                 val segmentTypeArgs =
-                    segment.typeArgStrings.map { argType ->
+                    segment.typeArgSlices.map { arg ->
                         parseTypeWithContextNullability(
-                            argType,
+                            arg.type,
                             typeParameterScope,
                             unshortenAnnotations = unshortenAnnotations,
+                            offset = offset + arg.offset,
                         )
                             as TypeArgumentTypeItem
                     }
@@ -760,6 +785,7 @@ open class DefaultTypeItemParser(
         nullability: TypeNullability?,
         startOffset: Int,
         endOffset: Int,
+        offset: Int,
     ): PrimitiveTypeItem? {
         val kind =
             when (name) {
@@ -778,7 +804,7 @@ open class DefaultTypeItemParser(
             val original = sourceText.substring(startOffset, endOffset)
             errorReporter.report(
                 "Invalid nullability suffix on primitive: $original",
-                startOffset,
+                offset + startOffset,
             )
         }
         // Primitives are always non-null.
@@ -805,6 +831,7 @@ open class DefaultTypeItemParser(
         leadingAnnotations: List<AnnotationItem>,
         unshortenAnnotations: Boolean,
         baseStartOffset: Int,
+        offset: Int,
     ): ArrayTypeItem {
         // Consume all consecutive array dimensions (`@Anno []?` or `@Anno ...?`).
         val dimensions = mutableListOf<ArrayDimension>()
@@ -847,6 +874,7 @@ open class DefaultTypeItemParser(
                     dimensions[i].nullToken,
                     baseStartOffset,
                     dimensions[i].endOffset,
+                    offset,
                 )
         }
 
@@ -858,6 +886,7 @@ open class DefaultTypeItemParser(
                 typeParameterScope,
                 leadingAnnotations,
                 unshortenAnnotations = unshortenAnnotations,
+                offset = offset + baseStartOffset,
             )
 
         // Build nested ArrayTypeItems from the innermost 1D array outward to the N-D array.
@@ -981,6 +1010,7 @@ open class DefaultTypeItemParser(
         nullToken: Token?,
         startOffset: Int,
         endOffset: Int,
+        offset: Int,
     ): TypeNullability? {
         if (nullToken == null) return null
         return if (kotlinStyleNulls) {
@@ -993,7 +1023,7 @@ open class DefaultTypeItemParser(
             val typeSlice = sourceText.substring(startOffset, endOffset)
             errorReporter.report(
                 "Format does not support Kotlin-style null type syntax: $typeSlice",
-                nullToken.startOffset,
+                offset + nullToken.startOffset,
             )
             TypeNullability.PLATFORM
         }
@@ -1079,21 +1109,21 @@ open class DefaultTypeItemParser(
                 } else {
                     s.substring(endOffset)
                 }
-            return Pair(list, remainder)
+            return Pair(list.map { it.type }, remainder)
         }
 
         /**
          * Consumes a `<...>` type argument/parameter list from [tokens] and returns the list of
-         * type argument strings sliced from [sourceText] along with the exclusive end offset of the
-         * closing `>` (or `-1` if unclosed).
+         * [TypeString]s sliced from [sourceText] along with the exclusive end offset of the closing
+         * `>` (or `-1` if unclosed).
          */
         private fun scanTypeArguments(
             tokens: TokenStream,
             sourceText: String,
-        ): Pair<List<String>, Int> {
+        ): Pair<List<TypeString>, Int> {
             val openAngle = tokens.consume() // consume '<'
             var endOffset = openAngle.endOffset
-            val args = mutableListOf<String>()
+            val args = mutableListOf<TypeString>()
             var angleDepth = 1
             var parenDepth = 0
             var argStartOffset = -1
@@ -1127,7 +1157,12 @@ open class DefaultTypeItemParser(
                         if (angleDepth == 0) {
                             // Reached the closing `>` of the outermost type argument list.
                             if (argStartOffset != -1) {
-                                args.add(sourceText.substring(argStartOffset, argEndOffset))
+                                args.add(
+                                    TypeString(
+                                        sourceText.substring(argStartOffset, argEndOffset),
+                                        argStartOffset,
+                                    )
+                                )
                             }
                             return Pair(args, endOffset)
                         } else {
@@ -1139,7 +1174,12 @@ open class DefaultTypeItemParser(
                         if (angleDepth == 1 && parenDepth == 0) {
                             // Top-level comma separating type arguments.
                             if (argStartOffset != -1) {
-                                args.add(sourceText.substring(argStartOffset, argEndOffset))
+                                args.add(
+                                    TypeString(
+                                        sourceText.substring(argStartOffset, argEndOffset),
+                                        argStartOffset,
+                                    )
+                                )
                                 argStartOffset = -1
                                 argEndOffset = -1
                             }
@@ -1154,7 +1194,15 @@ open class DefaultTypeItemParser(
                     }
                 }
             }
-            return Pair(emptyList(), -1)
+            return Pair(args, -1)
         }
     }
 }
+
+/**
+ * Pairs a sliced [type] string with its 0-based character [offset] in the enclosing source text.
+ */
+data class TypeString(
+    val type: String,
+    val offset: Int = 0,
+)

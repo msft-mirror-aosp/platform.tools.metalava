@@ -27,11 +27,14 @@ interface TypeItemParser {
     /**
      * Creates or retrieves from the cache a [TypeItem] representing [type], in the context of the
      * type parameters from [typeParameterScope], if applicable.
+     *
+     * @param offset the 0-based character offset of [type] within the original source.
      */
     fun obtainTypeFromString(
         type: String,
         typeParameterScope: TypeParameterScope = TypeParameterScope.empty,
         contextNullability: ContextNullability = ContextNullability.none,
+        offset: Int = 0,
     ): TypeItem
 
     /**

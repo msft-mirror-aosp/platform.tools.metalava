@@ -245,7 +245,7 @@ class ParameterizedTypeItemParserTest {
                             nullability = TypeNullability.PLATFORM,
                         ),
                     expectedIssues =
-                        "0: Type starts with \"?\" but doesn't appear to be wildcard: ? blah1 [TypeParseError]",
+                        "11: Type starts with \"?\" but doesn't appear to be wildcard: ? blah1 [TypeParseError]",
                 ),
             )
 
