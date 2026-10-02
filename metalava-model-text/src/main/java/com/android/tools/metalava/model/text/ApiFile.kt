@@ -692,12 +692,12 @@ internal class SingleSignatureFileParser(
     /**
      * Report a recoverable issue encountered while parsing.
      *
-     * Retrieves the location of the error from [tokenizer].
+     * Retrieves the location of the error for [token] from [fileLocation].
      *
      * Note: Non-recoverable issues result in an exception being thrown.
      */
-    private fun reportIssue(issue: Issues.Issue, message: String) {
-        val location = tokenizer.fileLocation()
+    private fun reportIssue(issue: Issues.Issue, message: String, token: Token) {
+        val location = fileLocation(token)
         codebase.reporter.report(issue, null, message, location)
     }
 
@@ -1370,25 +1370,23 @@ internal class SingleSignatureFileParser(
 
         // Get a TypeParameterList and accompanying TypeItemFactory
         val (typeParameterList, typeItemFactory) = parseTypeParameterList(classTypeItemFactory)
-        var token = tokenizer.requireToken()
 
-        tokenizer.assertIdent(token)
         // For nested classes, strip outer classes from name
-        val name: String = token.extractSimpleName()
+        val name: String = parseQualifiedName().extractSimpleName()
         val parameters = parseParameterList()
-        token = tokenizer.requireToken()
+        // Parse the optional `throws` clause and terminating `;`.
         var throwsList = emptyList<ExceptionTypeItem>()
-        if ("throws" == token) {
+        if (match(SignatureTokenType.THROWS)) {
             throwsList = parseThrows(typeItemFactory)
-            token = tokenizer.requireToken()
         }
-        if (";" != token) {
-            throw ApiParseException("expected ; found $token", tokenizer)
+        val semicolon = requireNonEofToken()
+        if (semicolon.type != SignatureTokenType.SEMICOLON) {
+            throw parseException("expected ; found ${text(semicolon)}", semicolon)
         }
 
         method =
             itemFactory.createConstructorItem(
-                fileLocation = tokenizer.fileLocation(),
+                fileLocation = fileLocation(semicolon),
                 modifiers = modifiers,
                 documentationFactory = ItemDocumentation.NONE_FACTORY,
                 name = name,
@@ -1429,33 +1427,31 @@ internal class SingleSignatureFileParser(
         // Get a TypeParameterList and accompanying TypeParameterScope
         val (typeParameterList, typeItemFactory) = parseTypeParameterList(classTypeItemFactory)
 
-        var token: String
         val returnTypeString: TypeString
         val parameters: List<ParameterInfo>
         val name: String
         if (kotlinNameTypeOrder) {
-            // Kotlin style: parse the name, the parameter list, then the return type.
-            token = tokenizer.requireToken()
-            tokenizer.assertIdent(token)
-            name = token
+            // Kotlin style: parse the name, the parameter list, the `:` separator, then the return
+            // type.
+            val nameToken = requireNonEofToken()
+            assertIdent(nameToken)
+            name = text(nameToken)
             parameters = parseParameterList()
-            token = tokenizer.requireToken()
-            if (token != ":") {
-                throw ApiParseException(
-                    "Expecting \":\" after parameter list, found $token.",
-                    tokenizer
+            val colonToken = requireNonEofToken()
+            if (colonToken.type != SharedTokenType.COLON) {
+                throw parseException(
+                    "Expecting \":\" after parameter list, found ${text(colonToken)}.",
+                    colonToken,
                 )
             }
             returnTypeString = scanForTypeString()
-            token = tokenizer.requireToken()
         } else {
             // Java style: parse the return type, the name, and then the parameter list.
             returnTypeString = scanForTypeString()
-            token = tokenizer.requireToken()
-            tokenizer.assertIdent(token)
-            name = token
+            val nameToken = requireNonEofToken()
+            assertIdent(nameToken)
+            name = text(nameToken)
             parameters = parseParameterList()
-            token = tokenizer.requireToken()
         }
 
         val returnType =
@@ -1474,18 +1470,19 @@ internal class SingleSignatureFileParser(
         var throwsList = emptyList<ExceptionTypeItem>()
         var defaultAnnotationMethodValue: String? = null
 
-        when (token) {
-            "throws" -> {
+        // Parse an optional `throws` clause or annotation method `default` value before the
+        // terminating `;`.
+        when {
+            match(SignatureTokenType.THROWS) -> {
                 throwsList = parseThrows(typeItemFactory)
-                token = tokenizer.requireToken()
             }
-            "default" -> {
+            match(SignatureTokenType.DEFAULT) -> {
                 defaultAnnotationMethodValue = scanValueUntilSemicolon()
-                token = tokenizer.requireToken()
             }
         }
-        if (";" != token) {
-            throw ApiParseException("expected ; found $token", tokenizer)
+        val semicolon = requireNonEofToken()
+        if (semicolon.type != SignatureTokenType.SEMICOLON) {
+            throw parseException("expected ; found ${text(semicolon)}", semicolon)
         }
 
         val defaultValueProvider =
@@ -1495,7 +1492,7 @@ internal class SingleSignatureFileParser(
 
         method =
             itemFactory.createMethodItem(
-                fileLocation = tokenizer.fileLocation(),
+                fileLocation = fileLocation(semicolon),
                 modifiers = modifiers,
                 documentationFactory = ItemDocumentation.NONE_FACTORY,
                 name = name,
@@ -1558,27 +1555,26 @@ internal class SingleSignatureFileParser(
     ) {
         val (modifiers, targetLanguages) = parseModifiersAndTargetLanguages()
 
-        var token: String
         val typeString: TypeString
         val name: String
         if (kotlinNameTypeOrder) {
             // Kotlin style: parse the name, then the type.
             name = parseNameWithColon()
             typeString = scanForTypeString()
-            token = tokenizer.requireToken()
         } else {
             // Java style: parse the type, then the name.
             typeString = scanForTypeString()
-            token = tokenizer.requireToken()
-            tokenizer.assertIdent(token)
-            name = token
-            token = tokenizer.requireToken()
+            val nameToken = requireNonEofToken()
+            assertIdent(nameToken)
+            name = text(nameToken)
         }
+        var token = requireNonEofToken()
 
-        // Get the optional value.
+        // If an `=` follows, scan the field's initial value up to the terminating `;` and then
+        // consume that `;`.
         val valueString =
-            if ("=" == token) {
-                scanValueUntilSemicolon().also { token = tokenizer.requireToken() }
+            if (token.type == SharedTokenType.EQUALS) {
+                scanValueUntilSemicolon().also { token = requireNonEofToken() }
             } else null
 
         // Parse the type string and then synchronize the field's nullability with the type.
@@ -1602,18 +1598,19 @@ internal class SingleSignatureFileParser(
                     // Report that the value is being ignored.
                     reportIssue(
                         Issues.SIGNATURE_FILE_ERROR,
-                        "Field $name in $containingClass has a value of `$valueString` but is not `static` and `final`; ignoring value"
+                        "Field $name in $containingClass has a value of `$valueString` but is not `static` and `final`; ignoring value",
+                        token,
                     )
                     null
                 }
             } else null
 
-        if (";" != token) {
-            throw ApiParseException("expected ; found $token", tokenizer)
+        if (token.type != SignatureTokenType.SEMICOLON) {
+            throw parseException("expected ; found ${text(token)}", token)
         }
         val field =
             itemFactory.createFieldItem(
-                fileLocation = tokenizer.fileLocation(),
+                fileLocation = fileLocation(token),
                 modifiers = modifiers,
                 documentationFactory = ItemDocumentation.NONE_FACTORY,
                 name = name,
