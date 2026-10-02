@@ -320,8 +320,8 @@ private constructor(
             formatForLegacyFiles: FileFormat? = null,
             /** Whether different signature files can have non-equivalent modifiers for a class. */
             allowClassModifierChanges: Boolean = false,
-            // Provides the called with access to the ApiFile.
-            apiStatsConsumer: (Stats) -> Unit = {},
+            /** Provides the caller with access to the [TextTypeParser.Stats]. */
+            apiStatsConsumer: (TextTypeParser.Stats) -> Unit = {},
         ): Codebase {
             require(signatureFiles.isNotEmpty()) { "files must not be empty" }
             val actualDescription =
@@ -352,7 +352,7 @@ private constructor(
             // Update implicit permit types in any sealed class that does not have one provided.
             SealedClassImplicitPermitTypesUpdater.updateImplicitPermitTypes(codebase)
 
-            apiStatsConsumer(parser.stats)
+            apiStatsConsumer(parser.typeParser.stats())
             return codebase
         }
 
@@ -531,24 +531,6 @@ private constructor(
             defaultTargetLanguageSet = defaultTargetLanguageSet,
             classMerger = classMerger,
         )
-
-    private val stats
-        get() =
-            Stats(
-                codebase.getPackages().allClasses().count(),
-                typeParser.requests,
-                typeParser.cacheSkip,
-                typeParser.cacheHit,
-                typeParser.cacheSize,
-            )
-
-    data class Stats(
-        val totalClasses: Int,
-        val typeCacheRequests: Int,
-        val typeCacheSkip: Int,
-        val typeCacheHit: Int,
-        val typeCacheSize: Int,
-    )
 }
 
 /**

@@ -35,7 +35,7 @@ import com.android.tools.metalava.model.type.UnqualifiedClassHandler
 import com.android.tools.metalava.reporter.Issues
 
 /** Parses and caches types within a [annotationContext]. */
-internal class TextTypeParser
+class TextTypeParser
 private constructor(
     annotationContext: AnnotationContext,
     kotlinStyleNulls: Boolean,
@@ -52,7 +52,7 @@ private constructor(
      * Secondary constructor that will wrap the [errorReporter] it is given in a
      * [CountingErrorReporter] before calling the primary constructor.
      */
-    constructor(
+    internal constructor(
         annotationContext: AnnotationContext,
         kotlinStyleNulls: Boolean = false,
         errorReporter: TypeItemParserErrorReporter = TypeItemParserErrorReporter.THROWING,
@@ -76,10 +76,34 @@ private constructor(
     /** The cache from [Key] to [CacheEntry]. */
     private val typeCache = HashMap<Key, CacheEntry>()
 
-    internal var requests = 0
-    internal var cacheSkip = 0
-    internal var cacheHit = 0
-    internal var cacheSize = 0
+    private var requests = 0
+    private var cacheSkip = 0
+    private var cacheHit = 0
+    private var cacheSize = 0
+
+    /** Get the cache statistics for this [TextTypeParser]. */
+    fun stats() =
+        Stats(
+            typeCacheRequests = requests,
+            typeCacheSkip = cacheSkip,
+            typeCacheHit = cacheHit,
+            typeCacheSize = cacheSize,
+        )
+
+    /** Statistics about the cache behavior of [TextTypeParser]. */
+    data class Stats(
+        /** The total number of requests made to [parseType]. */
+        val typeCacheRequests: Int,
+
+        /** The number of requests that skipped the cache due to type-use annotations. */
+        val typeCacheSkip: Int,
+
+        /** The number of requests that resulted in a cache hit. */
+        val typeCacheHit: Int,
+
+        /** The total number of [TypeItem]s stored in the cache. */
+        val typeCacheSize: Int,
+    )
 
     /** Override [parseType] to cache the result, if possible. */
     override fun parseType(
