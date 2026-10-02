@@ -900,15 +900,13 @@ internal class SingleSignatureFileParser(
             typeItemFactory,
         ) = parseDeclaredClassType(pkg, classPosition)
 
-        tokenizer.requireToken()
-
         var superClassType = parseSuperClassType(classKind, typeItemFactory)
         val interfaceTypes = parseInterfaceTypes(classKind, typeItemFactory)
         val permitTypes = parsePermitTypes(typeItemFactory)
 
-        token = tokenizer.current
-        if ("{" != token) {
-            throw ApiParseException("expected {, was $token", tokenizer)
+        val openBrace = requireNonEofToken()
+        if (openBrace.type != SharedTokenType.BRACE_OPEN) {
+            throw parseException("expected {, was ${text(openBrace)}", openBrace)
         }
 
         // Above we marked all enums as static but for a top level class it's implicit
@@ -1056,17 +1054,14 @@ internal class SingleSignatureFileParser(
     /**
      * Parses the optional `extends <superclass>` clause for a non-interface class, falling back to
      * [ClassKind.implicitSuperClassType] if none is present.
-     *
-     * Starts at [Tokenizer.current] and leaves [Tokenizer.current] at the first token after the
-     * `extends` clause (or unchanged if none is present).
      */
     private fun parseSuperClassType(
         classKind: ClassKind,
         typeItemFactory: TextTypeItemFactory,
     ): ClassTypeItem? {
         // Interfaces use `extends` for super-interfaces rather than a superclass.
-        if ("extends" == tokenizer.current && classKind != ClassKind.INTERFACE) {
-            tokenizer.requireToken()
+        if (peekType() == SharedTokenType.EXTENDS && classKind != ClassKind.INTERFACE) {
+            consume()
             val superClassTypeString = parseSuperTypeString()
             return typeItemFactory.getSuperClassType(superClassTypeString)
         }
@@ -1076,9 +1071,6 @@ internal class SingleSignatureFileParser(
     /**
      * Parses the optional `implements` (or `extends` for interfaces) clause and combines it with
      * any [ClassKind.implicitInterfaceType].
-     *
-     * Starts at [Tokenizer.current] and leaves [Tokenizer.current] at the first token after the
-     * clause (or unchanged if none is present).
      */
     private fun parseInterfaceTypes(
         classKind: ClassKind,
@@ -1089,21 +1081,22 @@ internal class SingleSignatureFileParser(
         // Add any ClassKind specific implicit interface types.
         classKind.implicitInterfaceType?.let { interfaceType -> interfaceTypes.add(interfaceType) }
 
-        var token = tokenizer.current
-        if ("implements" == token || "extends" == token) {
-            token = tokenizer.requireToken()
+        if (peekType() == SignatureTokenType.IMPLEMENTS || peekType() == SharedTokenType.EXTENDS) {
+            consume()
             // Consume super-interface types separated by optional commas until the class body `{`
             // or a `permits` clause is reached.
             while (true) {
-                if (token == "{" || token == "permits") {
+                val nextType = peekType()
+                if (
+                    nextType == SharedTokenType.BRACE_OPEN || nextType == SignatureTokenType.PERMITS
+                ) {
                     break
-                } else if ("," != token) {
+                } else if (nextType != SharedTokenType.COMMA) {
                     val interfaceTypeString = parseSuperTypeString()
                     val interfaceType = typeItemFactory.getInterfaceType(interfaceTypeString)
                     interfaceTypes.add(interfaceType)
-                    token = tokenizer.current
                 } else {
-                    token = tokenizer.requireToken()
+                    consume()
                 }
             }
         }
@@ -1113,28 +1106,18 @@ internal class SingleSignatureFileParser(
     /**
      * Parses the optional `permits` clause for a sealed class or interface, returning the permitted
      * subclass types sorted by qualified name.
-     *
-     * Starts at [Tokenizer.current] and leaves [Tokenizer.current] at the first token after the
-     * clause (or unchanged if none is present).
      */
     private fun parsePermitTypes(
         typeItemFactory: TextTypeItemFactory,
     ): List<ClassTypeItem> {
         val permitTypes = mutableListOf<ClassTypeItem>()
 
-        var token = tokenizer.current
-        if (token == "permits") {
-            token = tokenizer.requireToken()
+        if (match(SignatureTokenType.PERMITS)) {
             // Consume permitted subclass types up to the opening `{` of the class body.
-            while (true) {
-                if ("{" == token) {
-                    break
-                } else {
-                    val typeString = parseSuperTypeString()
-                    val permitsType = typeItemFactory.getHierarchicalClassType(typeString)
-                    permitTypes.add(permitsType)
-                    token = tokenizer.current
-                }
+            while (peekType() != SharedTokenType.BRACE_OPEN) {
+                val typeString = parseSuperTypeString()
+                val permitsType = typeItemFactory.getHierarchicalClassType(typeString)
+                permitTypes.add(permitsType)
             }
             permitTypes.sortWith(TypeItem.qualifiedComparator)
         }
@@ -1142,36 +1125,67 @@ internal class SingleSignatureFileParser(
     }
 
     /**
-     * Parse a super type string, i.e. a string representing a super class type or a super interface
-     * type.
+     * Skips any leading `@...` type-use annotations and consumes the following identifier token,
+     * returning the `endOffset` of that identifier token.
+     */
+    private fun skipAnnotatedIdentifier(): Int {
+        while (peekType() == SharedTokenType.AT) {
+            skipAnnotation()
+        }
+        val identToken = requireNonEofToken()
+        assertIdent(identToken)
+        return identToken.endOffset
+    }
+
+    /**
+     * Skips a balanced `<...>` type argument list starting at the next `<` token in [tokenizer],
+     * along with any immediately adjacent identifier token following `>`, returning the `endOffset`
+     * of the last consumed token.
+     */
+    private fun skipTypeArgumentList(): Int {
+        var endOffset = skipAngleBracketList()
+        // Include any identifier token immediately adjacent to the closing `>` (without intervening
+        // whitespace).
+        if (peek().startOffset == endOffset && peekType().canBeIdentifier) {
+            endOffset = consume().endOffset
+        }
+        return endOffset
+    }
+
+    /**
+     * Parse a super type string, i.e. a string representing a super class type, super interface
+     * type, or permitted subclass type.
      */
     private fun parseSuperTypeString(): TypeString {
-        val startOffset = tokenizer.offset() - tokenizer.current.length
-        var token = getAnnotationCompleteToken()
+        val firstToken = peek()
+        if (firstToken.type == SharedTokenType.EOF) {
+            throw parseException("Unexpected end of file", firstToken)
+        }
+        val startOffset = firstToken.startOffset
 
-        // Use the token directly if it is complete, otherwise construct the super class type
-        // string from as many tokens as necessary.
-        val text =
-            if (!isIncompleteTypeToken(token)) {
-                token
-            } else {
-                buildString {
-                    append(token)
+        // Consume the initial (possibly annotated) identifier segment of the type.
+        var endOffset = skipAnnotatedIdentifier()
 
-                    // Make sure full super class name is found if there are type use
-                    // annotations. This can't use [parseType] because the next token might be a
-                    // separate type (classes only have a single `extends` type, but all
-                    // interface supertypes are listed as `extends` instead of `implements`).
-                    // However, this type cannot be an array, so unlike [parseType] this does
-                    // not need to check if the next token has annotations.
-                    do {
-                        token = getAnnotationCompleteToken()
-                        append(" ")
-                        append(token)
-                    } while (isIncompleteTypeToken(token))
+        // Continue consuming qualified segments (`.Foo`), type argument lists (`<...>`), and
+        // Kotlin nullability suffixes (`?` or `!`).
+        while (true) {
+            when (peekType()) {
+                SharedTokenType.DOT -> {
+                    consume()
+                    endOffset = skipAnnotatedIdentifier()
                 }
+                SharedTokenType.ANGLE_OPEN -> {
+                    endOffset = skipTypeArgumentList()
+                }
+                SharedTokenType.QUESTION,
+                SharedTokenType.EXCLAMATION -> {
+                    endOffset = consume().endOffset
+                }
+                else -> break
             }
-        return TypeString(text, startOffset)
+        }
+
+        return TypeString(fileSubstring(startOffset, endOffset), startOffset)
     }
 
     /** Encapsulates multiple return values from [parseDeclaredClassType]. */
