@@ -233,7 +233,7 @@ private constructor(
     /**
      * The [FileLocationTracker] for the current file being parsed.
      *
-     * Set by [parseApiSingleFile].
+     * Set by [parseMultipleFiles].
      */
     private lateinit var fileLocationTracker: FileLocationTracker
 
@@ -490,46 +490,31 @@ private constructor(
             previousKotlinStyleNulls = kotlinStyleNullsForThisFile
             deferredKotlinStyleNulls = kotlinStyleNullsForThisFile
 
-            parseApiSingleFile(
-                appending = appending,
-                path = path,
-                apiText = apiText,
-                format = format,
-                apiVariant = apiVariant,
-            )
+            val tokenizer = Tokenizer(path, apiText, ::ApiParseException)
+
+            // Set the file location tracker to provide location information about the current file.
+            fileLocationTracker = tokenizer
+
+            val parser =
+                SingleSignatureFileParser(
+                    assembler = assembler,
+                    typeParser = typeParser,
+                    globalTypeItemFactory = globalTypeItemFactory,
+                    valueParser = valueParser,
+                    defaultTargetLanguageSet = defaultTargetLanguageSet,
+                    classMerger = classMerger,
+                    tokenizer = tokenizer,
+                    appending = appending,
+                    kotlinStyleNulls = kotlinStyleNulls,
+                    kotlinNameTypeOrder = format[KOTLIN_NAME_TYPE_ORDER],
+                    apiVariant = apiVariant,
+                )
+            parser.parse()
+
             appending = true
         }
 
         classMerger.performAnyDeferredMerges()
-    }
-
-    private fun parseApiSingleFile(
-        appending: Boolean,
-        path: Path,
-        apiText: String,
-        format: FileFormat,
-        apiVariant: ApiVariant,
-    ) {
-        val tokenizer = Tokenizer(path, apiText, ::ApiParseException)
-
-        // Set the file location tracker to provide location information about the current file.
-        fileLocationTracker = tokenizer
-
-        val parser =
-            SingleSignatureFileParser(
-                assembler = assembler,
-                typeParser = typeParser,
-                globalTypeItemFactory = globalTypeItemFactory,
-                valueParser = valueParser,
-                defaultTargetLanguageSet = defaultTargetLanguageSet,
-                classMerger = classMerger,
-                tokenizer = tokenizer,
-                appending = appending,
-                kotlinStyleNulls = kotlinStyleNulls,
-                kotlinNameTypeOrder = format[KOTLIN_NAME_TYPE_ORDER],
-                apiVariant = apiVariant,
-            )
-        parser.parse()
     }
 
     private val stats
