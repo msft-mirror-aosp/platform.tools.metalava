@@ -20,6 +20,7 @@ import com.android.tools.metalava.model.provider.InputFormat
 import com.android.tools.metalava.model.source.doc.DocContentPredicates
 import com.android.tools.metalava.model.testing.SupportedInputFormats
 import com.android.tools.metalava.model.testsuite.BaseModelTest
+import com.android.tools.metalava.testing.html
 import com.android.tools.metalava.testing.java
 import kotlin.test.assertTrue
 import org.junit.Test
@@ -232,6 +233,64 @@ class CommonDocReferenceTest : BaseModelTest() {
             assertAndRemoveReportedIssues(
                 // TODO(b/447588621): Should report an issue about the #invalid(...) reference.
                 ""
+            )
+        }
+    }
+
+    @SupportedInputFormats(InputFormat.JAVA)
+    @Test
+    fun `Test link tag in package-html`() {
+        runCodebaseTest(
+            inputSet(
+                java(
+                    """
+                        package test.pkg;
+                        public class Test {
+                            public int field;
+                            public void method(Test t, String s) {}
+                        }
+                    """
+                ),
+                html(
+                    "src/test/pkg/package.html",
+                    """
+                        <HTML>
+                        <BODY>
+                        {@link String}
+                        {@link String#length()}
+                        {@link Test}
+                        {@link Test#field}
+                        {@link Test#method(Test,String)}
+                        </BODY>
+                        </HTML>
+                    """
+                ),
+            ),
+        ) {
+            val testPackage = codebase.assertPackage("test.pkg")
+            // TODO(b/568477816): `String` references in `package.html` are not resolved to
+            //  `java.lang.String` because `DefaultPackageItem.resolveNameInThisPackage` does not
+            //  check `java.lang` when `sourceFile == null`.
+            testPackage.assertPrintedDocumentation(
+                expectedOutput =
+                    """
+                        /**
+                         * {@link String}
+                         * {@link String#length()}
+                         * {@link test.pkg.Test Test}
+                         * {@link test.pkg.Test#field Test.field}
+                         * {@link test.pkg.Test#method(test.pkg.Test,String) Test.method(Test,String)}
+                         */
+                    """,
+            )
+
+            assertAndRemoveReportedIssues(
+                // TODO(b/568477816): Should not report UnresolvedLink for `String` in
+                //  `package.html`.
+                """
+                    warning: Could not resolve a class called 'String' in 'package test.pkg' (ErrorWhenNew) [UnresolvedLink]
+                    warning: Could not resolve a class called 'String' in 'package test.pkg' (ErrorWhenNew) [UnresolvedLink]
+                """
             )
         }
     }
