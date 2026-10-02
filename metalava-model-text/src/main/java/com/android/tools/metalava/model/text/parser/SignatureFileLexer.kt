@@ -36,6 +36,36 @@ internal object SignatureTokenType {
     // Top-level & Class Kind Keywords (note: CLASS and EXTENDS are in SharedTokenType)
     val ANNOTATION_INTERFACE = TokenType("ANNOTATION_INTERFACE")
 
+    // Class Hierarchy & Member Clause Keywords
+    val DEFAULT = TokenType("DEFAULT", canBeIdentifier = true)
+
+    // Visibility & Modifier Keywords
+    val PUBLIC = TokenType("PUBLIC", canBeIdentifier = true)
+    val PROTECTED = TokenType("PROTECTED", canBeIdentifier = true)
+    val PRIVATE = TokenType("PRIVATE", canBeIdentifier = true)
+    val INTERNAL = TokenType("INTERNAL", canBeIdentifier = true)
+    val STATIC = TokenType("STATIC", canBeIdentifier = true)
+    val FINAL = TokenType("FINAL", canBeIdentifier = true)
+    val DEPRECATED = TokenType("DEPRECATED", canBeIdentifier = true)
+    val ABSTRACT = TokenType("ABSTRACT", canBeIdentifier = true)
+    val TRANSIENT = TokenType("TRANSIENT", canBeIdentifier = true)
+    val VOLATILE = TokenType("VOLATILE", canBeIdentifier = true)
+    val SEALED = TokenType("SEALED", canBeIdentifier = true)
+    val NON_SEALED = TokenType("NON_SEALED")
+    val EXHAUSTIVE = TokenType("EXHAUSTIVE", canBeIdentifier = true)
+    val NON_EXHAUSTIVE = TokenType("NON_EXHAUSTIVE")
+    val SYNCHRONIZED = TokenType("SYNCHRONIZED", canBeIdentifier = true)
+    val NATIVE = TokenType("NATIVE", canBeIdentifier = true)
+    val STRICTFP = TokenType("STRICTFP", canBeIdentifier = true)
+    val INFIX = TokenType("INFIX", canBeIdentifier = true)
+    val OPERATOR = TokenType("OPERATOR", canBeIdentifier = true)
+    val INLINE = TokenType("INLINE", canBeIdentifier = true)
+    val VALUE = TokenType("VALUE", canBeIdentifier = true)
+    val SUSPEND = TokenType("SUSPEND", canBeIdentifier = true)
+    val VARARG = TokenType("VARARG", canBeIdentifier = true)
+    val FUN = TokenType("FUN", canBeIdentifier = true)
+    val DATA = TokenType("DATA", canBeIdentifier = true)
+
     // Parameter Modifier Keywords
     val OPTIONAL = TokenType("OPTIONAL", canBeIdentifier = true)
     val CONTEXT = TokenType("CONTEXT", canBeIdentifier = true)
@@ -110,13 +140,27 @@ internal class SignatureFileLexer(
     }
 
     /**
-     * Scans an identifier or keyword starting at [start], only resolving signature-specific
-     * keywords when followed by whitespace or end-of-input.
+     * Scans an identifier or keyword starting at [start], extending [SharedLexer] to support
+     * hyphenated identifiers and keywords in signature files.
      */
     override fun scanIdentifierOrKeyword(start: Int): Token {
         index = start + 1
-        while (index < endExclusive && Character.isJavaIdentifierPart(text[index])) {
-            index++
+        while (index < endExclusive) {
+            val c = text[index]
+            if (Character.isJavaIdentifierPart(c)) {
+                index++
+            } else if (
+                c == '-' &&
+                    index + 1 < endExclusive &&
+                    Character.isJavaIdentifierPart(text[index + 1])
+            ) {
+                // Include hyphenated segments (e.g. 'non-sealed', 'non-exhaustive', or Kotlin
+                // mangled method names like 'box-impl') as part of the identifier/keyword when '-'
+                // is immediately followed by another identifier character.
+                index += 2
+            } else {
+                break
+            }
         }
         // Signature-specific keywords (such as 'method', 'public', 'optional', or 'value') are
         // always followed by whitespace in signature files, whereas identifiers with the same name
@@ -148,11 +192,81 @@ internal class SignatureFileLexer(
      */
     override fun resolveKeywordOrIdentifier(start: Int, end: Int): TokenType {
         val length = end - start
-        return when {
-            matchSlice(start, length, "optional") -> SignatureTokenType.OPTIONAL
-            matchSlice(start, length, "context") -> SignatureTokenType.CONTEXT
-            matchSlice(start, length, "receiver") -> SignatureTokenType.RECEIVER
-            else -> super.resolveKeywordOrIdentifier(start, end)
+        return when (text[start]) {
+            'a' ->
+                if (matchSlice(start, length, "abstract")) SignatureTokenType.ABSTRACT
+                else SharedTokenType.IDENTIFIER
+            'c' ->
+                if (matchSlice(start, length, "context")) SignatureTokenType.CONTEXT
+                else super.resolveKeywordOrIdentifier(start, end)
+            'd' ->
+                when {
+                    matchSlice(start, length, "default") -> SignatureTokenType.DEFAULT
+                    matchSlice(start, length, "deprecated") -> SignatureTokenType.DEPRECATED
+                    matchSlice(start, length, "data") -> SignatureTokenType.DATA
+                    else -> SharedTokenType.IDENTIFIER
+                }
+            'e' ->
+                if (matchSlice(start, length, "exhaustive")) SignatureTokenType.EXHAUSTIVE
+                else super.resolveKeywordOrIdentifier(start, end)
+            'f' ->
+                when {
+                    matchSlice(start, length, "final") -> SignatureTokenType.FINAL
+                    matchSlice(start, length, "fun") -> SignatureTokenType.FUN
+                    else -> SharedTokenType.IDENTIFIER
+                }
+            'i' ->
+                when {
+                    matchSlice(start, length, "internal") -> SignatureTokenType.INTERNAL
+                    matchSlice(start, length, "infix") -> SignatureTokenType.INFIX
+                    matchSlice(start, length, "inline") -> SignatureTokenType.INLINE
+                    else -> SharedTokenType.IDENTIFIER
+                }
+            'n' ->
+                when {
+                    matchSlice(start, length, "non-sealed") -> SignatureTokenType.NON_SEALED
+                    matchSlice(start, length, "non-exhaustive") ||
+                        matchSlice(start, length, "nonexhaustive") ->
+                        SignatureTokenType.NON_EXHAUSTIVE
+                    matchSlice(start, length, "native") -> SignatureTokenType.NATIVE
+                    else -> SharedTokenType.IDENTIFIER
+                }
+            'o' ->
+                when {
+                    matchSlice(start, length, "operator") -> SignatureTokenType.OPERATOR
+                    matchSlice(start, length, "optional") -> SignatureTokenType.OPTIONAL
+                    else -> SharedTokenType.IDENTIFIER
+                }
+            'p' ->
+                when {
+                    matchSlice(start, length, "public") -> SignatureTokenType.PUBLIC
+                    matchSlice(start, length, "protected") -> SignatureTokenType.PROTECTED
+                    matchSlice(start, length, "private") -> SignatureTokenType.PRIVATE
+                    else -> SharedTokenType.IDENTIFIER
+                }
+            'r' ->
+                if (matchSlice(start, length, "receiver")) SignatureTokenType.RECEIVER
+                else super.resolveKeywordOrIdentifier(start, end)
+            's' ->
+                when {
+                    matchSlice(start, length, "static") -> SignatureTokenType.STATIC
+                    matchSlice(start, length, "sealed") -> SignatureTokenType.SEALED
+                    matchSlice(start, length, "synchronized") -> SignatureTokenType.SYNCHRONIZED
+                    matchSlice(start, length, "strictfp") -> SignatureTokenType.STRICTFP
+                    matchSlice(start, length, "suspend") -> SignatureTokenType.SUSPEND
+                    else -> super.resolveKeywordOrIdentifier(start, end)
+                }
+            't' ->
+                if (matchSlice(start, length, "transient")) SignatureTokenType.TRANSIENT
+                else SharedTokenType.IDENTIFIER
+            'v' ->
+                when {
+                    matchSlice(start, length, "volatile") -> SignatureTokenType.VOLATILE
+                    matchSlice(start, length, "value") -> SignatureTokenType.VALUE
+                    matchSlice(start, length, "vararg") -> SignatureTokenType.VARARG
+                    else -> SharedTokenType.IDENTIFIER
+                }
+            else -> SharedTokenType.IDENTIFIER
         }
     }
 }

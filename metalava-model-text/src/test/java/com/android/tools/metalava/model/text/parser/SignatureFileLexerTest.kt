@@ -57,7 +57,7 @@ class SignatureFileLexerTest {
             SignatureTokenType.TARGET_LANGUAGE to "@KotlinOnly",
             SharedTokenType.AT to "@",
             SharedTokenType.IDENTIFIER to "OtherAnno",
-            SharedTokenType.IDENTIFIER to "public",
+            SignatureTokenType.PUBLIC to "public",
             SignatureTokenType.ANNOTATION_INTERFACE to "@interface",
             SharedTokenType.IDENTIFIER to "Foo",
             SharedTokenType.BRACE_OPEN to "{",
@@ -70,11 +70,32 @@ class SignatureFileLexerTest {
     }
 
     @Test
+    fun `Tokenize hyphenated modifiers and mangled method names`() {
+        assertTokenTypes(
+            "public sealed non-exhaustive non-sealed class Foo { method box-impl(int); }",
+            SignatureTokenType.PUBLIC to "public",
+            SignatureTokenType.SEALED to "sealed",
+            SignatureTokenType.NON_EXHAUSTIVE to "non-exhaustive",
+            SignatureTokenType.NON_SEALED to "non-sealed",
+            SharedTokenType.CLASS to "class",
+            SharedTokenType.IDENTIFIER to "Foo",
+            SharedTokenType.BRACE_OPEN to "{",
+            SharedTokenType.IDENTIFIER to "method",
+            SharedTokenType.IDENTIFIER to "box-impl",
+            SharedTokenType.PAREN_OPEN to "(",
+            SharedTokenType.IDENTIFIER to "int",
+            SharedTokenType.PAREN_CLOSE to ")",
+            SignatureTokenType.SEMICOLON to ";",
+            SharedTokenType.BRACE_CLOSE to "}",
+        )
+    }
+
+    @Test
     fun `Keywords followed by punctuation are tokenized as identifiers`() {
         assertTokenTypes(
             "method public value(optional value: int, optional: String): void;",
             SharedTokenType.IDENTIFIER to "method",
-            SharedTokenType.IDENTIFIER to "public",
+            SignatureTokenType.PUBLIC to "public",
             SharedTokenType.IDENTIFIER to "value",
             SharedTokenType.PAREN_OPEN to "(",
             SignatureTokenType.OPTIONAL to "optional",
