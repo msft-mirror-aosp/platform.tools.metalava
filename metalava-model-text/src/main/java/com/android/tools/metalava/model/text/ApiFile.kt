@@ -216,7 +216,7 @@ private constructor(
     /** [ClassPathResolver] to use for the created [Codebase]. */
     classPathResolver: ClassPathResolver?,
     private val formatForLegacyFiles: FileFormat?,
-    allowClassModifierChanges: Boolean,
+    private val allowClassModifierChanges: Boolean,
     /** The [TargetLanguageSet] to use if an item does not have one specified. */
     private val defaultTargetLanguageSet: Set<TargetLanguage> = TargetLanguageSet.ALL,
 ) {
@@ -288,9 +288,6 @@ private constructor(
      */
     private val kotlinStyleNulls: Boolean
         get() = deferredKotlinStyleNulls!!
-
-    /** Merges class re-definitions across signature files. */
-    private val classMerger = ClassMerger(allowClassModifierChanges)
 
     companion object {
         /**
@@ -517,7 +514,7 @@ private constructor(
         // skipped.
         parserContext!!
 
-        classMerger.performAnyDeferredMerges()
+        parserContext.classMerger.performAnyDeferredMerges()
 
         apiStatsConsumer(parserContext.typeParser.stats())
 
@@ -534,7 +531,7 @@ private constructor(
             globalTypeItemFactory = globalTypeItemFactory,
             valueParser = valueParser,
             defaultTargetLanguageSet = defaultTargetLanguageSet,
-            classMerger = classMerger,
+            classMerger = ClassMerger(allowClassModifierChanges),
         )
 }
 
