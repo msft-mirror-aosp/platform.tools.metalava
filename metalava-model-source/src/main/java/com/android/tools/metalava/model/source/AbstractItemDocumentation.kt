@@ -212,20 +212,13 @@ internal abstract class AbstractItemDocumentation(
                 get() = blockTagDescription(tagTypeName)
 
             override fun append(other: DocContent) {
-                existingOrPendingBlockTagSection(tagTypeName).append(other)
+                docComment.appendBlockTagDescription(tagTypeName, other)
             }
 
             override fun append(text: String) {
-                existingOrPendingBlockTagSection(tagTypeName).append(text)
+                docComment.appendBlockTagDescription(tagTypeName, text)
             }
         }
-
-    private fun existingOrPendingBlockTagSection(tagTypeName: String): DocContentOwner {
-        return findBlockTagSection(tagTypeName)
-            ?: docComment.pendingBlockTagSection(
-                tagTypeName,
-            )
-    }
 
     /** Find the block tag section for [tagTypeName]. */
     private fun findBlockTagSection(tagTypeName: String): BlockTagSection? =

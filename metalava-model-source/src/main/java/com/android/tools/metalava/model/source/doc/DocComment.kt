@@ -48,6 +48,18 @@ internal interface DocComment : DocContentOwner {
     fun addBlockTagSection(tagTypeName: String, description: JavadocContent?)
 
     /**
+     * Append [other] to the description of the first [BlockTagSection] of [tagTypeName], creating
+     * and adding one if none exists.
+     */
+    fun appendBlockTagDescription(tagTypeName: String, other: DocContent)
+
+    /**
+     * Append [text] to the description of the first [BlockTagSection] of [tagTypeName], creating
+     * and adding one if none exists.
+     */
+    fun appendBlockTagDescription(tagTypeName: String, text: String)
+
+    /**
      * Prepare a [BlockTagSection] for adding, if it has any content added.
      *
      * Appending content to the returned [DocContentOwner] will cause a [BlockTagSection] for
@@ -188,6 +200,43 @@ internal class DefaultDocComment(
         if (blockTagSections.size == 1 && appendInheritDocIfNeeded()) {
             return
         }
+    }
+
+    /**
+     * Find the first [BlockTagSection] matching [predicate], or create and add a new one of
+     * [tagTypeName] with [initialDescription] if none exists, and apply [updater] to it.
+     */
+    private inline fun updateOrAddBlockTagSection(
+        tagTypeName: String,
+        initialDescription: JavadocContent? = null,
+        predicate: (BlockTagSection) -> Boolean,
+        updater: (BlockTagSection) -> Unit,
+    ) {
+        val existing = blockTagSections.find(predicate)
+        if (existing != null) {
+            updater(existing)
+        } else {
+            val tagType = blockTagTypeFor(tagTypeName)
+            val new = DefaultBlockTagSection(context, tagType, initialDescription.toSupplier())
+            addBlockTagSection(new)
+            updater(new)
+        }
+    }
+
+    override fun appendBlockTagDescription(tagTypeName: String, other: DocContent) {
+        updateOrAddBlockTagSection(
+            tagTypeName = tagTypeName,
+            predicate = { it.tagType.name == tagTypeName },
+            updater = { it.append(other) },
+        )
+    }
+
+    override fun appendBlockTagDescription(tagTypeName: String, text: String) {
+        updateOrAddBlockTagSection(
+            tagTypeName = tagTypeName,
+            predicate = { it.tagType.name == tagTypeName },
+            updater = { it.append(text) },
+        )
     }
 
     override fun pendingBlockTagSection(
