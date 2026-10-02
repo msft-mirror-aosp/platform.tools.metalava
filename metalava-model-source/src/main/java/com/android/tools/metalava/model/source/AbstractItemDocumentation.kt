@@ -38,7 +38,6 @@ import com.android.tools.metalava.model.source.doc.JavaSummaryTruncationWorkarou
 import com.android.tools.metalava.model.source.doc.TagTypes
 import com.android.tools.metalava.model.source.javadoc.ExprContext
 import com.android.tools.metalava.model.source.javadoc.InvalidBlockUseVisitor
-import com.android.tools.metalava.model.source.javadoc.JavadocText
 import com.android.tools.metalava.model.source.javadoc.toOptionalJavadocContent
 import com.android.tools.metalava.reporter.FileLocation
 import com.android.tools.metalava.reporter.Issues
@@ -233,22 +232,13 @@ internal abstract class AbstractItemDocumentation(
                 get() = paramTagDescription(name)
 
             override fun append(other: DocContent) {
-                existingOrPendingParamTagSection(name).append(other)
+                docComment.appendParamTagDescription(name, other)
             }
 
             override fun append(text: String) {
-                existingOrPendingParamTagSection(name).append(text)
+                docComment.appendParamTagDescription(name, text)
             }
         }
-
-    private fun existingOrPendingParamTagSection(name: String): DocContentOwner {
-        return findParamTagSection(name)
-            ?: docComment.pendingBlockTagSection(
-                "param",
-                // Pass the parameter name through the description.
-                description = JavadocText(name),
-            )
-    }
 
     /** Find the block tag section for `@param` of [name]. */
     private fun findParamTagSection(name: String): BlockTagSection? =

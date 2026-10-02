@@ -20,6 +20,7 @@ import com.android.tools.metalava.model.doc.DocContent
 import com.android.tools.metalava.model.doc.DocContentOwner
 import com.android.tools.metalava.model.source.javadoc.JavadocContent
 import com.android.tools.metalava.model.source.javadoc.JavadocContentRewriter
+import com.android.tools.metalava.model.source.javadoc.JavadocText
 import com.android.tools.metalava.model.source.javadoc.TextContainsAnyVisitor
 import java.io.PrintWriter
 import java.io.StringWriter
@@ -58,6 +59,18 @@ internal interface DocComment : DocContentOwner {
      * and adding one if none exists.
      */
     fun appendBlockTagDescription(tagTypeName: String, text: String)
+
+    /**
+     * Append [other] to the description of the `@param` [BlockTagSection] for [name], creating and
+     * adding one if none exists.
+     */
+    fun appendParamTagDescription(name: String, other: DocContent)
+
+    /**
+     * Append [text] to the description of the `@param` [BlockTagSection] for [name], creating and
+     * adding one if none exists.
+     */
+    fun appendParamTagDescription(name: String, text: String)
 
     /**
      * Prepare a [BlockTagSection] for adding, if it has any content added.
@@ -235,6 +248,24 @@ internal class DefaultDocComment(
         updateOrAddBlockTagSection(
             tagTypeName = tagTypeName,
             predicate = { it.tagType.name == tagTypeName },
+            updater = { it.append(text) },
+        )
+    }
+
+    override fun appendParamTagDescription(name: String, other: DocContent) {
+        updateOrAddBlockTagSection(
+            tagTypeName = "param",
+            initialDescription = JavadocText(name),
+            predicate = { it.typeSafeTagData(TagTypes.PARAM)?.name == name },
+            updater = { it.append(other) },
+        )
+    }
+
+    override fun appendParamTagDescription(name: String, text: String) {
+        updateOrAddBlockTagSection(
+            tagTypeName = "param",
+            initialDescription = JavadocText(name),
+            predicate = { it.typeSafeTagData(TagTypes.PARAM)?.name == name },
             updater = { it.append(text) },
         )
     }
