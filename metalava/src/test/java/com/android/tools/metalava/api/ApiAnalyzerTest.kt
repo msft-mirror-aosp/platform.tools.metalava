@@ -304,18 +304,8 @@ class ApiAnalyzerTest : DriverTest() {
 
     @Test
     fun `Test that DeprecationMismatch is not reported when containing class is deprecated`() {
-        // TODO(b/568477816): Should not report DeprecationMismatch when the containing class is
-        //  deprecated.
         check(
-            expectedIssues =
-                """
-                    src/test/pkg/DeprecatedClass.java:7: error: Constructor test.pkg.DeprecatedClass(): @Deprecated annotation (present) and @deprecated doc tag (not present) do not match [DeprecationMismatch]
-                    src/test/pkg/DeprecatedClass.java:10: error: Field test.pkg.DeprecatedClass.field: @Deprecated annotation (present) and @deprecated doc tag (not present) do not match [DeprecationMismatch]
-                    src/test/pkg/DeprecatedClass.java:13: error: Method test.pkg.DeprecatedClass.method(): @Deprecated annotation (present) and @deprecated doc tag (not present) do not match [DeprecationMismatch]
-                    src/test/pkg/DeprecatedClass.java:16: error: Class test.pkg.DeprecatedClass.NestedClass: @Deprecated annotation (present) and @deprecated doc tag (not present) do not match [DeprecationMismatch]
-                    src/test/pkg/DeprecatedClass.java:18: error: Method test.pkg.DeprecatedClass.NestedClass.nestedMethod(): @Deprecated annotation (present) and @deprecated doc tag (not present) do not match [DeprecationMismatch]
-                    src/test/pkg/DeprecatedClass.java:23: error: Method test.pkg.DeprecatedClass.UndeprecatedNestedClass.nestedMethod(): @Deprecated annotation (present) and @deprecated doc tag (not present) do not match [DeprecationMismatch]
-                """,
+            expectedIssues = "",
             sourceFiles =
                 arrayOf(
                     java(
