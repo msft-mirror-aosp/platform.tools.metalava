@@ -345,9 +345,7 @@ private constructor(
                     formatForLegacyFiles = formatForLegacyFiles,
                     allowClassModifierChanges = allowClassModifierChanges
                 )
-            parser.parseMultipleFiles(signatureFiles, apiStatsConsumer)
-
-            val codebase = parser.codebase
+            val codebase = parser.parseMultipleFiles(signatureFiles, apiStatsConsumer)
 
             // Update implicit permit types in any sealed class that does not have one provided.
             SealedClassImplicitPermitTypesUpdater.updateImplicitPermitTypes(codebase)
@@ -416,8 +414,9 @@ private constructor(
                     defaultTargetLanguageSet = TargetLanguageSet.KOTLIN_ONLY,
                 )
             // Parse the base file first if it exists.
-            parser.parseMultipleFiles(listOfNotNull(baseSignatureFile) + sourceSetSignatureFile)
-            return name to parser.codebase
+            val codebase =
+                parser.parseMultipleFiles(listOfNotNull(baseSignatureFile) + sourceSetSignatureFile)
+            return name to codebase
         }
 
         /**
@@ -454,7 +453,7 @@ private constructor(
     private fun parseMultipleFiles(
         signatureFiles: List<SignatureFile>,
         apiStatsConsumer: (TextTypeParser.Stats) -> Unit = {},
-    ) {
+    ): Codebase {
         val apiSurfaces = codebase.config.apiSurfaces
         var appending = false
         var previousPath: Path? = null
@@ -521,6 +520,8 @@ private constructor(
         classMerger.performAnyDeferredMerges()
 
         apiStatsConsumer(parserContext.typeParser.stats())
+
+        return codebase
     }
 
     /**
