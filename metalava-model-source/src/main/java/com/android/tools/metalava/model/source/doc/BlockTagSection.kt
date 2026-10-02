@@ -21,6 +21,7 @@ import com.android.tools.metalava.model.source.javadoc.DocTag
 import com.android.tools.metalava.model.source.javadoc.ExtractorResult
 import com.android.tools.metalava.model.source.javadoc.JavadocContent
 import com.android.tools.metalava.model.source.javadoc.extractTagDataForTagType
+import java.util.Optional
 
 /**
  * A block tag section of [DocComment.blockTagSections].
@@ -90,20 +91,31 @@ internal class DefaultBlockTagSection(
     context: DocCommentContext,
     override val tagType: TagType<*>,
     descriptionSupplier: ContentSupplier,
+    initializedDescription: Optional<JavadocContent>? = null,
+    /**
+     * Backing field for [tagData].
+     *
+     * This is initialized lazily in [initializeDescription] at the same time as [description], or
+     * passed in when copying in [withDescription].
+     */
+    private var _tagData: TagData? = null,
 ) :
     DescriptionOwner<DefaultBlockTagSection>(
         context,
         descriptionSupplier,
         noComment = false,
+        initializedDescription = initializedDescription,
     ),
     BlockTagSection {
 
-    /**
-     * Backing field for [tagData].
-     *
-     * This is initialized lazily in [initializeDescription] at the same time as [description].
-     */
-    private var _tagData: TagData? = null
+    override fun withDescription(newDescription: JavadocContent?) =
+        DefaultBlockTagSection(
+            context = context,
+            tagType = tagType,
+            descriptionSupplier = newDescription.toSupplier(),
+            initializedDescription = Optional.ofNullable(newDescription),
+            _tagData = tagData,
+        )
 
     override val tagData: TagData?
         get() {

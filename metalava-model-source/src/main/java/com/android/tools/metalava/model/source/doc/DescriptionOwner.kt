@@ -32,18 +32,34 @@ import kotlin.jvm.optionals.getOrNull
  * @param descriptionSupplier Supplies a [JavadocContent] instance when requested. May produce it
  *   lazily.
  * @param noComment `true` if there was no comment in the sources.
+ * @param initializedDescription Optional pre-initialized value for [_description].
  */
-internal open class DescriptionOwner<out T : DescriptionOwner<T>>(
+internal abstract class DescriptionOwner<out T : DescriptionOwner<T>>(
     val context: DocCommentContext,
     protected val descriptionSupplier: ContentSupplier,
     protected val noComment: Boolean,
     initializedDescription: Optional<JavadocContent>? = null,
 ) {
     /**
-     * A mutable and optional [JavadocContent] that is initialized lazily from [descriptionSupplier]
-     * in [initializeDescription].
+     * An optional [JavadocContent] that is initialized lazily from [descriptionSupplier] in
+     * [initializeDescription], or from [initializedDescription] if provided.
      */
-    protected var _description: Optional<JavadocContent>? = initializedDescription
+    private lateinit var _description: Optional<JavadocContent>
+
+    init {
+        if (initializedDescription != null) {
+            _description = initializedDescription
+        }
+    }
+
+    /**
+     * The current value of [_description] if it has been initialized, or `null` otherwise.
+     *
+     * Used by subclasses when creating copies that preserve the lazy initialization state of
+     * [_description] without forcing it to be initialized.
+     */
+    protected val initializedDescription: Optional<JavadocContent>?
+        get() = if (::_description.isInitialized) _description else null
 
     /**
      * Provides access to the [JavadocContent] in [_description].
@@ -56,7 +72,7 @@ internal open class DescriptionOwner<out T : DescriptionOwner<T>>(
     val description: JavadocContent?
         get() {
             ensureDescriptionIsInitialized()
-            return _description!!.getOrNull()
+            return _description.getOrNull()
         }
 
     /**
@@ -66,7 +82,7 @@ internal open class DescriptionOwner<out T : DescriptionOwner<T>>(
      * without retrieving [description].
      */
     protected fun ensureDescriptionIsInitialized() {
-        if (_description == null) {
+        if (!::_description.isInitialized) {
             initializeDescription(descriptionSupplier.content)
         }
     }
@@ -80,18 +96,20 @@ internal open class DescriptionOwner<out T : DescriptionOwner<T>>(
         _description = Optional.ofNullable(suppliedDescription)
     }
 
+    /** Return a copy of this with [description] set to [newDescription]. */
+    protected abstract fun withDescription(newDescription: JavadocContent?): T
+
     /**
-     * Update [description] to [new].
-     *
-     * If [new] is the same as [description] then does nothing. Otherwise, it sets [_description] to
-     * [new] and notifies any listener that the containing [DocComment] has changed.
+     * Return a copy of this with [description] updated to [new], or `this` if [new] is the same as
+     * [description].
      */
-    private fun updateDescription(new: JavadocContent?): T {
+    private fun updateDescription(new: JavadocContent?): T =
         if (new !== description) {
-            _description = Optional.ofNullable(new)
+            withDescription(new)
+        } else {
+            @Suppress("UNCHECKED_CAST")
+            this as T
         }
-        @Suppress("UNCHECKED_CAST") return this as T
-    }
 
     fun append(other: DocContent): T = append(other as JavadocContent)
 

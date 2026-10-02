@@ -29,7 +29,7 @@ import kotlin.collections.plus
 /**
  * A Javadoc or KDoc comment associated with an API element.
  *
- * Implementations of these are mutable.
+ * Implementations of these are immutable.
  */
 internal interface DocComment {
     /** The main description, i.e. the part before any block tags. */
@@ -53,7 +53,7 @@ internal interface DocComment {
 
     /**
      * Return a copy of this with a [BlockTagSection] of [tagTypeName] with [description] added to
-     * the end of [blockTagSections].
+     * the list.
      */
     fun addBlockTagSection(tagTypeName: String, description: JavadocContent?): DocComment
 
@@ -81,7 +81,10 @@ internal interface DocComment {
      */
     fun appendParamTagDescription(name: String, text: String): DocComment
 
-    /** Return a copy of this without any [BlockTagSection] for which [predicate] returns `true`. */
+    /**
+     * Return a copy of this with any [BlockTagSection] for which [predicate] returns `true`
+     * removed, or `this` if no [BlockTagSection] matched [predicate].
+     */
     fun removeBlockTagSections(predicate: (BlockTagSection) -> Boolean): DocComment
 
     /**
@@ -171,25 +174,28 @@ internal class DefaultDocComment(
         context,
         descriptionSupplier,
         noComment,
-        initializedDescription,
+        initializedDescription = initializedDescription,
     ),
     DocComment {
-    /**
-     * Create a new [DefaultDocComment] with [newBlockTagSections] while preserving the
-     * [descriptionSupplier] and any already-initialized [_description].
-     */
-    private fun withBlockTagSections(
-        newBlockTagSections: List<BlockTagSection>
-    ): DefaultDocComment {
-        if (newBlockTagSections === blockTagSections) return this
-        return DefaultDocComment(
-            context,
-            descriptionSupplier,
-            newBlockTagSections,
-            noComment,
-            _description,
+
+    override fun withDescription(newDescription: JavadocContent?) =
+        DefaultDocComment(
+            context = context,
+            descriptionSupplier = newDescription.toSupplier(),
+            blockTagSections = blockTagSections,
+            noComment = noComment,
+            initializedDescription = Optional.ofNullable(newDescription),
         )
-    }
+
+    /** Return a copy of this with [blockTagSections] set to [newBlockTagSections]. */
+    private fun withBlockTagSections(newBlockTagSections: List<BlockTagSection>) =
+        DefaultDocComment(
+            context = context,
+            descriptionSupplier = descriptionSupplier,
+            blockTagSections = newBlockTagSections,
+            noComment = noComment,
+            initializedDescription = initializedDescription,
+        )
 
     override fun hasBlockTagOfType(tagTypeName: String) =
         blockTagSections.any { it.tagType.name == tagTypeName }
@@ -214,17 +220,18 @@ internal class DefaultDocComment(
         return addBlockTagSection(blockTagSection)
     }
 
-    /** Return a copy of this with [blockTagSection] added to the end of [blockTagSections]. */
+    /** Return a copy of this with [blockTagSection] added to [blockTagSections]. */
     internal fun addBlockTagSection(blockTagSection: BlockTagSection): DefaultDocComment {
         val updated = withBlockTagSections(blockTagSections + blockTagSection)
 
-        // If this call added the first block tag section, then append`{@inheritDoc}` if necessary.
+        // If this call added the first block tag section, then append `{@inheritDoc}` if necessary.
         // TODO(b/454257440): Investigate whether adding `{@inheritDoc}` to the main description of
         //  a comment in this case is necessary.
-        if (updated.blockTagSections.size == 1) {
-            return updated.appendInheritDocIfNeeded()
+        return if (updated.blockTagSections.size == 1) {
+            updated.appendInheritDocIfNeeded()
+        } else {
+            updated
         }
-        return updated
     }
 
     /**
@@ -244,14 +251,15 @@ internal class DefaultDocComment(
             if (updated === existing) {
                 this
             } else {
-                val mutableList = blockTagSections.toMutableList()
-                mutableList[index] = updated
-                withBlockTagSections(mutableList)
+                val newSections =
+                    blockTagSections.toMutableList().apply { this[index] = updated }.toList()
+                withBlockTagSections(newSections)
             }
         } else {
             val tagType = blockTagTypeFor(tagTypeName)
             val new = DefaultBlockTagSection(context, tagType, initialDescription.toSupplier())
-            addBlockTagSection(updater(new))
+            val updated = updater(new)
+            addBlockTagSection(updated)
         }
     }
 
