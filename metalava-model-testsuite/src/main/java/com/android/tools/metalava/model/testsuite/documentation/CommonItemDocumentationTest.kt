@@ -1908,18 +1908,10 @@ class CommonItemDocumentationTest : BaseModelTest() {
                 message = "snapshot method",
             )
 
-            // TODO: AbstractItemDocumentation.snapshot returns `this`, sharing the mutable
-            //  DocComment instance with the original item, so mutating the snapshot item's
-            //  documentation also mutates the original item's documentation.
             originalMethod.assertPrintedDocumentation(
                 expectedOutput =
                     """
-                        /**
-                         * Summary line.
-                         * <br>
-                         * Appended to snapshot.
-                         * @unique 1
-                         */
+                        /** Summary line. */
                     """,
                 message = "original method",
             )
