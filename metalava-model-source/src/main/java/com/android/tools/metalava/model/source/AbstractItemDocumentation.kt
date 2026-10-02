@@ -152,10 +152,11 @@ internal abstract class AbstractItemDocumentation(
         // Remove all `@hide`, and `@doconly` tags before printing to prevent them from being
         // visible to the documentation generation tool that consumes the stubs. That is because the
         // tool may act upon them, e.g. hiding any APIs that are tagged with `@hide`.
-        docComment.removeBlockTagSections {
-            val type = it.tagType.name
-            type == "hide" || type == "doconly"
-        }
+        docComment =
+            docComment.removeBlockTagSections {
+                val type = it.tagType.name
+                type == "hide" || type == "doconly"
+            }
 
         checkDocumentationBeforePrinting()
 
@@ -211,11 +212,11 @@ internal abstract class AbstractItemDocumentation(
                 get() = blockTagDescription(tagTypeName)
 
             override fun append(other: DocContent) {
-                docComment.appendBlockTagDescription(tagTypeName, other)
+                docComment = docComment.appendBlockTagDescription(tagTypeName, other)
             }
 
             override fun append(text: String) {
-                docComment.appendBlockTagDescription(tagTypeName, text)
+                docComment = docComment.appendBlockTagDescription(tagTypeName, text)
             }
         }
 
@@ -232,11 +233,11 @@ internal abstract class AbstractItemDocumentation(
                 get() = paramTagDescription(name)
 
             override fun append(other: DocContent) {
-                docComment.appendParamTagDescription(name, other)
+                docComment = docComment.appendParamTagDescription(name, other)
             }
 
             override fun append(text: String) {
-                docComment.appendParamTagDescription(name, text)
+                docComment = docComment.appendParamTagDescription(name, text)
             }
         }
 
@@ -252,15 +253,16 @@ internal abstract class AbstractItemDocumentation(
 
     override fun removeDeprecatedSection() {
         // Try and remove all the `@deprecated` sections.
-        docComment.removeBlockTagSections { it.tagType == TagTypes.DEPRECATED }
+        docComment = docComment.removeBlockTagSections { it.tagType == TagTypes.DEPRECATED }
     }
 
     override fun addUniqueBlockTagSectionWithSimpleText(tagTypeName: String, text: String) {
-        // Remove any existing sections of the specified type.
-        docComment.removeBlockTagSections { it.tagType.name == tagTypeName }
-
-        // Add a block tag section to the end.
-        docComment.addBlockTagSection(tagTypeName, text.toOptionalJavadocContent())
+        // Remove any existing sections of the specified type, and add a block tag section to the
+        // end.
+        docComment =
+            docComment
+                .removeBlockTagSections { it.tagType.name == tagTypeName }
+                .addBlockTagSection(tagTypeName, text.toOptionalJavadocContent())
     }
 
     override fun report(issue: Issues.Issue, message: String, charOffset: Int) {

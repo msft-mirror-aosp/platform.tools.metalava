@@ -50,35 +50,38 @@ internal interface DocComment {
     /** Return a copy of this with [text] appended to the main [description]. */
     fun append(text: String): DocComment
 
-    /** Add a [BlockTagSection] of [tagTypeName] with [description] to the list. */
-    fun addBlockTagSection(tagTypeName: String, description: JavadocContent?)
+    /**
+     * Return a copy of this with a [BlockTagSection] of [tagTypeName] with [description] added to
+     * the end of [blockTagSections].
+     */
+    fun addBlockTagSection(tagTypeName: String, description: JavadocContent?): DocComment
 
     /**
-     * Append [other] to the description of the first [BlockTagSection] of [tagTypeName], creating
-     * and adding one if none exists.
+     * Return a copy of this with [other] appended to the description of the first [BlockTagSection]
+     * of [tagTypeName], creating and adding one if none exists.
      */
-    fun appendBlockTagDescription(tagTypeName: String, other: DocContent)
+    fun appendBlockTagDescription(tagTypeName: String, other: DocContent): DocComment
 
     /**
-     * Append [text] to the description of the first [BlockTagSection] of [tagTypeName], creating
-     * and adding one if none exists.
+     * Return a copy of this with [text] appended to the description of the first [BlockTagSection]
+     * of [tagTypeName], creating and adding one if none exists.
      */
-    fun appendBlockTagDescription(tagTypeName: String, text: String)
+    fun appendBlockTagDescription(tagTypeName: String, text: String): DocComment
 
     /**
-     * Append [other] to the description of the `@param` [BlockTagSection] for [name], creating and
-     * adding one if none exists.
+     * Return a copy of this with [other] appended to the description of the `@param`
+     * [BlockTagSection] for [name], creating and adding one if none exists.
      */
-    fun appendParamTagDescription(name: String, other: DocContent)
+    fun appendParamTagDescription(name: String, other: DocContent): DocComment
 
     /**
-     * Append [text] to the description of the `@param` [BlockTagSection] for [name], creating and
-     * adding one if none exists.
+     * Return a copy of this with [text] appended to the description of the `@param`
+     * [BlockTagSection] for [name], creating and adding one if none exists.
      */
-    fun appendParamTagDescription(name: String, text: String)
+    fun appendParamTagDescription(name: String, text: String): DocComment
 
-    /** Removes any [BlockTagSection] for which [predicate] returns `true`. */
-    fun removeBlockTagSections(predicate: (BlockTagSection) -> Boolean)
+    /** Return a copy of this without any [BlockTagSection] for which [predicate] returns `true`. */
+    fun removeBlockTagSections(predicate: (BlockTagSection) -> Boolean): DocComment
 
     /**
      * Check if [predicate] matches this documentation, checks [description] and all the
@@ -183,7 +186,7 @@ internal class DefaultDocComment(
             }
         }
 
-    override fun addBlockTagSection(tagTypeName: String, description: JavadocContent?) {
+    override fun addBlockTagSection(tagTypeName: String, description: JavadocContent?): DocComment {
         val tagType = blockTagTypeFor(tagTypeName)
         val blockTagSection =
             DefaultBlockTagSection(
@@ -192,11 +195,11 @@ internal class DefaultDocComment(
                 description.toSupplier(),
             )
 
-        addBlockTagSection(blockTagSection)
+        return addBlockTagSection(blockTagSection)
     }
 
-    /** Add [blockTagSection] to [blockTagSections]. */
-    internal fun addBlockTagSection(blockTagSection: BlockTagSection) {
+    /** Return a copy of this with [blockTagSection] added to the end of [blockTagSections]. */
+    internal fun addBlockTagSection(blockTagSection: BlockTagSection): DefaultDocComment {
         blockTagSections = blockTagSections + blockTagSection
 
         // If this call added the first block tag section, then append`{@inheritDoc}` if necessary.
@@ -205,6 +208,7 @@ internal class DefaultDocComment(
         if (blockTagSections.size == 1) {
             appendInheritDocIfNeeded()
         }
+        return this
     }
 
     /**
@@ -215,59 +219,62 @@ internal class DefaultDocComment(
         tagTypeName: String,
         initialDescription: JavadocContent? = null,
         predicate: (BlockTagSection) -> Boolean,
-        updater: (BlockTagSection) -> Unit,
-    ) {
-        val existing = blockTagSections.find(predicate)
-        if (existing != null) {
-            updater(existing)
+        updater: (BlockTagSection) -> BlockTagSection,
+    ): DocComment {
+        val index = blockTagSections.indexOfFirst(predicate)
+        return if (index != -1) {
+            val existing = blockTagSections[index]
+            val updated = updater(existing)
+            if (updated !== existing) {
+                val mutableList = blockTagSections.toMutableList()
+                mutableList[index] = updated
+                blockTagSections = mutableList
+            }
+            this
         } else {
             val tagType = blockTagTypeFor(tagTypeName)
             val new = DefaultBlockTagSection(context, tagType, initialDescription.toSupplier())
-            addBlockTagSection(new)
-            updater(new)
+            addBlockTagSection(updater(new))
         }
     }
 
-    override fun appendBlockTagDescription(tagTypeName: String, other: DocContent) {
+    override fun appendBlockTagDescription(tagTypeName: String, other: DocContent): DocComment =
         updateOrAddBlockTagSection(
             tagTypeName = tagTypeName,
             predicate = { it.tagType.name == tagTypeName },
             updater = { it.append(other) },
         )
-    }
 
-    override fun appendBlockTagDescription(tagTypeName: String, text: String) {
+    override fun appendBlockTagDescription(tagTypeName: String, text: String): DocComment =
         updateOrAddBlockTagSection(
             tagTypeName = tagTypeName,
             predicate = { it.tagType.name == tagTypeName },
             updater = { it.append(text) },
         )
-    }
 
-    override fun appendParamTagDescription(name: String, other: DocContent) {
+    override fun appendParamTagDescription(name: String, other: DocContent): DocComment =
         updateOrAddBlockTagSection(
             tagTypeName = "param",
             initialDescription = JavadocText(name),
             predicate = { it.typeSafeTagData(TagTypes.PARAM)?.name == name },
             updater = { it.append(other) },
         )
-    }
 
-    override fun appendParamTagDescription(name: String, text: String) {
+    override fun appendParamTagDescription(name: String, text: String): DocComment =
         updateOrAddBlockTagSection(
             tagTypeName = "param",
             initialDescription = JavadocText(name),
             predicate = { it.typeSafeTagData(TagTypes.PARAM)?.name == name },
             updater = { it.append(text) },
         )
-    }
 
-    override fun removeBlockTagSections(predicate: (BlockTagSection) -> Boolean) {
+    override fun removeBlockTagSections(predicate: (BlockTagSection) -> Boolean): DocComment {
         val filtered = blockTagSections.filter { !predicate(it) }
         if (filtered.size != blockTagSections.size) {
             // Something was removed.
             blockTagSections = filtered
         }
+        return this
     }
 
     override fun check(predicate: DocCommentPredicate) =
