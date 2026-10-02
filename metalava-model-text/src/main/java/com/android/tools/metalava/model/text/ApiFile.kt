@@ -891,8 +891,6 @@ internal class SingleSignatureFileParser(
 
         classKind.setImplicitModifiers(modifiers)
 
-        var superClassType = classKind.implicitSuperClassType
-
         // Extract lots of information from the declared class type.
         val (
             fullName,
@@ -902,56 +900,13 @@ internal class SingleSignatureFileParser(
             typeItemFactory,
         ) = parseDeclaredClassType(pkg, classPosition)
 
-        token = tokenizer.requireToken()
+        tokenizer.requireToken()
 
-        if ("extends" == token && classKind != ClassKind.INTERFACE) {
-            tokenizer.requireToken()
-            val superClassTypeString = parseSuperTypeString()
-            superClassType =
-                typeItemFactory.getSuperClassType(
-                    superClassTypeString,
-                )
-            token = tokenizer.current
-        }
+        var superClassType = parseSuperClassType(classKind, typeItemFactory)
+        val interfaceTypes = parseInterfaceTypes(classKind, typeItemFactory)
+        val permitTypes = parsePermitTypes(typeItemFactory)
 
-        val interfaceTypes = mutableSetOf<ClassTypeItem>()
-
-        // Add any ClassKind specific implicit interface types.
-        classKind.implicitInterfaceType?.let { interfaceType -> interfaceTypes.add(interfaceType) }
-
-        if ("implements" == token || "extends" == token) {
-            token = tokenizer.requireToken()
-            while (true) {
-                if (token == "{" || token == "permits") {
-                    break
-                } else if ("," != token) {
-                    val interfaceTypeString = parseSuperTypeString()
-                    val interfaceType = typeItemFactory.getInterfaceType(interfaceTypeString)
-                    interfaceTypes.add(interfaceType)
-                    token = tokenizer.current
-                } else {
-                    token = tokenizer.requireToken()
-                }
-            }
-        }
-
-        val permitTypes = mutableListOf<ClassTypeItem>()
-
-        if (token == "permits") {
-            token = tokenizer.requireToken()
-            while (true) {
-                if ("{" == token) {
-                    break
-                } else {
-                    val typeString = parseSuperTypeString()
-                    val permitsType = typeItemFactory.getHierarchicalClassType(typeString)
-                    permitTypes.add(permitsType)
-                    token = tokenizer.current
-                }
-            }
-            permitTypes.sortWith(TypeItem.qualifiedComparator)
-        }
-
+        token = tokenizer.current
         if ("{" != token) {
             throw ApiParseException("expected {, was $token", tokenizer)
         }
@@ -1096,6 +1051,94 @@ internal class SingleSignatureFileParser(
             }
             token = tokenizer.requireToken()
         }
+    }
+
+    /**
+     * Parses the optional `extends <superclass>` clause for a non-interface class, falling back to
+     * [ClassKind.implicitSuperClassType] if none is present.
+     *
+     * Starts at [Tokenizer.current] and leaves [Tokenizer.current] at the first token after the
+     * `extends` clause (or unchanged if none is present).
+     */
+    private fun parseSuperClassType(
+        classKind: ClassKind,
+        typeItemFactory: TextTypeItemFactory,
+    ): ClassTypeItem? {
+        // Interfaces use `extends` for super-interfaces rather than a superclass.
+        if ("extends" == tokenizer.current && classKind != ClassKind.INTERFACE) {
+            tokenizer.requireToken()
+            val superClassTypeString = parseSuperTypeString()
+            return typeItemFactory.getSuperClassType(superClassTypeString)
+        }
+        return classKind.implicitSuperClassType
+    }
+
+    /**
+     * Parses the optional `implements` (or `extends` for interfaces) clause and combines it with
+     * any [ClassKind.implicitInterfaceType].
+     *
+     * Starts at [Tokenizer.current] and leaves [Tokenizer.current] at the first token after the
+     * clause (or unchanged if none is present).
+     */
+    private fun parseInterfaceTypes(
+        classKind: ClassKind,
+        typeItemFactory: TextTypeItemFactory,
+    ): Set<ClassTypeItem> {
+        val interfaceTypes = mutableSetOf<ClassTypeItem>()
+
+        // Add any ClassKind specific implicit interface types.
+        classKind.implicitInterfaceType?.let { interfaceType -> interfaceTypes.add(interfaceType) }
+
+        var token = tokenizer.current
+        if ("implements" == token || "extends" == token) {
+            token = tokenizer.requireToken()
+            // Consume super-interface types separated by optional commas until the class body `{`
+            // or a `permits` clause is reached.
+            while (true) {
+                if (token == "{" || token == "permits") {
+                    break
+                } else if ("," != token) {
+                    val interfaceTypeString = parseSuperTypeString()
+                    val interfaceType = typeItemFactory.getInterfaceType(interfaceTypeString)
+                    interfaceTypes.add(interfaceType)
+                    token = tokenizer.current
+                } else {
+                    token = tokenizer.requireToken()
+                }
+            }
+        }
+        return interfaceTypes
+    }
+
+    /**
+     * Parses the optional `permits` clause for a sealed class or interface, returning the permitted
+     * subclass types sorted by qualified name.
+     *
+     * Starts at [Tokenizer.current] and leaves [Tokenizer.current] at the first token after the
+     * clause (or unchanged if none is present).
+     */
+    private fun parsePermitTypes(
+        typeItemFactory: TextTypeItemFactory,
+    ): List<ClassTypeItem> {
+        val permitTypes = mutableListOf<ClassTypeItem>()
+
+        var token = tokenizer.current
+        if (token == "permits") {
+            token = tokenizer.requireToken()
+            // Consume permitted subclass types up to the opening `{` of the class body.
+            while (true) {
+                if ("{" == token) {
+                    break
+                } else {
+                    val typeString = parseSuperTypeString()
+                    val permitsType = typeItemFactory.getHierarchicalClassType(typeString)
+                    permitTypes.add(permitsType)
+                    token = tokenizer.current
+                }
+            }
+            permitTypes.sortWith(TypeItem.qualifiedComparator)
+        }
+        return permitTypes
     }
 
     /**
