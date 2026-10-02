@@ -806,34 +806,22 @@ internal class SingleSignatureFileParser(
         modifiers: MutableModifierList,
         location: FileLocation
     ) {
-        var token = tokenizer.requireToken()
-        tokenizer.assertIdent(token)
+        val name = parseQualifiedName()
+        val typeParameterListString = scanTypeParameterListString()
 
-        val typeParameterListIndex = token.indexOf("<")
-
-        val (name, typeParameterList, typeItemFactory) =
-            if (typeParameterListIndex == -1) {
-                Triple(token, TypeParameterList.NONE, globalTypeItemFactory)
+        val (typeParameterList, typeItemFactory) =
+            if (typeParameterListString == null) {
+                TypeParameterListAndFactory(TypeParameterList.NONE, globalTypeItemFactory)
             } else {
-                val name = token.substring(0, typeParameterListIndex)
-                val typeParameterListAndFactory =
-                    createTypeParameterList(
-                        globalTypeItemFactory,
-                        "typealias $name",
-                        TypeString(
-                            token.substring(typeParameterListIndex),
-                            tokenizer.offset() - token.length + typeParameterListIndex,
-                        ),
-                    )
-                Triple(
-                    name,
-                    typeParameterListAndFactory.typeParameterList,
-                    typeParameterListAndFactory.factory
+                createTypeParameterList(
+                    globalTypeItemFactory,
+                    "typealias $name",
+                    typeParameterListString
                 )
             }
         val qualifiedClassName = pkg.qualifiedName() + "." + name
 
-        token = tokenizer.requireToken()
+        var token = tokenizer.requireToken()
         if ("=" != token) {
             throw ApiParseException("expected = found $token", tokenizer)
         }
@@ -905,13 +893,6 @@ internal class SingleSignatureFileParser(
 
         var superClassType = classKind.implicitSuperClassType
 
-        token = tokenizer.requireToken()
-        tokenizer.assertIdent(token)
-
-        // The declaredClassType consists of the full name (i.e. preceded by the containing class's
-        // full name followed by a '.' if there is one) plus the type parameter string.
-        val declaredClassType: String = token
-
         // Extract lots of information from the declared class type.
         val (
             fullName,
@@ -919,7 +900,7 @@ internal class SingleSignatureFileParser(
             outerClass,
             typeParameterList,
             typeItemFactory,
-        ) = parseDeclaredClassType(pkg, declaredClassType, classPosition)
+        ) = parseDeclaredClassType(pkg, classPosition)
 
         token = tokenizer.requireToken()
 
@@ -1171,7 +1152,7 @@ internal class SingleSignatureFileParser(
     )
 
     /**
-     * Splits the declared class type into [DeclaredClassTypeComponents].
+     * Parses the declared class type from [tokenizer] into [DeclaredClassTypeComponents].
      *
      * For example "Foo" would split into full name "Foo" and an empty type parameter list, while
      * `"Foo.Bar<A, B extends java.lang.String, C>"` would split into full name `"Foo.Bar"` and type
@@ -1181,23 +1162,10 @@ internal class SingleSignatureFileParser(
      */
     private fun parseDeclaredClassType(
         pkg: PackageItem,
-        declaredClassType: String,
         classFileLocation: FileLocation,
     ): DeclaredClassTypeComponents {
-        // Split the declared class type into full name and type parameters.
-        val paramIndex = declaredClassType.indexOf('<')
-        val (fullName, typeParameterListString) =
-            if (paramIndex == -1) {
-                Pair(declaredClassType, null)
-            } else {
-                Pair(
-                    declaredClassType.substring(0, paramIndex),
-                    TypeString(
-                        declaredClassType.substring(paramIndex),
-                        tokenizer.offset() - declaredClassType.length + paramIndex,
-                    ),
-                )
-            }
+        val fullName = parseQualifiedName()
+        val typeParameterListString = scanTypeParameterListString()
         val pkgName = pkg.qualifiedName()
         val qualifiedName = qualifiedName(pkgName, fullName)
 
