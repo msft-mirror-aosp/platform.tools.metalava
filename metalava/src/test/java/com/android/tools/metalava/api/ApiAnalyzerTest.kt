@@ -303,6 +303,55 @@ class ApiAnalyzerTest : DriverTest() {
     }
 
     @Test
+    fun `Test that DeprecationMismatch is not reported when containing class is deprecated`() {
+        // TODO(b/568477816): Should not report DeprecationMismatch when the containing class is
+        //  deprecated.
+        check(
+            expectedIssues =
+                """
+                    src/test/pkg/DeprecatedClass.java:7: error: Constructor test.pkg.DeprecatedClass(): @Deprecated annotation (present) and @deprecated doc tag (not present) do not match [DeprecationMismatch]
+                    src/test/pkg/DeprecatedClass.java:10: error: Field test.pkg.DeprecatedClass.field: @Deprecated annotation (present) and @deprecated doc tag (not present) do not match [DeprecationMismatch]
+                    src/test/pkg/DeprecatedClass.java:13: error: Method test.pkg.DeprecatedClass.method(): @Deprecated annotation (present) and @deprecated doc tag (not present) do not match [DeprecationMismatch]
+                    src/test/pkg/DeprecatedClass.java:16: error: Class test.pkg.DeprecatedClass.NestedClass: @Deprecated annotation (present) and @deprecated doc tag (not present) do not match [DeprecationMismatch]
+                    src/test/pkg/DeprecatedClass.java:18: error: Method test.pkg.DeprecatedClass.NestedClass.nestedMethod(): @Deprecated annotation (present) and @deprecated doc tag (not present) do not match [DeprecationMismatch]
+                    src/test/pkg/DeprecatedClass.java:23: error: Method test.pkg.DeprecatedClass.UndeprecatedNestedClass.nestedMethod(): @Deprecated annotation (present) and @deprecated doc tag (not present) do not match [DeprecationMismatch]
+                """,
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+
+                            /** @deprecated Use something else. */
+                            @Deprecated
+                            public class DeprecatedClass {
+                                @Deprecated
+                                public DeprecatedClass() {}
+
+                                @Deprecated
+                                public int field;
+
+                                @Deprecated
+                                public void method() {}
+
+                                @Deprecated
+                                public static class NestedClass {
+                                    @Deprecated
+                                    public void nestedMethod() {}
+                                }
+
+                                public static class UndeprecatedNestedClass {
+                                    @Deprecated
+                                    public void nestedMethod() {}
+                                }
+                            }
+                        """
+                    ),
+                ),
+        )
+    }
+
+    @Test
     fun `Test inheriting methods from hidden class preserves deprecated status`() {
         check(
             sourceFiles =
