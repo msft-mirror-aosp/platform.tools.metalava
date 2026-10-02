@@ -83,7 +83,7 @@ class SignatureFileLexerTest {
             SharedTokenType.CLASS to "class",
             SharedTokenType.IDENTIFIER to "-Foo",
             SharedTokenType.BRACE_OPEN to "{",
-            SharedTokenType.IDENTIFIER to "method",
+            SignatureTokenType.METHOD to "method",
             SharedTokenType.IDENTIFIER to "box-impl",
             SharedTokenType.PAREN_OPEN to "(",
             SharedTokenType.IDENTIFIER to "int",
@@ -102,7 +102,7 @@ class SignatureFileLexerTest {
             SharedTokenType.CLASS to "class",
             SharedTokenType.IDENTIFIER to "-Foo--Bar",
             SharedTokenType.BRACE_OPEN to "{",
-            SharedTokenType.IDENTIFIER to "method",
+            SignatureTokenType.METHOD to "method",
             SharedTokenType.IDENTIFIER to "foo--bar",
             SharedTokenType.PAREN_OPEN to "(",
             SharedTokenType.IDENTIFIER to "long",
@@ -118,7 +118,7 @@ class SignatureFileLexerTest {
     fun `Keywords followed by punctuation are tokenized as identifiers`() {
         assertTokenTypes(
             "method public value(optional value: int, optional: String): void;",
-            SharedTokenType.IDENTIFIER to "method",
+            SignatureTokenType.METHOD to "method",
             SignatureTokenType.PUBLIC to "public",
             SharedTokenType.IDENTIFIER to "value",
             SharedTokenType.PAREN_OPEN to "(",

@@ -35,7 +35,12 @@ internal object SignatureTokenType {
     val TARGET_LANGUAGE = TokenType("TARGET_LANGUAGE")
 
     // Top-level & Class Kind Keywords (note: CLASS and EXTENDS are in SharedTokenType)
+    val PACKAGE = TokenType("PACKAGE", canBeIdentifier = true)
+    val INTERFACE = TokenType("INTERFACE", canBeIdentifier = true)
+    val ENUM = TokenType("ENUM", canBeIdentifier = true)
     val ANNOTATION_INTERFACE = TokenType("ANNOTATION_INTERFACE")
+    val TYPEALIAS = TokenType("TYPEALIAS", canBeIdentifier = true)
+    val RECORD = TokenType("RECORD", canBeIdentifier = true)
 
     // Class Hierarchy & Member Clause Keywords
     val IMPLEMENTS = TokenType("IMPLEMENTS", canBeIdentifier = true)
@@ -44,6 +49,11 @@ internal object SignatureTokenType {
     val DEFAULT = TokenType("DEFAULT", canBeIdentifier = true)
 
     // Class Member Kind Keywords
+    val CTOR = TokenType("CTOR", canBeIdentifier = true)
+    val METHOD = TokenType("METHOD", canBeIdentifier = true)
+    val FIELD = TokenType("FIELD", canBeIdentifier = true)
+    val ENUM_CONSTANT = TokenType("ENUM_CONSTANT", canBeIdentifier = true)
+    val PROPERTY = TokenType("PROPERTY", canBeIdentifier = true)
     val RECORD_COMPONENT = TokenType("RECORD_COMPONENT", canBeIdentifier = true)
 
     // Visibility & Modifier Keywords
@@ -214,8 +224,11 @@ internal class SignatureFileLexer(
                 if (matchSlice(start, length, "abstract")) SignatureTokenType.ABSTRACT
                 else SharedTokenType.IDENTIFIER
             'c' ->
-                if (matchSlice(start, length, "context")) SignatureTokenType.CONTEXT
-                else super.resolveKeywordOrIdentifier(start, end)
+                when {
+                    matchSlice(start, length, "ctor") -> SignatureTokenType.CTOR
+                    matchSlice(start, length, "context") -> SignatureTokenType.CONTEXT
+                    else -> super.resolveKeywordOrIdentifier(start, end)
+                }
             'd' ->
                 when {
                     matchSlice(start, length, "default") -> SignatureTokenType.DEFAULT
@@ -224,22 +237,31 @@ internal class SignatureFileLexer(
                     else -> SharedTokenType.IDENTIFIER
                 }
             'e' ->
-                if (matchSlice(start, length, "exhaustive")) SignatureTokenType.EXHAUSTIVE
-                else super.resolveKeywordOrIdentifier(start, end)
+                when {
+                    matchSlice(start, length, "enum") -> SignatureTokenType.ENUM
+                    matchSlice(start, length, "enum_constant") -> SignatureTokenType.ENUM_CONSTANT
+                    matchSlice(start, length, "exhaustive") -> SignatureTokenType.EXHAUSTIVE
+                    else -> super.resolveKeywordOrIdentifier(start, end)
+                }
             'f' ->
                 when {
+                    matchSlice(start, length, "field") -> SignatureTokenType.FIELD
                     matchSlice(start, length, "final") -> SignatureTokenType.FINAL
                     matchSlice(start, length, "fun") -> SignatureTokenType.FUN
                     else -> SharedTokenType.IDENTIFIER
                 }
             'i' ->
                 when {
+                    matchSlice(start, length, "interface") -> SignatureTokenType.INTERFACE
                     matchSlice(start, length, "implements") -> SignatureTokenType.IMPLEMENTS
                     matchSlice(start, length, "internal") -> SignatureTokenType.INTERNAL
                     matchSlice(start, length, "infix") -> SignatureTokenType.INFIX
                     matchSlice(start, length, "inline") -> SignatureTokenType.INLINE
                     else -> SharedTokenType.IDENTIFIER
                 }
+            'm' ->
+                if (matchSlice(start, length, "method")) SignatureTokenType.METHOD
+                else SharedTokenType.IDENTIFIER
             'n' ->
                 when {
                     matchSlice(start, length, "non-sealed") -> SignatureTokenType.NON_SEALED
@@ -258,13 +280,16 @@ internal class SignatureFileLexer(
             'p' ->
                 when {
                     matchSlice(start, length, "public") -> SignatureTokenType.PUBLIC
+                    matchSlice(start, length, "package") -> SignatureTokenType.PACKAGE
                     matchSlice(start, length, "protected") -> SignatureTokenType.PROTECTED
                     matchSlice(start, length, "private") -> SignatureTokenType.PRIVATE
+                    matchSlice(start, length, "property") -> SignatureTokenType.PROPERTY
                     matchSlice(start, length, "permits") -> SignatureTokenType.PERMITS
                     else -> SharedTokenType.IDENTIFIER
                 }
             'r' ->
                 when {
+                    matchSlice(start, length, "record") -> SignatureTokenType.RECORD
                     matchSlice(start, length, "record_component") ->
                         SignatureTokenType.RECORD_COMPONENT
                     matchSlice(start, length, "receiver") -> SignatureTokenType.RECEIVER
@@ -282,6 +307,7 @@ internal class SignatureFileLexer(
             't' ->
                 when {
                     matchSlice(start, length, "throws") -> SignatureTokenType.THROWS
+                    matchSlice(start, length, "typealias") -> SignatureTokenType.TYPEALIAS
                     matchSlice(start, length, "transient") -> SignatureTokenType.TRANSIENT
                     else -> SharedTokenType.IDENTIFIER
                 }
