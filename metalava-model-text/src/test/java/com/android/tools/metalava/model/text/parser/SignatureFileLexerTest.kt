@@ -51,23 +51,43 @@ class SignatureFileLexerTest {
     }
 
     @Test
-    fun `Tokenize signature semicolon punctuation`() {
+    fun `Tokenize signature punctuation and target languages`() {
         assertTokenTypes(
-            "package test.pkg { class Foo { } }",
-            SharedTokenType.IDENTIFIER to "package",
-            SharedTokenType.IDENTIFIER to "test",
-            SharedTokenType.DOT to ".",
-            SharedTokenType.IDENTIFIER to "pkg",
-            SharedTokenType.BRACE_OPEN to "{",
-            SharedTokenType.CLASS to "class",
+            "@KotlinOnly @OtherAnno public @interface Foo { a: int; }",
+            SignatureTokenType.TARGET_LANGUAGE to "@KotlinOnly",
+            SharedTokenType.AT to "@",
+            SharedTokenType.IDENTIFIER to "OtherAnno",
+            SharedTokenType.IDENTIFIER to "public",
+            SignatureTokenType.ANNOTATION_INTERFACE to "@interface",
             SharedTokenType.IDENTIFIER to "Foo",
             SharedTokenType.BRACE_OPEN to "{",
-            SharedTokenType.BRACE_CLOSE to "}",
+            SharedTokenType.IDENTIFIER to "a",
+            SharedTokenType.COLON to ":",
+            SharedTokenType.IDENTIFIER to "int",
+            SignatureTokenType.SEMICOLON to ";",
             SharedTokenType.BRACE_CLOSE to "}",
         )
+    }
+
+    @Test
+    fun `Keywords followed by punctuation are tokenized as identifiers`() {
         assertTokenTypes(
-            "int;",
+            "method public value(optional value: int, optional: String): void;",
+            SharedTokenType.IDENTIFIER to "method",
+            SharedTokenType.IDENTIFIER to "public",
+            SharedTokenType.IDENTIFIER to "value",
+            SharedTokenType.PAREN_OPEN to "(",
+            SignatureTokenType.OPTIONAL to "optional",
+            SharedTokenType.IDENTIFIER to "value",
+            SharedTokenType.COLON to ":",
             SharedTokenType.IDENTIFIER to "int",
+            SharedTokenType.COMMA to ",",
+            SharedTokenType.IDENTIFIER to "optional",
+            SharedTokenType.COLON to ":",
+            SharedTokenType.IDENTIFIER to "String",
+            SharedTokenType.PAREN_CLOSE to ")",
+            SharedTokenType.COLON to ":",
+            SharedTokenType.IDENTIFIER to "void",
             SignatureTokenType.SEMICOLON to ";",
         )
     }
