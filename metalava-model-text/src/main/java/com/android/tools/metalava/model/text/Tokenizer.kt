@@ -82,49 +82,9 @@ class Tokenizer(
         return token ?: throwException("Unexpected end of file")
     }
 
-    /**
-     * The current [position], used to record the start of a block of text that will be retrieved
-     * later by [getStringFromOffset].
-     */
-    internal fun offset(): Int {
-        return position
-    }
-
     /** Get the contents of [buffer] from [start] to [end]. */
     fun substring(start: Int, end: Int): String {
         return buffer.substring(start, end)
-    }
-
-    /**
-     * Get the contents of [buffer] from [offset] to [position].
-     *
-     * @param offset an offset previously returned by [offset].
-     */
-    private fun getStringFromOffset(offset: Int): String {
-        return substring(offset, position)
-    }
-
-    /**
-     * Scans balanced [openToken] and [closeToken] tokens starting from [current] (which must be
-     * [openToken]) and returns the substring from the start of the opening [openToken] to the end
-     * of the matching [closeToken].
-     *
-     * Does not advance past the matching [closeToken]; on return, [current] is the matching
-     * [closeToken].
-     */
-    fun scanBalancedTokens(openToken: String, closeToken: String): String {
-        require(current == openToken) { "Expected '$openToken' but found '$current'" }
-        val start = offset() - openToken.length
-        var balance = 1
-        while (balance > 0) {
-            val token = requireToken()
-            if (token == openToken) {
-                balance++
-            } else if (token == closeToken) {
-                balance--
-            }
-        }
-        return getStringFromOffset(start)
     }
 
     /** The current token. */

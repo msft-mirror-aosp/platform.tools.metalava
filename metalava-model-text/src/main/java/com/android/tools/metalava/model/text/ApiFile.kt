@@ -18,7 +18,6 @@ package com.android.tools.metalava.model.text
 import com.android.tools.metalava.model.ANDROIDX_NONNULL
 import com.android.tools.metalava.model.ANDROIDX_NULLABLE
 import com.android.tools.metalava.model.AnnotationItem
-import com.android.tools.metalava.model.AnnotationItem.Companion.unshortenAnnotation
 import com.android.tools.metalava.model.ArrayTypeItem
 import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
@@ -826,9 +825,8 @@ internal class SingleSignatureFileParser(
             throw ApiParseException("expected = found $token", tokenizer)
         }
 
-        tokenizer.requireToken()
         val typeString = scanForTypeString()
-        token = tokenizer.current
+        token = tokenizer.requireToken()
         if (";" != token) {
             throw ApiParseException("expected ; found $token", tokenizer)
         }
@@ -1288,67 +1286,6 @@ internal class SingleSignatureFileParser(
     }
 
     /**
-     * If [Tokenizer.current] contains the beginning of an annotation, pulls additional tokens from
-     * [tokenizer] to complete the annotation, returning the full token. If there isn't an
-     * annotation, returns the original [Tokenizer.current].
-     *
-     * When the method returns, the [tokenizer] will point to the token after the end of the
-     * returned string.
-     *
-     * @return the complete token string.
-     */
-    private fun getAnnotationCompleteToken(): String {
-        val startingToken = tokenizer.current
-        val atIndex = startingToken.indexOf('@')
-        return if (atIndex != -1) {
-            // An annotation starts at or within this token (e.g. `@Nullable` or
-            // `prefix.@Nullable`).
-            // Parse the complete annotation (including any arguments) from the tokenizer.
-            val annotationStart = startingToken.substring(atIndex)
-            val annotation = getAnnotationSource(annotationStart)
-            buildString {
-                append(startingToken, 0, atIndex)
-                append(annotation)
-            }
-        } else {
-            // No annotation is present; advance the tokenizer and return the token directly.
-            tokenizer.requireToken()
-            startingToken
-        }
-    }
-
-    /**
-     * If the [startingToken] is the beginning of an annotation, returns the annotation parsed from
-     * the [tokenizer]. Returns null otherwise.
-     *
-     * When the method returns, the [tokenizer] will point to the token after the annotation.
-     */
-    private fun getAnnotationSource(startingToken: String): String? {
-        var token = startingToken
-        if (token.startsWith('@')) {
-            return buildString {
-                append('@')
-
-                // Restore annotations that were shortened on export
-                val annotationClassName = unshortenAnnotation(token.substring(1))
-                append(annotationClassName)
-
-                token = tokenizer.requireToken()
-                if (token == "(") {
-                    // Annotation arguments; potentially nested
-                    append(tokenizer.scanBalancedTokens("(", ")"))
-
-                    // Move the tokenizer so that when the method returns it points to the token
-                    // after the end of the annotation.
-                    tokenizer.requireToken()
-                }
-            }
-        } else {
-            return null
-        }
-    }
-
-    /**
      * Skips a `@QualifiedName(...)` annotation starting at the current `@` token in [tokenizer],
      * returning the `endOffset` of the last token of the annotation.
      */
@@ -1491,14 +1428,15 @@ internal class SingleSignatureFileParser(
 
         // Get a TypeParameterList and accompanying TypeParameterScope
         val (typeParameterList, typeItemFactory) = parseTypeParameterList(classTypeItemFactory)
-        var token = tokenizer.requireToken()
-        tokenizer.assertIdent(token)
 
+        var token: String
         val returnTypeString: TypeString
         val parameters: List<ParameterInfo>
         val name: String
         if (kotlinNameTypeOrder) {
             // Kotlin style: parse the name, the parameter list, then the return type.
+            token = tokenizer.requireToken()
+            tokenizer.assertIdent(token)
             name = token
             parameters = parseParameterList()
             token = tokenizer.requireToken()
@@ -1508,14 +1446,12 @@ internal class SingleSignatureFileParser(
                     tokenizer
                 )
             }
-            token = tokenizer.requireToken()
-            tokenizer.assertIdent(token)
             returnTypeString = scanForTypeString()
-            token = tokenizer.current
+            token = tokenizer.requireToken()
         } else {
             // Java style: parse the return type, the name, and then the parameter list.
             returnTypeString = scanForTypeString()
-            token = tokenizer.current
+            token = tokenizer.requireToken()
             tokenizer.assertIdent(token)
             name = token
             parameters = parseParameterList()
@@ -1621,22 +1557,19 @@ internal class SingleSignatureFileParser(
         isEnumConstant: Boolean,
     ) {
         val (modifiers, targetLanguages) = parseModifiersAndTargetLanguages()
-        var token = tokenizer.requireToken()
-        tokenizer.assertIdent(token)
 
+        var token: String
         val typeString: TypeString
         val name: String
         if (kotlinNameTypeOrder) {
             // Kotlin style: parse the name, then the type.
-            name = parseNameWithColon(token)
+            name = parseNameWithColon()
+            typeString = scanForTypeString()
             token = tokenizer.requireToken()
-            tokenizer.assertIdent(token)
-            typeString = scanForTypeString()
-            token = tokenizer.current
         } else {
-            // Java style: parse the name, then the type.
+            // Java style: parse the type, then the name.
             typeString = scanForTypeString()
-            token = tokenizer.current
+            token = tokenizer.requireToken()
             tokenizer.assertIdent(token)
             name = token
             token = tokenizer.requireToken()
@@ -1870,7 +1803,6 @@ internal class SingleSignatureFileParser(
 
         // Get a TypeParameterList and accompanying TypeParameterScope
         val (typeParameterList, typeItemFactory) = parseTypeParameterList(classTypeItemFactory)
-        tokenizer.requireToken()
 
         val typeString: TypeString
         val receiverNamePair: Pair<TypeItem?, String>
@@ -1886,7 +1818,7 @@ internal class SingleSignatureFileParser(
         val type = typeItemFactory.getGeneralType(typeString)
         synchronizeNullability(type, modifiers)
 
-        var token = tokenizer.current
+        var token = tokenizer.requireToken()
         val contextParameters =
             if (token == "(") {
                 val params =
@@ -1935,18 +1867,17 @@ internal class SingleSignatureFileParser(
     }
 
     /**
-     * Starting from the current token of [tokenizer], parses the optional receiver type and then
-     * the name of a property.
+     * Parses the optional receiver type and then the name of a property from [tokenizer].
      *
-     * After the method returns, the caller should continue processing at the new current token of
-     * [tokenizer], which will be the token after
+     * After the method returns, the caller should continue processing at the next token in
+     * [tokenizer].
      */
     private fun parsePropertyReceiverAndName(
         typeItemFactory: TextTypeItemFactory
     ): Pair<TypeItem?, String> {
         // If there's no receiver, scanning for the type string should just return the name.
-        // If there is a receiver, because of how the tokens are broken up, it should return
-        // "receiver.name", which can then be split on the last "." to the receiver and name.
+        // If there is a receiver, it will return "receiver.name", which can then be split on the
+        // last "." to the receiver and name.
         val receiverAndName = scanForTypeString()
         val namePossiblyWithColon: String
         val receiverTypeString: TypeString?
@@ -1966,7 +1897,6 @@ internal class SingleSignatureFileParser(
             if (kotlinNameTypeOrder) {
                 parseNameWithColon(namePossiblyWithColon)
             } else {
-                tokenizer.assertIdent(namePossiblyWithColon)
                 namePossiblyWithColon
             }
         val receiverType = receiverTypeString?.let { typeItemFactory.getGeneralType(it) }
@@ -2043,23 +1973,14 @@ internal class SingleSignatureFileParser(
         // public.
         val modifiers = parseModifierAnnotations(VisibilityLevel.PUBLIC)
 
-        // Parse the component name and trailing `:`.
-        val nameToken = requireNonEofToken()
-        assertIdent(nameToken)
-        if (!match(SharedTokenType.COLON)) {
-            throw parseException(
-                "Expecting name ending with \":\" but found ${text(nameToken)}.",
-                nameToken,
-            )
-        }
-        val name = text(nameToken)
+        // Parse the component name.
+        val name = parseNameWithColon()
 
         // Parse the type.
-        tokenizer.requireToken()
         val typeString = scanForTypeString()
 
         // Make sure that the whole record component was parsed.
-        val token = tokenizer.current
+        val token = tokenizer.requireToken()
         if (";" != token) {
             throw ApiParseException("expected ; found $token", tokenizer)
         }
@@ -2272,28 +2193,26 @@ internal class SingleSignatureFileParser(
                 }
 
             val modifiers = parseModifiers()
-            token = tokenizer.requireToken()
 
             val typeString: TypeString
             val publicName: String?
             if (kotlinNameTypeOrder) {
                 // Kotlin style: parse the name (only considered a public name if it is not `_`,
                 // which is used as a placeholder for params without public names), then the type.
-                val nameOrPlaceholder = parseNameWithColon(token)
+                val nameOrPlaceholder = parseNameWithColon()
                 publicName =
                     if (nameOrPlaceholder == "_") {
                         null
                     } else {
                         nameOrPlaceholder
                     }
-                tokenizer.requireToken()
                 // Token should now represent the type
                 typeString = scanForTypeString()
-                token = tokenizer.current
+                token = tokenizer.requireToken()
             } else {
                 // Java style: parse the type, then the public name if it has one.
                 typeString = scanForTypeString()
-                token = tokenizer.current
+                token = tokenizer.requireToken()
                 if (Tokenizer.isIdent(token)) {
                     publicName = token
                     token = tokenizer.requireToken()
@@ -2511,55 +2430,63 @@ internal class SingleSignatureFileParser(
     }
 
     /**
-     * Scans the token stream from [tokenizer] for a type string, starting with [Tokenizer.current]
-     * and ensuring that the full type string is gathered, even when there are type-use annotations.
-     *
-     * After this method is called, `tokenizer.current` will point to the token after the type.
+     * Scans the token stream from [tokenizer] for a type string, ensuring that the full type string
+     * is gathered, even when there are type-use annotations.
      *
      * Note: this **should not** be used when the token after the type could contain annotations,
      * such as when multiple types appear as consecutive tokens. (This happens in the `implements`
      * list of a class definition, e.g. `class Foo implements test.pkg.Bar test.pkg.@A Baz`.)
      *
-     * To handle arrays with type-use annotations, this looks forward at the next token and includes
-     * it if it contains an annotation. This is necessary to handle type strings like "Foo @A []".
-     *
      * @return the complete [TypeString].
      */
     private fun scanForTypeString(): TypeString {
-        val startOffset = tokenizer.offset() - tokenizer.current.length
-        val prev = getAnnotationCompleteToken()
-        var prevIsIncomplete = isIncompleteTypeToken(prev)
-        var token = tokenizer.current
-        var tokenIsIncomplete = isIncompleteTypeToken(token)
-
-        // If neither the initial token nor the next token has annotations that break up the type,
-        // the initial token is the entire type string (the common case, avoiding StringBuilder).
-        if (!prevIsIncomplete && !tokenIsIncomplete) {
-            return TypeString(prev, startOffset)
+        val firstToken = peek()
+        if (firstToken.type == SharedTokenType.EOF) {
+            throw parseException("Unexpected end of file", firstToken)
         }
+        val startOffset = firstToken.startOffset
 
-        val text = buildString {
-            append(prev)
+        // Consume the initial (possibly annotated) identifier segment of the type.
+        var endOffset = skipAnnotatedIdentifier()
 
-            // Look both at the last used token and the next one:
-            // 1. If the last token has annotations, the type string was broken up by annotations
-            //    and the next token is also part of the type.
-            // 2. If the next token has annotations, this is an array type like "Foo @A []",
-            //    so the next token is part of the type.
-            while (prevIsIncomplete || tokenIsIncomplete) {
-                token = getAnnotationCompleteToken()
-                append(' ').append(token)
-
-                // The token just consumed becomes `prev`. Its incompleteness was already evaluated
-                // as `tokenIsIncomplete`, so transfer that status without scanning again.
-                prevIsIncomplete = tokenIsIncomplete
-
-                // Look ahead at the next token and evaluate only this new token.
-                token = tokenizer.current
-                tokenIsIncomplete = isIncompleteTypeToken(token)
+        // Continue consuming qualified segments (`.Foo`), type argument lists (`<...>`),
+        // nullability/vararg suffixes (`?`, `!`, `...`), array dimensions (`[]`), and type-use
+        // annotations on array dimensions (`Foo @A []`).
+        while (true) {
+            when (peekType()) {
+                SharedTokenType.DOT -> {
+                    consume()
+                    endOffset = skipAnnotatedIdentifier()
+                }
+                SharedTokenType.ANGLE_OPEN -> {
+                    endOffset = skipTypeArgumentList()
+                }
+                SharedTokenType.QUESTION,
+                SharedTokenType.EXCLAMATION,
+                SharedTokenType.ELLIPSIS -> {
+                    endOffset = consume().endOffset
+                }
+                SharedTokenType.BRACKET_OPEN -> {
+                    consume()
+                    val closeBracket = requireNonEofToken()
+                    if (closeBracket.type != SharedTokenType.BRACKET_CLOSE) {
+                        throw parseException(
+                            "expected ], was ${text(closeBracket)}",
+                            closeBracket,
+                        )
+                    }
+                    endOffset = closeBracket.endOffset
+                }
+                SharedTokenType.AT -> {
+                    // Type-use annotation before an array dimension or varargs suffix (e.g.
+                    // `Foo @A []`).
+                    endOffset = skipAnnotation()
+                }
+                else -> break
             }
         }
-        return TypeString(text, startOffset)
+
+        return TypeString(fileSubstring(startOffset, endOffset), startOffset)
     }
 
     /**
@@ -2596,41 +2523,29 @@ internal class SingleSignatureFileParser(
     }
 
     /**
-     * Determines whether the [type] is an incomplete type string broken up by annotations. This is
-     * the case when there's an annotation that isn't contained within a parameter list (because
-     * [Tokenizer.requireToken] handles not breaking in the middle of a parameter list).
-     *
-     * @param type the type token to check.
-     * @return true if the token is an incomplete type string broken up by annotations.
+     * Parses an identifier token followed by a `:` token from [tokenizer], returning the identifier
+     * text and throwing an [ApiParseException] if either is missing.
      */
-    private fun isIncompleteTypeToken(type: String): Boolean {
-        // If there is no '@' at all, the token cannot have type annotations.
-        val firstAnnotationIndex = type.indexOf('@')
-        if (firstAnnotationIndex == -1) return false
-
-        // If there are no type parameters ('<') or the first annotation appears before '<',
-        // then the annotation is outside the parameter list and breaks up the type string.
-        val paramStartIndex = type.indexOf('<')
-        if (paramStartIndex == -1 || firstAnnotationIndex < paramStartIndex) return true
-
-        // Otherwise, the first annotation is inside '<...>'. Check whether any annotation
-        // appears after the parameter list (e.g. `List<String> @Nullable []`).
-        val lastAnnotationIndex = type.lastIndexOf('@')
-        val paramEndIndex = type.lastIndexOf('>')
-        return paramEndIndex == -1 || paramEndIndex < lastAnnotationIndex
+    private fun parseNameWithColon(): String {
+        val nameToken = requireNonEofToken()
+        assertIdent(nameToken)
+        return parseNameWithColon(text(nameToken))
     }
 
     /**
      * For Kotlin-style name/type ordering in signature files, the name is generally followed by a
-     * colon (besides methods, where the colon comes after the parameter list). This method takes
-     * the name [token] and removes the trailing colon, throwing an [ApiParseException] if one isn't
-     * present.
+     * colon (besides methods, where the colon comes after the parameter list). This method verifies
+     * that a colon token follows [token] in [tokenizer] and consumes it, throwing an
+     * [ApiParseException] if one isn't present.
      */
     private fun parseNameWithColon(token: String): String {
-        if (!token.endsWith(':')) {
-            throw ApiParseException("Expecting name ending with \":\" but found $token.", tokenizer)
+        if (!match(SharedTokenType.COLON)) {
+            throw parseException(
+                "Expecting name ending with \":\" but found $token.",
+                peek(),
+            )
         }
-        return token.removeSuffix(":")
+        return token
     }
 
     private fun qualifiedName(pkg: String, className: String): String {
