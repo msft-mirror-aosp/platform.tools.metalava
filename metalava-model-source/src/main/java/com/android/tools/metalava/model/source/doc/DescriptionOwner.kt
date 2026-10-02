@@ -37,12 +37,13 @@ internal open class DescriptionOwner<out T : DescriptionOwner<T>>(
     val context: DocCommentContext,
     protected val descriptionSupplier: ContentSupplier,
     protected val noComment: Boolean,
+    initializedDescription: Optional<JavadocContent>? = null,
 ) {
     /**
      * A mutable and optional [JavadocContent] that is initialized lazily from [descriptionSupplier]
      * in [initializeDescription].
      */
-    private lateinit var _description: Optional<JavadocContent>
+    protected var _description: Optional<JavadocContent>? = initializedDescription
 
     /**
      * Provides access to the [JavadocContent] in [_description].
@@ -55,7 +56,7 @@ internal open class DescriptionOwner<out T : DescriptionOwner<T>>(
     val description: JavadocContent?
         get() {
             ensureDescriptionIsInitialized()
-            return _description.getOrNull()
+            return _description!!.getOrNull()
         }
 
     /**
@@ -65,7 +66,7 @@ internal open class DescriptionOwner<out T : DescriptionOwner<T>>(
      * without retrieving [description].
      */
     protected fun ensureDescriptionIsInitialized() {
-        if (!::_description.isInitialized) {
+        if (_description == null) {
             initializeDescription(descriptionSupplier.content)
         }
     }

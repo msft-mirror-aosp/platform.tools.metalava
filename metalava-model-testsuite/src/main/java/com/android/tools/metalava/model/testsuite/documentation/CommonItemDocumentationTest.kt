@@ -1849,9 +1849,10 @@ class CommonItemDocumentationTest : BaseModelTest() {
                 message = "duplicated method",
             )
 
-            // TODO: AbstractItemDocumentation.duplicate shares the mutable DocComment instance
-            //  with the original item, so mutating the duplicated item's documentation also
-            //  mutates the original item's documentation.
+            // TODO: AbstractItemDocumentation.duplicate shares the DocComment instance with the
+            //  original item, and DescriptionOwner still mutates _description in place, so mutating
+            //  the duplicated item's main description also mutates the original item's main
+            //  description.
             baseMethod.assertPrintedDocumentation(
                 expectedOutput =
                     """
@@ -1859,7 +1860,6 @@ class CommonItemDocumentationTest : BaseModelTest() {
                          * Summary line.
                          * <br>
                          * Appended to duplicate.
-                         * @unique 1
                          */
                     """,
                 message = "base method",
