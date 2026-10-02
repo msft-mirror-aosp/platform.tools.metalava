@@ -86,7 +86,7 @@ class Tokenizer(
      * The current [position], used to record the start of a block of text that will be retrieved
      * later by [getStringFromOffset].
      */
-    private fun offset(): Int {
+    internal fun offset(): Int {
         return position
     }
 

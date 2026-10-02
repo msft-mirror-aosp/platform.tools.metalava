@@ -22,12 +22,13 @@ import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterScope
 import com.android.tools.metalava.model.type.ContextNullability
 import com.android.tools.metalava.model.type.DefaultTypeItemFactory
+import com.android.tools.metalava.model.type.TypeString
 
 internal class TextTypeItemFactory(
     private val assembler: TextCodebaseAssembler,
     private val typeParser: TextTypeParser,
     typeParameterScope: TypeParameterScope = TypeParameterScope.empty,
-) : DefaultTypeItemFactory<String, TextTypeItemFactory>(typeParameterScope) {
+) : DefaultTypeItemFactory<TypeString, TextTypeItemFactory>(typeParameterScope) {
 
     /** Construct a [TextTypeItemFactory] suitable for creating types within [classItem]. */
     fun from(classItem: ClassItem?): TextTypeItemFactory {
@@ -41,24 +42,25 @@ internal class TextTypeItemFactory(
         TextTypeItemFactory(assembler, typeParser, scope)
 
     override fun getType(
-        underlyingType: String,
+        underlyingType: TypeString,
         contextNullability: ContextNullability,
         isVarArg: Boolean
     ): TypeItem =
         typeParser.obtainTypeFromString(
-            underlyingType,
+            underlyingType.type,
             typeParameterScope,
             contextNullability,
+            underlyingType.offset,
         )
 
-    override fun getExceptionType(underlyingType: String) =
+    override fun getExceptionType(underlyingType: TypeString) =
         super.getExceptionType(underlyingType).also { exceptionTypeItem ->
             if (exceptionTypeItem is ClassTypeItem) {
                 assembler.requireStubKindFor(exceptionTypeItem, StubKind.THROWABLE)
             }
         }
 
-    override fun getInterfaceType(underlyingType: String) =
+    override fun getInterfaceType(underlyingType: TypeString) =
         super.getInterfaceType(underlyingType).also { classTypeItem ->
             assembler.requireStubKindFor(classTypeItem, StubKind.INTERFACE)
         }

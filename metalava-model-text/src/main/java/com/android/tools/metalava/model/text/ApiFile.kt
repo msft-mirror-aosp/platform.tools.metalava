@@ -68,6 +68,7 @@ import com.android.tools.metalava.model.type.MethodFingerprint
 import com.android.tools.metalava.model.type.TypeItemParser
 import com.android.tools.metalava.model.type.TypeItemParserErrorReporter
 import com.android.tools.metalava.model.type.TypeParameterListAndFactory
+import com.android.tools.metalava.model.type.TypeString
 import com.android.tools.metalava.model.utils.extractOptionalQualifierName
 import com.android.tools.metalava.model.utils.extractSimpleName
 import com.android.tools.metalava.model.value.Value
@@ -238,7 +239,7 @@ private constructor(
     private val typeItemParserErrorReporter =
         object : TypeItemParserErrorReporter {
             override fun report(issue: Issues.Issue, message: String, charOffset: Int) {
-                reportIssue(issue, message)
+                reportIssue(issue, message, charOffset)
             }
         }
 
@@ -387,12 +388,12 @@ private constructor(
     /**
      * Report a recoverable issue encountered while parsing.
      *
-     * Retrieves the location of the error from [fileLocationTracker].
+     * Retrieves the location of the error at [charOffset] from [fileLocationTracker].
      *
      * Note: Non-recoverable issues result in an exception being thrown.
      */
-    private fun reportIssue(issue: Issues.Issue, message: String) {
-        val location = fileLocationTracker.fileLocation()
+    private fun reportIssue(issue: Issues.Issue, message: String, charOffset: Int) {
+        val location = fileLocationTracker.fileLocation(charOffset)
         codebase.reporter.report(issue, null, message, location)
     }
 
@@ -751,7 +752,10 @@ internal class SingleSignatureFileParser(
                     createTypeParameterList(
                         globalTypeItemFactory,
                         "typealias $name",
-                        token.substring(typeParameterListIndex)
+                        TypeString(
+                            token.substring(typeParameterListIndex),
+                            tokenizer.offset() - token.length + typeParameterListIndex,
+                        ),
                     )
                 Triple(
                     name,
@@ -1052,30 +1056,33 @@ internal class SingleSignatureFileParser(
      * Parse a super type string, i.e. a string representing a super class type or a super interface
      * type.
      */
-    private fun parseSuperTypeString(): String {
+    private fun parseSuperTypeString(): TypeString {
+        val startOffset = tokenizer.offset() - tokenizer.current.length
         var token = getAnnotationCompleteToken()
 
         // Use the token directly if it is complete, otherwise construct the super class type
         // string from as many tokens as necessary.
-        return if (!isIncompleteTypeToken(token)) {
-            token
-        } else {
-            buildString {
-                append(token)
-
-                // Make sure full super class name is found if there are type use
-                // annotations. This can't use [parseType] because the next token might be a
-                // separate type (classes only have a single `extends` type, but all
-                // interface supertypes are listed as `extends` instead of `implements`).
-                // However, this type cannot be an array, so unlike [parseType] this does
-                // not need to check if the next token has annotations.
-                do {
-                    token = getAnnotationCompleteToken()
-                    append(" ")
+        val text =
+            if (!isIncompleteTypeToken(token)) {
+                token
+            } else {
+                buildString {
                     append(token)
-                } while (isIncompleteTypeToken(token))
+
+                    // Make sure full super class name is found if there are type use
+                    // annotations. This can't use [parseType] because the next token might be a
+                    // separate type (classes only have a single `extends` type, but all
+                    // interface supertypes are listed as `extends` instead of `implements`).
+                    // However, this type cannot be an array, so unlike [parseType] this does
+                    // not need to check if the next token has annotations.
+                    do {
+                        token = getAnnotationCompleteToken()
+                        append(" ")
+                        append(token)
+                    } while (isIncompleteTypeToken(token))
+                }
             }
-        }
+        return TypeString(text, startOffset)
     }
 
     /** Encapsulates multiple return values from [parseDeclaredClassType]. */
@@ -1113,11 +1120,14 @@ internal class SingleSignatureFileParser(
         val paramIndex = declaredClassType.indexOf('<')
         val (fullName, typeParameterListString) =
             if (paramIndex == -1) {
-                Pair(declaredClassType, "")
+                Pair(declaredClassType, null)
             } else {
                 Pair(
                     declaredClassType.substring(0, paramIndex),
-                    declaredClassType.substring(paramIndex)
+                    TypeString(
+                        declaredClassType.substring(paramIndex),
+                        tokenizer.offset() - declaredClassType.length + paramIndex,
+                    ),
                 )
             }
         val pkgName = pkg.qualifiedName()
@@ -1144,7 +1154,7 @@ internal class SingleSignatureFileParser(
 
         // Create type parameter list and factory from the string and optional outer class factory.
         val (typeParameterList, typeItemFactory) =
-            if (typeParameterListString == "")
+            if (typeParameterListString == null)
                 TypeParameterListAndFactory(TypeParameterList.NONE, outerClassTypeItemFactory)
             else
                 createTypeParameterList(
@@ -1357,7 +1367,7 @@ internal class SingleSignatureFileParser(
         var token = tokenizer.current
         tokenizer.assertIdent(token)
 
-        val returnTypeString: String
+        val returnTypeString: TypeString
         val parameters: List<ParameterInfo>
         val name: String
         if (kotlinNameTypeOrder) {
@@ -1488,7 +1498,7 @@ internal class SingleSignatureFileParser(
         var token = tokenizer.current
         tokenizer.assertIdent(token)
 
-        val typeString: String
+        val typeString: TypeString
         val name: String
         if (kotlinNameTypeOrder) {
             // Kotlin style: parse the name, then the type.
@@ -1733,7 +1743,7 @@ internal class SingleSignatureFileParser(
         // Get a TypeParameterList and accompanying TypeParameterScope
         val (typeParameterList, typeItemFactory) = parseTypeParameterList(classTypeItemFactory)
 
-        val typeString: String
+        val typeString: TypeString
         val receiverNamePair: Pair<TypeItem?, String>
         if (kotlinNameTypeOrder) {
             // Kotlin style: parse the name, then the type.
@@ -1810,12 +1820,16 @@ internal class SingleSignatureFileParser(
         // "receiver.name", which can then be split on the last "." to the receiver and name.
         val receiverAndName = scanForTypeString()
         val namePossiblyWithColon: String
-        val receiverTypeString: String?
-        if (receiverAndName.contains(".")) {
-            namePossiblyWithColon = receiverAndName.substringAfterLast(".")
-            receiverTypeString = receiverAndName.substringBeforeLast(".")
+        val receiverTypeString: TypeString?
+        if (receiverAndName.type.contains(".")) {
+            namePossiblyWithColon = receiverAndName.type.substringAfterLast(".")
+            receiverTypeString =
+                TypeString(
+                    receiverAndName.type.substringBeforeLast("."),
+                    receiverAndName.offset,
+                )
         } else {
-            namePossiblyWithColon = receiverAndName
+            namePossiblyWithColon = receiverAndName.type
             receiverTypeString = null
         }
 
@@ -1868,7 +1882,7 @@ internal class SingleSignatureFileParser(
         val location: FileLocation,
         val modifiers: MutableModifierList,
         val name: String,
-        val typeString: String,
+        val typeString: TypeString,
         val recordComponentIndex: Int,
     )
 
@@ -1945,6 +1959,7 @@ internal class SingleSignatureFileParser(
             return TypeParameterListAndFactory(TypeParameterList.NONE, enclosingTypeItemFactory)
         }
 
+        val startOffset = tokenizer.offset() - 1
         val typeParameterListString = tokenizer.scanBalancedTokens("<", ">")
         // Set the tokenizer to the next token, so that the caller should continue processing at
         // tokenizer.current (in alignment with the no type parameter case).
@@ -1958,7 +1973,7 @@ internal class SingleSignatureFileParser(
             createTypeParameterList(
                 enclosingTypeItemFactory,
                 scopeDescription,
-                typeParameterListString
+                TypeString(typeParameterListString, startOffset),
             )
         }
     }
@@ -1975,11 +1990,11 @@ internal class SingleSignatureFileParser(
     private fun createTypeParameterList(
         enclosingTypeItemFactory: TextTypeItemFactory,
         scopeDescription: String,
-        typeParameterListString: String
+        typeParameterListString: TypeString
     ): TypeParameterListAndFactory<TextTypeItemFactory> {
         // Split the type parameter list string into a list of strings, one for each type
         // parameter.
-        val typeParameterStrings = typeParser.typeParameterStrings(typeParameterListString)
+        val typeParameterStrings = typeParser.typeParameterStrings(typeParameterListString.type)
 
         // Create the List<TypeParameterItem> and the corresponding TypeItemFactory that can be
         // used to resolve TypeParameterItems from the list. This performs the construction in two
@@ -1995,7 +2010,11 @@ internal class SingleSignatureFileParser(
                 if (boundsStringList.isEmpty()) {
                     WellKnownTypes.defaultTypeParameterBounds(forKotlin = false)
                 } else {
-                    boundsStringList.map { typeItemFactory.getBoundsType(it) }
+                    boundsStringList.map {
+                        typeItemFactory.getBoundsType(
+                            TypeString(it, typeParameterListString.offset)
+                        )
+                    }
                 }
             },
         )
@@ -2099,7 +2118,7 @@ internal class SingleSignatureFileParser(
             val modifiers = parseModifiers()
             token = tokenizer.current
 
-            val typeString: String
+            val typeString: TypeString
             val publicName: String?
             if (kotlinNameTypeOrder) {
                 // Kotlin style: parse the name (only considered a public name if it is not `_`,
@@ -2167,7 +2186,7 @@ internal class SingleSignatureFileParser(
         val name: String,
         val publicName: String?,
         val hasDefaultValue: Boolean,
-        val typeString: String,
+        val typeString: TypeString,
         val modifiers: MutableModifierList,
         val location: FileLocation,
         val index: Int,
@@ -2279,7 +2298,10 @@ internal class SingleSignatureFileParser(
                             throw ApiParseException("Expected ',' or ';' got $token", tokenizer)
                         }
                         comma = false
-                        val exceptionType = typeItemFactory.getExceptionType(token)
+                        val exceptionType =
+                            typeItemFactory.getExceptionType(
+                                TypeString(token, tokenizer.offset() - token.length)
+                            )
                         add(exceptionType)
                     }
                 }
@@ -2303,9 +2325,10 @@ internal class SingleSignatureFileParser(
      * To handle arrays with type-use annotations, this looks forward at the next token and includes
      * it if it contains an annotation. This is necessary to handle type strings like "Foo @A []".
      *
-     * @return the complete type string.
+     * @return the complete [TypeString].
      */
-    private fun scanForTypeString(): String {
+    private fun scanForTypeString(): TypeString {
+        val startOffset = tokenizer.offset() - tokenizer.current.length
         val prev = getAnnotationCompleteToken()
         var prevIsIncomplete = isIncompleteTypeToken(prev)
         var token = tokenizer.current
@@ -2314,10 +2337,10 @@ internal class SingleSignatureFileParser(
         // If neither the initial token nor the next token has annotations that break up the type,
         // the initial token is the entire type string (the common case, avoiding StringBuilder).
         if (!prevIsIncomplete && !tokenIsIncomplete) {
-            return prev
+            return TypeString(prev, startOffset)
         }
 
-        return buildString {
+        val text = buildString {
             append(prev)
 
             // Look both at the last used token and the next one:
@@ -2338,6 +2361,7 @@ internal class SingleSignatureFileParser(
                 tokenIsIncomplete = isIncompleteTypeToken(token)
             }
         }
+        return TypeString(text, startOffset)
     }
 
     /**
