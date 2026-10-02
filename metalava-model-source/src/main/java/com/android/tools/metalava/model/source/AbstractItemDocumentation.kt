@@ -51,7 +51,7 @@ internal abstract class AbstractItemDocumentation(
 ) : ItemDocumentation, DocumentationIssueReporter, DocCommentContext {
 
     /** The [DocComment] that contains the documentation content. */
-    protected abstract val docComment: DocComment
+    protected abstract var docComment: DocComment
 
     override fun resolveItemReference(
         sourceReference: String,
@@ -194,11 +194,11 @@ internal abstract class AbstractItemDocumentation(
                     get() = mainDescription
 
                 override fun append(other: DocContent) {
-                    docComment.append(other)
+                    docComment = docComment.append(other)
                 }
 
                 override fun append(text: String) {
-                    docComment.append(text)
+                    docComment = docComment.append(text)
                 }
             }
 

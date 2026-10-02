@@ -44,11 +44,11 @@ internal interface DocComment {
     /** Check to see whether there are any block tags of type [tagTypeName]. */
     fun hasBlockTagOfType(tagTypeName: String): Boolean
 
-    /** Append [other] to the main [description]. */
-    fun append(other: DocContent)
+    /** Return a copy of this with [other] appended to the main [description]. */
+    fun append(other: DocContent): DocComment
 
-    /** Append [text] to the main [description]. */
-    fun append(text: String)
+    /** Return a copy of this with [text] appended to the main [description]. */
+    fun append(text: String): DocComment
 
     /** Add a [BlockTagSection] of [tagTypeName] with [description] to the list. */
     fun addBlockTagSection(tagTypeName: String, description: JavadocContent?)
@@ -162,7 +162,7 @@ internal class DefaultDocComment(
     blockTagSections: List<BlockTagSection>,
     noComment: Boolean,
 ) :
-    DescriptionOwner(
+    DescriptionOwner<DefaultDocComment>(
         context,
         descriptionSupplier,
         noComment,
@@ -200,12 +200,10 @@ internal class DefaultDocComment(
         blockTagSections = blockTagSections + blockTagSection
 
         // If this call added the first block tag section, then append`{@inheritDoc}` if necessary.
-        // If it was appended then return as it will already have notified the listener that this
-        // has changed.
         // TODO(b/454257440): Investigate whether adding `{@inheritDoc}` to the main description of
         //  a comment in this case is necessary.
-        if (blockTagSections.size == 1 && appendInheritDocIfNeeded()) {
-            return
+        if (blockTagSections.size == 1) {
+            appendInheritDocIfNeeded()
         }
     }
 

@@ -49,7 +49,7 @@ internal class SourceItemDocumentation(
     /** Lazily initialized backing property for [docComment]. */
     private lateinit var _docComment: DocComment
 
-    override val docComment: DocComment
+    override var docComment: DocComment
         get() {
             if (!::_docComment.isInitialized) {
                 _docComment =
@@ -60,6 +60,9 @@ internal class SourceItemDocumentation(
                     )
             }
             return _docComment
+        }
+        set(value) {
+            _docComment = value
         }
 }
 

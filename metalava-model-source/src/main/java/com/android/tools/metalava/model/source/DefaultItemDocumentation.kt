@@ -31,7 +31,7 @@ internal class DefaultItemDocumentation(
     override val fileLocation: FileLocation = FileLocation.UNKNOWN,
 ) : AbstractItemDocumentation(item) {
 
-    override val docComment: DocComment =
+    override var docComment: DocComment =
         docComment
             ?: DefaultDocComment(
                 this,

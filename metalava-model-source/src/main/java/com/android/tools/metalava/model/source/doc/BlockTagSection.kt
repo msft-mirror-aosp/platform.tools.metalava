@@ -52,11 +52,11 @@ internal interface BlockTagSection : DocTag {
      */
     fun <D : TagData> typeSafeTagData(tagType: TagType<D>): D?
 
-    /** Append [other] to [description]. */
-    fun append(other: DocContent)
+    /** Return a copy of this with [other] appended to [description]. */
+    fun append(other: DocContent): BlockTagSection
 
-    /** Append [text] to [description]. */
-    fun append(text: String)
+    /** Return a copy of this with [text] appended to [description]. */
+    fun append(text: String): BlockTagSection
 
     companion object {
         /** Sort [TagData] so that `null` comes after non-`null`. */
@@ -91,7 +91,7 @@ internal class DefaultBlockTagSection(
     override val tagType: TagType<*>,
     descriptionSupplier: ContentSupplier,
 ) :
-    DescriptionOwner(
+    DescriptionOwner<DefaultBlockTagSection>(
         context,
         descriptionSupplier,
         noComment = false,

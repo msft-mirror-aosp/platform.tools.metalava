@@ -33,7 +33,7 @@ import kotlin.jvm.optionals.getOrNull
  *   lazily.
  * @param noComment `true` if there was no comment in the sources.
  */
-internal open class DescriptionOwner(
+internal open class DescriptionOwner<out T : DescriptionOwner<T>>(
     val context: DocCommentContext,
     protected val descriptionSupplier: ContentSupplier,
     protected val noComment: Boolean,
@@ -85,20 +85,19 @@ internal open class DescriptionOwner(
      * If [new] is the same as [description] then does nothing. Otherwise, it sets [_description] to
      * [new] and notifies any listener that the containing [DocComment] has changed.
      */
-    private fun updateDescription(new: JavadocContent?) {
+    private fun updateDescription(new: JavadocContent?): T {
         if (new !== description) {
             _description = Optional.ofNullable(new)
         }
+        @Suppress("UNCHECKED_CAST") return this as T
     }
 
-    fun append(other: DocContent) {
-        append(other as JavadocContent)
-    }
+    fun append(other: DocContent): T = append(other as JavadocContent)
 
-    fun append(text: String) {
+    fun append(text: String): T {
         val supplier = LazyContentSupplier(context, DocumentationIssueReporter.THROWING, text)
-        val content = supplier.content ?: return
-        append(content)
+        val content = supplier.content ?: run { @Suppress("UNCHECKED_CAST") return this as T }
+        return append(content)
     }
 
     /** Check whether this needs to insert `{@inheritDoc}` tags when appending to [description]. */
@@ -108,17 +107,19 @@ internal open class DescriptionOwner(
     /**
      * Append `{@inheritDoc}` if needed.
      *
-     * @return `true` if `{@inheritDoc}` was appended which would have also notified the
-     *   [DocComment] owner that it changed.
+     * @return a copy of this with `{@inheritDoc}` set as the description if needed, or `this`
+     *   otherwise.
      */
-    protected fun appendInheritDocIfNeeded(): Boolean {
-        if (!requiresInheritDoc()) return false
-        updateDescription(INHERIT_DOC_CONTENT)
-        return true
-    }
+    protected fun appendInheritDocIfNeeded(): T =
+        if (requiresInheritDoc()) {
+            updateDescription(INHERIT_DOC_CONTENT)
+        } else {
+            @Suppress("UNCHECKED_CAST")
+            this as T
+        }
 
     /** Append [other] to [description]. */
-    private fun append(other: JavadocContent) {
+    private fun append(other: JavadocContent): T {
         val result =
             if (requiresInheritDoc()) {
                 // Prepend `{@inheritDoc}` before the content to add.
@@ -133,7 +134,7 @@ internal open class DescriptionOwner(
             } else {
                 description.append(other)
             }
-        updateDescription(result)
+        return updateDescription(result)
     }
 
     /**

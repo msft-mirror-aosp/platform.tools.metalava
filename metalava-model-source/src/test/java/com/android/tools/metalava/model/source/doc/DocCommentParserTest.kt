@@ -724,8 +724,8 @@ class DocCommentParserTest : BaseDocCommentTest() {
                 """,
         ) {
             val text = JavadocText("appended")
-            docComment.append(text)
-            checkPrintOutput(docComment, "/** appended */")
+            val updatedComment = docComment.append(text)
+            checkPrintOutput(updatedComment, "/** appended */")
         }
     }
 
@@ -746,9 +746,9 @@ class DocCommentParserTest : BaseDocCommentTest() {
                 """,
         ) {
             val text = JavadocText("appended")
-            docComment.append(text)
+            val updatedComment = docComment.append(text)
             checkPrintOutput(
-                docComment,
+                updatedComment,
                 """
                     /**
                      * existing.
@@ -776,14 +776,14 @@ class DocCommentParserTest : BaseDocCommentTest() {
                     /** */
                 """,
         ) {
-            docComment.append("some {@code text} to append")
+            val updatedComment = docComment.append("some {@code text} to append")
             checkPrintOutput(
-                docComment,
+                updatedComment,
                 """
                     /** some {@code text} to append */
                 """,
             )
-            docComment.assertStructure(
+            updatedComment.assertStructure(
                 """
                     text: 'some '
                     inlineTag: code
@@ -810,9 +810,9 @@ class DocCommentParserTest : BaseDocCommentTest() {
                     /** existing */
                 """,
         ) {
-            docComment.append("some {@code text} to append")
+            val updatedComment = docComment.append("some {@code text} to append")
             checkPrintOutput(
-                docComment,
+                updatedComment,
                 """
                     /**
                      * existing.
@@ -821,7 +821,7 @@ class DocCommentParserTest : BaseDocCommentTest() {
                      */
                 """,
             )
-            docComment.assertStructure(
+            updatedComment.assertStructure(
                 """
                     text: 'existing'
                     text: '.'
