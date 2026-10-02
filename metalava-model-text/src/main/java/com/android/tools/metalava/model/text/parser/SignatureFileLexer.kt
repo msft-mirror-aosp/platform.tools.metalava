@@ -40,6 +40,7 @@ internal object SignatureTokenType {
     // Class Hierarchy & Member Clause Keywords
     val IMPLEMENTS = TokenType("IMPLEMENTS", canBeIdentifier = true)
     val PERMITS = TokenType("PERMITS", canBeIdentifier = true)
+    val THROWS = TokenType("THROWS", canBeIdentifier = true)
     val DEFAULT = TokenType("DEFAULT", canBeIdentifier = true)
 
     // Class Member Kind Keywords
@@ -285,8 +286,11 @@ internal class SignatureFileLexer(
                     else -> super.resolveKeywordOrIdentifier(start, end)
                 }
             't' ->
-                if (matchSlice(start, length, "transient")) SignatureTokenType.TRANSIENT
-                else SharedTokenType.IDENTIFIER
+                when {
+                    matchSlice(start, length, "throws") -> SignatureTokenType.THROWS
+                    matchSlice(start, length, "transient") -> SignatureTokenType.TRANSIENT
+                    else -> SharedTokenType.IDENTIFIER
+                }
             'v' ->
                 when {
                     matchSlice(start, length, "volatile") -> SignatureTokenType.VOLATILE
