@@ -1408,11 +1408,10 @@ internal class SingleSignatureFileParser(
         val method: ConstructorItem
 
         val (modifiers, targetLanguages) = parseModifiersAndTargetLanguages()
-        tokenizer.requireToken()
 
         // Get a TypeParameterList and accompanying TypeItemFactory
         val (typeParameterList, typeItemFactory) = parseTypeParameterList(classTypeItemFactory)
-        var token = tokenizer.current
+        var token = tokenizer.requireToken()
 
         tokenizer.assertIdent(token)
         // For nested classes, strip outer classes from name
@@ -1467,11 +1466,10 @@ internal class SingleSignatureFileParser(
         val method: MethodItem
 
         val (modifiers, targetLanguages) = parseModifiersAndTargetLanguages()
-        tokenizer.requireToken()
 
         // Get a TypeParameterList and accompanying TypeParameterScope
         val (typeParameterList, typeItemFactory) = parseTypeParameterList(classTypeItemFactory)
-        var token = tokenizer.current
+        var token = tokenizer.requireToken()
         tokenizer.assertIdent(token)
 
         val returnTypeString: TypeString
@@ -1847,10 +1845,10 @@ internal class SingleSignatureFileParser(
         classTypeItemFactory: TextTypeItemFactory,
     ) {
         val modifiers = parseModifiers()
-        tokenizer.requireToken()
 
         // Get a TypeParameterList and accompanying TypeParameterScope
         val (typeParameterList, typeItemFactory) = parseTypeParameterList(classTypeItemFactory)
+        tokenizer.requireToken()
 
         val typeString: TypeString
         val receiverNamePair: Pair<TypeItem?, String>
@@ -2049,39 +2047,62 @@ internal class SingleSignatureFileParser(
     }
 
     /**
+     * Skips a balanced `<...>` list starting at the next `<` token in [tokenizer], returning the
+     * `endOffset` of the closing `>` token.
+     */
+    private fun skipAngleBracketList(): Int {
+        // Consume the opening `<` token and track nesting depth until the matching `>` is consumed.
+        val startToken = requireNonEofToken()
+        var endOffset = startToken.endOffset
+        var balance = 1
+        while (balance > 0) {
+            val token = requireNonEofToken()
+            endOffset = token.endOffset
+            if (token.type == SharedTokenType.ANGLE_OPEN) {
+                balance++
+            } else if (token.type == SharedTokenType.ANGLE_CLOSE) {
+                balance--
+            }
+        }
+        return endOffset
+    }
+
+    /**
+     * Scans a balanced `<...>` type parameter list from [tokenizer] if the next token is `<`,
+     * returning the [TypeString] or `null` if not present.
+     */
+    private fun scanTypeParameterListString(): TypeString? {
+        if (peekType() != SharedTokenType.ANGLE_OPEN) {
+            return null
+        }
+        // Record the start of `<`, skip the balanced `<...>` list, and slice the substring.
+        val startOffset = peek().startOffset
+        val endOffset = skipAngleBracketList()
+        return TypeString(fileSubstring(startOffset, endOffset), startOffset)
+    }
+
+    /**
      * Parses a type parameter list enclosed in "<>", if one exists.
      *
-     * Starts processing from the current token of [tokenizer]. If that token is not "<", returns an
-     * empty type parameter list.
-     *
-     * After the method returns, the caller should continue processing at the new current token of
-     * [tokenizer], which will be the token after the type parameter list, if it exists, or the same
-     * as the original current token, if there was no type parameter list.
+     * If the next token in [tokenizer] is not `<`, returns an empty type parameter list without
+     * consuming any tokens. Otherwise, consumes the balanced `<...>` tokens and returns the parsed
+     * [TypeParameterListAndFactory].
      */
     private fun parseTypeParameterList(
         enclosingTypeItemFactory: TextTypeItemFactory,
     ): TypeParameterListAndFactory<TextTypeItemFactory> {
-        val token: String = tokenizer.current
-        // No type parameters to parse. The current token is unchanged
-        if ("<" != token) {
-            return TypeParameterListAndFactory(TypeParameterList.NONE, enclosingTypeItemFactory)
-        }
-
-        val startOffset = tokenizer.offset() - 1
-        val typeParameterListString = tokenizer.scanBalancedTokens("<", ">")
-        // Set the tokenizer to the next token, so that the caller should continue processing at
-        // tokenizer.current (in alignment with the no type parameter case).
-        tokenizer.requireToken()
-        return if (typeParameterListString.isEmpty()) {
+        val firstToken = peek()
+        val typeParameterListString = scanTypeParameterListString()
+        return if (typeParameterListString == null) {
             TypeParameterListAndFactory(TypeParameterList.NONE, enclosingTypeItemFactory)
         } else {
             // Use the file location as a part of the description of the scope as at this point
             // there is no other information available.
-            val scopeDescription = "${tokenizer.fileLocation()}"
+            val scopeDescription = "${fileLocation(firstToken)}"
             createTypeParameterList(
                 enclosingTypeItemFactory,
                 scopeDescription,
-                TypeString(typeParameterListString, startOffset),
+                typeParameterListString
             )
         }
     }
