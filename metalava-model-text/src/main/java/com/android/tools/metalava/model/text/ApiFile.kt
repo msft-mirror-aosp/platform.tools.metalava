@@ -61,11 +61,14 @@ import com.android.tools.metalava.model.item.DefaultCodebase
 import com.android.tools.metalava.model.item.PackageInfo
 import com.android.tools.metalava.model.item.SealedClassImplicitPermitTypesUpdater
 import com.android.tools.metalava.model.multiplatform.MultiplatformCodebase
+import com.android.tools.metalava.model.parser.LineMap
 import com.android.tools.metalava.model.parser.SharedTokenType
 import com.android.tools.metalava.model.parser.Token
+import com.android.tools.metalava.model.parser.TokenStream
 import com.android.tools.metalava.model.parser.TokenType
 import com.android.tools.metalava.model.text.CustomizableProperty.Companion.KOTLIN_NAME_TYPE_ORDER
 import com.android.tools.metalava.model.text.CustomizableProperty.Companion.KOTLIN_STYLE_NULLS
+import com.android.tools.metalava.model.text.parser.SignatureFileLexer
 import com.android.tools.metalava.model.text.parser.SignatureTokenType
 import com.android.tools.metalava.model.type.MethodFingerprint
 import com.android.tools.metalava.model.type.TypeItemParser
@@ -449,20 +452,20 @@ private constructor(
                 parserContext
                     ?: createParserContext(kotlinStyleNullsForThisFile).also { parserContext = it }
 
-            val tokenizer = Tokenizer(path, apiText)
-
-            // Set the file location tracker to provide location information about the current file.
-            fileLocationTracker = tokenizer
-
             val parser =
                 SingleSignatureFileParser(
                     context = context,
-                    tokenStream = tokenizer,
+                    path = path,
+                    apiText = apiText,
                     appending = appending,
                     kotlinStyleNulls = kotlinStyleNullsForThisFile,
                     kotlinNameTypeOrder = format[KOTLIN_NAME_TYPE_ORDER],
                     apiVariant = apiVariant,
                 )
+
+            // Set the file location tracker to provide location information about the current file.
+            fileLocationTracker = parser
+
             parser.parse()
 
             appending = true
@@ -536,8 +539,11 @@ internal class ParserContext(
 internal class SingleSignatureFileParser(
     context: ParserContext,
 
-    /** The [Tokenizer] for the file being parsed. */
-    private val tokenStream: Tokenizer,
+    /** The [Path] to the signature file being parsed. */
+    private val path: Path,
+
+    /** The contents of the signature file being parsed. */
+    private val apiText: String,
 
     /**
      * True if this is appending information from one signature file to a [Codebase] created from
@@ -556,7 +562,7 @@ internal class SingleSignatureFileParser(
 
     /** The [ApiVariant] which is defined within the current signature file being parsed. */
     private val apiVariant: ApiVariant,
-) {
+) : FileLocationTracker {
     private val assembler = context.assembler
     private val codebase = assembler.codebase
 
@@ -569,14 +575,25 @@ internal class SingleSignatureFileParser(
     private val defaultTargetLanguageSet = context.defaultTargetLanguageSet
     private val classMerger = context.classMerger
 
+    /** Maps character offsets in [apiText] to line numbers. */
+    private val lineMap: LineMap = LineMap.create(apiText)
+
+    /** The [TokenStream] of tokens from [apiText]. */
+    private val tokenStream: TokenStream = SignatureFileLexer(apiText).tokenize()
+
+    override fun fileLocation(): FileLocation = error("unused")
+
+    override fun fileLocation(charOffset: Int): FileLocation =
+        lineMap.fileLocation(path, charOffset)
+
     /** Get the [FileLocation] of the start of [token]. */
-    private fun fileLocation(token: Token): FileLocation = tokenStream.fileLocation(token)
+    private fun fileLocation(token: Token): FileLocation = fileLocation(token.startOffset)
 
     /** Get the contents of the file being parsed from [start] to [end]. */
-    private fun fileSubstring(start: Int, end: Int): String = tokenStream.substring(start, end)
+    private fun fileSubstring(start: Int, end: Int): String = apiText.substring(start, end)
 
-    /** Extract the text of [token] from [tokenStream]. */
-    private fun text(token: Token): String = fileSubstring(token.startOffset, token.endOffset)
+    /** Extract the text of [token] from [apiText]. */
+    private fun text(token: Token): String = token.text(apiText)
 
     /** Returns the next [Token] in [tokenStream] without consuming it. */
     private fun peek(): Token = tokenStream.peek()
