@@ -457,6 +457,7 @@ private constructor(
         var appending = false
         var previousPath: Path? = null
         var previousKotlinStyleNulls: Boolean? = null
+        var parserContext: ParserContext? = null
         for (signatureFile in signatureFiles) {
             // When we're appending, and the content is empty, there is nothing to do.
             val apiText = signatureFile.readContents()
@@ -490,6 +491,8 @@ private constructor(
             previousKotlinStyleNulls = kotlinStyleNullsForThisFile
             deferredKotlinStyleNulls = kotlinStyleNullsForThisFile
 
+            val context = parserContext ?: createParserContext().also { parserContext = it }
+
             val tokenizer = Tokenizer(path, apiText, ::ApiParseException)
 
             // Set the file location tracker to provide location information about the current file.
@@ -497,12 +500,7 @@ private constructor(
 
             val parser =
                 SingleSignatureFileParser(
-                    assembler = assembler,
-                    typeParser = typeParser,
-                    globalTypeItemFactory = globalTypeItemFactory,
-                    valueParser = valueParser,
-                    defaultTargetLanguageSet = defaultTargetLanguageSet,
-                    classMerger = classMerger,
+                    context = context,
                     tokenizer = tokenizer,
                     appending = appending,
                     kotlinStyleNulls = kotlinStyleNulls,
@@ -514,8 +512,25 @@ private constructor(
             appending = true
         }
 
+        // Known to be non-null as `signatureFiles` is never empty and the first file is never
+        // skipped.
+        parserContext!!
+
         classMerger.performAnyDeferredMerges()
     }
+
+    /**
+     * Creates the [ParserContext] shared across all signature files parsed by [parseMultipleFiles].
+     */
+    private fun createParserContext(): ParserContext =
+        ParserContext(
+            assembler = assembler,
+            typeParser = typeParser,
+            globalTypeItemFactory = globalTypeItemFactory,
+            valueParser = valueParser,
+            defaultTargetLanguageSet = defaultTargetLanguageSet,
+            classMerger = classMerger,
+        )
 
     private val stats
         get() =
@@ -536,25 +551,33 @@ private constructor(
     )
 }
 
-/** Parser for a single signature file. */
-internal class SingleSignatureFileParser(
+/**
+ * Context shared across [SingleSignatureFileParser] instances when parsing multiple signature files
+ * into a single [Codebase].
+ */
+internal class ParserContext(
     /** Populates the [Codebase] from the parsed signature file. */
-    private val assembler: TextCodebaseAssembler,
+    val assembler: TextCodebaseAssembler,
 
     /** Provides support for parsing and caching [TypeItem]s. */
-    private val typeParser: TextTypeParser,
+    val typeParser: TextTypeParser,
 
     /** Provides support for creating [TypeItem]s for specific uses. */
-    private val globalTypeItemFactory: TextTypeItemFactory,
+    val globalTypeItemFactory: TextTypeItemFactory,
 
     /** The [ValueParser] to use for creating [Value]s from a signature file. */
-    private val valueParser: ValueParser,
+    val valueParser: ValueParser,
 
     /** The [TargetLanguageSet] to use if an item does not have one specified. */
-    private val defaultTargetLanguageSet: Set<TargetLanguage>,
+    val defaultTargetLanguageSet: Set<TargetLanguage>,
 
     /** Merges class re-definitions across signature files. */
-    private val classMerger: ClassMerger,
+    val classMerger: ClassMerger,
+)
+
+/** Parser for a single signature file. */
+internal class SingleSignatureFileParser(
+    context: ParserContext,
 
     /** The [Tokenizer] for the file being parsed. */
     private val tokenizer: Tokenizer,
@@ -577,10 +600,17 @@ internal class SingleSignatureFileParser(
     /** The [ApiVariant] which is defined within the current signature file being parsed. */
     private val apiVariant: ApiVariant,
 ) {
+    private val assembler = context.assembler
     private val codebase = assembler.codebase
 
     /** Creates [Item] instances for [codebase]. */
     private val itemFactory = assembler.itemFactory
+
+    private val typeParser = context.typeParser
+    private val globalTypeItemFactory = context.globalTypeItemFactory
+    private val valueParser = context.valueParser
+    private val defaultTargetLanguageSet = context.defaultTargetLanguageSet
+    private val classMerger = context.classMerger
 
     companion object {
         /**
