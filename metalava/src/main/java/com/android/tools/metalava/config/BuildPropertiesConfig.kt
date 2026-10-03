@@ -16,10 +16,7 @@
 
 package com.android.tools.metalava.config
 
-import com.fasterxml.jackson.dataformat.xml.annotation.JacksonXmlProperty
-
 data class BuildPropertiesConfig(
-    @field:JacksonXmlProperty(localName = "build-property", namespace = CONFIG_NAMESPACE)
     val properties: List<BuildPropertyConfig> = emptyList(),
 ) : CombinableConfig<BuildPropertiesConfig> {
 
@@ -42,9 +39,9 @@ data class BuildPropertiesConfig(
 
 data class BuildPropertyConfig(
     /** The build property name */
-    @field:JacksonXmlProperty(isAttribute = true) val name: String,
+    val name: String,
     /** The build property value */
-    @field:JacksonXmlProperty(isAttribute = true) val value: String,
+    val value: String,
 ) {
     /** Write this [BuildPropertyConfig] to [writer]. */
     internal fun writeTo(writer: ConfigWriter) {

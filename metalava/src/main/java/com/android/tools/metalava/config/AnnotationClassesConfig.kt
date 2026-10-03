@@ -18,11 +18,8 @@ package com.android.tools.metalava.config
 
 import com.android.tools.metalava.model.AnnotationTarget
 import com.android.tools.metalava.model.NO_ANNOTATION_TARGETS
-import com.fasterxml.jackson.annotation.JsonValue
-import com.fasterxml.jackson.dataformat.xml.annotation.JacksonXmlProperty
 
 data class AnnotationClassesConfig(
-    @field:JacksonXmlProperty(localName = "annotation-class", namespace = CONFIG_NAMESPACE)
     val annotationClasses: List<AnnotationClassConfig> = emptyList(),
 ) : CombinableConfig<AnnotationClassesConfig> {
     /** Combine with another [AnnotationClassesConfig] by concatenating the [annotationClasses]s. */
@@ -47,8 +44,8 @@ data class AnnotationClassesConfig(
 }
 
 data class AnnotationClassConfig(
-    @field:JacksonXmlProperty(isAttribute = true) val name: String,
-    @field:JacksonXmlProperty(isAttribute = true) val targets: TargetsConfig,
+    val name: String,
+    val targets: TargetsConfig,
 ) {
     /** Write this [AnnotationClassConfig] to [writer]. */
     internal fun writeTo(writer: ConfigWriter) {
@@ -67,9 +64,5 @@ data class AnnotationClassConfig(
         val annotationTargets: Set<AnnotationTarget>,
     ) {
         NONE("none", NO_ANNOTATION_TARGETS),
-        ;
-
-        /** Name to use when serializing and deserializing this [TargetsConfig] instance. */
-        @JsonValue fun forJackson() = configFileValue
     }
 }

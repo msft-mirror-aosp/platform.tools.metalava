@@ -16,24 +16,12 @@
 
 package com.android.tools.metalava.config
 
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties
-import com.fasterxml.jackson.dataformat.xml.annotation.JacksonXmlProperty
-import com.fasterxml.jackson.dataformat.xml.annotation.JacksonXmlRootElement
-
 /** The top level configuration object. */
-@JacksonXmlRootElement(localName = "config", namespace = CONFIG_NAMESPACE)
-// Ignore the xsi:schemaLocation property if present on the root <config> element.
-@JsonIgnoreProperties("schemaLocation")
 data class Config(
-    @field:JacksonXmlProperty(localName = "api-flags", namespace = CONFIG_NAMESPACE)
     val apiFlags: ApiFlagsConfig? = null,
-    @field:JacksonXmlProperty(localName = "api-surfaces", namespace = CONFIG_NAMESPACE)
     val apiSurfaces: ApiSurfacesConfig? = null,
-    @field:JacksonXmlProperty(localName = "build-properties", namespace = CONFIG_NAMESPACE)
     val buildProperties: BuildPropertiesConfig? = null,
-    @field:JacksonXmlProperty(localName = "issues", namespace = CONFIG_NAMESPACE)
     val issues: IssuesConfig? = null,
-    @field:JacksonXmlProperty(localName = "annotation-classes", namespace = CONFIG_NAMESPACE)
     val annotationClasses: AnnotationClassesConfig? = null,
 ) : CombinableConfig<Config>, ConfigXmlWritable {
 
