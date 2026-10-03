@@ -239,8 +239,6 @@ internal class StubGenerator(
             tracer.trace("NullnessMigration.migrateNulls") {
                 NullnessMigration.migrateNulls(codebase, previousCodebase)
             }
-
-            previousCodebase.dispose()
         }
 
         if (filter != null) {
