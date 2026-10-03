@@ -457,7 +457,7 @@ private constructor(
             val parser =
                 SingleSignatureFileParser(
                     context = context,
-                    tokenizer = tokenizer,
+                    tokenStream = tokenizer,
                     appending = appending,
                     kotlinStyleNulls = kotlinStyleNullsForThisFile,
                     kotlinNameTypeOrder = format[KOTLIN_NAME_TYPE_ORDER],
@@ -537,7 +537,7 @@ internal class SingleSignatureFileParser(
     context: ParserContext,
 
     /** The [Tokenizer] for the file being parsed. */
-    private val tokenizer: Tokenizer,
+    private val tokenStream: Tokenizer,
 
     /**
      * True if this is appending information from one signature file to a [Codebase] created from
@@ -570,28 +570,28 @@ internal class SingleSignatureFileParser(
     private val classMerger = context.classMerger
 
     /** Get the [FileLocation] of the start of [token]. */
-    private fun fileLocation(token: Token): FileLocation = tokenizer.fileLocation(token)
+    private fun fileLocation(token: Token): FileLocation = tokenStream.fileLocation(token)
 
     /** Get the contents of the file being parsed from [start] to [end]. */
-    private fun fileSubstring(start: Int, end: Int): String = tokenizer.substring(start, end)
+    private fun fileSubstring(start: Int, end: Int): String = tokenStream.substring(start, end)
 
-    /** Extract the text of [token] from [tokenizer]. */
+    /** Extract the text of [token] from [tokenStream]. */
     private fun text(token: Token): String = fileSubstring(token.startOffset, token.endOffset)
 
-    /** Returns the next [Token] in [tokenizer] without consuming it. */
-    private fun peek(): Token = tokenizer.peek()
+    /** Returns the next [Token] in [tokenStream] without consuming it. */
+    private fun peek(): Token = tokenStream.peek()
 
-    /** Returns the [TokenType] of the next [Token] in [tokenizer] without consuming it. */
-    private fun peekType(): TokenType = tokenizer.peekType()
+    /** Returns the [TokenType] of the next [Token] in [tokenStream] without consuming it. */
+    private fun peekType(): TokenType = tokenStream.peekType()
 
-    /** Consumes and returns the next [Token] from [tokenizer]. */
-    private fun consume(): Token = tokenizer.consume()
+    /** Consumes and returns the next [Token] from [tokenStream]. */
+    private fun consume(): Token = tokenStream.consume()
 
-    /** Consumes the next [Token] in [tokenizer] if its type equals [type], returning `true`. */
-    private fun match(type: TokenType): Boolean = tokenizer.match(type)
+    /** Consumes the next [Token] in [tokenStream] if its type equals [type], returning `true`. */
+    private fun match(type: TokenType): Boolean = tokenStream.match(type)
 
     /**
-     * Consumes and returns the next [Token] from [tokenizer], throwing an [ApiParseException] if
+     * Consumes and returns the next [Token] from [tokenStream], throwing an [ApiParseException] if
      * the end of the file has been reached.
      */
     private fun requireNonEofToken(): Token {
@@ -621,7 +621,7 @@ internal class SingleSignatureFileParser(
 
     /**
      * Parses a dot-separated identifier (such as a package, class, or constructor name) from
-     * [tokenizer] and returns the complete qualified name.
+     * [tokenStream] and returns the complete qualified name.
      */
     private fun parseQualifiedName(): String {
         // Consume the first identifier segment.
@@ -712,7 +712,7 @@ internal class SingleSignatureFileParser(
         selectedApi.addItemApiVariant(apiVariant)
     }
 
-    /** Parse the signature file from [tokenizer], populating [codebase]. */
+    /** Parse the signature file from [tokenStream], populating [codebase]. */
     fun parse() {
         // Consume each top-level `package` block until the end of the file is reached.
         while (peekType() != SharedTokenType.EOF) {
@@ -798,10 +798,10 @@ internal class SingleSignatureFileParser(
     /**
      * Creates a type alias in the [pkg] with the [modifiers].
      *
-     * Before calling, the `typealias` keyword should have been consumed from [tokenizer], and the
+     * Before calling, the `typealias` keyword should have been consumed from [tokenStream], and the
      * next token will be the name and optional type parameter list.
      *
-     * When the method returns, [tokenizer] will have consumed the `;` at the end of the typealias
+     * When the method returns, [tokenStream] will have consumed the `;` at the end of the typealias
      * line.
      */
     private fun parseTypeAlias(
@@ -1030,7 +1030,7 @@ internal class SingleSignatureFileParser(
     /**
      * Parse the class body, adding members to [containingClass].
      *
-     * When the method returns, [tokenizer] will have consumed the closing `}` of the class body.
+     * When the method returns, [tokenStream] will have consumed the closing `}` of the class body.
      */
     private fun parseClassBody(
         containingClass: SkeletonClassItem,
@@ -1143,7 +1143,7 @@ internal class SingleSignatureFileParser(
     }
 
     /**
-     * Skips a balanced `<...>` type argument list starting at the next `<` token in [tokenizer],
+     * Skips a balanced `<...>` type argument list starting at the next `<` token in [tokenStream],
      * along with any immediately adjacent identifier token following `>`, returning the `endOffset`
      * of the last consumed token.
      */
@@ -1211,7 +1211,7 @@ internal class SingleSignatureFileParser(
     )
 
     /**
-     * Parses the declared class type from [tokenizer] into [DeclaredClassTypeComponents].
+     * Parses the declared class type from [tokenStream] into [DeclaredClassTypeComponents].
      *
      * For example "Foo" would split into full name "Foo" and an empty type parameter list, while
      * `"Foo.Bar<A, B extends java.lang.String, C>"` would split into full name `"Foo.Bar"` and type
@@ -1293,7 +1293,7 @@ internal class SingleSignatureFileParser(
     }
 
     /**
-     * Skips a `@QualifiedName(...)` annotation starting at the current `@` token in [tokenizer],
+     * Skips a `@QualifiedName(...)` annotation starting at the current `@` token in [tokenStream],
      * returning the `endOffset` of the last token of the annotation.
      */
     private fun skipAnnotation(): Int {
@@ -1330,7 +1330,7 @@ internal class SingleSignatureFileParser(
     }
 
     /**
-     * Collects all the sequential annotations from [tokenizer], returning them as a (possibly
+     * Collects all the sequential annotations from [tokenStream], returning them as a (possibly
      * empty) list.
      */
     private fun getAnnotations(): List<AnnotationItem> = buildList {
@@ -1641,7 +1641,7 @@ internal class SingleSignatureFileParser(
     /**
      * Parses and creates an optional target language set and modifiers (see [parseModifiers]).
      *
-     * When the method returns, the next token in [tokenizer] will be the first token after the
+     * When the method returns, the next token in [tokenStream] will be the first token after the
      * modifiers.
      */
     private fun parseModifiersAndTargetLanguages(): Pair<MutableModifierList, Set<TargetLanguage>> {
@@ -1665,7 +1665,7 @@ internal class SingleSignatureFileParser(
      *
      * If there is no visibility modifier, [VisibilityLevel.PACKAGE_PRIVATE] is used.
      *
-     * When the method returns, the next token in [tokenizer] will be the first token after the
+     * When the method returns, the next token in [tokenStream] will be the first token after the
      * modifiers.
      */
     private fun parseModifiers(): MutableModifierList {
@@ -1675,9 +1675,9 @@ internal class SingleSignatureFileParser(
     }
 
     /**
-     * Updates the [modifiers] to reflect all modifier keywords parsed from [tokenizer].
+     * Updates the [modifiers] to reflect all modifier keywords parsed from [tokenStream].
      *
-     * When the method returns, the next token in [tokenizer] will be the first token after the
+     * When the method returns, the next token in [tokenStream] will be the first token after the
      * modifiers.
      */
     private fun parseKeywordModifiers(modifiers: MutableModifierList) {
@@ -1784,7 +1784,7 @@ internal class SingleSignatureFileParser(
     /**
      * Parses and creates modifiers, including annotations but not keyword modifiers.
      *
-     * When the method returns, the next token in [tokenizer] will be the first token after the
+     * When the method returns, the next token in [tokenStream] will be the first token after the
      * modifiers.
      */
     private fun parseModifierAnnotations(
@@ -1866,10 +1866,10 @@ internal class SingleSignatureFileParser(
     }
 
     /**
-     * Parses the optional receiver type and then the name of a property from [tokenizer].
+     * Parses the optional receiver type and then the name of a property from [tokenStream].
      *
      * After the method returns, the caller should continue processing at the next token in
-     * [tokenizer].
+     * [tokenStream].
      */
     private fun parsePropertyReceiverAndName(
         typeItemFactory: TextTypeItemFactory
@@ -1903,7 +1903,7 @@ internal class SingleSignatureFileParser(
         return receiverType to name
     }
 
-    /** Parse `#<record-component-index>` from [tokenizer]. */
+    /** Parse `#<record-component-index>` from [tokenStream]. */
     private fun parseRecordComponentIndex(): Int {
         // `#<index>` is tokenized as a `#` token immediately adjacent to a non-negative integer
         // literal token.
@@ -1928,7 +1928,7 @@ internal class SingleSignatureFileParser(
     /**
      * Parse record components, returning them as a list of [TextRecordComponent].
      *
-     * Consumes all consecutive `record_component` declarations from [tokenizer].
+     * Consumes all consecutive `record_component` declarations from [tokenStream].
      */
     private fun parseRecordComponents() = buildList {
         while (peekType() == SignatureTokenType.RECORD_COMPONENT) {
@@ -1994,7 +1994,7 @@ internal class SingleSignatureFileParser(
     }
 
     /**
-     * Skips a balanced `<...>` list starting at the next `<` token in [tokenizer], returning the
+     * Skips a balanced `<...>` list starting at the next `<` token in [tokenStream], returning the
      * `endOffset` of the closing `>` token.
      */
     private fun skipAngleBracketList(): Int {
@@ -2015,7 +2015,7 @@ internal class SingleSignatureFileParser(
     }
 
     /**
-     * Scans a balanced `<...>` type parameter list from [tokenizer] if the next token is `<`,
+     * Scans a balanced `<...>` type parameter list from [tokenStream] if the next token is `<`,
      * returning the [TypeString] or `null` if not present.
      */
     private fun scanTypeParameterListString(): TypeString? {
@@ -2031,7 +2031,7 @@ internal class SingleSignatureFileParser(
     /**
      * Parses a type parameter list enclosed in "<>", if one exists.
      *
-     * If the next token in [tokenizer] is not `<`, returns an empty type parameter list without
+     * If the next token in [tokenStream] is not `<`, returns an empty type parameter list without
      * consuming any tokens. Otherwise, consumes the balanced `<...>` tokens and returns the parsed
      * [TypeParameterListAndFactory].
      */
@@ -2137,12 +2137,12 @@ internal class SingleSignatureFileParser(
     /**
      * Parses a list of parameters.
      *
-     * Before calling, [tokenizer] should point to the opening `(` of the parameter list.
+     * Before calling, [tokenStream] should point to the opening `(` of the parameter list.
      *
      * If [useUnderscoreAsDefaultName] is true, parameters without a public name will have "_" as
      * their name. If it is false, they will have "arg<index>" as their name.
      *
-     * When the method returns, [tokenizer] will have consumed the closing `)` of the parameter
+     * When the method returns, [tokenStream] will have consumed the closing `)` of the parameter
      * list.
      */
     private fun parseParameterList(
@@ -2334,7 +2334,7 @@ internal class SingleSignatureFileParser(
     }
 
     /**
-     * Scans a field or annotation method default value expression from [tokenizer] up to (but not
+     * Scans a field or annotation method default value expression from [tokenStream] up to (but not
      * consuming) the terminating `;`.
      */
     private fun scanValueUntilSemicolon(): String {
@@ -2424,8 +2424,8 @@ internal class SingleSignatureFileParser(
     }
 
     /**
-     * Scans the token stream from [tokenizer] for a type string, ensuring that the full type string
-     * is gathered, even when there are type-use annotations.
+     * Scans the token stream from [tokenStream] for a type string, ensuring that the full type
+     * string is gathered, even when there are type-use annotations.
      *
      * Note: this **should not** be used when the token after the type could contain annotations,
      * such as when multiple types appear as consecutive tokens. (This happens in the `implements`
@@ -2517,8 +2517,8 @@ internal class SingleSignatureFileParser(
     }
 
     /**
-     * Parses an identifier token followed by a `:` token from [tokenizer], returning the identifier
-     * text and throwing an [ApiParseException] if either is missing.
+     * Parses an identifier token followed by a `:` token from [tokenStream], returning the
+     * identifier text and throwing an [ApiParseException] if either is missing.
      */
     private fun parseNameWithColon(): String {
         val nameToken = requireNonEofToken()
@@ -2529,7 +2529,7 @@ internal class SingleSignatureFileParser(
     /**
      * For Kotlin-style name/type ordering in signature files, the name is generally followed by a
      * colon (besides methods, where the colon comes after the parameter list). This method verifies
-     * that a colon token follows [token] in [tokenizer] and consumes it, throwing an
+     * that a colon token follows [token] in [tokenStream] and consumes it, throwing an
      * [ApiParseException] if one isn't present.
      */
     private fun parseNameWithColon(token: String): String {
