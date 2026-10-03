@@ -86,6 +86,9 @@ internal class StaxConfigParser private constructor(private val systemId: String
             allowSchemaLocation = true
         )
 
+        var buildProperties: BuildPropertiesConfig? = null
+        val buildPropertyNames = mutableSetOf<String>()
+
         while (reader.hasNext()) {
             when (reader.next()) {
                 XMLStreamConstants.START_ELEMENT -> {
@@ -96,16 +99,166 @@ internal class StaxConfigParser private constructor(private val systemId: String
                         continue
                     }
                     when (localName) {
+                        "build-properties" -> {
+                            val parsed = parseBuildProperties(reader, buildPropertyNames)
+                            buildProperties = combine(buildProperties, parsed)
+                        }
                         else -> {
                             recordUnexpectedElement(reader, "config")
                             skipElement(reader)
                         }
                     }
                 }
-                XMLStreamConstants.END_ELEMENT -> return Config()
+                XMLStreamConstants.END_ELEMENT ->
+                    return Config(
+                        buildProperties = buildProperties,
+                    )
             }
         }
-        return Config()
+        return Config(
+            buildProperties = buildProperties,
+        )
+    }
+
+    /** Parse a `<build-properties>` element from [reader] into a [BuildPropertiesConfig]. */
+    private fun parseBuildProperties(
+        reader: XMLStreamReader,
+        buildPropertyNames: MutableSet<String>,
+    ): BuildPropertiesConfig {
+        checkAttributes(reader, "build-properties", allowedAttributes = emptySet())
+        val properties = mutableListOf<BuildPropertyConfig>()
+        while (reader.hasNext()) {
+            when (reader.next()) {
+                XMLStreamConstants.START_ELEMENT -> {
+                    if (
+                        reader.namespaceURI == CONFIG_NAMESPACE &&
+                            reader.localName == "build-property"
+                    ) {
+                        parseBuildProperty(reader, buildPropertyNames)?.let { properties.add(it) }
+                    } else {
+                        recordUnexpectedElement(reader, "build-properties")
+                        skipElement(reader)
+                    }
+                }
+                XMLStreamConstants.END_ELEMENT -> {
+                    if (properties.isEmpty()) {
+                        recordIncompleteElement(
+                            reader.location.lineNumber,
+                            "build-properties",
+                            "build-property",
+                        )
+                    }
+                    return BuildPropertiesConfig(properties)
+                }
+            }
+        }
+        return BuildPropertiesConfig(properties)
+    }
+
+    /** Parse a `<build-property>` element from [reader] into a [BuildPropertyConfig]. */
+    private fun parseBuildProperty(
+        reader: XMLStreamReader,
+        buildPropertyNames: MutableSet<String>,
+    ): BuildPropertyConfig? {
+        val lineNumber = reader.location.lineNumber
+        checkAttributes(reader, "build-property", BUILD_PROPERTY_ATTRIBUTES)
+        val name = requiredAttribute(reader, lineNumber, "build-property", "name")
+        val value = requiredAttribute(reader, lineNumber, "build-property", "value")
+        expectEmptyElement(reader, "build-property")
+
+        if (name == null || value == null) return null
+        validatePattern(
+            lineNumber,
+            "build-property",
+            "name",
+            name,
+            BUILD_PROPERTY_NAME_REGEX,
+            "BuildPropertyNameType",
+        )
+        checkUniqueKey(lineNumber, buildPropertyNames, name, "BuildPropertyName")
+        return BuildPropertyConfig(name = name, value = value)
+    }
+
+    /** Retrieve a required attribute, recording an error if it is missing. */
+    private fun requiredAttribute(
+        reader: XMLStreamReader,
+        lineNumber: Int,
+        elementName: String,
+        attrName: String,
+    ): String? {
+        val value = reader.getAttributeValue(null, attrName)
+        if (value == null) {
+            recordError(
+                lineNumber,
+                "cvc-complex-type.4: Attribute '$attrName' must appear on element '$elementName'.",
+            )
+        }
+        return value
+    }
+
+    /**
+     * Validate an attribute [value] against [regex], recording XSD-compatible errors on failure.
+     */
+    private fun validatePattern(
+        lineNumber: Int,
+        elementName: String,
+        attrName: String,
+        value: String,
+        regex: Regex,
+        typeName: String,
+    ): Boolean {
+        if (!regex.matches(value)) {
+            recordError(
+                lineNumber,
+                "cvc-pattern-valid: Value '$value' is not facet-valid with respect to pattern '${regex.pattern}' for type '$typeName'.",
+            )
+            recordError(
+                lineNumber,
+                "cvc-attribute.3: The value '$value' of attribute '$attrName' on element '$elementName' is not valid with respect to its type, '$typeName'.",
+            )
+            return false
+        }
+        return true
+    }
+
+    /** Check that [key] has not already been seen in [seenKeys] for [constraintName]. */
+    private fun checkUniqueKey(
+        lineNumber: Int,
+        seenKeys: MutableSet<String>,
+        key: String,
+        constraintName: String,
+    ) {
+        if (!seenKeys.add(key)) {
+            recordError(
+                lineNumber,
+                "cvc-identity-constraint.4.2.2: Duplicate key value [$key] declared for identity constraint \"$constraintName\" of element \"config\".",
+            )
+        }
+    }
+
+    /** Record an error when [elementName] is missing a required [expectedChild] element. */
+    private fun recordIncompleteElement(
+        lineNumber: Int,
+        elementName: String,
+        expectedChild: String,
+    ) {
+        recordError(
+            lineNumber,
+            "cvc-complex-type.2.4.b: The content of element '$elementName' is not complete. One of '{\"$CONFIG_NAMESPACE\":$expectedChild}' is expected.",
+        )
+    }
+
+    /** Consume an element that must not have any child elements. */
+    private fun expectEmptyElement(reader: XMLStreamReader, elementName: String) {
+        while (reader.hasNext()) {
+            when (reader.next()) {
+                XMLStreamConstants.START_ELEMENT -> {
+                    recordUnexpectedElement(reader, elementName)
+                    skipElement(reader)
+                }
+                XMLStreamConstants.END_ELEMENT -> return
+            }
+        }
     }
 
     /** Check that all attributes on the current element are in [allowedAttributes]. */
@@ -161,6 +314,9 @@ internal class StaxConfigParser private constructor(private val systemId: String
         if (prefix.isNullOrEmpty()) localName else "$prefix:$localName"
 
     companion object : ConfigParser {
+        private val BUILD_PROPERTY_ATTRIBUTES = setOf("name", "value")
+        private val BUILD_PROPERTY_NAME_REGEX = Regex("[a-zA-Z0-9_]+")
+
         /** Parse a list of configuration files in order, returning a single [Config] object. */
         override fun parse(files: List<File>): Config {
             if (files.isEmpty()) return Config()
