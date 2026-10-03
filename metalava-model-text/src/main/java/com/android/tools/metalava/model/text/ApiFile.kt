@@ -588,6 +588,9 @@ internal class SingleSignatureFileParser(
     /** Consumes and returns the next [Token] from [tokenizer]. */
     private fun consume(): Token = tokenizer.consume()
 
+    /** Consumes the next [Token] in [tokenizer] if its type equals [type], returning `true`. */
+    private fun match(type: TokenType): Boolean = tokenizer.match(type)
+
     /**
      * Consumes and returns the next [Token] from [tokenizer], throwing an [ApiParseException] if
      * the end of the file has been reached.
