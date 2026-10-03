@@ -155,9 +155,9 @@ private enum class LexerMode {
  * ### Position Tracking and Issue Reporting
  *
  * The lexer tracks `startIndex` and `endIndex` (absolute character offsets within [text]). Every
- * emitted [Token] carries `startOffset` and `endOffset` relative to [startInclusive]. Any lexical
- * syntax errors encountered during scanning (such as unexpected characters after `{@` or in
- * expressions) are reported directly via [reporter].
+ * emitted [Token] carries `startOffset` and `endOffset` within [text]. Any lexical syntax errors
+ * encountered during scanning (such as unexpected characters after `{@` or in expressions) are
+ * reported directly via [reporter].
  *
  * @param text the full string containing the Javadoc text to tokenize.
  * @param startInclusive the index in [text] where tokenization should begin.
@@ -221,7 +221,7 @@ internal class JavadocLexer(
         message: String,
     ) {
         flushUnexpected()
-        reporter.report(issue, message, index - startInclusive)
+        reporter.report(issue, message, index)
     }
 
     /** Records an unexpected character with the given [context], advancing [index]. */
@@ -241,7 +241,7 @@ internal class JavadocLexer(
             reporter.report(
                 Issues.INVALID_JAVADOC,
                 "unexpected '$chunk' $unexpectedContext",
-                unexpectedStartIndex - startInclusive,
+                unexpectedStartIndex,
             )
             unexpectedStartIndex = unexpectedEndIndex
             unexpectedContext = null

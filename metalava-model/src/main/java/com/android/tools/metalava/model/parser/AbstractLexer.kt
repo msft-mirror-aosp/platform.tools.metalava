@@ -18,7 +18,7 @@ package com.android.tools.metalava.model.parser
 
 /**
  * Base class for lexers that scan a slice of [text] from [startInclusive] to [endExclusive] and
- * lazily produce a [TokenStream] of [Token]s with offsets relative to [startInclusive].
+ * lazily produce a [TokenStream] of [Token]s with offsets in [text].
  *
  * @param text the full string containing the text to tokenize.
  * @param startInclusive the index in [text] where tokenization should begin.
@@ -33,8 +33,8 @@ abstract class AbstractLexer(
     protected var index: Int = startInclusive
 
     /**
-     * Creates and returns a [Token] with [Token.startOffset] and [Token.endOffset] relative to
-     * [startInclusive].
+     * Creates and returns a [Token] with [Token.startOffset] and [Token.endOffset] set to
+     * [startIndex] and [endIndex].
      *
      * Subclasses may override this to perform additional actions (such as flushing pending state)
      * before creating the token.
@@ -48,8 +48,8 @@ abstract class AbstractLexer(
         Token(
             type,
             text,
-            startIndex - startInclusive,
-            endIndex - startInclusive,
+            startIndex,
+            endIndex,
         )
 
     /**

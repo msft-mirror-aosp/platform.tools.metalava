@@ -96,9 +96,7 @@ internal class LazyContentSupplier(
             text,
             startInclusive,
             trimmedEnd,
-            // Pass this as the reporter so that this can apply corrections to the
-            // char offset based on the [startInclusive] position within [text].
-            this,
+            container,
         )
     }
 

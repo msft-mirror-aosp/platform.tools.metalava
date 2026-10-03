@@ -172,9 +172,9 @@ class SharedLexerTest {
             includePosition = true,
             expectedTokens =
                 """
-                    IDENTIFIER 'foo' (0..3)
-                    IDENTIFIER 'bar' (4..7)
-                    EOF '' (7..7)
+                    IDENTIFIER 'foo' (7..10)
+                    IDENTIFIER 'bar' (11..14)
+                    EOF '' (14..14)
                 """,
         )
     }

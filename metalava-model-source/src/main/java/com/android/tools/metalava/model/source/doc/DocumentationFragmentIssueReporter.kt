@@ -24,7 +24,7 @@ internal abstract class DocumentationFragmentIssueReporter(
      * The [DocumentationIssueReporter] that reports issues for the larger block of content
      * containing the fragment on which this reports.
      */
-    private val container: DocumentationIssueReporter
+    protected val container: DocumentationIssueReporter
 ) : DocumentationIssueReporter {
     /** Get the 0-based character offset of the fragment within the content of the [container]. */
     protected abstract val charOffsetFromContainer: Int
