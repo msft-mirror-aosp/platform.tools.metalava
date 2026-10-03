@@ -88,6 +88,7 @@ internal class StaxConfigParser private constructor(private val systemId: String
 
         var buildProperties: BuildPropertiesConfig? = null
         val buildPropertyNames = mutableSetOf<String>()
+        var issues: IssuesConfig? = null
 
         while (reader.hasNext()) {
             when (reader.next()) {
@@ -103,6 +104,10 @@ internal class StaxConfigParser private constructor(private val systemId: String
                             val parsed = parseBuildProperties(reader, buildPropertyNames)
                             buildProperties = combine(buildProperties, parsed)
                         }
+                        "issues" -> {
+                            val parsed = parseIssues(reader)
+                            issues = combine(issues, parsed)
+                        }
                         else -> {
                             recordUnexpectedElement(reader, "config")
                             skipElement(reader)
@@ -112,11 +117,13 @@ internal class StaxConfigParser private constructor(private val systemId: String
                 XMLStreamConstants.END_ELEMENT ->
                     return Config(
                         buildProperties = buildProperties,
+                        issues = issues,
                     )
             }
         }
         return Config(
             buildProperties = buildProperties,
+            issues = issues,
         )
     }
 
@@ -179,6 +186,48 @@ internal class StaxConfigParser private constructor(private val systemId: String
         return BuildPropertyConfig(name = name, value = value)
     }
 
+    /** Parse an `<issues>` element from [reader] into an [IssuesConfig]. */
+    private fun parseIssues(reader: XMLStreamReader): IssuesConfig {
+        checkAttributes(reader, "issues", allowedAttributes = emptySet())
+        val issues = mutableListOf<IssueConfig>()
+        while (reader.hasNext()) {
+            when (reader.next()) {
+                XMLStreamConstants.START_ELEMENT -> {
+                    if (reader.namespaceURI == CONFIG_NAMESPACE && reader.localName == "issue") {
+                        parseIssue(reader)?.let { issues.add(it) }
+                    } else {
+                        recordUnexpectedElement(reader, "issues")
+                        skipElement(reader)
+                    }
+                }
+                XMLStreamConstants.END_ELEMENT -> return IssuesConfig(issues)
+            }
+        }
+        return IssuesConfig(issues)
+    }
+
+    /** Parse an `<issue>` element from [reader] into an [IssueConfig]. */
+    private fun parseIssue(reader: XMLStreamReader): IssueConfig? {
+        val lineNumber = reader.location.lineNumber
+        checkAttributes(reader, "issue", ISSUE_ATTRIBUTES)
+        val name = requiredAttribute(reader, lineNumber, "issue", "name")
+        val severityStr = requiredAttribute(reader, lineNumber, "issue", "severity")
+        expectEmptyElement(reader, "issue")
+
+        if (name == null || severityStr == null) return null
+        validatePattern(lineNumber, "issue", "name", name, ISSUE_NAME_REGEX, "IssueNameType")
+        val severity =
+            validateEnum(
+                lineNumber,
+                "issue",
+                "severity",
+                severityStr,
+                SEVERITY_MAP,
+                "IssueSeverityType",
+            ) ?: return null
+        return IssueConfig(name = name, severity = severity)
+    }
+
     /** Retrieve a required attribute, recording an error if it is missing. */
     private fun requiredAttribute(
         reader: XMLStreamReader,
@@ -219,6 +268,29 @@ internal class StaxConfigParser private constructor(private val systemId: String
             return false
         }
         return true
+    }
+
+    /** Validate an attribute [value] against an enum [valuesMap]. */
+    private fun <E> validateEnum(
+        lineNumber: Int,
+        elementName: String,
+        attrName: String,
+        value: String,
+        valuesMap: Map<String, E>,
+        typeName: String,
+    ): E? {
+        val enumValue = valuesMap[value]
+        if (enumValue == null) {
+            recordError(
+                lineNumber,
+                "cvc-enumeration-valid: Value '$value' is not facet-valid with respect to enumeration '${valuesMap.keys}'. It must be a value from the enumeration.",
+            )
+            recordError(
+                lineNumber,
+                "cvc-attribute.3: The value '$value' of attribute '$attrName' on element '$elementName' is not valid with respect to its type, '$typeName'.",
+            )
+        }
+        return enumValue
     }
 
     /** Check that [key] has not already been seen in [seenKeys] for [constraintName]. */
@@ -316,6 +388,10 @@ internal class StaxConfigParser private constructor(private val systemId: String
     companion object : ConfigParser {
         private val BUILD_PROPERTY_ATTRIBUTES = setOf("name", "value")
         private val BUILD_PROPERTY_NAME_REGEX = Regex("[a-zA-Z0-9_]+")
+        private val ISSUE_ATTRIBUTES = setOf("name", "severity")
+        private val ISSUE_NAME_REGEX = Regex("([A-Z][a-z0-9]*)+")
+        private val SEVERITY_MAP =
+            IssueConfig.SeverityConfig.entries.associateBy { it.configFileValue }
 
         /** Parse a list of configuration files in order, returning a single [Config] object. */
         override fun parse(files: List<File>): Config {

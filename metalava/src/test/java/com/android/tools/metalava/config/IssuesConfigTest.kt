@@ -23,6 +23,8 @@ import kotlin.test.assertEquals
 import org.junit.Test
 
 class IssuesConfigTest : BaseConfigParserTest() {
+    override val staxSupported: Boolean = true
+
     @Test
     fun `Empty issues config`() {
         roundTrip(
