@@ -15,11 +15,13 @@
  */
 package com.android.tools.metalava.apilevels
 
+import androidx.tracing.Tracer
+import com.android.tools.metalava.trace
 import java.io.File
 import java.io.IOException
 
 /** Generates API version history. */
-class ApiGenerator {
+class ApiGenerator(private val tracer: Tracer) {
     /**
      * Generates an API version history file based on the API surfaces of the versions provided.
      *
@@ -27,15 +29,20 @@ class ApiGenerator {
      */
     fun generateApiHistory(config: GenerateApiHistoryConfig) {
         val versionedApis = config.versionedApis
-        val api = createApiFromVersionedApis(config.useInternalNames, versionedApis)
+        val api =
+            tracer.trace("createApiFromVersionedApis") {
+                createApiFromVersionedApis(config.useInternalNames, versionedApis)
+            }
 
         // If necessary, update the sdks properties.
         config.sdkExtensionsArguments?.let { sdkExtensionsArguments ->
-            updateSdksAttributes(
-                api,
-                sdkExtensionsArguments.notFinalizedSdkVersion,
-                sdkExtensionsArguments.sdkExtensionInfo,
-            )
+            tracer.trace("updateSdksAttributes") {
+                updateSdksAttributes(
+                    api,
+                    sdkExtensionsArguments.notFinalizedSdkVersion,
+                    sdkExtensionsArguments.sdkExtensionInfo,
+                )
+            }
         }
 
         // If android.os.ext.SdkExtensions exists in the Api then patch up its history.
@@ -61,7 +68,7 @@ class ApiGenerator {
                     )
             }
 
-        createApiLevelsFile(outputFile, printer, api)
+        tracer.trace("createApiLevelsFile") { createApiLevelsFile(outputFile, printer, api) }
     }
 
     /**

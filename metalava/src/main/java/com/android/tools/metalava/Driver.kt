@@ -255,7 +255,9 @@ class Driver(
         }
 
     private val signatureFileLoader by
-        lazy(LazyThreadSafetyMode.NONE) { DefaultSignatureFileLoader(codebaseConfig) }
+        lazy(LazyThreadSafetyMode.NONE) {
+            DefaultSignatureFileLoader(codebaseConfig, tracer = tracer)
+        }
 
     internal val signatureFileCache by
         lazy(LazyThreadSafetyMode.NONE) { SignatureFileCache(signatureFileLoader) }
@@ -553,12 +555,10 @@ class Driver(
                         "Inconsistent input file types: The first file is of $DOT_TXT, but detected different extension in ${it.path}"
                     )
                 }
-            return tracer.trace("signatureFileLoader.load") {
-                signatureFileLoader.load(
-                    SignatureFile.fromFiles(sources),
-                    classPathResolver,
-                )
-            }
+            return signatureFileLoader.load(
+                SignatureFile.fromFiles(sources),
+                classPathResolver,
+            )
         } else if (sources.size == 1 && sources[0].path.endsWith(DOT_JAR)) {
             return tracer.trace("loadFromJarFile") { loadFromJarFile(sources[0]) }
         } else if (sources.isNotEmpty() || sourceOptions.sourcePath.isNotEmpty()) {
@@ -791,7 +791,7 @@ class Driver(
             }
         }
 
-        val apiGenerator = ApiGenerator()
+        val apiGenerator = ApiGenerator(tracer)
         apiLevelsGenerationOptions
             .forAndroidConfig(
                 // Do not use a cache here as each file loaded is only loaded once and the created
@@ -864,16 +864,18 @@ class Driver(
 
         // If configured, compares the new API with the previous API and reports any
         // incompatibilities.
-        CompatibilityCheck.checkCompatibility(
-            newCodebase,
-            oldCodebase,
-            checkType,
-            reporter,
-            issueReportingOptions.issueConfiguration,
-            compatibilityCheckOptions.apiCompatAnnotations,
-            apiName,
-            apiSurface,
-        )
+        tracer.trace("CompatibilityCheck.checkCompatibility") {
+            CompatibilityCheck.checkCompatibility(
+                newCodebase,
+                oldCodebase,
+                checkType,
+                reporter,
+                issueReportingOptions.issueConfiguration,
+                compatibilityCheckOptions.apiCompatAnnotations,
+                apiName,
+                apiSurface,
+            )
+        }
     }
 
     private fun loadFromSources(): Codebase? {
