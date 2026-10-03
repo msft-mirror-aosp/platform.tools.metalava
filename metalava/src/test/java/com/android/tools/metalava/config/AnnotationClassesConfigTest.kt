@@ -22,6 +22,8 @@ import kotlin.test.assertEquals
 import org.junit.Test
 
 class AnnotationClassesConfigTest : BaseConfigParserTest() {
+    override val staxSupported: Boolean = true
+
     @Test
     fun `Empty annotation-classes config`() {
         roundTrip(

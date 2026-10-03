@@ -89,6 +89,8 @@ internal class StaxConfigParser private constructor(private val systemId: String
         var buildProperties: BuildPropertiesConfig? = null
         val buildPropertyNames = mutableSetOf<String>()
         var issues: IssuesConfig? = null
+        var annotationClasses: AnnotationClassesConfig? = null
+        val annotationClassNames = mutableSetOf<String>()
 
         while (reader.hasNext()) {
             when (reader.next()) {
@@ -108,6 +110,10 @@ internal class StaxConfigParser private constructor(private val systemId: String
                             val parsed = parseIssues(reader)
                             issues = combine(issues, parsed)
                         }
+                        "annotation-classes" -> {
+                            val parsed = parseAnnotationClasses(reader, annotationClassNames)
+                            annotationClasses = combine(annotationClasses, parsed)
+                        }
                         else -> {
                             recordUnexpectedElement(reader, "config")
                             skipElement(reader)
@@ -118,12 +124,14 @@ internal class StaxConfigParser private constructor(private val systemId: String
                     return Config(
                         buildProperties = buildProperties,
                         issues = issues,
+                        annotationClasses = annotationClasses,
                     )
             }
         }
         return Config(
             buildProperties = buildProperties,
             issues = issues,
+            annotationClasses = annotationClasses,
         )
     }
 
@@ -226,6 +234,59 @@ internal class StaxConfigParser private constructor(private val systemId: String
                 "IssueSeverityType",
             ) ?: return null
         return IssueConfig(name = name, severity = severity)
+    }
+
+    /** Parse an `<annotation-classes>` element from [reader] into an [AnnotationClassesConfig]. */
+    private fun parseAnnotationClasses(
+        reader: XMLStreamReader,
+        annotationClassNames: MutableSet<String>,
+    ): AnnotationClassesConfig {
+        checkAttributes(reader, "annotation-classes", allowedAttributes = emptySet())
+        val annotationClasses = mutableListOf<AnnotationClassConfig>()
+        while (reader.hasNext()) {
+            when (reader.next()) {
+                XMLStreamConstants.START_ELEMENT -> {
+                    if (
+                        reader.namespaceURI == CONFIG_NAMESPACE &&
+                            reader.localName == "annotation-class"
+                    ) {
+                        parseAnnotationClass(reader, annotationClassNames)?.let {
+                            annotationClasses.add(it)
+                        }
+                    } else {
+                        recordUnexpectedElement(reader, "annotation-classes")
+                        skipElement(reader)
+                    }
+                }
+                XMLStreamConstants.END_ELEMENT -> return AnnotationClassesConfig(annotationClasses)
+            }
+        }
+        return AnnotationClassesConfig(annotationClasses)
+    }
+
+    /** Parse an `<annotation-class>` element from [reader] into an [AnnotationClassConfig]. */
+    private fun parseAnnotationClass(
+        reader: XMLStreamReader,
+        annotationClassNames: MutableSet<String>,
+    ): AnnotationClassConfig? {
+        val lineNumber = reader.location.lineNumber
+        checkAttributes(reader, "annotation-class", ANNOTATION_CLASS_ATTRIBUTES)
+        val name = requiredAttribute(reader, lineNumber, "annotation-class", "name")
+        val targetsStr = requiredAttribute(reader, lineNumber, "annotation-class", "targets")
+        expectEmptyElement(reader, "annotation-class")
+
+        if (name == null || targetsStr == null) return null
+        val targets =
+            validateEnum(
+                lineNumber,
+                "annotation-class",
+                "targets",
+                targetsStr,
+                TARGETS_MAP,
+                "AnnotationClassTargetsType",
+            ) ?: return null
+        checkUniqueKey(lineNumber, annotationClassNames, name, "AnnotationClassName")
+        return AnnotationClassConfig(name = name, targets = targets)
     }
 
     /** Retrieve a required attribute, recording an error if it is missing. */
@@ -392,6 +453,9 @@ internal class StaxConfigParser private constructor(private val systemId: String
         private val ISSUE_NAME_REGEX = Regex("([A-Z][a-z0-9]*)+")
         private val SEVERITY_MAP =
             IssueConfig.SeverityConfig.entries.associateBy { it.configFileValue }
+        private val ANNOTATION_CLASS_ATTRIBUTES = setOf("name", "targets")
+        private val TARGETS_MAP =
+            AnnotationClassConfig.TargetsConfig.entries.associateBy { it.configFileValue }
 
         /** Parse a list of configuration files in order, returning a single [Config] object. */
         override fun parse(files: List<File>): Config {
