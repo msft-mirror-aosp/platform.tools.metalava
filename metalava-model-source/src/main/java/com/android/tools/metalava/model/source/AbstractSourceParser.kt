@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model.source
 
+import androidx.tracing.Tracer
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassOrigin
 import com.android.tools.metalava.model.ClassPathResolver
@@ -30,7 +31,10 @@ import java.io.IOException
 import java.util.zip.ZipFile
 import kotlin.collections.iterator
 
-abstract class AbstractSourceParser(protected val reporter: Reporter) : SourceParser {
+abstract class AbstractSourceParser(
+    protected val reporter: Reporter,
+    protected val tracer: Tracer,
+) : SourceParser {
 
     final override fun getClassPathResolver(classPath: List<File>): ClassPathResolver =
         loadCodebaseFromJars(
@@ -69,7 +73,7 @@ abstract class AbstractSourceParser(protected val reporter: Reporter) : SourcePa
                 "Codebase loaded from $apiJar",
                 includeKotlinInCodebase = false,
             )
-        initializeFromJar(codebase, apiJar)
+        tracer.trace("initializeFromJar") { initializeFromJar(codebase, apiJar) }
         return codebase
     }
 
@@ -147,15 +151,19 @@ abstract class AbstractSourceParser(protected val reporter: Reporter) : SourcePa
      */
     final override fun parseSources(inputs: SourceParser.Inputs): Codebase? {
         val absoluteInputs =
-            inputs.copy(
-                sourceSet = inputs.sourceSet.extractRoots(reporter),
-                classPath = inputs.classPath.map { it.absoluteFile },
-            )
+            tracer.trace("extractRoots") {
+                inputs.copy(
+                    sourceSet = inputs.sourceSet.extractRoots(reporter),
+                    classPath = inputs.classPath.map { it.absoluteFile },
+                )
+            }
 
         return processInputs(absoluteInputs)?.also { codebase ->
 
             // Determine sealed class exhaustivity.
-            codebase.determineIfInaccessibleClassesMakeSuperClassesNonExhaustive()
+            tracer.trace("determineIfInaccessibleClassesMakeSuperClassesNonExhaustive") {
+                codebase.determineIfInaccessibleClassesMakeSuperClassesNonExhaustive()
+            }
         }
     }
 

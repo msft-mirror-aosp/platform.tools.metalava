@@ -31,8 +31,8 @@ import java.io.File
 internal class TurbineSourceParser(
     private val codebaseConfig: Codebase.Config,
     private val jdkHome: File?,
-    private val tracer: Tracer,
-) : AbstractSourceParser(codebaseConfig.reporter) {
+    tracer: Tracer,
+) : AbstractSourceParser(codebaseConfig.reporter, tracer) {
     /**
      * Returns a codebase initialized from the given Java source files, with the given description.
      */
