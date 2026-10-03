@@ -19,8 +19,7 @@ import com.android.tools.metalava.model.JAVA_ENUM_VALUES
 import com.android.tools.metalava.model.JAVA_ENUM_VALUE_OF
 import com.android.tools.metalava.model.JavaConstants
 import java.io.File
-import java.io.FileInputStream
-import java.util.zip.ZipInputStream
+import java.util.zip.ZipFile
 import org.objectweb.asm.ClassReader
 import org.objectweb.asm.Opcodes
 import org.objectweb.asm.Type
@@ -36,10 +35,8 @@ fun Api.readJar(
     require(useInternalNames) { "Cannot add jars to Api that does not use internal names" }
     // Update the Api for this version of the jar.
     updater.update(this)
-    val fis = FileInputStream(jar)
-    ZipInputStream(fis).use { zis ->
-        while (true) {
-            val entry = zis.nextEntry ?: break
+    ZipFile(jar).use { zip ->
+        for (entry in zip.entries()) {
             val entryName = entry.name
             if (!entryName.endsWith(JavaConstants.DOT_CLASS)) {
                 continue
@@ -49,7 +46,7 @@ fun Api.readJar(
             if (filter != null && !filter(entryName)) {
                 continue
             }
-            val bytes = zis.readBytes()
+            val bytes = zip.getInputStream(entry).use { it.readBytes() }
             val reader = ClassReader(bytes)
             val classNode = ClassNode(Opcodes.ASM5)
             reader.accept(
