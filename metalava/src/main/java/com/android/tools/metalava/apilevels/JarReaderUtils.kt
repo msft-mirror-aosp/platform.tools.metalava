@@ -52,7 +52,10 @@ fun Api.readJar(
             val bytes = zis.readBytes()
             val reader = ClassReader(bytes)
             val classNode = ClassNode(Opcodes.ASM5)
-            reader.accept(classNode, 0)
+            reader.accept(
+                classNode,
+                ClassReader.SKIP_CODE or ClassReader.SKIP_DEBUG or ClassReader.SKIP_FRAMES,
+            )
 
             val classAccess = classNode.access
             val isEnum = (classAccess and Opcodes.ACC_ENUM) != 0
