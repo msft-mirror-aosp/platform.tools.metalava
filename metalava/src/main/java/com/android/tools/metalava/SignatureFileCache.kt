@@ -19,7 +19,6 @@ package com.android.tools.metalava
 import com.android.tools.metalava.cli.common.SignatureFileLoader
 import com.android.tools.metalava.model.ClassPathResolver
 import com.android.tools.metalava.model.Codebase
-import com.android.tools.metalava.model.multiplatform.MultiplatformCodebase
 import com.android.tools.metalava.model.text.SignatureFile
 
 private data class CacheKey(
@@ -28,13 +27,12 @@ private data class CacheKey(
 )
 
 /** Loads signature files, caching them for reuse where appropriate. */
-class SignatureFileCache(private val signatureFileLoader: SignatureFileLoader) :
-    SignatureFileLoader {
+class SignatureFileCache(private val signatureFileLoader: SignatureFileLoader) {
     private val map = mutableMapOf<CacheKey, Codebase>()
 
-    override fun load(
+    fun load(
         signatureFiles: List<SignatureFile>,
-        classPathResolver: ClassPathResolver?,
+        classPathResolver: ClassPathResolver? = null,
     ): Codebase {
         val key = CacheKey(signatureFiles, classPathResolver)
         return map.computeIfAbsent(key) { k ->
@@ -44,9 +42,5 @@ class SignatureFileCache(private val signatureFileLoader: SignatureFileLoader) :
                 freezeClasses()
             }
         }
-    }
-
-    override fun loadMultiplatform(signatureFiles: List<SignatureFile>): MultiplatformCodebase {
-        error("SignatureFileCache not supported for MultiplatformCodebase")
     }
 }
