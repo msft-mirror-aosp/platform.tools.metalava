@@ -43,6 +43,16 @@ data class ApiFlagsConfig(
 
     /** Validate this object, i.e. check to make sure that the contained objects are consistent. */
     fun validate() {}
+
+    /** Write this [ApiFlagsConfig] to [writer]. */
+    internal fun writeTo(writer: ConfigWriter) {
+        writer.element("api-flags") {
+            unknownFlags?.writeTo(this)
+            for (flag in flags) {
+                flag.writeTo(this)
+            }
+        }
+    }
 }
 
 interface ApiFlagActionConfig {
@@ -65,8 +75,10 @@ interface ApiFlagActionConfig {
         IMMUTABLE,
         ;
 
+        val configFileValue: String = name.lowercase()
+
         /** Name to use when serializing and deserializing this [Mutability] instance. */
-        @JsonValue fun forJackson() = name.lowercase()
+        @JsonValue fun forJackson() = configFileValue
     }
 
     enum class Status {
@@ -74,15 +86,28 @@ interface ApiFlagActionConfig {
         DISABLED,
         ;
 
+        val configFileValue: String = name.lowercase()
+
         /** Name to use when serializing and deserializing this [Status] instance. */
-        @JsonValue fun forJackson() = name.lowercase()
+        @JsonValue fun forJackson() = configFileValue
     }
 }
 
 data class UnknownApiFlagsConfig(
     @field:JacksonXmlProperty(isAttribute = true) override val mutability: Mutability,
     @field:JacksonXmlProperty(isAttribute = true) override val status: Status,
-) : ApiFlagActionConfig
+) : ApiFlagActionConfig {
+    /** Write this [UnknownApiFlagsConfig] to [writer]. */
+    internal fun writeTo(writer: ConfigWriter) {
+        writer.element(
+            "unknown-flags",
+            attributes = {
+                attribute("mutability", mutability.configFileValue)
+                attribute("status", status.configFileValue)
+            },
+        )
+    }
+}
 
 data class ApiFlagConfig(
     /** The flag package name. */
@@ -96,4 +121,18 @@ data class ApiFlagConfig(
     /** Whether the flag is exported */
     @field:JacksonXmlProperty(isAttribute = true, localName = "is-exported")
     val isExported: Boolean,
-) : ApiFlagActionConfig
+) : ApiFlagActionConfig {
+    /** Write this [ApiFlagConfig] to [writer]. */
+    internal fun writeTo(writer: ConfigWriter) {
+        writer.element(
+            "api-flag",
+            attributes = {
+                attribute("package", pkg)
+                attribute("name", name)
+                attribute("mutability", mutability.configFileValue)
+                attribute("status", status.configFileValue)
+                attribute("is-exported", isExported)
+            },
+        )
+    }
+}

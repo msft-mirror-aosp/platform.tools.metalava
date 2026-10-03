@@ -24,16 +24,14 @@ import org.xml.sax.InputSource
 
 /** Write [this] to [file] in the same format as [ConfigParser] reads. */
 fun Config.writeTo(file: File) {
-    val xmlMapper = ConfigParser.configXmlMapper()
-    xmlMapper.writeValue(file, this)
+    file.writeText(toConfigXml())
 }
 
 /**
  * Create a [TestFile] at [targetPath] containing [this] in the same format as [ConfigParser] reads.
  */
 fun Config.toTestFile(targetPath: String = "config.xml"): TestFile {
-    val xmlMapper = ConfigParser.configXmlMapper()
-    return xml(targetPath, xmlMapper.writeValueAsString(this))
+    return xml(targetPath, toConfigXml())
 }
 
 /** Get an [InputSource] to access the contents of this [TestFile]. */

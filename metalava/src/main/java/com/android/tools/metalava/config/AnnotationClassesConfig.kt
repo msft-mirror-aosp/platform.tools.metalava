@@ -35,14 +35,34 @@ data class AnnotationClassesConfig(
 
     /** Validate this object, i.e. check to make sure that the contained objects are consistent. */
     fun validate() {}
+
+    /** Write this [AnnotationClassesConfig] to [writer]. */
+    internal fun writeTo(writer: ConfigWriter) {
+        writer.element("annotation-classes") {
+            for (annotationClass in annotationClasses) {
+                annotationClass.writeTo(this)
+            }
+        }
+    }
 }
 
 data class AnnotationClassConfig(
     @field:JacksonXmlProperty(isAttribute = true) val name: String,
     @field:JacksonXmlProperty(isAttribute = true) val targets: TargetsConfig,
 ) {
+    /** Write this [AnnotationClassConfig] to [writer]. */
+    internal fun writeTo(writer: ConfigWriter) {
+        writer.element(
+            "annotation-class",
+            attributes = {
+                attribute("name", name)
+                attribute("targets", targets.configFileValue)
+            },
+        )
+    }
+
     enum class TargetsConfig(
-        private val configFileValue: String,
+        internal val configFileValue: String,
         /** The set of [AnnotationTarget]s where matching annotations should be included. */
         val annotationTargets: Set<AnnotationTarget>,
     ) {

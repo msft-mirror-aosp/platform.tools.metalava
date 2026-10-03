@@ -29,6 +29,15 @@ data class BuildPropertiesConfig(
 
     /** Validate this object, i.e. check to make sure that the contained objects are consistent. */
     fun validate() {}
+
+    /** Write this [BuildPropertiesConfig] to [writer]. */
+    internal fun writeTo(writer: ConfigWriter) {
+        writer.element("build-properties") {
+            for (property in properties) {
+                property.writeTo(this)
+            }
+        }
+    }
 }
 
 data class BuildPropertyConfig(
@@ -36,4 +45,15 @@ data class BuildPropertyConfig(
     @field:JacksonXmlProperty(isAttribute = true) val name: String,
     /** The build property value */
     @field:JacksonXmlProperty(isAttribute = true) val value: String,
-) {}
+) {
+    /** Write this [BuildPropertyConfig] to [writer]. */
+    internal fun writeTo(writer: ConfigWriter) {
+        writer.element(
+            "build-property",
+            attributes = {
+                attribute("name", name)
+                attribute("value", value)
+            },
+        )
+    }
+}

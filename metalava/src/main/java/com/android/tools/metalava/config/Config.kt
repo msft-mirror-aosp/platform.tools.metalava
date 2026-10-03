@@ -19,7 +19,6 @@ package com.android.tools.metalava.config
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties
 import com.fasterxml.jackson.dataformat.xml.annotation.JacksonXmlProperty
 import com.fasterxml.jackson.dataformat.xml.annotation.JacksonXmlRootElement
-import java.io.StringWriter
 
 /** The top level configuration object. */
 @JacksonXmlRootElement(localName = "config", namespace = CONFIG_NAMESPACE)
@@ -36,7 +35,7 @@ data class Config(
     val issues: IssuesConfig? = null,
     @field:JacksonXmlProperty(localName = "annotation-classes", namespace = CONFIG_NAMESPACE)
     val annotationClasses: AnnotationClassesConfig? = null,
-) : CombinableConfig<Config> {
+) : CombinableConfig<Config>, ConfigXmlWritable {
 
     /** Combine this [Config] with another returning a [Config] object that combines them both. */
     override fun combineWith(other: Config): Config =
@@ -55,6 +54,17 @@ data class Config(
         buildProperties?.validate()
         annotationClasses?.validate()
     }
+
+    /** Write this [Config] to [writer]. */
+    override fun writeTo(writer: ConfigWriter) {
+        writer.element("config") {
+            apiFlags?.writeTo(this)
+            apiSurfaces?.writeTo(this)
+            buildProperties?.writeTo(this)
+            issues?.writeTo(this)
+            annotationClasses?.writeTo(this)
+        }
+    }
 }
 
 /** Implemented by config objects that can be combined when loaded in separate files. */
@@ -69,12 +79,4 @@ interface CombinableConfig<T : CombinableConfig<T>> {
  */
 internal fun <T : CombinableConfig<T>> combine(t1: T?, t2: T?): T? {
     return if (t1 == null) t2 else if (t2 == null) t1 else t1.combineWith(t2)
-}
-
-/** Format [this] as XML in the same format as [ConfigParser] reads. */
-fun Any.toConfigXml(indent: String = ""): String {
-    val xmlMapper = ConfigParser.configXmlMapper()
-    val writer = StringWriter()
-    xmlMapper.writeValue(writer, this)
-    return writer.toString().trimEnd().prependIndent(indent)
 }

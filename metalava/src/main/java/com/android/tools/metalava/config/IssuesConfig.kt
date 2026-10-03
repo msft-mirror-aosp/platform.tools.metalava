@@ -27,13 +27,33 @@ data class IssuesConfig(
 ) : CombinableConfig<IssuesConfig> {
     /** Combine with another [IssuesConfig] by concatenating the [issues]s. */
     override fun combineWith(other: IssuesConfig) = IssuesConfig(issues + other.issues)
+
+    /** Write this [IssuesConfig] to [writer]. */
+    internal fun writeTo(writer: ConfigWriter) {
+        writer.element("issues") {
+            for (issue in issues) {
+                issue.writeTo(this)
+            }
+        }
+    }
 }
 
 data class IssueConfig(
     @field:JacksonXmlProperty(isAttribute = true) val name: String,
     @field:JacksonXmlProperty(isAttribute = true) val severity: SeverityConfig,
 ) {
-    enum class SeverityConfig(private val configFileValue: String, val issueSeverity: Severity) {
+    /** Write this [IssueConfig] to [writer]. */
+    internal fun writeTo(writer: ConfigWriter) {
+        writer.element(
+            "issue",
+            attributes = {
+                attribute("name", name)
+                attribute("severity", severity.configFileValue)
+            },
+        )
+    }
+
+    enum class SeverityConfig(internal val configFileValue: String, val issueSeverity: Severity) {
         HIDDEN("hidden", Severity.HIDDEN),
         INFO("info", Severity.INFO),
         WARNING("warning", Severity.WARNING),

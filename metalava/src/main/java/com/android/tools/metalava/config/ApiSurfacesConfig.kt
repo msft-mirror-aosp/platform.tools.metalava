@@ -315,6 +315,17 @@ data class ApiSurfacesConfig(
         // Force check for cycles.
         orderedSurfaces
     }
+
+    /** Write this [ApiSurfacesConfig] to [writer]. */
+    internal fun writeTo(writer: ConfigWriter) {
+        writer.element("api-surfaces") {
+            for (apiSurface in apiSurfaceList) {
+                apiSurface.writeTo(this)
+            }
+            docOnly?.writeTo(this, "doc-only")
+            removed?.writeTo(this, "removed")
+        }
+    }
 }
 
 /** An API surface that Metalava could generate. */
@@ -337,7 +348,21 @@ data class ApiSurfaceConfig(
     /** The selection criteria that determines what is included in this API surface. */
     @field:JacksonXmlProperty(localName = "selection-criteria", namespace = CONFIG_NAMESPACE)
     val selectionCriteria: SelectionCriteriaConfig = SelectionCriteriaConfig(),
-)
+) : ConfigXmlWritable {
+    /** Write this [ApiSurfaceConfig] to [writer]. */
+    override fun writeTo(writer: ConfigWriter) {
+        writer.element(
+            "api-surface",
+            attributes = {
+                attribute("name", name)
+                attribute("extends", extends)
+                attribute("contents", contents?.configFileValue)
+            },
+        ) {
+            selectionCriteria.writeTo(this)
+        }
+    }
+}
 
 /** Enumeration of the possible contents of this surface. */
 enum class ContentsConfig {
@@ -348,8 +373,10 @@ enum class ContentsConfig {
     STANDALONE,
     ;
 
+    val configFileValue: String = name.lowercase()
+
     /** Name to use when serializing and deserializing this [ContentsConfig] instance. */
-    @JsonValue fun forJackson() = name.lowercase()
+    @JsonValue fun forJackson() = configFileValue
 }
 
 /** Enumeration of the possible effects that [SelectionCriteriaConfig] may have an on an item. */
@@ -363,8 +390,10 @@ enum class EffectConfig {
     HIDE,
     ;
 
+    val configFileValue: String = name.lowercase()
+
     /** Name to use when serializing and deserializing this [EffectConfig] instance. */
-    @JsonValue fun forJackson() = name.lowercase()
+    @JsonValue fun forJackson() = configFileValue
 }
 
 /**
@@ -383,7 +412,19 @@ data class SelectionCriteriaConfig(
     /** Rules that determine what effect an annotation has on its annotated item. */
     @field:JacksonXmlProperty(localName = "annotation-rule", namespace = CONFIG_NAMESPACE)
     val annotationRules: List<AnnotationRuleConfig> = emptyList(),
-)
+) {
+    /** Write this [SelectionCriteriaConfig] to [writer]. */
+    internal fun writeTo(writer: ConfigWriter) {
+        writer.element(
+            "selection-criteria",
+            attributes = { attribute("unannotated", unannotated?.configFileValue) },
+        ) {
+            for (rule in annotationRules) {
+                rule.writeTo(this)
+            }
+        }
+    }
+}
 
 /**
  * A rule that specifies the effect annotations have on annotated items and their enclosed items.
@@ -397,7 +438,19 @@ data class AnnotationRuleConfig(
 
     /** Determines if [effect] also applies to an annotated item's enclosed items or not. */
     @field:JacksonXmlProperty(isAttribute = true) val recursive: Boolean = true,
-)
+) {
+    /** Write this [AnnotationRuleConfig] to [writer]. */
+    internal fun writeTo(writer: ConfigWriter) {
+        writer.element(
+            "annotation-rule",
+            attributes = {
+                attribute("pattern", pattern)
+                attribute("effect", effect.configFileValue)
+                attribute("recursive", recursive)
+            },
+        )
+    }
+}
 
 /**
  * Contains patterns that are used to select an API variant type, e.g. [ApiVariantType.DOC_ONLY].
@@ -412,6 +465,15 @@ data class ApiVariantTypeRuleConfig(
     /** Combine with another [ApiVariantTypeRuleConfig] by concatenating the [annotationRules]s. */
     override fun combineWith(other: ApiVariantTypeRuleConfig) =
         ApiVariantTypeRuleConfig(annotationRules + other.annotationRules)
+
+    /** Write this [ApiVariantTypeRuleConfig] as an XML element named [elementName] to [writer]. */
+    internal fun writeTo(writer: ConfigWriter, elementName: String) {
+        writer.element(elementName) {
+            for (rule in annotationRules) {
+                rule.writeTo(this)
+            }
+        }
+    }
 }
 
 /**
@@ -422,4 +484,12 @@ data class ApiVariantTypeRuleConfig(
 data class AnnotationPatternRuleConfig(
     /** Determines which annotation instances are matched by this rule. */
     @field:JacksonXmlProperty(isAttribute = true) val pattern: String,
-)
+) {
+    /** Write this [AnnotationPatternRuleConfig] to [writer]. */
+    internal fun writeTo(writer: ConfigWriter) {
+        writer.element(
+            "annotation-rule",
+            attributes = { attribute("pattern", pattern) },
+        )
+    }
+}

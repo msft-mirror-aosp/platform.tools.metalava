@@ -134,7 +134,7 @@ class ConfigParser private constructor() : DefaultHandler() {
          * generally supports reading what it writes. Tweaking it to match what is defined in the
          * schema just requires adding the correct annotations to the object.
          */
-        internal fun configXmlMapper(): XmlMapper {
+        private fun configXmlMapper(): XmlMapper {
             return XmlMapper.builder()
                 // Do not add extra wrapper elements around collections.
                 .defaultUseWrapper(false)
