@@ -100,25 +100,27 @@ abstract class DriverCommand(
         val computedCommonBaselineOptions =
             commonBaselineOptions.compute(sourceOptions, computedIssueReportingOptions)
 
-        val generalBaseline =
-            generalReportingOptions.computeBaseline(
-                executionEnvironment,
-                computedCommonBaselineOptions
-            ) {
-                getDefaultBaselineFile()
-            }
         // Manages the [Reporter]s and [Baseline]s.
         val reporterManager =
-            ReporterManager(
-                executionEnvironment.reporterEnvironment,
-                apiLintOptions,
-                compatibilityCheckOptions,
-                generalBaseline,
-                computedIssueReportingOptions,
-                sourceOptions,
-                executionEnvironment,
-                computedCommonBaselineOptions
-            )
+            tracer.trace("createReporterManager") {
+                val generalBaseline =
+                    generalReportingOptions.computeBaseline(
+                        executionEnvironment,
+                        computedCommonBaselineOptions
+                    ) {
+                        getDefaultBaselineFile()
+                    }
+                ReporterManager(
+                    executionEnvironment.reporterEnvironment,
+                    apiLintOptions,
+                    compatibilityCheckOptions,
+                    generalBaseline,
+                    computedIssueReportingOptions,
+                    sourceOptions,
+                    executionEnvironment,
+                    computedCommonBaselineOptions
+                )
+            }
 
         // Make sure to flush out the baseline files, close files and write any final messages.
         registerPostCommandAction {
@@ -131,36 +133,38 @@ abstract class DriverCommand(
             reporterManager.writeErrorMessages(stderr)
         }
         try {
-            val computedSignatureFormatOptions = signatureFormatOptions.compute()
             val driver =
-                Driver(
-                    executionEnvironment,
-                    tracer,
-                    environmentManager,
-                    reporterManager.reporter,
-                    commonOptions.verbosity,
-                    miscellaneousOptions.compute(reporterManager.reporter),
-                    apiLevelsGenerationOptions,
-                    apiLintOptions.compute(),
-                    apiSelectionOptions.compute(
-                        configFileOptions.config.apiSurfaces,
-                        addAdditionalOverrides =
-                            computedSignatureFormatOptions.fileFormat[ADD_ADDITIONAL_OVERRIDES],
-                    ),
-                    compatibilityCheckOptions.compute(),
-                    configFileOptions,
-                    computedIssueReportingOptions,
-                    multiplatformOptions,
-                    nullabilityValidationOptions.compute(reporterManager.reporter),
-                    signatureFileOptions,
-                    computedSignatureFormatOptions,
-                    sourceOptions,
-                    stubGenerationOptions,
-                )
+                tracer.trace("createDriver") {
+                    val computedSignatureFormatOptions = signatureFormatOptions.compute()
+                    Driver(
+                        executionEnvironment,
+                        tracer,
+                        environmentManager,
+                        reporterManager.reporter,
+                        commonOptions.verbosity,
+                        miscellaneousOptions.compute(reporterManager.reporter),
+                        apiLevelsGenerationOptions,
+                        apiLintOptions.compute(),
+                        apiSelectionOptions.compute(
+                            configFileOptions.config.apiSurfaces,
+                            addAdditionalOverrides =
+                                computedSignatureFormatOptions.fileFormat[ADD_ADDITIONAL_OVERRIDES],
+                        ),
+                        compatibilityCheckOptions.compute(),
+                        configFileOptions,
+                        computedIssueReportingOptions,
+                        multiplatformOptions,
+                        nullabilityValidationOptions.compute(reporterManager.reporter),
+                        signatureFileOptions,
+                        computedSignatureFormatOptions,
+                        sourceOptions,
+                        stubGenerationOptions,
+                    )
+                }
             tracer.trace("processFlags") { driver.processFlags() }
         } finally {
             // Write all saved reports. Do this even if the previous code threw an exception.
-            reporterManager.writeSavedReports()
+            tracer.trace("writeSavedReports") { reporterManager.writeSavedReports() }
         }
 
         if (reporterManager.hasAnyErrors() && !computedCommonBaselineOptions.passBaselineUpdates) {
